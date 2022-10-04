@@ -83,35 +83,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <config.h>
 #include <graphics.h>
 
+#include <diag.h>
+
 /* external definitions */
 #ifndef __MACH__ /* Mac OS X */
 extern char *program_invocation_short_name;
 #endif
-
-/*
- * Debug print system
- *
- * Example use:
- *
- * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
- *
- * mydir/test.c:myfunc():12: There was an error: somestring
- *
- */
-
-static enum { /* debug levels */
-
-    dlinfo, /* informational */
-    dlwarn, /* warnings */
-    dlfail, /* failure/critical */
-    dlnone  /* no messages */
-
-} dbglvl = dlinfo;
-
-#define dbg_printf(lvl, fmt, ...) \
-        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
-                                __func__, __LINE__, ##__VA_ARGS__); \
-                                fflush(stderr); } while (0)
 
 /* select dialog/command line error */
 #define USEDLG
@@ -120,13 +97,14 @@ static enum { /* debug levels */
 #define NOCANCEL /* include nocancel overrides */
 #endif
 
-#define MAXFIL 100 /* maximum open files */
-#define MAXCON 10  /* number of screen contexts */
-#define MAXTAB 50  /* total number of tabs possible per window */
-#define MAXLIN 250 /* maximum length of input bufferred line */
-#define USEUNICODE /* use unicode frame characters */
+#define MAXFIL 100   /* maximum open files */
+#define MAXCON 10    /* number of screen contexts */
+#define MAXTAB 50    /* total number of tabs possible per window */
+#define MAXLIN 250   /* maximum length of input bufferred line */
+#define USEUNICODE   /* use unicode frame characters */
 //#define PRTROOTEVT /* print root window events */
-//#define PRTEVT /* print outbound events */
+//#define PRTEVT     /* print outbound events */
+//#define PRTFMASK   /* print the forward masks calculated */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -382,6 +360,8 @@ typedef struct winrec {
     int      focus;             /* window has focus */
     int      hover;             /* window being hovered */
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
+    unsigned char* fmask;       /* forward mask in bits per character */
+    int      fmasklen;          /* length of the bitmask */
     int      timers[PA_MAXTIM]; /* timer id array */
     int      frmtim;            /* frame timer */
     pa_color frmcolor;          /* frame color */
@@ -1517,6 +1497,142 @@ static void clrbufs(winptr win)
 
         if (win->screens[si]) free(win->screens[si]); /* free screen data */
         win->screens[si] = NULL; /* clear screen data */
+        if (win->fmask) free(win->fmask); /* free mask data */
+        win->fmask = NULL; /* clear it */
+
+    }
+
+}
+
+/** ****************************************************************************
+
+Allocate new mask
+
+Allocates a new forward mask for the given window.
+
+*******************************************************************************/
+
+static void alcfmask(winptr win)
+
+{
+
+    int i, t;
+
+    t = win->maxy*win->maxx; /* find total characters in buffer */
+    i = t/8; /* find bytes for forward mask */
+    if (t%8) i++; /* round up */
+    win->fmask = malloc(i); /* allocate forward mask */
+    if (!win->fmask) error("Out of memory");
+    memset(win->fmask, 0xff, i); /* set the bitmap */
+    win->fmasklen = i; /* save the length */
+
+}
+
+/** ****************************************************************************
+
+Construct new forward bitmask
+
+Clears the forward bitmask, then draws 0's in it for each window in the Z-order
+that is in front of it. This forms a mask of where drawing on the window is
+valid.
+
+*******************************************************************************/
+
+static void calcfmask(winptr win)
+
+{
+
+    winptr    wp;         /* window structure pointer */
+    rectangle r1, r2, r3; /* window rectangles */
+    int       x, y;
+    int       cx, cy;
+    int       l;
+
+    memset(win->fmask, 0xff, win->fmasklen); /* set the bitmap */
+    /* find the onscreen client rectangle in root terms */
+    setrect(&r1, win->orgx+win->coffx, win->orgy+win->coffy,
+                 win->orgx+win->coffx+win->cmaxx-1, 
+                 win->orgy+win->coffy+win->cmaxy-1);
+    wp = win->zmin2max; /* index windows in front by Z order */
+    while (wp) { /* tour the (possibly) lapping windows */
+
+        /* set window rectangle in root terms */
+        setrect(&r2, wp->orgx, wp->orgy,
+                    wp->orgx+wp->pmaxx-1, wp->orgy+wp->pmaxy-1);
+        if (intersect(&r1, &r2)) { /* if this window overlaps our client area */
+
+            intersection(&r3, &r1, &r2); /* find the intersected rectangle */
+            /* draw into mask */
+            for (y = r3.y1; y <= r3.y2; y++)
+                for (x = r3.x1; x <= r3.x2; x++) {
+
+                /* find net client offset */
+                cx = x-(win->orgx+win->coffx);
+                cy = y-(win->orgy+win->coffy);
+                /* clear the cx/cy bit */
+                l = cy*win->bufx+cx; /* find character location */
+                win->fmask[l/8] &= ~(1<<(l%8)); /* mask off that bit */
+
+            }
+
+        }   
+        wp = wp->zmin2max; /* next window entry */
+
+    }
+
+    /* diagnostic: print forward mask */
+#ifdef PRTFMASK
+    fprintf(stderr, "Forward mask: wid: %d size x: %d y: %d\n", 
+                    win->wid, win->maxx, win->maxy); 
+    fflush(stderr);
+    fprintf(stderr, "     ");
+    for (x = 1; x <= win->maxx; x++) fprintf(stderr, "%c", x%10+'0');
+    fprintf(stderr, "\n");
+    fflush(stderr);
+    for (y = 1; y <= win->maxy; y++) {
+
+        fprintf(stderr, "%03d: ", y);
+        for (x = 1; x <= win->maxx; x++) {
+
+            l = (y-1)*win->bufx+(x-1); /* find character location */
+            if (win->fmask[l/8] & 1<<(l%8)) fprintf(stderr, "1");
+            else fprintf(stderr, "0");
+
+        }
+        fprintf(stderr, "\n"); 
+        fflush(stderr);
+
+    }
+    fprintf(stderr, "\n"); 
+    fflush(stderr);
+#endif
+
+}
+
+/** ****************************************************************************
+
+Recalculate all window forward masks
+
+Reconstructs the forward mask for all windows. Goes through the windows list and
+recalculates the forward mask. This is used anytime new windows or a change in
+window position, size or Z-order is done.
+
+This could be optimized by checking if the target window lies in the bounding
+box of the change.
+
+*******************************************************************************/
+
+void recalcfmask(void)
+
+{
+
+    winptr    win; /* pointer to windows list */
+
+    win = winlst; /* get the master list */
+    while (win) { /* traverse the windows list */
+
+        calcfmask(win); /* recalculate forward mask */
+        win = win->winlst; /* next window */
 
     }
 
@@ -2492,6 +2608,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     winptr  pwin; /* parent window pointer */
     int     t;
     int     ti;
+    int     i;
 
     win = lfn2win(fn); /* get a pointer to the window */
     win->root = root; /* set root window status */
@@ -2575,6 +2692,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     for (si = 0; si < MAXCON; si++) win->screens[si] = NULL;
     /* get the default screen */
     win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
+    if (!win->screens[0]) error("Out of memory");
+    alcfmask(win); /* allocate forward mask */
     win->bufx = win->maxx; /* save size of buffer */
     win->bufy = win->maxy;
     win->curdsp = 1; /* set current display screen */
@@ -2594,6 +2713,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
+    recalcfmask(); /* recalculate the forward masks */
 
 }
 
@@ -3052,6 +3172,7 @@ static void intsetsiz(winptr win, int x, int y)
         }
 
     }
+    recalcfmask(); /* recalculate the forward masks */
 
 }
 
@@ -3114,6 +3235,7 @@ static void intsetpos(winptr win, int x, int y)
         }
 
     }
+    recalcfmask(); /* recalculate the forward masks */
 
 }
 
@@ -3749,8 +3871,9 @@ static void iselect(FILE* f, int u, int d)
 
 {
 
-    int    ld;  /* last display screen number save */
-    winptr win; /* window record pointer */
+    int    ld;   /* last display screen number save */
+    winptr win;  /* window record pointer */
+    int    i, t;
 
     win = txt2win(f); /* get window from file */
     if (!win->bufmod) error("Buffered mode not enabled"); /* error */
@@ -3764,6 +3887,7 @@ static void iselect(FILE* f, int u, int d)
         win->screens[win->curupd-1] =
             malloc(sizeof(scnrec)*win->maxy*win->maxx);
         iniscn(win, win->screens[win->curupd-1]); /* initalize that */
+        alcfmask(win); /* allocate and clear forward mask */
 
     }
     win->curdsp = d; /* set the current display screen */
@@ -3773,6 +3897,7 @@ static void iselect(FILE* f, int u, int d)
         win->screens[win->curdsp-1] =
             malloc(sizeof(scnrec)*win->maxy*win->maxx);
         iniscn(win, win->screens[win->curdsp-1]); /* initalize that */
+        if (!win->fmask) alcfmask(win); /* allocate and clear forward mask */
 
     }
     /* if the screen has changed, restore it */
@@ -5037,8 +5162,10 @@ static void isizbuf(FILE* f, int x, int y)
         win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
         /* clear */
         iniscn(win, win->screens[0]);
+        alcfmask(win); /* allocate and clear forward mask */
 
     }
+    recalcfmask(); /* recalculate the forward masks */
 
 }
 
@@ -5444,6 +5571,7 @@ static void plcchr(FILE* f, char c)
 
     winptr  win;   /* windows record pointer */
     scnrec* scp;   /* pointer to screen location */
+    int     l;
 
     win = txt2win(f); /* get window from file */
     if (!win->visible) winvis(win); /* make sure we are displayed */
@@ -5464,7 +5592,9 @@ static void plcchr(FILE* f, char c)
     /* only output visible characters */
     else if (c >= ' ' && c != 0x7f) {
 
-        if (icurbnd(f)) { /* cursor is in bounds */
+        /* find character location */
+        l = (win->cury-1)*win->bufx+(win->curx-1); 
+        if (icurbnd(f) && win->fmask[l/8] & 1<<(l%8)) { /* cursor is in bounds */
 
             if (win->bufmod) { /* buffer is active */
 

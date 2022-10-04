@@ -18,6 +18,9 @@ is do to using xterm scroll to move. We can turn this off.
 
 7. Make sure all configurations are represented in the config file.
 
+8. Simply waiting for input causes "program unresponsive". Need to turn this off
+when inside the pa_event() function.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 
