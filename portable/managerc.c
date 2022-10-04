@@ -2260,8 +2260,8 @@ static winptr fndtop(int x, int y)
     z = -1; /* set invalid z order */
     while (win) { /* traverse the windows list */
 
-        if (win->orgx <= x && x <= win->orgx+win->pmaxx-1 &&
-            win->orgy <= y && y <= win->orgy+win->pmaxy-1 &&
+        if (win->orgx >= x && x <= win->orgx+win->pmaxx-1 &&
+            win->orgy >= y && y <= win->orgy+win->pmaxy-1 &&
             win->zorder > z) {
 
             /* found inclusion, Z order above previous */

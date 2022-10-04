@@ -12,6 +12,19 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "Compile Petit-ami application with window manager",
+            "type": "shell",
+            "command": "make ${fileBasenameNoExtension} USEMANAGERC=1",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ],
     "version": "2.0.0"
