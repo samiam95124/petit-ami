@@ -766,6 +766,7 @@ static void error_ivf(pa_errcod e)
         case pa_dispefilzer: fprintf(stderr, "Filename is empty"); break;
         case pa_dispeinvscn: fprintf(stderr, "Invalid screen number"); break;
         case pa_dispeinvhan: fprintf(stderr, "Invalid file handle"); break;
+        case pa_dispeinvthn: fprintf(stderr, "Invalid timer handle"); break;
         case pa_dispemouacc: fprintf(stderr, "No mouse access available"); break;
         case pa_dispeoutdev: fprintf(stderr, "Error in output device"); break;
         case pa_dispeinpdev: fprintf(stderr, "Error in input device"); break;
@@ -4637,7 +4638,7 @@ static void timer_ivf(/* file to send event to */              FILE* f,
 {
 
     dbg_printf(dlapi, "API\n");
-    if (i < 1 || i > PA_MAXTIM) error(pa_dispeinvhan); /* invalid timer handle */
+    if (i < 1 || i > PA_MAXTIM) error(pa_dispeinvthn); /* invalid timer handle */
     pthread_mutex_lock(&timlock); /* take the timer lock */
     timtbl[i-1] = system_event_addsetim(timtbl[i-1], t, r);
     pthread_mutex_unlock(&timlock); /* release the timer lock */
@@ -4662,7 +4663,7 @@ static void killtimer_ivf(/* file to kill timer on */ FILE *f,
 {
 
     dbg_printf(dlapi, "API\n");
-    if (i < 1 || i > PA_MAXTIM) error(pa_dispeinvhan); /* invalid timer handle */
+    if (i < 1 || i > PA_MAXTIM) error(pa_dispeinvthn); /* invalid timer handle */
     pthread_mutex_lock(&timlock); /* take the timer lock */
     if (timtbl[i-1] <= 0) {
 

@@ -172,6 +172,7 @@ typedef enum {
     pa_dispefilzer,          /* filename is empty */
     pa_dispeinvscn,          /* invalid screen number */
     pa_dispeinvhan,          /* invalid handle */
+    pa_dispeinvthn,          /* invalid timer handle */
     pa_dispemouacc,          /* mouse access */
     pa_dispeoutdev,          /* output device error */
     pa_dispeinpdev,          /* input device error */

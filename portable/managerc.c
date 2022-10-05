@@ -4271,11 +4271,11 @@ static void intevent(FILE* f)
             }
             break;
         case pa_ettim:     /* timer matures */
-            if (timtbl[ev.timnum]) { /* there is a window assigned */
+            if (timtbl[ev.timnum-1]) { /* there is a window assigned */
 
                 win = timtbl[ev.timnum-1]; /* get the assigned window */
                  /* check framing/normal timer */
-                if (win->frmtim = ev.timnum) er.etype = pa_etframe;
+                if (win->frmtim == ev.timnum) er.etype = pa_etframe;
                 else {
 
                     er.etype = pa_ettim; /* set type */
@@ -4712,11 +4712,11 @@ static void itimer(FILE* f, int i, long t, int r)
         if (ti >= PA_MAXTIM) error("Root timers are full");
         timtbl[ti] = win; /* place owner link */
         timids[ti] = i; /* place timer logical id */
-        win->timers[i-1] = ti; /* place root id */
+        win->timers[i-1] = ti+1; /* place root id */
 
     }
     /* pass it down */
-    (*timer_vect)(f, win->timers[i-1], t, r);
+    (*timer_vect)(stdout, win->timers[i-1], t, r);
 
 }
 
@@ -4738,7 +4738,7 @@ static void ikilltimer(FILE* f, int i)
     win = txt2win(f); /* get window from file */
     if (!win->timers[i-1]) error("No such timer");
     /* pass it down */
-    (*killtimer_vect)(f, win->timers[i-1]);
+    (*killtimer_vect)(stdout, win->timers[i-1]);
     /* release the root timer so that we can reuse it */
     timtbl[win->timers[i-1]-1] = NULL;
     win->timers[i-1] = 0;
@@ -4758,7 +4758,7 @@ static int imouse(FILE* f)
 
 {
 
-    return (*mouse_vect)(f); /* find number of mice */
+    return (*mouse_vect)(stdout); /* find number of mice */
 
 }
 
@@ -4775,7 +4775,7 @@ static int imousebutton(FILE* f, int m)
 
 {
 
-    return (*mousebutton_vect)(f, m); /* find number of buttons */
+    return (*mousebutton_vect)(stdout, m); /* find number of buttons */
 
 }
 
@@ -4791,7 +4791,7 @@ static int ijoystick(FILE* f)
 
 {
 
-    return (*joystick_vect)(f); /* find number of joysticks */
+    return (*joystick_vect)(stdout); /* find number of joysticks */
 
 }
 
@@ -4808,7 +4808,7 @@ static int ijoybutton(FILE* f, int j)
 
 {
 
-    return (*joybutton_vect)(f, j); /* find number of buttons */
+    return (*joybutton_vect)(stdout, j); /* find number of buttons */
 
 }
 
@@ -4827,7 +4827,7 @@ static int ijoyaxis(FILE* f, int j)
 
 {
 
-    return (*joyaxis_vect)(f, j); /* find number of axies */
+    return (*joyaxis_vect)(stdout, j); /* find number of axies */
 
 }
 
@@ -4905,7 +4905,7 @@ static int ifunkey(FILE* f)
 
 {
 
-    return (*funkey_vect)(f); /* find number of function keys */
+    return (*funkey_vect)(stdout); /* find number of function keys */
 
 }
 
@@ -4940,12 +4940,12 @@ static void iframetimer(FILE* f, int e)
 
         }
         /* pass it down */
-        (*timer_vect)(f, win->frmtim, 166, TRUE);
+        (*timer_vect)(stdout, win->frmtim, 166, TRUE);
 
     } else { /* disable framing timer */
 
         /* pass it down */
-        (*killtimer_vect)(f, win->frmtim);
+        (*killtimer_vect)(stdout, win->frmtim);
         /* release the root timer so that we can reuse it */
         timtbl[win->frmtim-1] = NULL;
         win->frmtim = 0;
