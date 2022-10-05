@@ -4447,9 +4447,9 @@ static void readline(int fd)
     lcmp = FALSE; /* set line not complete */
     do { /* get line characters */
 
-        f = opnfil[fd]->sfp; /* get window file */
         ievent(f, &er); /* get next event */
         ofn = xltwin[er.winid+MAXFIL]; /* get logical output file */
+        f = opnfil[ofn]->sfp; /* get window file */
         if (ofn >= 0 && opnfil[ofn]->inl == fd) {
 
             /* output file indexes our input file */
