@@ -460,6 +460,7 @@ static winptr   winlst;       /* master list of all windows */
 static winptr   rootlst;      /* master list of all roots */
 static winptr   zmin2max;     /* Z order minimum to maximum list */
 static winptr   zmax2min;     /* Z order maximum to minimum list */
+static winptr   curfocus;     /* current focus window, or NULL */
 static int      ztop;         /* current maximum/front Z order */
 static int      mousex;       /* mouse tracking x */
 static int      mousey;       /* mouse tracking y */
@@ -2142,43 +2143,12 @@ void remfocus(void)
 
         }
         win->focus = FALSE;
+        curfocus = NULL;
         win = win->winlst; /* next window */
 
     }
 
 }
-
-/*******************************************************************************
-
-Find focus window
-
-Finds the window currently holding focus. Returns the window pointer, or NULL if
-no window is found to have focus. This would happen if the user clicked on an
-unoccupied area of the root window.
-
-*******************************************************************************/
-
-static winptr fndfocus(void)
-
-{
-
-    winptr win; /* pointer to windows list */
-    winptr fp;  /* found window pointer */
-
-    win = winlst; /* get the master list */
-    fp = NULL; /* set no window found */
-    while (win) { /* traverse the windows list */
-
-        /* if in focus, find and terminate */
-        if (win->focus) { fp = win; win = NULL; }
-        else win = win->winlst; /* next window */
-
-    }
-
-    return (fp);
-
-}
-
 
 /*******************************************************************************
 
@@ -2272,8 +2242,10 @@ static winptr fndtop(int x, int y)
         win = win->winlst; /* next window */
 
     }
+    /* if no window found, place in root window by default */
+    if (!win) win = zmin2max;
 
-    return (fp); /* exit wth container or NULL */
+    return (fp); /* exit wth container */
 
 }
 
@@ -2635,6 +2607,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     ztop++; /* increase Z ordering */
     remfocus(); /* remove any existing focus */
     win->focus = TRUE; /* last window in gets focus */
+    curfocus = win;
     win->hover = FALSE; /* set no hover */
     win->zorder = ztop; /* set Z order for this window */
     makzmin2max(); /* (re)create the Z min to max list */
@@ -3957,7 +3930,7 @@ static void intevent(FILE* f)
 
         case pa_etchar: /* input character ready */
 
-            win = fndfocus(); /* find focus window (if any) */
+            win = curfocus; /* get focus window (if any) */
             if (win) { /* found focus window */
 
                 er.etype = pa_etchar; /* place character code */
@@ -4104,6 +4077,7 @@ static void intevent(FILE* f)
                     er.etype = pa_etfocus; /* set focus event */
                     intsendevent(win, &er); /* send to queue */
                     win->focus = TRUE; /* set current focus */
+                    curfocus = win;
                     if (inclient(win, mousex, mousey)) {
 
                         /* window went into focus, can have hover now */
@@ -4261,8 +4235,8 @@ static void intevent(FILE* f)
         case pa_etprints:  /* print screen */
         case pa_etfun:     /* function key */
         case pa_etmenu:    /* display menu */
-            win = fndtop(curx, cury); /* find the enclosing window */
-            if (win && win->focus) {
+            win = curfocus; /* get the focus window */
+            if (win) {
 
                 er.etype = ev.etype; /* set key type */
                 er.winid = win->wid; /* set window logical id */
@@ -5559,6 +5533,7 @@ static void ifocus(FILE* f)
 
         remfocus(); /* remove previous focus */
         win->focus = TRUE; /* set current focus */
+        curfocus = win;
         setcur(win); /* set cursor active */
 
     }
@@ -6062,6 +6037,9 @@ static void init_managerc()
     /* set cursor on */
     (*curvis_vect)(stdout, TRUE);
     curon = TRUE;
+
+    /* set no focus window */
+    curfocus = NULL;
 
     /* set auto off */
     (*auto_vect)(stdout, FALSE);
