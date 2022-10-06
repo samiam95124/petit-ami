@@ -2242,8 +2242,6 @@ static winptr fndtop(int x, int y)
         win = win->winlst; /* next window */
 
     }
-    /* if no window found, place in root window by default */
-    if (!win) win = zmin2max;
 
     return (fp); /* exit wth container */
 
@@ -4235,7 +4233,7 @@ static void intevent(FILE* f)
         case pa_etprints:  /* print screen */
         case pa_etfun:     /* function key */
         case pa_etmenu:    /* display menu */
-            win = curfocus; /* get the focus window */
+            win = curfocus; /* get the focus window (if any) */
             if (win) {
 
                 er.etype = ev.etype; /* set key type */
