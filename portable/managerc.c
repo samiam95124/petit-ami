@@ -4261,7 +4261,7 @@ static void intevent(FILE* f)
         case pa_etprints:  /* print screen */
         case pa_etfun:     /* function key */
         case pa_etmenu:    /* display menu */
-            win = fndtop(mousex, mousey); /* find the enclosing window */
+            win = fndtop(curx, cury); /* find the enclosing window */
             if (win && win->focus) {
 
                 er.etype = ev.etype; /* set key type */
@@ -5059,7 +5059,8 @@ static void ititle(FILE* f, char* ts)
 
 {
 
-    winptr win; /* windows record pointer */
+    winptr    win; /* windows record pointer */
+    rectangle r;
 
     win = txt2win(f); /* get window from file */
     if (win->title) free(win->title); /* free previous string */
@@ -5067,6 +5068,19 @@ static void ititle(FILE* f, char* ts)
     if (!win->title) error("Out of memory");
     /* set title to invoking program */
     strcpy(win->title, ts);
+    /* if its the root window, copy down to underlying window */
+    if (win->root) (*title_vect)(stdout, ts);
+    else if (win->frame && win->sysbar && win->pmaxy >= 3) {
+
+        /* we own the window, the frame and system bar is on, and it is 
+           visible */
+
+        /* set title bounding box */
+        setrect(&r, win->orgx+2, win->orgy+win->size, 
+                   win->pmaxx-6-4, win->orgy+win->size); 
+        drwfrm(win, &r); /* draw or redraw title */
+
+    }
 
 }
 
