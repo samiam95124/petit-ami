@@ -4563,7 +4563,7 @@ static void event_ivf(FILE* f, pa_evtrec *er)
         /* reset the response timer */
         if (unresponse) {
 
-            respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+            system_event_deasetim(respsev); /* kill the response timer */
             /* reset any response state */
             if (respto) {
 
@@ -4609,6 +4609,9 @@ static void event_ivf(FILE* f, pa_evtrec *er)
         }
 
     } while (er->handled);
+    /* reset the response timer */
+    if (unresponse) respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+
     /* event not handled, return it to the caller */
 
     /* do diagnostic dump of PA events */
