@@ -2892,12 +2892,13 @@ static void intscroll(winptr win, int x, int y)
 
 {
 
-    int      xi, yi; /* screen counters */
-    scnptr   scnsav; /* full screen buffer save */
-    int      lx;     /* last unmatching character index */
-    int      m;      /* match flag */
-    scnptr   sc;     /* pointer to current screen */
-    scnptr   sp;     /* pointer to screen record */
+    int      xi, yi;       /* screen counters */
+    scnptr   scnsav;       /* full screen buffer save */
+    int      lx;           /* last unmatching character index */
+    int      m;            /* match flag */
+    scnptr   sc;           /* pointer to current screen */
+    scnptr   sp;           /* pointer to screen record */
+    int      curxs, curys; /* cursor position save */
 
     /* when the scroll is arbitrary, we do it by completely refreshing the
        contents of the screen from the buffer */
@@ -2905,7 +2906,7 @@ static void intscroll(winptr win, int x, int y)
 
         wrtchr('\f'); /* scroll would result in complete clear, do it */
         iniscn(win, win->screens[win->curupd-1]);   /* clear the screen buffer */
-        /* restore cursor positition */
+        /* restore cursor position */
         setcursor(win->orgx+win->coffx, win->orgy+win->coffy);
 
     } else { /* scroll */
@@ -3011,6 +3012,8 @@ static void intscroll(winptr win, int x, int y)
         }
         if (indisp(win)) { /* in display */
 
+            curxs = curx; /* save cursor position */
+            curys = cury;
             /* the buffer is adjusted. now just copy the complete buffer to the
                screen */
             for (yi = 1; yi <= win->maxy; yi++) { /* lines */
@@ -3057,6 +3060,7 @@ static void intscroll(winptr win, int x, int y)
                 }
 
             }
+            (*cursor_vect)(stdout, curxs, curys); /* restore cursor position */
 
         }
 
