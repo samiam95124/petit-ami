@@ -1255,51 +1255,51 @@ static void setattrs(int at)
 
 {
 
-    if (BIT(sasuper) & at != BIT(sasuper) & attr) { /* has changed */
+    if ((BIT(sasuper) & at) != (BIT(sasuper) & attr)) { /* has changed */
 
         (*superscript_vect)(stdout, BIT(sasuper) & at);
         attr = attr & ~BIT(sasuper) | BIT(sasuper) & at;
 
     }
-    if (BIT(sasubs) & at != BIT(sasubs) & attr) { /* has changed */
+    if ((BIT(sasubs) & at) != (BIT(sasubs) & attr)) { /* has changed */
 
         (*subscript_vect)(stdout, BIT(sasubs) & at);
         attr = attr & ~BIT(sasubs) | BIT(sasubs) & at;
 
     }
-    if (BIT(sablink) & at != BIT(sablink) & attr) { /* has changed */
+    if ((BIT(sablink) & at) != (BIT(sablink) & attr)) { /* has changed */
 
         (*blink_vect)(stdout, BIT(sablink) & at);
         attr = attr & ~BIT(sablink) | BIT(sablink) & at;
 
     }
-    if (BIT(sastkout) & at != BIT(sastkout) & attr) { /* has changed */
+    if ((BIT(sastkout) & at) != (BIT(sastkout) & attr)) { /* has changed */
 
         (*blink_vect)(stdout, BIT(sastkout) & at);
         attr = attr & ~BIT(sastkout) | BIT(sastkout) & at;
 
     }
-    if (BIT(saital) & at != BIT(saital) & attr) { /* has changed */
+    if ((BIT(saital) & at) != (BIT(saital) & attr)) { /* has changed */
 
-        (*blink_vect)(stdout, BIT(saital) & at);
+        (*italic_vect)(stdout, BIT(saital) & at);
         attr = attr & ~BIT(saital) | BIT(saital) & at;
 
     }
-    if (BIT(sabold) & at != BIT(sabold) & attr) { /* has changed */
+    if ((BIT(sabold) & at) != (BIT(sabold) & attr)) { /* has changed */
 
-        (*blink_vect)(stdout, BIT(sabold) & at);
+        (*bold_vect)(stdout, BIT(sabold) & at);
         attr = attr & ~BIT(sabold) | BIT(sabold) & at;
 
     }
-    if (BIT(saundl) & at != BIT(saundl) & attr) { /* has changed */
+    if ((BIT(saundl) & at) != (BIT(saundl) & attr)) { /* has changed */
 
-        (*blink_vect)(stdout, BIT(saundl) & at);
+        (*underline_vect)(stdout, BIT(saundl) & at);
         attr = attr & ~BIT(saundl) | BIT(saundl) & at;
 
     }
-    if (BIT(sarev) & at != BIT(sarev) & attr) { /* has changed */
+    if ((BIT(sarev) & at) != (BIT(sarev) & attr)) { /* has changed */
 
-        (*blink_vect)(stdout, BIT(sarev) & at);
+        (*reverse_vect)(stdout, BIT(sarev) & at);
         attr = attr & ~BIT(sarev) | BIT(sarev) & at;
 
     }
@@ -3494,7 +3494,7 @@ static void ireverse(FILE* f, int e)
 
 /** ****************************************************************************
 
-Turn on reverse attribute
+Turn on underline attribute
 
 Turns on/off the reverse attribute. Reverse is done by swapping the background
 and foreground writing colors.

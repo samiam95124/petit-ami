@@ -18,11 +18,18 @@ https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Graphics
 
 Unknown what Windows console mode can do.
 
-2. The root window should be restricted against movement in Z, and no window is
-allows to move behind it. This is part of the compatibility system.
+2. Background color sets don't work.
 
-3. Need to implement arbitrary clipping masks.
+3. Moving a window offscreen left puts it's cursor in an invalid location.
 
-4. Background color sets don't work.
+4. Cursor motions test fails, the bottom X's do not paint correctly in the 
+bottom corners. Its intermittent, and different runs work or do not work.
 
-5. Moving a window offscreen left puts it's cursor in an invalid location.
+4. Blinking test does not work in transparency test.
+
+5. RGB test does not work in transparency test.
+
+6. Scroll testing does not work in transparency test. It takes a long time, and
+nothing happens.
+
+
