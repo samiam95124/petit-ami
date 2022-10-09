@@ -18,6 +18,10 @@ is do to using xterm scroll to move. We can turn this off.
 
 7. Make sure all configurations are represented in the config file.
 
+8. Seeing what looks like mouse position characters on shutdown. My theory is that
+this happend between the start of shutdown and the command telling xterm to stop
+sending these sequences.
+
 MACOSX/Quartz version ============================================================
 
 1. In the Mac OS X version, the final benchmark tallys are getting erased. I 

@@ -1242,7 +1242,8 @@ Set screen attribute cached
 Sets the current root screen attribute according to the current set of attributes.
 Note that if multiple attributes are set, but the system only allows a single
 attribute, then only the standout attribute will be set, since that is the last
-attribute to be activated.
+attribute to be activated. The turn off attributes are processed first, because
+in a single attribute system, off attributes turn all of them off.
 
 The standout attribute is a series of attributes in priority order.
 
@@ -1255,54 +1256,43 @@ static void setattrs(int at)
 
 {
 
-    if ((BIT(sasuper) & at) != (BIT(sasuper) & attr)) { /* has changed */
+   /* process "off" attributes */
+   if ((BIT(sasuper) & at) != (BIT(sasuper) & attr)) /* has changed */
+        if (!(BIT(sasuper) & at)) (*superscript_vect)(stdout, FALSE);
+    if ((BIT(sasubs) & at) != (BIT(sasubs) & attr)) /* has changed */
+        if (!(BIT(sasubs) & at)) (*subscript_vect)(stdout, FALSE);
+    if ((BIT(sablink) & at) != (BIT(sablink) & attr)) /* has changed */
+        if (!(BIT(sablink) & at)) (*blink_vect)(stdout, FALSE);
+    if ((BIT(sastkout) & at) != (BIT(sastkout) & attr)) /* has changed */
+        if(!(BIT(sastkout) & at)) (*strikeout_vect)(stdout, FALSE);
+    if ((BIT(saital) & at) != (BIT(saital) & attr)) /* has changed */
+        if (!(BIT(saital) & at)) (*italic_vect)(stdout, FALSE);
+    if ((BIT(sabold) & at) != (BIT(sabold) & attr)) /* has changed */
+        if (!(BIT(sabold) & at)) (*bold_vect)(stdout, FALSE);
+    if ((BIT(saundl) & at) != (BIT(saundl) & attr)) /* has changed */
+        if (!(BIT(saundl) & at)) (*underline_vect)(stdout, FALSE);
+    if ((BIT(sarev) & at) != (BIT(sarev) & attr)) /* has changed */
+        if (!(BIT(sarev) & at)) (*reverse_vect)(stdout, FALSE);
 
-        (*superscript_vect)(stdout, BIT(sasuper) & at);
-        attr = attr & ~BIT(sasuper) | BIT(sasuper) & at;
+    /* process "on" attributes */
+   if ((BIT(sasuper) & at) != (BIT(sasuper) & attr)) /* has changed */
+        if (BIT(sasuper) & at) (*superscript_vect)(stdout, TRUE);
+    if ((BIT(sasubs) & at) != (BIT(sasubs) & attr)) /* has changed */
+        if (BIT(sasubs) & at) (*subscript_vect)(stdout, TRUE);
+    if ((BIT(sablink) & at) != (BIT(sablink) & attr)) /* has changed */
+        if (BIT(sablink) & at) (*blink_vect)(stdout, TRUE);
+    if ((BIT(sastkout) & at) != (BIT(sastkout) & attr)) /* has changed */
+        if (BIT(sastkout) & at) (*strikeout_vect)(stdout, TRUE);
+    if ((BIT(saital) & at) != (BIT(saital) & attr)) /* has changed */
+        if (BIT(saital) & at) (*italic_vect)(stdout, TRUE);
+    if ((BIT(sabold) & at) != (BIT(sabold) & attr)) /* has changed */
+        if (BIT(sabold) & at) (*bold_vect)(stdout, TRUE);
+    if ((BIT(saundl) & at) != (BIT(saundl) & attr)) /* has changed */
+        if (BIT(saundl) & at) (*underline_vect)(stdout, TRUE);
+    if ((BIT(sarev) & at) != (BIT(sarev) & attr)) /* has changed */
+        if (BIT(sarev) & at) (*reverse_vect)(stdout, TRUE);
 
-    }
-    if ((BIT(sasubs) & at) != (BIT(sasubs) & attr)) { /* has changed */
-
-        (*subscript_vect)(stdout, BIT(sasubs) & at);
-        attr = attr & ~BIT(sasubs) | BIT(sasubs) & at;
-
-    }
-    if ((BIT(sablink) & at) != (BIT(sablink) & attr)) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(sablink) & at);
-        attr = attr & ~BIT(sablink) | BIT(sablink) & at;
-
-    }
-    if ((BIT(sastkout) & at) != (BIT(sastkout) & attr)) { /* has changed */
-
-        (*blink_vect)(stdout, BIT(sastkout) & at);
-        attr = attr & ~BIT(sastkout) | BIT(sastkout) & at;
-
-    }
-    if ((BIT(saital) & at) != (BIT(saital) & attr)) { /* has changed */
-
-        (*italic_vect)(stdout, BIT(saital) & at);
-        attr = attr & ~BIT(saital) | BIT(saital) & at;
-
-    }
-    if ((BIT(sabold) & at) != (BIT(sabold) & attr)) { /* has changed */
-
-        (*bold_vect)(stdout, BIT(sabold) & at);
-        attr = attr & ~BIT(sabold) | BIT(sabold) & at;
-
-    }
-    if ((BIT(saundl) & at) != (BIT(saundl) & attr)) { /* has changed */
-
-        (*underline_vect)(stdout, BIT(saundl) & at);
-        attr = attr & ~BIT(saundl) | BIT(saundl) & at;
-
-    }
-    if ((BIT(sarev) & at) != (BIT(sarev) & attr)) { /* has changed */
-
-        (*reverse_vect)(stdout, BIT(sarev) & at);
-        attr = attr & ~BIT(sarev) | BIT(sarev) & at;
-
-    }
+    attr = at; /* update the root mask */
 
 }
 

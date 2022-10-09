@@ -504,7 +504,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
-#if 0
+#if 1
     /* *********************** Title set test ********************* */
 
     printf("\f");
