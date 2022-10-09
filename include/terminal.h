@@ -84,6 +84,11 @@ typedef enum {
     /** window stopped being hovered */ pa_etnohover,  
     /** terminate program */            pa_etterm,
     /** frame sync */                   pa_etframe,
+    /** window redraw */                pa_etredraw,   
+    /** window minimized */             pa_etmin,      
+    /** window maximized */             pa_etmax,      
+    /** window normalized */            pa_etnorm,     
+    /** menu item selected */           pa_etmenus,    
 
     /* Reserved extra code areas, these are module defined. */
     pa_etsys    = 0x1000, /* start of base system reserved codes */
@@ -156,6 +161,8 @@ typedef struct {
             int rszx, rszy;
 
         };
+        /* pa_etmenus */
+        int menuid; /* menu item selected */
 
      };
 
@@ -536,20 +543,20 @@ void _pa_cury_ovr(_pa_cury_t nfp, _pa_cury_t* ofp);
 void _pa_select_ovr(_pa_select_t nfp, _pa_select_t* ofp);
 void _pa_event_ovr(_pa_event_t nfp, _pa_event_t* ofp);
 void _pa_timer_ovr(_pa_timer_t nfp, _pa_timer_t* ofp);
-void _pa_killtimer(_pa_killtimer_t nfp, _pa_killtimer_t* ofp);
-int  _pa_mouse(_pa_mouse_t nfp, _pa_mouse_t* ofp);
-int  _pa_mousebutton(_pa_mousebutton_t nfp, _pa_mousebutton_t* ofp);
-int  _pa_joystick(_pa_joystick_t nfp, _pa_joystick_t* ofp);
-int  _pa_joybutton(_pa_joybutton_t nfp, _pa_joybutton_t* ofp);
-int  _pa_joyaxis(_pa_joyaxis_t nfp, _pa_joyaxis_t* ofp);
-void _pa_settab(_pa_settab_t nfp, _pa_settab_t* ofp);
-void _pa_restab(_pa_restab_t nfp, _pa_restab_t* ofp);
-void _pa_clrtab(_pa_clrtab_t nfp, _pa_clrtab_t* ofp);
-int  _pa_funkey(_pa_funkey_t nfp, _pa_funkey_t* ofp);
-void _pa_frametimer(_pa_frametimer_t nfp, _pa_frametimer_t* ofp);
-void _pa_autohold(_pa_autohold_t nfp, _pa_autohold_t* ofp);
+void _pa_killtimer_ovr(_pa_killtimer_t nfp, _pa_killtimer_t* ofp);
+void _pa_mouse_ovr(_pa_mouse_t nfp, _pa_mouse_t* ofp);
+void _pa_mousebutton_ovr(_pa_mousebutton_t nfp, _pa_mousebutton_t* ofp);
+void _pa_joystick_ovr(_pa_joystick_t nfp, _pa_joystick_t* ofp);
+void _pa_joybutton_ovr(_pa_joybutton_t nfp, _pa_joybutton_t* ofp);
+void _pa_joyaxis_ovr(_pa_joyaxis_t nfp, _pa_joyaxis_t* ofp);
+void _pa_settab_ovr(_pa_settab_t nfp, _pa_settab_t* ofp);
+void _pa_restab_ovr(_pa_restab_t nfp, _pa_restab_t* ofp);
+void _pa_clrtab_ovr(_pa_clrtab_t nfp, _pa_clrtab_t* ofp);
+void _pa_funkey_ovr(_pa_funkey_t nfp, _pa_funkey_t* ofp);
+void _pa_frametimer_ovr(_pa_frametimer_t nfp, _pa_frametimer_t* ofp);
+void _pa_autohold_ovr(_pa_autohold_t nfp, _pa_autohold_t* ofp);
 void _pa_wrtstr_ovr(_pa_wrtstr_t nfp, _pa_wrtstr_t* ofp);
-void _pa_wrtstrn(_pa_wrtstrn_t nfp, _pa_wrtstrn_t* ofp);
+void _pa_wrtstrn_ovr(_pa_wrtstrn_t nfp, _pa_wrtstrn_t* ofp);
 void _pa_sizbuf_ovr(_pa_sizbuf_t nfp, _pa_sizbuf_t* ofp);
 void _pa_title_ovr(_pa_title_t nfp, _pa_title_t* ofp);
 void _pa_titlen_ovr(_pa_titlen_t nfp, _pa_titlen_t* ofp);
@@ -557,11 +564,9 @@ void _pa_fcolorc_ovr(_pa_fcolorc_t nfp, _pa_fcolorc_t* ofp);
 void _pa_bcolorc_ovr(_pa_bcolorc_t nfp, _pa_bcolorc_t* ofp);
 void _pa_eventover_ovr(_pa_eventover_t nfp, _pa_eventover_t* ofp);
 void _pa_eventsover_ovr(_pa_eventsover_t nfp, _pa_eventsover_t* ofp);
-void _pa_sendevent(_pa_sendevent_t nfp, _pa_sendevent_t* ofp);
+void _pa_sendevent_ovr(_pa_sendevent_t nfp, _pa_sendevent_t* ofp);
 void _pa_openwin_ovr(_pa_openwin_t nfp, _pa_openwin_t* ofp);
 void _pa_buffer_ovr(_pa_buffer_t nfp, _pa_buffer_t* ofp);
-void _pa_front_ovr(_pa_front_t nfp, _pa_front_t* ofp);
-void _pa_back_ovr(_pa_back_t nfp, _pa_back_t* ofp);
 void _pa_getsiz_ovr(_pa_getsiz_t nfp, _pa_getsiz_t* ofp);
 void _pa_setsiz_ovr(_pa_setsiz_t nfp, _pa_setsiz_t* ofp);
 void _pa_setpos_ovr(_pa_setpos_t nfp, _pa_setpos_t* ofp);

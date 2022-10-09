@@ -81,7 +81,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* local definitions */
 #include <localdefs.h>
 #include <config.h>
-#include <graphics.h>
+#include <terminal.h>
 
 #include <diag.h>
 
@@ -193,72 +193,76 @@ static pclose_t  ofpclose_nocancel;
 static plseek_t  ofplseek;
 
 /* saved vectors for API entry calls */
-static pa_cursor_t cursor_vect;
-static pa_maxx_t maxx_vect;
-static pa_maxy_t maxy_vect;
-static pa_home_t home_vect;
-static pa_del_t del_vect;
-static pa_up_t up_vect;
-static pa_down_t down_vect;
-static pa_left_t left_vect;
-static pa_right_t right_vect;
-static pa_blink_t blink_vect;
-static pa_reverse_t reverse_vect;
-static pa_underline_t underline_vect;
-static pa_superscript_t superscript_vect;
-static pa_subscript_t subscript_vect;
-static pa_italic_t italic_vect;
-static pa_bold_t bold_vect;
-static pa_strikeout_t strikeout_vect;
-static pa_standout_t standout_vect;
-static pa_fcolor_t fcolor_vect;
-static pa_bcolor_t bcolor_vect;
-static pa_auto_t auto_vect;
-static pa_curvis_t curvis_vect;
-static pa_scroll_t scroll_vect;
-static pa_curx_t curx_vect;
-static pa_cury_t cury_vect;
-static pa_curbnd_t curbnd_vect;
-static pa_select_t select_vect;
-static pa_event_t event_vect;
-static pa_timer_t timer_vect;
-static pa_killtimer_t killtimer_vect;
-static pa_mouse_t mouse_vect;
-static pa_mousebutton_t mousebutton_vect;
-static pa_joystick_t joystick_vect;
-static pa_joybutton_t joybutton_vect;
-static pa_joyaxis_t joyaxis_vect;
-static pa_settab_t settab_vect;
-static pa_restab_t restab_vect;
-static pa_clrtab_t clrtab_vect;
-static pa_funkey_t funkey_vect;
-static pa_frametimer_t frametimer_vect;
-static pa_autohold_t autohold_vect;
-static pa_wrtstr_t wrtstr_vect;
-static pa_eventover_t eventover_vect;
-static pa_eventsover_t eventsover_vect;
-static pa_sendevent_t sendevent_vect;
-static pa_title_t title_vect;
-static pa_openwin_t openwin_vect;
-static pa_buffer_t buffer_vect;
-static pa_sizbuf_t sizbuf_vect;
-static pa_getsiz_t getsiz_vect;
-static pa_setsiz_t setsiz_vect;
-static pa_setpos_t setpos_vect;
-static pa_scnsiz_t scnsiz_vect;
-static pa_scncen_t scncen_vect;
-static pa_winclient_t winclient_vect;
-static pa_front_t front_vect;
-static pa_back_t back_vect;
-static pa_frame_t frame_vect;
-static pa_sizable_t sizable_vect;
-static pa_sysbar_t sysbar_vect;
-static pa_menu_t menu_vect;
-static pa_menuena_t menuena_vect;
-static pa_menusel_t menusel_vect;
-static pa_stdmenu_t stdmenu_vect;
-static pa_getwinid_t getwinid_vect;
-static pa_focus_t focus_vect;
+static _pa_cursor_t cursor_vect;
+static _pa_maxx_t maxx_vect;
+static _pa_maxy_t maxy_vect;
+static _pa_home_t home_vect;
+static _pa_del_t del_vect;
+static _pa_up_t up_vect;
+static _pa_down_t down_vect;
+static _pa_left_t left_vect;
+static _pa_right_t right_vect;
+static _pa_blink_t blink_vect;
+static _pa_reverse_t reverse_vect;
+static _pa_underline_t underline_vect;
+static _pa_superscript_t superscript_vect;
+static _pa_subscript_t subscript_vect;
+static _pa_italic_t italic_vect;
+static _pa_bold_t bold_vect;
+static _pa_strikeout_t strikeout_vect;
+static _pa_standout_t standout_vect;
+static _pa_fcolor_t fcolor_vect;
+static _pa_bcolor_t bcolor_vect;
+static _pa_auto_t auto_vect;
+static _pa_curvis_t curvis_vect;
+static _pa_scroll_t scroll_vect;
+static _pa_curx_t curx_vect;
+static _pa_cury_t cury_vect;
+static _pa_curbnd_t curbnd_vect;
+static _pa_select_t select_vect;
+static _pa_event_t event_vect;
+static _pa_timer_t timer_vect;
+static _pa_killtimer_t killtimer_vect;
+static _pa_mouse_t mouse_vect;
+static _pa_mousebutton_t mousebutton_vect;
+static _pa_joystick_t joystick_vect;
+static _pa_joybutton_t joybutton_vect;
+static _pa_joyaxis_t joyaxis_vect;
+static _pa_settab_t settab_vect;
+static _pa_restab_t restab_vect;
+static _pa_clrtab_t clrtab_vect;
+static _pa_funkey_t funkey_vect;
+static _pa_frametimer_t frametimer_vect;
+static _pa_autohold_t autohold_vect;
+static _pa_wrtstr_t wrtstr_vect;
+static _pa_wrtstrn_t wrtstrn_vect;
+static _pa_sizbuf_t sizbuf_vect;
+static _pa_title_t title_vect;
+static _pa_titlen_t titlen_vect;
+static _pa_fcolorc_t fcolorc_vect;
+static _pa_bcolorc_t bcolorc_vect;
+static _pa_eventover_t eventover_vect;
+static _pa_eventsover_t eventsover_vect;
+static _pa_sendevent_t sendevent_vect;
+static _pa_openwin_t openwin_vect;
+static _pa_buffer_t buffer_vect;
+static _pa_getsiz_t getsiz_vect;
+static _pa_setsiz_t setsiz_vect;
+static _pa_setpos_t setpos_vect;
+static _pa_scnsiz_t scnsiz_vect;
+static _pa_scncen_t scncen_vect;
+static _pa_winclient_t winclient_vect;
+static _pa_front_t front_vect;
+static _pa_back_t back_vect;
+static _pa_frame_t frame_vect;
+static _pa_sizable_t sizable_vect;
+static _pa_sysbar_t sysbar_vect;
+static _pa_menu_t menu_vect;
+static _pa_menuena_t menuena_vect;
+static _pa_menusel_t menusel_vect;
+static _pa_stdmenu_t stdmenu_vect;
+static _pa_focus_t focus_vect;
+static _pa_getwinid_t getwinid_vect;
 
 /* Menu tracking. This is a mirror image of the menu we were given by the
    user. However, we can do with less information than is in the original
@@ -472,7 +476,7 @@ static drgtyp   drag;         /* drag type in progress */
 static winptr   drgwin;       /* drag window */
 static int      drgx;         /* drag pin x */
 static int      drgy;         /* drag pin y */
-static pa_pevthan evthan[pa_ettabbar+1]; /* array of event handler routines */
+static pa_pevthan evthan[pa_etmenus+1]; /* array of event handler routines */
 static pa_pevthan evtshan;        /* single master event handler routine */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
@@ -564,9 +568,7 @@ static void prtevtt(
         case pa_etjoymov:  fprintf(stderr, "etjoymov "); break;
         case pa_etresize:  fprintf(stderr, "etresize "); break;
         case pa_etterm:    fprintf(stderr, "etterm   "); break;
-        case pa_etmoumovg: fprintf(stderr, "etmoumovg"); break;
         case pa_etframe:   fprintf(stderr, "etframe  "); break;
-        case pa_etredraw:  fprintf(stderr, "etredraw "); break;
         case pa_etmin:     fprintf(stderr, "etmin    "); break;
         case pa_etmax:     fprintf(stderr, "etmax    "); break;
         case pa_etnorm:    fprintf(stderr, "etnorm   "); break;
@@ -575,21 +577,6 @@ static void prtevtt(
         case pa_ethover:   fprintf(stderr, "ethover  "); break;
         case pa_etnohover: fprintf(stderr, "etnohover"); break;
         case pa_etmenus:   fprintf(stderr, "etmenus  "); break;
-        case pa_etbutton:  fprintf(stderr, "etbutton "); break;
-        case pa_etchkbox:  fprintf(stderr, "etchkbox "); break;
-        case pa_etradbut:  fprintf(stderr, "etradbut "); break;
-        case pa_etsclull:  fprintf(stderr, "etsclull "); break;
-        case pa_etscldrl:  fprintf(stderr, "etscldrl "); break;
-        case pa_etsclulp:  fprintf(stderr, "etsclulp "); break;
-        case pa_etscldrp:  fprintf(stderr, "etscldrp "); break;
-        case pa_etsclpos:  fprintf(stderr, "etsclpos "); break;
-        case pa_etedtbox:  fprintf(stderr, "etedtbox "); break;
-        case pa_etnumbox:  fprintf(stderr, "etnumbox "); break;
-        case pa_etlstbox:  fprintf(stderr, "etlstbox "); break;
-        case pa_etdrpbox:  fprintf(stderr, "etdrpbox "); break;
-        case pa_etdrebox:  fprintf(stderr, "etdrebox "); break;
-        case pa_etsldpos:  fprintf(stderr, "etsldpos "); break;
-        case pa_ettabbar:  fprintf(stderr, "ettabbar "); break;
 
         default: fprintf(stderr, "???");
 
@@ -638,32 +625,8 @@ static void prtevt(
         case pa_etresize: fprintf(stderr, ": x: %d y: %d", er->rszx, er->rszy);
                           break;
         case pa_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
-        case pa_etmoumovg: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
-                                   er->mmoung, er->moupxg, er->moupyg); break;
-        case pa_etredraw: fprintf(stderr, ": sx: %4d sy: %4d ex: %4d ey: %4d",
-                                  er->rsx, er->rsy, er->rex, er->rey); break;
         case pa_etmenus: fprintf(stderr, ": id: %d", er->menuid); break;
-        case pa_etbutton: fprintf(stderr, ": id: %d", er->butid); break;
-        case pa_etchkbox: fprintf(stderr, ": id: %d", er->ckbxid); break;
-        case pa_etradbut: fprintf(stderr, ": id: %d", er->radbid); break;
-        case pa_etsclull: fprintf(stderr, ": id: %d", er->sclulid); break;
-        case pa_etscldrl: fprintf(stderr, ": id: %d", er->scldrid); break;
-        case pa_etsclulp: fprintf(stderr, ": id: %d", er->sclupid); break;
-        case pa_etscldrp: fprintf(stderr, ": id: %d", er->scldpid); break;
-        case pa_etsclpos: fprintf(stderr, ": id: %d position: %d",
-                                  er->sclpid, er->sclpos); break;
-        case pa_etedtbox: fprintf(stderr, ": id: %d", er->edtbid); break;
-        case pa_etnumbox: fprintf(stderr, ": id: %d number: %d",
-                                  er->numbid, er->numbsl); break;
-        case pa_etlstbox: fprintf(stderr, ": id: %d select: %d",
-                                  er->lstbid, er->lstbsl); break;
-        case pa_etdrpbox: fprintf(stderr, ": id: %d select: %d",
-                                  er->drpbid, er->drpbsl); break;
-        case pa_etdrebox: fprintf(stderr, ": id: %d", er->drebid); break;
-        case pa_etsldpos: fprintf(stderr, ": id: %d postion: %d",
-                                  er->sldpid, er->sldpos); break;
-        case pa_ettabbar: fprintf(stderr, ": id: %d select: %d",
-                                  er->tabid, er->tabsel); break;
+
         default: ;
 
     }
@@ -1232,6 +1195,39 @@ static int setbcolor(pa_color c)
         bcolor = c; /* cache that */
 
     }
+
+}
+
+/******************************************************************************
+
+Translate rgb to primary color code
+
+Translates an rgb color to a primary color code. It does this by finding the
+nearest primary color to the given RGB color.
+
+******************************************************************************/
+
+static pa_color colrgbnum(int r, int g, int b)
+
+{
+
+    pa_color c;
+
+    switch ((r > INT_MAX/2) << 2 | (g > INT_MAX/2) << 1 | (b > INT_MAX/2)) {
+
+        /* rgb */
+        /* 000 */ case 0: c = pa_black;   break;
+        /* 001 */ case 1: c = pa_blue;    break;
+        /* 010 */ case 2: c = pa_green;   break;
+        /* 011 */ case 3: c = pa_cyan;    break;
+        /* 100 */ case 4: c = pa_red;     break;
+        /* 101 */ case 5: c = pa_magenta; break;
+        /* 110 */ case 6: c = pa_yellow;  break;
+        /* 111 */ case 7: c = pa_white;   break;
+
+    }
+
+    return (c); /* exit with translated color */
 
 }
 
@@ -3656,6 +3652,25 @@ static void ifcolor(FILE* f, pa_color c)
 
 /** ****************************************************************************
 
+Set foreground color RGB
+
+Sets the foreground color from individual r, g, and b values.
+
+*******************************************************************************/
+
+static void ifcolorc(FILE* f, int r, int g, int b)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->fcolor = colrgbnum(r, g, b); /* set color */
+
+}
+
+/** ****************************************************************************
+
 Set background color
 
 Sets the background color from the universal primary code.
@@ -3670,6 +3685,25 @@ static void ibcolor(FILE* f, pa_color c)
 
     win = txt2win(f); /* get window from file */
     win->bcolor = c; /* set color */
+
+}
+
+/** ****************************************************************************
+
+Set background color RGB
+
+Sets the background color from individual r, g, and b values.
+
+*******************************************************************************/
+
+static void ibcolorc(FILE* f, int r, int g, int b)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    win->bcolor = colrgbnum(r, g, b); /* set color */
 
 }
 
@@ -4304,7 +4338,7 @@ static void ievent(FILE* f, pa_evtrec* er)
 #endif
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
-        if (!er->handled && er->etype <= pa_ettabbar) { /* send it to fanout */
+        if (!er->handled && er->etype <= pa_etmenus) { /* send it to fanout */
 
             er->handled = 1; /* set event is handled by default */
             (*evthan[er->etype])(er); /* call event handler first */
@@ -4331,7 +4365,7 @@ static void ieventover(pa_evtcod e, pa_pevthan eh,  pa_pevthan* oeh)
 
 {
 
-    if (e > pa_ettabbar) error("Cannot vector auxillary event");
+    if (e > pa_etmenus) error("Cannot vector auxillary event");
     *oeh = evthan[e]; /* save existing event handler */
     evthan[e] = eh; /* place new event handler */
 
@@ -4946,6 +4980,79 @@ static void iautohold(int e)
 
 /** ****************************************************************************
 
+Write string to current cursor position with length
+
+Writes a string to the current cursor position, then updates the cursor
+position. This acts as a series of write character calls. However, it eliminates
+several layers of protocol, and results in much faster write time for
+applications that require it.
+
+It is an error to call this routine with auto enabled, since it could exceed
+the bounds of the screen.
+
+No control characters or other interpretation is done, and invisible characters
+such as controls are not suppressed.
+
+Attributes are performed, such as foreground/background coloring, modes, and
+character attributes.
+
+*******************************************************************************/
+
+static void iwrtstrn(FILE* f, char* s, int n)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr scp; /* screen buffer */
+    char*  ss;
+    int    ns;
+
+    win = txt2win(f); /* get window from file */
+    if (win->autof) error("Cannot direct write string with auto on");
+    if (!win->visible) winvis(win); /* make sure we are displayed */
+    if (win->bufmod) { /* buffer is active */
+
+        ss = s; /* save string */
+        ns = n;
+        while (ns && icurbnd(f)) { /* print string */
+
+            /* index screen character location */
+            scp = &SCNBUF(win->screens[win->curdsp-1],
+                            win->curx, win->cury);
+            /* place character to buffer */
+            scp->ch = *ss++;
+            scp->forec = win->fcolor;
+            scp->backc = win->bcolor;
+            scp->attr = win->attr;
+            win->curx++; /* next location */
+            ns--; /* count */
+
+        }
+
+    }
+    if (indisp(win)) { /* do it again for the current screen */
+
+        /* set root cursor to correct position */
+        setcursor(win->curx+win->orgx-1+win->coffx,
+                  win->cury+win->orgy-1+win->coffy);
+        setattrs(win->attr); /* set attributes */
+        setfcolor(win->fcolor); /* set colors */
+        setbcolor(win->bcolor);
+        while (*s && icurbnd(f)) { /* print string */
+
+            /* draw character to active screen */
+            wrtchr(*s++); /* output */
+            win->curx++; /* next location */
+            n--; /* count */
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Write string to current cursor position
 
 Writes a string to the current cursor position, then updates the cursor
@@ -4968,46 +5075,43 @@ static void iwrtstr(FILE* f, char* s)
 
 {
 
-    winptr win; /* window record pointer */
-    scnptr scp; /* screen buffer */
-    char*  ss;
+    iwrtstrn(f, s, strlen(s)); /* write string */
+
+}
+
+/** ****************************************************************************
+
+Set window title with length
+
+Sets the title of the current window.
+
+*******************************************************************************/
+
+static void ititlen(FILE* f, char* ts, int n)
+
+{
+
+    winptr    win; /* windows record pointer */
+    rectangle r;
 
     win = txt2win(f); /* get window from file */
-    if (win->autof) error("Cannot direct write string with auto on");
-    if (!win->visible) winvis(win); /* make sure we are displayed */
-    if (win->bufmod) { /* buffer is active */
+    if (win->title) free(win->title); /* free previous string */
+    win->title = malloc(n+1);
+    if (!win->title) error("Out of memory");
+    /* set title to invoking program */
+    strncpy(win->title, ts, n);
+    win->title[n] = 0; /* terminate */
+    /* if its the root window, copy down to underlying window */
+    if (win->root) (*titlen_vect)(stdout, ts, n);
+    else if (win->frame && win->sysbar && win->pmaxy >= 3) {
 
-        ss = s; /* save string */
-        while (*ss && icurbnd(f)) { /* print string */
+        /* we own the window, the frame and system bar is on, and it is 
+           visible */
 
-            /* index screen character location */
-            scp = &SCNBUF(win->screens[win->curdsp-1],
-                            win->curx, win->cury);
-            /* place character to buffer */
-            scp->ch = *ss++;
-            scp->forec = win->fcolor;
-            scp->backc = win->bcolor;
-            scp->attr = win->attr;
-            win->curx++; /* next location */
-
-        }
-
-    }
-    if (indisp(win)) { /* do it again for the current screen */
-
-        /* set root cursor to correct position */
-        setcursor(win->curx+win->orgx-1+win->coffx,
-                  win->cury+win->orgy-1+win->coffy);
-        setattrs(win->attr); /* set attributes */
-        setfcolor(win->fcolor); /* set colors */
-        setbcolor(win->bcolor);
-        while (*s && icurbnd(f)) { /* print string */
-
-            /* draw character to active screen */
-            wrtchr(*s); /* output */
-            win->curx++; /* next location */
-
-        }
+        /* set title bounding box */
+        setrect(&r, win->orgx+2, win->orgy+win->size, 
+                   win->pmaxx-6-4, win->orgy+win->size); 
+        drwfrm(win, &r); /* draw or redraw title */
 
     }
 
@@ -5025,28 +5129,7 @@ static void ititle(FILE* f, char* ts)
 
 {
 
-    winptr    win; /* windows record pointer */
-    rectangle r;
-
-    win = txt2win(f); /* get window from file */
-    if (win->title) free(win->title); /* free previous string */
-    win->title = malloc(strlen(ts)+1);
-    if (!win->title) error("Out of memory");
-    /* set title to invoking program */
-    strcpy(win->title, ts);
-    /* if its the root window, copy down to underlying window */
-    if (win->root) (*title_vect)(stdout, ts);
-    else if (win->frame && win->sysbar && win->pmaxy >= 3) {
-
-        /* we own the window, the frame and system bar is on, and it is 
-           visible */
-
-        /* set title bounding box */
-        setrect(&r, win->orgx+2, win->orgy+win->size, 
-                   win->pmaxx-6-4, win->orgy+win->size); 
-        drwfrm(win, &r); /* draw or redraw title */
-
-    }
+    ititlen(f, ts, strlen(ts)); /* place title */
 
 }
 
@@ -5917,7 +6000,7 @@ static void init_managerc()
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = pa_etchar; e <= pa_ettabbar; e++) evthan[e] = defaultevent;
+    for (e = pa_etchar; e <= pa_etmenus; e++) evthan[e] = defaultevent;
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
@@ -5975,13 +6058,17 @@ static void init_managerc()
     _pa_frametimer_ovr(iframetimer, &frametimer_vect);
     _pa_autohold_ovr(iautohold, &autohold_vect);
     _pa_wrtstr_ovr(iwrtstr, &wrtstr_vect);
+    _pa_wrtstrn_ovr(iwrtstrn, &wrtstrn_vect);
+    _pa_sizbuf_ovr(isizbuf, &sizbuf_vect);
+    _pa_title_ovr(ititle, &title_vect);
+    _pa_titlen_ovr(ititlen, &titlen_vect);
+    _pa_fcolorc_ovr(ifcolorc, &fcolorc_vect);
+    _pa_bcolorc_ovr(ibcolorc, &bcolorc_vect);
     _pa_eventover_ovr(ieventover, &eventover_vect);
     _pa_eventsover_ovr(ieventsover, &eventsover_vect);
     _pa_sendevent_ovr(isendevent, &sendevent_vect);
-    _pa_title_ovr(ititle, &title_vect);
     _pa_openwin_ovr(iopenwin, &openwin_vect);
     _pa_buffer_ovr(ibuffer, &buffer_vect);
-    _pa_sizbuf_ovr(isizbuf, &sizbuf_vect);
     _pa_getsiz_ovr(igetsiz, &getsiz_vect);
     _pa_setsiz_ovr(isetsiz, &setsiz_vect);
     _pa_setpos_ovr(isetpos, &setpos_vect);
@@ -6073,72 +6160,72 @@ static void deinit_managerc()
     plseek_t cpplseek;
 
     /* holding copies of API override vectors */
-    pa_cursor_t cppcursor;
-    pa_maxx_t cppmaxx;
-    pa_maxy_t cppmaxy;
-    pa_home_t cpphome;
-    pa_del_t cppdel;
-    pa_up_t cppup;
-    pa_down_t cppdown;
-    pa_left_t cppleft;
-    pa_right_t cppright;
-    pa_blink_t cppblink;
-    pa_reverse_t cppreverse;
-    pa_underline_t cppunderline;
-    pa_superscript_t cppsuperscript;
-    pa_subscript_t cppsubscript;
-    pa_italic_t cppitalic;
-    pa_bold_t cppbold;
-    pa_strikeout_t cppstrikeout;
-    pa_standout_t cppstandout;
-    pa_fcolor_t cppfcolor;
-    pa_bcolor_t cppbcolor;
-    pa_auto_t cppauto;
-    pa_curvis_t cppcurvis;
-    pa_scroll_t cppscroll;
-    pa_curx_t cppcurx;
-    pa_cury_t cppcury;
-    pa_curbnd_t cppcurbnd;
-    pa_select_t cppselect;
-    pa_event_t cppevent;
-    pa_timer_t cpptimer;
-    pa_killtimer_t cppkilltimer;
-    pa_mouse_t cppmouse;
-    pa_mousebutton_t cppmousebutton;
-    pa_joystick_t cppjoystick;
-    pa_joybutton_t cppjoybutton;
-    pa_joyaxis_t cppjoyaxis;
-    pa_settab_t cppsettab;
-    pa_restab_t cpprestab;
-    pa_clrtab_t cppclrtab;
-    pa_funkey_t cppfunkey;
-    pa_frametimer_t cppframetimer;
-    pa_autohold_t cppautohold;
-    pa_wrtstr_t cppwrtstr;
-    pa_eventover_t cppeventover;
-    pa_eventsover_t cppeventsover;
-    pa_sendevent_t cppsendevent;
-    pa_title_t cpptitle;
-    pa_openwin_t cppopenwin;
-    pa_buffer_t cppbuffer;
-    pa_sizbuf_t cppsizbuf;
-    pa_getsiz_t cppgetsiz;
-    pa_setsiz_t cppsetsiz;
-    pa_setpos_t cppsetpos;
-    pa_scnsiz_t cppscnsiz;
-    pa_scncen_t cppscncen;
-    pa_winclient_t cppwinclient;
-    pa_front_t cppfront;
-    pa_back_t cppback;
-    pa_frame_t cppframe;
-    pa_sizable_t cppsizable;
-    pa_sysbar_t cppsysbar;
-    pa_menu_t cppmenu;
-    pa_menuena_t cppmenuena;
-    pa_menusel_t cppmenusel;
-    pa_stdmenu_t cppstdmenu;
-    pa_getwinid_t cppgetwinid;
-    pa_focus_t cppfocus;
+    _pa_cursor_t cppcursor;
+    _pa_maxx_t cppmaxx;
+    _pa_maxy_t cppmaxy;
+    _pa_home_t cpphome;
+    _pa_del_t cppdel;
+    _pa_up_t cppup;
+    _pa_down_t cppdown;
+    _pa_left_t cppleft;
+    _pa_right_t cppright;
+    _pa_blink_t cppblink;
+    _pa_reverse_t cppreverse;
+    _pa_underline_t cppunderline;
+    _pa_superscript_t cppsuperscript;
+    _pa_subscript_t cppsubscript;
+    _pa_italic_t cppitalic;
+    _pa_bold_t cppbold;
+    _pa_strikeout_t cppstrikeout;
+    _pa_standout_t cppstandout;
+    _pa_fcolor_t cppfcolor;
+    _pa_bcolor_t cppbcolor;
+    _pa_auto_t cppauto;
+    _pa_curvis_t cppcurvis;
+    _pa_scroll_t cppscroll;
+    _pa_curx_t cppcurx;
+    _pa_cury_t cppcury;
+    _pa_curbnd_t cppcurbnd;
+    _pa_select_t cppselect;
+    _pa_event_t cppevent;
+    _pa_timer_t cpptimer;
+    _pa_killtimer_t cppkilltimer;
+    _pa_mouse_t cppmouse;
+    _pa_mousebutton_t cppmousebutton;
+    _pa_joystick_t cppjoystick;
+    _pa_joybutton_t cppjoybutton;
+    _pa_joyaxis_t cppjoyaxis;
+    _pa_settab_t cppsettab;
+    _pa_restab_t cpprestab;
+    _pa_clrtab_t cppclrtab;
+    _pa_funkey_t cppfunkey;
+    _pa_frametimer_t cppframetimer;
+    _pa_autohold_t cppautohold;
+    _pa_wrtstr_t cppwrtstr;
+    _pa_eventover_t cppeventover;
+    _pa_eventsover_t cppeventsover;
+    _pa_sendevent_t cppsendevent;
+    _pa_title_t cpptitle;
+    _pa_openwin_t cppopenwin;
+    _pa_buffer_t cppbuffer;
+    _pa_sizbuf_t cppsizbuf;
+    _pa_getsiz_t cppgetsiz;
+    _pa_setsiz_t cppsetsiz;
+    _pa_setpos_t cppsetpos;
+    _pa_scnsiz_t cppscnsiz;
+    _pa_scncen_t cppscncen;
+    _pa_winclient_t cppwinclient;
+    _pa_front_t cppfront;
+    _pa_back_t cppback;
+    _pa_frame_t cppframe;
+    _pa_sizable_t cppsizable;
+    _pa_sysbar_t cppsysbar;
+    _pa_menu_t cppmenu;
+    _pa_menuena_t cppmenuena;
+    _pa_menusel_t cppmenusel;
+    _pa_stdmenu_t cppstdmenu;
+    _pa_getwinid_t cppgetwinid;
+    _pa_focus_t cppfocus;
 
     /* If autohold is active and and a local end was ordered, disable autohold
        in the root. Note the root also could have ordered an exit. */

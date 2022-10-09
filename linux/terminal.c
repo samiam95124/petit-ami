@@ -835,7 +835,7 @@ A diagnostic, print the given event code as a symbol to the error file.
 
 ******************************************************************************/
 
-void prtevtt(pa_evtcod e)
+static void prtevtt(pa_evtcod e)
 
 {
 
@@ -954,7 +954,7 @@ sucessful, the size remains unchanged.
 
 *******************************************************************************/
 
-void findsize(int* x, int* y)
+static void findsize(int* x, int* y)
 
 {
 
@@ -1235,7 +1235,7 @@ Should be called only within lock context.
 
 *******************************************************************************/
 
-void remdupque(pa_evtrec* e)
+static void remdupque(pa_evtrec* e)
 
 {
 
@@ -1410,7 +1410,7 @@ Translates a primary color code to RGB colors.
 
 ******************************************************************************/
 
-void colnumrgb(pa_color c, int* r, int* g, int* b)
+static void colnumrgb(pa_color c, int* r, int* g, int* b)
 
 {
 
@@ -1440,7 +1440,7 @@ Translates an independent to a packed RGB color word.
 
 ******************************************************************************/
 
-int colnumrgbp(pa_color c)
+static int colnumrgbp(pa_color c)
 
 {
 
@@ -1466,14 +1466,14 @@ int colnumrgbp(pa_color c)
 
 /******************************************************************************
 
-Translate rgb to colors code rgb
+Translate rgb to primary color code
 
-Translates an rgb color to primiary color code. It does this by finding the
+Translates an rgb color to a primary color code. It does this by finding the
 nearest primary color to the given RGB color.
 
 ******************************************************************************/
 
-pa_color colrgbnum(int r, int g, int b)
+static pa_color colrgbnum(int r, int g, int b)
 
 {
 
@@ -1681,7 +1681,7 @@ Check that the given screen context is currently being displayed.
 
 *******************************************************************************/
 
-int indisp(scnptr sc)
+static int indisp(scnptr sc)
 
 {
 
@@ -1765,7 +1765,7 @@ Should suppress redundant visibility sets here.
 
 *******************************************************************************/
 
-void cursts(scnptr sc)
+static void cursts(scnptr sc)
 
 {
 
@@ -1806,7 +1806,7 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
-void setcur(scnptr sc)
+static void setcur(scnptr sc)
 
 {
 
@@ -3379,7 +3379,7 @@ that the underlying screen content is seen. Exits on termination.
 
 *******************************************************************************/
 
-void finish(char* title)
+static void finish(char* title)
 
 {
 
@@ -5077,31 +5077,6 @@ static void sizbuf_ivf(FILE* f, int x, int y)
 
 /** ****************************************************************************
 
-Set window title
-
-Sets the title of the current window.
-
-*******************************************************************************/
-
-APIOVER(title)
-void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
-static void title_ivf(FILE* f, char* ts)
-    
-{ 
-
-    dbg_printf(dlapi, "API\n");
-    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    trm_title(ts); /* set title */
-    if (titsav) free(titsav); /* free any existing title string */
-    titsav = malloc(strlen(ts)+1);
-    if (!titsav) error(pa_dispenomem); /* no memory */
-    strcpy(titsav, ts); /* place string */
-    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
-
-}
-
-/** ****************************************************************************
-
 Set window title with length
 
 Sets the title of the current window.
@@ -5123,6 +5098,25 @@ static void titlen_ivf(FILE* f, char* ts, int l)
     strncpy(titsav, ts, l); /* place string */
     titsav[l] = 0; /* terminate */
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+
+}
+
+/** ****************************************************************************
+
+Set window title
+
+Sets the title of the current window.
+
+*******************************************************************************/
+
+APIOVER(title)
+void pa_title(FILE* f, char* ts) { (*title_vect)(f, ts); }
+static void title_ivf(FILE* f, char* ts)
+    
+{ 
+
+    dbg_printf(dlapi, "API\n");
+    titlen_ivf(f, ts, strlen(ts)); /* set title */
 
 }
 

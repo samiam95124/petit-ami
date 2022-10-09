@@ -504,7 +504,7 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
-#if 1
+#if 0
     /* *********************** Title set test ********************* */
 
     printf("\f");
@@ -921,7 +921,6 @@ int main(int argc, char *argv[])
 
     /* ************************ Attributes and colors test ******************** */
 
-#endif
     printf("\f");
     if (pa_maxy(stdout) < 20)
     printf("Not enough lines for attributes test");
@@ -996,6 +995,7 @@ int main(int argc, char *argv[])
 
     /* **************************** RGB colors test ************************* */
 
+#endif
     printf("\f");
     pa_auto(stdout, TRUE);
     prtcen(pa_maxy(stdout), "RGB colors test");
