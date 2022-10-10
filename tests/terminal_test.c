@@ -504,7 +504,6 @@ int main(int argc, char *argv[])
     prtcen(pa_maxy(stdout), "Press return to continue");
     waitnext();
 
-#if 0
     /* *********************** Title set test ********************* */
 
     printf("\f");
@@ -995,7 +994,6 @@ int main(int argc, char *argv[])
 
     /* **************************** RGB colors test ************************* */
 
-#endif
     printf("\f");
     pa_auto(stdout, TRUE);
     prtcen(pa_maxy(stdout), "RGB colors test");

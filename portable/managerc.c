@@ -1830,15 +1830,15 @@ static void setcur(winptr win)
 
     if (indisp(win)) { /* in display */
 
-        /* check cursor in bounds and visible */
-        if (intcurbnd(win) && win->curv) {
+        /* check cursor in bounds */
+        if (intcurbnd(win)) {
 
-            setcurvis(TRUE); /* set cursor on */
+            setcurvis(win->curv); /* set cursor on or off */
             /* position actual cursor */
             setcursor(win->curx+win->orgx-1+win->coffx,
                       win->cury+win->orgy-1+win->coffy);
 
-        } else setcurvis(FALSE); /* set cursor off */
+        } else setcurvis(FALSE); /* set cursor off out of bounds */
 
     }
 
@@ -2856,6 +2856,43 @@ static void closewin(int ofn)
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
+
+}
+
+/** ****************************************************************************
+
+Dump buffer for window
+
+Dumps the indicated window buffer to stderr. A diagnostic.
+
+*******************************************************************************/
+
+static void dumpbuffer(winptr win)
+
+{
+
+    scnptr sc;   /* pointer to current screen */
+    scnptr sp;   /* pointer to screen record */
+    int    x, y;
+
+    sc = win->screens[win->curupd-1]; /* index current screen */
+    fprintf(stderr, "Window: %d buffer\n", win->wid); fflush(stderr);
+    for (y = 1; y <= win->maxy; y++) { /* lines */
+
+        fprintf(stderr, "\"");
+        for (x = 1; x <= win->maxx; x++) { /* characters */
+
+            /* for each new character, we compare the attributes and colors
+               with what is set. if a new color or attribute is called for,
+               we set that, and update the saves. this technique cuts down on
+               the amount of output characters */
+            sp = &SCNBUF(sc, x, y);
+            fputc(sp->ch, stderr);
+
+        }
+        fprintf(stderr, "\"\n"); fflush(stderr);
+
+    }
 
 }
 
