@@ -22,9 +22,4 @@ Unknown what Windows console mode can do.
 
 3. Moving a window offscreen left puts it's cursor in an invalid location.
 
-4. Cursor motions test fails, the bottom X's do not paint correctly in the 
-bottom corners. Its intermittent, and different runs work or do not work.
-
-7. Tabbing test fails on transparency test.
-
-8. Buffer switching test fails on transparency test.
+4. Buffer switching test fails on transparency test.

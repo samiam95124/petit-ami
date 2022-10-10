@@ -99,7 +99,7 @@ extern char *program_invocation_short_name;
 
 #define MAXFIL 100   /* maximum open files */
 #define MAXCON 10    /* number of screen contexts */
-#define MAXTAB 50    /* total number of tabs possible per window */
+#define MAXTAB 250   /* total number of tabs possible per window */
 #define MAXLIN 250   /* maximum length of input bufferred line */
 #define USEUNICODE   /* use unicode frame characters */
 //#define PRTROOTEVT /* print root window events */
@@ -2057,19 +2057,18 @@ static void itab(FILE* f)
 
     winptr win; /* windows record pointer */
     int i;
-    int x;
     scnptr sc;
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     /* first, find if next tab even exists */
-    x = win->curx+1; /* get just after the current x position */
-    if (x < 1) x = 1; /* don"t bother to search to left of screen */
-    /* find tab || } of screen */
-    i = 0; /* set 1st tab position */
-    while (x > win->tab[i] && win->tab[i] && i < MAXTAB && x < win->maxx) i++;
-    if (win->tab[i] && x < win->tab[i]) /* not off right of tabs */
-       win->curx = win->tab[i]; /* set position to that tab */
+    i = win->curx+1; /* get just after the current x position */
+    if (i < 1) i = 1; /* don't bother to search to left of screen */
+    /* find tab or end of screen */
+    while (i < MAXTAB && !win->tab[i] && i < win->maxx) i++;
+    if (win->tab[i]) /* not off right of tabs */
+       win->curx = i; /* set position to that tab */
+    setcur(win); /* update screen */
 
 }
 
@@ -2640,7 +2639,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient, int root)
     win->coffy = 0+(win->frame && win->size)+win->sysbar*2;
     win->curx = 1; /* set cursor at home */
     win->cury = 1;
-    for (t = 0; t < MAXTAB; t++) win->tab[t] = 0; /* clear tab array */
+    /* clear tabs and set to 8ths */
+    for (t = 1; t <= MAXTAB; t++) win->tab[t-1] = ((t-1)%8 == 0) && (t != 1);
     /* clear timer array */
     for (ti = 0; ti < PA_MAXTIM; ti++) win->timers[ti] = 0;
     win->frmtim = 0; /* clear frame timer */
