@@ -389,9 +389,9 @@ else
 	    # link correctly.
 	    #
 	    ifeq ($(LINK_TYPE),static)
-	        PLIBS = -Wl,--whole-archive lib/libc.a -Wl,--no-whole-archive
-	        CLIBS = -Wl,--whole-archive lib/libc.a -Wl,--no-whole-archive
-	        GLIBS = -Wl,--whole-archive lib/libc.a -Wl,--no-whole-archive
+	        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+	        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+	        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
 	        PLIBSD = bin/libc.a
 	        CLIBSD = bin/libc.a
 	        GLIBSD = bin/libc.a
