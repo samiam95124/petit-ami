@@ -389,9 +389,9 @@ else
 	    # link correctly.
 	    #
 	    ifeq ($(LINK_TYPE),static)
-	        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
+	        PLIBS = -Wl,--whole-archive lib/libc.a -Wl,--no-whole-archive
+	        CLIBS = -Wl,--whole-archive lib/libc.a -Wl,--no-whole-archive
+	        GLIBS = -Wl,--whole-archive lib/libc.a -Wl,--no-whole-archive
 	        PLIBSD = bin/libc.a
 	        CLIBSD = bin/libc.a
 	        GLIBSD = bin/libc.a
@@ -440,14 +440,14 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	PLIBS += bin/petit_ami_plain.a
+    	PLIBS += lib/petit_ami_plain.a
     else ifeq ($(OSTYPE),FreeBSD)
-    	PLIBS += bin/petit_ami_plain.a
+    	PLIBS += lib/petit_ami_plain.a
     else
-    	PLIBS += -Wl,--whole-archive bin/petit_ami_plain.a -Wl,--no-whole-archive
+    	PLIBS += -Wl,--whole-archive lib/petit_ami_plain.a -Wl,--no-whole-archive
     endif
 else
-    PLIBS += bin/petit_ami_plain.so
+    PLIBS += lib/petit_ami_plain.so
 endif
 
 #
@@ -459,14 +459,14 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	CLIBS += bin/petit_ami_term.a
+    	CLIBS += lib/petit_ami_term.a
     else ifeq ($(OSTYPE),FreeBSD)
-    	CLIBS += bin/petit_ami_term.a
+    	CLIBS += lib/petit_ami_term.a
     else
-    	CLIBS += -Wl,--whole-archive bin/petit_ami_term.a -Wl,--no-whole-archive
+    	CLIBS += -Wl,--whole-archive lib/petit_ami_term.a -Wl,--no-whole-archive
     endif
 else
-    CLIBS += stub/keeper.o bin/petit_ami_term.so 
+    CLIBS += stub/keeper.o lib/petit_ami_term.so 
 endif
 
 CLIBSCPP = $(CLIBS) cpp/terminal.o
@@ -476,22 +476,22 @@ CLIBSCPP = $(CLIBS) cpp/terminal.o
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	GLIBS += bin/petit_ami_graph.a
+    	GLIBS += lib/petit_ami_graph.a
     else ifeq ($(OSTYPE),FreeBSD)
-    	GLIBS += bin/petit_ami_graph.a
+    	GLIBS += lib/petit_ami_graph.a
     else
-    	GLIBS += -Wl,--whole-archive bin/petit_ami_graph.a -Wl,--no-whole-archive
+    	GLIBS += -Wl,--whole-archive lib/petit_ami_graph.a -Wl,--no-whole-archive
     endif
 else
-    GLIBS += stub/keeper.o bin/petit_ami_graph.so
+    GLIBS += stub/keeper.o lib/petit_ami_graph.so
 endif
 
 #
 # Create dependency macros
 #
-PLIBSD = bin/petit_ami_plain$(LIBEXT)
-CLIBSD = bin/petit_ami_term$(LIBEXT) stub/keeper.o
-GLIBSD = bin/petit_ami_graph$(LIBEXT) stub/keeper.o
+PLIBSD = lib/petit_ami_plain$(LIBEXT)
+CLIBSD = lib/petit_ami_term$(LIBEXT) stub/keeper.o
+GLIBSD = lib/petit_ami_graph$(LIBEXT) stub/keeper.o
 
 CLIBSCPPD = $(CLIBSD) cpp/terminal.o
 #
@@ -791,20 +791,20 @@ ifeq ($(OSTYPE),Windows_NT)
 # Windows cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-bin/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o \
+lib/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o \
 	utils/option.o utils/config.o windows/stdio.o
-	ar rcs bin/petit_ami_plain.a windows/services.o windows/sound.o \
+	ar rcs lib/petit_ami_plain.a windows/services.o windows/sound.o \
         windows/network.o utils/config.o utils/option.o windows/stdio.o
 	
-bin/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
+lib/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
     windows/terminal.o utils/config.o utils/option.o windows/stdio.o
-	ar rcs bin/petit_ami_term.a windows/services.o windows/sound.o \
+	ar rcs lib/petit_ami_term.a windows/services.o windows/sound.o \
 	    windows/network.o windows/terminal.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
-bin/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
+lib/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
     windows/graphics.o utils/config.o utils/option.o windows/stdio.o
-	ar rcs bin/petit_ami_graph.a windows/services.o windows/sound.o \
+	ar rcs lib/petit_ami_graph.a windows/services.o windows/sound.o \
 	    windows/network.o windows/graphics.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
@@ -815,22 +815,22 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X cannot use .so files, but rather uses statically linked files.
 #
-bin/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
 	utils/config.o utils/option.o macosx/stdio.o
-	ar rcs bin/petit_ami_plain.a macosx/services.o macosx/sound.o \
+	ar rcs lib/petit_ami_plain.a macosx/services.o macosx/sound.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
-bin/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/terminal.o utils/config.o utils/option.o \
     macosx/stdio.o
-	ar rcs bin/petit_ami_term.a macosx/services.o macosx/sound.o \
+	ar rcs lib/petit_ami_term.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/terminal.o \
 	    utils/config.o utils/option.o macosx/stdio.o
 	
-bin/petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/graphics.o portable/gnome_widgets.o \
     utils/config.o utils/option.o macosx/stdio.o
-	ar rcs bin/petit_ami_graph.a macosx/services.o macosx/sound.o \
+	ar rcs lib/petit_ami_graph.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/graphics.o \
 	    portable/gnome_widgets.o utils/config.o utils/option.o macosx/stdio.o
 
@@ -841,22 +841,22 @@ else ifeq ($(OSTYPE),FreeBSD)
 #
 # Use statically linked files, for BSD
 #
-bin/petit_ami_plain.a: bsd/services.o bsd/sound.o bsd/network.o \
+lib/petit_ami_plain.a: bsd/services.o bsd/sound.o bsd/network.o \
 	utils/config.o utils/option.o bsd/stdio.o
-	ar rcs bin/petit_ami_plain.a bsd/services.o bsd/sound.o \
+	ar rcs lib/petit_ami_plain.a bsd/services.o bsd/sound.o \
         bsd/network.o utils/config.o utils/option.o bsd/stdio.o
 	
-bin/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/network.o \
+lib/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/network.o \
     bsd/system_event.o bsd/terminal.o utils/config.o utils/option.o \
     bsd/stdio.o
-	ar rcs bin/petit_ami_term.a bsd/services.o bsd/sound.o \
+	ar rcs lib/petit_ami_term.a bsd/services.o bsd/sound.o \
 	    bsd/network.o bsd/system_event.o bsd/terminal.o \
 	    utils/config.o utils/option.o bsd/stdio.o
 	
-bin/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/network.o \
+lib/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/network.o \
     bsd/graphics.o bsd/rotated.o bsd/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
-	ar rcs bin/petit_ami_graph.a bsd/services.o bsd/sound.o bsd/rotated.o \
+	ar rcs lib/petit_ami_graph.a bsd/services.o bsd/sound.o bsd/rotated.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
 	    portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
 	
@@ -873,47 +873,47 @@ else
 # The linux build uses fluidsynth, and uses a series of runtime plug-ins
 # to do things like midi to wave conversion.
 #
-bin/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
+lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
     utils/option.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
-		utils/option.o -o bin/petit_ami_plain.so
+		utils/option.o -o lib/petit_ami_plain.so
 	
-bin/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+lib/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	utils/config.o utils/option.o
-	ar rcs bin/petit_ami_plain.a $(LINUXSTDIO) linux/services.o linux/sound.o \
+	ar rcs lib/petit_ami_plain.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	    utils/config.o utils/option.o
 	
-bin/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
+lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
-		utils/option.o  cpp/terminal.o -o bin/petit_ami_term.so 
+		utils/option.o  cpp/terminal.o -o lib/petit_ami_term.so 
 	
-bin/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
-	ar rcs bin/petit_ami_term.a $(LINUXSTDIO) linux/services.o linux/sound.o \
+	ar rcs lib/petit_ami_term.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
 		 cpp/terminal.o
 	
-bin/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
+lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/rotated.o linux/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/graphics.o linux/rotated.o linux/system_event.o \
 		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
-        -o bin/petit_ami_graph.so
+        -o lib/petit_ami_graph.so
 	
-bin/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	linux/graphics.o linux/rotated.o linux/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
-	ar rcs bin/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
+	ar rcs lib/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/graphics.o linux/rotated.o linux/system_event.o \ 
 		portable/gnome_widgets.o utils/config.o utils/option.o  \
@@ -1361,8 +1361,8 @@ clean:
 	rm -f bin/ball2 bin/ball3 bin/ball4 bin/ball5 bin/line1 bin/line2 \
 	rm -f bin/line4 bin/line5
 	find . -name "*.o" -type f -delete
-	rm -f bin/*.a
-	rm -f bin/*.so
+	rm -f lib/*.a
+	rm -f lib/*.so
 	rm -f bin/*.exe
 	
 ################################################################################
