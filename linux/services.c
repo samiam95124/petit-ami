@@ -1207,6 +1207,7 @@ void cpyenv(
         env = env->next;
 
     }
+    envp[i] = NULL; /* terminate list */
 
 }
 
