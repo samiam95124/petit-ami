@@ -91,6 +91,30 @@ int main(void)
 
     }
     printf("s/b <the listing for the current directory>\n");
+    printf("test1.l:\n");
+    pa_listl("*", strlen("*"), &lp);
+    while (lp) {
+
+        printf("%-25s %-10lld %-10lld ", lp->name, lp->size, lp->alloc);
+        if (INISET(lp->attr, pa_atexec)) putchar('e'); else putchar(' ');
+        if (INISET(lp->attr, pa_atarc)) putchar('a'); else putchar(' ');
+        if (INISET(lp->attr, pa_atsys)) putchar('s'); else putchar(' ');
+        if (INISET(lp->attr, pa_atdir)) putchar('d'); else putchar(' ');
+        if (INISET(lp->attr, pa_atloop)) putchar('l'); else putchar(' ');
+        putchar(' ');
+        prttimdat(lp->create);
+        prttimdat(lp->modify);
+        prttimdat(lp->access);
+        prttimdat(lp->backup);
+        prtperm(lp->user);
+        prtperm(lp->group);
+        prtperm(lp->other);
+        putchar('\n');
+        lp = lp->next;
+
+    }
+    printf("s/b <the listing for the current directory>\n");
+
     pa_times(s, MAXSTR, pa_time());
     printf("test 3: %s s/b <the current time in zulu>\n", s);
     pa_times(s, MAXSTR, pa_local(pa_time()));

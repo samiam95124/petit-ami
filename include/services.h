@@ -72,6 +72,7 @@ typedef int pa_permset; /* permissions in a set */
 typedef struct pa_filrec {
 
     char*             name;    /* name of file (zero terminated) */
+    int               namel;   /* length of name (without zero termination) */
     long long         size;    /* size of file */
     long long         alloc;   /* allocation of file */
     pa_attrset        attr;    /* attributes */
@@ -103,7 +104,8 @@ typedef unsigned char pa_chrset[CSETLEN];
 /*
  * Functions exposed in the services module
  */
-extern void pa_list(char* f, pa_filrec **l);
+extern void pa_list(char* f, pa_filrec **lp);
+extern void pa_listl(char* f, int l, pa_filrec **lp);
 extern void pa_times(char* s, int sl, int t);
 extern void pa_dates(char* s, int sl, int t);
 extern void pa_writetime(FILE *f, int t);

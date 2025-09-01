@@ -371,6 +371,32 @@ static int match(char *a, char *b, int ia, int ib)
 
 /********************************************************************************
 
+Copy length string to zero terminated
+
+Accepts a string, its length, a target buffer, and a maximum size. The string is
+moved to the target buffer with zero termination. If the length plus zero
+termination exceeds the buffer length, an error results.
+
+********************************************************************************/
+
+static void cpstrl2z(
+    /** target buffer */ char* buff,
+    /** length of buffer */ int bl,
+    /** source string */ char* s,
+    /** source string length */ int sl
+)
+
+{
+
+    if (sl+1 > bl) error("String too large for desination");
+    while (sl--) *buff++ = *s++; /* copy characters with length limit */
+    *buff = 0;
+
+}
+
+
+/********************************************************************************
+
 Create file list
 
 Accepts a filename, that may include wildcards. All of the matching files are
@@ -382,6 +408,21 @@ filename should be disposed of by the caller when they are no longer needed.
 If no files are matched, the returned list is nil.
 
 ********************************************************************************/
+
+void pa_listl(
+    /** file to search for */ char *f,
+    /** length of file string */ int l,
+    /** file list returned */ pa_filrec **lp
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, f, l);
+    pa_list(buff, lp);
+
+}
 
 void pa_list(
     /** file to search for */ char *f,
@@ -425,11 +466,13 @@ void pa_list(
                 fp = malloc(sizeof(pa_filrec)); /* create a new file entry */
                 /* copy to new filename string */
                 fp->name = malloc(strlen(dr->d_name)+1);
-                strcpy(fp->name, dr->d_name);
+                strcpy(fp->name, dr->d_name); /* copy to destination */
+                fp->namel = strlen(fp->name); /* copy to compatible length */
                 r = stat(fp->name, &sr); /* get stat structure on file */
                 if (r < 0) unixerr(); /* process unix error */
                 /* file information in stat record, translate to our format */
                 strcpy(fp->name, dr->d_name);   /* place filename */
+                fp->namel = strlen(fp->name); /* copy to compatible length (why twice?) */
                 fp->size = sr.st_size;   /* place size */
                 /* there is actually a real unix allocation, but I haven't figgured out
                    how to calculate it from block/blocksize */
@@ -835,6 +878,20 @@ is null or all blanks
 
 ********************************************************************************/
 
+void pa_validfilel(
+    /** string to validate */ char *s,
+    /** length of filename string */ int l
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, s, l);
+    pa_validfile(buff);
+
+}
+
 int pa_validfile(
     /* string to validate */ char *s
 )
@@ -862,6 +919,20 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
+void pa_validpathl(
+    /** string to validate */ char *s,
+    /** length of filename string */ int l
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, s, l);
+    pa_validpath(buff);
+
+}
+
 int pa_validpath(
     /* string to validate */ char *s
 )
@@ -887,6 +958,20 @@ Also checks if the filename ends in '/', which is an implied '*.*' wildcard
 on that directory.
 
 ********************************************************************************/
+
+void pa_wildl(
+    /** filename */ char *s,
+    /** length of filename string */ int l
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, s, l);
+    pa_wild(buff);
+
+}
 
 int pa_wild(
     /* filename */ char *s
@@ -951,6 +1036,22 @@ Returns an environment string by name.
 
 *******************************************************************************/
 
+void pa_getenvl(
+    /** string name */        char* esn,
+    /** name length  */       int esnl,
+    /** string data */        char* esd,
+    /** string data length */ int esdl
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, esn, esnl);
+    pa_getenv(buff, esd, esdl);
+
+}
+
 void pa_getenv(
     /** string name */        char* esn,
     /** string data */        char* esd,
@@ -986,9 +1087,27 @@ Sets an environment string by name.
 
 ********************************************************************************/
 
+void pa_setenvl(
+    /** name of string */      char *sn,
+    /** length of name */      int snl,
+    /** value of string */     char *sd,
+    /** value string length */ int sdl
+)
+
+{
+
+    char buff1[MAXSTR];
+    char buff2[MAXSTR];
+
+    cpstrl2z(buff1, MAXSTR, sn, snl);
+    cpstrl2z(buff1, MAXSTR, sd, sdl);
+    pa_setenv(buff1, buff2);
+
+}
+
 void pa_setenv(
-    /* name of string */ char *sn,
-    /* value of string */char *sd
+    /** name of string */ char *sn,
+    /** value of string */char *sd
 )
 
 {
@@ -1052,6 +1171,21 @@ Remove environment string
 Removes an environment string by name.
 
 ********************************************************************************/
+
+void pa_remenvl(
+    /** name of string */ char *sn,
+    /** length of name string */ int snl  
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, sn, snl);
+    pa_remenv(buff);
+
+}
+
 
 void pa_remenv(
         /* name of string */ char *sn
@@ -1280,6 +1414,20 @@ Executes a program by name. Does not wait for the program to complete.
 
 ********************************************************************************/
 
+void pa_execl(
+    /** program name to execute */ char *cmd,
+    /** length of name string */ int cmdl
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, cmd, cmdl);
+    pa_exec(buff);
+
+}
+
 void pa_exec(
     /* program name to execute */ char *cmd
 )
@@ -1327,9 +1475,24 @@ Executes a program by name. Waits for the program to complete.
 
 ********************************************************************************/
 
+void pa_execwl(
+    /** program name to execute */ char *cmd,
+    /** length of name string */ int cmdl,
+    /** return error */ int *err
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, cmd, cmdl);
+    pa_execw(buff, err);
+
+}
+
 void pa_execw(
-    /* program name to execute */ char *cmd,
-    /* return error */ int *err
+    /** program name to execute */ char *cmd,
+    /** return error */ int *err
 )
 
 {
@@ -1381,9 +1544,24 @@ the program environment.
 
 ********************************************************************************/
 
+void pa_execel(
+    /** program name to execute */ char *cmd,
+    /** length of name string */   int cmdl,
+    /** environment */             pa_envrec *el
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, cmd, cmdl);
+    pa_exece(buff, el);
+
+}
+
 void pa_exece(
-    /* program name to execute */ char      *cmd,
-    /* environment */             pa_envrec *el
+    /** program name to execute */ char      *cmd,
+    /** environment */             pa_envrec *el
 )
 
 {
@@ -1429,10 +1607,26 @@ program environment.
 
 ********************************************************************************/
 
+void pa_execewl(
+    /** program name to execute */ char *cmd,
+    /** length of name string */   int cmdl,
+    /** environment */             pa_envrec *el,
+    /** return error */            int *err
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, cmd, cmdl);
+    pa_execew(buff, el, err);
+
+}
+
 void pa_execew(
-        /* program name to execute */ char *cmd,
-        /* environment */             pa_envrec *el,
-        /* return error */            int *err
+        /** program name to execute */ char *cmd,
+        /** environment */             pa_envrec *el,
+        /** return error */            int *err
 )
 
 {
@@ -1500,8 +1694,23 @@ Sets the current path from the given string.
 
 ********************************************************************************/
 
+void pa_setcurl(
+    /** path to set */ char *fn,
+    /** length of path string */ int fnl
+
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_setcur(buff);
+
+}
+
 void pa_setcur(
-        /* path to set */ char *fn
+    /** path to set */ char *fn
 )
 
 {
@@ -1536,11 +1745,28 @@ were a normal character.
 
 ********************************************************************************/
 
+void pa_brknaml(
+    /** file specification */ char *fn,
+    /** file name length */   int fnl,
+    /** path */               char *p, int pl,
+    /** name */               char *n, int nl,
+    /** extention */          char *e, int el
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_brknam(buff, p, pl, n, nl, e, el);
+
+}
+
 void pa_brknam(
-        /* file specification */ char *fn,
-        /* path */               char *p, int pl,
-        /* name */               char *n, int nl,
-        /* extention */          char *e, int el
+    /** file specification */ char *fn,
+    /** path */               char *p, int pl,
+    /** name */               char *n, int nl,
+    /** extention */          char *e, int el
 )
 
 {
@@ -1621,6 +1847,30 @@ concatenating.
 
 ********************************************************************************/
 
+void pa_maknaml(
+    /** file specification to build */ char *fn,
+    /** file specification length */   int fnl,
+    /** path */                        char *p,
+    /** path length */                 int  pl,
+    /** filename */                    char *n,
+    /** filename length */             int nl,
+    /** extension */                   char *e,
+    /** extension length */            int el
+)
+
+{
+
+    char buff1[MAXSTR];
+    char buff2[MAXSTR];
+    char buff3[MAXSTR];
+
+    cpstrl2z(buff1, MAXSTR, p, pl);
+    cpstrl2z(buff2, MAXSTR, n, nl);
+    cpstrl2z(buff3, MAXSTR, e, el);
+    pa_maknam(fn, fnl, buff1, buff2, buff3);
+
+}
+
 void pa_maknam(
     /** file specification to build */ char *fn,
     /** file specification length */   int fnl,
@@ -1628,6 +1878,7 @@ void pa_maknam(
     /** filename */                    char *n,
     /** extension */                   char *e
 )
+
 {
 
     int i;   /* index for string */
@@ -1816,7 +2067,26 @@ possible.
 
 ********************************************************************************/
 
-void pa_resatr(char *fn, pa_attrset a)
+void pa_resatrl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** attributes */ pa_attrset a
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_resatr(buff, a);
+
+}
+
+void pa_resatr(
+    /** filename */ char *fn, 
+    /** attributes */ pa_attrset a
+)
+
 {
 
     /* no unix attributes can be reset */
@@ -1832,7 +2102,24 @@ which effectively means "back this file up now".
 
 ********************************************************************************/
 
-void pa_bakupd(char *fn)
+void pa_bakupdl(
+    /** filename */ char *fn,
+    /** filename length */ int fnl
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_bakupd(buff);
+
+}
+
+void pa_bakupd(
+    /** filename */ char *fn
+)
+
 {
 
     pa_setatr(fn, BIT(pa_atarc));
@@ -1847,7 +2134,26 @@ Sets user permisions
 
 ********************************************************************************/
 
-void pa_setuper(char *fn, pa_permset p)
+void pa_setuperl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** permissions */ pa_permset p
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_setuper(buff, p);
+
+}
+
+void pa_setuper(
+    /** filename */ char *fn, 
+    /** permissions */ pa_permset p
+)
+
 {
 
     struct stat sr; /* stat() record */
@@ -1874,7 +2180,26 @@ Resets user permissions.
 
 ********************************************************************************/
 
-void pa_resuper(char *fn, pa_permset p)
+void pa_resuperl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** permissions */ pa_permset p
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_resuper(buff, p);
+
+}
+
+void pa_resuper(
+    /** filename */ char *fn, 
+    /** permissions */ pa_permset p
+)
+
 {
 
     struct stat sr;   /* stat() record */
@@ -1900,7 +2225,26 @@ Sets group permissions.
 
 ********************************************************************************/
 
-void pa_setgper(char *fn, pa_permset p)
+void pa_setgperl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** permissions */ pa_permset p
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_setgper(buff, p);
+
+}
+
+void pa_setgper(
+    /** filename */ char *fn, 
+    /** permissions */ pa_permset p
+)
+
 {
 
     struct stat sr;   /* stat() record */
@@ -1926,7 +2270,26 @@ Resets group permissions.
 
 ********************************************************************************/
 
-void pa_resgper(char *fn, pa_permset p)
+void pa_resgperl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** permissions */ pa_permset p
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_resgper(buff, p);
+
+}
+
+void pa_resgper(
+    /** filename */ char *fn, 
+    /** permissions */ pa_permset p
+)
+
 {
     struct stat sr; /* stat() record */
     int         r;  /* result code */
@@ -1942,7 +2305,6 @@ void pa_resgper(char *fn, pa_permset p)
 
 }
 
-
 /********************************************************************************
 
 Set other (global) permissions
@@ -1951,7 +2313,26 @@ Sets other permissions.
 
 ********************************************************************************/
 
-void pa_setoper(char *fn, pa_permset p)
+void pa_setoperl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** permissions */ pa_permset p
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_setoper(buff, p);
+
+}
+
+void pa_setoper(
+    /** filename */ char *fn, 
+    /** permissions */ pa_permset p
+)
+
 {
 
     struct stat sr; /* stat() record */
@@ -1968,7 +2349,6 @@ void pa_setoper(char *fn, pa_permset p)
 
 }
 
-
 /********************************************************************************
 
 Reset other (global) permissions
@@ -1977,7 +2357,26 @@ Resets other permissions.
 
 ********************************************************************************/
 
-void pa_resoper(char *fn, pa_permset p)
+void pa_resoperl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** permissions */ pa_permset p
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_resoper(buff, p);
+
+}
+
+void pa_resoper(
+    /** filename */ char *fn, 
+    /** permissions */ pa_permset p
+)
+
 {
 
     struct stat sr; /* stat() record */
@@ -2002,7 +2401,24 @@ Create a new path. Only one new level at a time may be created.
 
 ********************************************************************************/
 
-void pa_makpth(char *fn)
+void pa_makpthl(
+    /** pathname */ char *fn,
+    /** pathname length */ int fnl
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_makpth(buff);
+
+}
+
+void pa_makpth(
+    /** pathname */ char *fn
+)
+
 {
 
     int r;   /* result code */
@@ -2023,7 +2439,24 @@ Create a new path. Only one new level at a time may be deleted.
 
 ********************************************************************************/
 
-void pa_rempth(char *fn)
+void pa_rempthl(
+    /** pathname */ char *fn,
+    /** pathname length */ int fnl
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_rempth(buff);
+
+}
+
+void pa_rempth(
+    /** pathname */ char *fn
+)
+
 {
 
     int r;   /* result code */
@@ -2826,7 +3259,11 @@ static langety langtab[] = {
 
 };
 
-void pa_languages(char* s, int len, int l)
+void pa_languages(
+    /** string buffer */ char* s, 
+    /** length of buffer */ int len, 
+    /** language code */ int l
+)
 
 {
 
