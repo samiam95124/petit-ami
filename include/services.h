@@ -66,13 +66,12 @@ typedef enum {
     pa_pmren    /* may be renamed/moved */
 
 } pa_permission;
-typedef int pa_permset; /* permissions in a set */
+typedef long pa_permset; /* permissions in a set */
 
 /* standard directory format */
 typedef struct pa_filrec {
 
     char*             name;    /* name of file (zero terminated) */
-    int               namel;   /* length of name (without zero termination) */
     long long         size;    /* size of file */
     long long         alloc;   /* allocation of file */
     pa_attrset        attr;    /* attributes */

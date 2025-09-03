@@ -467,12 +467,10 @@ void pa_list(
                 /* copy to new filename string */
                 fp->name = malloc(strlen(dr->d_name)+1);
                 strcpy(fp->name, dr->d_name); /* copy to destination */
-                fp->namel = strlen(fp->name); /* copy to compatible length */
                 r = stat(fp->name, &sr); /* get stat structure on file */
                 if (r < 0) unixerr(); /* process unix error */
                 /* file information in stat record, translate to our format */
                 strcpy(fp->name, dr->d_name);   /* place filename */
-                fp->namel = strlen(fp->name); /* copy to compatible length (why twice?) */
                 fp->size = sr.st_size;   /* place size */
                 /* there is actually a real unix allocation, but I haven't figgured out
                    how to calculate it from block/blocksize */
