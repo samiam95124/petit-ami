@@ -52,7 +52,7 @@ typedef enum {
     pa_atloop  /* contains heriarchy loop */
 
 } pa_attribute;
-typedef int pa_attrset; /* attributes in a set */
+typedef long pa_attrset; /* attributes in a set */
 
 /* permissions */
 typedef enum {
