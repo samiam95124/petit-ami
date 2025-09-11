@@ -72,6 +72,7 @@ typedef long pa_permset; /* permissions in a set */
 typedef struct pa_filrec {
 
     char*             name;    /* name of file (zero terminated) */
+    long              namel;   /* length of filename */
     long long         size;    /* size of file */
     long long         alloc;   /* allocation of file */
     pa_attrset        attr;    /* attributes */
