@@ -2049,6 +2049,21 @@ possible. This is done with makpth.
 
 ********************************************************************************/
 
+void pa_setatrl(
+    /** filename */ char *fn, 
+    /** filename length */ int fnl,
+    /** attributes */ pa_attrset a
+)
+
+{
+
+    char buff[MAXSTR];
+
+    cpstrl2z(buff, MAXSTR, fn, fnl);
+    pa_setatr(buff, a);
+
+}
+
 void pa_setatr(char *fn, pa_attrset a)
 {
 
