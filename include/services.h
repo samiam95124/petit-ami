@@ -119,6 +119,7 @@ extern int  pa_validfilel(char* s, int l);
 extern int  pa_validpath(char* s);
 extern int  pa_validpathl(char* s, int l);
 extern int  pa_wild(char* s);
+extern int  pa_wildl(char* s, int l);
 extern void pa_getenv(char* ls, char* ds, int dsl);
 extern void pa_getenvl(char* ls, int lsl, char* ds, int dsl);
 extern void pa_setenv(char* sn, char* sd);
