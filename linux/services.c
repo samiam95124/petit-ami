@@ -876,7 +876,7 @@ is null or all blanks
 
 ********************************************************************************/
 
-void pa_validfilel(
+int pa_validfilel(
     /** string to validate */ char *s,
     /** length of filename string */ int l
 )
@@ -886,7 +886,7 @@ void pa_validfilel(
     char buff[MAXSTR];
 
     cpstrl2z(buff, MAXSTR, s, l);
-    pa_validfile(buff);
+    return (pa_validfile(buff));
 
 }
 
@@ -917,7 +917,7 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
-void pa_validpathl(
+int pa_validpathl(
     /** string to validate */ char *s,
     /** length of filename string */ int l
 )
@@ -927,7 +927,7 @@ void pa_validpathl(
     char buff[MAXSTR];
 
     cpstrl2z(buff, MAXSTR, s, l);
-    pa_validpath(buff);
+    return (pa_validpath(buff));
 
 }
 
@@ -957,7 +957,7 @@ on that directory.
 
 ********************************************************************************/
 
-void pa_wildl(
+int pa_wildl(
     /** filename */ char *s,
     /** length of filename string */ int l
 )
@@ -967,7 +967,7 @@ void pa_wildl(
     char buff[MAXSTR];
 
     cpstrl2z(buff, MAXSTR, s, l);
-    pa_wild(buff);
+    return (pa_wild(buff));
 
 }
 
