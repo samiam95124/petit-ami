@@ -576,7 +576,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -592,7 +592,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -608,7 +608,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -624,7 +624,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -931,7 +931,7 @@ lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
     cpp/terminal.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
-		utils/option.o  cpp/terminal.o -o lib/petit_ami_term.so 
+		utils/option.o  cpp/terminal.o -lstdc++ -o lib/petit_ami_term.so
 	
 lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
@@ -948,7 +948,7 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/graphics.o linux/system_event.o \
 		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
-        -o lib/petit_ami_graph.so
+        -lstdc++ -o lib/petit_ami_graph.so
 
 lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
@@ -1203,6 +1203,12 @@ sound_testg: $(GLIBSD) tests/sound_test.c
 services_test: $(PLIBSD) tests/services_test.c
 	$(CC) $(CFLAGS) tests/services_test.c $(PLIBS) -o bin/services_test
 	$(CC) $(CFLAGS) tests/services_test1.c $(PLIBS) -o bin/services_test1
+
+#
+# Test the standard I/O library (printf/scanf/file I/O). Self checking.
+#
+stdio_test: $(PLIBSD) tests/stdio_test.c
+	$(CC) $(CFLAGS) tests/stdio_test.c $(PLIBS) -o bin/stdio_test
 
 #
 # Test event model (console and graph mode)
@@ -1481,7 +1487,7 @@ clean:
 	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
 	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
 	rm -f bin/management_test bin/widget_test bin/sound_test bin/sound_testg
-	rm -f bin/services_test bin/event bin/eventg bin/term bin/termg bin/snake 
+	rm -f bin/services_test bin/stdio_test bin/event bin/eventg bin/term bin/termg bin/snake
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
 	rm -f bin/getmail bin/getmailg bin/gettys bin/gettysg bin/msgclient 
