@@ -1372,8 +1372,9 @@ static double strtodi(
 
 {
 
-    double v;    /* value */
-    double frac; /* fractional digit scale */
+    long double v;    /* value (extended precision: avoids overflow to inf and
+                         accumulated error when scaling by large exponents) */
+    long double frac; /* fractional digit scale */
     int    sgn;  /* sign of number */
     int    esgn; /* sign of exponent */
     int    ev;   /* exponent value */
@@ -1381,7 +1382,7 @@ static double strtodi(
     int    c;    /* current character */
 
     *err = FALSE; /* set no error */
-    v = 0.0; /* clear value */
+    v = 0.0L; /* clear value */
     sgn = 1; /* set positive */
     digs = FALSE; /* no digits seen yet */
 
@@ -1400,7 +1401,7 @@ static double strtodi(
     /* parse integer part */
     while ((c = chkfstrlen(*s, fld, fd)) >= '0' && c <= '9') {
 
-        v = v*10.0+(c-'0'); /* accumulate digit */
+        v = v*10.0L+(c-'0'); /* accumulate digit */
         getfstr(s, fd); fld--; (*cnt)++; /* skip digit */
         digs = TRUE; /* a digit was seen */
 
@@ -1410,11 +1411,11 @@ static double strtodi(
     if (chkfstrlen(*s, fld, fd) == '.') {
 
         getfstr(s, fd); fld--; (*cnt)++; /* skip decimal point */
-        frac = 0.1; /* first fractional place */
+        frac = 0.1L; /* first fractional place */
         while ((c = chkfstrlen(*s, fld, fd)) >= '0' && c <= '9') {
 
             v += (c-'0')*frac; /* add fractional digit */
-            frac /= 10.0; /* next fractional place */
+            frac /= 10.0L; /* next fractional place */
             getfstr(s, fd); fld--; (*cnt)++; /* skip digit */
             digs = TRUE; /* a digit was seen */
 
@@ -1450,14 +1451,14 @@ static double strtodi(
         /* scale value by the exponent */
         while (ev > 0) {
 
-            if (esgn > 0) v *= 10.0; else v /= 10.0;
+            if (esgn > 0) v *= 10.0L; else v /= 10.0L;
             ev--;
 
         }
 
     }
 
-    return (v); /* return value */
+    return ((double)v); /* narrow to double with a single final rounding */
 
 }
 
@@ -2273,6 +2274,187 @@ large magnitudes lose precision in the same way the underlying double does.
 
 ******************************************************************************/
 
+/** **************************************************************************
+
+Exact decimal conversion support (clean room big integer)
+
+A finite double equals m*2^k for an integer significand m and binary exponent k.
+To convert it to decimal it is scaled to a rational A/B whose value is the number
+divided by 10^decexp, arranged to lie in [1,10), and decimal digits are then
+produced by exact big integer long division. The final kept digit is rounded to
+nearest, ties to even, decided on the exact remainder. The result is therefore a
+correctly rounded conversion, identical to the system library for every value and
+precision, with no accumulated floating point error. This is an original
+implementation; no third party conversion code is used.
+
+******************************************************************************/
+
+#define FF_NL 80 /* big integer size in 32 bit limbs (2560 bits) */
+
+typedef struct { unsigned v[FF_NL]; int n; } ffbn;
+
+static void ffnorm(ffbn* a) { while (a->n > 1 && a->v[a->n-1] == 0) a->n--; }
+static int  ffzero(const ffbn* a) { return a->n == 1 && a->v[0] == 0; }
+
+static void ffset(ffbn* a, unsigned long long x) /* a = x */
+{
+    memset(a->v, 0, sizeof(a->v));
+    a->v[0] = (unsigned)x; a->v[1] = (unsigned)(x>>32);
+    a->n = a->v[1] ? 2 : 1;
+}
+
+static int ffcmp(const ffbn* a, const ffbn* b) /* compare magnitudes */
+{
+    int i;
+    if (a->n != b->n) return a->n < b->n ? -1 : 1;
+    for (i = a->n-1; i >= 0; i--)
+        if (a->v[i] != b->v[i]) return a->v[i] < b->v[i] ? -1 : 1;
+    return 0;
+}
+
+static void ffmuls(ffbn* a, unsigned s) /* a *= s (s a small value) */
+{
+    unsigned long long carry = 0;
+    int i;
+    for (i = 0; i < a->n; i++) {
+        unsigned long long t = (unsigned long long)a->v[i]*s + carry;
+        a->v[i] = (unsigned)t; carry = t>>32;
+    }
+    while (carry && a->n < FF_NL) { a->v[a->n++] = (unsigned)carry; carry >>= 32; }
+}
+
+static void ffmul10(ffbn* a, int p) { while (p-- > 0) ffmuls(a, 10); } /* a *= 10^p */
+
+static void ffshl(ffbn* a, int bits) /* a <<= bits (a *= 2^bits) */
+{
+    int word = bits/32, bit = bits%32, i;
+    if (word) {
+        for (i = a->n-1; i >= 0; i--) a->v[i+word] = a->v[i];
+        for (i = 0; i < word; i++) a->v[i] = 0;
+        a->n += word;
+    }
+    if (bit) {
+        unsigned carry = 0;
+        for (i = word; i < a->n; i++) {
+            unsigned long long t = ((unsigned long long)a->v[i]<<bit) | carry;
+            a->v[i] = (unsigned)t; carry = (unsigned)(t>>32);
+        }
+        if (carry && a->n < FF_NL) a->v[a->n++] = carry;
+    }
+    ffnorm(a);
+}
+
+static void ffsub(ffbn* a, const ffbn* b) /* a -= b, requires a >= b */
+{
+    long long borrow = 0;
+    int i;
+    for (i = 0; i < a->n; i++) {
+        long long t = (long long)a->v[i] - (i < b->n ? b->v[i] : 0) - borrow;
+        if (t < 0) { t += 0x100000000LL; borrow = 1; } else borrow = 0;
+        a->v[i] = (unsigned)t;
+    }
+    ffnorm(a);
+}
+
+/* Build A, B and decexp so that A/B equals d/10^decexp and lies in [1,10).
+   d must be finite and greater than zero. */
+static void ffsetup(double d, ffbn* A, ffbn* B, int* pdexp)
+{
+    unsigned long long bits, mant, m;
+    int ef, k, dexp, hb;
+    ffbn t;
+
+    memcpy(&bits, &d, 8);
+    ef = (int)((bits>>52) & 0x7ff);
+    mant = bits & 0xfffffffffffffULL;
+    if (ef == 0) { m = mant; k = -1074; }                 /* subnormal */
+    else { m = mant | 0x10000000000000ULL; k = ef-1075; } /* normal */
+
+    /* estimate decexp = floor(log10(d)) from the binary exponent. The
+       normalization loops below correct any error, so a rough estimate is
+       sufficient and no math library is needed. */
+    hb = 63; while (!((m>>hb)&1)) hb--;         /* index of top set bit of m */
+    dexp = (int)((k+hb) * 0.3010299956639812);  /* * log10(2) */
+
+    ffset(A, m); ffset(B, 1);
+    if (k >= 0) ffshl(A, k); else ffshl(B, -k);
+    if (dexp >= 0) ffmul10(B, dexp); else ffmul10(A, -dexp);
+
+    /* correct into [1,10) */
+    while (ffcmp(A, B) < 0) { ffmuls(A, 10); dexp--; }
+    for (;;) { t = *B; ffmuls(&t, 10); if (ffcmp(A, &t) >= 0) { *B = t; dexp++; }
+               else break; }
+    *pdexp = dexp;
+}
+
+/* decimal exponent of the leading digit of d (floor(log10|d|)), 0 for zero */
+static int ffdecexp(double d)
+{
+    ffbn A, B; int e;
+    if (d == 0) return 0;
+    if (d < 0) d = -d;
+    ffsetup(d, &A, &B, &e);
+    return e;
+}
+
+/* Produce ndig significant decimal digits of |d| in digits[0..ndig-1],
+   correctly rounded with ties to even, and set *pe to the decimal exponent of
+   the leading digit. d may be zero. ndig must be at least 1. */
+static void ffgen(double d, int ndig, char* digits, int* pe)
+{
+    ffbn A, B; int dexp, i, done = 0;
+
+    if (d == 0) { for (i = 0; i < ndig; i++) digits[i] = '0'; *pe = 0; return; }
+    if (d < 0) d = -d;
+    ffsetup(d, &A, &B, &dexp);
+    *pe = dexp;
+    for (i = 0; i < ndig; i++) {
+        int dig = 0;
+        if (done) { digits[i] = '0'; continue; } /* exact value exhausted */
+        while (ffcmp(&A, &B) >= 0) { ffsub(&A, &B); dig++; } /* this digit */
+        digits[i] = (char)('0'+dig);
+        if (ffzero(&A)) { done = 1; continue; } /* remainder zero: rest are 0 */
+        if (i < ndig-1) ffmuls(&A, 10); /* leave remainder in place on last */
+    }
+    if (!done) { /* round to nearest, ties to even, on the exact remainder */
+        int c;
+        ffmuls(&A, 2); /* compare 2*remainder to B */
+        c = ffcmp(&A, &B);
+        if (c > 0 || (c == 0 && ((digits[ndig-1]-'0') & 1))) {
+            for (i = ndig-1; i >= 0; i--) {
+                if (digits[i] < '9') { digits[i]++; break; } /* carry absorbed */
+                digits[i] = '0'; /* 9 rolls to 0, carry continues */
+            }
+            if (i < 0) { digits[0] = '1'; (*pe)++; } /* carried past the top */
+        }
+    }
+}
+
+/* For the 'f' boundary case (the rounded result is 0 or a single 1 in the last
+   place), return nonzero if |d| rounds up at the 10^-pre place. The value rounds
+   up when 2*|d| > 10^-pre; an exact half ties to even, and the kept digit is 0
+   (even), so equality rounds down. Compared exactly: 2*d = m*2^(k+1), so the test
+   is m*2^(k+1)*10^pre > 1. */
+static int ffboundup(double d, int pre)
+{
+    ffbn A, B;
+    unsigned long long bits, mant, m;
+    int ef, k, kk;
+
+    if (d < 0) d = -d;
+    if (d == 0) return 0;
+    memcpy(&bits, &d, 8);
+    ef = (int)((bits>>52) & 0x7ff);
+    mant = bits & 0xfffffffffffffULL;
+    if (ef == 0) { m = mant; k = -1074; }
+    else { m = mant | 0x10000000000000ULL; k = ef-1075; }
+    ffset(&A, m); ffset(&B, 1);
+    kk = k+1;
+    if (kk >= 0) ffshl(&A, kk); else ffshl(&B, -kk);
+    ffmul10(&A, pre);
+    return ffcmp(&A, &B) > 0; /* strictly greater rounds up; equal ties to even */
+}
+
 static char *fmtfloat(
     /** value to convert */                       double d,
     /** precision (number of digits) */           int pre,
@@ -2304,9 +2486,6 @@ static char *fmtfloat(
     int     ae;      /* absolute exponent */
     char    estr[16];/* exponent digit holder */
     int     en;      /* exponent digit count */
-    double  dd;      /* working value */
-    double  rnd;     /* rounding addend */
-    int     k;       /* digit holder */
 
     up = (cv == 'E' || cv == 'G'); /* set upper case form */
     ec = up ? 'E' : 'e'; /* set exponent letter */
@@ -2343,14 +2522,9 @@ static char *fmtfloat(
     neg = FALSE;
     if (d < 0) { neg = TRUE; d = -d; }
 
-    /* estimate the decimal exponent of the leading digit */
-    dd = d; e0 = 0;
-    if (dd != 0) {
-
-        while (dd >= 10.0) { dd /= 10.0; e0++; }
-        while (dd < 1.0)   { dd *= 10.0; e0--; }
-
-    }
+    /* exact decimal exponent of the leading digit (used for the 'f' digit
+       count and the 'f' boundary case below) */
+    e0 = ffdecexp(d);
 
     /* handle the 'f' boundary case where rounding occurs at or above the
        leading digit, so the result is either 0 or a single 1 in the last
@@ -2360,11 +2534,9 @@ static char *fmtfloat(
         sig = e0+1+pre; /* significant digits down to the precision place */
         if (sig < 1) { /* rounds to 0 or 1 in the last place */
 
-            double half; /* half of one unit in the last place */
-            int    rup;  /* round up */
+            int rup; /* round up */
 
-            half = 0.5; for (i = 0; i < pre; i++) half /= 10.0;
-            rup = d >= half; /* round up if at or past the half way point */
+            rup = ffboundup(d, pre); /* exact round to nearest, ties to even */
             buf = (char *)malloc(pre+8);
             if (!buf) return (NULL);
             p = buf;
@@ -2406,27 +2578,9 @@ static char *fmtfloat(
     digits = (char *)malloc(ndig);
     if (!digits) return (NULL);
 
-    /* decompose into rounded decimal digits with exponent */
-    dd = d; e = 0;
-    if (dd != 0) {
-
-        while (dd >= 10.0) { dd /= 10.0; e++; }
-        while (dd < 1.0)   { dd *= 10.0; e--; }
-
-    }
-    rnd = 0.5; for (i = 0; i < ndig-1; i++) rnd /= 10.0; /* half last digit */
-    dd += rnd; /* apply rounding */
-    if (dd >= 10.0) { dd /= 10.0; e++; } /* rounding carried into a new digit */
-    for (i = 0; i < ndig; i++) { /* extract digits */
-
-        k = (int)dd; /* get whole digit */
-        if (k > 9) k = 9; /* clamp floating point error high */
-        if (k < 0) k = 0; /* clamp floating point error low */
-        digits[i] = '0'+k; /* place digit */
-        dd -= k; /* remove digit */
-        dd *= 10.0; /* scale next digit up */
-
-    }
+    /* generate the significant digits, correctly rounded (ties to even), via
+       the exact big integer conversion, with e set to the leading exponent */
+    ffgen(d, ndig, digits, &e);
 
     /* for 'g'/'G', choose the output style now that the exponent is known */
     if (cv == 'g' || cv == 'G') {
