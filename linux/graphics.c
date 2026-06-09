@@ -16859,13 +16859,15 @@ static void ami_deinit_graphics()
 
     /* shutdown FreeType and fontconfig.
        Note: we clear the glyph cache (freeing X pixmaps) but do NOT call
-       FT_Done_FreeType(). Individual FT_Done_Face() calls have already
-       been made during window close, and FT_Done_FreeType() would try to
-       free them again (double-free → segfault). The process is exiting,
-       so the OS reclaims all heap memory regardless. */
+       FT_Done_FreeType() or FcFini(). Individual FT_Done_Face() calls have
+       already been made during window close, and FT_Done_FreeType() would try
+       to free them again (double-free → segfault). FcFini() has the same
+       problem under a statically linked fontconfig: it tears down fontconfig's
+       internal config, which double-frees at exit ("double free or corruption").
+       The process is exiting, so the OS reclaims all heap memory regardless. */
     ft_cache_clear();
     /* FT_Done_FreeType(ftlibrary); — skipped, see above */
-    FcFini();
+    /* FcFini(); — skipped, see above */
 
     /* close joysticks */
     for (ji = 0; ji < MAXJOY; ji++) if (joytab[ji]) close(joytab[ji]->fid);
