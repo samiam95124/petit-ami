@@ -992,7 +992,7 @@ testc: $(CLIBSD) test.c
 	$(CC) $(CFLAGS) test.c $(CLIBS) -o testc
 	
 testg: $(GLIBSD) test.c
-	$(CC) $(CFLAGS) test.c $(GLIBS) -o testg
+	$(CC) $(CFLAGS) test.c -Wl,-u,ami_cursorg $(GLIBS) -o testg
 	
 test+: $(PLIBSD) test.cp
 	$(CPP) $(CFLAGS) test.cp $(PLIBS) -o test
@@ -1007,7 +1007,7 @@ testc++: $(CLIBSCPPD) test.cpp
 	$(CPP) $(CFLAGSCPP) test.cpp $(CLIBSCPP) -o testc
 	
 testg++: $(GLIBSD) test.cpp
-	$(CPP) $(CFLAGS) test.cpp $(GLIBS) -o testg
+	$(CPP) $(CFLAGS) test.cpp -Wl,-u,ami_cursorg $(GLIBS) -o testg
 	
 #
 # Target programs that use Petit-Ami, such as games, utilities, etc.

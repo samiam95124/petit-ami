@@ -2744,6 +2744,31 @@ void stdfont(void)
 
 /*******************************************************************************
 
+Append trimmed lowercase string
+
+Copies a source string onto the build pointer, lowercased, with any leading and
+trailing whitespace removed. Used to assemble font names so that no stray spaces
+appear at the start or end of a component. Returns the advanced build pointer.
+
+*******************************************************************************/
+
+static char* apptrim(char* dp, const char* s)
+
+{
+
+    const char* e; /* end of trimmed source */
+
+    while (*s && isspace((unsigned char)*s)) s++; /* skip leading whitespace */
+    e = s+strlen(s); /* find end of source */
+    while (e > s && isspace((unsigned char)e[-1])) e--; /* trim trailing space */
+    while (s < e) *dp++ = tolower((unsigned char)*s++); /* copy lowercased */
+
+    return (dp); /* return advanced pointer */
+
+}
+
+/*******************************************************************************
+
 Load fonts list
 
 Loads the font list using fontconfig. We only load scalable fonts, since PA has
@@ -2811,19 +2836,12 @@ void getfonts(void)
         if (FcPatternGetInteger(font, FC_INDEX, 0, &fcindex) != FcResultMatch)
             fcindex = 0;
 
-        /* construct display name: "foundry: family: iso10646-1" */
+        /* construct display name: "foundry: family: iso10646-1", trimming
+           leading and trailing whitespace from each component */
         dp = buf;
-        {
-            const char* s;
-            s = (const char*)fcfoundry;
-            while (*s) { *dp = tolower(*s); dp++; s++; }
-        }
+        dp = apptrim(dp, (const char*)fcfoundry);
         *dp++ = ':'; *dp++ = ' ';
-        {
-            const char* s;
-            s = (const char*)fcfamily;
-            while (*s) { *dp = tolower(*s); dp++; s++; }
-        }
+        dp = apptrim(dp, (const char*)fcfamily);
         *dp++ = ':'; *dp++ = ' ';
         {
             const char* cs = "iso10646-1";

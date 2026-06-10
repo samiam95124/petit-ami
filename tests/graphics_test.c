@@ -1205,7 +1205,6 @@ int main(void)
 
     ami_frametimer(stdout, TRUE); /* start frame timer */
     if (setjmp(terminate_buf)) goto terminate;
-goto skip;
     ami_curvis(stdout, FALSE);
     ami_binvis(stdout);
     printf("Graphics screen test vs. 0.1\n");
@@ -2673,17 +2672,10 @@ goto skip;
     grid();
     printf("Number of fonts: %d\n", ami_fonts(stdout));
     printf("\n");
-    i = 1;
     cnt = ami_fonts(stdout);
-    while (cnt > 0) {
+    for (i = 1; i <= cnt; i++) { /* visit each font code */
 
-        /* find defined font code */
-        do {
-
-            ami_fontnam(stdout, i, fns, 100);
-            if (!strlen(fns)) i++;
-
-        } while (!strlen(fns));
+        ami_fontnam(stdout, i, fns, 100);
         printf("%d: %s\n", i, fns);
         if (ami_cury(stdout) >= ami_maxy (stdout)) { /* screen overflows */
 
@@ -2693,8 +2685,6 @@ goto skip;
             grid();
 
         }
-        i = i+1; /* next font code */
-        cnt = cnt-1; /* count fonts */
 
     }
     printf("\n");
@@ -2708,17 +2698,10 @@ goto skip;
     ami_auto(stdout, OFF);
     ami_bcolor(stdout, ami_cyan);
     ami_bover(stdout);
-    i = 1;
     cnt = ami_fonts(stdout);
-    while (cnt) {
+    for (i = 1; i <= cnt; i++) { /* visit each font code */
 
-        /* find defined font code */
-        do {
-
-            ami_fontnam(stdout, i, fns, 100);
-            if (!strlen(fns)) i++;
-
-        } while (!strlen(fns));
+        ami_fontnam(stdout, i, fns, 100);
         ami_font(stdout, i);
         printf("%d: %s\n", i, fns);
         if (ami_cury(stdout) >= ami_maxy(stdout)) { /* screen overflows */
@@ -2732,8 +2715,6 @@ goto skip;
             ami_bcolor(stdout, ami_cyan);
 
         }
-        i++; /* next font code */
-        cnt--; /* count fonts */
 
     }
     ami_bcolor(stdout, ami_white);
@@ -2815,7 +2796,6 @@ goto skip;
 
     /* ************************** Polar text lines test ************************ */
 
-skip:
     putchar('\f');
     grid();
     ami_auto(stdout, OFF); /* rotated text is incompatible with the text grid */
