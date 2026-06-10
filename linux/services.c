@@ -3417,7 +3417,12 @@ Note the environment is unordered.
 
 *******************************************************************************/
 
-static void ami_init_services (int argc, char* argv[]) __attribute__((constructor (102)));
+/* Priority 101 (before the I/O models at 102+): the environment list this
+   builds is a dependency of config reading. The graphics/terminal/... init at
+   102+ call ami_config -> ami_getusr -> ami_getenv, which need the env list to
+   resolve $HOME; if services ran at the same priority (link-order dependent),
+   that lookup could fail and the user-home config would be missed. */
+static void ami_init_services (int argc, char* argv[]) __attribute__((constructor (101)));
 static void ami_init_services(int argc, char* argv[])
 
 {
