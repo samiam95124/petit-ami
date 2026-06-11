@@ -16869,8 +16869,15 @@ static void ami_deinit_graphics()
         XWLOCK();
         /* destroy the main window */
         XDestroyWindow(padisplay, win->xwhan);
-        /* close X Window */
-        XCloseDisplay(padisplay);
+        /* Flush the destroy to the server, but do NOT call XCloseDisplay().
+           Like FT_Done_FreeType() and FcFini() below, it is process-exit
+           teardown that misbehaves under a static link: a statically linked
+           Xlib double-frees display-owned data in _XFreeDisplayStructure
+           ("double free or corruption" at every program exit). The process is
+           exiting, so the connection closes and the OS reclaims all memory
+           regardless. */
+        XFlush(padisplay);
+        /* XCloseDisplay(padisplay); -- skipped, see above */
         XWUNLOCK();
 
     }
