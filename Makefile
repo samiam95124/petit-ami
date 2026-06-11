@@ -576,7 +576,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -592,7 +592,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -608,7 +608,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -624,7 +624,7 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -1193,6 +1193,14 @@ sound_test: $(CLIBSD) tests/sound_test.c
 	
 sound_testg: $(GLIBSD) tests/sound_test.c
 	$(CC) $(CFLAGS) tests/sound_test.c $(GLIBS) -o bin/sound_testg 
+	
+#
+# Test network library (automated; replaces the manual list in
+# network_test.txt). Run from the project root so the TLS test certificates
+# are found.
+#
+network_test: $(PLIBSD) tests/network_test.c
+	$(CC) $(CFLAGS) tests/network_test.c $(PLIBS) -o bin/network_test
 	
 #
 # Test services module
