@@ -16727,10 +16727,12 @@ static void ami_init_graphics(int argc, char *argv[])
     /* find frame characteristics */
     fndfrm();
 
+#ifndef NOSTDWIN
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
     openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
+#endif
 
     /* select XWindow display file */
     XWLOCK();
