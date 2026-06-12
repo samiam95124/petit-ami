@@ -1130,6 +1130,10 @@ static void intkillwidget(
     /* if there is a subwidget, kill that as well */
     if (wp->cw) ami_killwidget(wp->cw->pw->wf, wp->cw->id);
     if (wp->cw2) ami_killwidget(wp->cw2->pw->wf, wp->cw2->id);
+    xltwig[wp->wid+MAXFIL] = NULL; /* clear the window-to-widget tracking
+                                      entry, or a window id reused after this
+                                      widget is freed would dispatch events to
+                                      the freed entry */
     fclose(wp->wf); /* close the window file */
     opnfil[fn]->widgets[wid+MAXWIG] = NULL; /* clear widget slot  */
     putwig(wp); /* release widget data */
