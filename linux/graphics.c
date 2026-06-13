@@ -14850,9 +14850,21 @@ static void setsizg_ivf(FILE* f, int x, int y)
            set the dimensions now */
         if (!win->bufmod) {
 
-            /* reset tracking sizes */
-            win->gmaxxg = e.xconfigure.width; /* graphics x */
-            win->gmaxyg = e.xconfigure.height; /* graphics y */
+            /* reset tracking sizes. Child-framed windows resize synchronously
+               above and get no ConfigureNotify, so the event record e is never
+               filled for them; use the computed client dimensions directly
+               instead of reading the uninitialized event. */
+            if (win->childfrm) {
+
+                win->gmaxxg = xwc.width; /* graphics x */
+                win->gmaxyg = xwc.height; /* graphics y */
+
+            } else {
+
+                win->gmaxxg = e.xconfigure.width; /* graphics x */
+                win->gmaxyg = e.xconfigure.height; /* graphics y */
+
+            }
             /* find character size x */
             win->gmaxx = win->gmaxxg/win->charspace;
             /* find character size y */
