@@ -478,6 +478,7 @@ void ami_setsiz(FILE* f, int x, int y);
 void ami_setsizg(FILE* f, int x, int y);
 void ami_setpos(FILE* f, int x, int y);
 void ami_setposg(FILE* f, int x, int y);
+void ami_dragwin(FILE* f);
 void ami_scnsiz(FILE* f, int* x, int* y);
 void ami_scnsizg(FILE* f, int* x, int*y);
 void ami_scncen(FILE* f, int* x, int* y);

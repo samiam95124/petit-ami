@@ -14969,6 +14969,111 @@ static void setposg_ivf(FILE* f, int x, int y)
 
 /** ****************************************************************************
 
+Drag a window under pointer control
+
+Interactively moves the given window, tracking the pointer until the mouse
+button is released. This is called when an application (typically a dialog that
+draws its own title bar) detects a press on its drag handle and wants the window
+to follow the pointer.
+
+The tracking is done entirely in desktop (root) coordinates against the window's
+position at the start of the drag:
+
+    window_pos = start_pos + (pointer_root_now - pointer_root_start)
+
+i.e. the window moves by exactly the pointer's root-space displacement, so the
+point of the window grabbed at button-down stays under the cursor. Because both
+terms are in root and parent coordinates -- never the window-relative client
+frame that moves as the window moves -- there is no feedback to diverge. The
+grab offset is captured once, implicitly, as the difference between the start
+pointer position and the start window position, and is never re-measured.
+
+The pointer is grabbed for the duration so motion continues to be delivered even
+when the pointer outruns the window and leaves its bounds, which a drag does
+constantly. XMoveWindow positions relative to the window's parent, so this works
+unchanged whether the window is a free desktop child, a child of one of our
+windows, or nested arbitrarily deep -- the move math and clipping are uniform at
+every level.
+
+*******************************************************************************/
+
+void ami_dragwin(FILE* f)
+
+{
+
+    winptr win;             /* pointer to windows context */
+    Window root_ret;        /* root the pointer is on */
+    Window child_ret;       /* child the pointer is in */
+    int    rx, ry;          /* pointer root position */
+    int    wx, wy;          /* pointer window position (unused) */
+    unsigned int mask;      /* button/modifier mask (unused) */
+    int    startx, starty;  /* pointer root position at drag start */
+    int    origx, origy;    /* window position at drag start */
+    XEvent de;              /* drag event */
+    int    dragging;        /* drag in progress */
+
+    win = txt2win(f); /* get window context */
+
+    XWLOCK();
+    /* snapshot the pointer's root position and the window's parent-relative
+       position at the instant the drag begins; their difference is the
+       (constant) grab offset, which never needs to be re-measured */
+    XQueryPointer(padisplay, win->xmwhan, &root_ret, &child_ret,
+                  &rx, &ry, &wx, &wy, &mask);
+    startx = rx; starty = ry;
+    origx = win->xmwr.x; origy = win->xmwr.y;
+    /* redirect all pointer motion to us for the duration, so tracking
+       continues even when the pointer leaves the window's bounds */
+    XGrabPointer(padisplay, win->xmwhan, False,
+                 ButtonReleaseMask | PointerMotionMask,
+                 GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+    XWUNLOCK();
+
+    dragging = TRUE;
+    while (dragging) {
+
+        XWLOCK();
+        XNextEvent(padisplay, &de);
+        XWUNLOCK();
+        if (de.type == MotionNotify) {
+
+            /* move the window by the pointer's root-space delta */
+            int dx = de.xmotion.x_root - startx;
+            int dy = de.xmotion.y_root - starty;
+            win->xmwr.x = origx + dx;
+            win->xmwr.y = origy + dy;
+            XWLOCK();
+            XMoveWindow(padisplay, win->xmwhan, win->xmwr.x, win->xmwr.y);
+            XWUNLOCK();
+
+        } else if (de.type == ButtonRelease) {
+
+            dragging = FALSE;
+
+        } else if (de.type == Expose) {
+
+            /* repaint anything the move exposed, dispatched to its window */
+            int ofn = fndevt(de.xany.window);
+            if (ofn >= 0) {
+
+                winptr ewin = lfn2win(ofn);
+                if (ewin->childfrm && ewin->xmwhan == de.xany.window)
+                    childfrm_draw(ewin);
+                else restore(ewin);
+
+            }
+
+        }
+
+    }
+    XWLOCK();
+    XUngrabPointer(padisplay, CurrentTime);
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
 Set window position character
 
 Sets the onscreen window position, in character terms. If the window has a
