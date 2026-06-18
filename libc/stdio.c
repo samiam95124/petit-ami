@@ -1224,7 +1224,8 @@ static unsigned long long strtoulso(
     } else {
 
         getnumro(s, &v, base, o, cnt, &fld, fd); /* parse digits in selected base */
-        if (base == 16 && !v && (**s == 'x' || **s == 'X')) {
+        if (base == 16 && !v && (chkfstrlen(*s, fld, fd) == 'x' ||
+                                 chkfstrlen(*s, fld, fd) == 'X')) {
 
             /* allow 0x/0X on hexadecimal */
             getfstr(s, fd); /* skip x/X */
