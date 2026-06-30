@@ -1580,6 +1580,8 @@ void ami_brknam(
 
     int i, s, f, t; /* string indexes */
     char *s1, *s2;
+    char buf[MAXSTR]; /* trimmed working copy of the spec */
+    int len;          /* length of the trimmed spec */
 
     /* clear all strings */
     *p = 0;
@@ -1589,6 +1591,17 @@ void ami_brknam(
     s1 = fn; /* index file spec */
     /* skip spaces */
     while (*s1 && *s1 == ' ') s1++;
+    /* Work on a trimmed copy: drop trailing spaces (the input may be a space-
+       padded fixed string) and a single trailing path separator, so a
+       directory spec such as ".../bin/" yields name "bin" rather than an empty
+       name. The root "/" (len 1) keeps its separator. */
+    len = strlen(s1);
+    while (len > 0 && s1[len-1] == ' ') len--;
+    if (len > 1 && s1[len-1] == ami_pthchr()) len--;
+    if (len >= MAXSTR) error("String to large for destination\n");
+    memcpy(buf, s1, len);
+    buf[len] = 0;
+    s1 = buf;
     /* find last '/' that will mark the path */
     s2 = strrchr(s1, ami_pthchr());
     if (s2) {
