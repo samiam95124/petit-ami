@@ -1237,6 +1237,15 @@ int ami_openmsg(
         /* set secure udp */
         opnfil[fn]->sudp = TRUE;
 
+    } else {
+
+        /* clear (plain UDP): bound the receive so a lost or late reply fails
+           the read instead of blocking forever -- the secured path above gets
+           this via BIO_CTRL_DGRAM_SET_RECV_TIMEOUT */
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        setsockopt(fn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
     }
 
     return (fn); /* return fid */
@@ -1318,6 +1327,15 @@ int ami_openmsgv6(
 
         /* set secure udp */
         opnfil[fn]->sudp = TRUE;
+
+    } else {
+
+        /* clear (plain UDP): bound the receive so a lost or late reply fails
+           the read instead of blocking forever -- the secured path above gets
+           this via BIO_CTRL_DGRAM_SET_RECV_TIMEOUT */
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        setsockopt(fn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     }
 
@@ -1431,6 +1449,16 @@ int ami_waitmsg(/* port number to wait on */ int port,
 
         /* set secure udp */
         opnfil[fn]->sudp = TRUE;
+
+    } else {
+
+        /* clear (plain UDP): bound the receive so a dropped client message
+           (e.g. sent before this server bound) times out and the server exits
+           instead of lingering -- the secured path above gets this via
+           BIO_CTRL_DGRAM_SET_RECV_TIMEOUT */
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        setsockopt(fn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     }
 
