@@ -12552,10 +12552,14 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 }
                 XWUNLOCK();
 #ifdef WAITWMR
-                /* wait for the configure response with correct sizes */
+                /* wait for the next configure for this window. Do not require an
+                   exact size match: Wayland/XWayland (and tiling WMs) may clamp
+                   or override the requested size, so demanding the exact value
+                   would loop forever. Adopt the actual granted size instead. */
                 do { peekxevt(&xe); /* peek next event */
-                } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                         xe.xconfigure.height != xwc.height || xe.xany.window != win->xwhan);
+                } while (xe.type != ConfigureNotify || xe.xany.window != win->xwhan);
+                xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
+                xwc.height = xe.xconfigure.height;
 #endif
                 /* change saved size to match */
                 win->xwr.w = xwc.width;
@@ -12577,10 +12581,12 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                     XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
                     XWUNLOCK();
 #ifdef WAITWMR
-                    /* wait for the configure response with correct sizes */
+                    /* wait for the next configure for this window (any size --
+                       the WM may clamp the request; see note above) */
                     do { peekxevt(&xe); /* peek next event */
-                    } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                             xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xmwhan);
+                    } while (xe.type != ConfigureNotify || xe.xany.window != mwin->xmwhan);
+                    xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
+                    xwc.height = xe.xconfigure.height;
 #endif
                     /* change saved size to match */
                     mwin->xmwr.w = xwc.width;
@@ -14119,10 +14125,12 @@ static void buffer_ivf(FILE* f, int e)
         win->xmwr.w = xwc.width;
         win->xmwr.h = xwc.height;
 #ifdef WAITWMR
-        /* wait for the configure response with correct sizes */
+        /* wait for the next configure for this window (any size -- the WM may
+           clamp the request; see note above). Adopt the granted size. */
         do { peekxevt(&xe); /* peek next event */
-        } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                 xe.xconfigure.height != xwc.height || xe.xany.window != win->xmwhan);
+        } while (xe.type != ConfigureNotify || xe.xany.window != win->xmwhan);
+        win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
+        win->xmwr.h = xe.xconfigure.height;
 #endif
         restore(win); /* restore buffer to screen */
 
@@ -14324,11 +14332,10 @@ static void menu_resize(FILE* f, winptr win, int menuon)
     XWUNLOCK();
 
 #ifdef WAITWMR
-    /* wait for the configure response */
+    /* wait for the next configure for this window (any geometry; see note in
+       the resize path -- the WM may not honor an exact request) */
     do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
-             e.xconfigure.y != yes ||
-             e.xany.window != win->xwhan);
+    } while (e.type != ConfigureNotify || e.xany.window != win->xwhan);
 #endif
     restore(win);
 
@@ -14836,13 +14843,15 @@ static void setsizg_ivf(FILE* f, int x, int y)
         if (win->childfrm) childfrm_draw(win);
 
 #ifdef WAITWMR
-        /* wait for the configure response with correct sizes (top-level only;
+        /* wait for the next configure for this window (top-level only;
            child-framed windows resize synchronously above and don't get
-           ConfigureNotify from a window manager) */
+           ConfigureNotify from a window manager). Do not require an exact size
+           match: Wayland/XWayland and tiling WMs may clamp or override the
+           requested size, and demanding the exact value would loop forever.
+           The actual granted size is adopted from the event below. */
         if (!win->childfrm) {
             do { peekxevt(&e); /* peek next event */
-            } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
-                     e.xconfigure.height != xwc.height || e.xany.window != win->xmwhan);
+            } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
         }
 #endif
 
