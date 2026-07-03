@@ -24,6 +24,15 @@
 #define OFF 0
 #define ON 1
 
+/* Window-size round-trip tolerance. Wayland/XWayland compositors do not honor
+   exact-pixel window sizes -- Mutter adjusts a client's size by a pixel or two
+   for frame/geometry reasons -- so a setsiz/getsiz round trip can differ
+   slightly from what was requested. Allow a small delta instead of demanding
+   exact equality (native X11 WMs granted exact sizes and still pass). */
+#define SIZTOLC 1  /* character-cell tolerance */
+#define SIZTOLG 2  /* pixel tolerance          */
+#define SIZOFF(a, b, tol) (abs((a) - (b)) > (tol))
+
 static jmp_buf terminate_buf;
 static FILE*      win2;
 static FILE*      win3;
@@ -408,7 +417,7 @@ int main(void)
 
         ami_setsiz(stdout, x, 25);
         ami_getsiz(stdout, &x2, &y2);
-        if (x2 != x || y2 != 25) {
+        if (SIZOFF(x2, x, SIZTOLC) || SIZOFF(y2, 25, SIZTOLC)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -432,7 +441,7 @@ int main(void)
 
         ami_setsiz(stdout, 80, y);
         ami_getsiz(stdout, &x2, &y2);
-        if (x2 != 80 || y2 != y) {
+        if (SIZOFF(x2, 80, SIZTOLC) || SIZOFF(y2, y, SIZTOLC)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -465,7 +474,7 @@ int main(void)
 
         ami_setsizg(stdout, x, ys);
         ami_getsizg(stdout, &x2, &y2);
-        if (x2 != x || y2 != ys) {
+        if (SIZOFF(x2, x, SIZTOLG) || SIZOFF(y2, ys, SIZTOLG)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -490,7 +499,7 @@ int main(void)
 
         ami_setsizg(stdout, xs, y);
         ami_getsizg(stdout, &x2, &y2);
-        if (x2 != xs || y2 != y) {
+        if (SIZOFF(x2, xs, SIZTOLG) || SIZOFF(y2, y, SIZTOLG)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
