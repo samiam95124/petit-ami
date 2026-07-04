@@ -2126,7 +2126,13 @@ window managers that don't advertise the atom.
 
 *******************************************************************************/
 
-static void wmactivate(Window w)
+/* Window pending a focus retry after a decoration change. Turning decorations
+   back on makes Mutter re-decorate, which drops our input focus; the recovery
+   only sticks once that has settled, i.e. when the resulting FocusOut arrives.
+   wmactivate() arms this; the FocusOut handler fires the retry. */
+static Window refocuswin = 0;
+
+static void wmactivate(Window w, int arm)
 
 {
 
@@ -2154,7 +2160,37 @@ static void wmactivate(Window w)
         XFlush(padisplay);
 
     }
+    /* Raise the window too. Turning decorations back on can also drop it in the
+       stacking order (seen at the size-bars-on frame). _NET_ACTIVE_WINDOW is
+       supposed to raise, but it races the re-decoration and may lose, so raise
+       explicitly. */
+    XRaiseWindow(padisplay, w);
+    XFlush(padisplay);
+    /* Also set the input focus directly. The _NET_ACTIVE_WINDOW request can
+       lose a race with the focus change Mutter makes when the decoration hints
+       change; a direct XSetInputFocus is applied immediately by the server.
+       Only focus a viewable window -- XSetInputFocus BadMatches otherwise. */
+    {
+
+        XWindowAttributes wa;
+
+        if (XGetWindowAttributes(padisplay, w, &wa) &&
+            wa.map_state == IsViewable) {
+
+            XSetInputFocus(padisplay, w, RevertToParent, CurrentTime);
+            XFlush(padisplay);
+
+        }
+
+    }
     XWUNLOCK();
+
+    /* Arm a reactive retry: the immediate attempt above races Mutter's
+       re-decoration and usually loses, so also re-activate when the window
+       actually loses focus (see the FocusOut handler). Only arm when the caller
+       expects a drop (turning decorations on), so we never steal focus back on
+       a later, legitimate focus change. */
+    if (arm) refocuswin = w;
 
 }
 
@@ -2185,7 +2221,7 @@ void enbxfrm(Window xwh, int e)
 
     /* Mutter drops input focus when the decoration hints change; ask it to
        return focus to us so it doesn't strand on the launching terminal. */
-    wmactivate(xwh);
+    wmactivate(xwh, e);
 
 }
 
@@ -2258,7 +2294,7 @@ void enbxsiz(Window xwh, int e)
     XWUNLOCK();
 
     /* re-focus: Mutter drops focus when the decoration hints change */
-    wmactivate(xwh);
+    wmactivate(xwh, e);
 
 }
 
@@ -2288,7 +2324,7 @@ void enbxsys(Window xwh, int e)
     XWUNLOCK();
 
     /* re-focus: Mutter drops focus when the decoration hints change */
-    wmactivate(xwh);
+    wmactivate(xwh, e);
 
 }
 
@@ -4292,6 +4328,128 @@ static int fndevt(Window w)
     }
 
     return (ff);
+
+}
+
+/** ****************************************************************************
+
+Event coalescing
+
+X delivers redundant events individually -- a train of ConfigureNotify while a
+window is dragged, or a storm of partial Expose rectangles -- and does not
+compact them for us (contrary to popular belief; it only offers hints like the
+Expose "count" field). Redrawing once per event makes interactive resize/move
+crawl, especially under XWayland where the stream is bursty.
+
+coalesce() folds such a burst into a single event before it becomes a PA event.
+For ConfigureNotify only the latest geometry matters, so we keep the last. Expose
+carries a redraw rectangle, so we cannot just keep the last; we union all pending
+rectangles into one so nothing is left unpainted. Both the internal save queue
+(filled by peekxevt during WM waits) and the live X queue are drained.
+
+Discrete events (keys, buttons, focus, map, ...) are never coalesced. MotionNotify
+is intentionally NOT coalesced here: it is redundant for pointer position, but
+folding it would drop intermediate points for stroke/drawing input. Add it to
+coalescible() if that trade-off is acceptable for a given build.
+
+*******************************************************************************/
+
+/* Remove one queued XEvent matching (type, window) from the internal save queue.
+   Returns TRUE and fills *out if found. The queue runs newest-first from the
+   front, so the first match returned is the newest. */
+static int takexevt(int type, Window w, XEvent* out)
+
+{
+
+    xevtque* p;
+
+    if (!evtque) return (FALSE);
+    p = evtque;
+    do {
+
+        if (p->evt.type == type && p->evt.xany.window == w) {
+
+            /* unlink p from the circular list */
+            if (p->next == p) evtque = NULL; /* was the only entry */
+            else {
+
+                p->last->next = p->next;
+                p->next->last = p->last;
+                if (evtque == p) evtque = p->next;
+
+            }
+            memcpy(out, &p->evt, sizeof(XEvent));
+            putxevt(p); /* release entry */
+
+            return (TRUE);
+
+        }
+        p = p->next;
+
+    } while (evtque && p != evtque);
+
+    return (FALSE);
+
+}
+
+static int coalescible(int type)
+    { return (type == ConfigureNotify || type == Expose); }
+
+static void coalesce(XEvent* e)
+
+{
+
+    XEvent tmp;
+    Window w;
+    int    t;
+
+    if (!coalescible(e->type)) return; /* not a redundant type */
+    w = e->xany.window;
+    t = e->type;
+
+    if (t == Expose) {
+
+        /* union all pending expose rectangles for this window into one */
+        int x1 = e->xexpose.x;
+        int y1 = e->xexpose.y;
+        int x2 = x1 + e->xexpose.width;
+        int y2 = y1 + e->xexpose.height;
+
+        while (takexevt(Expose, w, &tmp)) {
+
+            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
+            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
+            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
+            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+
+        }
+        XWLOCK();
+        while (XCheckTypedWindowEvent(padisplay, w, Expose, &tmp)) {
+
+            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
+            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
+            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
+            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+
+        }
+        XWUNLOCK();
+        e->xexpose.x      = x1;
+        e->xexpose.y      = y1;
+        e->xexpose.width  = x2-x1;
+        e->xexpose.height = y2-y1;
+        e->xexpose.count  = 0;
+
+    } else {
+
+        /* ConfigureNotify: only the newest matters. Internal-queue matches are
+           older than the X queue; take the newest internal match (first), drain
+           the rest, then let the X queue (newest of all) win. */
+        if (takexevt(t, w, &tmp)) { *e = tmp; while (takexevt(t, w, &tmp)); }
+        XWLOCK();
+        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp)) *e = tmp;
+        XWUNLOCK();
+
+    }
 
 }
 
@@ -13155,6 +13313,9 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == FocusIn) {
 
+        /* window has focus again -- cancel any pending decoration-change retry */
+        if (refocuswin == e->xany.window) refocuswin = 0;
+
         remfocus(root(win), win); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
@@ -13162,6 +13323,22 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
         if (win->childfrm) childfrm_draw(win);
         er->etype = ami_etfocus; /* set focus event */
         *keep = TRUE; /* set found */
+
+    } else if (e->type == MapNotify) {
+
+        /* Turning decorations back on (ami_frame/sysbar/sizable) makes Mutter
+           re-decorate: it unmaps, reparents, and re-maps the window, and --
+           unlike the decorations-off case -- does NOT send a FocusIn to restore
+           our focus. The window has settled by this MapNotify, so re-assert
+           focus here. Doing it at the earlier FocusOut loses the race to the
+           unmap/remap that follows. Armed only for decorations-on changes. */
+        if (refocuswin && e->xany.window == refocuswin) {
+
+            Window rw = refocuswin;
+            refocuswin = 0; /* one-shot */
+            wmactivate(rw, 0);
+
+        }
 
     } else if (e->type == EnterNotify) {
 
@@ -13235,6 +13412,7 @@ static void xwinget(ami_evtrec* er, int* keep)
         while (evtque && !*keep) {
 
             dequexevt(&e); /* remove event from queue */
+            coalesce(&e); /* fold redundant resize/redraw bursts into one */
             xwinprc(&e, er, keep); /* process */
 
         }
@@ -13248,6 +13426,7 @@ static void xwinget(ami_evtrec* er, int* keep)
                 XWLOCK();
                 XNextEvent(padisplay, &e); /* get next event */
                 XWUNLOCK();
+                coalesce(&e); /* fold redundant resize/redraw bursts into one */
                 xwinprc(&e, er, keep); /* pass to processing */
 
             }
