@@ -2126,7 +2126,13 @@ window managers that don't advertise the atom.
 
 *******************************************************************************/
 
-static void wmactivate(Window w)
+/* Window pending a focus retry after a decoration change. Turning decorations
+   back on makes Mutter re-decorate, which drops our input focus; the recovery
+   only sticks once that has settled, i.e. when the resulting FocusOut arrives.
+   wmactivate() arms this; the FocusOut handler fires the retry. */
+static Window refocuswin = 0;
+
+static void wmactivate(Window w, int arm)
 
 {
 
@@ -2154,7 +2160,37 @@ static void wmactivate(Window w)
         XFlush(padisplay);
 
     }
+    /* Raise the window too. Turning decorations back on can also drop it in the
+       stacking order (seen at the size-bars-on frame). _NET_ACTIVE_WINDOW is
+       supposed to raise, but it races the re-decoration and may lose, so raise
+       explicitly. */
+    XRaiseWindow(padisplay, w);
+    XFlush(padisplay);
+    /* Also set the input focus directly. The _NET_ACTIVE_WINDOW request can
+       lose a race with the focus change Mutter makes when the decoration hints
+       change; a direct XSetInputFocus is applied immediately by the server.
+       Only focus a viewable window -- XSetInputFocus BadMatches otherwise. */
+    {
+
+        XWindowAttributes wa;
+
+        if (XGetWindowAttributes(padisplay, w, &wa) &&
+            wa.map_state == IsViewable) {
+
+            XSetInputFocus(padisplay, w, RevertToParent, CurrentTime);
+            XFlush(padisplay);
+
+        }
+
+    }
     XWUNLOCK();
+
+    /* Arm a reactive retry: the immediate attempt above races Mutter's
+       re-decoration and usually loses, so also re-activate when the window
+       actually loses focus (see the FocusOut handler). Only arm when the caller
+       expects a drop (turning decorations on), so we never steal focus back on
+       a later, legitimate focus change. */
+    if (arm) refocuswin = w;
 
 }
 
@@ -2185,7 +2221,7 @@ void enbxfrm(Window xwh, int e)
 
     /* Mutter drops input focus when the decoration hints change; ask it to
        return focus to us so it doesn't strand on the launching terminal. */
-    wmactivate(xwh);
+    wmactivate(xwh, e);
 
 }
 
@@ -2258,7 +2294,7 @@ void enbxsiz(Window xwh, int e)
     XWUNLOCK();
 
     /* re-focus: Mutter drops focus when the decoration hints change */
-    wmactivate(xwh);
+    wmactivate(xwh, e);
 
 }
 
@@ -2288,7 +2324,7 @@ void enbxsys(Window xwh, int e)
     XWUNLOCK();
 
     /* re-focus: Mutter drops focus when the decoration hints change */
-    wmactivate(xwh);
+    wmactivate(xwh, e);
 
 }
 
@@ -13277,6 +13313,9 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
     } else if (e->type == FocusIn) {
 
+        /* window has focus again -- cancel any pending decoration-change retry */
+        if (refocuswin == e->xany.window) refocuswin = 0;
+
         remfocus(root(win), win); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
@@ -13284,6 +13323,22 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
         if (win->childfrm) childfrm_draw(win);
         er->etype = ami_etfocus; /* set focus event */
         *keep = TRUE; /* set found */
+
+    } else if (e->type == MapNotify) {
+
+        /* Turning decorations back on (ami_frame/sysbar/sizable) makes Mutter
+           re-decorate: it unmaps, reparents, and re-maps the window, and --
+           unlike the decorations-off case -- does NOT send a FocusIn to restore
+           our focus. The window has settled by this MapNotify, so re-assert
+           focus here. Doing it at the earlier FocusOut loses the race to the
+           unmap/remap that follows. Armed only for decorations-on changes. */
+        if (refocuswin && e->xany.window == refocuswin) {
+
+            Window rw = refocuswin;
+            refocuswin = 0; /* one-shot */
+            wmactivate(rw, 0);
+
+        }
 
     } else if (e->type == EnterNotify) {
 
