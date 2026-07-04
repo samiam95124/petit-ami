@@ -86,7 +86,7 @@ extern void screen_capture(void);
 
 /* wait return to be pressed, or handle terminate */
 
-static void waitnext(void)
+static void waitnextt(int keeptitle)
 
 {
 
@@ -94,8 +94,15 @@ static void waitnext(void)
     char titlebuf[80];
 
     framenum++;
-    sprintf(titlebuf, "management_test: frame %d", framenum);
-    ami_title(stdout, titlebuf);
+    /* Stamp the frame number into the title bar, unless the caller is testing
+       ami_title itself: keeptitle=TRUE preserves the title under test instead
+       of clobbering it. */
+    if (!keeptitle) {
+
+        sprintf(titlebuf, "management_test: frame %d", framenum);
+        ami_title(stdout, titlebuf);
+
+    }
 
     screen_capture();
 
@@ -104,6 +111,10 @@ static void waitnext(void)
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
 }
+
+/* wait return to be pressed, or handle terminate (stamps the frame number) */
+
+static void waitnext(void) { waitnextt(FALSE); }
 
 /* wait return to be pressed, or handle terminate, while printing characters */
 
@@ -333,7 +344,7 @@ int main(void)
     ami_title(stdout, "This is a mangement test window");
     printf("The title bar of this window should read: This is a mangement test window\n");
     prtceng(ami_maxyg(stdout)-ami_chrsizy(stdout), "Window title test");
-    waitnext();
+    waitnextt(TRUE); /* keep the title we just set -- this frame IS the title test */
 
     /* ************************** Multiple windows ************************** */
 
