@@ -4297,6 +4297,128 @@ static int fndevt(Window w)
 
 /** ****************************************************************************
 
+Event coalescing
+
+X delivers redundant events individually -- a train of ConfigureNotify while a
+window is dragged, or a storm of partial Expose rectangles -- and does not
+compact them for us (contrary to popular belief; it only offers hints like the
+Expose "count" field). Redrawing once per event makes interactive resize/move
+crawl, especially under XWayland where the stream is bursty.
+
+coalesce() folds such a burst into a single event before it becomes a PA event.
+For ConfigureNotify only the latest geometry matters, so we keep the last. Expose
+carries a redraw rectangle, so we cannot just keep the last; we union all pending
+rectangles into one so nothing is left unpainted. Both the internal save queue
+(filled by peekxevt during WM waits) and the live X queue are drained.
+
+Discrete events (keys, buttons, focus, map, ...) are never coalesced. MotionNotify
+is intentionally NOT coalesced here: it is redundant for pointer position, but
+folding it would drop intermediate points for stroke/drawing input. Add it to
+coalescible() if that trade-off is acceptable for a given build.
+
+*******************************************************************************/
+
+/* Remove one queued XEvent matching (type, window) from the internal save queue.
+   Returns TRUE and fills *out if found. The queue runs newest-first from the
+   front, so the first match returned is the newest. */
+static int takexevt(int type, Window w, XEvent* out)
+
+{
+
+    xevtque* p;
+
+    if (!evtque) return (FALSE);
+    p = evtque;
+    do {
+
+        if (p->evt.type == type && p->evt.xany.window == w) {
+
+            /* unlink p from the circular list */
+            if (p->next == p) evtque = NULL; /* was the only entry */
+            else {
+
+                p->last->next = p->next;
+                p->next->last = p->last;
+                if (evtque == p) evtque = p->next;
+
+            }
+            memcpy(out, &p->evt, sizeof(XEvent));
+            putxevt(p); /* release entry */
+
+            return (TRUE);
+
+        }
+        p = p->next;
+
+    } while (evtque && p != evtque);
+
+    return (FALSE);
+
+}
+
+static int coalescible(int type)
+    { return (type == ConfigureNotify || type == Expose); }
+
+static void coalesce(XEvent* e)
+
+{
+
+    XEvent tmp;
+    Window w;
+    int    t;
+
+    if (!coalescible(e->type)) return; /* not a redundant type */
+    w = e->xany.window;
+    t = e->type;
+
+    if (t == Expose) {
+
+        /* union all pending expose rectangles for this window into one */
+        int x1 = e->xexpose.x;
+        int y1 = e->xexpose.y;
+        int x2 = x1 + e->xexpose.width;
+        int y2 = y1 + e->xexpose.height;
+
+        while (takexevt(Expose, w, &tmp)) {
+
+            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
+            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
+            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
+            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+
+        }
+        XWLOCK();
+        while (XCheckTypedWindowEvent(padisplay, w, Expose, &tmp)) {
+
+            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
+            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
+            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
+            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+
+        }
+        XWUNLOCK();
+        e->xexpose.x      = x1;
+        e->xexpose.y      = y1;
+        e->xexpose.width  = x2-x1;
+        e->xexpose.height = y2-y1;
+        e->xexpose.count  = 0;
+
+    } else {
+
+        /* ConfigureNotify: only the newest matters. Internal-queue matches are
+           older than the X queue; take the newest internal match (first), drain
+           the rest, then let the X queue (newest of all) win. */
+        if (takexevt(t, w, &tmp)) { *e = tmp; while (takexevt(t, w, &tmp)); }
+        XWLOCK();
+        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp)) *e = tmp;
+        XWUNLOCK();
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Wait response message
 
 Looks into the XWindows events until a given respose is found. Events are placed
@@ -13235,6 +13357,7 @@ static void xwinget(ami_evtrec* er, int* keep)
         while (evtque && !*keep) {
 
             dequexevt(&e); /* remove event from queue */
+            coalesce(&e); /* fold redundant resize/redraw bursts into one */
             xwinprc(&e, er, keep); /* process */
 
         }
@@ -13248,6 +13371,7 @@ static void xwinget(ami_evtrec* er, int* keep)
                 XWLOCK();
                 XNextEvent(padisplay, &e); /* get next event */
                 XWUNLOCK();
+                coalesce(&e); /* fold redundant resize/redraw bursts into one */
                 xwinprc(&e, er, keep); /* pass to processing */
 
             }
