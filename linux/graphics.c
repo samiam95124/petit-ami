@@ -2113,6 +2113,53 @@ void prtwintre(winptr wp)
 
 /** ****************************************************************************
 
+Request the window manager to (re)activate a window
+
+Changing _MOTIF_WM_HINTS makes Mutter (GNOME's compositor) drop the window's
+input focus -- it lands on whatever sits underneath, e.g. the terminal that
+launched us. (Note Mutter also ignores the decoration change itself once the
+window is mapped, but the focus loss still happens.) After such a change we ask
+the WM to focus/raise our window again via the EWMH
+_NET_ACTIVE_WINDOW client message. The WM applies it in order with the
+decoration change, so it is race-free (unlike a bare XSetInputFocus). No-op on
+window managers that don't advertise the atom.
+
+*******************************************************************************/
+
+static void wmactivate(Window w)
+
+{
+
+    XEvent ev;
+    Atom   naw;
+
+    XWLOCK();
+    naw = XInternAtom(padisplay, "_NET_ACTIVE_WINDOW", True);
+    if (naw != None) {
+
+        ev.xclient.type = ClientMessage;
+        ev.xclient.serial = 0;
+        ev.xclient.send_event = True;
+        ev.xclient.display = padisplay;
+        ev.xclient.window = w;
+        ev.xclient.message_type = naw;
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = 1; /* source indication: application */
+        ev.xclient.data.l[1] = CurrentTime;
+        ev.xclient.data.l[2] = 0;
+        ev.xclient.data.l[3] = 0;
+        ev.xclient.data.l[4] = 0;
+        XSendEvent(padisplay, DefaultRootWindow(padisplay), False,
+                   SubstructureRedirectMask|SubstructureNotifyMask, &ev);
+        XFlush(padisplay);
+
+    }
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
 Enable or disable window frame
 
 Turns the window frame on and off. Expects the Xwindow handle, and an on/off
@@ -2135,6 +2182,10 @@ void enbxfrm(Window xwh, int e)
     XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
                     32, PropModeReplace, (unsigned char *)&hints, 5);
     XWUNLOCK();
+
+    /* Mutter drops input focus when the decoration hints change; ask it to
+       return focus to us so it doesn't strand on the launching terminal. */
+    wmactivate(xwh);
 
 }
 
@@ -2206,6 +2257,9 @@ void enbxsiz(Window xwh, int e)
 
     XWUNLOCK();
 
+    /* re-focus: Mutter drops focus when the decoration hints change */
+    wmactivate(xwh);
+
 }
 
 /** ****************************************************************************
@@ -2232,6 +2286,9 @@ void enbxsys(Window xwh, int e)
     XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
                     32, PropModeReplace, (unsigned char *)&hints, 5);
     XWUNLOCK();
+
+    /* re-focus: Mutter drops focus when the decoration hints change */
+    wmactivate(xwh);
 
 }
 
