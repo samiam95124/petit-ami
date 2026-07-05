@@ -4347,10 +4347,16 @@ carries a redraw rectangle, so we cannot just keep the last; we union all pendin
 rectangles into one so nothing is left unpainted. Both the internal save queue
 (filled by peekxevt during WM waits) and the live X queue are drained.
 
-Discrete events (keys, buttons, focus, map, ...) are never coalesced. MotionNotify
-is intentionally NOT coalesced here: it is redundant for pointer position, but
-folding it would drop intermediate points for stroke/drawing input. Add it to
-coalescible() if that trade-off is acceptable for a given build.
+Discrete events (keys, buttons, focus, map, ...) are never coalesced.
+
+MotionNotify is coalesced keep-newest: only the latest pointer position matters,
+and under XWayland the motion stream arrives faster than widgets can repaint, so
+stale positions pile up in the queue and each one drives a redundant redraw (the
+pointer visibly lags the cursor -- a slider "chasing" the mouse). Folding a run
+of pending motions down to the newest keeps interaction responsive. The cost is
+that intermediate points are dropped, so this is not suitable for capturing a
+freehand stroke path; a drawing surface that needs every point should read raw
+motion rather than rely on the coalesced PA event stream.
 
 *******************************************************************************/
 
@@ -4393,7 +4399,8 @@ static int takexevt(int type, Window w, XEvent* out)
 }
 
 static int coalescible(int type)
-    { return (type == ConfigureNotify || type == Expose); }
+    { return (type == ConfigureNotify || type == Expose ||
+              type == MotionNotify); }
 
 static void coalesce(XEvent* e)
 

@@ -1757,7 +1757,10 @@ static void scrollvert_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        scrollvert_draw(wg);
+        /* only repaint while actually dragging the thumb; a plain hover does
+           not change the bar's appearance, and repainting the (unbuffered)
+           widget on every motion event causes flashing and sluggishness */
+        if (wg->pressed) scrollvert_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -1896,7 +1899,8 @@ static void scrollhoriz_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        scrollhoriz_draw(wg);
+        /* only repaint while actually dragging the thumb (see scrollvert) */
+        if (wg->pressed) scrollhoriz_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -2545,6 +2549,51 @@ Handles drawing list boxes.
 
 *******************************************************************************/
 
+/* Paint a single list line (1-based index idx, string sp, top at y): hover-grey
+   background when it is the hovered line, list-white otherwise, then the text.
+   The fill is inset horizontally so the rounded outline is never overpainted --
+   that lets the motion handler repaint just the line that gains or loses the
+   hover highlight instead of redrawing (and re-rendering) the whole list. */
+static void listbox_line(wigptr wg, ami_strptr sp, int idx, int y)
+
+{
+
+    if (wg->hover && idx == wg->ss)
+        fcolort(wg->wf, th_lsthov); /* hover background */
+    else ami_fcolor(wg->wf, ami_white); /* normal background */
+    ami_frect(wg->wf, 4, y, ami_maxxg(wg->wf)-3, y+ami_chrsizy(wg->wf)-1);
+    ami_fcolor(wg->wf, ami_black);
+    ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, y);
+    fprintf(wg->wf, "%s", sp->str); /* place string */
+
+}
+
+/* Repaint just the line at 1-based index idx (used to move the hover highlight
+   without a full-list redraw). Out-of-range indices (including 0 = none) are a
+   no-op. */
+static void listbox_line_idx(wigptr wg, int idx)
+
+{
+
+    ami_strptr sp;
+    int       y;
+    int       sc;
+
+    if (idx < 1) return; /* nothing to paint */
+    sp = wg->strlst; /* index top of stringlist */
+    y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
+    sc = 1; /* set first string */
+    while (sp && sc < idx) { /* walk to the target line */
+
+        y += ami_chrsizy(wg->wf); /* next line */
+        sp = sp->next; /* next string */
+        sc++; /* next select */
+
+    }
+    if (sp) listbox_line(wg, sp, idx, y); /* in range: paint it */
+
+}
+
 static void listbox_draw(
     /** Widget data pointer */ wigptr wg
 )
@@ -2564,20 +2613,10 @@ static void listbox_draw(
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 10, 10);
     sp = wg->strlst; /* index top of stringlist */
     y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
-    ami_fcolor(wg->wf, ami_black);
     sc = 1; /* set first string */
     while (sp) { /* traverse and paint */
 
-        if (wg->hover && sc == wg->ss) {
-
-            /* draw in hover background */
-            fcolort(wg->wf, th_lsthov); /* set hover background */
-            ami_frect(wg->wf, 1, y, ami_maxxg(wg->wf), y+ami_chrsizy(wg->wf)-1);
-
-        }
-        ami_fcolor(wg->wf, ami_black);
-        ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, y);
-        fprintf(wg->wf, "%s", sp->str); /* place string */
+        listbox_line(wg, sp, sc, y); /* paint this line */
         y += ami_chrsizy(wg->wf); /* next line */
         sp = sp->next; /* next string */
         sc++; /* next select */
@@ -2628,6 +2667,8 @@ static void listbox_event(
 
     } else if (ev->etype == ami_etmoumovg) {
 
+        int oldss = wg->ss; /* remember previously hovered string */
+
         /* track position */
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
@@ -2646,17 +2687,39 @@ static void listbox_event(
             sp = sp->next; /* next string */
 
         }
-        listbox_draw(wg); /* redraw the window */
+        /* only repaint when the highlighted item actually changes, and then
+           repaint just the two affected lines (the one losing the highlight and
+           the one gaining it) rather than re-rendering the whole list -- the
+           list is unbuffered, so a full redraw per motion flashes and lags */
+        if (wg->ss != oldss) {
+
+            listbox_line_idx(wg, oldss);  /* un-highlight the previous line */
+            listbox_line_idx(wg, wg->ss); /* highlight the current line */
+
+        }
 
     } else if (ev->etype == ami_ethover) {
 
-        wg->hover = 1; /* hovered */
-        listbox_draw(wg); /* redraw the window */
+        /* Crossing into a nested window produces several EnterNotify events
+           (NotifyNonlinear/Virtual/Ancestor), and hover only affects the one
+           highlighted line -- so act only on the real 0->1 transition and
+           repaint just that line, never the whole list (which flashed). */
+        if (!wg->hover) {
+
+            wg->hover = 1; /* hovered */
+            listbox_line_idx(wg, wg->ss); /* highlight the hovered line, if any */
+
+        }
 
     } else if (ev->etype == ami_etnohover) {
 
-        wg->hover = 0; /* not hovered */
-        listbox_draw(wg); /* redraw the window */
+        if (wg->hover) {
+
+            wg->hover = 0; /* not hovered */
+            listbox_line_idx(wg, wg->ss); /* un-highlight (now paints normal) */
+            wg->ss = 0; /* forget the line so re-entry starts clean */
+
+        }
 
     }
 
@@ -3073,7 +3136,8 @@ static void slidehoriz_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        slidehoriz_draw(wg);
+        /* only repaint while actually dragging the slider (see scrollvert) */
+        if (wg->pressed) slidehoriz_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -3239,7 +3303,8 @@ static void slidevert_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        slidevert_draw(wg);
+        /* only repaint while actually dragging the slider (see scrollvert) */
+        if (wg->pressed) slidevert_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
