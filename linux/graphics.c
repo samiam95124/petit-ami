@@ -5317,6 +5317,55 @@ static void restore_rect(winptr win, int x, int y, int w, int h)
 
 }
 
+/* Repaint the exposed rectangle of a window during a child-window drag, picking
+   the right mechanism for what the window is:
+
+     - an Ami child frame (xmwhan exposed): redraw its chrome;
+     - a buffered window: blit just the damaged rect from its backing buffer;
+     - an unbuffered window: clear the damaged rect to the window background.
+
+   An unbuffered window normally repaints from the application's own redraw
+   handler, but the app cannot run it while we hold the drag loop, and consuming
+   the Expose here would otherwise swallow the redraw it needs -- leaving a
+   permanent trail. Clearing keeps it clean during the drag; drag_repaint_full()
+   regenerates the content on release. */
+static void drag_expose(winptr ewin, Window w, int x, int y, int wd, int ht)
+
+{
+
+    if (ewin->childfrm && ewin->xmwhan == w)
+        childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
+    else if (ewin->bufmod)
+        restore_rect(ewin, x, y, wd, ht);
+    else {
+
+        XWLOCK();
+        XClearArea(padisplay, w, x, y, wd, ht, False);
+        XWUNLOCK();
+
+    }
+
+}
+
+/* Force a full repaint of win at the end of a drag. A buffered window blits its
+   whole buffer; an unbuffered window has a full Expose regenerated so the
+   application's redraw handler repaints its content once we return (the drag
+   consumed the real Expose events). */
+static void drag_repaint_full(winptr win)
+
+{
+
+    if (win->bufmod) restore(win);
+    else {
+
+        XWLOCK();
+        XClearArea(padisplay, win->xwhan, 0, 0, 0, 0, True);
+        XWUNLOCK();
+
+    }
+
+}
+
 /*******************************************************************************
 
 Create window without background draw
@@ -13164,17 +13213,10 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                            this window's own frame/content re-entering the parent
                            bounds after being clipped at an edge. */
                         int ofn = fndevt(de.xany.window);
-                        if (ofn >= 0) {
-
-                            winptr ewin = lfn2win(ofn);
-                            if (ewin->childfrm &&
-                                ewin->xmwhan == de.xany.window)
-                                childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
-                            else
-                                restore_rect(ewin, de.xexpose.x, de.xexpose.y,
-                                             de.xexpose.width, de.xexpose.height);
-
-                        }
+                        if (ofn >= 0)
+                            drag_expose(lfn2win(ofn), de.xany.window,
+                                        de.xexpose.x, de.xexpose.y,
+                                        de.xexpose.width, de.xexpose.height);
 
                     }
 
@@ -13182,14 +13224,16 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 XWLOCK();
                 XUngrabPointer(padisplay, CurrentTime);
                 XWUNLOCK();
-                /* final repaint after release */
+                /* final repaint after release: the parent may be unbuffered
+                   (its Expose events were consumed during the drag), so force it
+                   to repaint via its own redraw handler; siblings are buffered */
                 if (win->parwin) {
                     winptr sib;
-                    restore(win->parwin);
+                    drag_repaint_full(win->parwin);
                     for (sib = win->parwin->childwin; sib;
                          sib = sib->childlst) {
                         if (sib == win) continue;
-                        restore(sib);
+                        drag_repaint_full(sib);
                         if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
                     }
                 }
@@ -15368,15 +15412,10 @@ void ami_dragwin(FILE* f)
             /* repaint exactly what the move exposed, dispatched to its window
                (parent trail, uncovered sibling, or this window re-entering) */
             int ofn = fndevt(de.xany.window);
-            if (ofn >= 0) {
-
-                winptr ewin = lfn2win(ofn);
-                if (ewin->childfrm && ewin->xmwhan == de.xany.window)
-                    childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
-                else restore_rect(ewin, de.xexpose.x, de.xexpose.y,
-                                  de.xexpose.width, de.xexpose.height);
-
-            }
+            if (ofn >= 0)
+                drag_expose(lfn2win(ofn), de.xany.window,
+                            de.xexpose.x, de.xexpose.y,
+                            de.xexpose.width, de.xexpose.height);
 
         }
 
@@ -15384,6 +15423,17 @@ void ami_dragwin(FILE* f)
     XWLOCK();
     XUngrabPointer(padisplay, CurrentTime);
     XWUNLOCK();
+    /* final repaint after release: an unbuffered parent had its Expose events
+       consumed during the drag, so force it to repaint via its redraw handler */
+    if (win->parwin) {
+        winptr sib;
+        drag_repaint_full(win->parwin);
+        for (sib = win->parwin->childwin; sib; sib = sib->childlst) {
+            if (sib == win) continue;
+            drag_repaint_full(sib);
+            if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+        }
+    }
 
 }
 
