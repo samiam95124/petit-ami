@@ -4890,7 +4890,7 @@ static void childfrm_set_cursor(winptr win, int mx, int my)
 }
 
 /* forward declarations */
-static void childfrm_draw(winptr win);
+static void childfrm_draw(winptr win, int mw, int mh);
 static void restore(winptr win);
 
 /* Find the lowest unused minimize slot among siblings of win. The slot is the
@@ -4970,7 +4970,7 @@ static void childfrm_minimize(winptr win)
     /* hide the subclient — we only want to show the title bar */
     XUnmapWindow(padisplay, win->xwhan);
     XWUNLOCK();
-    childfrm_draw(win);
+    childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
 }
 
@@ -4990,7 +4990,7 @@ static void childfrm_restore(winptr win)
     XMapWindow(padisplay, win->xwhan);
     XWUNLOCK();
     restore(win);
-    childfrm_draw(win);
+    childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
 }
 
@@ -5004,11 +5004,10 @@ Expose events for xmwhan.
 
 *******************************************************************************/
 
-static void childfrm_draw(winptr win)
+static void childfrm_draw(winptr win, int mw, int mh)
 
 {
 
-    int mw, mh;       /* master window dimensions */
     int tbh;          /* title bar height */
     int bsz;          /* button diameter */
     int by;           /* button y position */
@@ -5022,21 +5021,12 @@ static void childfrm_draw(winptr win)
     if (!win->childfrm || !win->frmgc || !win->linespace) return;
     if (!win->frame) return; /* frame is turned off — nothing to draw */
 
-    /* Query actual geometry from the X server. XSync ensures any pending
-       resize requests have been processed before we query. We cannot rely
-       on xmwr — some code paths set it to the parent window's dimensions. */
-    {
-        Window root_ret;
-        int rx, ry;
-        unsigned int rw, rh, bw, dp;
-        XWLOCK();
-        XSync(padisplay, False);
-        XGetGeometry(padisplay, win->xmwhan, &root_ret,
-                     &rx, &ry, &rw, &rh, &bw, &dp);
-        XWUNLOCK();
-        mw = (int)rw;
-        mh = (int)rh;
-    }
+    /* mw/mh are the master (xmwhan) outer dimensions, supplied by the caller.
+       Every caller sets win->xmwr to match the XResize/XMoveResize it issues on
+       xmwhan immediately before drawing, so the frame geometry is already known
+       and there is no need to ask the server for it. The former XSync +
+       XGetGeometry round trip here blocked on the compositor once per call and
+       made interactive resize crawl, badly under XWayland. */
     tbh = CFRM_TITBAR_H(win);
     bsz = CFRM_BUTTON_SZ(win);
     title_size = CFRM_TITLE_SZ(win);
@@ -5277,9 +5267,53 @@ static void restore(winptr win) /* window to restore */
         curon(win); /* show the cursor */
 
         /* redraw Ami-drawn child frame if applicable */
-        if (win->childfrm) childfrm_draw(win);
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
     }
+
+}
+
+/* Restore only the rectangle (x,y,w,h) of a buffered window's client area from
+   its backing buffer, instead of the whole buffer as restore() does. Used to
+   service Expose during a child-window drag: the exposed sliver is tiny next to
+   a large parent, so blitting just it -- rather than the entire parent buffer on
+   every move -- is what keeps a fast drag up with the pointer. The rect is
+   filled with the background first, then the buffer-covered part is copied on
+   top, so any exposed area extending past the buffer ends up background-filled
+   like restore() does, with no per-edge margin geometry. */
+static void restore_rect(winptr win, int x, int y, int w, int h)
+
+{
+
+    scnptr sc;
+    int    cx, cy, cw, ch; /* exposed rect clipped to the buffer */
+
+    if (w <= 0 || h <= 0) return;
+    sc = win->screens[win->curdsp-1]; /* index screen */
+    if (!(win->bufmod && win->visible)) return; /* nothing buffered to restore */
+
+    curoff(win); /* hide the cursor for drawing */
+    XWLOCK();
+    XSetClipMask(padisplay, sc->xcxt, None);
+    /* background fill for the whole exposed rect (covers any beyond-buffer part;
+       the buffered part is immediately overwritten by the copy below) */
+    XSetForeground(padisplay, sc->xcxt,
+                   (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb);
+    XFillRectangle(padisplay, win->xwhan, sc->xcxt, x, y, w, h);
+    /* copy the part of the rect the buffer covers, from the buffer */
+    cx = x; cy = y; cw = w; ch = h;
+    if (cx < 0) { cw += cx; cx = 0; }
+    if (cy < 0) { ch += cy; cy = 0; }
+    if (cx + cw > sc->maxxg) cw = sc->maxxg - cx;
+    if (cy + ch > sc->maxyg) ch = sc->maxyg - cy;
+    if (cw > 0 && ch > 0)
+        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt,
+                  cx, cy, cw, ch, cx, cy);
+    /* leave the GC foreground as the normal drawing color */
+    XSetForeground(padisplay, sc->xcxt,
+                   (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb);
+    XWUNLOCK();
+    curon(win); /* show the cursor */
 
 }
 
@@ -12655,7 +12689,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
     if (e->type == Expose && win->childfrm &&
         win->xmwhan == e->xany.window) {
 
-        childfrm_draw(win);
+        childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
     } else if (e->type == Expose && win->xmwhan != e->xany.window) {
 
@@ -12819,7 +12853,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             }
 
             /* redraw child frame after master resize */
-            if (win->childfrm) childfrm_draw(win);
+            if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
         } else { /* its the subclient window */
 
@@ -13032,7 +13066,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 curoff(win);
                 win->focus = TRUE;
                 curon(win);
-                childfrm_draw(win);
+                childfrm_draw(win, win->xmwr.w, win->xmwr.h);
                 XWLOCK();
                 XSetInputFocus(padisplay, win->xmwhan, RevertToNone,
                                CurrentTime);
@@ -13096,6 +13130,20 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                     XWUNLOCK();
                     if (de.type == MotionNotify) {
 
+                        /* Coalesce only the consecutive run of already-queued
+                           motion, stopping at any other event -- crucially the
+                           Expose events that repaint what the move damages. A
+                           fast drag thus collapses to one move per batch instead
+                           of stepping through every point, without starving the
+                           damage repaint (which is what left a trail before). */
+                        XWLOCK();
+                        while (XPending(padisplay)) {
+                            XEvent pk;
+                            XPeekEvent(padisplay, &pk);
+                            if (pk.type != MotionNotify) break;
+                            XNextEvent(padisplay, &de);
+                        }
+                        XWUNLOCK();
                         int dx = de.xmotion.x_root - startx;
                         int dy = de.xmotion.y_root - starty;
                         win->xmwr.x = origx + dx;
@@ -13111,26 +13159,20 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
                     } else if (de.type == Expose) {
 
-                        /* X has notified us that something needs repainting
-                           because of our move. Dispatch to the right window. */
+                        /* Repaint precisely what the move exposed: the parent
+                           area the window vacated, a sibling it uncovered, or
+                           this window's own frame/content re-entering the parent
+                           bounds after being clipped at an edge. */
                         int ofn = fndevt(de.xany.window);
                         if (ofn >= 0) {
 
                             winptr ewin = lfn2win(ofn);
-                            /* if it's a child-framed window's xmwhan,
-                               redraw the frame */
                             if (ewin->childfrm &&
-                                ewin->xmwhan == de.xany.window) {
-
-                                childfrm_draw(ewin);
-
-                            } else {
-
-                                /* it's a buffered window content area;
-                                   restore from the buffer */
-                                restore(ewin);
-
-                            }
+                                ewin->xmwhan == de.xany.window)
+                                childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
+                            else
+                                restore_rect(ewin, de.xexpose.x, de.xexpose.y,
+                                             de.xexpose.width, de.xexpose.height);
 
                         }
 
@@ -13148,7 +13190,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                          sib = sib->childlst) {
                         if (sib == win) continue;
                         restore(sib);
-                        if (sib->childfrm) childfrm_draw(sib);
+                        if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
                     }
                 }
 
@@ -13186,6 +13228,13 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                     XWUNLOCK();
                     if (de.type == MotionNotify) {
 
+                        /* motion compression: collapse a burst of queued motion
+                           to the latest position so a fast resize makes one
+                           resize+repaint instead of one per intermediate point
+                           (see the drag loop above) */
+                        XWLOCK();
+                        while (XCheckTypedEvent(padisplay, MotionNotify, &de));
+                        XWUNLOCK();
                         int dx = de.xmotion.x_root - startx;
                         int dy = de.xmotion.y_root - starty;
                         int nx = origx;
@@ -13233,7 +13282,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                            restore() copies the buffer to the screen and fills
                            any uncovered margin with the background color */
                         restore(win);
-                        childfrm_draw(win);
+                        childfrm_draw(win, nw, nh);
                         /* if the child shrank, repaint the parent and
                            sibling children where this child used to be */
                         if (shrunk && win->parwin) {
@@ -13243,7 +13292,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                                  sib = sib->childlst) {
                                 if (sib == win) continue;
                                 restore(sib);
-                                if (sib->childfrm) childfrm_draw(sib);
+                                if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
                             }
                         }
 
@@ -13264,7 +13313,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                          sib = sib->childlst) {
                         if (sib == win) continue;
                         restore(sib);
-                        if (sib->childfrm) childfrm_draw(sib);
+                        if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
                     }
                 }
 
@@ -13300,7 +13349,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             curoff(win); /* remove cursor */
             win->focus = TRUE; /* put focus */
             curon(win); /* replace cursor */
-            if (win->childfrm) childfrm_draw(win);
+            if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
             XWLOCK();
             XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
             XWUNLOCK();
@@ -13314,7 +13363,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */
-        if (win->childfrm) childfrm_draw(win);
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
         er->etype = ami_etnofocus; /* set no focus event */
         *keep = TRUE; /* set found */
 
@@ -13327,7 +13376,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
         curon(win); /* replace cursor */
-        if (win->childfrm) childfrm_draw(win);
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
         er->etype = ami_etfocus; /* set focus event */
         *keep = TRUE; /* set found */
 
@@ -14041,7 +14090,7 @@ static void title_ivf(FILE* f, char* ts)
         /* Ami-drawn child frame: store title and repaint frame */
         if (win->wintitle) free(win->wintitle);
         win->wintitle = strdup(ts);
-        childfrm_draw(win);
+        childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
     } else {
 
@@ -15083,7 +15132,7 @@ static void setsizg_ivf(FILE* f, int x, int y)
         }
         XWUNLOCK();
 
-        if (win->childfrm) childfrm_draw(win);
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
 #ifdef WAITWMR
         /* wait for the next configure for this window (top-level only;
@@ -15289,6 +15338,18 @@ void ami_dragwin(FILE* f)
         XWUNLOCK();
         if (de.type == MotionNotify) {
 
+            /* coalesce only the consecutive run of already-queued motion,
+               stopping at any other event (notably Expose) so a fast drag makes
+               one move per batch without starving the damage repaint
+               (see childfrm drag) */
+            XWLOCK();
+            while (XPending(padisplay)) {
+                XEvent pk;
+                XPeekEvent(padisplay, &pk);
+                if (pk.type != MotionNotify) break;
+                XNextEvent(padisplay, &de);
+            }
+            XWUNLOCK();
             /* move the window by the pointer's root-space delta */
             int dx = de.xmotion.x_root - startx;
             int dy = de.xmotion.y_root - starty;
@@ -15304,14 +15365,16 @@ void ami_dragwin(FILE* f)
 
         } else if (de.type == Expose) {
 
-            /* repaint anything the move exposed, dispatched to its window */
+            /* repaint exactly what the move exposed, dispatched to its window
+               (parent trail, uncovered sibling, or this window re-entering) */
             int ofn = fndevt(de.xany.window);
             if (ofn >= 0) {
 
                 winptr ewin = lfn2win(ofn);
                 if (ewin->childfrm && ewin->xmwhan == de.xany.window)
-                    childfrm_draw(ewin);
-                else restore(ewin);
+                    childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
+                else restore_rect(ewin, de.xexpose.x, de.xexpose.y,
+                                  de.xexpose.width, de.xexpose.height);
 
             }
 
@@ -15642,7 +15705,7 @@ static void frame_ivf(FILE* f, int e)
             restore(win);
             /* redraw the frame (and re-apply the shape mask) when frame
                is turned back on */
-            if (e) childfrm_draw(win);
+            if (e) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
         }
 
