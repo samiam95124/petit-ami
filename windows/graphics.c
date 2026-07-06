@@ -126,6 +126,9 @@ static enum { /* debug levels */
  */
 #define MAXXD     80 /* standard terminal, 80x25 */
 #define MAXYD     25
+#ifndef CONPNT
+#define CONPNT    11    /* height of console font in points */
+#endif
 #define DIALOGERR 1     /* send runtime errors to dialog */
 #define MOUSEENB  TRUE  /* enable mouse */
 #define JOYENB    TRUE  /* enable joysticks */
@@ -710,6 +713,7 @@ static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump Windows API messages */
 static int dmpevt;    /* enable dump Petit-Ami messages */
+static int conpnt;    /* size of console font in points */
 
 /*
  * Forward declarations.
@@ -2957,7 +2961,7 @@ static void newfont(winptr win)
                           FALSE, FALSE, FALSE, ANSI_CHARSET,
                           OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
                           FQUALITY, FIXED_PITCH,
-                          "Courier New");
+                          "Consolas");
         if (!sc->font) winerr(); /* process windows error */
         /* select to buffer DC */
         rv = SelectObject(sc->bdc, sc->font);
@@ -3004,8 +3008,12 @@ static void newfont(winptr win)
     /* Calculate line spacing */
     win->linespace = tm.tmHeight;
     win->screens[win->curupd-1]->lspc = win->linespace;
-    /* calculate character spacing */
-    win->charspace = tm.tmMaxCharWidth;
+    /* Calculate character spacing. For fixed pitch fonts the advance width
+       is the cell width; tmMaxCharWidth can exceed it on TrueType fonts
+       (widest glyph ink, not advance), which oversizes the character grid
+       and spreads text out. Proportional fonts keep the widest character. */
+    if (sc->cfont->fix) win->charspace = tm.tmAveCharWidth;
+    else win->charspace = tm.tmMaxCharWidth;
     /* set cursor width */
     win->curspace = tm.tmAveCharWidth;
     win->screens[win->curupd-1]->cspc = win->charspace;
@@ -10159,6 +10167,46 @@ static void opnwin(int fn, int pfn)
        font instead of erroring) */
     sysfhigh = tm.tmHeight;
     win->gfhigh = tm.tmHeight;
+    /* On DPI-scaled displays, size the terminal font as CONPNT/console_points
+       points at the display's effective DPI, matching the Linux driver,
+       rather than adopting the stock raster font's fixed pixel size, which
+       never scales with DPI and produces an undersized default window. At
+       standard 96 DPI keep the crisp stock raster font as before. */
+    r = GetDeviceCaps(win->devcon, LOGPIXELSY); /* effective dots per inch */
+    if (r > 96) { /* scaled display, size a scalable terminal font */
+
+        HFONT tf; /* terminal font at DPI-scaled size */
+
+        /* Character (em) height in pixels of a conpnt point font, negated so
+           CreateFont sizes the glyphs like FT_Set_Pixel_Sizes on Linux, with
+           the cell adding leading above that. */
+        r = -((conpnt*r+36)/72);
+        /* measure the same scalable fixed pitch font newfont() substitutes
+           for the terminal font at non-natural sizes, so the default window
+           size below is derived from the cell actually in use */
+        tf = CreateFont(r, 0, 0, 0, FW_REGULAR, FALSE, FALSE, FALSE,
+                        ANSI_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
+                        FQUALITY, FIXED_PITCH, "Consolas");
+        if (!tf) winerr(); /* process windows error */
+        rv = SelectObject(win->devcon, tf);
+        if (rv == HGDI_ERROR) error(enosel);
+        b = GetTextMetrics(win->devcon, &tm); /* get the metrics */
+        if (!b) winerr(); /* process windows error */
+        /* adopt the full cell height, so newfont() recreates this same font
+           from it (positive heights select by cell) */
+        win->gfhigh = tm.tmHeight;
+        win->linespace = tm.tmHeight; /* set spacing from scaled font */
+        /* fixed pitch: the advance width is the character cell width */
+        win->charspace = tm.tmAveCharWidth;
+        win->curspace = tm.tmAveCharWidth;
+        /* done measuring; the real font is created by newfont() at screen
+           initialization, so put the stock font back and release this one */
+        rv = SelectObject(win->devcon, GetStockObject(SYSTEM_FIXED_FONT));
+        if (rv == HGDI_ERROR) error(enosel);
+        b = DeleteObject(tf);
+        if (!b) winerr(); /* process windows error */
+
+    }
     /* find screen device parameters for dpm calculations */
     win->shsize = GetDeviceCaps(win->devcon, HORZSIZE); /* size x in millimeters */
     win->svsize = GetDeviceCaps(win->devcon, VERTSIZE); /* size y in millimeters */
@@ -16338,6 +16386,28 @@ static void ami_init_graph()
     char*     errstr;
     ami_evtcod e;
 
+    /* Declare DPI awareness before any window or device context is created.
+       Without this, on displays scaled above 100% Windows renders the program
+       at 96 DPI into a smaller virtual client area and bitmap-stretches the
+       result, which blurs output and distorts line widths. Petit-Ami programs
+       lay out in real pixels, so we want the true client size. Use per-monitor
+       awareness V2 when available (Windows 10 1703+), looked up at runtime
+       since older systems lack it, and fall back to system-wide awareness
+       (Vista+). */
+    {
+
+        /* BOOL SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT) */
+        typedef BOOL (WINAPI *spdac_t)(void*);
+        spdac_t spdac;
+
+        spdac = (spdac_t)GetProcAddress(GetModuleHandleA("user32.dll"),
+                                        "SetProcessDpiAwarenessContext");
+        /* -4 is DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 */
+        if (!spdac || !spdac((void*)-4))
+            SetProcessDPIAware(); /* fall back to system DPI awareness */
+
+    }
+
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
     ovr_write(iwrite, &ofpwrite);
@@ -16360,6 +16430,7 @@ static void ami_init_graph()
     joyenb = JOYENB; /* enable joystick */
     dmpmsg = DMPMSG; /* dump windows API messages */
     dmpevt = DMPEVT; /* dump Petit-Ami messages */
+    conpnt = CONPNT; /* point size of console font */
 
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
@@ -16395,6 +16466,9 @@ static void ami_init_graph()
 
         vp = ami_schlst("dialogerr", graph_root->sublist);
         if (vp) { dialogerr = strtol(vp->value, &errstr, 10); if (*errstr) error(ecfgval); }
+
+        vp = ami_schlst("console_points", graph_root->sublist);
+        if (vp) { conpnt = strtol(vp->value, &errstr, 10); if (*errstr) error(ecfgval); }
 
         /* find windows subsection */
         win_root = ami_schlst("windows", graph_root->sublist);
