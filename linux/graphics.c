@@ -5045,7 +5045,6 @@ static void childfrm_draw(winptr win, int mw, int mh)
     int bx_min;       /* minimize button x */
     int tlen;         /* title text pixel length */
     int title_size;   /* title font pixel size */
-    int corner_r;     /* outer corner radius */
 
     if (!win->childfrm || !win->frmgc || !win->linespace) return;
     if (!win->frame) return; /* frame is turned off — nothing to draw */
@@ -5059,35 +5058,17 @@ static void childfrm_draw(winptr win, int mw, int mh)
     tbh = CFRM_TITBAR_H(win);
     bsz = CFRM_BUTTON_SZ(win);
     title_size = CFRM_TITLE_SZ(win);
-    corner_r = tbh / 3;
 
     XWLOCK();
 
-    /* Clear entire xmwhan to parent background (ParentRelative), then
-       draw the frame shape. This ensures rounded corners show the parent
-       through and no stale pixels remain after resize. */
-    XClearWindow(padisplay, win->xmwhan);
-
-    /* fill master frame background. Only the top-left and top-right corners
-       are rounded; bottom corners remain square because they sit against the
-       rectangular client area. We draw the body below the corner row, the
-       top strip between corners, then full circles at each corner (the parts
-       that extend below corner_r are hidden by the body fill). */
+    /* fill the master frame background as a plain rectangle. The frame has
+       square corners: rounded corners are not workable for a nested child
+       window (the shape mask that would round them also clips the window's
+       input region, making the corner un-grabbable, and X does not alpha-
+       composite nested children against their parent), so we keep them square
+       and fully grabbable. */
     XSetForeground(padisplay, win->frmgc, 0x303030); /* dark frame bg */
-
-    /* body below the top corner row */
-    XFillRectangle(padisplay, win->xmwhan, win->frmgc,
-                   0, corner_r, mw, mh - corner_r);
-
-    /* top strip between the two top corner caps */
-    XFillRectangle(padisplay, win->xmwhan, win->frmgc,
-                   corner_r, 0, mw - corner_r*2, corner_r);
-
-    /* 2 top corner circles */
-    XFillArc(padisplay, win->xmwhan, win->frmgc,
-             0, 0, corner_r*2, corner_r*2, 0, 360*64);
-    XFillArc(padisplay, win->xmwhan, win->frmgc,
-             mw - corner_r*2, 0, corner_r*2, corner_r*2, 0, 360*64);
+    XFillRectangle(padisplay, win->xmwhan, win->frmgc, 0, 0, mw, mh);
 
     /* draw title text - centered, using FreeType for native font rendering.
        If the title is too wide for the available space (between left edge and
@@ -5188,18 +5169,6 @@ static void childfrm_draw(winptr win, int mw, int mh)
         }
         XSetLineAttributes(padisplay, win->frmgc, 1, LineSolid, CapButt, JoinMiter);
     }
-
-    /* Note: we deliberately do NOT clip the top corners out of the window's
-       bounding shape. The rounded look is already produced above: XClearWindow
-       paints the whole master to its ParentRelative background, and the frame
-       fill covers only the rounded region, so the corner wedges keep showing
-       the parent through. A ShapeBounding mask on top of that would additionally
-       remove those corner pixels from the window's INPUT region -- X clips a
-       window's input region to its bounding shape and it cannot be extended
-       back out -- which made the diagonal corner resize impossible to grab
-       there (the pixels belonged to the parent, not the frame). Leaving the
-       bounding a plain rectangle keeps the corners grabbable over their square
-       extent, as ordinary windows do, while they still look rounded. */
 
     XFlush(padisplay);
     XWUNLOCK();
@@ -5853,13 +5822,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     /* set up child frame or WM frame parameters */
     if (pwin && subclient) {
 
-        /* child window: Ami draws its own frame on xmwhan.
-           Set background to ParentRelative so the rounded corner areas
-           (not covered by the frame fill) show the parent through. */
-        XWLOCK();
-        XSetWindowBackgroundPixmap(padisplay, win->xmwhan, ParentRelative);
-        XWUNLOCK();
-
+        /* child window: Ami draws its own frame on xmwhan */
         win->childfrm = TRUE;
         win->minimized = FALSE;
         win->pfw = CFRM_BORDER_W * 2;
@@ -15782,25 +15745,10 @@ static void frame_ivf(FILE* f, int e)
             XMoveResizeWindow(padisplay, win->xwhan,
                               win->cwox, win->cwoy,
                               win->gmaxxg, win->gmaxyg);
-            /* when frame is turned off, clear the rounded-corner shape
-               mask so the client window presents as a plain rectangle */
-            if (!e) {
-
-                XRectangle r;
-                r.x = 0;
-                r.y = 0;
-                r.width  = win->xmwr.w;
-                r.height = win->xmwr.h;
-                XShapeCombineRectangles(padisplay, win->xmwhan,
-                                        ShapeBounding, 0, 0, &r, 1,
-                                        ShapeSet, Unsorted);
-
-            }
             XWUNLOCK();
 
             restore(win);
-            /* redraw the frame (and re-apply the shape mask) when frame
-               is turned back on */
+            /* redraw the frame when it is turned back on */
             if (e) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
         }
