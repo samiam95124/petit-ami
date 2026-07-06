@@ -440,6 +440,7 @@ int main(void)
         };
         putchar('\f');
         printf("Resize screen buffered character\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in x\n");
         waittime(1000);
@@ -465,6 +466,7 @@ int main(void)
         }
         putchar('\f');
         printf("Resize screen buffered character\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in y\n");
         waittime(1000);
@@ -498,6 +500,7 @@ int main(void)
         }
         putchar('\f');
         printf("Resize screen buffered graphical\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in x\n");
         waittime(100);
@@ -523,6 +526,7 @@ int main(void)
         }
         putchar('\f');
         printf("Resize screen buffered graphical\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in y\n");
         waittime(100);
