@@ -189,6 +189,10 @@ static enum { /* debug levels */
    with text size; border and button sizes are proportional to title bar. */
 #define CFRM_TITBAR_H(win)  ((int)((win)->linespace * 2.2))
 #define CFRM_BORDER_W       4  /* resize border width in pixels */
+#define CFRM_CORNER         16 /* corner resize grab length in pixels: near a
+                                  corner the edge band widens to this so the
+                                  diagonal resize is not a tiny CFRM_BORDER_W
+                                  square that is nearly impossible to hit */
 #define CFRM_BUTTON_SZ(win) ((int)((win)->linespace * 1.1))
 #define CFRM_BUTTON_GAP     6  /* gap between buttons */
 #define CFRM_BUTTON_MG      8  /* button margin from edge */
@@ -4848,16 +4852,41 @@ arrow on borders, diagonal arrow on corners.
 
 *******************************************************************************/
 
+/* Determine which resize edges the pointer (mx,my) is over for a child frame of
+   master size mw x mh. Edges are CFRM_BORDER_W thick; within CFRM_CORNER of a
+   corner the grab widens along both edges so the diagonal (corner) resize is
+   easy to hit rather than a tiny CFRM_BORDER_W square. Shared by the cursor
+   feedback and the resize hit test so the two never disagree. */
+static void childfrm_resize_edges(int mx, int my, int mw, int mh,
+                                  int* left, int* right, int* top, int* bottom)
+{
+    int on_left   = mx < CFRM_BORDER_W;
+    int on_right  = mx >= mw - CFRM_BORDER_W;
+    int on_top    = my < CFRM_BORDER_W;
+    int on_bottom = my >= mh - CFRM_BORDER_W;
+    int near_left   = mx < CFRM_CORNER;
+    int near_right  = mx >= mw - CFRM_CORNER;
+    int near_top    = my < CFRM_CORNER;
+    int near_bottom = my >= mh - CFRM_CORNER;
+    /* on an edge -- plus, when also on a perpendicular edge and within the
+       corner length of it, promote the hit to that corner (L-shaped grab) */
+    *left   = on_left   || ((on_top || on_bottom) && near_left);
+    *right  = on_right  || ((on_top || on_bottom) && near_right);
+    *top    = on_top    || ((on_left || on_right) && near_top);
+    *bottom = on_bottom || ((on_left || on_right) && near_bottom);
+}
+
 static void childfrm_set_cursor(winptr win, int mx, int my)
 {
     int mw = win->xmwr.w;
     int mh = win->xmwr.h;
     /* when minimized, all edges show the arrow cursor — no resizing */
-    int on_left   = !win->minimized && (mx < CFRM_BORDER_W);
-    int on_right  = !win->minimized && (mx >= mw - CFRM_BORDER_W);
-    int on_top    = !win->minimized && (my < CFRM_BORDER_W);
-    int on_bottom = !win->minimized && (my >= mh - CFRM_BORDER_W);
+    int on_left, on_right, on_top, on_bottom;
     Cursor c;
+
+    if (win->minimized) { on_left = on_right = on_top = on_bottom = 0; }
+    else childfrm_resize_edges(mx, my, mw, mh,
+                               &on_left, &on_right, &on_top, &on_bottom);
 
     /* lazy-init cursors on first use */
     if (!cfrm_cursor_arrow) {
@@ -5160,32 +5189,17 @@ static void childfrm_draw(winptr win, int mw, int mh)
         XSetLineAttributes(padisplay, win->frmgc, 1, LineSolid, CapButt, JoinMiter);
     }
 
-    /* Apply a shape mask that physically cuts the top corners out of the
-       xmwhan window. This makes the rounded corners truly transparent —
-       the parent window shows through those pixels. */
-    {
-        Pixmap mask = XCreatePixmap(padisplay, win->xmwhan, mw, mh, 1);
-        GC mgc = XCreateGC(padisplay, mask, 0, NULL);
-        /* fill mask with 0 (transparent everywhere) */
-        XSetForeground(padisplay, mgc, 0);
-        XFillRectangle(padisplay, mask, mgc, 0, 0, mw, mh);
-        /* fill the opaque (visible) area with 1 */
-        XSetForeground(padisplay, mgc, 1);
-        /* body below top corner row */
-        XFillRectangle(padisplay, mask, mgc, 0, corner_r, mw, mh - corner_r);
-        /* top strip between corners */
-        XFillRectangle(padisplay, mask, mgc,
-                       corner_r, 0, mw - corner_r*2, corner_r);
-        /* two top corner discs */
-        XFillArc(padisplay, mask, mgc,
-                 0, 0, corner_r*2, corner_r*2, 0, 360*64);
-        XFillArc(padisplay, mask, mgc,
-                 mw - corner_r*2, 0, corner_r*2, corner_r*2, 0, 360*64);
-        XShapeCombineMask(padisplay, win->xmwhan, ShapeBounding, 0, 0,
-                          mask, ShapeSet);
-        XFreeGC(padisplay, mgc);
-        XFreePixmap(padisplay, mask);
-    }
+    /* Note: we deliberately do NOT clip the top corners out of the window's
+       bounding shape. The rounded look is already produced above: XClearWindow
+       paints the whole master to its ParentRelative background, and the frame
+       fill covers only the rounded region, so the corner wedges keep showing
+       the parent through. A ShapeBounding mask on top of that would additionally
+       remove those corner pixels from the window's INPUT region -- X clips a
+       window's input region to its bounding shape and it cannot be extended
+       back out -- which made the diagonal corner resize impossible to grab
+       there (the pixels belonged to the parent, not the frame). Leaving the
+       bounding a plain rectangle keeps the corners grabbable over their square
+       extent, as ordinary windows do, while they still look rounded. */
 
     XFlush(padisplay);
     XWUNLOCK();
@@ -13244,11 +13258,12 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                         mx < CFRM_BORDER_W ||
                         my < CFRM_BORDER_W)) {
 
-                /* resize edge: determine which edges are grabbed */
-                int rsz_left   = (mx < CFRM_BORDER_W);
-                int rsz_right  = (mx >= win->xmwr.w - CFRM_BORDER_W);
-                int rsz_top    = (my < CFRM_BORDER_W);
-                int rsz_bottom = (my >= win->xmwr.h - CFRM_BORDER_W);
+                /* resize edge: determine which edges are grabbed (same L-shaped
+                   corner grab as the hover cursor, so a corner drag resizes on
+                   both axes over the widened corner zone, not just a 4px square) */
+                int rsz_left, rsz_right, rsz_top, rsz_bottom;
+                childfrm_resize_edges(mx, my, win->xmwr.w, win->xmwr.h,
+                                      &rsz_left, &rsz_right, &rsz_top, &rsz_bottom);
                 int startx = e->xbutton.x_root;
                 int starty = e->xbutton.y_root;
                 int origx = win->xmwr.x;
