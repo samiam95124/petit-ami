@@ -572,11 +572,15 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 # Windows
 #
+# Note: network_test is not built on Windows. The automated test forks
+# loopback servers (fork()/sys/wait.h), which MinGW does not provide. Use the
+# manual procedure in network_test.txt (gettys/msgserver/msgclient/prtcertnet
+# are all built) instead.
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -1124,6 +1128,11 @@ endif
 ifeq ($(OSTYPE),Darwin)
 terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/terminal_test
+else ifeq ($(OSTYPE),Windows_NT)
+# Windows screen capture uses GDI, not X11, so libpng/zlib are required but
+# libX11 is not linked.
+terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lpng -lz -o bin/terminal_test
 else
 terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lX11 -lpng -lz -o bin/terminal_test

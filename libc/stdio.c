@@ -1918,6 +1918,12 @@ systems (link() returns EXDEV), and it generally cannot rename directories
 
 ******************************************************************************/
 
+/* On Windows/MinGW the custom stdio is linked in to override the built in
+   stdio calls directly (STDIO_BYPASS is not defined), and Windows provides no
+   POSIX link() call to build this link()/unlink() based rename() from. Windows
+   does not require the custom rename(), so it is omitted here and the native
+   C runtime rename() is linked in its place. */
+#ifndef __MINGW32__
 int rename(
     /** existing file name */ const char *oldname,
     /** new file name */      const char *newname
@@ -1949,6 +1955,7 @@ int rename(
     return (0); /* success */
 
 }
+#endif
 
 /** **************************************************************************
 
