@@ -1073,15 +1073,25 @@ int main(void)
     do {
 
         ami_event(stdin, &er);
-        if (er.etype == ami_etredraw || er.etype == ami_etresize) {
+        /* repaint the parent on a main-window (winid 1) redraw or resize */
+        if ((er.etype == ami_etredraw || er.etype == ami_etresize) &&
+            er.winid == 1) {
 
             putchar('\f');
             prtceng(ami_maxyg(stdout)-ami_chrsizy(stdout),
                     "Child windows stacking resize test pixel 1");
             prtceng(1, "move and resize");
-            ami_setsizg(win3, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
-            ami_setsizg(win4, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
-            ami_setsizg(win2, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+            /* re-fit the children only on an actual PARENT RESIZE -- not on a
+               mere redraw. A child's own resize/move makes the unbuffered parent
+               repaint (etredraw, winid 1); refitting there would setsizg the
+               children back to the parent-derived size and revert a manual child
+               resize. Two guards are needed: winid 1 excludes the child's own
+               etresize, and etresize excludes the parent's redraw. */
+            if (er.etype == ami_etresize) {
+                ami_setsizg(win3, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+                ami_setsizg(win4, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+                ami_setsizg(win2, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+            }
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1129,15 +1139,21 @@ int main(void)
     do {
 
         ami_event(stdin, &er);
-        if (er.etype == ami_etredraw  || er.etype == ami_etresize) {
+        /* repaint the parent on a main-window (winid 1) redraw or resize; re-fit
+           children only on an actual parent resize -- see the note in stacking
+           resize test pixel 1 above */
+        if ((er.etype == ami_etredraw  || er.etype == ami_etresize) &&
+            er.winid == 1) {
 
             putchar('\f');
             prtceng(ami_maxyg(stdout)-ami_chrsizy(stdout),
                     "Child windows stacking resize test pixel 2");
             prtceng(1, "move and resize");
-            ami_setsizg(win2, ami_maxxg(stdout)-xs*1*2, ami_maxyg(stdout)-ys*1*2);
-            ami_setsizg(win3, ami_maxxg(stdout)-xs*2*2, ami_maxyg(stdout)-ys*2*2);
-            ami_setsizg(win4, ami_maxxg(stdout)-xs*3*2, ami_maxyg(stdout)-ys*3*2);
+            if (er.etype == ami_etresize) {
+                ami_setsizg(win2, ami_maxxg(stdout)-xs*1*2, ami_maxyg(stdout)-ys*1*2);
+                ami_setsizg(win3, ami_maxxg(stdout)-xs*2*2, ami_maxyg(stdout)-ys*2*2);
+                ami_setsizg(win4, ami_maxxg(stdout)-xs*3*2, ami_maxyg(stdout)-ys*3*2);
+            }
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
