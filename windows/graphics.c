@@ -277,6 +277,8 @@ typedef struct scncon { /* screen context */
     HBRUSH  fbrush;      /* foreground brush handle */
     HPEN    fspen;       /* foreground single pixel pen */
     int     lwidth;      /* width of lines */
+    ami_lstyle lstyle;   /* style of lines */
+    int     angle;       /* text drawing path angle */
     /* note that the pixel and character dimensions and positions are kept
       in parallel for both characters and pixels */
     int     maxx;        /* maximum characters in x */
@@ -608,6 +610,7 @@ typedef enum {
     ewiggtxt, /* Cannot get text from this widget */
     ewigdis,  /* Cannot disable this widget */
     estrato,  /* Cannot direct write string with auto on */
+    eangato,  /* Cannot set character drawing angle in auto mode */
     etabsel,  /* Invalid tab select */
     enomem,   /* Out of memory */
     enoopn,   /* Cannot open file */
@@ -647,6 +650,9 @@ static char*     trmnam;       /* program termination string */
    Windows calls us back, and the results have to be passed via a global. */
 static fontptr   fntlst;       /* list of windows fonts */
 static int       fntcnt;       /* number of fonts in font list */
+static int       sysfhigh;     /* natural pixel height of the stock terminal
+                                  font, used to decide when the terminal font
+                                  must be substituted with a scalable font */
 static ami_evtrec er;           /* event record */
 static int       r;            /* result holder */
 static int       b;            /* int result holder */
@@ -1130,6 +1136,7 @@ static void error(errcod e)
         case ewiggtxt: grawrterr("Cannot get text from this widget"); break;
         case ewigdis:  grawrterr("Cannot disable this widget"); break;
         case estrato:  grawrterr("Cannot direct write string with auto on"); break;
+        case eangato:  grawrterr("Cannot set character drawing angle in auto mode"); break;
         case etabsel:  grawrterr("Invalid tab select"); break;
         case enomem:   grawrterr("Out of memory"); break;
         case enoopn:   grawrterr("Cannot open file"); break;
@@ -2602,12 +2609,16 @@ static int indisp(winptr win)
 
 }
 
+/* apply viewport offset and scale to a device context (defined below) */
+static void settrans(HDC dc, scnptr sc);
+
 /*******************************************************************************
 
 Clear screen buffer
 
 Clears the entire screen buffer to spaces with the current colors and
-attributes.
+attributes. The clear covers the whole physical buffer regardless of any
+viewport offset or scale in effect, so no previous content survives a clear.
 
 *******************************************************************************/
 
@@ -2625,11 +2636,17 @@ static void clrbuf(winptr win, scnptr sc)
     r.bottom = win->gmaxyg;
     hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
     if (!hb) winerr(); /* process error */
+    /* reset to identity so the whole physical buffer is cleared */
+    b = SetMapMode(sc->bdc, MM_TEXT);
+    if (!b) winerr(); /* process error */
+    b = SetViewportOrgEx(sc->bdc, 0, 0, NULL);
+    if (!b) winerr(); /* process error */
     /* clear buffer surface */
     b = FillRect(sc->bdc, &r, hb);
     if (!b) winerr(); /* process error */
     b = DeleteObject(hb); /* free the brush */
     if (!b) winerr(); /* process error */
+    settrans(sc->bdc, sc); /* reapply the drawing transform */
 
 }
 
@@ -2655,11 +2672,18 @@ static void clrwin(winptr win)
     r.bottom = win->gmaxyg;
     hb = CreateSolidBrush(win->gbcrgb); /* get a brush for background */
     if (!hb) winerr(); /* process error */
+    /* reset to identity so the whole physical window is cleared */
+    b = SetMapMode(win->devcon, MM_TEXT);
+    if (!b) winerr(); /* process error */
+    b = SetViewportOrgEx(win->devcon, 0, 0, NULL);
+    if (!b) winerr(); /* process error */
     /* clear buffer surface */
     b = FillRect(win->devcon, &r, hb);
     if (!b) winerr(); /* process error */
     b = DeleteObject(hb); /* free the brush */
     if (!b) winerr(); /* process error */
+    /* reapply the drawing transform */
+    settrans(win->devcon, win->screens[win->curdsp-1]);
 
 }
 
@@ -2872,6 +2896,7 @@ static void newfont(winptr win)
     int        attrc;
     scnptr     sc;
     HGDIOBJ    rv;
+    int        esc; /* escapement angle in tenths of a degree */
 
 
     sc = win->screens[win->curupd-1];
@@ -2891,11 +2916,21 @@ static void newfont(winptr win)
        /* this indicates an error when there is none */
        /* if ! DeleteObject(font)  winerr(); */ /* delete old font */
        b = DeleteObject(sc->font); /* delete old font */
+       sc->font = 0; /* set no font active */
 
     }
-    if (sc->cfont->sys) { /* select as system font */
+    /* convert the text path angle (compass convention, 0 = north,
+       90 = east, INT_MAX = 360 degrees) to GDI escapement, which is in
+       tenths of a degree counterclockwise from horizontal */
+    esc = 900-(int)floor((double)sc->angle/INT_MAX*3600.0+0.5);
+    while (esc < 0) esc = esc+3600;
+    while (esc >= 3600) esc = esc-3600;
+    if (sc->cfont->sys && !esc && win->gfhigh == sysfhigh) {
+        /* system font, natural size, normal reading path */
 
-        /* select the system font */
+        /* select the stock system font. This is a raster font, so it is only
+           usable at its natural size with a normal path; the substitution
+           below handles any other case */
         sf = GetStockObject(SYSTEM_FIXED_FONT);
         if (!sf) winerr(); /* process windows error */
         rv = SelectObject(sc->bdc, sf);
@@ -2904,6 +2939,33 @@ static void newfont(winptr win)
         if (indisp(win)) {
 
             rv = SelectObject(win->devcon, sf); /* process error */
+            if (rv == HGDI_ERROR) winerr();
+
+        }
+
+    } else if (sc->cfont->sys) { /* system font, resized or rotated */
+
+        /* The stock system font is a raster font, which GDI cannot scale or
+           rotate. When the terminal font is requested at a non-natural size
+           or on a rotated path, substitute a standard scalable fixed pitch
+           font at the requested height so sizing and text path work with the
+           terminal font, matching the scalable terminal font on other
+           platforms. The stock font returns at natural size and normal
+           path. */
+        h = win->gfhigh? win->gfhigh: sysfhigh; /* height, default to natural */
+        sc->font = CreateFont(h, 0, esc, esc, FW_REGULAR,
+                          FALSE, FALSE, FALSE, ANSI_CHARSET,
+                          OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
+                          FQUALITY, FIXED_PITCH,
+                          "Courier New");
+        if (!sc->font) winerr(); /* process windows error */
+        /* select to buffer DC */
+        rv = SelectObject(sc->bdc, sc->font);
+        if (rv == HGDI_ERROR) winerr();
+        /* select to screen DC */
+        if (indisp(win)) {
+
+            rv = SelectObject(win->devcon, sc->font); /* process error */
             if (rv == HGDI_ERROR) winerr();
 
         }
@@ -2919,7 +2981,7 @@ static void newfont(winptr win)
         /* set normal height or half height for subscript/superscript */
         if (BIT(sasuper) & attrc | BIT(sasubs) & attrc)
             h = trunc(win->gfhigh*0.75); else h = win->gfhigh;
-        sc->font = CreateFont(h, 0, 0, 0, w, BIT(saital) & attrc,
+        sc->font = CreateFont(h, 0, esc, esc, w, BIT(saital) & attrc,
                           BIT(saundl) & sc->attr, BIT(sastkout) & sc->attr, ANSI_CHARSET,
                           OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
                           FQUALITY, DEFAULT_PITCH,
@@ -2951,6 +3013,36 @@ static void newfont(winptr win)
     win->baseoff = win->linespace-tm.tmDescent-1;
     /* change cursor to match new font/size */
     if (indisp(win)) chgcur(win);
+
+}
+
+/*******************************************************************************
+
+Set drawing transform
+
+Applies the current viewport offset and scale to the given device context.
+The scale is set via anisotropic mapping with the window extent as the
+divisor and the viewport extent as the multiplier, and the offset is a
+physical pixel displacement applied after scaling (matching the Linux
+implementation, where offsets are in physical pixels). All GDI drawing
+through the context, including text, is then transformed.
+
+*******************************************************************************/
+
+static void settrans(HDC dc, scnptr sc)
+
+{
+
+    int b; /* return value */
+
+    b = SetMapMode(dc, MM_ANISOTROPIC);
+    if (!b) winerr(); /* process windows error */
+    b = SetWindowExtEx(dc, sc->wextx, sc->wexty, NULL);
+    if (!b) winerr(); /* process windows error */
+    b = SetViewportExtEx(dc, sc->vextx, sc->vexty, NULL);
+    if (!b) winerr(); /* process windows error */
+    b = SetViewportOrgEx(dc, sc->offx, sc->offy, NULL);
+    if (!b) winerr(); /* process windows error */
 
 }
 
@@ -2997,13 +3089,17 @@ static void restore(winptr win,   /* window to restore */
             if (r == -1) winerr(); /* process windows error */
 
         }
-        /* select any viewport offset to display */
-        b = SetViewportOrgEx(win->devcon, sc->offx, sc->offy, NULL);
+        /* The buffer already contains the viewport offset and scale, which
+           are applied at drawing time, so it is presented to the display
+           1:1. Reset both device contexts to identity for the copy; the
+           drawing transforms are reapplied below. */
+        b = SetMapMode(win->devcon, MM_TEXT);
         if (!b)  winerr(); /* process windows error */
-        /* select the extents */
-        b = SetWindowExtEx(win->devcon, sc->wextx, sc->wexty, &s);
-        /* if (!b) winerr(); */ /* process windows error */
-        b = SetViewportExtEx(win->devcon, sc->vextx, sc->vexty, &s);
+        b = SetViewportOrgEx(win->devcon, 0, 0, NULL);
+        if (!b)  winerr(); /* process windows error */
+        b = SetMapMode(sc->bdc, MM_TEXT);
+        if (!b)  winerr(); /* process windows error */
+        b = SetViewportOrgEx(sc->bdc, 0, 0, NULL);
         if (!b)  winerr(); /* process windows error */
         oh = SelectObject(win->devcon, sc->font); /* select font to display */
         if (oh == HGDI_ERROR) winerr();
@@ -3023,11 +3119,8 @@ static void restore(winptr win,   /* window to restore */
         if (cr.left != 0 || cr.top != 0 || cr.right != 0 || cr.bottom != 0) {
             /* area is not NULL */
 
-            /* convert to device coordinates */
-            cr.left = cr.left+sc->offx;
-            cr.top = cr.top+sc->offy;
-            cr.right = cr.right+sc->offx;
-            cr.bottom = cr.bottom+sc->offy;
+            /* the buffer is presented 1:1, so client and buffer coordinates
+               are the same */
             /* clip update rectangle to buffer */
             if (cr.left <= win->gmaxxg || cr.bottom <= win->gmaxyg)  {
 
@@ -3061,6 +3154,9 @@ static void restore(winptr win,   /* window to restore */
             if (!b)  winerr(); /* process windows error */
 
         }
+        /* reapply the drawing transforms removed for the copy */
+        settrans(win->devcon, sc);
+        settrans(sc->bdc, sc);
         setcur(win); /* show the cursor */
 
     }
@@ -3104,6 +3200,56 @@ static void winvis(winptr win)
 
 /*******************************************************************************
 
+Create foreground pen
+
+Creates the foreground pen from the current line width, line style and
+foreground color in the screen context. Shared by all the places that need to
+recreate the pen (color, width or style changes). GDI dash patterns for
+geometric pens are given in logical units via PS_USERSTYLE, and do not scale
+with the line width, so we scale them ourselves here. Dashes stay visually
+proportional as width grows, with a minimum floor so width-1 lines still read
+as dashed/dotted rather than nearly-solid.
+
+*******************************************************************************/
+
+static HPEN makfpen(scnptr sc)
+
+{
+
+    LOGBRUSH lb;      /* brush the pen is built from */
+    DWORD    style;   /* pen style flags */
+    DWORD    dash[2]; /* dash on/off pattern */
+    DWORD    dashcnt; /* number of dash entries */
+    int      w;       /* effective line width */
+
+    lb.lbStyle = BS_SOLID;
+    lb.lbColor = sc->fcrgb;
+    lb.lbHatch = 0;
+    style = PS_GEOMETRIC | PS_ENDCAP_FLAT | PS_JOIN_MITER;
+    dashcnt = 0; /* set no dash pattern */
+    w = sc->lwidth > 0? sc->lwidth: 1;
+    if (sc->lstyle == ami_lsdash) {
+
+        style |= PS_USERSTYLE;
+        dash[0] = w*4; if (dash[0] < 16) dash[0] = 16; /* on */
+        dash[1] = w*2; if (dash[1] < 8) dash[1] = 8; /* off */
+        dashcnt = 2;
+
+    } else if (sc->lstyle == ami_lsdot) {
+
+        style |= PS_USERSTYLE;
+        dash[0] = w; if (dash[0] < 2) dash[0] = 2; /* on */
+        dash[1] = w*3; if (dash[1] < 6) dash[1] = 6; /* off */
+        dashcnt = 2;
+
+    } else style |= PS_SOLID;
+
+    return (ExtCreatePen(style, sc->lwidth, &lb, dashcnt, dashcnt? dash: NULL));
+
+}
+
+/*******************************************************************************
+
 Initalize screen
 
 Clears all the parameters in the present screen context. Also, the backing
@@ -3135,6 +3281,8 @@ static void iniscn(winptr win, scnptr sc)
     sc->autof = win->gauto; /* set auto scroll and wrap */
     sc->curv = win->gcurv; /* set cursor visibility */
     sc->lwidth = 1; /* set single pixel width */
+    sc->lstyle = ami_lssolid; /* set solid lines */
+    sc->angle = INT_MAX/4; /* set text path to normal reading (east) */
     sc->font = 0; /* set no font active */
     sc->cfont = win->gcfont; /* set current font */
     sc->fmod = win->gfmod; /* set mix modes */
@@ -3162,10 +3310,7 @@ static void iniscn(winptr win, scnptr sc)
     r = SetStretchBltMode(win->screens[win->curupd-1]->bdc, HALFTONE);
     if (!r) winerr(); /* process windows error */
     /* set pen to foreground */
-    lb.lbStyle = BS_SOLID;
-    lb.lbColor = sc->fcrgb;
-    lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
+    sc->fpen = makfpen(sc);
     if (!sc->fpen) winerr(); /* process windows error */
     rv = SelectObject(sc->bdc, sc->fpen);
     if (rv == HGDI_ERROR) error(enosel);
@@ -3195,6 +3340,9 @@ static void iniscn(winptr win, scnptr sc)
 
     }
     clrbuf(win, sc); /* clear screen buffer with that */
+    /* apply the current viewport offset and scale to the new buffer, after
+       the clear so the whole buffer is cleared */
+    settrans(sc->bdc, sc);
     for (i = 0; i < MAXTAB; i++) sc->tab[i] = 0; /* clear tab array */
     /* set up tabbing to be on each 8th position */
     i = 9; /* set 1st tab position */
@@ -4315,10 +4463,7 @@ static void ifcolor(winptr win, ami_color c)
     b = DeleteObject(sc->fspen); /* remove old single pixel pen */
     if (!b) winerr(); /* process windows error */
     /* create new pen */
-    lb.lbStyle = BS_SOLID;
-    lb.lbColor = sc->fcrgb;
-    lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
+    sc->fpen = makfpen(sc);
     if (!sc->fpen) winerr(); /* process windows error */
     /* create new brush */
     sc->fbrush = CreateSolidBrush(sc->fcrgb);
@@ -4407,10 +4552,7 @@ static void ifcolorg(winptr win, int r, int g, int b)
     bv = DeleteObject(sc->fspen); /* remove old single pixel pen */
     if (!bv) winerr(); /* process error */
     /* create new pen */
-    lb.lbStyle = BS_SOLID;
-    lb.lbColor = sc->fcrgb;
-    lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
+    sc->fpen = makfpen(sc);
     if (!sc->fpen) winerr(); /* process error */
     /* create new brush */
     sc->fbrush = CreateSolidBrush(sc->fcrgb);
@@ -4868,6 +5010,7 @@ static void plcchr(winptr win, char c)
     int    b;   /* int return */
     int    off; /* subscript offset */
     SIZE   sz;  /* size holder */
+    double a;   /* text path angle in radians */
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
@@ -4914,12 +5057,26 @@ static void plcchr(winptr win, char c)
             curon(win); /* show the cursor */
 
         }
-        if (sc->cfont->sys) iright(win); /* move cursor right character */
+        /* note the system font is substituted with a scalable font when the
+           text path is rotated, so it advances as proportional below */
+        if (sc->cfont->sys && sc->angle == INT_MAX/4)
+            iright(win); /* move cursor right character */
         else { /* perform proportional version */
 
             b = GetTextExtentPoint32(sc->bdc, &c, 1, &sz); /* get spacing */
             if (!b) winerr(); /* process windows error */
-            sc->curxg = sc->curxg+sz.cx; /* advance the character width */
+            if (sc->angle == INT_MAX/4) { /* normal reading text */
+
+                sc->curxg = sc->curxg+sz.cx; /* advance the character width */
+
+            } else { /* advance along the text path direction */
+
+                a = (double)sc->angle/INT_MAX*2.0*PI; /* angle in radians */
+                sc->curxg = sc->curxg+(int)floor(sz.cx*sin(a)+0.5);
+                sc->curyg = sc->curyg-(int)floor(sz.cx*cos(a)+0.5);
+                sc->cury = sc->curyg/win->linespace+1; /* recalculate row */
+
+            }
             sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
             if (indisp(win)) setcur(win); /* set cursor on screen */
 
@@ -4953,6 +5110,7 @@ static void iwrtstr(winptr win,  char* s)
     int    b;   /* int return */
     int    off; /* subscript offset */
     SIZE   sz;  /* size holder */
+    double a;   /* text path angle in radians */
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
@@ -4978,7 +5136,10 @@ static void iwrtstr(winptr win,  char* s)
        curon(win); /* show the cursor */
 
     }
-    if (sc->cfont->sys) { /* perform fixed system advance */
+    /* note the system font is substituted with a scalable font when the
+       text path is rotated, so it advances as proportional below */
+    if (sc->cfont->sys && sc->angle == INT_MAX/4) {
+        /* perform fixed system advance */
 
           /* should check if this exceeds INT_MAX */
           sc->curx = sc->curx+strlen(s); /* update position */
@@ -4988,7 +5149,18 @@ static void iwrtstr(winptr win,  char* s)
 
        b = GetTextExtentPoint32(sc->bdc, s, strlen(s), &sz); /* get spacing */
        if (!b) winerr(); /* process windows error */
-       sc->curxg = sc->curxg+sz.cx; /* advance the character width */
+       if (sc->angle == INT_MAX/4) { /* normal reading text */
+
+           sc->curxg = sc->curxg+sz.cx; /* advance the character width */
+
+       } else { /* advance along the text path direction */
+
+           a = (double)sc->angle/INT_MAX*2.0*PI; /* angle in radians */
+           sc->curxg = sc->curxg+(int)floor(sz.cx*sin(a)+0.5);
+           sc->curyg = sc->curyg-(int)floor(sz.cx*cos(a)+0.5);
+           sc->cury = sc->curyg/win->linespace+1; /* recalculate row */
+
+       }
        sc->curx = sc->curxg/win->charspace+1; /* recalculate character position */
        if (indisp(win)) setcur(win); /* set cursor on screen */
 
@@ -6083,10 +6255,7 @@ static void ilinewidth(winptr win, int w)
     b = DeleteObject(sc->fpen); /* remove old pen */
     if (!b) winerr(); /* process windows error */
     /* create new pen */
-    lb.lbStyle = BS_SOLID;
-    lb.lbColor = sc->fcrgb;
-    lb.lbHatch = 0;
-    sc->fpen = ExtCreatePen(FPENSTL, sc->lwidth, &lb, 0, NULL);
+    sc->fpen = makfpen(sc);
     if (!sc->fpen) winerr(); /* process windows error */
     /* select to buffer dc */
     oh = SelectObject(sc->bdc, sc->fpen);
@@ -6109,6 +6278,55 @@ void ami_linewidth(FILE* f, int w)
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
     ilinewidth(win, w); /* set line width */
+    unlockmain(); /* end exclusive access */
+
+}
+
+/*******************************************************************************
+
+Set line style
+
+Selects solid, dashed, or dotted line rendering for subsequent line-drawing
+primitives.
+
+*******************************************************************************/
+
+static void ilinestyle(winptr win, ami_lstyle style)
+
+{
+
+    HGDIOBJ  oh; /* old pen */
+    int      b;  /* return value */
+    scnptr   sc;
+
+    sc = win->screens[win->curupd-1];
+    sc->lstyle = style; /* set new line style */
+    /* create new pen with desired style */
+    b = DeleteObject(sc->fpen); /* remove old pen */
+    if (!b) winerr(); /* process windows error */
+    sc->fpen = makfpen(sc); /* create new pen */
+    if (!sc->fpen) winerr(); /* process windows error */
+    /* select to buffer dc */
+    oh = SelectObject(sc->bdc, sc->fpen);
+    if (oh == HGDI_ERROR) error(enosel);
+    if (indisp(win)) { /* activate on screen */
+
+        oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
+        if (oh == HGDI_ERROR) error(enosel);
+
+    }
+
+}
+
+void ami_linestyle(FILE* f, ami_lstyle style)
+
+{
+
+    winptr win;  /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ilinestyle(win, style); /* set line style */
     unlockmain(); /* end exclusive access */
 
 }
@@ -6279,8 +6497,9 @@ static void ifontsiz(winptr win, int s)
 
 {
 
-    /* cannot perform with system font */
-    if (win->screens[win->curupd-1]->cfont->sys) error(etrmfts);
+    /* The terminal font can be sized: newfont substitutes a scalable fixed
+       pitch font when the terminal font is requested at a non-natural size,
+       matching the scalable terminal font on other platforms. */
     if (win->screens[win->curupd-1]->autof)
         error(eatofts); /* cannot perform with auto on */
     win->gfhigh = s; /* set new font height */
@@ -6298,6 +6517,58 @@ void ami_fontsiz(FILE* f, int s)
     win = txt2win(f); /* get window pointer from text file */
     ifontsiz(win, s); /* set font size */
     unlockmain(); /* end exclusive access */
+
+}
+
+/*******************************************************************************
+
+Set font size by point size
+
+Sets the font size by point size (typographic points). The font pixel height
+is computed from the display DPI, with 2835 being the number of points per
+meter (72 points per inch times 39.37 inches per meter). The resulting
+character cell height can be queried via ami_chrsizy().
+
+*******************************************************************************/
+
+void ami_setpoints(FILE* f, float ps)
+
+{
+
+    winptr win;  /* windows record pointer */
+    int    s;    /* font pixel height */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    s = (int)(ps*(float)win->sdpmy/2835.0f+0.5f); /* points to pixels */
+    if (s < 1) s = 1; /* clamp to minimum */
+    ifontsiz(win, s); /* set font size */
+    unlockmain(); /* end exclusive access */
+
+}
+
+/*******************************************************************************
+
+Find font point size
+
+Returns the current font size in typographic points, derived from the font
+pixel height and the display DPI. This is the inverse of ami_setpoints().
+
+*******************************************************************************/
+
+float ami_points(FILE* f)
+
+{
+
+    winptr win;  /* windows record pointer */
+    float  ps;   /* point size */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ps = (float)win->gfhigh*2835.0f/(float)win->sdpmy; /* pixels to points */
+    unlockmain(); /* end exclusive access */
+
+    return (ps);
 
 }
 
@@ -7232,6 +7503,51 @@ void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 
 /*******************************************************************************
 
+Set text draw path
+
+Sets the angle text is drawn at, in compass convention (0 = north, 90 = east),
+scaled so that INT_MAX = 360 degrees. The default is INT_MAX/4 (east), which
+is the normal reading path. The font is recreated with the matching GDI
+escapement, which rotates the glyphs as well as the underline and strikeout
+attributes, and character advance follows the path direction.
+
+Cannot be performed with auto mode on, since rotated text is incompatible with
+the character grid.
+
+*******************************************************************************/
+
+static void ipath(winptr win, int a)
+
+{
+
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    if (sc->autof) error(eangato); /* cannot perform with auto on */
+    if (sc->angle != a) {
+
+        sc->angle = a; /* set new text path angle */
+        newfont(win); /* recreate font at the new angle */
+
+    }
+
+}
+
+void ami_path(FILE* f, int a)
+
+{
+
+    winptr win;  /* windows record pointer */
+
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get window pointer from text file */
+    ipath(win, a); /* set text path */
+    unlockmain(); /* end exclusive access */
+
+}
+
+/*******************************************************************************
+
 Set viewport offset graphical
 
 Sets the offset of the viewport in logical space, in pixels, anywhere from
@@ -7243,17 +7559,17 @@ static void iviewoffg(winptr win, int x, int y)
 
 {
 
-    /* check change is needed */
-    if (x != win->screens[win->curupd-1]->offx &&
-        y != win->screens[win->curupd-1]->offy) {
+    scnptr sc;
 
-        win->screens[win->curupd-1]->offx = x; /* set offsets */
-        win->screens[win->curupd-1]->offy = y;
-        win->goffx = x;
-        win->goffy = y;
-        iclear(win); /* clear buffer */
-
-    }
+    sc = win->screens[win->curupd-1];
+    sc->offx = x; /* set offsets */
+    sc->offy = y;
+    win->goffx = x;
+    win->goffy = y;
+    /* apply to the drawing surfaces; subsequent drawing is offset, existing
+       content is unchanged */
+    settrans(sc->bdc, sc);
+    if (indisp(win)) settrans(win->devcon, sc);
 
 }
 
@@ -7294,17 +7610,23 @@ static void iviewscale(winptr win, float x, float y)
 
 {
 
-    /* in this starting simplistic formula, the ratio is set x*INT_MAX/INT_MAX.
-      it works, but can overflow for large coordinates or scales near 1 */
-    win->screens[win->curupd-1]->wextx = 100;
-    win->screens[win->curupd-1]->wexty = 100;
-    win->screens[win->curupd-1]->vextx = trunc(x*100);
-    win->screens[win->curupd-1]->vexty = trunc(y*100);
+    scnptr sc;
+
+    sc = win->screens[win->curupd-1];
+    /* the scale ratio is expressed as a fraction over 100, which gives two
+       decimal digits of scale precision */
+    sc->wextx = 100;
+    sc->wexty = 100;
+    sc->vextx = trunc(x*100);
+    sc->vexty = trunc(y*100);
     win->gwextx = 100;
     win->gwexty = 100;
     win->gvextx = trunc(x*100);
     win->gvexty = trunc(y*100);
-    iclear(win); /* clear buffer */
+    /* apply to the drawing surfaces; subsequent drawing is scaled, existing
+       content is unchanged */
+    settrans(sc->bdc, sc);
+    if (indisp(win)) settrans(win->devcon, sc);
 
 }
 
@@ -9831,6 +10153,12 @@ static void opnwin(int fn, int pfn)
     win->charspace = tm.tmMaxCharWidth;
     /* set cursor width */
     win->curspace = tm.tmAveCharWidth;
+    /* record the stock terminal font's natural height and adopt it as the
+       default font height, so the terminal font at its default size selects
+       the crisp stock raster font (and any resize substitutes a scalable
+       font instead of erroring) */
+    sysfhigh = tm.tmHeight;
+    win->gfhigh = tm.tmHeight;
     /* find screen device parameters for dpm calculations */
     win->shsize = GetDeviceCaps(win->devcon, HORZSIZE); /* size x in millimeters */
     win->svsize = GetDeviceCaps(win->devcon, VERTSIZE); /* size y in millimeters */
@@ -16016,6 +16344,14 @@ static void ami_init_graph()
     ovr_open(iopen, &ofpopen);
     ovr_close(iclose, &ofpclose);
     ovr_lseek(ilseek, &ofplseek);
+
+    /* Run stdout unbuffered. This driver renders output directly via GDI
+       calls, so buffering in stdio only delays text, which causes two
+       problems: prompts without a newline stay invisible while we block for
+       events, and buffered text interleaves out of order with the direct
+       graphics calls (cursor positioning, colors, clears), placing text at
+       the wrong screen positions. */
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     maxxd = MAXXD; /* set default window dimensions */
     maxyd = MAXYD;

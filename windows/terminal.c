@@ -659,6 +659,10 @@ static void iniscn(scnptr sc)
     xy.X = sc->maxx;
     xy.Y = sc->maxy;
     b = SetConsoleScreenBufferSize(sc->han, xy);
+    /* a new buffer is sized exactly to the display area, so there is no
+       scrollback above it; the display offset is zero (unlike the primary
+       buffer, whose offset is taken from the window position) */
+    sc->offy = 0;
     sc->forec = gforec; /* set colors and attributes */
     sc->backc = gbackc;
     sc->attr = gattr;
@@ -3382,6 +3386,14 @@ static void ami_init_terminal(void)
     ovr_close(iclose, &ofpclose);
     ovr_unlink(iunlink, &ofpunlink);
     ovr_lseek(ilseek, &ofplseek);
+
+    /* Run stdout unbuffered. This driver renders output directly via console
+       API calls, so buffering in stdio only delays text, which causes two
+       problems: prompts without a newline stay invisible while we block for
+       events, and buffered text interleaves out of order with the direct
+       terminal calls (cursor positioning, colors, clears), placing text at
+       the wrong screen positions. */
+    setvbuf(stdout, NULL, _IONBF, 0);
 
     /* get handle of input file */
     inphdl = GetStdHandle(STD_INPUT_HANDLE);
