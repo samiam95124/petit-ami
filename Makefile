@@ -529,7 +529,8 @@ else ifeq ($(OSTYPE),Darwin)
              -framework CoreGraphics \
              -framework CoreText \
              -framework CoreFoundation \
-             -framework ImageIO
+             -framework ImageIO \
+             -framework QuartzCore
 
 else ifeq ($(OSTYPE),FreeBSD)
 

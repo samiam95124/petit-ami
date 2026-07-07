@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include <localdefs.h>
+#include <config.h>
 #include <graphics.h>
 #include "pa_cocoa.h"
 
@@ -143,6 +144,17 @@ static pwrite_t ofpwrite;              /* saved write vector */
 static pread_t  ofpread;               /* saved read vector */
 static int      maxxd;                 /* default window width in pixels */
 static int      maxyd;                 /* default window height in pixels */
+
+/* config settable runtime options */
+static int      cfgmaxxd;             /* configured terminal width in chars */
+static int      cfgmaxyd;             /* configured terminal height in chars */
+static int      dialogerr;            /* send runtime errors to dialog */
+static int      mouseenb = 1;         /* enable mouse */
+static int      joyenb;               /* enable joysticks */
+static int      dmpevt;               /* enable dump Petit-Ami events */
+static int      dmpmsg;               /* enable dump messages (diagnostic) */
+static int      prtftm;               /* print font metrics (diagnostic) */
+static int      conpnt;               /* size of console font in points */
 
 /* forward declarations */
 static void    clear_window(winptr win);
@@ -295,15 +307,32 @@ static void init_fonts(void)
 
     for (int slot = 0; slot < 4; slot++) {
         fontptr fp = calloc(1, sizeof(fontrec));
-        /* find first available name */
-        for (const char** np = lists[slot]; *np; np++) {
-            CTFontRef f = make_ctfont(*np, DEF_FONT_H, 0, 0);
+        /* for TERM slot, try system monospace font (SF Mono) first */
+        if (slot == 0) {
+            CTFontRef f = pa_cocoa_system_mono_font((CGFloat)DEF_FONT_H);
             if (f) {
+                CFStringRef fname = CTFontCopyFullName(f);
+                char nbuf[256];
+                CFStringGetCString(fname, nbuf, sizeof(nbuf),
+                                   kCFStringEncodingUTF8);
+                CFRelease(fname);
                 fp->ctfont = f;
-                fp->name   = strdup(*np);
+                fp->name   = strdup(nbuf);
                 fp->size   = DEF_FONT_H;
-                fp->fixed  = (slot == 0); /* TERM is fixed */
-                break;
+                fp->fixed  = 1;
+            }
+        }
+        /* fall through to name list if system mono not available */
+        if (!fp->ctfont) {
+            for (const char** np = lists[slot]; *np; np++) {
+                CTFontRef f = make_ctfont(*np, DEF_FONT_H, 0, 0);
+                if (f) {
+                    fp->ctfont = f;
+                    fp->name   = strdup(*np);
+                    fp->size   = DEF_FONT_H;
+                    fp->fixed  = (slot == 0);
+                    break;
+                }
             }
         }
         if (!fp->ctfont) {
@@ -589,6 +618,113 @@ static void pa_graphics_init(void)
 
     fautohold = TRUE; /* hold window open on exit until keypress */
 
+    /* read configuration file */
+    {
+        ami_valptr config_root = NULL;
+        ami_valptr term_root;
+        ami_valptr graph_root;
+        ami_valptr diag_root;
+        ami_valptr mac_root;
+        ami_valptr vp;
+        char*      errstr;
+
+        ami_config(&config_root);
+
+        /* find "terminal" block */
+        term_root = ami_schlst("terminal", config_root);
+        if (term_root && term_root->sublist) term_root = term_root->sublist;
+
+        if (term_root) {
+
+            vp = ami_schlst("maxxd", term_root);
+            if (vp) {
+
+                cfgmaxxd = strtol(vp->value, &errstr, 10);
+                if (*errstr) cfgmaxxd = 0;
+
+            }
+            vp = ami_schlst("maxyd", term_root);
+            if (vp) {
+
+                cfgmaxyd = strtol(vp->value, &errstr, 10);
+                if (*errstr) cfgmaxyd = 0;
+
+            }
+            vp = ami_schlst("joystick", term_root);
+            if (vp) {
+
+                joyenb = strtol(vp->value, &errstr, 10);
+                if (*errstr) joyenb = 0;
+
+            }
+            vp = ami_schlst("mouse", term_root);
+            if (vp) {
+
+                mouseenb = strtol(vp->value, &errstr, 10);
+                if (*errstr) mouseenb = 1;
+
+            }
+            vp = ami_schlst("dump_event", term_root);
+            if (vp) {
+
+                dmpevt = strtol(vp->value, &errstr, 10);
+                if (*errstr) dmpevt = 0;
+
+            }
+
+        }
+
+        /* find "graphics" block */
+        graph_root = ami_schlst("graphics", config_root);
+        if (graph_root) {
+
+            vp = ami_schlst("console_points", graph_root->sublist);
+            if (vp) {
+
+                conpnt = strtol(vp->value, &errstr, 10);
+                if (*errstr) conpnt = 0;
+
+            }
+
+            vp = ami_schlst("dialogerr", graph_root->sublist);
+            if (vp) {
+
+                dialogerr = strtol(vp->value, &errstr, 10);
+                if (*errstr) dialogerr = 0;
+
+            }
+
+            /* find macosx subsection */
+            mac_root = ami_schlst("macosx", graph_root->sublist);
+            if (mac_root) {
+
+                /* find diagnostic subsection */
+                diag_root = ami_schlst("diagnostics", mac_root->sublist);
+                if (diag_root) {
+
+                    vp = ami_schlst("dump_messages", diag_root->sublist);
+                    if (vp) {
+
+                        dmpmsg = strtol(vp->value, &errstr, 10);
+                        if (*errstr) dmpmsg = 0;
+
+                    }
+
+                    vp = ami_schlst("print_font_metrics", diag_root->sublist);
+                    if (vp) {
+
+                        prtftm = strtol(vp->value, &errstr, 10);
+                        if (*errstr) prtftm = 0;
+
+                    }
+
+                }
+
+            }
+
+        }
+    }
+
     /* turn off I/O buffering */
     setvbuf(stdin, NULL, _IONBF, 0);
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -601,6 +737,21 @@ static void pa_graphics_init(void)
     /* compute default window pixel size from TERM font character grid */
     {
         fontptr fp = fntlst;
+        int termw = cfgmaxxd > 0 ? cfgmaxxd : MAXXD;
+        int termh = cfgmaxyd > 0 ? cfgmaxyd : MAXYD;
+        int fontsz = conpnt > 0 ? conpnt : DEF_FONT_H;
+
+        if (conpnt > 0 && fp) {
+            CTFontRef newfont = CTFontCreateCopyWithAttributes(fp->ctfont,
+                                    (CGFloat)fontsz, NULL, NULL);
+            if (newfont) {
+                CTFontRef old = fp->ctfont;
+                fp->ctfont = newfont;
+                fp->size = fontsz;
+                CFRelease(old);
+            }
+        }
+
         CGGlyph glyph; UniChar ch = 'M'; CGSize adv;
         CTFontGetGlyphsForCharacters(fp->ctfont, &ch, &glyph, 1);
         CTFontGetAdvancesForGlyphs(fp->ctfont, kCTFontOrientationDefault,
@@ -608,8 +759,8 @@ static void pa_graphics_init(void)
         int cs = (int)(adv.width + 0.5);
         int ls = (int)(fp->size + 0.5);
         if (cs <= 0) cs = ls / 2;
-        maxxd = MAXXD * cs;
-        maxyd = MAXYD * ls;
+        maxxd = termw * cs;
+        maxyd = termh * ls;
     }
 
     /* open default window for stdout (fd=1) */
@@ -1145,7 +1296,11 @@ void ami_curvis(FILE* f, int e)
     curscn(win)->curv = e;
 }
 
-void ami_scroll(FILE* f, int x, int y) { /* stub */ }
+void ami_scroll(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    ami_scrollg(f, x * win->charspace, y * win->linespace);
+}
 
 int ami_curx(FILE* f)
 {
@@ -1892,7 +2047,72 @@ void ami_delpict(FILE* f, int p)
     if (p < 1 || p > MAXPIC) return;
     if (pictbl[p-1]) { CGImageRelease(pictbl[p-1]); pictbl[p-1] = NULL; }
 }
-void ami_scrollg(FILE* f, int x, int y)          { /* stub */ }
+void ami_scrollg(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    CGContextRef ctx = pa_cocoa_get_context(win->han);
+    if (!ctx) return;
+    scnptr sc = curscn(win);
+    int w = win->maxxg;
+    int h = win->maxyg;
+
+    /* if scroll exceeds screen, just clear */
+    if (abs(x) >= w || abs(y) >= h) {
+        clear_window(win);
+        pa_cocoa_flush(win->han);
+        return;
+    }
+
+    /* Work directly on the raw bitmap pixels.
+     * The bitmap is at Retina scale, so convert logical to physical. */
+    size_t   pw       = CGBitmapContextGetWidth(ctx);
+    size_t   ph       = CGBitmapContextGetHeight(ctx);
+    size_t   rowbytes = CGBitmapContextGetBytesPerRow(ctx);
+    uint8_t* data     = (uint8_t*)CGBitmapContextGetData(ctx);
+    if (!data) return;
+
+    float scale = (w > 0) ? (float)pw / w : 1.0f;
+    int px = (int)(abs(x) * scale + 0.5f); /* physical pixel offsets */
+    int py = (int)(abs(y) * scale + 0.5f);
+    int bpp = (int)(rowbytes / pw); /* bytes per pixel */
+
+    /* shift rows vertically */
+    if (y > 0) {
+        /* content moves up: copy from py..ph to 0..ph-py */
+        memmove(data, data + py * rowbytes, (ph - py) * rowbytes);
+    } else if (y < 0) {
+        /* content moves down: copy from 0..ph-py to py..ph */
+        memmove(data + py * rowbytes, data, (ph - py) * rowbytes);
+    }
+
+    /* shift columns horizontally */
+    if (x != 0) {
+        for (size_t row = 0; row < ph; row++) {
+            uint8_t* rp = data + row * rowbytes;
+            if (x > 0) {
+                /* content moves left: copy from px..pw to 0..pw-px */
+                memmove(rp, rp + px * bpp, (pw - px) * bpp);
+            } else {
+                /* content moves right: copy from 0..pw-px to px..pw */
+                memmove(rp + px * bpp, rp, (pw - px) * bpp);
+            }
+        }
+    }
+
+    /* fill vacated strips with background color */
+    CGContextSetBlendMode(ctx, kCGBlendModeNormal);
+    CGContextSetRGBFillColor(ctx, sc->bc.r, sc->bc.g, sc->bc.b, 1.0);
+    if (x > 0) /* strip on right */
+        CGContextFillRect(ctx, CGRectMake(w - x, 0, x, h));
+    else if (x < 0) /* strip on left */
+        CGContextFillRect(ctx, CGRectMake(0, 0, -x, h));
+    if (y > 0) /* strip on bottom */
+        CGContextFillRect(ctx, CGRectMake(0, h - y, w, y));
+    else if (y < 0) /* strip on top */
+        CGContextFillRect(ctx, CGRectMake(0, 0, w, -y));
+
+    pa_cocoa_flush(win->han);
+}
 void ami_path(FILE* f, int a)                    { /* stub */ }
 
 /*******************************************************************************
