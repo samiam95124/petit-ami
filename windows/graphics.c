@@ -7826,8 +7826,8 @@ static void ctlevent(winptr win, ami_evtrec* er, MSG* msg, int* keep)
             else er->etype = ami_etdelcf; /* insert toggle */
             break;
 
-        case VK_PRIOR: er->etype = ami_etpagu; /* page up */
-        case VK_NEXT: er->etype = ami_etpagd; /* page down */
+        case VK_PRIOR: er->etype = ami_etpagu; break; /* page up */
+        case VK_NEXT: er->etype = ami_etpagd; break; /* page down */
         case VK_F1: /* f1 */
             if (win->cntrl) er->etype = ami_etcopy; /* copy block */
             else if (win->shift) er->etype = ami_etcopyl; /* copy line */
