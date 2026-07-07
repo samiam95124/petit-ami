@@ -15767,7 +15767,7 @@ Create window to pass messages only. The window will have no display.
 
 *******************************************************************************/
 
-static void createdummy(WNDPROC wndproc, char* name, HWND* dummywin)
+static void createdummy(WNDPROC wndproc, char* name, HWND* dummywin, int owner)
 
 {
 
@@ -15787,10 +15787,21 @@ static void createdummy(WNDPROC wndproc, char* name, HWND* dummywin)
     wc.lpszClassName = str(name);
     /* register that class */
     b = RegisterClass(&wc);
-    /* create the window */
-    *dummywin =
-        CreateWindow(name, "", 0, 0, 0, 0, 0, HWND_MESSAGE, 0,
-                     GetModuleHandle(NULL), NULL);
+    /* Create the window. If this window will own visible dialogs (the
+       common-dialog find/replace boxes name it as hwndOwner), it must be a
+       real, though hidden, top level window: a message-only window
+       (HWND_MESSAGE parent) cannot own a visible window, so the modeless
+       find/replace dialog would be created but never appear. Otherwise use a
+       message-only window, which is cheaper and stays out of window
+       enumeration. WS_EX_TOOLWINDOW keeps the hidden owner off the taskbar. */
+    if (owner)
+        *dummywin =
+            CreateWindowEx(WS_EX_TOOLWINDOW, name, "", 0, 0, 0, 0, 0, 0, 0,
+                           GetModuleHandle(NULL), NULL);
+    else
+        *dummywin =
+            CreateWindow(name, "", 0, 0, 0, 0, 0, HWND_MESSAGE, 0,
+                         GetModuleHandle(NULL), NULL);
 
 }
 
@@ -15813,7 +15824,7 @@ static DWORD WINAPI dispthread(LPVOID lpParameter)
     LRESULT r;   /* result holder */
 
     /* create dummy window for message handling */
-    createdummy(wndproc, "dispthread", &dispwin);
+    createdummy(wndproc, "dispthread", &dispwin, FALSE);
 
     b = SetEvent(threadstart); /* flag subthread has started up */
 
@@ -15945,7 +15956,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
             case imqcolor:
                 /* set starting color */
                 cr.rgbResult = rgb2win(ip->clrred, ip->clrgreen, ip->clrblue);
-                cr.lStructSize = 9*4; /* set size */
+                cr.lStructSize = sizeof(CHOOSECOLOR); /* set size */
                 cr.hwndOwner = 0; /* set no owner */
                 cr.hInstance = 0; /* no instance */
                 /*??? cr.rgbResult = 0;*/ /* clear color */
@@ -15985,7 +15996,11 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 fr.lStructSize = sizeof(OPENFILENAME); /* set size */
                 fr.hwndOwner = 0;
                 fr.hInstance = 0;
-                fr.lpstrFilter = NULL;
+                /* A default "all files" filter is required: without one the
+                   legacy (non-OFN_EXPLORER) file dialog leaves its file list
+                   empty, since the list is populated by matching against the
+                   filter pattern. */
+                fr.lpstrFilter = "All files (*.*)\0*.*\0\0";
                 fr.lpstrCustomFilter = NULL;
                 fr.nFilterIndex = 0;
                 fr.lpstrFile = bs;
@@ -16062,16 +16077,16 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
 
             case imqfindrep:
                 /* find length of search string */
-                fsl =strlen(ip->fnrsch);
+                fsl =strlen(ip->fnrsch)+1;
                 if (fsl < 80) fsl = 80; /* ensure >= 80 */
-                fs = imalloc(sl); /* get string */
+                fs = imalloc(fsl); /* get string */
                 strcpy(fs, ip->fnrsch); /* copy input string to buffer */
                 ifree(ip->fnrsch); /* free the passed string */
                 ip->fnrsch = fs; /* index buffer for return */
                 /* find length of replacement string */
-                rsl = strlen(ip->fnrrep);
+                rsl = strlen(ip->fnrrep)+1;
                 if (rsl < 80) rsl = 80; /* ensure >= 80 */
-                rs = imalloc(sl); /* get string */
+                rs = imalloc(rsl); /* get string */
                 strcpy(rs, ip->fnrrep); /* copy input string to buffer */
                 ifree(ip->fnrrep); /* free the passed string */
                 ip->fnrrep = rs; /* index buffer for return */
@@ -16245,7 +16260,7 @@ static DWORD WINAPI dialogthread(LPVOID lpParameter)
     LRESULT r;   /* result holder */
 
     /* create dummy window for message handling */
-    createdummy(wndprocdialog, "dialogthread", &dialogwin);
+    createdummy(wndprocdialog, "dialogthread", &dialogwin, TRUE);
 
     b = SetEvent(threadstart); /* flag subthread has started up */
 
@@ -16621,7 +16636,7 @@ static void ami_init_graph()
 
     /* Create dummy window for message handling. This is only required so that
       the main thread can be attached to the display thread */
-    createdummy(wndprocmain, "mainthread", &mainwin);
+    createdummy(wndprocmain, "mainthread", &mainwin, FALSE);
     mainthreadid = GetCurrentThreadId();
 
     getpgm(); /* get the program name from the command line */
