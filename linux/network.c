@@ -99,7 +99,7 @@
 #define NOCANCEL /* include nocancel overrides */
 #endif
 
-#define MAXFIL 100 /* maximum number of open files */
+#define MAXFIL 1000 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
 
@@ -231,7 +231,8 @@ static filptr opnfil[MAXFIL];  /* open files table */
 static pthread_mutex_t oflock; /* lock for this structure */
 static filptr frefil;          /* free file entries list */
 static pthread_mutex_t fflock; /* lock for this structure */
-static ami_certptr frecert;     /* free certificate name/value entries list */
+static ami_certptr frecert;    /* free certificate name/value entries list */
+static int in_condes;          /* executing in constructor or destructor */
 
 /*
  * openSSL variables
@@ -243,10 +244,45 @@ static SSL_CTX* client_dtls_ctx;
 static SSL_CTX* server_tls_ctx;
 static SSL_CTX* server_dtls_ctx;
 
+/* Each SSL context loads certificate and key .pem files. Those files need not
+   exist for a program that performs no secure networking, so the contexts are
+   created lazily, on the first secure use of each, rather than in the startup
+   constructor. Otherwise every program linking this library would have to carry
+   the .pem files (and would abort at startup without them). The pthread_once
+   guards make the lazy creation safe under the multithreaded server. */
+static pthread_once_t client_tls_once  = PTHREAD_ONCE_INIT;
+static pthread_once_t client_dtls_once = PTHREAD_ONCE_INIT;
+static pthread_once_t server_tls_once  = PTHREAD_ONCE_INIT;
+static pthread_once_t server_dtls_once = PTHREAD_ONCE_INIT;
+static void init_client_tls(void);
+static void init_client_dtls(void);
+static void init_server_tls(void);
+static void init_server_dtls(void);
+
 /* server secret cookie */
 unsigned char cookie_secret[COOKIE_SECRET_LENGTH];
 /* cookie has been initialized */
 int cookie_initialized;
+
+/*******************************************************************************
+
+Process abort
+
+Processes a program abort. If the constructor/destructor flag is active, meaning
+inside a constructor or destructor, we do an immediate abort. Otherwise we do
+a planned abort. The difference is in if the constructor/destructor stacking is
+performed.
+
+*******************************************************************************/
+
+static void net_abort(void)
+
+{
+
+    if (in_condes) _exit(1); /* slam abort */
+    else exit(1); /* planned abort */
+
+}
 
 /*******************************************************************************
 
@@ -262,7 +298,7 @@ static void netwrterr(const char* s)
 
     fprintf(stderr, "\nError: Network: %s\n", s);
 
-    exit(1);
+    net_abort();
 
 }
 
@@ -340,7 +376,7 @@ static void linuxerror(void)
 
     fprintf(stderr, "\nLinux Error: %s\n", strerror(errno));
 
-    exit(1);
+    net_abort();
 
 }
 /*******************************************************************************
@@ -352,12 +388,22 @@ SSL errors at this time.
 
 *******************************************************************************/
 
+static int sslerrcb(const char *str, size_t len, void *u)
+
+{
+
+    (void)u;
+    fprintf(stderr, "%.*s", (int)len, str);
+    return 1;
+
+}
+
 static void sslerrorqueue(void)
 
 {
 
-    ERR_print_errors_fp(stderr);
-    exit(1);
+    ERR_print_errors_cb(sslerrcb, NULL);
+    net_abort();
 
 }
 
@@ -407,7 +453,7 @@ static void sslerror(SSL* ssl, int r)
 
     }
 
-    exit(1);
+    net_abort();
 
 }
 
@@ -1013,6 +1059,7 @@ static FILE* opennet(
         opnfil[sfn]->opn = TRUE;
         pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
+        pthread_once(&client_tls_once, init_client_tls); /* ensure context */
         ssl = SSL_new(client_tls_ctx); /* create new ssl */
         if (!ssl) error(esslnew);
         /* connect the ssl side to the shadow fid */
@@ -1166,6 +1213,7 @@ int ami_openmsg(
         if (r) linuxerror();
 
         /* create socket struct */
+        pthread_once(&client_dtls_once, init_client_dtls); /* ensure context */
         opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
@@ -1188,6 +1236,15 @@ int ami_openmsg(
 
         /* set secure udp */
         opnfil[fn]->sudp = TRUE;
+
+    } else {
+
+        /* clear (plain UDP): bound the receive so a lost or late reply fails
+           the read instead of blocking forever -- the secured path above gets
+           this via BIO_CTRL_DGRAM_SET_RECV_TIMEOUT */
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        setsockopt(fn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     }
 
@@ -1247,6 +1304,7 @@ int ami_openmsgv6(
         if (r) linuxerror();
 
         /* create socket struct */
+        pthread_once(&client_dtls_once, init_client_dtls); /* ensure context */
         opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
@@ -1269,6 +1327,15 @@ int ami_openmsgv6(
 
         /* set secure udp */
         opnfil[fn]->sudp = TRUE;
+
+    } else {
+
+        /* clear (plain UDP): bound the receive so a lost or late reply fails
+           the read instead of blocking forever -- the secured path above gets
+           this via BIO_CTRL_DGRAM_SET_RECV_TIMEOUT */
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        setsockopt(fn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     }
 
@@ -1343,6 +1410,7 @@ int ami_waitmsg(/* port number to wait on */ int port,
         timeout.tv_usec = 0;
         BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_RECV_TIMEOUT, 0, &timeout);
 
+        pthread_once(&server_dtls_once, init_server_dtls); /* ensure context */
         opnfil[fn]->ssl = SSL_new(server_dtls_ctx);
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
@@ -1381,6 +1449,16 @@ int ami_waitmsg(/* port number to wait on */ int port,
 
         /* set secure udp */
         opnfil[fn]->sudp = TRUE;
+
+    } else {
+
+        /* clear (plain UDP): bound the receive so a dropped client message
+           (e.g. sent before this server bound) times out and the server exits
+           instead of lingering -- the secured path above gets this via
+           BIO_CTRL_DGRAM_SET_RECV_TIMEOUT */
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        setsockopt(fn, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
     }
 
@@ -1685,6 +1763,7 @@ FILE* ami_waitnet(/* port number to wait on */ int port,
         opnfil[sfn]->opn = TRUE;
         pthread_mutex_unlock(&opnfil[sfn]->lock); /* release file entry lock */
 
+        pthread_once(&server_tls_once, init_server_tls); /* ensure context */
         ssl = SSL_new(server_tls_ctx); /* create new ssl */
         if (!ssl) error(esslnew);
         /* connect the ssl side to the shadow fid */
@@ -2651,6 +2730,63 @@ void initctx(
 
 /*******************************************************************************
 
+Lazy SSL context creation
+
+These create each SSL context on first secure use (run once via pthread_once),
+loading the relevant certificate/key .pem files only then. A program that does
+no secure networking never reaches these, so it never needs the .pem files.
+
+*******************************************************************************/
+
+static void init_client_tls(void)
+
+{
+
+    initctx(&client_tls_ctx, TLS_client_method(), "client_tls_cert.pem",
+                                                  "client_tls_key.pem");
+
+}
+
+static void init_client_dtls(void)
+
+{
+
+    initctx(&client_dtls_ctx, DTLS_client_method(), "client_dtls_cert.pem",
+                                                    "client_dtls_key.pem");
+
+}
+
+static void init_server_tls(void)
+
+{
+
+    initctx(&server_tls_ctx, TLS_server_method(), "server_tls_cert.pem",
+                                                  "server_tls_key.pem");
+    SSL_CTX_set_ecdh_auto(server_tls_ctx, 1);
+
+}
+
+static void init_server_dtls(void)
+
+{
+
+    initctx(&server_dtls_ctx, DTLS_server_method(), "server_dtls_cert.pem",
+                                                    "server_dtls_key.pem");
+    SSL_CTX_set_ecdh_auto(server_dtls_ctx, 1);
+
+    /* Client has to authenticate */
+    SSL_CTX_set_verify(server_dtls_ctx,
+                       SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE,
+                       dtls_verify_callback);
+
+    SSL_CTX_set_session_cache_mode(server_dtls_ctx, SSL_SESS_CACHE_OFF);
+    SSL_CTX_set_cookie_generate_cb(server_dtls_ctx, generate_cookie);
+    SSL_CTX_set_cookie_verify_cb(server_dtls_ctx, &verify_cookie);
+
+}
+
+/*******************************************************************************
+
 Network startup
 
 *******************************************************************************/
@@ -2662,6 +2798,8 @@ static void ami_init_network()
 
     int fi;
     int r;
+
+    in_condes = 1; /* set in constructor */
 
     frefil = NULL; /* clear free files list */
     /* clear open files table */
@@ -2690,39 +2828,15 @@ static void ami_init_network()
     OpenSSL_add_ssl_algorithms();
     SSL_load_error_strings();
 
-    /* create new client TLS SSL context */
-    initctx(&client_tls_ctx, TLS_client_method(), "client_tls_cert.pem",
-                                                  "client_tls_key.pem");
-
-    /* create new client DTLS SSL context */
-    initctx(&client_dtls_ctx, DTLS_client_method(), "client_dtls_cert.pem",
-                                                    "client_dtls_key.pem");
-
-    /* create new server TLS SSL context */
-    initctx(&server_tls_ctx, TLS_server_method(), "server_tls_cert.pem",
-                                                  "server_tls_key.pem");
-
-    /* configure server context */
-    SSL_CTX_set_ecdh_auto(server_tls_ctx, 1);
-
-    /* create new server DTLS SSL context */
-    initctx(&server_dtls_ctx, DTLS_server_method(), "server_dtls_cert.pem",
-                                                    "server_dtls_key.pem");
-
-    /* configure server context */
-    SSL_CTX_set_ecdh_auto(server_dtls_ctx, 1);
-
-    /* Client has to authenticate */
-    SSL_CTX_set_verify(server_dtls_ctx,
-                       SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE,
-                       dtls_verify_callback);
-
-    SSL_CTX_set_session_cache_mode(server_dtls_ctx, SSL_SESS_CACHE_OFF);
-    SSL_CTX_set_cookie_generate_cb(server_dtls_ctx, generate_cookie);
-    SSL_CTX_set_cookie_verify_cb(server_dtls_ctx, &verify_cookie);
+    /* The four SSL contexts are created lazily on first secure use (see the
+       init_client_tls/init_client_dtls/init_server_tls/init_server_dtls
+       functions above), so the certificate/key .pem files are not required by
+       a program that does no secure networking. */
 
     /* set cookie uninitialized */
     cookie_initialized = FALSE;
+
+    in_condes = 0; /* set clear constructor */
 
 }
 
@@ -2738,6 +2852,8 @@ static void ami_deinit_network()
 {
 
     int fi;
+
+    in_condes = 1; /* set in destructor */
 
     /* holding copies of system vectors */
     pread_t cppread;
@@ -2784,5 +2900,7 @@ static void ami_deinit_network()
     pthread_mutex_destroy(&oflock);
     /* release the free files lock */
     pthread_mutex_destroy(&fflock);
+
+    in_condes = 0; /* clear the destructor */
 
 }

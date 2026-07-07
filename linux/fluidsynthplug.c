@@ -50,6 +50,10 @@ static void error(string es)
 
 }
 
+/* stderr quieting helpers (defined further down; used by openfluid below) */
+static void quiet(void);
+static void unquiet(void);
+
 /*******************************************************************************
 
 Open Liquidsynth MIDI device
@@ -65,6 +69,20 @@ static void openfluid(int p)
 
     if (p < 1 || p > MAXINST) error("Invalid synth handle");
     if (!devtbl[p-1]) error("No Fluidsynth output port at logical handle");
+
+    /* Fix B: create the audio driver (and its live output stream) on first
+       open, so programs that never use the synth never hold a stream.
+       Idempotent: a re-open with the driver already up is a no-op. */
+    if (!devtbl[p-1]->adriver) {
+
+        quiet(); /* suppress alsa open chatter */
+        devtbl[p-1]->adriver =
+            new_fluid_audio_driver(devtbl[p-1]->settings, devtbl[p-1]->synth);
+        unquiet();
+        if (!devtbl[p-1]->adriver)
+            error("Cannot open Fluidsynth audio driver");
+
+    }
 
 }
 
@@ -82,6 +100,15 @@ static void closefluid(int p)
 
     if (p < 1 || p > MAXINST) error("Invalid synth handle");
     if (!devtbl[p-1]) error("No Fluidsynth output port at logical handle");
+
+    /* Fix B: release the audio driver (and its output stream) on close, so an
+       idle synth holds no stream. */
+    if (devtbl[p-1]->adriver) {
+
+        delete_fluid_audio_driver(devtbl[p-1]->adriver);
+        devtbl[p-1]->adriver = NULL;
+
+    }
 
 }
 
@@ -263,11 +290,35 @@ static void fluidsynth_plug_init()
         devtbl[i]->settings = new_fluid_settings();
         /* create the synthesizer */
         devtbl[i]->synth = new_fluid_synth(devtbl[i]->settings);
-        /* create the audio driver as alsa type */
+        /* configure the audio driver (alsa on Linux, oss on FreeBSD) */
+#ifdef __FreeBSD__
+        fluid_settings_setstr(devtbl[i]->settings, "audio.driver", "oss");
+#else
         fluid_settings_setstr(devtbl[i]->settings, "audio.driver", "alsa");
-        devtbl[i]->adriver = new_fluid_audio_driver(devtbl[i]->settings, devtbl[i]->synth);
+#endif
+        /* disable realtime priority to suppress warning when not running as root */
+        fluid_settings_setint(devtbl[i]->settings, "audio.realtime-prio", 0);
+        /* Fix A: request a reasonable output buffer. Fluidsynth's default
+           period is tiny (sub-millisecond); under PipeWire that forces the
+           whole audio graph to a minuscule quantum and causes underruns both
+           here and in unrelated clients. ~21ms at 48kHz is inaudible for
+           playback and robust against scheduling latency. */
+        fluid_settings_setint(devtbl[i]->settings, "audio.period-size", 1024);
+        fluid_settings_setint(devtbl[i]->settings, "audio.periods", 3);
+        /* Fix B: do NOT open the audio driver here. Creating it in the module
+           constructor makes every program that merely links the library --
+           even non-audio ones such as the window tests -- hold a live,
+           always-running output stream. Defer creation to openfluid(), when a
+           program actually opens the synth device. */
+        devtbl[i]->adriver = NULL;
         /* load a SoundFont and reset presets */
-        devtbl[i]->sfont_id = fluid_synth_sfload(devtbl[i]->synth, "/usr/share/sounds/sf2/FluidR3_GM.sf2", 1);
+        devtbl[i]->sfont_id = fluid_synth_sfload(devtbl[i]->synth,
+#ifdef __FreeBSD__
+            "/usr/local/share/sounds/sf2/FluidR3_GM.sf2",
+#else
+            "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+#endif
+            1);
         /* fluidsynth default volume is very low. Turn up to reasonable value */
         fluid_settings_setnum(devtbl[i]->settings, "synth.gain", 1.0);
 
@@ -308,7 +359,9 @@ static void fluidsynth_plug_deinit()
     /* Clean up */
     for (i = 0; i < MAXINST; i++) if (devtbl[i]) {
 
-        delete_fluid_audio_driver(devtbl[i]->adriver);
+        /* adriver may be NULL under lazy open (Fix B) if the synth was never
+           opened, or was already closed. */
+        if (devtbl[i]->adriver) delete_fluid_audio_driver(devtbl[i]->adriver);
         delete_fluid_synth(devtbl[i]->synth);
         delete_fluid_settings(devtbl[i]->settings);
 

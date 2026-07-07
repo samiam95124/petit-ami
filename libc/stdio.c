@@ -1,105 +1,105 @@
-/*******************************************************************************
-*                                                                              *
-*                            STANDARD I/O SOURCE                               *
-*                                                                              *
-*                        COPYRIGHT 2007 (C) S. A. MOORE                        *
-*                                                                              *
-* FILE NAME: stdio.c                                                           *
-*                                                                              *
-* DESCRIPTION:                                                                 *
-*                                                                              *
-* Implements whitebook I/O. The functions are designed to funnel all I/O       *
-* down to the direct I/O procedures fread and fwrite. These are then           *
-* implemented via calls to the Unix format functions:                          *
-*                                                                              *
-* read(fd, buf, len);                                                          *
-* write(fd, buf, len);                                                         *
-* open(name, flags);                                                           *
-* close(fd);                                                                   *
-* unlink(name);                                                                *
-* lseek(fd, off, mode);                                                        *
-*                                                                              *
-* BUGS/ISSUES:                                                                 *
-*                                                                              *
-* 1. Printf functions do nothing with the length modifiers.                    *
-*                                                                              *
-* 2. Note there is no floating point support in this version.                  *
-*                                                                              *
-* 3. Check that printf and scanf uses longs throughout.                        *
-*                                                                              *
-* 4. Actual use has shown that there are programs that call the stdio          *
-* functions before any constructor for this module can be run. This results in *
-* a serious error. Thus we have moved the initialization to compile time       *
-* definitions, or at worst, runtime initialization that is "triggered" by NULL *
-* values in the data. This means stdio is either "self initialized" or         *
-* "inherently initialized" if you prefer. This solves the error, since it does *
-* not matter when the stdio calls occur.                                       *
-*                                                                              *
-* TO DOs                                                                       *
-*                                                                              *
-* 1. Fill out the definition of rename().                                      *
-*                                                                              *
-* 2. Add floating point handling to scan and print functions.                  *
-*                                                                              *
-* 3. Need a test suite for stdio.                                              *
-*                                                                              *
-* API implemented.                                                             *
-*                                                                              *
-* The API implemented is the full set of stdio calls. They are listed here:    *
-*                                                                              *
-* FILE *fopen(const char *filename, const char *mode) - Open a file by name.   *
-* FILE *freopen(const char* filename, const char* mode, FILE* stream)          *
-*     - Reopen a file by name.                                                 *
-* FILE *fdopen(int fd, const char *mode) - Open file descriptor as file.       *
-* int fflush(FILE *stream) - Flush pending I/O from file.                      *
-* int fclose(FILE *stream) - Close open file.                                  *
-* int remove(const char *filename) - Remove file by name.                      *
-* int rename(const char *oldname, const char *newname) - Rename file.          *
-* FILE *tmpfile(void) - Create a temporary file.                               *
-* char *tmpnam(char s[]) - Create a temporary name.                            *
-* int setvbuf(FILE* stream, char *buf, int mode, size_t size) - Set file       *
-*     buffering characteristics.                                               *
-* void setbuf(FILE* stream, char *buf) - Set buffer for file.                  *
-* int fprintf(FILE* stream, const char *format, ...) - Print to file.          *
-* int printf(const char* format, ...) - Print to stdout.                       *
-* int sprintf(char* s, const char *format, ...) - Print to string.             *
-* int vprintf(const char* format, va_list arg) - Print to stdout with          *
-*     variable list.                                                           *
-* int vfprintf(FILE* stream, const char *format, va_list arg) - Print to file  *
-*     with variable list.                                                      *
-* int vsprintf(char* s, const char *format, va_list arg) - Print to string     *
-*     with variable list.                                                      *
-* int fscanf(FILE* stream, const char *format, ...) - Scan from file.          *
-* int scanf(const char* format, ...) - Scan from stdin.                        *
-* int sscanf(const char* s, const char *format, ...) - Scan from string.       *
-* int fgetc(FILE *stream) - Get character from file.                           *
-* int getc(FILE *stream) - Get character from file.                            *
-* char *fgets(char *s, int n, FILE *stream) - Get string from file.            *
-* int fputc(int c, FILE *stream) - Put character to file.                      *
-* int fputs(const char *s, FILE *stream) - Put string to file.                 *
-* int putc(int c, FILE *stream) - Put character to stdout.                     *
-* int getchar(void) - Get character from stdin.                                *
-* char *gets(char *s) - Get string from stdin.                                 *
-* int putc(int c, FILE *stream) - Put character to file.                       *
-* int putchar(int c) - Put character to stdout.                                *
-* int puts(const char *s) - Put string to stdout.                              *
-* int ungetc(int c, FILE *stream) - Put back single character to file.         *
-* size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream) - Read       *
-*     blocks from file.                                                        *
-* size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream)       *
-*     Write blocks to file.                                                    *
-* int fseek(FILE* stream, long offset, int origin) - Seek file location.       *
-* long ftell(FILE* stream) - Find file location.                               *
-* void rewind(FILE* stream) - Go to file beginning.                            *
-* int fgetpos(FILE* stream, fpos_t *ptr) - Find file location.                 *
-* int fsetpos(FILE* stream, const fpos_t *ptr) - Set file location.            *
-* void clearerr(FILE* stream) - Clear pending errors on file.                  *
-* int feof(FILE* stream) - Check end of file.                                  *
-* int ferror(FILE* stream) - Check error on file.                              *
-* void perror(const char *s) - Print error message.                            *
-* int fileno(FILE* stream) - Find descriptor for file.                         *
-*                                                                              *
-*******************************************************************************/
+/** **************************************************************************
+
+\file
+
+\brief Module stdio - standard I/O
+
+Copyright 2007 (C) S. A. Moore
+
+Description
+
+Implements whitebook I/O. The functions are designed to funnel all I/O down to
+the direct I/O procedures fread and fwrite. These are then implemented via calls
+to the Unix format functions:
+
+read(fd, buf, len);
+write(fd, buf, len);
+open(name, flags);
+close(fd);
+unlink(name);
+lseek(fd, off, mode);
+
+The integer length modifiers hh, h, l, ll and z are honored by both the print
+and scan functions. The L (long double) modifier is accepted but treated as
+double, since extended precision is not implemented. Floating point conversions
+(f, e, E, g, G) are supported in both the print and scan functions.
+
+Actual use has shown that there are programs that call the stdio functions
+before any constructor for this module can be run. This results in a serious
+error. Thus we have moved the initialization to compile time definitions, or at
+worst, runtime initialization that is "triggered" by NULL values in the data.
+This means stdio is either "self initialized" or "inherently initialized" if you
+prefer. This solves the error, since it does not matter when the stdio calls
+occur.
+
+Exports
+
+The full set of stdio calls. They are listed here:
+
+FILE *fopen(const char *filename, const char *mode) - Open a file by name.
+FILE *freopen(const char* filename, const char* mode, FILE* stream)
+    - Reopen a file by name.
+FILE *fdopen(int fd, const char *mode) - Open file descriptor as file.
+int fflush(FILE *stream) - Flush pending I/O from file.
+int fclose(FILE *stream) - Close open file.
+int remove(const char *filename) - Remove file by name.
+int rename(const char *oldname, const char *newname) - Rename file.
+FILE *tmpfile(void) - Create a temporary file.
+char *tmpnam(char s[]) - Create a temporary name.
+int setvbuf(FILE* stream, char *buf, int mode, size_t size) - Set file
+    buffering characteristics.
+void setbuf(FILE* stream, char *buf) - Set buffer for file.
+int fprintf(FILE* stream, const char *format, ...) - Print to file.
+int printf(const char* format, ...) - Print to stdout.
+int sprintf(char* s, const char *format, ...) - Print to string.
+int snprintf(char* s, size_t n, const char *format, ...) - Bounded print to
+    string.
+int vprintf(const char* format, va_list arg) - Print to stdout with variable
+    list.
+int vfprintf(FILE* stream, const char *format, va_list arg) - Print to file
+    with variable list.
+int vsprintf(char* s, const char *format, va_list arg) - Print to string with
+    variable list.
+int vsnprintf(char* s, size_t n, const char *format, va_list arg) - Bounded
+    print to string with variable list.
+int fscanf(FILE* stream, const char *format, ...) - Scan from file.
+int scanf(const char* format, ...) - Scan from stdin.
+int sscanf(const char* s, const char *format, ...) - Scan from string.
+int vscanf(const char* format, va_list arg) - Scan from stdin with variable
+    list.
+int vfscanf(FILE* stream, const char *format, va_list arg) - Scan from file
+    with variable list.
+int vsscanf(const char* s, const char *format, va_list arg) - Scan from string
+    with variable list.
+int fgetc(FILE *stream) - Get character from file.
+int getc(FILE *stream) - Get character from file.
+char *fgets(char *s, int n, FILE *stream) - Get string from file.
+int fputc(int c, FILE *stream) - Put character to file.
+int fputs(const char *s, FILE *stream) - Put string to file.
+int putc(int c, FILE *stream) - Put character to file.
+int getchar(void) - Get character from stdin.
+char *gets(char *s) - Get string from stdin.
+int putchar(int c) - Put character to stdout.
+int puts(const char *s) - Put string to stdout.
+int ungetc(int c, FILE *stream) - Put back single character to file.
+size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream) - Read blocks
+    from file.
+size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream) - Write
+    blocks to file.
+int fseek(FILE* stream, long offset, int origin) - Seek file location.
+long ftell(FILE* stream) - Find file location.
+void rewind(FILE* stream) - Go to file beginning.
+int fgetpos(FILE* stream, fpos_t *ptr) - Find file location.
+int fsetpos(FILE* stream, const fpos_t *ptr) - Set file location.
+void clearerr(FILE* stream) - Clear pending errors on file.
+int feof(FILE* stream) - Check end of file.
+int ferror(FILE* stream) - Check error on file.
+void perror(const char *s) - Print error message.
+int fileno(FILE* stream) - Find descriptor for file.
+
+A test suite for the module is provided in tests/stdio_test.c.
+
+******************************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -150,38 +150,28 @@ typedef off_t   (*vt_lseek_t)(int, off_t, int);
 
 static FILE stdinfe = {
 
-    /* fid */    0,           /* set logical file 0 */
-    /* name */   NULL,        /* set no name attached */
-    /* text */   TRUE,        /* set text */
-    /* mode */   STDIO_MREAD, /* set read only */
-    /* append */ 0,           /* set not append */
-    /* pback */  EOF,         /* nothing in the pushback buffer */
-    /* flags */  0            /* no state flags active */
+    ._flags  = _IO_NO_WRITES | _IO_UNBUFFERED | _IO_IS_FILEBUF, /* read, unbuffered */
+    ._fileno = 0,    /* logical file 0 */
+    .text    = TRUE, /* text mode */
+    .name    = NULL  /* no name attached */
 
 };
 
 static FILE stdoutfe = {
 
-    /* fid */    1,            /* set logical file 0 */
-    /* name */   NULL,         /* set no name attached */
-    /* text */   TRUE,         /* set text */
-    /* mode */   STDIO_MWRITE, /* set read only */
-    /* append */ 0,            /* set not append */
-    /* pback */  EOF,          /* nothing in the pushback buffer */
-    /* flags */  0             /* no state flags active */
+    ._flags  = _IO_NO_READS | _IO_LINE_BUF | _IO_IS_FILEBUF, /* write, line buffered */
+    ._fileno = 1,    /* logical file 1 */
+    .text    = TRUE, /* text mode */
+    .name    = NULL  /* no name attached */
 
 };
 
-
 static FILE stderrfe = {
 
-    /* fid */    2,            /* set logical file 0 */
-    /* name */   NULL,         /* set no name attached */
-    /* text */   TRUE,         /* set text */
-    /* mode */   STDIO_MWRITE, /* set read only */
-    /* append */ 0,            /* set not append */
-    /* pback */  EOF,          /* nothing in the pushback buffer */
-    /* flags */  0             /* no state flags active */
+    ._flags  = _IO_NO_READS | _IO_UNBUFFERED | _IO_IS_FILEBUF, /* write, unbuffered */
+    ._fileno = 2,    /* logical file 2 */
+    .text    = TRUE, /* text mode */
+    .name    = NULL  /* no name attached */
 
 };
 
@@ -205,11 +195,23 @@ static FILE *opnfil[FOPEN_MAX] = {
 
 };
 
-/* top powers table, we precalculate this to save runtime */
+/* top powers table, we precalculate this to save runtime. These are the widest
+   integer type so that all of the length modifiers (l, ll, z, ...) can be
+   handled by a single conversion engine. */
 
-static unsigned long power8; /* octal */
-static unsigned long power10; /* decimal */
-static unsigned long power16; /* hexadecimal */
+static unsigned long long power8; /* octal */
+static unsigned long long power10; /* decimal */
+static unsigned long long power16; /* hexadecimal */
+
+/* length modifier codes shared by the formatted input and output engines */
+
+#define LM_NONE 0 /* no modifier: int */
+#define LM_HH   1 /* hh: char */
+#define LM_H    2 /* h: short */
+#define LM_L    3 /* l: long */
+#define LM_LL   4 /* ll: long long */
+#define LM_CAP  5 /* L: long double (treated as double, no extended support) */
+#define LM_Z    6 /* z: size_t */
 
 /* declare vector functions in advance */
 
@@ -239,9 +241,7 @@ static vt_close_t  vt_close_nocancel  = wclose;
 
 /* counters to generate temp files */
 
-static int tmpcnt; /* temp counter, starting at 0 */
-static int tmpnamc; /* current internal stored temp name */
-static char tmpstr[L_TMP_MAX][L_tmpnam]; /* temp filename array */
+static int tmpcnt; /* temp name counter, advanced for each name generated */
 
 /*******************************************************************************
 
@@ -253,30 +253,70 @@ not implement the function directly as a function. It could be a macro.
 
 *******************************************************************************/
 
-static ssize_t wread(int fd, void* buff, size_t count)
+static ssize_t wread(
+    /** file descriptor */ int fd,
+    /** data buffer */     void* buff,
+    /** byte count */      size_t count
+)
     { return read(fd, buff, count); }
-static ssize_t wwrite(int fd, const void* buff, size_t count)
+static ssize_t wwrite(
+    /** file descriptor */ int fd,
+    /** data buffer */     const void* buff,
+    /** byte count */      size_t count
+)
     { return write(fd, buff, count); }
-static int wopen(const char* pathname, int flags, int perm)
+static int wopen(
+    /** file path */       const char* pathname,
+    /** open flags */      int flags,
+    /** permission bits */ int perm
+)
     { return open(pathname, flags, perm); }
-static int wclose(int fd)
+static int wclose(
+    /** file descriptor */ int fd
+)
     { return close(fd); }
-static int wunlink(const char* pathname)
+static int wunlink(
+    /** file path */ const char* pathname
+)
     { return unlink(pathname); }
-static off_t wlseek(int fd, off_t offset, int whence)
+static off_t wlseek(
+    /** file descriptor */ int fd,
+    /** seek offset */     off_t offset,
+    /** seek origin */     int whence
+)
     { return lseek(fd, offset, whence); }
 
-static ssize_t vread(int fd, void* buff, size_t count)
+static ssize_t vread(
+    /** file descriptor */ int fd,
+    /** data buffer */     void* buff,
+    /** byte count */      size_t count
+)
     { return (*vt_read)(fd, buff, count); }
-static ssize_t vwrite(int fd, const void* buff, size_t count)
+static ssize_t vwrite(
+    /** file descriptor */ int fd,
+    /** data buffer */     const void* buff,
+    /** byte count */      size_t count
+)
     { return (*vt_write)(fd, buff, count); }
-static int vopen(const char* pathname, int flags, int perm)
+static int vopen(
+    /** file path */       const char* pathname,
+    /** open flags */      int flags,
+    /** permission bits */ int perm
+)
     { return (*vt_open)(pathname, flags, perm); }
-static int vclose(int fd)
+static int vclose(
+    /** file descriptor */ int fd
+)
     { return (*vt_close)(fd); }
-static int vunlink(const char* pathname)
+static int vunlink(
+    /** file path */ const char* pathname
+)
     { return (*vt_unlink)(pathname); }
-static off_t vlseek(int fd, off_t offset, int whence)
+static off_t vlseek(
+    /** file descriptor */ int fd,
+    /** seek offset */     off_t offset,
+    /** seek origin */     int whence
+)
     { return (*vt_lseek)(fd, offset, whence); }
 
 /*******************************************************************************
@@ -290,31 +330,342 @@ original handler established, which goes back to the raw system call.
 
 *******************************************************************************/
 
-void ovr_read(vt_read_t nfp, vt_read_t* ofp) { *ofp = vt_read; vt_read = nfp; }
-void ovr_write(vt_write_t nfp, vt_write_t* ofp) { *ofp = vt_write; vt_write = nfp; }
-void ovr_open(vt_open_t nfp, vt_open_t* ofp) { *ofp = vt_open; vt_open = nfp; }
-void ovr_close(vt_close_t nfp, vt_close_t* ofp) { *ofp = vt_close; vt_close = nfp; }
-void ovr_unlink(vt_unlink_t nfp, vt_unlink_t* ofp)
+void ovr_read(
+    /** new vector function */                  vt_read_t nfp,
+    /** returns the previous vector function */ vt_read_t* ofp
+) { *ofp = vt_read; vt_read = nfp; }
+void ovr_write(
+    /** new vector function */                  vt_write_t nfp,
+    /** returns the previous vector function */ vt_write_t* ofp
+) { *ofp = vt_write; vt_write = nfp; }
+void ovr_open(
+    /** new vector function */                  vt_open_t nfp,
+    /** returns the previous vector function */ vt_open_t* ofp
+) { *ofp = vt_open; vt_open = nfp; }
+void ovr_close(
+    /** new vector function */                  vt_close_t nfp,
+    /** returns the previous vector function */ vt_close_t* ofp
+) { *ofp = vt_close; vt_close = nfp; }
+void ovr_unlink(
+    /** new vector function */                  vt_unlink_t nfp,
+    /** returns the previous vector function */ vt_unlink_t* ofp
+)
     { *ofp = vt_unlink; vt_unlink = nfp; }
-void ovr_lseek(vt_lseek_t nfp, vt_lseek_t* ofp) { *ofp = vt_lseek; vt_lseek = nfp; }
+void ovr_lseek(
+    /** new vector function */                  vt_lseek_t nfp,
+    /** returns the previous vector function */ vt_lseek_t* ofp
+) { *ofp = vt_lseek; vt_lseek = nfp; }
 
 /* nocancel overrides use separate vectors to avoid stomping the regular ones */
-void ovr_read_nocancel(vt_read_t nfp, vt_read_t* ofp)
+void ovr_read_nocancel(
+    /** new vector function */                  vt_read_t nfp,
+    /** returns the previous vector function */ vt_read_t* ofp
+)
     { *ofp = vt_read_nocancel; vt_read_nocancel = nfp; }
-void ovr_write_nocancel(vt_write_t nfp, vt_write_t* ofp)
+void ovr_write_nocancel(
+    /** new vector function */                  vt_write_t nfp,
+    /** returns the previous vector function */ vt_write_t* ofp
+)
     { *ofp = vt_write_nocancel; vt_write_nocancel = nfp; }
-void ovr_open_nocancel(vt_open_t nfp, vt_open_t* ofp)
+void ovr_open_nocancel(
+    /** new vector function */                  vt_open_t nfp,
+    /** returns the previous vector function */ vt_open_t* ofp
+)
     { *ofp = vt_open_nocancel; vt_open_nocancel = nfp; }
-void ovr_close_nocancel(vt_close_t nfp, vt_close_t* ofp)
+void ovr_close_nocancel(
+    /** new vector function */                  vt_close_t nfp,
+    /** returns the previous vector function */ vt_close_t* ofp
+)
     { *ofp = vt_close_nocancel; vt_close_nocancel = nfp; }
 
 /*******************************************************************************
 
-FUNCTION NAME: maknod
+Buffering engine
 
-SHORT DESCRIPTION: Create a file access node
+These routines implement read and write buffering for streams. The stream state
+is held in the GNU libc style pointer fields, so that code reaching directly
+into
+the structure sees what it expects:
 
-DETAILED DESCRIPTION:
+    reading: _IO_read_base <= _IO_read_ptr <= _IO_read_end, with the unconsumed
+             read ahead being [_IO_read_ptr, _IO_read_end). The put pointers are
+             held equal (no pending writes).
+    writing: _IO_CURRENTLY_PUTTING is set, _IO_write_base <= _IO_write_ptr <=
+             _IO_write_end, with pending output being [_IO_write_base,
+             _IO_write_ptr). The get area is held empty.
+
+The single buffer [_IO_buf_base, _IO_buf_end) is used for reading OR writing,
+never both at once. Switching direction flushes or discards as required, and the
+seek/tell routines compensate for read ahead and pending data so the logical
+position is always correct.
+
+An unbuffered stream (_IO_UNBUFFERED, the default for stdin/stdout/stderr) never
+allocates a buffer and falls through to direct single call I/O.
+
+*******************************************************************************/
+
+/* size of the allocated buffer in bytes */
+#define iobufsize(s) ((int)((s)->_IO_buf_end-(s)->_IO_buf_base))
+
+/* forward reference to the public flush */
+int fflush(FILE *stream);
+
+/* flush all streams at program exit, so buffered output is not lost */
+static void stdio_flushall(void) { fflush((FILE *)NULL); }
+static int  atxset = FALSE; /* atexit handler has been registered */
+
+/** **************************************************************************
+
+Function bufalloc
+
+Description
+
+Allocate the stream buffer on demand. If the stream is buffered but has no
+buffer yet, one is allocated. If allocation fails, the stream silently falls
+back to unbuffered operation.
+
+\returns
+
+Zero on success, EOF on allocation failure.
+
+******************************************************************************/
+
+static int bufalloc(
+    /** file to operate on */ FILE *s
+)
+
+{
+
+    char *b; /* new buffer */
+
+    if (s->_IO_buf_base) return (0); /* already have a buffer */
+    if (s->_flags & _IO_UNBUFFERED) return (0); /* unbuffered, none needed */
+    b = malloc(BUFSIZ); /* get the buffer */
+    if (!b) { s->_flags |= _IO_UNBUFFERED; return (EOF); } /* fall back to none */
+    s->_IO_buf_base = b; /* set buffer base */
+    s->_IO_buf_end = b+BUFSIZ; /* set buffer end */
+    s->_flags &= ~_IO_USER_BUF; /* we own this buffer */
+    /* start with empty get and put areas at the buffer base */
+    s->_IO_read_base = s->_IO_read_ptr = s->_IO_read_end = b;
+    s->_IO_write_base = s->_IO_write_ptr = s->_IO_write_end = b;
+
+    return (0);
+
+}
+
+/** **************************************************************************
+
+Function wflush
+
+Description
+
+Flush pending write data. Writes out any bytes held in the put area. The stream
+stays in writing mode with an empty put area.
+
+\returns
+
+Zero on success, EOF on a write error.
+
+******************************************************************************/
+
+static int wflush(
+    /** file to operate on */ FILE *s
+)
+
+{
+
+    int n;   /* write count */
+    int len; /* bytes to write */
+
+    if ((s->_flags & _IO_CURRENTLY_PUTTING) &&
+        s->_IO_write_ptr > s->_IO_write_base) { /* there is data to write */
+
+        len = s->_IO_write_ptr-s->_IO_write_base; /* pending byte count */
+        n = vwrite(s->_fileno, s->_IO_write_base, len); /* write it out */
+        if (n != len) { /* write failed or was short */
+
+            s->_flags |= _IO_ERR_SEEN; /* flag the error */
+            s->_IO_write_ptr = s->_IO_write_base; /* drop the data */
+            return (EOF);
+
+        }
+        s->_IO_write_ptr = s->_IO_write_base; /* put area is now empty */
+
+    }
+
+    return (0);
+
+}
+
+/** **************************************************************************
+
+Function rflush
+
+Description
+
+Discard read ahead. Drops any unconsumed read ahead data, rewinding the
+underlying file position back to the logical position so a following write or
+seek is correct. Leaves the get area empty.
+
+\returns
+
+none
+
+******************************************************************************/
+
+static void rflush(
+    /** file to operate on */ FILE *s
+)
+
+{
+
+    int ahead; /* unconsumed read ahead bytes */
+
+    if (!(s->_flags & _IO_CURRENTLY_PUTTING)) {
+
+        ahead = s->_IO_read_end-s->_IO_read_ptr; /* read ahead not consumed */
+        if (ahead > 0) vlseek(s->_fileno, -(off_t)ahead, SEEK_CUR); /* rewind */
+
+    }
+    /* reset the get area to empty at the buffer base */
+    s->_IO_read_base = s->_IO_read_ptr = s->_IO_read_end = s->_IO_buf_base;
+
+}
+
+/** **************************************************************************
+
+Function getbuf
+
+Description
+
+Get a byte through the read buffer. Serves any pushed back data and read ahead
+from the get area, refilling from the file as needed. If the stream is
+unbuffered, reads a single byte directly.
+
+\returns
+
+The next byte from the stream, or EOF at end of file or on error.
+
+******************************************************************************/
+
+static int getbuf(
+    /** file to operate on */ FILE *s
+)
+
+{
+
+    int n; /* read count */
+
+    /* before blocking for standard input, flush standard output so any
+       line buffered prompt is visible to the user first */
+    if (s == stdin) fflush(stdout);
+
+    /* serve from the get area, which also serves any pushed back characters */
+    if (s->_IO_read_ptr < s->_IO_read_end)
+        return ((unsigned char)*s->_IO_read_ptr++);
+
+    /* if we were writing, flush and switch to reading */
+    if (s->_flags & _IO_CURRENTLY_PUTTING) {
+
+        if (wflush(s)) return (EOF);
+        s->_flags &= ~_IO_CURRENTLY_PUTTING; /* now reading */
+
+    }
+
+    /* set up the buffer on first use if buffering is enabled */
+    if (!s->_IO_buf_base && !(s->_flags & _IO_UNBUFFERED)) bufalloc(s);
+
+    if (!s->_IO_buf_base) { /* unbuffered: read a single byte directly */
+
+        unsigned char b; /* byte holder */
+
+        n = vread(s->_fileno, &b, 1); /* read one byte */
+        if (n <= 0) { s->_flags |= (n == 0) ? _IO_EOF_SEEN : _IO_ERR_SEEN;
+                      return (EOF); }
+        return (b);
+
+    }
+
+    /* refill the buffer from the file */
+    n = vread(s->_fileno, s->_IO_buf_base, iobufsize(s));
+    if (n <= 0) { /* end of file or error */
+
+        s->_flags |= (n == 0) ? _IO_EOF_SEEN : _IO_ERR_SEEN;
+        s->_IO_read_base = s->_IO_read_ptr = s->_IO_read_end = s->_IO_buf_base;
+        return (EOF);
+
+    }
+    s->_IO_read_base = s->_IO_read_ptr = s->_IO_buf_base; /* get area start */
+    s->_IO_read_end = s->_IO_buf_base+n; /* end of valid data */
+    /* reading: hold the put pointers empty at the base */
+    s->_IO_write_base = s->_IO_write_ptr = s->_IO_buf_base;
+
+    return ((unsigned char)*s->_IO_read_ptr++); /* return next byte */
+
+}
+
+/** **************************************************************************
+
+Function putbuf
+
+Description
+
+Put a byte through the write buffer. Buffers a byte for output, flushing the
+buffer when it fills, or at a newline for line buffered streams. If the stream
+is unbuffered, writes a single byte directly.
+
+\returns
+
+The byte written, or EOF on error.
+
+******************************************************************************/
+
+static int putbuf(
+    /** file to operate on */ FILE *s,
+    /** byte to write */      int c
+)
+
+{
+
+    /* set up the buffer on first use if buffering is enabled */
+    if (!s->_IO_buf_base && !(s->_flags & _IO_UNBUFFERED)) bufalloc(s);
+
+    if (!s->_IO_buf_base) { /* unbuffered: write a single byte directly */
+
+        unsigned char b = c; /* byte holder */
+
+        if (vwrite(s->_fileno, &b, 1) != 1) { s->_flags |= _IO_ERR_SEEN;
+                                              return (EOF); }
+        return (c & 0xff);
+
+    }
+
+    /* if we were reading, discard read ahead and switch to writing */
+    if (!(s->_flags & _IO_CURRENTLY_PUTTING)) {
+
+        rflush(s); /* discard read ahead, rewind the file */
+        s->_flags |= _IO_CURRENTLY_PUTTING; /* now writing */
+        s->_IO_write_base = s->_IO_write_ptr = s->_IO_buf_base; /* empty put area */
+        s->_IO_write_end = s->_IO_buf_end; /* room to the end of the buffer */
+
+    }
+    *s->_IO_write_ptr++ = c; /* place the byte */
+    /* flush when the put area fills, or at a newline if line buffered */
+    if (s->_IO_write_ptr >= s->_IO_write_end ||
+        ((s->_flags & _IO_LINE_BUF) && (char)c == '\n'))
+        if (wflush(s)) return (EOF);
+
+    return (c & 0xff);
+
+}
+
+/** **************************************************************************
+
+Function maknod
+
+Description
+
+Create a file access node.
 
 Gets a free file node, which is a descriptor for an open file. Descriptors are
 small integers from 1 to FOPEN_MAX, and are indexes into the open files table.
@@ -329,9 +680,11 @@ indefiniately.
 If a zero is returned, it means the file table is full, and no further files
 can be allocated.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The file table index, or zero if the table is full.
+
+******************************************************************************/
 
 static int maknod(void)
 
@@ -343,7 +696,7 @@ static int maknod(void)
     f = 0; /* set no entry found */
     for (i = 0; i < FOPEN_MAX; i++) /* traverse table */
        if (!opnfil[i]) f = i; /* found NULL entry */
-       else if (opnfil[i]->fid < 0) f = i; /* found closed entry */
+       else if (opnfil[i]->_fileno < 0) f = i; /* found closed entry */
     if (!f) return (f); /* file table is full, return error */
     if (!opnfil[f]) { /* not recyling a previous entry, allocate */
 
@@ -351,34 +704,44 @@ static int maknod(void)
        if (!opnfil[f]) return (0); /* couldn't allocate, exit w/ error */
 
     }
-    /* initalize file access fields */
-    opnfil[f]->fid = 0; /* set no logical file attached */
-    opnfil[f]->name = NULL; /* set no name attached */
-    opnfil[f]->text = FALSE; /* set not text */
-    opnfil[f]->mode = 0; /* set read only */
-    opnfil[f]->append = 0; /* set not append */
-    opnfil[f]->pback = EOF; /* nothing in the pushback buffer */
+    /* register the exit flush once, so buffered output is not lost on exit */
+    if (!atxset) { atexit(stdio_flushall); atxset = TRUE; }
+
+    /* initialize all fields to empty, then set the defaults. Files default to
+       full buffering (neither the unbuffered nor line buffered flag), with the
+       buffer allocated on first use. */
+    memset(opnfil[f], 0, sizeof(FILE));
+    opnfil[f]->_fileno = -1; /* no logical file attached yet */
+    opnfil[f]->_flags = _IO_IS_FILEBUF; /* file backed, fully buffered */
 
     return f; /* return file id */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: putchrs
+Function putchrs
 
-SHORT DESCRIPTION: Places a series of characters in a string
+Description
 
-DETAILED DESCRIPTION:
+Places a series of characters in a string.
 
 Places a given number of characters in a string. The string pointer is advanced
 past the placed characters.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-static void putchrs(char *s[], int cnt, char c, int *ocnt, FILE *fd)
+******************************************************************************/
+
+static void putchrs(
+    /** output string position, or NULL to write to the file */ char *s[],
+    /** number of characters to emit */                         int cnt,
+    /** character to emit */                                    char c,
+    /** running output character count */                       int *ocnt,
+    /** destination file */                                     FILE *fd
+)
 
 {
 
@@ -398,27 +761,32 @@ static void putchrs(char *s[], int cnt, char c, int *ocnt, FILE *fd)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: digits
+Function digits
 
-SHORT DESCRIPTION: Find digit count
+Description
 
-DETAILED DESCRIPTION:
+Find digit count.
 
 Finds the count of digits in an unsigned number. Accepts a radix. The radix
 needs to be one of 2, 8, 10 or 16, otherwise the result is nonsense.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of digits the value occupies in the given radix.
 
-static int digits(int r, unsigned long l)
+******************************************************************************/
+
+static int digits(
+    /** radix (number base) */ int r,
+    /** value to measure */    unsigned long long l
+)
 
 {
 
-    unsigned long p; /* power holder */
-    int cnt;         /* digit count */
+    unsigned long long p; /* power holder */
+    int cnt;              /* digit count */
 
     p = 1*r; /* set power */
     cnt = 1; /* set digit count */
@@ -433,26 +801,30 @@ static int digits(int r, unsigned long l)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: toppow
+Function toppow
 
-SHORT DESCRIPTION: Find top power in unsigned long
+Description
 
-DETAILED DESCRIPTION:
+Find top power in unsigned long long.
 
-Finds the top power of the given radix that will fit into an unsigned long.
+Finds the top power of the given radix that will fit into an unsigned long long.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The largest power of the radix that fits an unsigned long long.
 
-static unsigned long toppow(int r)
+******************************************************************************/
+
+static unsigned long long toppow(
+    /** radix (number base) */ int r
+)
 
 {
 
-    unsigned long p; /* power */
-    unsigned long ps; /* power save */
+    unsigned long long p; /* power */
+    unsigned long long ps; /* power save */
 
     /* find top power */
     p = 1;
@@ -467,24 +839,33 @@ static unsigned long toppow(int r)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: putnum
+Function putnum
 
-SHORT DESCRIPTION: Put unsigned number
+Description
 
-DETAILED DESCRIPTION:
+Put unsigned number.
 
 Places an unsigned number into a string. Accepts a radix. No padding or
 formatting is done. The radix must be 2, 8, 10 or 16, or garbage will result.
 Also accepts a top power to use in the convertion.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-static void putnum(char **s, unsigned long l, int r, unsigned long p, int ucase,
-                   int *ocnt, FILE *fd)
+******************************************************************************/
+
+static void putnum(
+    /** output string position, or NULL to write to the file */ char **s,
+    /** value to convert */ unsigned long long l,
+    /** radix (number base) */ int r,
+    /** top power of the radix to start from */ unsigned long long p,
+    /** upper case digits flag */ int ucase,
+    /** running output character count */ int *ocnt,
+    /** destination file */ FILE *fd
+)
 
 {
 
@@ -512,25 +893,32 @@ static void putnum(char **s, unsigned long l, int r, unsigned long p, int ucase,
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: getnum
+Function getnum
 
-SHORT DESCRIPTION: Get unsigned number
+Description
 
-DETAILED DESCRIPTION:
+Get unsigned number.
 
 Gets an unsigned number from a string. The string pointer is advanced over the
 number, and the number returned in a variable. If there is no number present,
 zero is returned.
 
-BUGS/ISSUES:
+\returns
+
+none
+
+Notes
 
 No overflow is checked.
 
-*******************************************************************************/
+******************************************************************************/
 
-static void getnum(const char **s, int *i)
+static void getnum(
+    /** pointer to the scan position */ const char **s,
+    /** returns the parsed number */    int *i
+)
 
 {
 
@@ -539,23 +927,28 @@ static void getnum(const char **s, int *i)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: chkrad
+Function chkrad
 
-SHORT DESCRIPTION: Check if the given character lies in the radix
+Description
 
-DETAILED DESCRIPTION:
+Check if the given character lies in the radix.
 
 Given a character and a radix, checks if the character lies in the radix, that
 is, either a digit or an alphabetical character within the radix. Returns
 true if so.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns true if so.
 
-static int chkrad(int c, int r)
+******************************************************************************/
+
+static int chkrad(
+    /** character to test */   int c,
+    /** radix (number base) */ int r
+)
 
 {
 
@@ -567,13 +960,13 @@ static int chkrad(int c, int r)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: getfstr
+Function getfstr
 
-SHORT DESCRIPTION: Get character from string or file
+Description
 
-DETAILED DESCRIPTION:
+Get character from string or file.
 
 Given a string and a file stream, gets a character from either the string or
 a file. If the string is NULL, then the file is read from. If either the string
@@ -581,11 +974,16 @@ end or the end of the file is encountered, or an error occurs in the file,
 then EOF is returned. The file or the string is advanced past the read character
 if not EOF.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The next character, or EOF at end of string or file.
 
-static int getfstr(const char **s, FILE *fd)
+******************************************************************************/
+
+static int getfstr(
+    /** pointer to the input string, or NULL to read the file */ const char **s,
+    /** input file */                                            FILE *fd
+)
 
 {
 
@@ -598,13 +996,13 @@ static int getfstr(const char **s, FILE *fd)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: chkfstr
+Function chkfstr
 
-SHORT DESCRIPTION: Check character from string or file
+Description
 
-DETAILED DESCRIPTION:
+Check character from string or file.
 
 Given a string and a file stream, gets a character from either the string or
 a file. If the string is NULL, then the file is read from. If either the string
@@ -612,11 +1010,16 @@ end or the end of the file is encountered, or an error occurs in the file,
 then EOF is returned. The file or the string is not advanced, which means that
 in case of a file, the characrter is put back.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The next character without consuming it, or EOF at end of input.
 
-static int chkfstr(const char *s, FILE *fd)
+******************************************************************************/
+
+static int chkfstr(
+    /** input string, or NULL to read the file */ const char *s,
+    /** input file */                             FILE *fd
+)
 
 {
 
@@ -637,23 +1040,29 @@ static int chkfstr(const char *s, FILE *fd)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: chkfstrlen
+Function chkfstrlen
 
-SHORT DESCRIPTION: Get character from metered string or file
+Description
 
-DETAILED DESCRIPTION:
+Get character from metered string or file.
 
 Gets the next character from a metered string. This is a string whose length
 is set. If the length is 0, then we return EOF, so that the end of the string
 becomes either the zero marking the end, or the length reaching zero.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The next character, or EOF when the metered length is exhausted.
 
-static int chkfstrlen(const char *s, int len, FILE *fd)
+******************************************************************************/
+
+static int chkfstrlen(
+    /** input string, or NULL to read the file */ const char *s,
+    /** remaining metered length */               int len,
+    /** input file */                             FILE *fd
+)
 
 {
 
@@ -661,13 +1070,13 @@ static int chkfstrlen(const char *s, int len, FILE *fd)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: getnum
+Function getnum
 
-SHORT DESCRIPTION: Get unsigned number
+Description
 
-DETAILED DESCRIPTION:
+Get unsigned number.
 
 Gets an unsigned number from a string. The string pointer is advanced over the
 number, and the number returned in a variable. If there is no number present,
@@ -676,16 +1085,25 @@ overflows, the overflow flag will be returned true, else false. On overflow,
 the number returned in garbage. All characters that fit the radix are skipped,
 even if overflow becomes true.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-static void getnumro(const char **s, unsigned long *l, int r, int *o, int *cnt,
-                     int *fld, FILE *fd)
+******************************************************************************/
+
+static void getnumro(
+    /** pointer to the scan position */            const char **s,
+    /** returns the parsed value */                unsigned long long *l,
+    /** radix (number base) */                     int r,
+    /** returns the overflow flag */               int *o,
+    /** returns the character count consumed */    int *cnt,
+    /** field width limit, counted down as read */ int *fld,
+    /** input file when the string is NULL */      FILE *fd
+)
 
 {
 
-    unsigned long save; /* save for error check */
+    unsigned long long save; /* save for error check */
 
     *l = 0; /* clear result */
     *o = 0; /* set no overflow */
@@ -708,13 +1126,13 @@ static void getnumro(const char **s, unsigned long *l, int r, int *o, int *cnt,
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: strtoulso
+Function strtoulso
 
-SHORT DESCRIPTION: String to unsigned long with sign and overflow
+Description
 
-DETAILED DESCRIPTION:
+String to unsigned long with sign and overflow.
 
 Converts a string to an unsigned long with sign and overflow. The base of the
 convertion is given, which is 0 if the base is to be detected by the format
@@ -736,16 +1154,27 @@ Leading whitespace is skipped.
 
 A count of characters passed is kept.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The parsed unsigned value; the sign, overflow and error status are returned
+through pointers.
 
-static unsigned long strtoulso(const char **s, int base, int *sgn, int *o,
-                               int *cnt, int *err, int fld, FILE *fd)
+******************************************************************************/
+
+static unsigned long long strtoulso(
+    /** pointer to the scan position */         const char **s,
+    /** number base */                          int base,
+    /** returns the sign */                     int *sgn,
+    /** returns the overflow flag */            int *o,
+    /** returns the character count consumed */ int *cnt,
+    /** returns the error flag */               int *err,
+    /** field width limit (0 for none) */       int fld,
+    /** input file when the string is NULL */   FILE *fd
+)
 
 {
 
-    unsigned long v; /* value */
+    unsigned long long v; /* value */
 
     *sgn = TRUE; /* set positive */
     *o = FALSE; /* set no overflow */
@@ -795,7 +1224,8 @@ static unsigned long strtoulso(const char **s, int base, int *sgn, int *o,
     } else {
 
         getnumro(s, &v, base, o, cnt, &fld, fd); /* parse digits in selected base */
-        if (base == 16 && !v && (**s == 'x' || **s == 'X')) {
+        if (base == 16 && !v && (chkfstrlen(*s, fld, fd) == 'x' ||
+                                 chkfstrlen(*s, fld, fd) == 'X')) {
 
             /* allow 0x/0X on hexadecimal */
             getfstr(s, fd); /* skip x/X */
@@ -813,13 +1243,13 @@ static unsigned long strtoulso(const char **s, int base, int *sgn, int *o,
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: strtoli
+Function strtoli
 
-SHORT DESCRIPTION: Convert string to signed long number
+Description
 
-DETAILED DESCRIPTION:
+Convert string to signed long number.
 
 The given string is converted to a signed long integer, see the strtoulso
 function. Takes a base radix, an input count, and a field.
@@ -827,36 +1257,44 @@ function. Takes a base radix, an input count, and a field.
 If the number overlows, it will be replaced with either a MAX or MIN, according
 to if the sign is set or not, and no overlow is returned.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The parsed signed value, clamped to the limits on overflow.
 
-static long strtoli(const char **s, int base, int *cnt, int *err, int fld,
-                    FILE *fd)
+******************************************************************************/
+
+static long long strtoli(
+    /** pointer to the scan position */         const char **s,
+    /** number base */                          int base,
+    /** returns the character count consumed */ int *cnt,
+    /** returns the error flag */               int *err,
+    /** field width limit (0 for none) */       int fld,
+    /** input file when the string is NULL */   FILE *fd
+)
 
 {
 
-    int           sgn;  /* sign of number */
-    unsigned long v;    /* value */
-    int           o;    /* overflow */
+    int                sgn; /* sign of number */
+    unsigned long long v;   /* value */
+    int                o;   /* overflow */
 
     /* process using universal signed/unsigned function */
     v = strtoulso(s, base, &sgn, &o, cnt, err, fld, fd);
 
     /* return proper value, including overflow cases */
-    if (o && sgn > 0) return (LONG_MAX); /* overflow and positive */
-    else if (o && sgn < 0) return (LONG_MIN); /* overflow and negative */
-    else return (v*sgn); /* return value in correct sign */
+    if (o && sgn > 0) return (LLONG_MAX); /* overflow and positive */
+    else if (o && sgn < 0) return (LLONG_MIN); /* overflow and negative */
+    else return ((long long)v*sgn); /* return value in correct sign */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: strtouli
+Function strtouli
 
-SHORT DESCRIPTION: Convert string to unsigned long number
+Description
 
-DETAILED DESCRIPTION:
+Convert string to unsigned long number.
 
 The given string is converted to a unsigned long integer, see the strtoulso
 function. Takes a base radix, an input count, and a field.
@@ -864,25 +1302,164 @@ function. Takes a base radix, an input count, and a field.
 If the number overlows, it will be replaced with MAX, and no overlow is
 returned.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The parsed unsigned value, clamped to the maximum on overflow.
 
-static unsigned long strtouli(const char **s, int base, int *cnt, int *err, int fld,
-                              FILE *fd)
+******************************************************************************/
+
+static unsigned long long strtouli(
+    /** pointer to the scan position */         const char **s,
+    /** number base */                          int base,
+    /** returns the character count consumed */ int *cnt,
+    /** returns the error flag */               int *err,
+    /** field width limit (0 for none) */       int fld,
+    /** input file when the string is NULL */   FILE *fd
+)
 
 {
 
-    int           sgn;  /* sign of number */
-    unsigned long v;    /* value */
-    int           o;    /* overflow */
+    int                sgn; /* sign of number */
+    unsigned long long v;   /* value */
+    int                o;   /* overflow */
 
     /* process using universal signed/unsigned function */
     v = strtoulso(s, base, &sgn, &o, cnt, err, fld, fd);
 
     /* return proper value, including overflow cases */
-    if (o) return (ULONG_MAX); /* overflow and positive */
+    if (o) return (ULLONG_MAX); /* overflow */
     else return (v*sgn); /* return value in correct sign */
+
+}
+
+/** **************************************************************************
+
+Function strtodi
+
+Description
+
+Convert string to floating point number.
+
+Parses a floating point number from a string or file. The number has the form:
+
+[sign] digits [ . digits ] [ (e|E) [sign] digits ]
+
+A leading sign, an integer part, a fractional part, and an exponent are all
+optional, but at least one digit must appear in the integer or fractional part.
+Leading whitespace is skipped. A maximum field width is accepted that limits the
+number of characters parsed. The string pointer is advanced past the number, a
+count of characters passed is kept, and an error flag is returned true if no
+valid number was found.
+
+This is the floating point engine shared by the formatted input functions.
+
+\returns
+
+The parsed floating point value; the error status is returned through a pointer.
+
+Notes
+
+1. Overflow and underflow of the result are not detected.
+
+******************************************************************************/
+
+static double strtodi(
+    /** pointer to the scan position */         const char **s,
+    /** returns the character count consumed */ int *cnt,
+    /** returns the error flag */               int *err,
+    /** field width limit (0 for none) */       int fld,
+    /** input file when the string is NULL */   FILE *fd
+)
+
+{
+
+    long double v;    /* value (extended precision: avoids overflow to inf and
+                         accumulated error when scaling by large exponents) */
+    long double frac; /* fractional digit scale */
+    int    sgn;  /* sign of number */
+    int    esgn; /* sign of exponent */
+    int    ev;   /* exponent value */
+    int    digs; /* at least one digit was seen */
+    int    c;    /* current character */
+
+    *err = FALSE; /* set no error */
+    v = 0.0L; /* clear value */
+    sgn = 1; /* set positive */
+    digs = FALSE; /* no digits seen yet */
+
+    /* skip leading whitespace */
+    while (isspace(chkfstrlen(*s, fld, fd))) { getfstr(s, fd); (*cnt)++; }
+
+    /* parse optional sign */
+    c = chkfstrlen(*s, fld, fd);
+    if (c == '+' || c == '-') {
+
+        if (c == '-') sgn = -1; /* set negative */
+        getfstr(s, fd); fld--; (*cnt)++; /* skip sign */
+
+    }
+
+    /* parse integer part */
+    while ((c = chkfstrlen(*s, fld, fd)) >= '0' && c <= '9') {
+
+        v = v*10.0L+(c-'0'); /* accumulate digit */
+        getfstr(s, fd); fld--; (*cnt)++; /* skip digit */
+        digs = TRUE; /* a digit was seen */
+
+    }
+
+    /* parse fractional part */
+    if (chkfstrlen(*s, fld, fd) == '.') {
+
+        getfstr(s, fd); fld--; (*cnt)++; /* skip decimal point */
+        frac = 0.1L; /* first fractional place */
+        while ((c = chkfstrlen(*s, fld, fd)) >= '0' && c <= '9') {
+
+            v += (c-'0')*frac; /* add fractional digit */
+            frac /= 10.0L; /* next fractional place */
+            getfstr(s, fd); fld--; (*cnt)++; /* skip digit */
+            digs = TRUE; /* a digit was seen */
+
+        }
+
+    }
+
+    /* a number with no digits at all is an error */
+    if (!digs) { *err = TRUE; return (0.0); }
+
+    v *= sgn; /* apply sign */
+
+    /* parse optional exponent */
+    c = chkfstrlen(*s, fld, fd);
+    if (c == 'e' || c == 'E') {
+
+        getfstr(s, fd); fld--; (*cnt)++; /* skip exponent marker */
+        esgn = 1; /* set positive exponent */
+        ev = 0; /* clear exponent */
+        c = chkfstrlen(*s, fld, fd);
+        if (c == '+' || c == '-') {
+
+            if (c == '-') esgn = -1; /* set negative exponent */
+            getfstr(s, fd); fld--; (*cnt)++; /* skip sign */
+
+        }
+        while ((c = chkfstrlen(*s, fld, fd)) >= '0' && c <= '9') {
+
+            ev = ev*10+(c-'0'); /* accumulate exponent digit */
+            getfstr(s, fd); fld--; (*cnt)++; /* skip digit */
+
+        }
+        /* scale value by the exponent */
+        while (ev > 0) {
+
+            if (esgn > 0) v *= 10.0L; else v /= 10.0L;
+            ev--;
+
+        }
+
+    }
+
+    return ((double)v); /* narrow to double with a single final rounding */
 
 }
 
@@ -894,13 +1471,13 @@ This begins the external API section.
 
 *******************************************************************************/
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fopen
+Function fopen
 
-SHORT DESCRIPTION: Open a new or existing file
+Description
 
-DETAILED DESCRIPTION:
+Open a new or existing file.
 
 Opens a new or existing file according to the given mode. The filename is given
 by a zero terminated string. The mode is a zero terminated string consisting
@@ -922,11 +1499,16 @@ a+b Open binary file for read or write at end.
 In this implementation, the characters can appear in any order, and extra
 characters or duplicates are ignored.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The open file, or NULL on error.
 
-FILE *fopen(const char *filename, const char *mode)
+******************************************************************************/
+
+FILE *fopen(
+    /** name of the file to open */ const char *filename,
+    /** access mode string */       const char *mode
+)
 
 {
 
@@ -951,8 +1533,8 @@ FILE *fopen(const char *filename, const char *mode)
     if (append) flags = O_RDWR; /* set append mode, read or write */
     else if (modcod == 0) flags |= O_RDONLY; /* for read, set read only */
     else flags |= O_WRONLY; /* for write or append, set write only */
-    if (modcod == 2) flags |= O_APPEND; /* set append mode */
-    if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
+    if (modcod == 1) flags |= O_CREAT | O_TRUNC; /* write: create and truncate */
+    if (modcod == 2) flags |= O_CREAT | O_APPEND; /* append: create at end */
 
     /* permissions are: user read and write, group and others read only */
 #ifdef __linux__
@@ -964,103 +1546,142 @@ FILE *fopen(const char *filename, const char *mode)
     /* process file open with parameters */
     fti = maknod(); /* create or reuse file entry */
     if (!fti) return NULL; /* couldn't create node */
-    opnfil[fti]->fid = vopen(filename, flags, perm); /* open file with flags */
-    if (opnfil[fti]->fid < 0) return (NULL); /* return error */
+    opnfil[fti]->_fileno = vopen(filename, flags, perm); /* open file with flags */
+    if (opnfil[fti]->_fileno < 0) return (NULL); /* return error */
 
     /* fill file fields with status */
     opnfil[fti]->name = (char *)malloc(strlen(filename)+1); /* get name space */
     if (!opnfil[fti]->name) return NULL; /* couldn't allocate name */
     strcpy(opnfil[fti]->name, filename); /* copy name into place */
     opnfil[fti]->text = text; /* text/binary mode */
-    /* set read/write mode for update */
-    if (append) opnfil[fti]->mode = STDIO_MRDWR;
-    else if (modcod == 0) opnfil[fti]->mode = STDIO_MREAD; /* set read only */
-    else opnfil[fti]->mode = STDIO_MWRITE; /* set write only */
-    opnfil[fti]->append = append; /* set append mode */
-    opnfil[fti]->flags = 0; /* clear status/error flags */
+    /* set read/write capability and append flags (full buffering by default) */
+    opnfil[fti]->_flags = _IO_IS_FILEBUF; /* file backed, no status flags */
+    if (!append) { /* single direction stream */
+
+        if (modcod == 0) opnfil[fti]->_flags |= _IO_NO_WRITES; /* read only */
+        else opnfil[fti]->_flags |= _IO_NO_READS; /* write or append only */
+
+    }
+    if (modcod == 2) opnfil[fti]->_flags |= _IO_IS_APPENDING; /* append mode */
 
     /* return new file entry */
     return (opnfil[fti]);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fflush
+Function fflush
 
-SHORT DESCRIPTION: Flushes output on the given file, or all files
+Description
 
-DETAILED DESCRIPTION:
+Flushes output on the given file, or all files.
 
 Causes all buffered writes to a given file, or all files, to be written
 immediately. If a stream is passed, that is flushed. If NULL is passed, then all
 files are flushed.
 
+\returns
+
 Returns EOF if an error occurs while writing to a file, otherwise 0.
 
-BUGS/ISSUES:
+******************************************************************************/
 
-1. Buffering is not implemented at the present time.
-
-*******************************************************************************/
-
-int fflush(FILE *stream)
+int fflush(
+    /** file to flush, or NULL to flush all files */ FILE *stream
+)
 
 {
 
-    return (0); /* no op */
+    int i; /* table index */
+    int r; /* result holder */
+
+    if (stream) { /* flush a single stream */
+
+        if (stream->_fileno < 0) return (EOF); /* not open */
+        return (wflush(stream)); /* write out any pending output */
+
+    }
+
+    /* a NULL stream means flush all open output streams */
+    r = 0; /* set no error */
+    for (i = 0; i < FOPEN_MAX; i++)
+        if (opnfil[i] && opnfil[i]->_fileno >= 0)
+            if (wflush(opnfil[i])) r = EOF; /* note any write error */
+
+    return (r);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fclose
+Function fclose
 
-SHORT DESCRIPTION: Closes an open file
+Description
 
-DETAILED DESCRIPTION:
+Closes an open file.
 
 Closes an open file entry. Returns EOF for error if the file is not in fact
 open, or if the Unix close function returns an error.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns EOF for error if the file is not in fact open, or if the Unix close
+function returns an error.
 
-int fclose(FILE *stream)
+******************************************************************************/
+
+int fclose(
+    /** file to close */ FILE *stream
+)
 
 {
 
     int r; /* result holder */
+    int w; /* flush result */
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (EOF);
-    r = vclose(stream->fid); /* close file */
-    stream->fid = -1; /* flag file tracking entry now free */
+    if (!stream || stream->_fileno < 0) return (EOF);
+    w = wflush(stream); /* flush any pending output */
+    r = vclose(stream->_fileno); /* close file */
+    stream->_fileno = -1; /* flag file tracking entry now free */
     free(stream->name); /* free name string */
     stream->name = 0; /* clear name string pointer */
+    /* release the buffer if we allocated it */
+    if (!(stream->_flags & _IO_USER_BUF) && stream->_IO_buf_base)
+        free(stream->_IO_buf_base);
+    stream->_IO_buf_base = stream->_IO_buf_end = NULL; /* no buffer */
+    stream->_IO_read_base = stream->_IO_read_ptr = stream->_IO_read_end = NULL;
+    stream->_IO_write_base = stream->_IO_write_ptr = stream->_IO_write_end = NULL;
+    stream->_flags &= ~_IO_CURRENTLY_PUTTING; /* not writing */
     /* determine result code */
-    if (r < 0) return EOF; /* didn't close */
+    if (r < 0 || w) return EOF; /* close or flush failed */
     else return 0; /* closed properly */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: freopen
+Function freopen
 
-SHORT DESCRIPTION: Reopen an existing file under a new name and mode.
+Description
 
-DETAILED DESCRIPTION:
+Reopen an existing file under a new name and mode.
 
 Closes the given file and reopens it under a new name and mode. Basically, it's
 the same as fopen, but uses an existing file entry.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The reopened stream, or NULL on error.
 
-FILE *freopen(const char *filename, const char *mode, FILE *stream)
+******************************************************************************/
+
+FILE *freopen(
+    /** name of the file to open */ const char *filename,
+    /** access mode string */       const char *mode,
+    /** file to reopen */           FILE *stream
+)
 
 {
 
@@ -1086,8 +1707,8 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
     if (update) flags = O_RDWR; /* set append mode, read or write */
     else if (modcod == 0) flags |= O_RDONLY; /* for read, set read only */
     else flags |= O_WRONLY; /* for write or append, set write only */
-    if (modcod == 2) flags |= O_APPEND; /* set append mode */
-    if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
+    if (modcod == 1) flags |= O_CREAT | O_TRUNC; /* write: create and truncate */
+    if (modcod == 2) flags |= O_CREAT | O_APPEND; /* append: create at end */
 
     /* permissions are: user read and write, group and others read only */
 #ifdef __linux__
@@ -1097,33 +1718,41 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream)
 #endif
 
     /* process file open with parameters */
-    stream->fid = vopen(filename, flags, perm); /* open file with flags */
-    if (stream->fid < 0) return (NULL); /* return error */
+    stream->_fileno = vopen(filename, flags, perm); /* open file with flags */
+    if (stream->_fileno < 0) return (NULL); /* return error */
 
     /* fill file fields with status */
     stream->name = (char *)malloc(strlen(filename)+1); /* get name space */
-    if (stream->name) return NULL; /* couldn't allocate name */
+    if (!stream->name) return NULL; /* couldn't allocate name */
     strcpy(stream->name, filename); /* copy name into place */
     stream->text = text; /* text/binary mode */
-    /* set read/write mode for update */
-    if (update) stream->mode = STDIO_MRDWR;
-    else if (modcod == 0) stream->mode = STDIO_MREAD; /* set read only */
-    else stream->mode = STDIO_MWRITE; /* set write only */
-    stream->append = update; /* set append mode */
-    stream->flags = 0; /* clear status/error flags */
+    /* set read/write capability and append flags. The fclose above already
+       released any old buffer; reset to full buffering, allocated on use */
+    stream->_flags = _IO_IS_FILEBUF; /* file backed, no status flags */
+    if (!update) { /* single direction stream */
+
+        if (modcod == 0) stream->_flags |= _IO_NO_WRITES; /* read only */
+        else stream->_flags |= _IO_NO_READS; /* write or append only */
+
+    }
+    if (modcod == 2) stream->_flags |= _IO_IS_APPENDING; /* append mode */
+    /* clear the buffer pointers (buffer is allocated on first use) */
+    stream->_IO_buf_base = stream->_IO_buf_end = NULL;
+    stream->_IO_read_base = stream->_IO_read_ptr = stream->_IO_read_end = NULL;
+    stream->_IO_write_base = stream->_IO_write_ptr = stream->_IO_write_end = NULL;
 
     /* return new file entry */
     return stream;
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fdopen
+Function fdopen
 
-SHORT DESCRIPTION: Open a stream file with existing file descriptor.
+Description
 
-DETAILED DESCRIPTION:
+Open a stream file with existing file descriptor.
 
 Given an existing file descriptor, creates a stream file and opens it with that
 file descriptor. This essentially means to "fileofy" an existing, already open,
@@ -1131,14 +1760,21 @@ low level file descriptor to allow stream file operations on it.
 
 The mode must be compatible with the mode of the file descriptor.
 
-BUGS/ISSUES:
+\returns
+
+The open file, or NULL on error.
+
+Notes
 
 1. Mingw does not implement fcntl() F_GETFL command, so we cannot check modes
 are compatible.
 
-*******************************************************************************/
+******************************************************************************/
 
-FILE *fdopen(int fd, const char *mode)
+FILE *fdopen(
+    /** open file descriptor */ int fd,
+    /** access mode string */   const char *mode
+)
 
 {
 
@@ -1171,8 +1807,8 @@ FILE *fdopen(int fd, const char *mode)
     if (append) flags = O_RDWR; /* set append mode, read or write */
     else if (modcod == 0) flags |= O_RDONLY; /* for read, set read only */
     else flags |= O_WRONLY; /* for write or append, set write only */
-    if (modcod == 2) flags |= O_APPEND; /* set append mode */
-    if (modcod == 1) flags |= O_CREAT; /* allow writes to create new file */
+    if (modcod == 1) flags |= O_CREAT | O_TRUNC; /* write: create and truncate */
+    if (modcod == 2) flags |= O_CREAT | O_APPEND; /* append: create at end */
 
     /* permissions are: user read and write, group and others read only */
 #ifdef __linux__
@@ -1189,15 +1825,17 @@ FILE *fdopen(int fd, const char *mode)
         return (NULL); /* couldn't create node */
 
     }
-    opnfil[fti]->fid = fd; /* set file id */
+    opnfil[fti]->_fileno = fd; /* set file id */
 
     /* get and match existing file parameters */
 #ifndef __MINGW32__
     /* note mingw does not implement this call at present. The result will be
        that this call will not check the modes are equivalent. */
     fsf = fcntl(fd, F_GETFL);
-    if ((fsf & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY)) !=
-        (flags & (O_APPEND | O_TRUNC | O_CREAT | O_RDWR | O_WRONLY))) {
+    /* Only the access mode and O_APPEND are reported by F_GETFL; the creation
+       flags O_CREAT/O_TRUNC/O_EXCL are open time only and are never returned,
+       so they must not be part of the compatibility comparison. */
+    if ((fsf & (O_ACCMODE | O_APPEND)) != (flags & (O_ACCMODE | O_APPEND))) {
 
         errno = EINVAL; /* flag error */
         return (NULL); /* return error */
@@ -1207,34 +1845,41 @@ FILE *fdopen(int fd, const char *mode)
 
     /* fill file fields with status */
     opnfil[fti]->text = text; /* text/binary mode */
-    /* set read/write mode for update */
-    if (append) opnfil[fti]->mode = STDIO_MRDWR;
-    else if (modcod == 0) opnfil[fti]->mode = STDIO_MREAD; /* set read only */
-    else opnfil[fti]->mode = STDIO_MWRITE; /* set write only */
-    opnfil[fti]->append = append; /* set append mode */
-    opnfil[fti]->flags = 0; /* clear status/error flags */
+    /* set read/write capability and append flags (full buffering by default) */
+    opnfil[fti]->_flags = _IO_IS_FILEBUF; /* file backed, no status flags */
+    if (!append) { /* single direction stream */
+
+        if (modcod == 0) opnfil[fti]->_flags |= _IO_NO_WRITES; /* read only */
+        else opnfil[fti]->_flags |= _IO_NO_READS; /* write or append only */
+
+    }
+    if (modcod == 2) opnfil[fti]->_flags |= _IO_IS_APPENDING; /* append mode */
 
     /* return new file entry */
     return (opnfil[fti]);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: remove
+Function remove
 
-SHORT DESCRIPTION: Removes a file from the file system.
+Description
 
-DETAILED DESCRIPTION:
+Removes a file from the file system.
 
 Removes a file, by deleting it permanently from the file system. Returns
 non-zero if the attempt to remove fails, otherwise zero.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns non-zero if the attempt to remove fails, otherwise zero.
 
-int remove(const char *filename)
+******************************************************************************/
+
+int remove(
+    /** name of the file to remove */ const char *filename
+)
 
 {
 
@@ -1243,98 +1888,274 @@ int remove(const char *filename)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: rename
+Function rename
 
-SHORT DESCRIPTION: change the name of and existing file.
+Description
 
-DETAILED DESCRIPTION:
+Change the name of an existing file.
 
 Changes the name of an existing file. Both the old and new names are provided.
-Returns non-zero if the attempt to rename fails, otherwise zero. It is an error
-if the old filename does not exist.
+It is an error if the old filename does not exist.
 
-BUGS/ISSUES:
+There is no rename in the low level funnel set, so we construct the operation
+from a link() and an unlink(): the existing file is given a new name, then the
+old name is removed. If the new name already exists it is removed first, to give
+the replacement behavior required of rename(). The unlink() steps go through the
+hookable vunlink() vector, the same one used by remove().
 
-*******************************************************************************/
+\returns
 
-int rename(const char *oldname, const char *newname)
+Returns non-zero if the attempt to rename fails, otherwise zero.
+
+Notes
+
+1. Because the operation is built from link()/unlink() rather than a true
+rename() system call, it is not atomic, it cannot move a file across file
+systems (link() returns EXDEV), and it generally cannot rename directories
+(link() of a directory is not permitted on most systems).
+
+******************************************************************************/
+
+/* On Windows/MinGW the custom stdio is linked in to override the built in
+   stdio calls directly (STDIO_BYPASS is not defined), and Windows provides no
+   POSIX link() call to build this link()/unlink() based rename() from. Windows
+   does not require the custom rename(), so it is omitted here and the native
+   C runtime rename() is linked in its place. */
+#ifndef __MINGW32__
+int rename(
+    /** existing file name */ const char *oldname,
+    /** new file name */      const char *newname
+)
 
 {
 
-    /* fprintf(stderr, "*** Function 'rename' not implemented\n"); */
-    exit(1);
+    /* nothing to do if the names are identical */
+    if (!strcmp(oldname, newname)) return (0);
+
+    /* give the existing file the new name */
+    if (link(oldname, newname) < 0) {
+
+        /* if the new name already exists, replace it as rename() requires */
+        if (errno != EEXIST) return (-1); /* some other error, give up */
+        if (vunlink(newname) < 0) return (-1); /* cannot remove old target */
+        if (link(oldname, newname) < 0) return (-1); /* still cannot link */
+
+    }
+
+    /* remove the old name to complete the move */
+    if (vunlink(oldname) < 0) { /* cannot remove old name */
+
+        vunlink(newname); /* back out the new name we created */
+        return (-1);
+
+    }
+
+    return (0); /* success */
+
+}
+#endif
+
+/** **************************************************************************
+
+Function tmpdir
+
+Description
+
+Find the temporary file directory.
+
+The standard temporary directory environment variables are consulted in turn
+(TMPDIR, then TEMP, then TMP, which covers both Unix and Windows conventions),
+and if none is set the compiled in default P_tmpdir is used.
+
+\returns
+
+Returns the directory in which temporary files should be created.
+
+******************************************************************************/
+
+static const char *tmpdir(void)
+
+{
+
+    const char *d; /* directory holder */
+
+    if ((d = getenv("TMPDIR")) && *d) return (d); /* Unix convention */
+    if ((d = getenv("TEMP")) && *d) return (d); /* Windows convention */
+    if ((d = getenv("TMP")) && *d) return (d); /* Windows convention */
+
+    return (P_tmpdir); /* fall back to the default */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: tmpfile
+Function tmpgen
 
-SHORT DESCRIPTION: Create temporary file
+Description
 
-DETAILED DESCRIPTION:
+Generate a candidate temporary file name.
 
-Create a temporary file of mode "wb+" that will automatically be closed and
-removed when the program ends.
+Builds a temporary file name into the given buffer, which has the given length
+limit. The name is formed from the temporary directory, the process id (so that
+separate processes do not collide), and an advancing counter (so that repeated
+calls within a process do not collide). If the full path including the directory
+will not fit the buffer, the directory is dropped and a current directory
+relative name is produced instead.
 
-BUGS/ISSUES:
+The name is checked against the file system and only a name that does not
+already exist is returned. Up to TMP_MAX names are tried. Returns zero on
+success with the name in the buffer, or non-zero if no free name could be
+generated.
 
-1. These names are only unique to the program running. Different programs could
-collide.
+\returns
 
-*******************************************************************************/
+Returns zero on success with the name in the buffer, or non-zero if no free
+name could be generated.
+
+******************************************************************************/
+
+static int tmpgen(
+    /** destination buffer for the name */ char *buf,
+    /** size of the buffer */              int lim
+)
+
+{
+
+    const char *d;       /* temporary directory */
+    long        pid;     /* process id */
+    int         tries;   /* attempt counter */
+    char        comp[40]; /* the unique name component */
+
+    d = tmpdir(); /* get the temporary directory */
+    pid = (long)getpid(); /* get the process id */
+    for (tries = 0; tries < TMP_MAX; tries++) { /* search for a free name */
+
+        tmpcnt++; /* advance the counter for a fresh name */
+        sprintf(comp, "tmp.%ld.%d", pid, tmpcnt); /* build unique component */
+        /* place into the directory if it fits, otherwise use a bare name */
+        if ((int)(strlen(d)+1+strlen(comp)+1) <= lim)
+            sprintf(buf, "%s/%s", d, comp); /* directory + name */
+        else if ((int)(strlen(comp)+1) <= lim)
+            strcpy(buf, comp); /* current directory relative name */
+        else return (-1); /* cannot fit even the bare name */
+        if (access(buf, F_OK) != 0) return (0); /* the name is free, use it */
+
+    }
+
+    return (-1); /* could not find a free name */
+
+}
+
+/** **************************************************************************
+
+Function tmpfile
+
+Description
+
+Create temporary file.
+
+Creates and opens a temporary file in mode "wb+". The file is removed
+automatically when it is closed or when the program ends. This is achieved by
+unlinking the name immediately after creation, so the file persists only as long
+as the open descriptor does, and is reclaimed even on an abnormal exit.
+
+\returns
+
+Returns the open file, or NULL if a temporary file could not be created.
+
+Notes
+
+1. The unlink on open technique is a Unix property. On systems that do not allow
+an open file to be unlinked, the file would remain until removed.
+
+******************************************************************************/
 
 FILE *tmpfile(void)
 
 {
 
-    char ts[L_tmpnam];
+    char nm[512]; /* temporary name, large enough for any temp directory */
+    int  fd;      /* file descriptor */
+    int  perm;    /* permissions */
+    int  tries;   /* attempt counter */
+    FILE *fp;     /* opened file */
 
-    tmpnam(ts); /* create a temp name */
+    /* permissions are: user read and write only for a temporary file */
+    perm = S_IRUSR | S_IWUSR;
 
-    /* note we don't need to hold on to the name */
-    return (fopen(ts, "wb+"));
+    for (tries = 0; tries < TMP_MAX; tries++) { /* search for a usable name */
+
+        if (tmpgen(nm, sizeof(nm))) return (NULL); /* no free name */
+        /* create the file exclusively so a racing process cannot reuse it */
+        fd = vopen(nm, O_CREAT | O_EXCL | O_RDWR, perm);
+        if (fd >= 0) { /* created successfully */
+
+            vunlink(nm); /* remove the name; file lives until the fd closes */
+            fp = fdopen(fd, "wb+"); /* wrap a stream around the descriptor */
+            if (!fp) vclose(fd); /* could not wrap, release the descriptor */
+            return (fp); /* return the stream (or NULL on fdopen failure) */
+
+        }
+        if (errno != EEXIST) return (NULL); /* a real error, give up */
+        /* otherwise the name was taken in a race, try another */
+
+    }
+
+    return (NULL); /* could not create a temporary file */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: tmpnam
+Function tmpnam
 
-SHORT DESCRIPTION: Create (coin) temporary filename
+Description
 
-DETAILED DESCRIPTION:
+Create (coin) temporary filename.
 
-Creates a name that, when opened, will give a unique filename that duplicates
-no other existing filename.
+Creates a name that does not match any existing file, suitable for use as a
+temporary file name. If the buffer pointer is NULL, the name is placed in an
+internal static buffer that is overwritten by each call, and a pointer to it is
+returned. Otherwise the name is placed in the given buffer, which must be at
+least L_tmpnam characters, and that buffer is returned.
 
-BUGS/ISSUES:
+\returns
 
-1. This does not really generate unique names, and so is suitable for testing
-only.
+Returns NULL if a unique name could not be generated.
 
-*******************************************************************************/
+Notes
 
-char *tmpnam(char s[])
+1. As with all uses of tmpnam(), there is a window between generating the name
+and the caller opening it in which another program could create the same name.
+Use tmpfile() where that race matters.
+
+******************************************************************************/
+
+char *tmpnam(
+    /** buffer to receive the name, or NULL for a static buffer */ char s[]
+)
 
 {
 
-    if (!s) s = &tmpstr[tmpnamc++][0]; /* index the temp string */
-    sprintf(s, "temp%4d", tmpcnt);
+    static char ibuf[L_tmpnam]; /* internal buffer for the NULL case */
+    char       *p; /* working pointer */
 
-    return (s);
+    p = s ? s : ibuf; /* use caller buffer or the internal one */
+    if (tmpgen(p, L_tmpnam)) return (NULL); /* could not generate a name */
+
+    return (p); /* return the name */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: setvbuf
+Function setvbuf
 
-SHORT DESCRIPTION: Set buffering characteristics for file
+Description
 
-DETAILED DESCRIPTION:
+Set buffering characteristics for file.
 
 Determines file buffering mode for an open file. Must be called before any read
 or write operations are performed on the file. The stream for the file to be
@@ -1346,38 +2167,81 @@ _IOFBF  Full buffering
 _IOLBF  Line buffering (buffer flushed by line end)
 _IONBF  No buffering
 
+\returns
+
 Returns non-zero for error, otherwise zero.
 
-BUGS/ISSUES:
+******************************************************************************/
 
-1. We don't do buffering at this time, so this routine is a no-op.
-
-*******************************************************************************/
-
-int setvbuf(FILE *stream, char *buf, int mode, size_t size)
+int setvbuf(
+    /** file to set buffering on */                  FILE *stream,
+    /** user buffer, or NULL to allocate one */      char *buf,
+    /** buffering mode (_IOFBF, _IOLBF or _IONBF) */ int mode,
+    /** buffer size */                               size_t size
+)
 
 {
+
+    /* validate stream and mode */
+    if (!stream || stream->_fileno < 0) return (EOF);
+    if (mode != _IOFBF && mode != _IOLBF && mode != _IONBF) return (EOF);
+
+    /* this must be called before any I/O, so clear out anything pending */
+    if (stream->_flags & _IO_CURRENTLY_PUTTING) wflush(stream);
+    else rflush(stream);
+    stream->_flags &= ~_IO_CURRENTLY_PUTTING; /* back to idle/read */
+
+    /* release any buffer we previously allocated */
+    if (!(stream->_flags & _IO_USER_BUF) && stream->_IO_buf_base)
+        free(stream->_IO_buf_base);
+    stream->_IO_buf_base = stream->_IO_buf_end = NULL; /* no buffer */
+    stream->_IO_read_base = stream->_IO_read_ptr = stream->_IO_read_end = NULL;
+    stream->_IO_write_base = stream->_IO_write_ptr = stream->_IO_write_end = NULL;
+
+    /* set the buffering mode flags */
+    stream->_flags &= ~(_IO_UNBUFFERED | _IO_LINE_BUF | _IO_USER_BUF);
+    if (mode == _IONBF) { stream->_flags |= _IO_UNBUFFERED; return (0); }
+    if (mode == _IOLBF) stream->_flags |= _IO_LINE_BUF; /* line buffered */
+
+    /* set up the buffer, allocating one if the caller did not supply it */
+    if (!size) size = BUFSIZ; /* default size */
+    if (!buf) { /* allocate our own buffer of the requested size */
+
+        buf = malloc(size);
+        if (!buf) { stream->_flags |= _IO_UNBUFFERED; return (EOF); }
+
+    } else stream->_flags |= _IO_USER_BUF; /* caller owns this buffer */
+    stream->_IO_buf_base = buf; /* set buffer base */
+    stream->_IO_buf_end = buf+size; /* set buffer end */
+    /* start with empty get and put areas at the buffer base */
+    stream->_IO_read_base = stream->_IO_read_ptr = stream->_IO_read_end = buf;
+    stream->_IO_write_base = stream->_IO_write_ptr = stream->_IO_write_end = buf;
 
     return (0);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: setbuf
+Function setbuf
 
-SHORT DESCRIPTION: Sets up a buffer for the file
+Description
 
-DETAILED DESCRIPTION:
+Sets up a buffer for the file.
 
 Either sets up a buffer to be used with the file, or sets buffering off if the
 buffer pointer is NULL.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-void setbuf(FILE *stream, char *buf)
+******************************************************************************/
+
+void setbuf(
+    /** file to set buffering on */            FILE *stream,
+    /** user buffer, or NULL for unbuffered */ char *buf
+)
 
 {
 
@@ -1386,13 +2250,432 @@ void setbuf(FILE *stream, char *buf)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vsprintfe
+Function fmtfloat
 
-SHORT DESCRIPTION: Place converted formatted arguments in string
+Description
 
-DETAILED DESCRIPTION:
+Format a floating point number to a string.
+
+Converts a double to a string according to one of the floating point format
+specifiers 'f', 'e', 'E', 'g' or 'G'. The precision and the '+', ' ' and '#'
+flags are honored. The resulting string, including any sign, is placed in a
+buffer allocated with malloc(), which the caller must free(). Field width and
+justification are left to the caller. 
+
+The conversion rounds to the requested number of digits. Non-finite values
+(infinities and NaNs) are converted to "inf"/"nan" (or "INF"/"NAN" for the
+upper case specifiers).
+
+This routine is the floating point engine shared by all of the formatted output
+functions.
+
+\returns
+
+Returns NULL if allocation fails.
+
+Notes
+
+1. The whole part of an 'f' conversion is generated through a double, so very
+large magnitudes lose precision in the same way the underlying double does.
+
+******************************************************************************/
+
+/** **************************************************************************
+
+Exact decimal conversion support (clean room big integer)
+
+A finite double equals m*2^k for an integer significand m and binary exponent k.
+To convert it to decimal it is scaled to a rational A/B whose value is the number
+divided by 10^decexp, arranged to lie in [1,10), and decimal digits are then
+produced by exact big integer long division. The final kept digit is rounded to
+nearest, ties to even, decided on the exact remainder. The result is therefore a
+correctly rounded conversion, identical to the system library for every value and
+precision, with no accumulated floating point error. This is an original
+implementation; no third party conversion code is used.
+
+******************************************************************************/
+
+#define FF_NL 80 /* big integer size in 32 bit limbs (2560 bits) */
+
+typedef struct { unsigned v[FF_NL]; int n; } ffbn;
+
+static void ffnorm(ffbn* a) { while (a->n > 1 && a->v[a->n-1] == 0) a->n--; }
+static int  ffzero(const ffbn* a) { return a->n == 1 && a->v[0] == 0; }
+
+static void ffset(ffbn* a, unsigned long long x) /* a = x */
+{
+    memset(a->v, 0, sizeof(a->v));
+    a->v[0] = (unsigned)x; a->v[1] = (unsigned)(x>>32);
+    a->n = a->v[1] ? 2 : 1;
+}
+
+static int ffcmp(const ffbn* a, const ffbn* b) /* compare magnitudes */
+{
+    int i;
+    if (a->n != b->n) return a->n < b->n ? -1 : 1;
+    for (i = a->n-1; i >= 0; i--)
+        if (a->v[i] != b->v[i]) return a->v[i] < b->v[i] ? -1 : 1;
+    return 0;
+}
+
+static void ffmuls(ffbn* a, unsigned s) /* a *= s (s a small value) */
+{
+    unsigned long long carry = 0;
+    int i;
+    for (i = 0; i < a->n; i++) {
+        unsigned long long t = (unsigned long long)a->v[i]*s + carry;
+        a->v[i] = (unsigned)t; carry = t>>32;
+    }
+    while (carry && a->n < FF_NL) { a->v[a->n++] = (unsigned)carry; carry >>= 32; }
+}
+
+static void ffmul10(ffbn* a, int p) { while (p-- > 0) ffmuls(a, 10); } /* a *= 10^p */
+
+static void ffshl(ffbn* a, int bits) /* a <<= bits (a *= 2^bits) */
+{
+    int word = bits/32, bit = bits%32, i;
+    if (word) {
+        for (i = a->n-1; i >= 0; i--) a->v[i+word] = a->v[i];
+        for (i = 0; i < word; i++) a->v[i] = 0;
+        a->n += word;
+    }
+    if (bit) {
+        unsigned carry = 0;
+        for (i = word; i < a->n; i++) {
+            unsigned long long t = ((unsigned long long)a->v[i]<<bit) | carry;
+            a->v[i] = (unsigned)t; carry = (unsigned)(t>>32);
+        }
+        if (carry && a->n < FF_NL) a->v[a->n++] = carry;
+    }
+    ffnorm(a);
+}
+
+static void ffsub(ffbn* a, const ffbn* b) /* a -= b, requires a >= b */
+{
+    long long borrow = 0;
+    int i;
+    for (i = 0; i < a->n; i++) {
+        long long t = (long long)a->v[i] - (i < b->n ? b->v[i] : 0) - borrow;
+        if (t < 0) { t += 0x100000000LL; borrow = 1; } else borrow = 0;
+        a->v[i] = (unsigned)t;
+    }
+    ffnorm(a);
+}
+
+/* Build A, B and decexp so that A/B equals d/10^decexp and lies in [1,10).
+   d must be finite and greater than zero. */
+static void ffsetup(double d, ffbn* A, ffbn* B, int* pdexp)
+{
+    unsigned long long bits, mant, m;
+    int ef, k, dexp, hb;
+    ffbn t;
+
+    memcpy(&bits, &d, 8);
+    ef = (int)((bits>>52) & 0x7ff);
+    mant = bits & 0xfffffffffffffULL;
+    if (ef == 0) { m = mant; k = -1074; }                 /* subnormal */
+    else { m = mant | 0x10000000000000ULL; k = ef-1075; } /* normal */
+
+    /* estimate decexp = floor(log10(d)) from the binary exponent. The
+       normalization loops below correct any error, so a rough estimate is
+       sufficient and no math library is needed. */
+    hb = 63; while (!((m>>hb)&1)) hb--;         /* index of top set bit of m */
+    dexp = (int)((k+hb) * 0.3010299956639812);  /* * log10(2) */
+
+    ffset(A, m); ffset(B, 1);
+    if (k >= 0) ffshl(A, k); else ffshl(B, -k);
+    if (dexp >= 0) ffmul10(B, dexp); else ffmul10(A, -dexp);
+
+    /* correct into [1,10) */
+    while (ffcmp(A, B) < 0) { ffmuls(A, 10); dexp--; }
+    for (;;) { t = *B; ffmuls(&t, 10); if (ffcmp(A, &t) >= 0) { *B = t; dexp++; }
+               else break; }
+    *pdexp = dexp;
+}
+
+/* decimal exponent of the leading digit of d (floor(log10|d|)), 0 for zero */
+static int ffdecexp(double d)
+{
+    ffbn A, B; int e;
+    if (d == 0) return 0;
+    if (d < 0) d = -d;
+    ffsetup(d, &A, &B, &e);
+    return e;
+}
+
+/* Produce ndig significant decimal digits of |d| in digits[0..ndig-1],
+   correctly rounded with ties to even, and set *pe to the decimal exponent of
+   the leading digit. d may be zero. ndig must be at least 1. */
+static void ffgen(double d, int ndig, char* digits, int* pe)
+{
+    ffbn A, B; int dexp, i, done = 0;
+
+    if (d == 0) { for (i = 0; i < ndig; i++) digits[i] = '0'; *pe = 0; return; }
+    if (d < 0) d = -d;
+    ffsetup(d, &A, &B, &dexp);
+    *pe = dexp;
+    for (i = 0; i < ndig; i++) {
+        int dig = 0;
+        if (done) { digits[i] = '0'; continue; } /* exact value exhausted */
+        while (ffcmp(&A, &B) >= 0) { ffsub(&A, &B); dig++; } /* this digit */
+        digits[i] = (char)('0'+dig);
+        if (ffzero(&A)) { done = 1; continue; } /* remainder zero: rest are 0 */
+        if (i < ndig-1) ffmuls(&A, 10); /* leave remainder in place on last */
+    }
+    if (!done) { /* round to nearest, ties to even, on the exact remainder */
+        int c;
+        ffmuls(&A, 2); /* compare 2*remainder to B */
+        c = ffcmp(&A, &B);
+        if (c > 0 || (c == 0 && ((digits[ndig-1]-'0') & 1))) {
+            for (i = ndig-1; i >= 0; i--) {
+                if (digits[i] < '9') { digits[i]++; break; } /* carry absorbed */
+                digits[i] = '0'; /* 9 rolls to 0, carry continues */
+            }
+            if (i < 0) { digits[0] = '1'; (*pe)++; } /* carried past the top */
+        }
+    }
+}
+
+/* For the 'f' boundary case (the rounded result is 0 or a single 1 in the last
+   place), return nonzero if |d| rounds up at the 10^-pre place. The value rounds
+   up when 2*|d| > 10^-pre; an exact half ties to even, and the kept digit is 0
+   (even), so equality rounds down. Compared exactly: 2*d = m*2^(k+1), so the test
+   is m*2^(k+1)*10^pre > 1. */
+static int ffboundup(double d, int pre)
+{
+    ffbn A, B;
+    unsigned long long bits, mant, m;
+    int ef, k, kk;
+
+    if (d < 0) d = -d;
+    if (d == 0) return 0;
+    memcpy(&bits, &d, 8);
+    ef = (int)((bits>>52) & 0x7ff);
+    mant = bits & 0xfffffffffffffULL;
+    if (ef == 0) { m = mant; k = -1074; }
+    else { m = mant | 0x10000000000000ULL; k = ef-1075; }
+    ffset(&A, m); ffset(&B, 1);
+    kk = k+1;
+    if (kk >= 0) ffshl(&A, kk); else ffshl(&B, -kk);
+    ffmul10(&A, pre);
+    return ffcmp(&A, &B) > 0; /* strictly greater rounds up; equal ties to even */
+}
+
+static char *fmtfloat(
+    /** value to convert */                       double d,
+    /** precision (number of digits) */           int pre,
+    /** precision specified flag */               int pres,
+    /** conversion character (f, e, E, g or G) */ char cv,
+    /** force a leading sign flag */              int sgn,
+    /** leading space flag */                     int spc,
+    /** alternate form flag */                    int alt
+)
+
+{
+
+    char   *digits;  /* significant digits buffer */
+    char   *buf;     /* result buffer */
+    char   *p;       /* build pointer */
+    char   *dpp;     /* decimal point position for zero stripping */
+    int     ndig;    /* number of significant digits to generate */
+    int     e;       /* decimal exponent of leading digit */
+    int     e0;      /* estimated decimal exponent */
+    int     sig;     /* significant digit count for 'f' */
+    int     i, j;    /* indexes */
+    int     idx;     /* digit index */
+    int     neg;     /* number is negative */
+    int     usef;    /* use fixed ('f') style */
+    int     strip;   /* strip trailing zeros ('g' style) */
+    int     up;      /* upper case conversion */
+    char    ec;      /* exponent letter */
+    int     P;       /* significant digits for 'g' */
+    int     ae;      /* absolute exponent */
+    char    estr[16];/* exponent digit holder */
+    int     en;      /* exponent digit count */
+
+    up = (cv == 'E' || cv == 'G'); /* set upper case form */
+    ec = up ? 'E' : 'e'; /* set exponent letter */
+
+    /* handle non-finite values (NaN and infinity) */
+    if (d != d || d-d != 0) {
+
+        buf = (char *)malloc(8); /* room for sign + "inf"/"nan" */
+        if (!buf) return (NULL);
+        p = buf;
+        if (d == d) { /* infinity carries a sign */
+
+            if (d < 0) *p++ = '-';
+            else if (sgn) *p++ = '+';
+            else if (spc) *p++ = ' ';
+            strcpy(p, up ? "INF" : "inf");
+
+        } else { /* NaN */
+
+            if (sgn) *p++ = '+';
+            else if (spc) *p++ = ' ';
+            strcpy(p, up ? "NAN" : "nan");
+
+        }
+
+        return (buf);
+
+    }
+
+    /* default precision is 6 for 'f' and 'e' forms */
+    if (!pres) pre = 6;
+
+    /* extract and remove sign */
+    neg = FALSE;
+    if (d < 0) { neg = TRUE; d = -d; }
+
+    /* exact decimal exponent of the leading digit (used for the 'f' digit
+       count and the 'f' boundary case below) */
+    e0 = ffdecexp(d);
+
+    /* handle the 'f' boundary case where rounding occurs at or above the
+       leading digit, so the result is either 0 or a single 1 in the last
+       place of the requested precision */
+    if (cv == 'f') {
+
+        sig = e0+1+pre; /* significant digits down to the precision place */
+        if (sig < 1) { /* rounds to 0 or 1 in the last place */
+
+            int rup; /* round up */
+
+            rup = ffboundup(d, pre); /* exact round to nearest, ties to even */
+            buf = (char *)malloc(pre+8);
+            if (!buf) return (NULL);
+            p = buf;
+            if (neg) *p++ = '-';
+            else if (sgn) *p++ = '+';
+            else if (spc) *p++ = ' ';
+            if (pre > 0) { /* fractional digits present */
+
+                *p++ = '0'; /* whole part is zero */
+                *p++ = '.'; /* decimal point */
+                for (j = 0; j < pre; j++)
+                    *p++ = (rup && j == pre-1) ? '1' : '0';
+
+            } else { /* no fraction */
+
+                *p++ = rup ? '1' : '0'; /* whole part */
+                if (alt) *p++ = '.'; /* alternate form keeps the point */
+
+            }
+            *p = 0; /* terminate */
+
+            return (buf);
+
+        }
+
+    } else sig = 0; /* not used */
+
+    /* determine significant digit count and style */
+    strip = FALSE;
+    if (cv == 'g' || cv == 'G') {
+
+        P = pres ? (pre ? pre : 1) : 6; /* significant digits, minimum 1 */
+        ndig = P;
+
+    } else if (cv == 'f') ndig = sig; /* digits down to the precision place */
+    else ndig = pre+1; /* 'e': leading digit plus precision */
+    if (ndig < 1) ndig = 1;
+
+    digits = (char *)malloc(ndig);
+    if (!digits) return (NULL);
+
+    /* generate the significant digits, correctly rounded (ties to even), via
+       the exact big integer conversion, with e set to the leading exponent */
+    ffgen(d, ndig, digits, &e);
+
+    /* for 'g'/'G', choose the output style now that the exponent is known */
+    if (cv == 'g' || cv == 'G') {
+
+        if (e < -4 || e >= P) { usef = FALSE; pre = P-1; } /* exponential */
+        else { usef = TRUE; pre = P-1-e; } /* fixed */
+        if (pre < 0) pre = 0;
+        if (!alt) strip = TRUE; /* strip trailing zeros unless alternate form */
+
+    } else usef = (cv == 'f');
+
+    /* allocate the result buffer with room for sign, digits, point and
+       exponent */
+    buf = (char *)malloc((e > 0 ? e : 0)+ndig+pre+24);
+    if (!buf) { free(digits); return (NULL); }
+    p = buf;
+    dpp = NULL; /* no decimal point placed yet */
+
+    /* place sign */
+    if (neg) *p++ = '-';
+    else if (sgn) *p++ = '+';
+    else if (spc) *p++ = ' ';
+
+    if (usef) { /* fixed point form */
+
+        /* whole part */
+        if (e < 0) *p++ = '0';
+        else for (i = 0; i <= e; i++) *p++ = (i < ndig) ? digits[i] : '0';
+        /* decimal point */
+        if (pre > 0 || alt) { dpp = p; *p++ = '.'; }
+        /* fraction */
+        for (j = 0; j < pre; j++) {
+
+            idx = e+1+j;
+            *p++ = (idx >= 0 && idx < ndig) ? digits[idx] : '0';
+
+        }
+        /* strip trailing zeros for 'g'/'G' */
+        if (strip && dpp) {
+
+            while (p > dpp+1 && p[-1] == '0') p--; /* remove trailing zeros */
+            if (p == dpp+1) p--; /* remove lone decimal point */
+
+        }
+
+    } else { /* exponential form */
+
+        /* leading digit */
+        *p++ = (ndig > 0) ? digits[0] : '0';
+        /* fraction */
+        if (pre > 0 || alt) {
+
+            dpp = p; *p++ = '.';
+            for (j = 0; j < pre; j++) *p++ = (1+j < ndig) ? digits[1+j] : '0';
+            if (strip) { /* strip trailing zeros for 'g'/'G' */
+
+                while (p > dpp+1 && p[-1] == '0') p--;
+                if (p == dpp+1) p--; /* remove lone decimal point */
+
+            }
+
+        }
+        /* exponent */
+        *p++ = ec;
+        *p++ = (e < 0) ? '-' : '+';
+        ae = e < 0 ? -e : e; /* exponent magnitude */
+        en = 0;
+        do { estr[en++] = '0'+ae%10; ae /= 10; } while (ae); /* get digits */
+        while (en < 2) estr[en++] = '0'; /* at least two exponent digits */
+        while (en) *p++ = estr[--en]; /* place in order */
+
+    }
+    *p = 0; /* terminate */
+
+    free(digits);
+
+    return (buf);
+
+}
+
+/** **************************************************************************
+
+Function vsprintfe
+
+Description
+
+Place converted formatted arguments in string.
 
 Using a format string as a guide, a series of arguments are converted,
 formatted, and placed in a string. The number of characters output to the
@@ -1428,9 +2711,12 @@ MODIFIER
 
 LENGTH MODIFIER
 
-h       Short
-l       Long
-L       Double (float)
+hh      char
+h       short
+l       long
+ll      long long
+L       long double (accepted, treated as double)
+z       size_t
 
 FORMAT SPECIFIER
 
@@ -1465,11 +2751,18 @@ size.
 vsprintfe is used as a building block for all of the other formatted output
 routines, fprintf, printf, sprintf, vprintf, vfprintf and vsprintf.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters output.
 
-static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
+******************************************************************************/
+
+static int vsprintfe(
+    /** destination string, or NULL to write to the file */ char *s,
+    /** format string */                                    const char *fmt,
+    /** variable argument list */                           va_list ap,
+    /** destination file when the string is NULL */         FILE *fd
+)
 
 {
 
@@ -1484,22 +2777,19 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
     int           fld;  /* minimum field width */
     int           pre;  /* precision */
     int           pres; /* precision was specified */
-    int           sht;  /* short length modifier */
-    int           lng;  /* long length modifier */
-    int           dbl;  /* double length modifier */
+    int           lmod; /* length modifier code (LM_*) */
     int           i;    /* integer holding */
+    long long     li;   /* signed wide integer holding */
     int           sn;   /* sign from number */
     int           dg;   /* number of digits in unsigned number */
     int           ndg;  /* net digits after precision */
     int           pe;   /* extra padding for precision */
-    unsigned long u;    /* unsigned integer holding */
+    unsigned long long u; /* unsigned integer holding */
     int           r;    /* radix holder */
-    unsigned long p;    /* power holder */
-    int           *ip;  /* int pointer holder */
+    unsigned long long p; /* power holder */
     char          *cp;  /* char pointer holder */
     int           l;    /* string length */
     double        d;    /* floating point holder */
-    int           dp;   /* decimal point is printed */
 
     cnt = 0; /* clear output count */
     while (*fmt) { /* while format characters remain */
@@ -1517,9 +2807,7 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
             fld  = 0;     /* set minimum output field */
             pre  = 1;     /* set precision */
             pres = FALSE; /* set precision not set */
-            sht  = FALSE; /* no short length modifier */
-            lng  = FALSE; /* no long length modifier */
-            dbl  = FALSE; /* no double length modifier */
+            lmod = LM_NONE; /* no length modifier */
 
             /* check for modfiers */
             while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '0' ||
@@ -1567,9 +2855,20 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
             } else pre = 0; /* ISO 9899: missing precision is 0 */
 
             /* check for length modifiers */
-            if (*fmt == 'h') { fmt++; sht = TRUE; } /* short */
-            else if (*fmt == 'l') { fmt++; lng = TRUE; } /* long */
-            else if (*fmt == 'L') { fmt++; dbl = TRUE; } /* double */
+            if (*fmt == 'h') { /* short or char */
+
+                fmt++; /* skip 'h' */
+                if (*fmt == 'h') { fmt++; lmod = LM_HH; } /* hh: char */
+                else lmod = LM_H; /* h: short */
+
+            } else if (*fmt == 'l') { /* long or long long */
+
+                fmt++; /* skip 'l' */
+                if (*fmt == 'l') { fmt++; lmod = LM_LL; } /* ll: long long */
+                else lmod = LM_L; /* l: long */
+
+            } else if (*fmt == 'L') { fmt++; lmod = LM_CAP; } /* L: long double */
+            else if (*fmt == 'z') { fmt++; lmod = LM_Z; } /* z: size_t */
 
             /* find format character */
             sn = FALSE; /* set positive */
@@ -1613,16 +2912,39 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     }
                     if (*fmt == 'd' || *fmt == 'i') { /* get signed */
 
-                        i = va_arg(ap, int); /* get signed integer */
-                        if (i < 0) { /* remove sign */
+                        /* fetch the signed argument at its true width */
+                        switch (lmod) {
+
+                            case LM_L:  li = va_arg(ap, long); break;
+                            case LM_LL: li = va_arg(ap, long long); break;
+                            case LM_Z:  li = va_arg(ap, size_t); break;
+                            /* char and short are promoted to int when passed */
+                            default:    li = va_arg(ap, int); break;
+
+                        }
+                        if (li < 0) { /* remove sign */
 
                             sn = TRUE; /* set sign */
-                            u = -i; /* remove sign */
+                            u = -li; /* remove sign */
 
-                        } else u = i; /* place unsigned */
+                        } else u = li; /* place unsigned */
 
-                    } else /* get unsigned integer */
-                        u = va_arg(ap, unsigned int);
+                    } else if (*fmt == 'p') { /* pointer: fetch at pointer width */
+
+                        u = (unsigned long long)(size_t)va_arg(ap, void *);
+
+                    } else { /* get unsigned integer at its true width */
+
+                        switch (lmod) {
+
+                            case LM_L:  u = va_arg(ap, unsigned long); break;
+                            case LM_LL: u = va_arg(ap, unsigned long long); break;
+                            case LM_Z:  u = va_arg(ap, size_t); break;
+                            default:    u = va_arg(ap, unsigned int); break;
+
+                        }
+
+                    }
                     dg = digits(r, u); /* find required digits */
                     /* ISO 9899: if '#' is specified with octal, we need to
                        increase the precision to add a leading '0', only if
@@ -1706,52 +3028,66 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
                     fmt++; /* next character */
                     break;
                 case 'f':
-                    d = va_arg(ap, double);
-                    /* validate power */
-                    if (!power10) power10 = toppow(10); /* decimal */
-                    if (!pres) pre = 6; /* set default precision */
-                    dp = TRUE; /* set print decimal point */
-                    if (!pre)
-                        dp = FALSE; /* precision is zero, kill decimal point */
-                    if (d < 0) { /* signed number */
-
-                        sn = TRUE; /* set sign */
-                        d = -d; /* remove from number */
-
-                    }
-                    u = d; /* find whole part of number */
-                    d -= u; /* and remove it */
-                    dg = digits(10, u); /* find digits in whole part */
-                    /* find total of sign whole digits, decimal, fraction */
-                    ndg = sn+dg+dp+pre;
-                    /* if right justified, pad left to go right */
-                    if (!lft) putchrs(&s, fld-ndg, ' ', &cnt, fd);
-                    /* place sign */
-                    if (sn) putchrs(&s, 1, '-', &cnt, fd); /* place negative */
-                    /* print whole number */
-                    putnum(&s, u, 10, power10, FALSE, &cnt, fd);
-                    if (dp)
-                        putchrs(&s, 1, '.', &cnt, fd); /* place decimal point */
-                    /* scale number by precision */
-                    for (i = 0; i < pre; i++) d *= 10;
-                    u = d; /* get that */
-                    dg = digits(10, u); /* find digits in that */
-                    putchrs(&s, pre-dg, '0', &cnt, fd);
-                    putnum(&s, u, 10, power10, FALSE, &cnt, fd);
-                    /* if left justified, pad right to go left */
-                    if (lft) putchrs(&s, fld-ndg, ' ', &cnt, fd);
-                    fmt++; /* next character */
-                    break;
                 case 'e':
                 case 'E':
                 case 'g':
-                case 'G': /* floating point convertions */
-                    /* fprintf(stderr, "*** Floating point not implemented\n"); */
-                    exit(1);
+                case 'G': { /* floating point convertions */
+
+                    char *fs; /* formatted floating point string */
+                    int   fl; /* formatted length */
+
+                    d = va_arg(ap, double); /* get value */
+                    /* convert the number to a string */
+                    fs = fmtfloat(d, pre, pres, *fmt, sgn, spc, alt);
+                    if (fs) { /* conversion succeeded */
+
+                        fl = strlen(fs); /* find length */
+                        if (!lft) { /* right justify, pad on the left */
+
+                            if (zer && (fs[0] == '-' || fs[0] == '+' ||
+                                        fs[0] == ' ')) {
+
+                                /* keep the sign ahead of the zero padding */
+                                putchrs(&s, 1, fs[0], &cnt, fd);
+                                putchrs(&s, fld-fl, '0', &cnt, fd);
+                                for (i = 1; i < fl; i++)
+                                    putchrs(&s, 1, fs[i], &cnt, fd);
+
+                            } else { /* pad with zeros or spaces */
+
+                                putchrs(&s, fld-fl, zer?'0':' ', &cnt, fd);
+                                for (i = 0; i < fl; i++)
+                                    putchrs(&s, 1, fs[i], &cnt, fd);
+
+                            }
+
+                        } else { /* left justify, pad on the right */
+
+                            for (i = 0; i < fl; i++)
+                                putchrs(&s, 1, fs[i], &cnt, fd);
+                            putchrs(&s, fld-fl, ' ', &cnt, fd);
+
+                        }
+                        free(fs); /* release the string */
+
+                    }
+                    fmt++; /* next character */
                     break;
+
+                }
                 case 'n':
-                    ip = va_arg(ap, int *); /* get signed integer pointer */
-                    *ip = cnt; /* place output count */
+                    /* store the output count through a pointer of the width
+                       given by the length modifier */
+                    switch (lmod) {
+
+                        case LM_HH: *va_arg(ap, char *) = cnt; break;
+                        case LM_H:  *va_arg(ap, short *) = cnt; break;
+                        case LM_L:  *va_arg(ap, long *) = cnt; break;
+                        case LM_LL: *va_arg(ap, long long *) = cnt; break;
+                        case LM_Z:  *va_arg(ap, size_t *) = cnt; break;
+                        default:    *va_arg(ap, int *) = cnt; break;
+
+                    }
                     fmt++; /* next character */
                     break;
                 case '%':
@@ -1775,22 +3111,28 @@ static int vsprintfe(char *s, const char *fmt, va_list ap, FILE *fd)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vsprintf
+Function vsprintf
 
-SHORT DESCRIPTION: Print to string with variable argument list pointer
+Description
 
-DETAILED DESCRIPTION:
+Print to string with variable argument list pointer.
 
 Prints formatted to a string. See vsprintfe. The destination string, the
 format string, and the argument list pointer are provided.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters placed in the string.
 
-int vsprintf(char *s, const char *fmt, va_list ap)
+******************************************************************************/
+
+int vsprintf(
+    /** destination string */     char *s,
+    /** format string */          const char *fmt,
+    /** variable argument list */ va_list ap
+)
 
 {
 
@@ -1798,22 +3140,28 @@ int vsprintf(char *s, const char *fmt, va_list ap)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: sprintf
+Function sprintf
 
-SHORT DESCRIPTION: print formatted to string
+Description
 
-DETAILED DESCRIPTION:
+print formatted to string.
 
 Prints formatted to a string. See vsprintfe. The destination string, the
 format string, and the argument list are provided.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters placed in the string.
 
-int sprintf(char *s, const char *fmt, ...)
+******************************************************************************/
+
+int sprintf(
+    /** destination string */ char *s,
+    /** format string */      const char *fmt,
+    /** variable arguments */ ...
+)
 
 {
 
@@ -1828,22 +3176,126 @@ int sprintf(char *s, const char *fmt, ...)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vfprintf
+Function vsnprintf
 
-SHORT DESCRIPTION: Print formatted to file with variable argument list pointer
+Description
 
-DETAILED DESCRIPTION:
+Print to a bounded string with variable argument list pointer.
+
+Prints formatted to a string, writing no more than n characters including the
+terminating null. If the output is longer than n-1 characters it is truncated,
+but the string is always terminated (unless n is zero, in which case nothing is
+written). Returns the number of characters that would have been written had n
+been large enough, not counting the terminating null. See vsprintfe.
+
+This is implemented in two passes over the format: the first measures the full
+length (writing nothing), and the second formats the full result into a
+temporary buffer that is then copied, bounded, into the caller's buffer. This
+reuses the unbounded formatting engine without it needing to know about limits.
+
+\returns
+
+Returns the number of characters that would have been written had n been large
+enough, not counting the terminating null.
+
+******************************************************************************/
+
+int vsnprintf(
+    /** destination string */                        char *s,
+    /** maximum bytes to write including the null */ size_t n,
+    /** format string */                             const char *fmt,
+    /** variable argument list */                    va_list ap
+)
+
+{
+
+    va_list ap2;  /* copy of the argument list for the measuring pass */
+    int     len;  /* full formatted length */
+    char    *tmp; /* temporary holding the full output */
+    size_t  cpy;  /* number of characters to copy */
+
+    /* pass 1: measure the full length, writing nothing */
+    va_copy(ap2, ap);
+    len = vsprintfe((char *)NULL, fmt, ap2, (FILE *)NULL);
+    va_end(ap2);
+    if (len < 0) return (len); /* formatting error */
+    if (n == 0) return (len); /* nothing may be written */
+
+    /* pass 2: format the full output into a temporary, then copy bounded */
+    tmp = malloc(len+1); /* room for the full result plus null */
+    if (!tmp) { s[0] = 0; return (len); } /* out of memory, empty result */
+    vsprintfe(tmp, fmt, ap, (FILE *)NULL); /* format the full output */
+    cpy = (size_t)len < n-1 ? (size_t)len : n-1; /* at most n-1 characters */
+    memcpy(s, tmp, cpy); /* copy the possibly truncated text */
+    s[cpy] = 0; /* always terminate */
+    free(tmp); /* release the temporary */
+
+    return (len); /* return the full length, per ISO 9899 */
+
+}
+
+/** **************************************************************************
+
+Function snprintf
+
+Description
+
+print formatted to a bounded string.
+
+Prints formatted to a string with a length bound. See vsnprintf. The destination
+string, the size bound, the format string, and the argument list are provided.
+
+\returns
+
+The number of characters that would have been written, not counting the
+terminating null.
+
+******************************************************************************/
+
+int snprintf(
+    /** destination string */                        char *s,
+    /** maximum bytes to write including the null */ size_t n,
+    /** format string */                             const char *fmt,
+    /** variable arguments */                        ...
+)
+
+{
+
+    va_list ap; /* argument list pointer */
+    int r;
+
+    va_start(ap, fmt); /* open argument list */
+    r = vsnprintf(s, n, fmt, ap); /* process format to bounded string */
+    va_end(ap); /* close argument list */
+
+    return (r);
+
+}
+
+/** **************************************************************************
+
+Function vfprintf
+
+Description
+
+Print formatted to file with variable argument list pointer.
 
 Prints formatted to a file. See vsprintfe. The destination string, the
 format string, and the argument list pointer are provided.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters written to the file.
 
-int vfprintf(FILE *stream, const char *fmt, va_list ap)
+******************************************************************************/
+
+int vfprintf(
+    /** destination file */       FILE *stream,
+    /** format string */          const char *fmt,
+    /** variable argument list */ va_list ap
+)
 
 {
 
@@ -1851,22 +3303,28 @@ int vfprintf(FILE *stream, const char *fmt, va_list ap)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fprintf
+Function fprintf
 
-SHORT DESCRIPTION: Print formatted to file
+Description
 
-DETAILED DESCRIPTION:
+Print formatted to file.
 
 Prints formatted to a file. See vsprintfe. The destination string, the
 format string, and the argument list are provided.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters written to the file.
 
-int fprintf(FILE *stream, const char *fmt, ...)
+******************************************************************************/
+
+int fprintf(
+    /** destination file */   FILE *stream,
+    /** format string */      const char *fmt,
+    /** variable arguments */ ...
+)
 
 {
 
@@ -1881,22 +3339,27 @@ int fprintf(FILE *stream, const char *fmt, ...)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vprintf
+Function vprintf
 
-SHORT DESCRIPTION: Print formatted to stdout with variable argument list pointer
+Description
 
-DETAILED DESCRIPTION:
+Print formatted to stdout with variable argument list pointer.
 
 Prints formatted to the standard output file. See vsprintfe. The destination
 string, the format string, and the argument list pointer are provided.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters written to standard output.
 
-int vprintf(const char *fmt, va_list ap)
+******************************************************************************/
+
+int vprintf(
+    /** format string */          const char *fmt,
+    /** variable argument list */ va_list ap
+)
 
 {
 
@@ -1904,22 +3367,27 @@ int vprintf(const char *fmt, va_list ap)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: printf
+Function printf
 
-SHORT DESCRIPTION: Print formatted to file
+Description
 
-DETAILED DESCRIPTION:
+Print formatted to file.
 
 Prints formatted to a file. See vsprintfe. The destination string, the
 format string, and the argument list are provided.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of characters written to standard output.
 
-int printf(const char *fmt, ...)
+******************************************************************************/
+
+int printf(
+    /** format string */      const char *fmt,
+    /** variable arguments */ ...
+)
 
 {
 
@@ -1934,19 +3402,29 @@ int printf(const char *fmt, ...)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vsscanfe
+Function vsscanfe
 
-SHORT DESCRIPTION:
+Description
 
-DETAILED DESCRIPTION:
+DETAILED DESCRIPTION:.
 
 BUGS/ISSUES:
 
-*******************************************************************************/
+\returns
 
-int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
+The number of items matched and assigned, or EOF on input failure before any
+conversion.
+
+******************************************************************************/
+
+int vsscanfe(
+    /** input string, or NULL to read from the file */ const char *s,
+    /** format string */                               const char *fmt,
+    /** variable argument list */                      va_list ap,
+    /** input file when the string is NULL */          FILE *fd
+)
 
 {
 
@@ -1955,14 +3433,10 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
     int      fld;    /* minimum field width */
     int      flds;   /* minimum field width was set */
     int      sup;    /* suppress output */
-    int      sht;    /* short length modifier */
-    int      lng;    /* long length modifier */
-    int      dbl;    /* double length modifier */
-    int      i;      /* integer holding */
-    int      *ip;    /* int pointer holder */
+    int      lmod;   /* length modifier code (LM_*) */
+    long long li;    /* signed wide integer holding */
+    unsigned long long lu; /* unsigned wide integer holding */
     int      r;      /* radix */
-    unsigned u;      /* unsigned holding */
-    unsigned *up;    /* unsigned pointer holder */
     char     *cp;    /* character pointer holder */
     char     cflags[UCHAR_MAX+1]; /* character include/disinclude array */
     int      cneg;   /* character match negate flag */
@@ -1976,7 +3450,9 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
     ccnt = 0; /* clear character count */
     while (*fmt) { /* while format characters remain */
 
-        if (!s) return (EOF); /* out of input, return end */
+        /* Note: end of input is detected within each conversion via getfstr/
+           chkfstr returning EOF. We must not test the string pointer here,
+           because in file mode the string pointer is legitimately NULL. */
         if (*fmt == '%') { /* format specification */
 
             fmt++; /* skip '%' */
@@ -1985,9 +3461,7 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
             sup  = FALSE;   /* set no supress */
             fld  = INT_MAX; /* set minimum input field */
             flds = FALSE;   /* field width not set */
-            sht  = FALSE;   /* no short length modifier */
-            lng  = FALSE;   /* no long length modifier */
-            dbl  = FALSE;   /* no double length modifier */
+            lmod = LM_NONE; /* no length modifier */
             cneg = FALSE;   /* no character match negation */
 
             /* check for output suppress */
@@ -2007,9 +3481,20 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
             }
 
             /* check for length modifiers */
-            if (*fmt == 'h') { fmt++; sht = TRUE; } /* short */
-            else if (*fmt == 'l') { fmt++; lng = TRUE; } /* long */
-            else if (*fmt == 'L') { fmt++; dbl = TRUE; } /* double */
+            if (*fmt == 'h') { /* short or char */
+
+                fmt++; /* skip 'h' */
+                if (*fmt == 'h') { fmt++; lmod = LM_HH; } /* hh: char */
+                else lmod = LM_H; /* h: short */
+
+            } else if (*fmt == 'l') { /* long or long long */
+
+                fmt++; /* skip 'l' */
+                if (*fmt == 'l') { fmt++; lmod = LM_LL; } /* ll: long long */
+                else lmod = LM_L; /* l: long */
+
+            } else if (*fmt == 'L') { fmt++; lmod = LM_CAP; } /* L: long double */
+            else if (*fmt == 'z') { fmt++; lmod = LM_Z; } /* z: size_t */
 
             /* find format character */
             switch (*fmt) { /* handle each format */
@@ -2018,13 +3503,22 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
                 case 'd': /* signed decimal */
                     if (*fmt == 'i') r = 0; /* open radix */
                     else r = 10; /* decimal radix */
-                    i = strtoli(&s, r, &ccnt, &err, fld, fd); /* parse number */
+                    li = strtoli(&s, r, &ccnt, &err, fld, fd); /* parse number */
                     if (err) return (pcnt); /* error */
                     if (!sup) { /* if supress isn't on, place result */
 
-                        ip = va_arg(ap, int *); /* get parameter */
-                        *ip = i; /* place result */
-                        if (!err) pcnt++; /* count items parsed */
+                        /* store through a pointer of the modifier's width */
+                        switch (lmod) {
+
+                            case LM_HH: *va_arg(ap, char *) = (char)li; break;
+                            case LM_H:  *va_arg(ap, short *) = (short)li; break;
+                            case LM_L:  *va_arg(ap, long *) = (long)li; break;
+                            case LM_LL: *va_arg(ap, long long *) = li; break;
+                            case LM_Z:  *va_arg(ap, size_t *) = (size_t)li; break;
+                            default:    *va_arg(ap, int *) = (int)li; break;
+
+                        }
+                        pcnt++; /* count items parsed */
 
                     }
                     fmt++; /* next character */
@@ -2041,13 +3535,35 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
                         case 'u': r = 10; break; /* unsigned decimal */
 
                     }
-                    u = strtouli(&s, r, &ccnt, &err, fld, fd); /* parse number */
+                    lu = strtouli(&s, r, &ccnt, &err, fld, fd); /* parse number */
                     if (err) return (pcnt); /* error */
                     if (!sup) { /* if supress isn't on, place result */
 
-                        up = va_arg(ap, unsigned *); /* get parameter */
-                        *up = u; /* place result */
-                        if (!err) pcnt++; /* count items parsed */
+                        if (*fmt == 'p') /* pointer target */
+                            *va_arg(ap, void **) = (void *)(size_t)lu;
+                        else switch (lmod) { /* width given by the modifier */
+
+                            case LM_HH:
+                                *va_arg(ap, unsigned char *) = (unsigned char)lu;
+                                break;
+                            case LM_H:
+                                *va_arg(ap, unsigned short *) = (unsigned short)lu;
+                                break;
+                            case LM_L:
+                                *va_arg(ap, unsigned long *) = (unsigned long)lu;
+                                break;
+                            case LM_LL:
+                                *va_arg(ap, unsigned long long *) = lu;
+                                break;
+                            case LM_Z:
+                                *va_arg(ap, size_t *) = (size_t)lu;
+                                break;
+                            default:
+                                *va_arg(ap, unsigned *) = (unsigned)lu;
+                                break;
+
+                        }
+                        pcnt++; /* count items parsed */
 
                     }
                     fmt++; /* next character */
@@ -2099,15 +3615,49 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
                     break;
                 case 'f':
                 case 'e':
-                case 'g': /* floating point convertions */
-                    /* fprintf(stderr, "*** Floating point not implemented\n"); */
-                    exit(1);
+                case 'E':
+                case 'g':
+                case 'G': { /* floating point convertions */
+
+                    double dv; /* parsed value */
+
+                    dv = strtodi(&s, &ccnt, &err, fld, fd); /* parse number */
+                    if (err) return (pcnt); /* error */
+                    if (!sup) { /* if supress isn't on, place result */
+
+                        /* 'l' or 'L' selects double, otherwise float */
+                        if (lmod == LM_L || lmod == LM_CAP) {
+
+                            double *dp = va_arg(ap, double *); /* get parameter */
+                            *dp = dv; /* place result */
+
+                        } else {
+
+                            float *fp = va_arg(ap, float *); /* get parameter */
+                            *fp = (float)dv; /* place result */
+
+                        }
+                        pcnt++; /* count items parsed */
+
+                    }
+                    fmt++; /* next character */
                     break;
+
+                }
                 case 'n':
                     if (!sup) { /* if supress isn't on, place result */
 
-                        ip = va_arg(ap, int *); /* get parameter */
-                        *ip = ccnt; /* set character count */
+                        /* store the count at the right width */
+                        switch (lmod) {
+
+                            case LM_HH: *va_arg(ap, char *) = ccnt; break;
+                            case LM_H:  *va_arg(ap, short *) = ccnt; break;
+                            case LM_L:  *va_arg(ap, long *) = ccnt; break;
+                            case LM_LL: *va_arg(ap, long long *) = ccnt; break;
+                            case LM_Z:  *va_arg(ap, size_t *) = ccnt; break;
+                            default:    *va_arg(ap, int *) = ccnt; break;
+
+                        }
 
                     }
                     fmt++; /* next character */
@@ -2222,19 +3772,30 @@ int vsscanfe(const char *s, const char *fmt, va_list ap, FILE *fd)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vsscanf
+Function vsscanf
 
-SHORT DESCRIPTION:
+Description
 
-DETAILED DESCRIPTION:
+Scan from string with variable argument list pointer.
 
-BUGS/ISSUES:
+Scans formatted input from a string using an argument list pointer. Returns the
+number of items successfully matched and assigned, or EOF on input failure
+before any conversion. See vsscanfe.
 
-*******************************************************************************/
+\returns
 
-static int vsscanf(const char *s, const char *fmt, va_list ap)
+Returns the number of items successfully matched and assigned, or EOF on input
+failure before any conversion.
+
+******************************************************************************/
+
+int vsscanf(
+    /** input string */           const char *s,
+    /** format string */          const char *fmt,
+    /** variable argument list */ va_list ap
+)
 
 {
 
@@ -2243,40 +3804,91 @@ static int vsscanf(const char *s, const char *fmt, va_list ap)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: vfscanf
+Function vfscanf
 
-SHORT DESCRIPTION:
+Description
 
-DETAILED DESCRIPTION:
+Scan from file with variable argument list pointer.
 
-BUGS/ISSUES:
+Scans formatted input from a file using an argument list pointer. Returns the
+number of items successfully matched and assigned, or EOF on input failure
+before any conversion. See vsscanfe.
 
-*******************************************************************************/
+\returns
 
-static int vfscanf(FILE *stream, const char *fmt, va_list ap)
+Returns the number of items successfully matched and assigned, or EOF on input
+failure before any conversion.
+
+******************************************************************************/
+
+int vfscanf(
+    /** input file */             FILE *stream,
+    /** format string */          const char *fmt,
+    /** variable argument list */ va_list ap
+)
 
 {
 
-    /* process format from string */
+    /* process format from file */
     return (vsscanfe((char *)NULL, fmt, ap, stream));
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: sscanf
+Function vscanf
 
-SHORT DESCRIPTION:
+Description
 
-DETAILED DESCRIPTION:
+Scan from standard input with variable argument list pointer.
+
+Scans formatted input from standard input using an argument list pointer.
+Returns the number of items successfully matched and assigned, or EOF on input
+failure before any conversion. See vsscanfe.
+
+\returns
+
+Returns the number of items successfully matched and assigned, or EOF on input
+failure before any conversion.
+
+******************************************************************************/
+
+int vscanf(
+    /** format string */          const char *fmt,
+    /** variable argument list */ va_list ap
+)
+
+{
+
+    /* process format from standard input */
+    return (vsscanfe((char *)NULL, fmt, ap, stdin));
+
+}
+
+/** **************************************************************************
+
+Function sscanf
+
+Description
+
+DETAILED DESCRIPTION:.
 
 BUGS/ISSUES:
 
-*******************************************************************************/
+\returns
 
-int sscanf(const char *s, const char *fmt, ...)
+The number of items matched and assigned, or EOF on input failure before any
+conversion.
+
+******************************************************************************/
+
+int sscanf(
+    /** input string */       const char *s,
+    /** format string */      const char *fmt,
+    /** variable arguments */ ...
+)
 
 {
 
@@ -2291,19 +3903,28 @@ int sscanf(const char *s, const char *fmt, ...)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fscanf
+Function fscanf
 
-SHORT DESCRIPTION:
+Description
 
-DETAILED DESCRIPTION:
+DETAILED DESCRIPTION:.
 
 BUGS/ISSUES:
 
-*******************************************************************************/
+\returns
 
-int fscanf(FILE *stream, const char *fmt, ...)
+The number of items matched and assigned, or EOF on input failure before any
+conversion.
+
+******************************************************************************/
+
+int fscanf(
+    /** input file */         FILE *stream,
+    /** format string */      const char *fmt,
+    /** variable arguments */ ...
+)
 
 {
 
@@ -2318,19 +3939,27 @@ int fscanf(FILE *stream, const char *fmt, ...)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: scanf
+Function scanf
 
-SHORT DESCRIPTION:
+Description
 
-DETAILED DESCRIPTION:
+DETAILED DESCRIPTION:.
 
 BUGS/ISSUES:
 
-*******************************************************************************/
+\returns
 
-int scanf(const char *fmt, ...)
+The number of items matched and assigned, or EOF on input failure before any
+conversion.
+
+******************************************************************************/
+
+int scanf(
+    /** format string */      const char *fmt,
+    /** variable arguments */ ...
+)
 
 {
 
@@ -2345,66 +3974,60 @@ int scanf(const char *fmt, ...)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fgetc
+Function fgetc
 
-SHORT DESCRIPTION: Gets a single character from a stream
+Description
 
-DETAILED DESCRIPTION:
+Gets a single character from a stream.
 
 The next character in a stream is returned, or EOF if end of file or error is
 encountered. In case of error, errno must be used to determine the exact
 type of error.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The next character, or EOF at end of file or on error.
 
-int fgetc(FILE *stream)
+******************************************************************************/
+
+int fgetc(
+    /** file to read */ FILE *stream
+)
 
 {
 
-    unsigned char b; /* byte buffer */
-    int rc;          /* read count */
-    int c;           /* character buffer */
+    if (!stream || stream->_fileno < 0) return EOF; /* check stream is open */
 
-    if (!stream || stream->fid < 0) return EOF; /* check stream is open */
-    if (stream->pback != EOF) { /* there is a pushback character */
-
-        c = stream->pback; /* get the buffered character */
-        stream->pback = EOF; /* clear the buffer */
-        return (c); /* return character */
-
-    } else { /* standard read */
-
-        rc = vread(stream->fid, &b, 1); /* read one byte */
-        if (!rc) stream->flags |= _EFEOF; /* set end of file if true */
-        if (rc != 1) return EOF; /* return EOF or other error */
-        else return (b); /* return character */
-
-    }
+    return (getbuf(stream)); /* read through the buffer (serves pushback too) */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fgets
+Function fgets
 
-SHORT DESCRIPTION: Get line from file with limit
+Description
 
-DETAILED DESCRIPTION:
+Get line from file with limit.
 
 Gets a line of text from the text file, with limit. Characters are read from the
 input file to the array until the limit is reached, or a newline is encountered,
 or EOF is encountered. If a newline is encountered, it is read and discarded.
 Note that EOF can also signify an error.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The string buffer, or NULL at end of file with no characters read.
 
-char *fgets(char *s, int n, FILE *stream)
+******************************************************************************/
+
+char *fgets(
+    /** destination buffer */                    char *s,
+    /** maximum characters including the null */ int n,
+    /** file to read */                          FILE *stream
+)
 
 {
 
@@ -2412,7 +4035,7 @@ char *fgets(char *s, int n, FILE *stream)
     char *s1; /* input array holder */
     int cc;   /* character count */
 
-    if (!stream || stream->fid < 0) return (NULL);
+    if (!stream || stream->_fileno < 0) return (NULL);
     s1 = s; /* save array to return */
     cc = 0; /* clear character count */
     do { /* read characters */
@@ -2436,52 +4059,57 @@ char *fgets(char *s, int n, FILE *stream)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fputc
+Function fputc
 
-SHORT DESCRIPTION: Output character to file
+Description
 
-DETAILED DESCRIPTION:
+Output character to file.
 
-Outputs a single character to a file. Returns EOF if there is an error.
+Outputs a single character to a file. 
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns EOF if there is an error.
 
-int fputc(int c, FILE *stream)
+******************************************************************************/
+
+int fputc(
+    /** character to write */ int c,
+    /** file to write */      FILE *stream
+)
 
 {
 
-    unsigned char b; /* byte buffer */
-    int wc;          /* write count */
-
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (EOF);
-    b = c; /* place character value in buffer */
-    wc = vwrite(stream->fid, &b, 1); /* write one byte */
-    if (wc != 1) return (EOF); /* return EOF for error */
-    else return (c); /* return character written */
+    if (!stream || stream->_fileno < 0) return (EOF);
+
+    return (putbuf(stream, (unsigned char)c)); /* write through the buffer */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fputs
+Function fputs
 
-SHORT DESCRIPTION: Output string to file
+Description
 
-DETAILED DESCRIPTION:
+Output string to file.
 
 Outputs a string to a file. Note that a newline is NOT automatically output for
 the string.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Zero on success, or EOF on error.
 
-int fputs(const char *s, FILE *stream)
+******************************************************************************/
+
+int fputs(
+    /** string to write */ const char *s,
+    /** file to write */   FILE *stream
+)
 
 {
 
@@ -2497,13 +4125,13 @@ int fputs(const char *s, FILE *stream)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: getc
+Function getc
 
-SHORT DESCRIPTION: Gets a single character from a stream
+Description
 
-DETAILED DESCRIPTION:
+Gets a single character from a stream.
 
 The next character in a stream is returned, or EOF if end of file or error is
 encountered. In case of error, errno must be used to determine the exact
@@ -2512,13 +4140,17 @@ type of error.
 This routine is identical to fgetc. It isn't a macro, as most modern compilers
 have automatic inlining of functions.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The next character, or EOF at end of file or on error.
+
+******************************************************************************/
 
 #ifndef USEMACRO
 
-int getc(FILE *stream)
+int getc(
+    /** file to read */ FILE *stream
+)
 
 {
 
@@ -2528,20 +4160,22 @@ int getc(FILE *stream)
 
 #endif
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: getchar
+Function getchar
 
-SHORT DESCRIPTION: Get single character from standard input
+Description
 
-DETAILED DESCRIPTION:
+Get single character from standard input.
 
 Gets a single character from the standard input. Equivalent to getc(stdin).
 It isn't a macro, because most modern compilers can perform automatic inlining.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The next character from standard input, or EOF at end of file or on error.
+
+******************************************************************************/
 
 int getchar(void)
 
@@ -2551,23 +4185,27 @@ int getchar(void)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: gets
+Function gets
 
-SHORT DESCRIPTION: Get input line from standard input
+Description
 
-DETAILED DESCRIPTION:
+Get input line from standard input.
 
 Gets a full line of text from the standard input into the given array. The
 terminating newline is read and discarded. If EOF is encountered in the file,
 the line is terminated immediately. Note that EOF can also signify an error.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The string buffer, or NULL at end of file with no characters read.
 
-char *gets(char *s)
+******************************************************************************/
+
+char *gets(
+    /** destination buffer */ char *s
+)
 
 {
 
@@ -2594,22 +4232,27 @@ char *gets(char *s)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: putc
+Function putc
 
-SHORT DESCRIPTION: Put a single character to a file
+Description
 
-DETAILED DESCRIPTION:
+Put a single character to a file.
 
 Puts a single character to the given file. It isn't a macro, because most modern
 compilers can perform automatic inlining.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The character written, or EOF on error.
 
-int putc(int c, FILE *stream)
+******************************************************************************/
+
+int putc(
+    /** character to write */ int c,
+    /** file to write */      FILE *stream
+)
 
 {
 
@@ -2617,22 +4260,26 @@ int putc(int c, FILE *stream)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: putchar
+Function putchar
 
-SHORT DESCRIPTION: Output character to standard output
+Description
 
-DETAILED DESCRIPTION:
+Output character to standard output.
 
 Outputs a single character to the standard output. It isn't a macro, because
 most modern compilers can perform automatic inlining.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The character written, or EOF on error.
 
-int putchar(int c)
+******************************************************************************/
+
+int putchar(
+    /** character to write */ int c
+)
 
 {
 
@@ -2640,21 +4287,25 @@ int putchar(int c)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: puts
+Function puts
 
-SHORT DESCRIPTION: Output string to standard output
+Description
 
-DETAILED DESCRIPTION:
+Output string to standard output.
 
 Outputs a string to the standard output.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+A non-negative value on success, or EOF on error.
 
-int puts(const char *s)
+******************************************************************************/
+
+int puts(
+    /** string to write */ const char *s
+)
 
 {
 
@@ -2666,96 +4317,281 @@ int puts(const char *s)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: ungetc
+Function ungetc
 
-SHORT DESCRIPTION: Put character back to input
+Description
 
-DETAILED DESCRIPTION:
+Put character back to input.
 
 Places a single character into the putback buffer for the input file.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The character pushed back, or EOF if it could not be pushed back.
 
-int ungetc(int c, FILE *stream)
+******************************************************************************/
+
+int ungetc(
+    /** character to push back */ int c,
+    /** file to push back to */   FILE *stream
+)
 
 {
 
+    char *cell; /* one byte holding area */
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (EOF);
-    stream->pback = c; /* put back single character */
+    if (!stream || stream->_fileno < 0) return (EOF);
+    if (c == EOF) return (EOF); /* cannot push back EOF */
 
-    return (c);
+    /* if currently writing, flush and switch to reading first */
+    if (stream->_flags & _IO_CURRENTLY_PUTTING) {
+
+        if (wflush(stream)) return (EOF);
+        stream->_flags &= ~_IO_CURRENTLY_PUTTING;
+
+    }
+
+    if (stream->_IO_read_ptr && stream->_IO_read_ptr > stream->_IO_read_base) {
+
+        /* there is room in the get area, back the read pointer up in place */
+        stream->_IO_read_ptr--;
+        *stream->_IO_read_ptr = (char)c;
+
+    } else {
+
+        /* empty get area: place the character at the buffer base, or in the one
+           byte shortbuf when the stream is unbuffered */
+        cell = stream->_IO_buf_base ? stream->_IO_buf_base : stream->_shortbuf;
+        cell[0] = (char)c;
+        stream->_IO_read_base = cell; /* get area is the single cell */
+        stream->_IO_read_ptr = cell;
+        stream->_IO_read_end = cell+1;
+
+    }
+    stream->_flags &= ~_IO_EOF_SEEN; /* pushing a character back clears EOF */
+
+    return ((unsigned char)c);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fread
+Function fread
 
-SHORT DESCRIPTION: Read direct from file
+Description
 
-DETAILED DESCRIPTION:
+Read direct from file.
 
 Reads a number of objects from the given file. The number and size of the
 objects are specified.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of complete objects read.
 
-size_t fread(void *ptr, size_t size, size_t nobj, FILE *stream)
+******************************************************************************/
+
+size_t fread(
+    /** destination buffer */  void *ptr,
+    /** size of each object */ size_t size,
+    /** number of objects */   size_t nobj,
+    /** file to read */        FILE *stream
+)
 
 {
 
-    int r;
+    size_t total; /* total bytes requested */
+    size_t got;   /* total bytes obtained */
+    unsigned char *p; /* output pointer */
+    int    avail; /* bytes available in buffer */
+    int    take;  /* bytes to copy this pass */
+    int    n;     /* read count */
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (0);
-    r = vread(stream->fid, ptr, size*nobj); /* process read */
-    if (!r) stream->flags |= _EFEOF; /* set EOF encountered */
+    if (!stream || stream->_fileno < 0) return (0);
+    if (size == 0 || nobj == 0) return (0); /* nothing to read */
+    if (stream == stdin) fflush(stdout); /* show prompts before blocking */
+    total = size*nobj; /* total bytes wanted */
+    got = 0; /* nothing obtained yet */
+    p = (unsigned char *)ptr; /* set output pointer */
 
-    return r;
+    /* if we were writing, flush and switch to reading */
+    if (stream->_flags & _IO_CURRENTLY_PUTTING) {
+
+        if (wflush(stream)) return (0);
+        stream->_flags &= ~_IO_CURRENTLY_PUTTING;
+
+    }
+
+    /* set up the buffer on first use if buffering is enabled */
+    if (!stream->_IO_buf_base && !(stream->_flags & _IO_UNBUFFERED))
+        bufalloc(stream);
+
+    if (!stream->_IO_buf_base) { /* unbuffered: read directly, but serve any
+                                    pushed back data from the get area first */
+
+        while (got < total && stream->_IO_read_ptr < stream->_IO_read_end)
+            *p++ = (unsigned char)*stream->_IO_read_ptr++, got++;
+        if (got < total) {
+
+            n = vread(stream->_fileno, p, total-got); /* bulk read */
+            if (n > 0) got += n; /* count bytes read */
+            else if (n == 0) stream->_flags |= _IO_EOF_SEEN; /* end of file */
+            else stream->_flags |= _IO_ERR_SEEN; /* error */
+
+        }
+        return (got/size); /* return complete objects */
+
+    }
+
+    while (got < total) { /* until request satisfied */
+
+        avail = stream->_IO_read_end-stream->_IO_read_ptr; /* unread in buffer */
+        if (avail > 0) { /* copy what the get area holds */
+
+            take = total-got; /* bytes still wanted */
+            if (take > avail) take = avail; /* limit to what is available */
+            memcpy(p, stream->_IO_read_ptr, take); /* copy out */
+            stream->_IO_read_ptr += take; p += take; got += take; /* advance */
+
+        } else if (total-got >= (size_t)iobufsize(stream)) {
+
+            /* large remainder: read directly into the caller's buffer */
+            n = vread(stream->_fileno, p, total-got); /* bulk read */
+            if (n <= 0) { /* end of file or error */
+
+                stream->_flags |= (n == 0) ? _IO_EOF_SEEN : _IO_ERR_SEEN;
+                break;
+
+            }
+            p += n; got += n; /* advance */
+
+        } else { /* small remainder: refill the buffer and copy from it */
+
+            n = vread(stream->_fileno, stream->_IO_buf_base, iobufsize(stream));
+            if (n <= 0) { /* end of file or error */
+
+                stream->_flags |= (n == 0) ? _IO_EOF_SEEN : _IO_ERR_SEEN;
+                stream->_IO_read_base = stream->_IO_read_ptr =
+                    stream->_IO_read_end = stream->_IO_buf_base;
+                break;
+
+            }
+            stream->_IO_read_base = stream->_IO_read_ptr = stream->_IO_buf_base;
+            stream->_IO_read_end = stream->_IO_buf_base+n;
+            stream->_IO_write_base = stream->_IO_write_ptr = stream->_IO_buf_base;
+
+        }
+
+    }
+
+    /* return the count of complete objects read, not the byte count */
+    return (got/size);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fwrite
+Function fwrite
 
-SHORT DESCRIPTION: Write direct to file
+Description
 
-DETAILED DESCRIPTION:
+Write direct to file.
 
 Writes a number of objects to the given file. The number and size of the objects
 are specified.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+The number of complete objects written.
 
-size_t fwrite(const void *ptr, size_t size, size_t nobj, FILE *stream)
+******************************************************************************/
+
+size_t fwrite(
+    /** source buffer */       const void *ptr,
+    /** size of each object */ size_t size,
+    /** number of objects */   size_t nobj,
+    /** file to write */       FILE *stream
+)
 
 {
 
-    /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (0);
+    size_t total; /* total bytes to write */
+    size_t done;  /* total bytes written */
+    const unsigned char *p; /* input pointer */
+    int    room;  /* space left in buffer */
+    int    take;  /* bytes to copy this pass */
+    int    n;     /* write count */
 
-    return (vwrite(stream->fid, ptr, size*nobj)); /* process write */
+    /* check file is allocated and open */
+    if (!stream || stream->_fileno < 0) return (0);
+    if (size == 0 || nobj == 0) return (0); /* nothing to write */
+    total = size*nobj; /* total bytes wanted */
+    done = 0; /* nothing written yet */
+    p = (const unsigned char *)ptr; /* set input pointer */
+
+    /* set up the buffer on first use if buffering is enabled */
+    if (!stream->_IO_buf_base && !(stream->_flags & _IO_UNBUFFERED))
+        bufalloc(stream);
+
+    if (!stream->_IO_buf_base) { /* unbuffered: write directly */
+
+        n = vwrite(stream->_fileno, p, total); /* bulk write */
+        if (n <= 0) { stream->_flags |= _IO_ERR_SEEN; return (0); }
+        return (n/size); /* return complete objects */
+
+    }
+
+    /* if we were reading, discard read ahead and switch to writing */
+    if (!(stream->_flags & _IO_CURRENTLY_PUTTING)) {
+
+        rflush(stream); /* discard read ahead, rewind the file */
+        stream->_flags |= _IO_CURRENTLY_PUTTING; /* now writing */
+        stream->_IO_write_base = stream->_IO_write_ptr = stream->_IO_buf_base;
+        stream->_IO_write_end = stream->_IO_buf_end;
+
+    }
+
+    while (done < total) { /* until all written */
+
+        room = stream->_IO_write_end-stream->_IO_write_ptr; /* space in put area */
+        if (room == 0) { /* put area is full, flush it */
+
+            if (wflush(stream)) break; /* write error */
+            room = stream->_IO_write_end-stream->_IO_write_base; /* all free now */
+
+        }
+        take = total-done; /* bytes still to write */
+        if (take > room) take = room; /* limit to put area space */
+        memcpy(stream->_IO_write_ptr, p, take); /* copy into the put area */
+        stream->_IO_write_ptr += take; p += take; done += take; /* advance */
+        /* flush a full put area, or at a newline if line buffered */
+        if (stream->_IO_write_ptr >= stream->_IO_write_end ||
+            ((stream->_flags & _IO_LINE_BUF) &&
+             memchr(stream->_IO_write_base, '\n',
+                    stream->_IO_write_ptr-stream->_IO_write_base))) {
+
+            if (wflush(stream)) break; /* write error */
+
+        }
+
+    }
+
+    /* return the count of complete objects written */
+    return (done/size);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fseek
+Function fseek
 
-SHORT DESCRIPTION: Seek to position in file
+Description
 
-DETAILED DESCRIPTION:
+Seek to position in file.
 
 Seeks to a given position in the indicated file. The seek modes, indicated by
 the origin are:
@@ -2766,64 +4602,103 @@ SEEK_END    Seek relative to end of file
 
 The offset is a signed offset for the relative position in the file.
 
+\returns
+
 Return non-zero on error, otherwise zero.
 
-BUGS/ISSUES:
+******************************************************************************/
 
-*******************************************************************************/
-
-int fseek(FILE *stream, long offset, int origin)
-
-{
-
-    /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (0);
-    stream->flags &= ~_EFEOF; /* reset any EOF indication */
-
-    return (!(vlseek(stream->fid, offset, origin) < 0)); /* process seek */
-
-}
-
-/*******************************************************************************
-
-FUNCTION NAME: ftell
-
-SHORT DESCRIPTION: Give current position in file
-
-DETAILED DESCRIPTION:
-
-Returns the current position in a file. Returns -1l for error.
-
-BUGS/ISSUES:
-
-*******************************************************************************/
-
-long ftell(FILE *stream)
+int fseek(
+    /** file to position */                             FILE *stream,
+    /** new offset */                                   long offset,
+    /** seek origin (SEEK_SET, SEEK_CUR or SEEK_END) */ int origin
+)
 
 {
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (0);
+    if (!stream || stream->_fileno < 0) return (EOF);
 
-    return (vlseek(stream->fid, 0, SEEK_CUR)); /* process seek */
+    /* deal with the buffer before moving the file position */
+    if (stream->_flags & _IO_CURRENTLY_PUTTING) { /* flush pending output */
+
+        if (wflush(stream)) return (EOF); /* write error */
+        stream->_flags &= ~_IO_CURRENTLY_PUTTING; /* back to idle */
+
+    } else if (origin == SEEK_CUR) {
+
+        /* a relative seek must account for the unconsumed read ahead, since the
+           underlying file position is ahead of the logical position */
+        offset -= stream->_IO_read_end-stream->_IO_read_ptr;
+
+    }
+    /* discard the get area and clear end of file */
+    stream->_IO_read_base = stream->_IO_read_ptr = stream->_IO_read_end =
+        stream->_IO_buf_base;
+    stream->_flags &= ~_IO_EOF_SEEN; /* reset any EOF indication */
+
+    /* process seek, returning zero on success and non-zero on error */
+    return (vlseek(stream->_fileno, offset, origin) < 0);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: rewind
+Function ftell
 
-SHORT DESCRIPTION: Rewind to file beginning
+Description
 
-DETAILED DESCRIPTION:
+Give the current position in a file.
+
+\returns
+
+The current position in the file, or -1L on error.
+
+******************************************************************************/
+
+long ftell(
+    /** file to query */ FILE *stream
+)
+
+{
+
+    long pos; /* position holder */
+
+    /* check file is allocated and open */
+    if (!stream || stream->_fileno < 0) return (0);
+
+    pos = vlseek(stream->_fileno, 0, SEEK_CUR); /* get underlying position */
+    if (pos < 0) return (-1); /* seek error */
+
+    /* adjust for buffered data the underlying position does not reflect */
+    if (stream->_flags & _IO_CURRENTLY_PUTTING)
+        pos += stream->_IO_write_ptr-stream->_IO_write_base; /* pending output */
+    else
+        pos -= stream->_IO_read_end-stream->_IO_read_ptr; /* unconsumed read ahead */
+
+    return (pos); /* return logical position */
+
+}
+
+/** **************************************************************************
+
+Function rewind
+
+Description
+
+Rewind to file beginning.
 
 Positions the given file to the start.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-void rewind(FILE *stream)
+******************************************************************************/
+
+void rewind(
+    /** file to rewind */ FILE *stream
+)
 
 {
 
@@ -2832,22 +4707,27 @@ void rewind(FILE *stream)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fgetpos
+Function fgetpos
 
-SHORT DESCRIPTION: Get (mark) file position
+Description
 
-DETAILED DESCRIPTION:
+Get (mark) file position.
 
 Gets the current file position into a sized pointer. The current file position
-is placed into the given pointer. Returns non-zero on error, otherwise zero.
+is placed into the given pointer. 
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns non-zero on error, otherwise zero.
 
-int fgetpos(FILE *stream, fpos_t *ptr)
+******************************************************************************/
+
+int fgetpos(
+    /** file to query */                FILE *stream,
+    /** returns the current position */ fpos_t *ptr
+)
 
 {
 
@@ -2857,22 +4737,27 @@ int fgetpos(FILE *stream, fpos_t *ptr)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fsetpos
+Function fsetpos
 
-SHORT DESCRIPTION: Set marked file position
+Description
 
-DETAILED DESCRIPTION:
+Set marked file position.
 
 Sets the current file position from a save marker pointer. Returns non-zero
 on error, otherwise zero.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns non-zero on error, otherwise zero.
 
-int fsetpos(FILE *stream, const fpos_t *ptr)
+******************************************************************************/
+
+int fsetpos(
+    /** file to position */    FILE *stream,
+    /** position to restore */ const fpos_t *ptr
+)
 
 {
 
@@ -2880,98 +4765,115 @@ int fsetpos(FILE *stream, const fpos_t *ptr)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: clearerr
+Function clearerr
 
-SHORT DESCRIPTION: Clear errors on stream
+Description
 
-DETAILED DESCRIPTION:
+Clear errors on stream.
 
 Clears any outstanding error indication on the given stream.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-void clearerr(FILE *stream)
+******************************************************************************/
+
+void clearerr(
+    /** file to clear */ FILE *stream
+)
 
 {
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return;
-    stream->flags = 0; /* clear all flags */
+    if (!stream || stream->_fileno < 0) return;
+    /* clear only the end of file and error indicators, leaving the mode and
+       buffering flags intact */
+    stream->_flags &= ~(_IO_EOF_SEEN | _IO_ERR_SEEN);
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: feof
+Function feof
 
-SHORT DESCRIPTION: Check end of file
+Description
 
-DETAILED DESCRIPTION:
+Check end of file.
 
 Checks if the end of file condition exists on a file. Returns non-zero if the
 end of file is true for the stream.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+Returns non-zero if the end of file is true for the stream.
 
-int feof(FILE *stream)
+******************************************************************************/
+
+int feof(
+    /** file to test */ FILE *stream
+)
 
 {
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (0);
-    return (!!(stream->flags &_EFEOF)); /* return EOF status */
+    if (!stream || stream->_fileno < 0) return (0);
+    return (!!(stream->_flags &_EFEOF)); /* return EOF status */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: ferror
+Function ferror
 
-SHORT DESCRIPTION: Check file has error
+Description
 
-DETAILED DESCRIPTION:
+Check file has error.
 
 Checks if the given stream is indicating an error. Returns non-zero if an
-error is pending on the file, otherwise zero.
+error is pending on the file, otherwise zero. The error indication is set when a
+read or write through the buffering engine fails, and is cleared by clearerr().
 
-BUGS/ISSUES:
+\returns
 
-1. Currently there are no error indications kept.
+Returns non-zero if an error is pending on the file, otherwise zero.
 
-*******************************************************************************/
+******************************************************************************/
 
-int ferror(FILE *stream)
+int ferror(
+    /** file to test */ FILE *stream
+)
 
 {
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) return (0);
-    return (!!(stream->flags & ~_EFEOF));
+    if (!stream || stream->_fileno < 0) return (0);
+    return (!!(stream->_flags & _IO_ERR_SEEN)); /* return error status */
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: perror
+Function perror
 
-SHORT DESCRIPTION: Print error message
+Description
 
-DETAILED DESCRIPTION:
+Print error message.
 
 Prints the given string as an error message, along with the error string for
 the current errno value, on the standard error file.
 
-BUGS/ISSUES:
+\returns
 
-*******************************************************************************/
+none
 
-void perror(const char *s)
+******************************************************************************/
+
+void perror(
+    /** message prefix, or NULL for none */ const char *s
+)
 
 {
 
@@ -2979,38 +4881,39 @@ void perror(const char *s)
 
 }
 
-/*******************************************************************************
+/** **************************************************************************
 
-FUNCTION NAME: fileno
+Function fileno
 
-SHORT DESCRIPTION: Return integer descriptor for file
+Description
 
-DETAILED DESCRIPTION:
+Return integer descriptor for file.
 
 Checks if the file is open, and if so returns the integer file id. Otherwise
-returns -1
-Checks if the given stream is indicating an error. Returns non-zero if an
-error is pending on the file, otherwise zero.
+returns -1.
 
-BUGS/ISSUES:
+\returns
 
-1. Currently there are no error indications kept.
+Return integer descriptor for file Checks if the file is open, and if so
+returns the integer file id.
 
-*******************************************************************************/
+******************************************************************************/
 
-int fileno(FILE* stream)
+int fileno(
+    /** file to query */ FILE* stream
+)
 
 {
 
     int r;
 
     /* check file is allocated and open */
-    if (!stream || stream->fid < 0) {
+    if (!stream || stream->_fileno < 0) {
 
         r = -1;
         errno = EBADF;
 
-    } else r = stream->fid;
+    } else r = stream->_fileno;
 
     return (r);
 
@@ -3023,12 +4926,11 @@ stdio shutdown
 Unlike the init, we don't have to worry about shutdown race conditions (or as
 much). We set ourselves for last priority.
 
-The only shutdown task is to attempt to remove any temp files created, which is
-non critical. If there were another program, that opened temp files, left them
-open, and also set it's destructor to 101 (perform last), it's possible to
-cause problems, IE., you would really have to try to make this fail.
-
-You can remove the temp delete if you want to look at your temp files.
+The shutdown task is to flush any buffered output so it is not lost on exit.
+This runs in addition to the atexit flush registered when files are opened, and
+covers programs that only ever write to the standard streams (and so never
+trigger that registration). Temporary files created by tmpfile() clean
+themselves up, since they are unlinked when opened.
 
 *******************************************************************************/
 
@@ -3037,8 +4939,6 @@ static void deinit_stdio()
 
 {
 
-    int i;
-
-    for (i = 0; i < tmpnamc; i++) remove(tmpstr[i]);
+    fflush((FILE *)NULL); /* flush all buffered output streams */
 
 }

@@ -1130,6 +1130,10 @@ static void intkillwidget(
     /* if there is a subwidget, kill that as well */
     if (wp->cw) ami_killwidget(wp->cw->pw->wf, wp->cw->id);
     if (wp->cw2) ami_killwidget(wp->cw2->pw->wf, wp->cw2->id);
+    xltwig[wp->wid+MAXFIL] = NULL; /* clear the window-to-widget tracking
+                                      entry, or a window id reused after this
+                                      widget is freed would dispatch events to
+                                      the freed entry */
     fclose(wp->wf); /* close the window file */
     opnfil[fn]->widgets[wid+MAXWIG] = NULL; /* clear widget slot  */
     putwig(wp); /* release widget data */
@@ -1753,7 +1757,10 @@ static void scrollvert_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        scrollvert_draw(wg);
+        /* only repaint while actually dragging the thumb; a plain hover does
+           not change the bar's appearance, and repainting the (unbuffered)
+           widget on every motion event causes flashing and sluggishness */
+        if (wg->pressed) scrollvert_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -1892,7 +1899,8 @@ static void scrollhoriz_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        scrollhoriz_draw(wg);
+        /* only repaint while actually dragging the thumb (see scrollvert) */
+        if (wg->pressed) scrollhoriz_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -2541,6 +2549,51 @@ Handles drawing list boxes.
 
 *******************************************************************************/
 
+/* Paint a single list line (1-based index idx, string sp, top at y): hover-grey
+   background when it is the hovered line, list-white otherwise, then the text.
+   The fill is inset horizontally so the rounded outline is never overpainted --
+   that lets the motion handler repaint just the line that gains or loses the
+   hover highlight instead of redrawing (and re-rendering) the whole list. */
+static void listbox_line(wigptr wg, ami_strptr sp, int idx, int y)
+
+{
+
+    if (wg->hover && idx == wg->ss)
+        fcolort(wg->wf, th_lsthov); /* hover background */
+    else ami_fcolor(wg->wf, ami_white); /* normal background */
+    ami_frect(wg->wf, 4, y, ami_maxxg(wg->wf)-3, y+ami_chrsizy(wg->wf)-1);
+    ami_fcolor(wg->wf, ami_black);
+    ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, y);
+    fprintf(wg->wf, "%s", sp->str); /* place string */
+
+}
+
+/* Repaint just the line at 1-based index idx (used to move the hover highlight
+   without a full-list redraw). Out-of-range indices (including 0 = none) are a
+   no-op. */
+static void listbox_line_idx(wigptr wg, int idx)
+
+{
+
+    ami_strptr sp;
+    int       y;
+    int       sc;
+
+    if (idx < 1) return; /* nothing to paint */
+    sp = wg->strlst; /* index top of stringlist */
+    y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
+    sc = 1; /* set first string */
+    while (sp && sc < idx) { /* walk to the target line */
+
+        y += ami_chrsizy(wg->wf); /* next line */
+        sp = sp->next; /* next string */
+        sc++; /* next select */
+
+    }
+    if (sp) listbox_line(wg, sp, idx, y); /* in range: paint it */
+
+}
+
 static void listbox_draw(
     /** Widget data pointer */ wigptr wg
 )
@@ -2560,20 +2613,10 @@ static void listbox_draw(
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 10, 10);
     sp = wg->strlst; /* index top of stringlist */
     y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
-    ami_fcolor(wg->wf, ami_black);
     sc = 1; /* set first string */
     while (sp) { /* traverse and paint */
 
-        if (wg->hover && sc == wg->ss) {
-
-            /* draw in hover background */
-            fcolort(wg->wf, th_lsthov); /* set hover background */
-            ami_frect(wg->wf, 1, y, ami_maxxg(wg->wf), y+ami_chrsizy(wg->wf)-1);
-
-        }
-        ami_fcolor(wg->wf, ami_black);
-        ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, y);
-        fprintf(wg->wf, "%s", sp->str); /* place string */
+        listbox_line(wg, sp, sc, y); /* paint this line */
         y += ami_chrsizy(wg->wf); /* next line */
         sp = sp->next; /* next string */
         sc++; /* next select */
@@ -2624,6 +2667,8 @@ static void listbox_event(
 
     } else if (ev->etype == ami_etmoumovg) {
 
+        int oldss = wg->ss; /* remember previously hovered string */
+
         /* track position */
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
@@ -2642,17 +2687,39 @@ static void listbox_event(
             sp = sp->next; /* next string */
 
         }
-        listbox_draw(wg); /* redraw the window */
+        /* only repaint when the highlighted item actually changes, and then
+           repaint just the two affected lines (the one losing the highlight and
+           the one gaining it) rather than re-rendering the whole list -- the
+           list is unbuffered, so a full redraw per motion flashes and lags */
+        if (wg->ss != oldss) {
+
+            listbox_line_idx(wg, oldss);  /* un-highlight the previous line */
+            listbox_line_idx(wg, wg->ss); /* highlight the current line */
+
+        }
 
     } else if (ev->etype == ami_ethover) {
 
-        wg->hover = 1; /* hovered */
-        listbox_draw(wg); /* redraw the window */
+        /* Crossing into a nested window produces several EnterNotify events
+           (NotifyNonlinear/Virtual/Ancestor), and hover only affects the one
+           highlighted line -- so act only on the real 0->1 transition and
+           repaint just that line, never the whole list (which flashed). */
+        if (!wg->hover) {
+
+            wg->hover = 1; /* hovered */
+            listbox_line_idx(wg, wg->ss); /* highlight the hovered line, if any */
+
+        }
 
     } else if (ev->etype == ami_etnohover) {
 
-        wg->hover = 0; /* not hovered */
-        listbox_draw(wg); /* redraw the window */
+        if (wg->hover) {
+
+            wg->hover = 0; /* not hovered */
+            listbox_line_idx(wg, wg->ss); /* un-highlight (now paints normal) */
+            wg->ss = 0; /* forget the line so re-entry starts clean */
+
+        }
 
     }
 
@@ -3069,7 +3136,8 @@ static void slidehoriz_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        slidehoriz_draw(wg);
+        /* only repaint while actually dragging the slider (see scrollvert) */
+        if (wg->pressed) slidehoriz_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -3235,7 +3303,8 @@ static void slidevert_event(
         wg->lmpy = wg->mpy;
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
-        slidevert_draw(wg);
+        /* only repaint while actually dragging the slider (see scrollvert) */
+        if (wg->pressed) slidevert_draw(wg);
         wg->lmpx = wg->mpx; /* now set equal to cancel move */
         wg->lmpy = wg->mpy;
 
@@ -6300,13 +6369,10 @@ static void iquerycolor(
     int           rs, gs, bs; /* colors selected */
     unsigned long rgb; /* packed color selected */
     int           cursel; /* currently selected color widget */
-    int           mpx, mpy; /* mouse position */
-    int           lmpx, lmpy; /* last mouse position */
-    int           pressed; /* mouse button 1 pressed */
+    int           mpy; /* mouse position */
     int           sx, sy; /* screen center */
     int           wpx, wpy; /* window position in parent */
     int           x, y;
-    int           dx, dy;
 
     /* colors for cancel button */
     ccolor cancel_cbc = {
@@ -6461,9 +6527,7 @@ static void iquerycolor(
     ami_selectwidget(out, 2+36, TRUE); /* select the widget */
     cursel = 2+36; /* save selection */
 
-    pressed = FALSE; /* set no mouse button pressed */
-    mpx = 0; /* set no mouse position */
-    mpy = 0;
+    mpy = 0; /* no tracked pointer position yet */
 
     /* start with events */
     do {
@@ -6520,42 +6584,14 @@ static void iquerycolor(
                 break;
 
             case ami_etmoumovg:
-                lmpx = mpx; /* save last mouse position */
-                lmpy = mpy;
-                mpx = er.moupxg; /* save mouse position */
-                mpy = er.moupyg;
-                if (pressed && mpx && mpy && lmpx && lmpy && 
-                    (lmpx != mpx || lmpy != mpy)) {
-
-                    /* mouse button pressed and has moved */
-                    dx = mpx-lmpx; /* find difference */
-                    dy = mpy-lmpy;
-                    x = wpx+dx; /* find potential new position */
-                    y = wpy+dy;
-                    if (x > 0 && y > 0) { /* valid new position */
-
-                        wpx = x; /* set new position */
-                        wpy = y;
-                        ami_setposg(out, wpx, wpy); /* set new position */
-                        /* Need to adjust the mouse relative positions. The 
-                           mouse moves opposite from the window. */
-                        lmpx -= dx;
-                        lmpy -= dy;
-                        mpx -= dx;
-                        mpy -= dy;
-
-                    }
-
-                }
+                mpy = er.moupyg; /* track pointer y for title-bar hit test */
                 break;
 
             case ami_etmouba:
-                if (er.amoubn == 1 && mpy <= titbot)
-                    pressed = TRUE; /* set mouse button assert */
-                break;
-
-            case ami_etmoubd:
-                if (er.dmoubn == 1) pressed = FALSE;
+                /* Press on the title bar: hand the drag to the graphics layer,
+                   which tracks in desktop coordinates with the pointer grabbed
+                   (see the other query dialogs). */
+                if (er.amoubn == 1 && mpy <= titbot) ami_dragwin(out);
                 break;
 
             default: ;
@@ -6733,9 +6769,8 @@ static void qfl_dialog(char* s, int sl, const char* title) {
     wigptr     wp;
     int        chrsz;
     int        titbot;
-    int        mpx, mpy, lmpx, lmpy;
-    int        pressed;
-    int        sx, sy, x, y, wpx, wpy, dx, dy;
+    int        mpy;
+    int        sx, sy, x, y, wpx, wpy;
     int        cancelled;
     char       curdir[4096];
     char       curfile[512];
@@ -6828,8 +6863,7 @@ static void qfl_dialog(char* s, int sl, const char* title) {
                 chrsz*49, titbot+chrsz*20.3, "Cancel",
                 QFL_ID_CANCEL, wtcbutton, &wp);
 
-    pressed = FALSE;
-    mpx = 0; mpy = 0; lmpx = 0; lmpy = 0;
+    mpy = 0;
     cancelled = FALSE;
 
     do {
@@ -6923,27 +6957,17 @@ static void qfl_dialog(char* s, int sl, const char* title) {
                 break;
 
             case ami_etmoumovg:
-                lmpx = mpx; lmpy = mpy;
-                mpx = er.moupxg; mpy = er.moupyg;
-                if (pressed && mpx && mpy && lmpx && lmpy &&
-                    (lmpx != mpx || lmpy != mpy)) {
-                    dx = mpx-lmpx; dy = mpy-lmpy;
-                    x = wpx+dx; y = wpy+dy;
-                    if (x > 0 && y > 0) {
-                        wpx = x; wpy = y;
-                        ami_setposg(out, wpx, wpy);
-                        lmpx -= dx; lmpy -= dy;
-                        mpx  -= dx; mpy  -= dy;
-                    }
-                }
+                mpy = er.moupyg; /* track pointer y for title-bar hit test */
                 break;
 
             case ami_etmouba:
-                if (er.amoubn == 1 && mpy <= titbot) pressed = TRUE;
-                break;
-
-            case ami_etmoubd:
-                if (er.dmoubn == 1) pressed = FALSE;
+                /* Press on the title bar: hand the drag to the graphics layer.
+                   It tracks in desktop coordinates with the pointer grabbed, so
+                   the window follows smoothly even when the pointer outruns it
+                   and leaves the window's bounds -- a window-relative self-drag
+                   cannot, because motion stops being delivered the moment the
+                   pointer is no longer over the dialog. */
+                if (er.amoubn == 1 && mpy <= titbot) ami_dragwin(out);
                 break;
 
             default: ;
@@ -7065,10 +7089,8 @@ static void iqueryfind(
     wigptr     wp;
     int        chrsz;     /* character height in pixels */
     int        titbot;    /* bottom of title bar */
-    int        mpx, mpy;  /* mouse position */
-    int        lmpx, lmpy;
-    int        pressed;
-    int        sx, sy, x, y, wpx, wpy, dx, dy;
+    int        mpy;  /* mouse position */
+    int        sx, sy, x, y, wpx, wpy;
     int        case_on, up_on, re_on; /* checkbox states */
     int        cancelled;
 
@@ -7151,8 +7173,7 @@ static void iqueryfind(
     re_on = !!(*opt & (1 << ami_qfnre));
     if (re_on) ami_selectwidget(out, QFN_ID_RE, TRUE);
 
-    pressed = FALSE;
-    mpx = 0; mpy = 0; lmpx = 0; lmpy = 0;
+    mpy = 0;
     cancelled = FALSE;
 
     /* event loop */
@@ -7211,27 +7232,17 @@ static void iqueryfind(
                 break;
 
             case ami_etmoumovg:
-                lmpx = mpx; lmpy = mpy;
-                mpx = er.moupxg; mpy = er.moupyg;
-                if (pressed && mpx && mpy && lmpx && lmpy &&
-                    (lmpx != mpx || lmpy != mpy)) {
-                    dx = mpx-lmpx; dy = mpy-lmpy;
-                    x = wpx+dx; y = wpy+dy;
-                    if (x > 0 && y > 0) {
-                        wpx = x; wpy = y;
-                        ami_setposg(out, wpx, wpy);
-                        lmpx -= dx; lmpy -= dy;
-                        mpx  -= dx; mpy  -= dy;
-                    }
-                }
+                mpy = er.moupyg; /* track pointer y for title-bar hit test */
                 break;
 
             case ami_etmouba:
-                if (er.amoubn == 1 && mpy <= titbot) pressed = TRUE;
-                break;
-
-            case ami_etmoubd:
-                if (er.dmoubn == 1) pressed = FALSE;
+                /* Press on the title bar: hand the drag to the graphics layer.
+                   It tracks in desktop coordinates with the pointer grabbed, so
+                   the window follows smoothly even when the pointer outruns it
+                   and leaves the window's bounds -- a window-relative self-drag
+                   cannot, because motion stops being delivered the moment the
+                   pointer is no longer over the dialog. */
+                if (er.amoubn == 1 && mpy <= titbot) ami_dragwin(out);
                 break;
 
             default: ;
@@ -7304,9 +7315,8 @@ static void iqueryfindrep(
     wigptr     wp;
     int        chrsz;
     int        titbot;
-    int        mpx, mpy, lmpx, lmpy;
-    int        pressed;
-    int        sx, sy, x, y, wpx, wpy, dx, dy;
+    int        mpy;
+    int        sx, sy, x, y, wpx, wpy;
     int        case_on, up_on, re_on;
     int        cancelled, did_find, did_replall;
 
@@ -7404,8 +7414,7 @@ static void iqueryfindrep(
     re_on = !!(*opt & (1 << ami_qfrre));
     if (re_on) ami_selectwidget(out, QFR_ID_RE, TRUE);
 
-    pressed = FALSE;
-    mpx = 0; mpy = 0; lmpx = 0; lmpy = 0;
+    mpy = 0;
     cancelled = FALSE; did_find = FALSE; did_replall = FALSE;
 
     do {
@@ -7460,27 +7469,17 @@ static void iqueryfindrep(
                 break;
 
             case ami_etmoumovg:
-                lmpx = mpx; lmpy = mpy;
-                mpx = er.moupxg; mpy = er.moupyg;
-                if (pressed && mpx && mpy && lmpx && lmpy &&
-                    (lmpx != mpx || lmpy != mpy)) {
-                    dx = mpx-lmpx; dy = mpy-lmpy;
-                    x = wpx+dx; y = wpy+dy;
-                    if (x > 0 && y > 0) {
-                        wpx = x; wpy = y;
-                        ami_setposg(out, wpx, wpy);
-                        lmpx -= dx; lmpy -= dy;
-                        mpx  -= dx; mpy  -= dy;
-                    }
-                }
+                mpy = er.moupyg; /* track pointer y for title-bar hit test */
                 break;
 
             case ami_etmouba:
-                if (er.amoubn == 1 && mpy <= titbot) pressed = TRUE;
-                break;
-
-            case ami_etmoubd:
-                if (er.dmoubn == 1) pressed = FALSE;
+                /* Press on the title bar: hand the drag to the graphics layer.
+                   It tracks in desktop coordinates with the pointer grabbed, so
+                   the window follows smoothly even when the pointer outruns it
+                   and leaves the window's bounds -- a window-relative self-drag
+                   cannot, because motion stops being delivered the moment the
+                   pointer is no longer over the dialog. */
+                if (er.amoubn == 1 && mpy <= titbot) ami_dragwin(out);
                 break;
 
             default: ;
@@ -7545,9 +7544,8 @@ static void iqueryfont(
     wigptr      wp;
     int         chrsz;
     int         titbot;
-    int         mpx, mpy, lmpx, lmpy;
-    int         pressed;
-    int         sx, sy, x, y, wpx, wpy, dx, dy;
+    int         mpy;
+    int         sx, sy, x, y, wpx, wpy;
     int         cancelled;
     int         strike_on, under_on, bold_on, italic_on;
     int         nfonts, i;
@@ -7672,8 +7670,7 @@ static void iqueryfont(
     widget(out, chrsz*32, titbot+chrsz*2.8,
                 chrsz*41, titbot+chrsz*4.2, "Cancel", 1, wtcbutton, &wp);
 
-    pressed = FALSE;
-    mpx = 0; mpy = 0; lmpx = 0; lmpy = 0;
+    mpy = 0;
     cancelled = FALSE;
 
     do {
@@ -7790,27 +7787,17 @@ static void iqueryfont(
                 break;
 
             case ami_etmoumovg:
-                lmpx = mpx; lmpy = mpy;
-                mpx = er.moupxg; mpy = er.moupyg;
-                if (pressed && mpx && mpy && lmpx && lmpy &&
-                    (lmpx != mpx || lmpy != mpy)) {
-                    dx = mpx-lmpx; dy = mpy-lmpy;
-                    x = wpx+dx; y = wpy+dy;
-                    if (x > 0 && y > 0) {
-                        wpx = x; wpy = y;
-                        ami_setposg(out, wpx, wpy);
-                        lmpx -= dx; lmpy -= dy;
-                        mpx  -= dx; mpy  -= dy;
-                    }
-                }
+                mpy = er.moupyg; /* track pointer y for title-bar hit test */
                 break;
 
             case ami_etmouba:
-                if (er.amoubn == 1 && mpy <= titbot) pressed = TRUE;
-                break;
-
-            case ami_etmoubd:
-                if (er.dmoubn == 1) pressed = FALSE;
+                /* Press on the title bar: hand the drag to the graphics layer.
+                   It tracks in desktop coordinates with the pointer grabbed, so
+                   the window follows smoothly even when the pointer outruns it
+                   and leaves the window's bounds -- a window-relative self-drag
+                   cannot, because motion stops being delivered the moment the
+                   pointer is no longer over the dialog. */
+                if (er.amoubn == 1 && mpy <= titbot) ami_dragwin(out);
                 break;
 
             default: ;

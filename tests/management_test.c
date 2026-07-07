@@ -24,6 +24,15 @@
 #define OFF 0
 #define ON 1
 
+/* Window-size round-trip tolerance. Wayland/XWayland compositors do not honor
+   exact-pixel window sizes -- Mutter adjusts a client's size by a pixel or two
+   for frame/geometry reasons -- so a setsiz/getsiz round trip can differ
+   slightly from what was requested. Allow a small delta instead of demanding
+   exact equality (native X11 WMs granted exact sizes and still pass). */
+#define SIZTOLC 1  /* character-cell tolerance */
+#define SIZTOLG 2  /* pixel tolerance          */
+#define SIZOFF(a, b, tol) (abs((a) - (b)) > (tol))
+
 static jmp_buf terminate_buf;
 static FILE*      win2;
 static FILE*      win3;
@@ -34,6 +43,7 @@ static int        fb;           /* front/back flipper */
 static ami_evtrec  er;
 static ami_menuptr mp;           /* menu pointer */
 static ami_menuptr ml;           /* menu list */
+static int        framenum = 0;
 static ami_menuptr sm;           /* submenu list */
 static int        sred;         /* state variables */
 static int        sgreen;
@@ -72,19 +82,39 @@ static enum { /* debug levels */
                                 __func__, __LINE__, ##__VA_ARGS__); \
                                 fflush(stderr); } while (0)
 
+extern void screen_capture(void);
+
 /* wait return to be pressed, or handle terminate */
 
-static void waitnext(void)
+static void waitnextt(int keeptitle)
 
 {
 
     ami_evtrec er; /* event record */
+    char titlebuf[80];
+
+    framenum++;
+    /* Stamp the frame number into the title bar, unless the caller is testing
+       ami_title itself: keeptitle=TRUE preserves the title under test instead
+       of clobbering it. */
+    if (!keeptitle) {
+
+        sprintf(titlebuf, "management_test: frame %d", framenum);
+        ami_title(stdout, titlebuf);
+
+    }
+
+    screen_capture();
 
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
 }
+
+/* wait return to be pressed, or handle terminate (stamps the frame number) */
+
+static void waitnext(void) { waitnextt(FALSE); }
 
 /* wait return to be pressed, or handle terminate, while printing characters */
 
@@ -314,7 +344,7 @@ int main(void)
     ami_title(stdout, "This is a mangement test window");
     printf("The title bar of this window should read: This is a mangement test window\n");
     prtceng(ami_maxyg(stdout)-ami_chrsizy(stdout), "Window title test");
-    waitnext();
+    waitnextt(TRUE); /* keep the title we just set -- this frame IS the title test */
 
     /* ************************** Multiple windows ************************** */
 
@@ -348,8 +378,9 @@ int main(void)
 
     ox = ami_maxx(stdout);
     oy = ami_maxy(stdout);
-    ami_bcolor(stdout, ami_cyan);
+    ami_bcolor(stdout, ami_white);
     ami_sizbuf(stdout, 50, 50);
+    ami_bcolor(stdout, ami_cyan);
     putchar('\f');
     for (x = 1; x <= ami_maxx(stdout); x++) printf("*");
     ami_cursor(stdout, 1, ami_maxy(stdout));
@@ -371,8 +402,9 @@ int main(void)
     ox = ami_maxxg(stdout);
     oy = ami_maxyg(stdout);
     sqrrat(&xs, &ys, 1.3); /* find square ratio */
-    ami_bcolor(stdout, ami_cyan);
+    ami_bcolor(stdout, ami_white);
     ami_sizbufg(stdout, xs, ys);
+    ami_bcolor(stdout, ami_cyan);
     putchar('\f');
     ami_linewidth(stdout, 20);
     ami_line(stdout, 1, 1, ami_maxxg(stdout), 1);
@@ -396,7 +428,7 @@ int main(void)
 
         ami_setsiz(stdout, x, 25);
         ami_getsiz(stdout, &x2, &y2);
-        if (x2 != x || y2 != 25) {
+        if (SIZOFF(x2, x, SIZTOLC) || SIZOFF(y2, 25, SIZTOLC)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -408,6 +440,7 @@ int main(void)
         };
         putchar('\f');
         printf("Resize screen buffered character\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in x\n");
         waittime(1000);
@@ -420,7 +453,7 @@ int main(void)
 
         ami_setsiz(stdout, 80, y);
         ami_getsiz(stdout, &x2, &y2);
-        if (x2 != 80 || y2 != y) {
+        if (SIZOFF(x2, 80, SIZTOLC) || SIZOFF(y2, y, SIZTOLC)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -433,6 +466,7 @@ int main(void)
         }
         putchar('\f');
         printf("Resize screen buffered character\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in y\n");
         waittime(1000);
@@ -453,7 +487,7 @@ int main(void)
 
         ami_setsizg(stdout, x, ys);
         ami_getsizg(stdout, &x2, &y2);
-        if (x2 != x || y2 != ys) {
+        if (SIZOFF(x2, x, SIZTOLG) || SIZOFF(y2, ys, SIZTOLG)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -466,6 +500,7 @@ int main(void)
         }
         putchar('\f');
         printf("Resize screen buffered graphical\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in x\n");
         waittime(100);
@@ -478,7 +513,7 @@ int main(void)
 
         ami_setsizg(stdout, xs, y);
         ami_getsizg(stdout, &x2, &y2);
-        if (x2 != xs || y2 != y) {
+        if (SIZOFF(x2, xs, SIZTOLG) || SIZOFF(y2, y, SIZTOLG)) {
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
@@ -491,6 +526,7 @@ int main(void)
         }
         putchar('\f');
         printf("Resize screen buffered graphical\n");
+        printf("*** DON'T MOVE THE WINDOW ***\n");
         printf("\n");
         printf("Moving in y\n");
         waittime(100);
@@ -1037,15 +1073,25 @@ int main(void)
     do {
 
         ami_event(stdin, &er);
-        if (er.etype == ami_etredraw || er.etype == ami_etresize) {
+        /* repaint the parent on a main-window (winid 1) redraw or resize */
+        if ((er.etype == ami_etredraw || er.etype == ami_etresize) &&
+            er.winid == 1) {
 
             putchar('\f');
             prtceng(ami_maxyg(stdout)-ami_chrsizy(stdout),
                     "Child windows stacking resize test pixel 1");
             prtceng(1, "move and resize");
-            ami_setsizg(win3, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
-            ami_setsizg(win4, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
-            ami_setsizg(win2, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+            /* re-fit the children only on an actual PARENT RESIZE -- not on a
+               mere redraw. A child's own resize/move makes the unbuffered parent
+               repaint (etredraw, winid 1); refitting there would setsizg the
+               children back to the parent-derived size and revert a manual child
+               resize. Two guards are needed: winid 1 excludes the child's own
+               etresize, and etresize excludes the parent's redraw. */
+            if (er.etype == ami_etresize) {
+                ami_setsizg(win3, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+                ami_setsizg(win4, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+                ami_setsizg(win2, ami_maxxg(stdout)-xs*2, ami_maxyg(stdout)-ys*2);
+            }
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1093,15 +1139,21 @@ int main(void)
     do {
 
         ami_event(stdin, &er);
-        if (er.etype == ami_etredraw  || er.etype == ami_etresize) {
+        /* repaint the parent on a main-window (winid 1) redraw or resize; re-fit
+           children only on an actual parent resize -- see the note in stacking
+           resize test pixel 1 above */
+        if ((er.etype == ami_etredraw  || er.etype == ami_etresize) &&
+            er.winid == 1) {
 
             putchar('\f');
             prtceng(ami_maxyg(stdout)-ami_chrsizy(stdout),
                     "Child windows stacking resize test pixel 2");
             prtceng(1, "move and resize");
-            ami_setsizg(win2, ami_maxxg(stdout)-xs*1*2, ami_maxyg(stdout)-ys*1*2);
-            ami_setsizg(win3, ami_maxxg(stdout)-xs*2*2, ami_maxyg(stdout)-ys*2*2);
-            ami_setsizg(win4, ami_maxxg(stdout)-xs*3*2, ami_maxyg(stdout)-ys*3*2);
+            if (er.etype == ami_etresize) {
+                ami_setsizg(win2, ami_maxxg(stdout)-xs*1*2, ami_maxyg(stdout)-ys*1*2);
+                ami_setsizg(win3, ami_maxxg(stdout)-xs*2*2, ami_maxyg(stdout)-ys*2*2);
+                ami_setsizg(win4, ami_maxxg(stdout)-xs*3*2, ami_maxyg(stdout)-ys*3*2);
+            }
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);

@@ -74,6 +74,8 @@
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <X11/cursorfont.h>
+#include <X11/extensions/shape.h>
 
 /* whitebook definitions */
 #include <stdlib.h>
@@ -116,13 +118,16 @@ extern char *program_invocation_short_name;
 #endif
 
 /* forward declarations for FreeType helper functions */
-static void ft_draw_char(Drawable d, GC gc, FT_Face face, int pixel_size,
+static void ft_draw_char(Drawable d, GC gc, FT_Face face,
+                         int pixel_size_x, int pixel_size_y,
                          int x, int y, char c);
-static void ft_draw_string(Drawable d, GC gc, FT_Face face, int pixel_size,
+static void ft_draw_string(Drawable d, GC gc, FT_Face face,
+                           int pixel_size_x, int pixel_size_y,
                            int x, int y, char* s, int len);
 static int  ft_text_width(FT_Face face, const char* s, int len);
 static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
-                                 int pixel_size, float angle_rad,
+                                 int pixel_size_x, int pixel_size_y,
+                                 float angle_rad,
                                  int x, int y, char c);
 static void ft_cache_clear(void);
 static void ft_invalidate_face(FT_Face face);
@@ -174,10 +179,41 @@ static enum { /* debug levels */
 #define MAXTAB 50  /* total number of tabs possible per screen */
 #define MAXPIC 50  /* total number of loadable pictures */
 #define MAXLIN 250 /* maximum length of input bufferred line */
-#define MAXFIL 100 /* maximum open files */
+#define MAXFIL 1000 /* maximum open files */
 #define MINJST 1   /* minimum pixels for space in justification */
 #define MAXFNM 250 /* number of filename characters in buffer */
 #define MAXJOY 10  /* number of joysticks possible */
+
+/* child frame dimensions (Ami-drawn frames for child windows).
+   Title bar height is based on the window's font line height so it scales
+   with text size; border and button sizes are proportional to title bar. */
+#define CFRM_TITBAR_H(win)  ((int)((win)->linespace * 2.2))
+#define CFRM_BORDER_W       4  /* resize border width in pixels */
+#define CFRM_CORNER         16 /* corner resize grab length in pixels: near a
+                                  corner the edge band widens to this so the
+                                  diagonal resize is not a tiny CFRM_BORDER_W
+                                  square that is nearly impossible to hit */
+#define CFRM_BUTTON_SZ(win) ((int)((win)->linespace * 1.1))
+#define CFRM_BUTTON_GAP     6  /* gap between buttons */
+#define CFRM_BUTTON_MG      8  /* button margin from edge */
+#define CFRM_TITLE_SZ(win)  ((int)((win)->gfhigh * 1.15))
+#define CFRM_MIN_W          200 /* width of a minimized child window */
+
+/* Logical → physical viewport transform. Petit-Ami primitives shift their
+   1-based logical coordinates by -1 before calling into X11; the transform
+   is applied after that shift so operation is entirely in 0-based space.
+   At scale 1.0 with zero offset the transform is a no-op. */
+#define L2PX(w, v)  ((int)((v) * (w)->vsx) + (w)->goffx)
+#define L2PY(w, v)  ((int)((v) * (w)->vsy) + (w)->goffy)
+#define L2PW(w, n)  ((int)((n) * (w)->vsx))
+#define L2PH(w, n)  ((int)((n) * (w)->vsy))
+/* deltas (no offset) used by scroll helpers */
+#define L2PDX(w, v) ((int)((v) * (w)->vsx))
+#define L2PDY(w, v) ((int)((v) * (w)->vsy))
+/* inverse: physical → logical, for mouse coordinate helpers */
+#define P2LX(w, v)  ((int)(((v) - (w)->goffx) / (w)->vsx))
+#define P2LY(w, v)  ((int)(((v) - (w)->goffy) / (w)->vsy))
+
 #define MAXSID 100 /* number of possible logical system events */
 /* extra space to add in x/y for initial window */
 #ifdef __MACH__ /* Mac OS X */
@@ -263,6 +299,13 @@ static enum { /* debug levels */
 #define MWM_HINTS_INPUT_MODE    (1L << 2)
 #define MWM_HINTS_STATUS        (1L << 3)
 
+#define MWM_FUNC_ALL            (1L << 0)
+#define MWM_FUNC_RESIZE         (1L << 1)
+#define MWM_FUNC_MOVE           (1L << 2)
+#define MWM_FUNC_MINIMIZE       (1L << 3)
+#define MWM_FUNC_MAXIMIZE       (1L << 4)
+#define MWM_FUNC_CLOSE          (1L << 5)
+
 #define MWM_DECOR_ALL           (1L << 0)
 #define MWM_DECOR_BORDER        (1L << 1)
 #define MWM_DECOR_RESIZEH       (1L << 2)
@@ -284,6 +327,8 @@ typedef off_t (*plseek_t)(int, off_t, int);
  */
 typedef void (*ami_viewoffg_t)(FILE* f, int x, int y);
 typedef void (*ami_viewscale_t)(FILE* f, float x, float y);
+typedef int  (*ami_scalex_t)(FILE* f, int x);
+typedef int  (*ami_scaley_t)(FILE* f, int y);
 
 /* system override calls */
 
@@ -416,6 +461,7 @@ typedef struct scncon { /* screen context */
 
     /* fields used by graph module */
     int     lwidth;      /* width of lines */
+    ami_lstyle lstyle;   /* style of lines */
     /* note that the pixel and character dimensions and positions are kept
       in parallel for both characters and pixels */
     int     maxx;        /* maximum characters in x */
@@ -500,15 +546,21 @@ typedef struct winrec {
     int          gbcrgb;            /* background color in rgb */
     int          gcurv;             /* state of cursor visible */
     fontptr      gcfont;            /* current font select */
-    int          gfhigh;            /* current font height */
+    int          gfhigh;            /* physical em-square pixel size y (FreeType) */
+    int          gfhighx;           /* physical em-square pixel size x (asymmetric) */
+    int          gfhigh_log;        /* logical em-square pixel size y (unscaled) */
+    int          gfcellh;           /* target character cell height (pixels) */
+    float        gfpoint;           /* current font point size */
     int          mischrx;           /* missing font character x */
     int          mischry;           /* missing font character y */
     int          misoffx;           /* missing font offset x */
     int          misoffy;           /* missing font offset y */
     mode         gfmod;             /* foreground mix mode */
     mode         gbmod;             /* background mix mode */
-    int          goffx;             /* viewport offset x */
-    int          goffy;             /* viewport offset y */
+    int          goffx;             /* viewport offset x (physical pixels) */
+    int          goffy;             /* viewport offset y (physical pixels) */
+    float        vsx;                /* viewport scale x (default 1.0) */
+    float        vsy;                /* viewport scale y (default 1.0) */
     int          gwextx;            /* window extent x */
     int          gwexty;            /* window extent y */
     int          gvextx;            /* viewpor extent x */
@@ -587,6 +639,14 @@ typedef struct winrec {
                                        origin x */
     int          cwoy;              /* client window offset from parent
                                        origin y */
+    int          childfrm;          /* TRUE if using Ami-drawn child frame */
+    char*        wintitle;          /* window title string (for child frames) */
+    GC           frmgc;             /* GC for drawing on xmwhan (child frame) */
+    int          minimized;         /* TRUE if child frame is minimized */
+    int          minslot;           /* slot index when minimized (for x pos) */
+    xrect        savxmwr;           /* xmwr before minimize, for restore */
+    int          savgmaxxg;         /* gmaxxg before minimize */
+    int          savgmaxyg;         /* gmaxyg before minimize */
 
 } winrec;
 
@@ -934,6 +994,7 @@ static ami_curxg_t           curxg_vect;
 static ami_curyg_t           curyg_vect;
 static ami_line_t            line_vect;
 static ami_linewidth_t       linewidth_vect;
+static ami_linestyle_t       linestyle_vect;
 static ami_rect_t            rect_vect;
 static ami_frect_t           frect_vect;
 static ami_rrect_t           rrect_vect;
@@ -963,6 +1024,8 @@ static ami_fonts_t           fonts_vect;
 static ami_font_t            font_vect;
 static ami_fontnam_t         fontnam_vect;
 static ami_fontsiz_t         fontsiz_vect;
+static ami_setpoints_t        setpoints_vect;
+static ami_points_t        points_vect;
 static ami_chrspcy_t         chrspcy_vect;
 static ami_chrspcx_t         chrspcx_vect;
 static ami_dpmx_t            dpmx_vect;
@@ -991,6 +1054,8 @@ static ami_picture_t         picture_vect;
 static ami_delpict_t         delpict_vect;
 static ami_viewoffg_t        viewoffg_vect;
 static ami_viewscale_t       viewscale_vect;
+static ami_scalex_t          scalex_vect;
+static ami_scaley_t          scaley_vect;
 static ami_scrollg_t         scrollg_vect;
 static ami_path_t            path_vect;
 static ami_title_t           title_vect;
@@ -1125,6 +1190,17 @@ static pthread_mutex_t xwlock; /* XWindow call lock */
  */
 static Display*   padisplay;      /* current display */
 static int        pascreen;       /* current screen */
+
+/* cursors used by child-frame edge resize feedback (created lazily) */
+static Cursor cfrm_cursor_left     = 0;
+static Cursor cfrm_cursor_right    = 0;
+static Cursor cfrm_cursor_top      = 0;
+static Cursor cfrm_cursor_bottom   = 0;
+static Cursor cfrm_cursor_btmleft  = 0;
+static Cursor cfrm_cursor_btmright = 0;
+static Cursor cfrm_cursor_topleft  = 0;
+static Cursor cfrm_cursor_topright = 0;
+static Cursor cfrm_cursor_arrow    = 0;
 static int        ctrll, ctrlr;   /* control key active */
 static int        shiftl, shiftr; /* shift key active */
 static int        altl, altr;     /* alt key active */
@@ -1330,7 +1406,7 @@ static int errdlg(
             /* set text color */
             XSetForeground(padisplay, cxt, 0x000000);
             /* center text on circle to the right */
-            ft_draw_string(w, cxt, dlg_face, dlg_size,
+            ft_draw_string(w, cxt, dlg_face, dlg_size, dlg_size,
                            NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC,
                            NEGCIRCLESPC+NEGCIRCLE/2, s, strlen(s));
             /* place close button */
@@ -1338,7 +1414,7 @@ static int errdlg(
             XFillRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
             XSetForeground(padisplay, cxt, 0x000000);
             XDrawRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
-            ft_draw_string(w, cxt, dlg_face, dlg_size,
+            ft_draw_string(w, cxt, dlg_face, dlg_size, dlg_size,
                            ww-cw-20+15, 155, cb, strlen(cb));
             XWUNLOCK();
 
@@ -2041,6 +2117,89 @@ void prtwintre(winptr wp)
 
 /** ****************************************************************************
 
+Request the window manager to (re)activate a window
+
+Changing _MOTIF_WM_HINTS makes Mutter (GNOME's compositor) drop the window's
+input focus -- it lands on whatever sits underneath, e.g. the terminal that
+launched us. (Note Mutter also ignores the decoration change itself once the
+window is mapped, but the focus loss still happens.) After such a change we ask
+the WM to focus/raise our window again via the EWMH
+_NET_ACTIVE_WINDOW client message. The WM applies it in order with the
+decoration change, so it is race-free (unlike a bare XSetInputFocus). No-op on
+window managers that don't advertise the atom.
+
+*******************************************************************************/
+
+/* Window pending a focus retry after a decoration change. Turning decorations
+   back on makes Mutter re-decorate, which drops our input focus; the recovery
+   only sticks once that has settled, i.e. when the resulting FocusOut arrives.
+   wmactivate() arms this; the FocusOut handler fires the retry. */
+static Window refocuswin = 0;
+
+static void wmactivate(Window w, int arm)
+
+{
+
+    XEvent ev;
+    Atom   naw;
+
+    XWLOCK();
+    naw = XInternAtom(padisplay, "_NET_ACTIVE_WINDOW", True);
+    if (naw != None) {
+
+        ev.xclient.type = ClientMessage;
+        ev.xclient.serial = 0;
+        ev.xclient.send_event = True;
+        ev.xclient.display = padisplay;
+        ev.xclient.window = w;
+        ev.xclient.message_type = naw;
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = 1; /* source indication: application */
+        ev.xclient.data.l[1] = CurrentTime;
+        ev.xclient.data.l[2] = 0;
+        ev.xclient.data.l[3] = 0;
+        ev.xclient.data.l[4] = 0;
+        XSendEvent(padisplay, DefaultRootWindow(padisplay), False,
+                   SubstructureRedirectMask|SubstructureNotifyMask, &ev);
+        XFlush(padisplay);
+
+    }
+    /* Raise the window too. Turning decorations back on can also drop it in the
+       stacking order (seen at the size-bars-on frame). _NET_ACTIVE_WINDOW is
+       supposed to raise, but it races the re-decoration and may lose, so raise
+       explicitly. */
+    XRaiseWindow(padisplay, w);
+    XFlush(padisplay);
+    /* Also set the input focus directly. The _NET_ACTIVE_WINDOW request can
+       lose a race with the focus change Mutter makes when the decoration hints
+       change; a direct XSetInputFocus is applied immediately by the server.
+       Only focus a viewable window -- XSetInputFocus BadMatches otherwise. */
+    {
+
+        XWindowAttributes wa;
+
+        if (XGetWindowAttributes(padisplay, w, &wa) &&
+            wa.map_state == IsViewable) {
+
+            XSetInputFocus(padisplay, w, RevertToParent, CurrentTime);
+            XFlush(padisplay);
+
+        }
+
+    }
+    XWUNLOCK();
+
+    /* Arm a reactive retry: the immediate attempt above races Mutter's
+       re-decoration and usually loses, so also re-activate when the window
+       actually loses focus (see the FocusOut handler). Only arm when the caller
+       expects a drop (turning decorations on), so we never steal focus back on
+       a later, legitimate focus change. */
+    if (arm) refocuswin = w;
+
+}
+
+/** ****************************************************************************
+
 Enable or disable window frame
 
 Turns the window frame on and off. Expects the Xwindow handle, and an on/off
@@ -2064,6 +2223,10 @@ void enbxfrm(Window xwh, int e)
                     32, PropModeReplace, (unsigned char *)&hints, 5);
     XWUNLOCK();
 
+    /* Mutter drops input focus when the decoration hints change; ask it to
+       return focus to us so it doesn't strand on the launching terminal. */
+    wmactivate(xwh, e);
+
 }
 
 /** ****************************************************************************
@@ -2085,16 +2248,57 @@ void enbxsiz(Window xwh, int e)
 
     Atom mwmHintsProperty;
     mwmhints hints;
+    XSizeHints sh;
 
     XWLOCK();
+
+    /* set motif hints to control decoration and function */
     mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS;
-    if (e) hints.decorations = MWM_DECOR_ALL;
-    else hints.decorations = MWM_DECOR_TITLE|MWM_DECOR_MENU|MWM_DECOR_MINIMIZE|
-                             MWM_DECOR_MAXIMIZE;
+    hints.flags = MWM_HINTS_DECORATIONS | MWM_HINTS_FUNCTIONS;
+    if (e) {
+
+        hints.decorations = MWM_DECOR_ALL;
+        hints.functions = MWM_FUNC_ALL;
+
+    } else {
+
+        hints.decorations = MWM_DECOR_TITLE|MWM_DECOR_MENU|MWM_DECOR_MINIMIZE|
+                            MWM_DECOR_MAXIMIZE;
+        hints.functions = MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE|MWM_FUNC_MAXIMIZE|
+                          MWM_FUNC_CLOSE;
+
+    }
     XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
                     32, PropModeReplace, (unsigned char *)&hints, 5);
+
+    /* constrain size via WM_NORMAL_HINTS: setting min == max prevents resize
+       on WMs that ignore _MOTIF_WM_HINTS functions */
+    if (!e) {
+
+        XWindowAttributes a;
+        XGetWindowAttributes(padisplay, xwh, &a);
+        sh.flags = PMinSize | PMaxSize;
+        sh.min_width = a.width;
+        sh.min_height = a.height;
+        sh.max_width = a.width;
+        sh.max_height = a.height;
+        XSetWMNormalHints(padisplay, xwh, &sh);
+
+    } else {
+
+        sh.flags = PMinSize | PMaxSize;
+        sh.min_width = 1;
+        sh.min_height = 1;
+        sh.max_width = 32767;
+        sh.max_height = 32767;
+        XSetWMNormalHints(padisplay, xwh, &sh);
+
+    }
+
     XWUNLOCK();
+
+    /* re-focus: Mutter drops focus when the decoration hints change */
+    wmactivate(xwh, e);
 
 }
 
@@ -2122,6 +2326,9 @@ void enbxsys(Window xwh, int e)
     XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
                     32, PropModeReplace, (unsigned char *)&hints, 5);
     XWUNLOCK();
+
+    /* re-focus: Mutter drops focus when the decoration hints change */
+    wmactivate(xwh, e);
 
 }
 
@@ -2636,6 +2843,31 @@ void stdfont(void)
 
 /*******************************************************************************
 
+Append trimmed lowercase string
+
+Copies a source string onto the build pointer, lowercased, with any leading and
+trailing whitespace removed. Used to assemble font names so that no stray spaces
+appear at the start or end of a component. Returns the advanced build pointer.
+
+*******************************************************************************/
+
+static char* apptrim(char* dp, const char* s)
+
+{
+
+    const char* e; /* end of trimmed source */
+
+    while (*s && isspace((unsigned char)*s)) s++; /* skip leading whitespace */
+    e = s+strlen(s); /* find end of source */
+    while (e > s && isspace((unsigned char)e[-1])) e--; /* trim trailing space */
+    while (s < e) *dp++ = tolower((unsigned char)*s++); /* copy lowercased */
+
+    return (dp); /* return advanced pointer */
+
+}
+
+/*******************************************************************************
+
 Load fonts list
 
 Loads the font list using fontconfig. We only load scalable fonts, since PA has
@@ -2662,13 +2894,14 @@ void getfonts(void)
     FcChar8*     fcfile;
     int          fcweight, fcslant, fcwidth, fcspacing, fcindex;
     FcBool       fcscalable;
+    FcCharSet*   fccs;
 
     /* query fontconfig for all scalable fonts */
     pat = FcPatternCreate();
     FcPatternAddBool(pat, FC_SCALABLE, FcTrue);
     os = FcObjectSetBuild(FC_FAMILY, FC_FOUNDRY, FC_STYLE, FC_WEIGHT,
                           FC_SLANT, FC_WIDTH, FC_SPACING, FC_FILE, FC_INDEX,
-                          NULL);
+                          FC_CHARSET, NULL);
     fs = FcFontList(NULL, pat, os);
     FcObjectSetDestroy(os);
     FcPatternDestroy(pat);
@@ -2686,6 +2919,14 @@ void getfonts(void)
         if (FcPatternGetString(font, FC_FILE, 0, &fcfile) != FcResultMatch)
             continue;
 
+        /* skip fonts that don't cover basic Latin (A-Z, a-z) */
+        if (FcPatternGetCharSet(font, FC_CHARSET, 0, &fccs) == FcResultMatch) {
+
+            if (!FcCharSetHasChar(fccs, 'A') || !FcCharSetHasChar(fccs, 'z'))
+                continue;
+
+        }
+
         /* get foundry, default to empty */
         if (FcPatternGetString(font, FC_FOUNDRY, 0, &fcfoundry) != FcResultMatch)
             fcfoundry = (FcChar8*)"unknown";
@@ -2694,19 +2935,12 @@ void getfonts(void)
         if (FcPatternGetInteger(font, FC_INDEX, 0, &fcindex) != FcResultMatch)
             fcindex = 0;
 
-        /* construct display name: "foundry: family: iso10646-1" */
+        /* construct display name: "foundry: family: iso10646-1", trimming
+           leading and trailing whitespace from each component */
         dp = buf;
-        {
-            const char* s;
-            s = (const char*)fcfoundry;
-            while (*s) { *dp = tolower(*s); dp++; s++; }
-        }
+        dp = apptrim(dp, (const char*)fcfoundry);
         *dp++ = ':'; *dp++ = ' ';
-        {
-            const char* s;
-            s = (const char*)fcfamily;
-            while (*s) { *dp = tolower(*s); dp++; s++; }
-        }
+        dp = apptrim(dp, (const char*)fcfamily);
         *dp++ = ':'; *dp++ = ' ';
         {
             const char* cs = "iso10646-1";
@@ -3039,15 +3273,83 @@ void setfnt(winptr win)
     if (FT_New_Face(ftlibrary, best->path, best->index, &win->ftface))
         error(esystem);
 
-    /* set pixel size */
-    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh);
+    /* Set the em-square pixel size so the resulting character cell
+       (ascender + |descender| + 2) fits within win->gfcellh. This keeps
+       the cell height constant across font changes. On first call
+       (gfcellh == 0), bootstrap gfcellh from the initial gfhigh. */
+    {
+        FT_Face face = win->ftface;
+        int     target, pixsiz, asc, dsc;
 
-    /* extract metrics */
+        if (win->gfcellh == 0) {
+
+            /* bootstrap: use gfhigh directly and record the resulting
+               cell height as the persistent target */
+            FT_Set_Pixel_Sizes(face, 0, win->gfhigh);
+            asc = (int)( face->size->metrics.ascender  >> 6);
+            dsc = (int)(-face->size->metrics.descender >> 6);
+            win->gfcellh = asc + dsc + 2;
+            pixsiz = win->gfhigh;
+
+        } else {
+
+            /* find the largest em-square pixel size such that the
+               cell fits within gfcellh */
+            target = win->gfcellh - 2; /* ascender + |descender| target */
+            if (target < 1) target = 1;
+            pixsiz = target;
+            if (pixsiz < 1) pixsiz = 1;
+            FT_Set_Pixel_Sizes(face, 0, pixsiz);
+            asc = (int)( face->size->metrics.ascender  >> 6);
+            dsc = (int)(-face->size->metrics.descender >> 6);
+            while (asc + dsc > target && pixsiz > 1) {
+
+                pixsiz--;
+                FT_Set_Pixel_Sizes(face, 0, pixsiz);
+                asc = (int)( face->size->metrics.ascender  >> 6);
+                dsc = (int)(-face->size->metrics.descender >> 6);
+
+            }
+            while (1) {
+
+                int np = pixsiz + 1;
+                int na, nd;
+
+                FT_Set_Pixel_Sizes(face, 0, np);
+                na = (int)( face->size->metrics.ascender  >> 6);
+                nd = (int)(-face->size->metrics.descender >> 6);
+                if (na + nd > target) {
+
+                    FT_Set_Pixel_Sizes(face, 0, pixsiz);
+                    break;
+
+                }
+                pixsiz = np;
+                asc = na;
+                dsc = nd;
+
+            }
+
+        }
+        /* gfhigh/gfhighx are the PHYSICAL em-square pixel sizes used by
+           FreeType for glyph rendering. They include the viewport scale so
+           glyphs grow/shrink with the zoom. gfhigh_log is the LOGICAL
+           (unscaled) em-square for metric queries (charspace, xwidth).
+           charspace and linespace stay LOGICAL for cursor advancement. */
+        win->gfhigh_log = pixsiz;
+        win->gfhigh    = (int)(pixsiz * win->vsy);
+        win->gfhighx   = (int)(pixsiz * win->vsx);
+        if (win->gfhigh  < 1) win->gfhigh  = 1;
+        if (win->gfhighx < 1) win->gfhighx = 1;
+        win->gfpoint   = pixsiz * 2835.0f / (float)win->sdpmy;
+        win->linespace = win->gfcellh;
+        win->baseoff   = asc + 1;
+    }
+    /* read charspace at LOGICAL pixel size for cursor advancement */
+    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
     win->charspace = (int)(win->ftface->size->metrics.max_advance >> 6);
-    win->linespace = win->gfhigh;
     win->chrspcx = 0;
     win->chrspcy = 0;
-    win->baseoff = (int)(win->ftface->size->metrics.ascender >> 6);
 
     if (prtftm) {
 
@@ -3076,6 +3378,9 @@ int xwidth(winptr win, char c)
 
 {
 
+    /* ensure face is at logical pixel size for correct metric queries —
+       ft_draw_char may have left it at the physical (scaled) size */
+    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
     if (FT_Load_Char(win->ftface, (unsigned char)c, FT_LOAD_DEFAULT))
         return 0;
     return (int)(win->ftface->glyph->advance.x >> 6);
@@ -3095,9 +3400,10 @@ every draw call.
 
 typedef struct {
 
-    FT_Face  face;        /* font face this glyph belongs to */
-    int      pixel_size;  /* pixel size used for rendering */
-    int      glyph_index; /* glyph index in font */
+    FT_Face  face;          /* font face this glyph belongs to */
+    int      pixel_size_y;  /* em-square pixel size y */
+    int      pixel_size_x;  /* em-square pixel size x (asymmetric scaling) */
+    int      glyph_index;   /* glyph index in font */
     Pixmap   stipple;     /* 1-bit depth pixmap */
     int      width;       /* bitmap width */
     int      height;      /* bitmap height */
@@ -3141,7 +3447,8 @@ creates a 1-bit Pixmap for stipple-based rendering.
 
 *******************************************************************************/
 
-static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size, char c)
+static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size_x,
+                                   int pixel_size_y, char c)
 
 {
 
@@ -3159,15 +3466,18 @@ static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size, char c)
     GC gc1;
 
     gi = FT_Get_Char_Index(face, (unsigned char)c);
-    hash = (gi * 31 + pixel_size * 17) % GLYPH_CACHE_SIZE;
+    hash = (gi * 31 + pixel_size_y * 17 + pixel_size_x * 13) % GLYPH_CACHE_SIZE;
 
     ge = &gcache[hash];
 
     /* check for cache hit */
-    if (ge->valid && ge->face == face && ge->pixel_size == pixel_size &&
+    if (ge->valid && ge->face == face &&
+        ge->pixel_size_y == pixel_size_y &&
+        ge->pixel_size_x == pixel_size_x &&
         ge->glyph_index == (int)gi) return ge;
 
     /* cache miss - render the glyph as 8-bit grayscale */
+    FT_Set_Pixel_Sizes(face, pixel_size_x, pixel_size_y);
     if (FT_Load_Char(face, (unsigned char)c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL))
         return NULL;
 
@@ -3180,7 +3490,8 @@ static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size, char c)
         XFreePixmap(padisplay, ge->stipple);
 
     ge->face = face;
-    ge->pixel_size = pixel_size;
+    ge->pixel_size_y = pixel_size_y;
+    ge->pixel_size_x = pixel_size_x;
     ge->glyph_index = gi;
     ge->bitmap_left = slot->bitmap_left;
     ge->bitmap_top = slot->bitmap_top;
@@ -3238,14 +3549,15 @@ Pixmap. This respects the GC function mode (normal, XOR, AND, OR).
 
 *******************************************************************************/
 
-static void ft_draw_char(Drawable d, GC gc, FT_Face face, int pixel_size,
+static void ft_draw_char(Drawable d, GC gc, FT_Face face,
+                         int pixel_size_x, int pixel_size_y,
                          int x, int y, char c)
 
 {
 
     glyphcache* ge;
 
-    ge = ft_cache_glyph(face, pixel_size, c);
+    ge = ft_cache_glyph(face, pixel_size_x, pixel_size_y, c);
     if (!ge || !ge->stipple) return;
 
     XSetStipple(padisplay, gc, ge->stipple);
@@ -3265,7 +3577,8 @@ Renders a string onto an X11 Drawable using cached glyph stipples.
 
 *******************************************************************************/
 
-static void ft_draw_string(Drawable d, GC gc, FT_Face face, int pixel_size,
+static void ft_draw_string(Drawable d, GC gc, FT_Face face,
+                           int pixel_size_x, int pixel_size_y,
                            int x, int y, char* s, int len)
 
 {
@@ -3274,7 +3587,7 @@ static void ft_draw_string(Drawable d, GC gc, FT_Face face, int pixel_size,
 
     for (i = 0; i < len; i++) {
 
-        ft_draw_char(d, gc, face, pixel_size, x, y, s[i]);
+        ft_draw_char(d, gc, face, pixel_size_x, pixel_size_y, x, y, s[i]);
         if (FT_Load_Char(face, (unsigned char)s[i], FT_LOAD_DEFAULT) == 0)
             x += (int)(face->glyph->advance.x >> 6);
 
@@ -3314,34 +3627,54 @@ static int ft_text_width(FT_Face face, const char* s, int len)
 Draw rotated character using FreeType
 
 Renders a character at an arbitrary angle onto an X11 Drawable. The glyph
-bitmap is rendered at 0 degrees then rotated client-side using the same
-pixel rotation algorithm from rotated.c.
+is rasterized pre-rotated by FreeType itself (via FT_Set_Transform), which
+gives proper subpixel-accurate rotation with no aliasing artifacts from
+manual pixel sampling. The 8-bit alpha output is thresholded to 1-bit and
+drawn as a stipple, matching the non-rotated ft_draw_char path so GC
+function modes (XOR, AND, OR) apply identically.
 
 *******************************************************************************/
 
 static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
-                                 int pixel_size, float angle_rad,
+                                 int pixel_size_x, int pixel_size_y,
+                                 float angle_rad,
                                  int x, int y, char c)
 
 {
 
     FT_GlyphSlot slot;
-    int w, h, pitch;
+    FT_Matrix    mat;
+    int          w, h, pitch;
     unsigned char* buf;
-    int ow, oh;        /* output dimensions */
-    float sin_a, cos_a;
-    int i, j, si, sj;
-    int bw;
-    char* data;
-    XImage* ximg;
-    Pixmap pix;
-    GC gc1;
-    float cx, cy;      /* center of input */
-    float ocx, ocy;    /* center of output */
+    int          i, j, bw;
+    char*        data;
+    XImage*      ximg;
+    Pixmap       pix;
+    GC           gc1;
+    int          gx, gy;
 
-    FT_Set_Pixel_Sizes(face, 0, pixel_size);
-    if (FT_Load_Char(face, (unsigned char)c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL))
+    FT_Set_Pixel_Sizes(face, pixel_size_x, pixel_size_y);
+
+    /* 16.16 fixed-point rotation matrix for FreeType. The input angle_rad
+       is Petit-Ami's COMPASS convention (0 = north/up, π/2 = east, positive
+       turns clockwise in screen view). FreeType's matrix is math-CCW with
+       its own y-up coordinate system, so the FT rotation angle is
+       (π/2 − angle_rad). Using cos(π/2 − x) = sin(x) and
+       sin(π/2 − x) = cos(x) gives: */
+    mat.xx = (FT_Fixed)( sin(angle_rad) * 0x10000);
+    mat.xy = (FT_Fixed)(-cos(angle_rad) * 0x10000);
+    mat.yx = (FT_Fixed)( cos(angle_rad) * 0x10000);
+    mat.yy = (FT_Fixed)( sin(angle_rad) * 0x10000);
+    FT_Set_Transform(face, &mat, NULL);
+
+    if (FT_Load_Char(face, (unsigned char)c,
+                     FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL)) {
+        FT_Set_Transform(face, NULL, NULL); /* reset for subsequent loads */
         return;
+    }
+    /* Reset immediately — the transform is sticky on the face, and the
+       unrotated ft_cache_glyph path shares this face. */
+    FT_Set_Transform(face, NULL, NULL);
 
     slot = face->glyph;
     w = slot->bitmap.width;
@@ -3351,57 +3684,39 @@ static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
     buf = slot->bitmap.buffer;
     pitch = slot->bitmap.pitch;
 
-    sin_a = sin(angle_rad);
-    cos_a = cos(angle_rad);
-
-    /* compute output bounding box */
-    ow = (int)(fabs(w * cos_a) + fabs(h * sin_a) + 2);
-    oh = (int)(fabs(w * sin_a) + fabs(h * cos_a) + 2);
-    if (ow == 0 || oh == 0) return;
-
-    cx = w / 2.0f;
-    cy = h / 2.0f;
-    ocx = ow / 2.0f;
-    ocy = oh / 2.0f;
-
-    /* create 1-bit rotated bitmap using XPutPixel for portable bit order */
-    bw = (ow + 7) / 8;
-    data = (char*)calloc(bw * oh, 1);
-
+    /* Threshold 8-bit alpha to a 1-bit bitmap. Petit-Ami's text is 1-bit
+       everywhere (see ft_cache_glyph) so this matches the non-rotated
+       path's rendering character. */
+    bw = (w + 7) / 8;
+    data = (char*)calloc(bw * h, 1);
     ximg = XCreateImage(padisplay, DefaultVisual(padisplay, pascreen),
-                        1, XYBitmap, 0, data, ow, oh, 8, bw);
-    for (j = 0; j < oh; j++) {
-        for (i = 0; i < ow; i++) {
+                        1, XYBitmap, 0, data, w, h, 8, bw);
+    for (j = 0; j < h; j++)
+        for (i = 0; i < w; i++)
+            XPutPixel(ximg, i, j, (buf[j * pitch + i] > 127) ? 1 : 0);
 
-            /* reverse-map from output to input */
-            float dx = i - ocx;
-            float dy = j - ocy;
-            si = (int)(dx * cos_a + dy * sin_a + cx);
-            sj = (int)(-dx * sin_a + dy * cos_a + cy);
-            if (si >= 0 && si < w && sj >= 0 && sj < h) {
-
-                if (buf[sj * pitch + si] > 127)
-                    XPutPixel(ximg, i, j, 1);
-
-            }
-
-        }
-    }
-
-    /* paint the rotated glyph pixel by pixel */
+    pix = XCreatePixmap(padisplay, DefaultRootWindow(padisplay), w, h, 1);
     {
-        int gx, gy;
-        /* adjust position for rotation center offset */
-        gx = x + slot->bitmap_left - (int)(ocx - cx * cos_a - cy * sin_a);
-        gy = y - slot->bitmap_top - (int)(ocy + cx * sin_a - cy * cos_a);
-
-        for (j = 0; j < oh; j++)
-            for (i = 0; i < ow; i++)
-                if (XGetPixel(ximg, i, j))
-                    XDrawPoint(padisplay, d, gc, gx + i, gy + j);
+        XGCValues gcv;
+        gcv.foreground = 1;
+        gcv.background = 0;
+        gc1 = XCreateGC(padisplay, pix, GCForeground | GCBackground, &gcv);
     }
-
+    XPutImage(padisplay, pix, gc1, ximg, 0, 0, 0, 0, w, h);
+    XFreeGC(padisplay, gc1);
     XDestroyImage(ximg); /* frees data */
+
+    /* FreeType updated bitmap_left/bitmap_top to reflect the rotated glyph's
+       bounding box — no manual offset correction needed. */
+    gx = x + slot->bitmap_left;
+    gy = y - slot->bitmap_top;
+    XSetStipple(padisplay, gc, pix);
+    XSetFillStyle(padisplay, gc, FillStippled);
+    XSetTSOrigin(padisplay, gc, gx, gy);
+    XFillRectangle(padisplay, d, gc, gx, gy, w, h);
+    XSetFillStyle(padisplay, gc, FillSolid);
+
+    XFreePixmap(padisplay, pix);
 
 }
 
@@ -4022,6 +4337,135 @@ static int fndevt(Window w)
 
 /** ****************************************************************************
 
+Event coalescing
+
+X delivers redundant events individually -- a train of ConfigureNotify while a
+window is dragged, or a storm of partial Expose rectangles -- and does not
+compact them for us (contrary to popular belief; it only offers hints like the
+Expose "count" field). Redrawing once per event makes interactive resize/move
+crawl, especially under XWayland where the stream is bursty.
+
+coalesce() folds such a burst into a single event before it becomes a PA event.
+For ConfigureNotify only the latest geometry matters, so we keep the last. Expose
+carries a redraw rectangle, so we cannot just keep the last; we union all pending
+rectangles into one so nothing is left unpainted. Both the internal save queue
+(filled by peekxevt during WM waits) and the live X queue are drained.
+
+Discrete events (keys, buttons, focus, map, ...) are never coalesced.
+
+MotionNotify is coalesced keep-newest: only the latest pointer position matters,
+and under XWayland the motion stream arrives faster than widgets can repaint, so
+stale positions pile up in the queue and each one drives a redundant redraw (the
+pointer visibly lags the cursor -- a slider "chasing" the mouse). Folding a run
+of pending motions down to the newest keeps interaction responsive. The cost is
+that intermediate points are dropped, so this is not suitable for capturing a
+freehand stroke path; a drawing surface that needs every point should read raw
+motion rather than rely on the coalesced PA event stream.
+
+*******************************************************************************/
+
+/* Remove one queued XEvent matching (type, window) from the internal save queue.
+   Returns TRUE and fills *out if found. The queue runs newest-first from the
+   front, so the first match returned is the newest. */
+static int takexevt(int type, Window w, XEvent* out)
+
+{
+
+    xevtque* p;
+
+    if (!evtque) return (FALSE);
+    p = evtque;
+    do {
+
+        if (p->evt.type == type && p->evt.xany.window == w) {
+
+            /* unlink p from the circular list */
+            if (p->next == p) evtque = NULL; /* was the only entry */
+            else {
+
+                p->last->next = p->next;
+                p->next->last = p->last;
+                if (evtque == p) evtque = p->next;
+
+            }
+            memcpy(out, &p->evt, sizeof(XEvent));
+            putxevt(p); /* release entry */
+
+            return (TRUE);
+
+        }
+        p = p->next;
+
+    } while (evtque && p != evtque);
+
+    return (FALSE);
+
+}
+
+static int coalescible(int type)
+    { return (type == ConfigureNotify || type == Expose ||
+              type == MotionNotify); }
+
+static void coalesce(XEvent* e)
+
+{
+
+    XEvent tmp;
+    Window w;
+    int    t;
+
+    if (!coalescible(e->type)) return; /* not a redundant type */
+    w = e->xany.window;
+    t = e->type;
+
+    if (t == Expose) {
+
+        /* union all pending expose rectangles for this window into one */
+        int x1 = e->xexpose.x;
+        int y1 = e->xexpose.y;
+        int x2 = x1 + e->xexpose.width;
+        int y2 = y1 + e->xexpose.height;
+
+        while (takexevt(Expose, w, &tmp)) {
+
+            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
+            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
+            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
+            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+
+        }
+        XWLOCK();
+        while (XCheckTypedWindowEvent(padisplay, w, Expose, &tmp)) {
+
+            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
+            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
+            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
+            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+
+        }
+        XWUNLOCK();
+        e->xexpose.x      = x1;
+        e->xexpose.y      = y1;
+        e->xexpose.width  = x2-x1;
+        e->xexpose.height = y2-y1;
+        e->xexpose.count  = 0;
+
+    } else {
+
+        /* ConfigureNotify: only the newest matters. Internal-queue matches are
+           older than the X queue; take the newest internal match (first), drain
+           the rest, then let the X queue (newest of all) win. */
+        if (takexevt(t, w, &tmp)) { *e = tmp; while (takexevt(t, w, &tmp)); }
+        XWLOCK();
+        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp)) *e = tmp;
+        XWUNLOCK();
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Wait response message
 
 Looks into the XWindows events until a given respose is found. Events are placed
@@ -4286,16 +4730,16 @@ static void curdrw(winptr win)
     XSetFunction(padisplay, sc->xcxt, GXxor); /* set reverse */
     if (win->focus)
         XFillRectangle(padisplay, win->xwhan, sc->xcxt,
-                       sc->curxg-1, sc->curyg-1,
-                       win->charspace, win->linespace);
+                       L2PX(win, sc->curxg-1), L2PY(win, sc->curyg-1),
+                       L2PW(win, win->charspace), L2PH(win, win->linespace));
     else {
 
         XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
-                       sc->curxg-1, sc->curyg-1,
-                       win->charspace, win->linespace);
+                       L2PX(win, sc->curxg-1), L2PY(win, sc->curyg-1),
+                       L2PW(win, win->charspace), L2PH(win, win->linespace));
         XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
-                       sc->curxg-1+1, sc->curyg-1+1,
-                       win->charspace-2, win->linespace-2);
+                       L2PX(win, sc->curxg-1+1), L2PY(win, sc->curyg-1+1),
+                       L2PW(win, win->charspace-2), L2PH(win, win->linespace-2));
 
     }
     XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
@@ -4400,6 +4844,339 @@ static void cursts(winptr win)
 
 /** ****************************************************************************
 
+Update cursor for child frame mouse position
+
+Sets the appropriate cursor shape on xmwhan based on which edge (if any) the
+mouse is hovering over. Standard arrow when not on a resize edge, edge-specific
+arrow on borders, diagonal arrow on corners.
+
+*******************************************************************************/
+
+/* Determine which resize edges the pointer (mx,my) is over for a child frame of
+   master size mw x mh. Edges are CFRM_BORDER_W thick; within CFRM_CORNER of a
+   corner the grab widens along both edges so the diagonal (corner) resize is
+   easy to hit rather than a tiny CFRM_BORDER_W square. Shared by the cursor
+   feedback and the resize hit test so the two never disagree. */
+static void childfrm_resize_edges(int mx, int my, int mw, int mh,
+                                  int* left, int* right, int* top, int* bottom)
+{
+    int on_left   = mx < CFRM_BORDER_W;
+    int on_right  = mx >= mw - CFRM_BORDER_W;
+    int on_top    = my < CFRM_BORDER_W;
+    int on_bottom = my >= mh - CFRM_BORDER_W;
+    int near_left   = mx < CFRM_CORNER;
+    int near_right  = mx >= mw - CFRM_CORNER;
+    int near_top    = my < CFRM_CORNER;
+    int near_bottom = my >= mh - CFRM_CORNER;
+    /* on an edge -- plus, when also on a perpendicular edge and within the
+       corner length of it, promote the hit to that corner (L-shaped grab) */
+    *left   = on_left   || ((on_top || on_bottom) && near_left);
+    *right  = on_right  || ((on_top || on_bottom) && near_right);
+    *top    = on_top    || ((on_left || on_right) && near_top);
+    *bottom = on_bottom || ((on_left || on_right) && near_bottom);
+}
+
+static void childfrm_set_cursor(winptr win, int mx, int my)
+{
+    int mw = win->xmwr.w;
+    int mh = win->xmwr.h;
+    /* when minimized, all edges show the arrow cursor — no resizing */
+    int on_left, on_right, on_top, on_bottom;
+    Cursor c;
+
+    if (win->minimized) { on_left = on_right = on_top = on_bottom = 0; }
+    else childfrm_resize_edges(mx, my, mw, mh,
+                               &on_left, &on_right, &on_top, &on_bottom);
+
+    /* lazy-init cursors on first use */
+    if (!cfrm_cursor_arrow) {
+        XWLOCK();
+        cfrm_cursor_arrow    = XCreateFontCursor(padisplay, XC_left_ptr);
+        cfrm_cursor_left     = XCreateFontCursor(padisplay, XC_left_side);
+        cfrm_cursor_right    = XCreateFontCursor(padisplay, XC_right_side);
+        cfrm_cursor_top      = XCreateFontCursor(padisplay, XC_top_side);
+        cfrm_cursor_bottom   = XCreateFontCursor(padisplay, XC_bottom_side);
+        cfrm_cursor_btmleft  = XCreateFontCursor(padisplay, XC_bottom_left_corner);
+        cfrm_cursor_btmright = XCreateFontCursor(padisplay, XC_bottom_right_corner);
+        cfrm_cursor_topleft  = XCreateFontCursor(padisplay, XC_top_left_corner);
+        cfrm_cursor_topright = XCreateFontCursor(padisplay, XC_top_right_corner);
+        XWUNLOCK();
+    }
+
+    if (on_left && on_top)          c = cfrm_cursor_topleft;
+    else if (on_right && on_top)    c = cfrm_cursor_topright;
+    else if (on_left && on_bottom)  c = cfrm_cursor_btmleft;
+    else if (on_right && on_bottom) c = cfrm_cursor_btmright;
+    else if (on_left)               c = cfrm_cursor_left;
+    else if (on_right)              c = cfrm_cursor_right;
+    else if (on_top)                c = cfrm_cursor_top;
+    else if (on_bottom)             c = cfrm_cursor_bottom;
+    else                            c = cfrm_cursor_arrow;
+
+    XWLOCK();
+    XDefineCursor(padisplay, win->xmwhan, c);
+    XWUNLOCK();
+}
+
+/* forward declarations */
+static void childfrm_draw(winptr win, int mw, int mh);
+static void restore(winptr win);
+
+/* Find the lowest unused minimize slot among siblings of win. The slot is the
+   x position index for arranging minimized child windows along the bottom of
+   the parent client area. */
+static int childfrm_find_minslot(winptr win)
+{
+
+    winptr parent = win->parwin;
+    winptr sib;
+    int slot = 0;
+    int found;
+
+    if (!parent) return 0;
+    do {
+        found = 0;
+        for (sib = parent->childwin; sib; sib = sib->childlst) {
+
+            if (sib != win && sib->minimized && sib->minslot == slot) {
+
+                slot++;
+                found = 1;
+                break;
+
+            }
+
+        }
+    } while (found);
+    return slot;
+
+}
+
+/* Compute the screen position of a minimized child window slot. The slot is
+   placed along the bottom of the parent's client area. If the parent is too
+   narrow to hold all minimized windows side by side, slots wrap back to the
+   left and overlap previously placed minimized windows (Windows MDI style). */
+static void childfrm_minslot_pos(winptr win, int slot, int* x, int* y)
+{
+
+    int min_w = CFRM_MIN_W;
+    int min_h = CFRM_TITBAR_H(win);
+    int parent_w, parent_h, slots_per_row;
+
+    parent_w = win->parwin ? win->parwin->xwr.w : min_w;
+    parent_h = win->parwin ? win->parwin->xwr.h : min_h;
+    slots_per_row = parent_w / min_w;
+    if (slots_per_row < 1) slots_per_row = 1;
+    *x = (slot % slots_per_row) * min_w;
+    *y = parent_h - min_h;
+
+}
+
+/* Minimize a child window: collapse it to title-bar-only at a slot along the
+   bottom of the parent client area. Saves current geometry for later restore. */
+static void childfrm_minimize(winptr win)
+{
+
+    int x, y, min_w, min_h;
+
+    if (win->minimized || !win->childfrm) return;
+    /* save current geometry */
+    win->savxmwr = win->xmwr;
+    win->savgmaxxg = win->gmaxxg;
+    win->savgmaxyg = win->gmaxyg;
+    /* assign a slot and compute its position */
+    win->minslot = childfrm_find_minslot(win);
+    childfrm_minslot_pos(win, win->minslot, &x, &y);
+    min_w = CFRM_MIN_W;
+    min_h = CFRM_TITBAR_H(win);
+    win->xmwr.x = x;
+    win->xmwr.y = y;
+    win->xmwr.w = min_w;
+    win->xmwr.h = min_h;
+    win->minimized = TRUE;
+    XWLOCK();
+    XMoveResizeWindow(padisplay, win->xmwhan, x, y, min_w, min_h);
+    /* hide the subclient — we only want to show the title bar */
+    XUnmapWindow(padisplay, win->xwhan);
+    XWUNLOCK();
+    childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+}
+
+/* Restore a minimized child window to its previous position and size. */
+static void childfrm_restore(winptr win)
+{
+
+    if (!win->minimized || !win->childfrm) return;
+    win->xmwr = win->savxmwr;
+    win->gmaxxg = win->savgmaxxg;
+    win->gmaxyg = win->savgmaxyg;
+    win->minimized = FALSE;
+    XWLOCK();
+    XMoveResizeWindow(padisplay, win->xmwhan,
+                      win->xmwr.x, win->xmwr.y,
+                      win->xmwr.w, win->xmwr.h);
+    XMapWindow(padisplay, win->xwhan);
+    XWUNLOCK();
+    restore(win);
+    childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+}
+
+/** ****************************************************************************
+
+Draw child window frame
+
+Renders the Ami-drawn frame chrome on xmwhan for child windows. This includes
+the title bar, close button, and resize border. Called after restore() and on
+Expose events for xmwhan.
+
+*******************************************************************************/
+
+static void childfrm_draw(winptr win, int mw, int mh)
+
+{
+
+    int tbh;          /* title bar height */
+    int bsz;          /* button diameter */
+    int by;           /* button y position */
+    int bx_close;     /* close button x */
+    int bx_max;       /* maximize button x */
+    int bx_min;       /* minimize button x */
+    int tlen;         /* title text pixel length */
+    int title_size;   /* title font pixel size */
+
+    if (!win->childfrm || !win->frmgc || !win->linespace) return;
+    if (!win->frame) return; /* frame is turned off — nothing to draw */
+
+    /* mw/mh are the master (xmwhan) outer dimensions, supplied by the caller.
+       Every caller sets win->xmwr to match the XResize/XMoveResize it issues on
+       xmwhan immediately before drawing, so the frame geometry is already known
+       and there is no need to ask the server for it. The former XSync +
+       XGetGeometry round trip here blocked on the compositor once per call and
+       made interactive resize crawl, badly under XWayland. */
+    tbh = CFRM_TITBAR_H(win);
+    bsz = CFRM_BUTTON_SZ(win);
+    title_size = CFRM_TITLE_SZ(win);
+
+    XWLOCK();
+
+    /* fill the master frame background as a plain rectangle. The frame has
+       square corners: rounded corners are not workable for a nested child
+       window (the shape mask that would round them also clips the window's
+       input region, making the corner un-grabbable, and X does not alpha-
+       composite nested children against their parent), so we keep them square
+       and fully grabbable. */
+    XSetForeground(padisplay, win->frmgc, 0x303030); /* dark frame bg */
+    XFillRectangle(padisplay, win->xmwhan, win->frmgc, 0, 0, mw, mh);
+
+    /* draw title text - centered, using FreeType for native font rendering.
+       If the title is too wide for the available space (between left edge and
+       the leftmost button), truncate and append "..." */
+    /* button row layout: minimize | maximize | close, right-aligned */
+    by = (tbh - bsz) / 2;
+    bx_close = mw - bsz - CFRM_BUTTON_MG;
+    bx_max   = bx_close - bsz - CFRM_BUTTON_GAP;
+    bx_min   = bx_max   - bsz - CFRM_BUTTON_GAP;
+
+    if (win->wintitle && win->wintitle[0] && win->ftface) {
+
+        int len = strlen(win->wintitle);
+        int tleft = CFRM_BUTTON_MG; /* title left margin */
+        int avail = bx_min - CFRM_BUTTON_GAP - tleft; /* space for title */
+        tlen = ft_text_width(win->ftface, win->wintitle, len);
+        int ty = (tbh + title_size) / 2 - 2;
+
+        XSetForeground(padisplay, win->frmgc, 0xffffff);
+        if (tlen <= avail) {
+
+            /* title fits: center it in the available space */
+            int tx = tleft + (avail - tlen) / 2;
+            ft_draw_string(win->xmwhan, win->frmgc, win->ftface,
+                           title_size, title_size,
+                           tx, ty, win->wintitle, len);
+
+        } else {
+
+            /* truncate with "..." */
+            int dotw = ft_text_width(win->ftface, "...", 3);
+            if (avail > dotw) {
+
+                int tw = 0;
+                int tl;
+                for (tl = 0; tl < len; tl++) {
+
+                    int cw = 0;
+                    if (FT_Load_Char(win->ftface,
+                                     (unsigned char)win->wintitle[tl],
+                                     FT_LOAD_DEFAULT) == 0)
+                        cw = (int)(win->ftface->glyph->advance.x >> 6);
+                    if (tw + cw + dotw > avail) break;
+                    tw += cw;
+
+                }
+                ft_draw_string(win->xmwhan, win->frmgc, win->ftface,
+                               title_size, title_size,
+                               tleft, ty, win->wintitle, tl);
+                ft_draw_string(win->xmwhan, win->frmgc, win->ftface,
+                               title_size, title_size,
+                               tleft + tw, ty, "...", 3);
+
+            }
+
+        }
+
+    }
+
+    {
+        /* button colors depend on focus state */
+        unsigned long btn_bg = 0x303030; /* min/max match title bar bg always */
+        unsigned long btn_fg = win->focus ? 0xffffff : 0x808080;
+        unsigned long cls_bg = win->focus ? 0xe04040 : 0x303030;
+
+        /* draw minimize button (circle with horizontal line) */
+        XSetForeground(padisplay, win->frmgc, btn_bg);
+        XFillArc(padisplay, win->xmwhan, win->frmgc,
+                 bx_min, by, bsz, bsz, 0, 360*64);
+        XSetForeground(padisplay, win->frmgc, btn_fg);
+        XSetLineAttributes(padisplay, win->frmgc, 2, LineSolid, CapButt, JoinMiter);
+        XDrawLine(padisplay, win->xmwhan, win->frmgc,
+                  bx_min + bsz/4, by + bsz - bsz/3,
+                  bx_min + bsz - bsz/4, by + bsz - bsz/3);
+
+        /* draw maximize button (circle with square outline) */
+        XSetForeground(padisplay, win->frmgc, btn_bg);
+        XFillArc(padisplay, win->xmwhan, win->frmgc,
+                 bx_max, by, bsz, bsz, 0, 360*64);
+        XSetForeground(padisplay, win->frmgc, btn_fg);
+        XDrawRectangle(padisplay, win->xmwhan, win->frmgc,
+                       bx_max + bsz/4, by + bsz/4,
+                       bsz - bsz/2, bsz - bsz/2);
+
+        /* draw close button (circle with X) */
+        XSetForeground(padisplay, win->frmgc, cls_bg);
+        XFillArc(padisplay, win->xmwhan, win->frmgc,
+                 bx_close, by, bsz, bsz, 0, 360*64);
+        XSetForeground(padisplay, win->frmgc, btn_fg);
+        {
+            int margin = bsz / 4;
+            XDrawLine(padisplay, win->xmwhan, win->frmgc,
+                      bx_close + margin, by + margin,
+                      bx_close + bsz - margin - 1, by + bsz - margin - 1);
+            XDrawLine(padisplay, win->xmwhan, win->frmgc,
+                      bx_close + bsz - margin - 1, by + margin,
+                      bx_close + margin, by + bsz - margin - 1);
+        }
+        XSetLineAttributes(padisplay, win->frmgc, 1, LineSolid, CapButt, JoinMiter);
+    }
+
+    XFlush(padisplay);
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
 Restore screen
 
 Updates all the buffer and screen parameters from the display screen to the
@@ -4413,6 +5190,7 @@ static void restore(winptr win) /* window to restore */
 
     int rgb;
     scnptr sc;
+    int winw, winh; /* client area size */
 
     sc = win->screens[win->curdsp-1]; /* index screen */
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
@@ -4439,8 +5217,147 @@ static void restore(winptr win) /* window to restore */
         XSetClipMask(padisplay, sc->xcxt, None);
         XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
                   sc->maxxg, sc->maxyg, 0, 0);
+
+        /* if the buffer is smaller than the client area, clear the margins
+           to the background color */
+        winw = win->xwr.w;
+        winh = win->xwr.h;
+        if (sc->maxxg < winw || sc->maxyg < winh) {
+
+            /* set background color as foreground for fill */
+            if (BIT(sarev) & sc->attr)
+                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            else
+                XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            /* right margin: from buffer right edge to window right edge,
+               full height */
+            if (sc->maxxg < winw)
+                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                               sc->maxxg, 0, winw - sc->maxxg, winh);
+            /* bottom margin: from buffer bottom to window bottom,
+               buffer width only (right strip already covered above) */
+            if (sc->maxyg < winh)
+                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                               0, sc->maxyg, sc->maxxg, winh - sc->maxyg);
+            /* restore foreground color */
+            if (BIT(sarev) & sc->attr)
+                XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            else
+                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+
+        }
         XWUNLOCK();
         curon(win); /* show the cursor */
+
+        /* redraw Ami-drawn child frame if applicable */
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+    }
+
+}
+
+/* Restore only the rectangle (x,y,w,h) of a buffered window's client area from
+   its backing buffer, instead of the whole buffer as restore() does. Used to
+   service Expose during a child-window drag: the exposed sliver is tiny next to
+   a large parent, so blitting just it -- rather than the entire parent buffer on
+   every move -- is what keeps a fast drag up with the pointer. The rect is
+   filled with the background first, then the buffer-covered part is copied on
+   top, so any exposed area extending past the buffer ends up background-filled
+   like restore() does, with no per-edge margin geometry. */
+static void restore_rect(winptr win, int x, int y, int w, int h)
+
+{
+
+    scnptr sc;
+    int    cx, cy, cw, ch; /* exposed rect clipped to the buffer */
+
+    if (w <= 0 || h <= 0) return;
+    sc = win->screens[win->curdsp-1]; /* index screen */
+    if (!(win->bufmod && win->visible)) return; /* nothing buffered to restore */
+
+    curoff(win); /* hide the cursor for drawing */
+    XWLOCK();
+    XSetClipMask(padisplay, sc->xcxt, None);
+    /* background fill for the whole exposed rect (covers any beyond-buffer part;
+       the buffered part is immediately overwritten by the copy below) */
+    XSetForeground(padisplay, sc->xcxt,
+                   (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb);
+    XFillRectangle(padisplay, win->xwhan, sc->xcxt, x, y, w, h);
+    /* copy the part of the rect the buffer covers, from the buffer */
+    cx = x; cy = y; cw = w; ch = h;
+    if (cx < 0) { cw += cx; cx = 0; }
+    if (cy < 0) { ch += cy; cy = 0; }
+    if (cx + cw > sc->maxxg) cw = sc->maxxg - cx;
+    if (cy + ch > sc->maxyg) ch = sc->maxyg - cy;
+    if (cw > 0 && ch > 0)
+        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt,
+                  cx, cy, cw, ch, cx, cy);
+    /* leave the GC foreground as the normal drawing color */
+    XSetForeground(padisplay, sc->xcxt,
+                   (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb);
+    XWUNLOCK();
+    curon(win); /* show the cursor */
+
+}
+
+/* Repaint the exposed rectangle of a window during a child-window drag, picking
+   the right mechanism for what the window is:
+
+     - an Ami child frame (xmwhan exposed): redraw its chrome;
+     - a buffered window: blit just the damaged rect from its backing buffer;
+     - an unbuffered window: clear the damaged rect to the window background.
+
+   An unbuffered window normally repaints from the application's own redraw
+   handler, but the app cannot run it while we hold the drag loop, and consuming
+   the Expose here would otherwise swallow the redraw it needs -- leaving a
+   permanent trail. Clearing keeps it clean during the drag; drag_repaint_full()
+   regenerates the content on release. */
+static void drag_expose(winptr ewin, Window w, int x, int y, int wd, int ht)
+
+{
+
+    if (ewin->childfrm && ewin->xmwhan == w)
+        childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
+    else if (ewin->bufmod)
+        restore_rect(ewin, x, y, wd, ht);
+    else {
+
+        /* Unbuffered window: XClearArea paints nothing here because these
+           windows are created with background None (createwindow passes no
+           CWBackPixmap), so a clear with exposures=False is a no-op and the
+           drag trail survives until release. Fill the vacated rect with the
+           window's background color instead, as restore_rect does for its
+           beyond-buffer region, to erase the trail live during the drag. The
+           real content is regenerated by drag_repaint_full() on release. */
+        scnptr sc = ewin->screens[ewin->curdsp-1];
+        XWLOCK();
+        XSetClipMask(padisplay, sc->xcxt, None);
+        XSetForeground(padisplay, sc->xcxt,
+                       (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb);
+        XFillRectangle(padisplay, w, sc->xcxt, x, y, wd, ht);
+        /* leave the GC foreground as the normal drawing color */
+        XSetForeground(padisplay, sc->xcxt,
+                       (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb);
+        XWUNLOCK();
+
+    }
+
+}
+
+/* Force a full repaint of win at the end of a drag. A buffered window blits its
+   whole buffer; an unbuffered window has a full Expose regenerated so the
+   application's redraw handler repaints its content once we return (the drag
+   consumed the real Expose events). */
+static void drag_repaint_full(winptr win)
+
+{
+
+    if (win->bufmod) restore(win);
+    else {
+
+        XWLOCK();
+        XClearArea(padisplay, win->xwhan, 0, 0, 0, 0, True);
+        XWUNLOCK();
 
     }
 
@@ -4602,6 +5519,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->autof = win->gauto; /* set auto scroll and wrap */
     sc->curv = win->gcurv; /* set cursor visibility */
     sc->lwidth = 1; /* set single pixel width */
+    sc->lstyle = ami_lssolid; /* set default line style */
     sc->cfont = win->gcfont; /* set current font */
     sc->fmod = win->gfmod; /* set mix modes */
     sc->bmod = win->gbmod;
@@ -4798,6 +5716,9 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->visible = FALSE; /* set not visible */
     win->winstate = 0; /* set normal window */
     win->lwinstate = 0;
+    win->childfrm = FALSE; /* set no Ami-drawn child frame */
+    win->wintitle = NULL; /* no title */
+    win->frmgc = 0; /* no frame GC */
 
     /* set up global buffer parameters */
     win->gmaxx = maxxd; /* character max dimensions */
@@ -4811,6 +5732,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->gbmod = mdnorm;
     win->goffx = 0;  /* set 0 offset */
     win->goffy = 0;
+    win->vsx = 1.0f; /* viewport scale starts at 1:1 */
+    win->vsy = 1.0f;
     win->gwextx = 1; /* set 1:1 extents */
     win->gwexty = 1;
     win->gvextx = 1;
@@ -4840,6 +5763,8 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 
     win->gcfont = fntlst; /* index terminal font entry */
     win->gfhigh = (int)(conpnt*POINT*win->sdpmy/1000); /* set font height */
+    win->gfcellh = 0; /* 0 means: bootstrap from gfhigh on first setfnt */
+    win->gfpoint = (float)conpnt*POINT/1000.0f; /* set initial point size */
     /* set parameters of missing font character */
     win->mischrx = win->gfhigh*MISCHRX; /* set size x */
     win->mischry = win->gfhigh*MISCHRY; /* set size y */
@@ -4894,32 +5819,75 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     XSetWMProtocols(padisplay, win->xmwhan, &win->delmsg, 1);
     XWUNLOCK();
 
-    /* create subclient window */
-    win->xwr.x = 0; /* set current rectangle */
-    win->xwr.y = 0;
+    /* set up child frame or WM frame parameters */
+    if (pwin && subclient) {
+
+        /* child window: Ami draws its own frame on xmwhan */
+        win->childfrm = TRUE;
+        win->minimized = FALSE;
+        win->pfw = CFRM_BORDER_W * 2;
+        win->pfh = CFRM_TITBAR_H(win) + CFRM_BORDER_W;
+        win->cwox = CFRM_BORDER_W;
+        win->cwoy = CFRM_TITBAR_H(win);
+
+        /* size master to include frame around client area */
+        XWLOCK();
+        XResizeWindow(padisplay, win->xmwhan,
+                      win->gmaxxg + win->pfw,
+                      win->gmaxyg + win->pfh);
+        XWUNLOCK();
+        win->xmwr.w = win->gmaxxg + win->pfw;
+        win->xmwr.h = win->gmaxyg + win->pfh;
+
+    } else {
+
+        /* top-level window: WM provides the frame */
+        win->childfrm = FALSE;
+        win->pfw = frmextwdt[frmcfgall];
+        win->pfh = frmexthgt[frmcfgall];
+        win->cwox = frmoffx[frmcfgall];
+        win->cwoy = frmoffy[frmcfgall];
+
+    }
+
+    /* create subclient window, offset by frame dimensions */
+    win->xwr.x = win->childfrm ? win->cwox : 0;
+    win->xwr.y = win->childfrm ? win->cwoy : 0;
     win->xwr.w = win->gmaxxg;
     win->xwr.h = win->gmaxyg;
     win->xwhan = createwindow(win->xmwhan, win->xwr.x, win->xwr.y,
                                            win->xwr.w, win->xwr.h);
 
-//dbg_printf(dlinfo, "master: %lx subclient: %lx\n", win->xmwhan, win->xwhan);
-    /* find and save the frame parameters from the immediate/parent window.
-       This may not work on some window managers */
+    /* create GC for drawing on xmwhan (used for child frame rendering) */
+    if (win->childfrm) {
 
-    /* find net extra width of frame from client area */
-    win->pfw = frmextwdt[frmcfgall];
-    win->pfh = frmexthgt[frmcfgall];
-    /* find offset from parent origin to client origin */
-    win->cwox = frmoffx[frmcfgall];
-    win->cwoy = frmoffy[frmcfgall];
+        XWLOCK();
+        win->frmgc = XCreateGC(padisplay, win->xmwhan, 0, NULL);
+        XWUNLOCK();
 
-    /* set window title from program name */
+    }
+
+    /* set window title */
     XWLOCK();
+    if (win->childfrm) {
+
+        /* store title for Ami-drawn frame */
 #if defined(__MACH__) || defined(__FreeBSD__)
-    XStoreName(padisplay, win->xmwhan, getprogname());
+        win->wintitle = strdup(getprogname());
 #else
-    XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
+        win->wintitle = strdup(program_invocation_short_name);
 #endif
+
+    } else {
+
+        /* set WM title for top-level windows */
+#if defined(__MACH__) || defined(__FreeBSD__)
+        XStoreName(padisplay, win->xmwhan, getprogname());
+#else
+        XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
+#endif
+
+    }
     XWUNLOCK();
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
@@ -5684,6 +6652,10 @@ static void iscrollg(winptr win, int x, int y)
     } frx, fry; /* x fill, y fill */
     scnptr sc;  /* pointer to current screen */
 
+    /* transform scroll deltas to physical pixels for viewport scaling */
+    x = L2PDX(win, x);
+    y = L2PDY(win, y);
+
     sc = win->screens[win->curupd-1]; /* index current screen */
     /* scroll would result in complete clear, do it */
     if (x <= -sc->maxxg || x >= sc->maxxg ||
@@ -6169,9 +7141,11 @@ static void iauto(winptr win, int e)
     /* check we are transitioning to auto mode */
     if (e) {
 
-        /* check display is on grid and in bounds */
-        if (sc->curxg-1%win->charspace) error(eatoofg);
-        if (sc->curxg-1%win->charspace) error(eatoofg);
+        /* check display is on grid and in bounds. Note: parentheses are
+           required because % binds tighter than -. The cursor graphical
+           position must land on a character cell boundary for x and y. */
+        if ((sc->curxg-1) % win->charspace) error(eatoofg);
+        if ((sc->curyg-1) % win->linespace) error(eatoofg);
         if (sc->angle != INT_MAX/4) error(eatoang);
         if (!icurbnd(sc)) error(eatoecb);
 
@@ -6198,6 +7172,17 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
 {
 
+    /* transform position and sizes to physical pixels for viewport scaling */
+    int px  = L2PX(win, sc->curxg-1);
+    int py  = L2PY(win, sc->curyg-1);
+    int pcs = L2PW(win, cs);
+    int pls = L2PH(win, win->linespace);
+    int pbo = L2PH(win, win->baseoff);
+    int pmx = L2PW(win, win->mischrx);
+    int pmy = L2PH(win, win->mischry);
+    int pmox = L2PW(win, win->misoffx);
+    int pmoy = L2PH(win, win->misoffy);
+
     if (sc->bmod != mdinvis) { /* background is visible */
 
         XWLOCK();
@@ -6207,21 +7192,18 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         /* set background to foreground to draw character background */
         if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, d, sc->xcxt, sc->curxg-1, sc->curyg-1, cs,
-                       win->linespace);
+        XFillRectangle(padisplay, d, sc->xcxt, px, py, pcs, pls);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor) {
 
             if (ce) /* character exists */
                 /* draw character */
-                ft_draw_char(d, sc->xcxt, win->ftface, win->gfhigh,
-                             sc->curxg-1, sc->curyg-1+win->baseoff, c);
+                ft_draw_char(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
+                             px, py+pbo, c);
             else /* does not exist, draw missing character box */
                 XDrawRectangle(padisplay, d, sc->xcxt,
-                               sc->curxg-1+win->misoffx,
-                               sc->curyg-1+win->misoffy,
-                               win->mischrx, win->mischry);
+                               px+pmox, py+pmoy, pmx, pmy);
 
         }
         /* restore colors */
@@ -6240,23 +7222,19 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
         if (ce) /* character exists */
             /* draw character */
-            ft_draw_char(d, sc->xcxt, win->ftface, win->gfhigh,
-                         sc->curxg-1, sc->curyg-1+win->baseoff, c);
+            ft_draw_char(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
+                         px, py+pbo, c);
         else /* does not exist, draw missing character box */
             XDrawRectangle(padisplay, d, sc->xcxt,
-                           sc->curxg-1+win->misoffx,
-                           sc->curyg-1+win->misoffy,
-                           win->mischrx, win->mischry);
+                           px+pmox, py+pmoy, pmx, pmy);
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
             /* double line, may need ajusting for low DP displays */
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+1);
+                      px, py+pbo+1, px+pcs, py+pbo+1);
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff+2);
+                      px, py+pbo+2, px+pcs, py+pbo+2);
 
         }
 
@@ -6264,11 +7242,11 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         if (sc->attr & BIT(sastkout)) {
 
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE);
+                      px, py+(int)(pbo/STRIKE),
+                      px+pcs, py+(int)(pbo/STRIKE));
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                      sc->curxg-1+cs, sc->curyg-1+win->baseoff/STRIKE+1);
+                      px, py+(int)(pbo/STRIKE)+1,
+                      px+pcs, py+(int)(pbo/STRIKE)+1);
 
         }
         /* reset foreground function */
@@ -6390,31 +7368,41 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
     char cb[2];      /* character buffer */
     int  xb, yb;     /* rotated baseline */
     int  xull, yull, xulr, yulr; /* underline 1 */
-
     int  xsol, ysol, xsor, ysor; /* underline 1 */
 
+    /* transform starting position and sizes for viewport scaling */
+    int px  = L2PX(win, sc->curxg-1);
+    int py  = L2PY(win, sc->curyg-1);
+    int pcs = L2PW(win, cs);
+    int pls = L2PH(win, win->linespace);
+    int pbo = L2PH(win, win->baseoff);
+    int pmx = L2PW(win, win->mischrx);
+    int pmy = L2PH(win, win->mischry);
+    int pmox = L2PW(win, win->misoffx);
+    int pmoy = L2PH(win, win->misoffy);
+
     /* find rotated character baseline */
-    xb = sc->curxg-1;
-    yb = sc->curyg-1;
-    addvect(&xb, &yb, RADIAN(sc->angle)+2*M_PI/4, win->baseoff);
+    xb = px;
+    yb = py;
+    addvect(&xb, &yb, RADIAN(sc->angle)+2*M_PI/4, pbo);
 
     /* find rotated underline left side */
-    xull = sc->curxg-1;
-    yull = sc->curyg-1;
-    addvect(&xull, &yull, RADIAN(sc->angle)+2*M_PI/4, win->baseoff+1);
+    xull = px;
+    yull = py;
+    addvect(&xull, &yull, RADIAN(sc->angle)+2*M_PI/4, pbo+1);
     /* find right side */
     xulr = xull;
     yulr = yull;
-    addvect(&xulr, &yulr, RADIAN(sc->angle), cs);
+    addvect(&xulr, &yulr, RADIAN(sc->angle), pcs);
 
     /* find rotated strikeout left side */
-    xsol = sc->curxg-1;
-    ysol = sc->curyg-1;
-    addvect(&xsol, &ysol, RADIAN(sc->angle)+2*M_PI/4, win->baseoff/STRIKE);
+    xsol = px;
+    ysol = py;
+    addvect(&xsol, &ysol, RADIAN(sc->angle)+2*M_PI/4, (int)(pbo/STRIKE));
     /* find right side */
     xsor = xsol;
     ysor = ysol;
-    addvect(&xsor, &ysor, RADIAN(sc->angle), cs);
+    addvect(&xsor, &ysor, RADIAN(sc->angle), pcs);
 
     cb[0] = c; /* place character in string form */
     cb[1] = 0;
@@ -6426,19 +7414,18 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         /* set background to foreground to draw character background */
         if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        drwfrecta(d, sc, sc->angle, sc->curxg-1, sc->curyg-1, cs, win->linespace);
+        drwfrecta(d, sc, sc->angle, px, py, pcs, pls);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor) {
 
             if (ce) /* character exists */
                 /* draw character */
-                ft_draw_char_rotated(d, sc->xcxt, win->ftface, win->gfhigh,
+                ft_draw_char_rotated(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
                                      RADIAN(sc->angle), xb, yb, c);
             else /* does not exist, draw missing character box */
                 drwrecta(d, sc, sc->angle,
-                         sc->curxg-1+win->misoffx, sc->curyg-1+win->misoffy,
-                         win->mischrx, win->mischry);
+                         px+pmox, py+pmoy, pmx, pmy);
 
         }
         /* restore colors */
@@ -6456,12 +7443,11 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
         if (ce) /* character exists */
             /* draw character */
-            ft_draw_char_rotated(d, sc->xcxt, win->ftface, win->gfhigh,
+            ft_draw_char_rotated(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
                                  RADIAN(sc->angle), xb, yb, c);
         else /* does not exist, draw missing character box */
             drwrecta(d, sc, sc->angle,
-                     sc->curxg-1+win->misoffx, sc->curyg-1+win->misoffy,
-                     win->mischrx, win->mischry);
+                     px+pmox, py+pmoy, pmx, pmy);
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
@@ -8235,6 +9221,13 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
 
 {
 
+    /* transform position and sizes to physical pixels for viewport scaling */
+    int px  = L2PX(win, sc->curxg-1);
+    int py  = L2PY(win, sc->curyg-1);
+    int ptw = L2PW(win, tw);
+    int pls = L2PH(win, win->linespace);
+    int pbo = L2PH(win, win->baseoff);
+
     if (sc->bmod != mdinvis) { /* background is visible */
 
         XWLOCK();
@@ -8244,14 +9237,13 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
         /* set background to foreground to draw character background */
         if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
         else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, d, sc->xcxt, sc->curxg-1, sc->curyg-1,
-                       tw, win->linespace);
+        XFillRectangle(padisplay, d, sc->xcxt, px, py, ptw, pls);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor)
             /* restore surface under text */
-            ft_draw_string(d, sc->xcxt, win->ftface, win->gfhigh,
-                           sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
+            ft_draw_string(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
+                           px, py+pbo, s, l);
         /* restore colors */
         if (BIT(sarev) & sc->attr)
             XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
@@ -8267,18 +9259,16 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
         /* set foreground function */
         XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
         /* draw character */
-        ft_draw_string(d, sc->xcxt, win->ftface, win->gfhigh,
-                       sc->curxg-1, sc->curyg-1+win->baseoff, s, l);
+        ft_draw_string(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
+                       px, py+pbo, s, l);
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
             /* double line, may need ajusting for low DP displays */
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff+1,
-                      sc->curxg-1+tw, sc->curyg-1+win->baseoff+1);
+                      px, py+pbo+1, px+ptw, py+pbo+1);
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff+2,
-                      sc->curxg-1+tw, sc->curyg-1+win->baseoff+2);
+                      px, py+pbo+2, px+ptw, py+pbo+2);
 
         }
 
@@ -8286,11 +9276,11 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
         if (sc->attr & BIT(sastkout)) {
 
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE,
-                      sc->curxg-1+tw, sc->curyg-1+win->baseoff/STRIKE);
+                      px, py+(int)(pbo/STRIKE),
+                      px+ptw, py+(int)(pbo/STRIKE));
             XDrawLine(padisplay, d, sc->xcxt,
-                      sc->curxg-1, sc->curyg-1+win->baseoff/STRIKE+1,
-                      sc->curxg-1+tw, sc->curyg-1+win->baseoff/STRIKE+1);
+                      px, py+(int)(pbo/STRIKE)+1,
+                      px+ptw, py+(int)(pbo/STRIKE)+1);
 
         }
         /* reset foreground function */
@@ -8480,7 +9470,9 @@ static void line_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
         /* draw the line */
         XWLOCK();
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-1, y2-1);
+        XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+                  L2PX(win, x1-1), L2PY(win, y1-1),
+                  L2PX(win, x2-1), L2PY(win, y2-1));
         XWUNLOCK();
 
     }
@@ -8490,7 +9482,9 @@ static void line_ivf(FILE* f, int x1, int y1, int x2, int y2)
         curoff(win); /* hide the cursor */
         XWLOCK();
         /* draw the line */
-        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-1, y2-1);
+        XDrawLine(padisplay, win->xwhan, sc->xcxt,
+                  L2PX(win, x1-1), L2PY(win, y1-1),
+                  L2PX(win, x2-1), L2PY(win, y2-1));
         XWUNLOCK();
         curon(win); /* show the cursor */
 
@@ -8544,7 +9538,9 @@ static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
         /* draw the rectangle */
         XWLOCK();
-        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1);
+        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
+                       L2PX(win, x1-1), L2PY(win, y1-1),
+                       L2PW(win, x2-x1), L2PH(win, y2-y1));
         XWUNLOCK();
 
     }
@@ -8554,7 +9550,9 @@ static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
         XWLOCK();
-        XDrawRectangle(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1);
+        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+                       L2PX(win, x1-1), L2PY(win, y1-1),
+                       L2PW(win, x2-x1), L2PH(win, y2-y1));
         XWUNLOCK();
         curon(win); /* show the cursor */
 
@@ -8608,7 +9606,9 @@ static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
         /* draw the rectangle */
         XWLOCK();
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
+                       L2PX(win, x1-1), L2PY(win, y1-1),
+                       L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
         XWUNLOCK();
 
     }
@@ -8618,7 +9618,9 @@ static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
         XWLOCK();
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1);
+        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                       L2PX(win, x1-1), L2PY(win, y1-1),
+                       L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
         XWUNLOCK();
         curon(win); /* show the cursor */
 
@@ -8671,6 +9673,9 @@ static void rrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     y1--;
     x2--;
     y2--;
+    x1 = L2PX(win, x1); y1 = L2PY(win, y1);
+    x2 = L2PX(win, x2); y2 = L2PY(win, y2);
+    xs = L2PW(win, xs); ys = L2PH(win, ys);
     /* limit the size of the corner circles if greater than the height or
         width */
     if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
@@ -8778,6 +9783,9 @@ static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     y1--;
     x2--;
     y2--;
+    x1 = L2PX(win, x1); y1 = L2PY(win, y1);
+    x2 = L2PX(win, x2); y2 = L2PY(win, y2);
+    xs = L2PW(win, xs); ys = L2PH(win, ys);
     /* set foreground function */
     XWLOCK();
     XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
@@ -8964,7 +9972,9 @@ static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
         /* draw the ellipse */
         XWLOCK();
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
+        XDrawArc(padisplay, sc->xbuf, sc->xcxt,
+                 L2PX(win, x1-1), L2PY(win, y1-1),
+                 L2PW(win, x2-x1), L2PH(win, y2-y1),
                  0, 360*64);
         XWUNLOCK();
 
@@ -8975,7 +9985,9 @@ static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
         XWLOCK();
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
+        XDrawArc(padisplay, win->xwhan, sc->xcxt,
+                 L2PX(win, x1-1), L2PY(win, y1-1),
+                 L2PW(win, x2-x1), L2PH(win, y2-y1),
                  0, 360*64);
         XWUNLOCK();
         curon(win); /* show the cursor */
@@ -9030,7 +10042,9 @@ static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
         /* draw the ellipse */
         XWLOCK();
-        XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+        XFillArc(padisplay, sc->xbuf, sc->xcxt,
+                 L2PX(win, x1-1), L2PY(win, y1-1),
+                 L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                  0, 360*64);
         XWUNLOCK();
 
@@ -9041,7 +10055,9 @@ static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
         XWLOCK();
-        XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+        XFillArc(padisplay, win->xwhan, sc->xcxt,
+                 L2PX(win, x1-1), L2PY(win, y1-1),
+                 L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                  0, 360*64);
         XWUNLOCK();
         curon(win); /* show the cursor */
@@ -9125,7 +10141,9 @@ static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
             /* draw the arc */
             XWLOCK();
-            XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
+            XDrawArc(padisplay, sc->xbuf, sc->xcxt,
+                     L2PX(win, x1-1), L2PY(win, y1-1),
+                     L2PW(win, x2-x1), L2PH(win, y2-y1),
             		 a1, a2);
             XWUNLOCK();
 
@@ -9136,7 +10154,9 @@ static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             curoff(win); /* hide the cursor */
             /* draw the arc */
             XWLOCK();
-            XDrawArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1, y2-y1,
+            XDrawArc(padisplay, win->xwhan, sc->xcxt,
+                     L2PX(win, x1-1), L2PY(win, y1-1),
+                     L2PW(win, x2-x1), L2PH(win, y2-y1),
             		 a1, a2);
             XWUNLOCK();
             curon(win); /* show the cursor */
@@ -9206,8 +10226,10 @@ static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
             /* draw the ellipse */
             XWLOCK();
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1,
-                     y2-y1+1, a1, a2);
+            XFillArc(padisplay, sc->xbuf, sc->xcxt,
+                     L2PX(win, x1-1), L2PY(win, y1-1),
+                     L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
+                     a1, a2);
             XWUNLOCK();
 
         }
@@ -9217,8 +10239,10 @@ static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
             XWLOCK();
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1,
-                     y2-y1+1, a1, a2);
+            XFillArc(padisplay, win->xwhan, sc->xcxt,
+                     L2PX(win, x1-1), L2PY(win, y1-1),
+                     L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
+                     a1, a2);
             XWUNLOCK();
             curon(win); /* show the cursor */
 
@@ -9285,7 +10309,7 @@ static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
 
             /* draw the ellipse */
             XWLOCK();
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+            XFillArc(padisplay, sc->xbuf, sc->xcxt, L2PX(win, x1-1), L2PY(win, y1-1), L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                      a1, a2);
             XWUNLOCK();
 
@@ -9296,7 +10320,7 @@ static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
             XWLOCK();
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1-1, y1-1, x2-x1+1, y2-y1+1,
+            XFillArc(padisplay, win->xwhan, sc->xcxt, L2PX(win, x1-1), L2PY(win, y1-1), L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                      a1, a2);
             XWUNLOCK();
             curon(win); /* show the cursor */
@@ -9336,12 +10360,9 @@ static void ftriangle_ivf(FILE* f, int x1, int y1, int x2, int y2, int x3, int y
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     /* place the triangle points in the X array */
-    pa[0].x = x1;
-    pa[0].y = y1;
-    pa[1].x = x2;
-    pa[1].y = y2;
-    pa[2].x = x3;
-    pa[2].y = y3;
+    pa[0].x = L2PX(win, x1-1);  pa[0].y = L2PY(win, y1-1);
+    pa[1].x = L2PX(win, x2-1);  pa[1].y = L2PY(win, y2-1);
+    pa[2].x = L2PX(win, x3-1);  pa[2].y = L2PY(win, y3-1);
 
     /* set foreground function */
     XWLOCK();
@@ -9405,7 +10426,8 @@ static void setpixel_ivf(FILE* f, int x, int y)
         curoff(win); /* hide the cursor */
         /* draw the pixel */
         XWLOCK();
-        XDrawPoint(padisplay, sc->xbuf, sc->xcxt, x-1, y-1);
+        XDrawPoint(padisplay, sc->xbuf, sc->xcxt,
+                   L2PX(win, x-1), L2PY(win, y-1));
         XWUNLOCK();
         curon(win); /* show the cursor */
 
@@ -9416,7 +10438,8 @@ static void setpixel_ivf(FILE* f, int x, int y)
         curoff(win); /* hide the cursor */
         /* draw the pixel */
         XWLOCK();
-        XDrawPoint(padisplay, win->xwhan, sc->xcxt, x-1, y-1);
+        XDrawPoint(padisplay, win->xwhan, sc->xcxt,
+                   L2PX(win, x-1), L2PY(win, y-1));
         XWUNLOCK();
         curon(win); /* show the cursor */
 
@@ -9696,6 +10719,53 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
+/* Push the current lwidth/lstyle pair into the X GC. Shared by
+   linewidth_ivf and linestyle_ivf — setting either field re-applies both.
+
+   XSetDashes values are absolute pixels (X11 does not scale them with line
+   width), so we scale them ourselves here. Dashes stay visually proportional
+   as width grows, with a minimum floor so width-1 lines still read as
+   dashed/dotted rather than nearly-solid. Values clamped to 127 (signed char
+   range used by XSetDashes). */
+static void applylineattrs(scnptr sc)
+
+{
+
+    int  xstyle;
+    int  on, off;
+    char dashes[2];
+    int  w;
+
+    switch (sc->lstyle) {
+        case ami_lsdash: xstyle = LineOnOffDash; break;
+        case ami_lsdot:  xstyle = LineOnOffDash; break;
+        default:         xstyle = LineSolid;     break;
+    }
+    XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, xstyle,
+                       CapButt, JoinMiter);
+
+    if (sc->lstyle == ami_lsdash) {
+
+        w = sc->lwidth > 0 ? sc->lwidth : 1;
+        on  = w*4;  if (on  < 16) on  = 16;  if (on  > 127) on  = 127;
+        off = w*2;  if (off <  8) off =  8;  if (off > 127) off = 127;
+        dashes[0] = (char)on;
+        dashes[1] = (char)off;
+        XSetDashes(padisplay, sc->xcxt, 0, dashes, 2);
+
+    } else if (sc->lstyle == ami_lsdot) {
+
+        w = sc->lwidth > 0 ? sc->lwidth : 1;
+        on  = w;       if (on  <  2) on  =  2;  if (on  > 127) on  = 127;
+        off = w*3;     if (off <  6) off =  6;  if (off > 127) off = 127;
+        dashes[0] = (char)on;
+        dashes[1] = (char)off;
+        XSetDashes(padisplay, sc->xcxt, 0, dashes, 2);
+
+    }
+
+}
+
 void _pa_linewidth_ovr(ami_linewidth_t nfp, ami_linewidth_t* ofp)
     { *ofp = linewidth_vect; linewidth_vect = nfp; }
 void ami_linewidth(FILE* f, int w) { (*linewidth_vect)(f, w); }
@@ -9711,8 +10781,38 @@ static void linewidth_ivf(FILE* f, int w)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->lwidth = w; /* set the line width */
     XWLOCK();
-    /* copy to X */
-    XSetLineAttributes(padisplay, sc->xcxt, w, LineSolid, CapButt, JoinMiter);
+    applylineattrs(sc); /* push width + current style into X */
+    XWUNLOCK();
+
+}
+
+/** ****************************************************************************
+
+Set line style
+
+Selects solid, dashed, or dotted line rendering for subsequent line-drawing
+primitives. X11 supports dashed/dotted lines at any width via
+XSetLineAttributes + XSetDashes. Dash patterns scale with line width so
+thick dashed lines remain visually dashed.
+
+*******************************************************************************/
+
+void _pa_linestyle_ovr(ami_linestyle_t nfp, ami_linestyle_t* ofp)
+    { *ofp = linestyle_vect; linestyle_vect = nfp; }
+void ami_linestyle(FILE* f, ami_lstyle style) { (*linestyle_vect)(f, style); }
+
+static void linestyle_ivf(FILE* f, ami_lstyle style)
+
+{
+
+    winptr win; /* windows record pointer */
+    scnptr sc;  /* screen pointer */
+
+    win = txt2win(f);
+    sc = win->screens[win->curupd-1];
+    sc->lstyle = style;
+    XWLOCK();
+    applylineattrs(sc);
     XWUNLOCK();
 
 }
@@ -9885,23 +10985,84 @@ static void fontsiz_ivf(FILE* f, int s)
 
 {
 
-    fontptr fp;  /* font pointer */
     winptr  win; /* windows record pointer */
-    scnptr  sc;  /* screen pointer */
 
     win = txt2win(f); /* get window from file */
-    sc = win->screens[win->curupd-1]; /* index update screen */
     if (win->screens[win->curupd-1]->autof)
         error(eatoftc); /* cannot perform with auto on */
     curoff(win); /* remove cursor with old font characteristics */
-    win->gfhigh = s; /* set new font height */
-    /* set parameters of missing font character */
-    win->mischrx = win->gfhigh*MISCHRX; /* set size x */
-    win->mischry = win->gfhigh*MISCHRY; /* set size y */
-    win->misoffx = win->gfhigh*MISOFFX; /* set offset x */
-    win->misoffy = win->gfhigh*MISOFFY; /* set offset x */
-    setfnt(win); /* select the font */
-    curon(win); /* replace cursor with new font characteristics */
+    win->gfcellh = s; /* set new target cell height */
+    setfnt(win); /* find em-square pixel size for this cell height */
+    win->mischrx = win->gfhigh*MISCHRX;
+    win->mischry = win->gfhigh*MISCHRY;
+    win->misoffx = win->gfhigh*MISOFFX;
+    win->misoffy = win->gfhigh*MISOFFY;
+    curon(win);
+
+}
+
+/* Set font size by point size (typographic points). The em-square pixel
+   size is computed from the DPI via gfhigh = ps * dpmy / 2835. The
+   resulting character cell height can be queried via ami_chrsizy(). */
+void _pa_setpoints_ovr(ami_setpoints_t nfp, ami_setpoints_t* ofp)
+    { *ofp = setpoints_vect; setpoints_vect = nfp; }
+void ami_setpoints(FILE* f, float ps) { (*setpoints_vect)(f, ps); }
+
+static void setpoints_ivf(FILE* f, float ps)
+
+{
+
+    winptr win;
+    int    pixsiz, asc, dsc;
+
+    win = txt2win(f);
+    if (win->screens[win->curupd-1]->autof)
+        error(eatoftc);
+    curoff(win);
+    pixsiz = (int)(ps * (float)win->sdpmy / 2835.0f + 0.5f);
+    if (pixsiz < 1) pixsiz = 1;
+    /* apply the point size directly to the current face to measure the
+       resulting cell height, then promote that to gfcellh so subsequent
+       font changes preserve it */
+    if (!win->ftface) setfnt(win);
+    win->gfhigh_log = pixsiz;
+    {
+        int phys_y = (int)(pixsiz * win->vsy);
+        int phys_x = (int)(pixsiz * win->vsx);
+        if (phys_y < 1) phys_y = 1;
+        if (phys_x < 1) phys_x = 1;
+        win->gfhigh  = phys_y;
+        win->gfhighx = phys_x;
+    }
+    FT_Set_Pixel_Sizes(win->ftface, 0, pixsiz); /* logical for metrics */
+    asc = (int)( win->ftface->size->metrics.ascender  >> 6);
+    dsc = (int)(-win->ftface->size->metrics.descender >> 6);
+    win->gfcellh = asc + dsc + 2;
+    win->gfpoint = ps;
+    win->linespace = win->gfcellh;
+    win->baseoff = asc + 1;
+    win->charspace = (int)(win->ftface->size->metrics.max_advance >> 6);
+    win->mischrx = win->gfhigh*MISCHRX;
+    win->mischry = win->gfhigh*MISCHRY;
+    win->misoffx = win->gfhigh*MISOFFX;
+    win->misoffy = win->gfhigh*MISOFFY;
+    curon(win);
+
+}
+
+/* Return the current font point size. */
+void _pa_points_ovr(ami_points_t nfp, ami_points_t* ofp)
+    { *ofp = points_vect; points_vect = nfp; }
+float ami_points(FILE* f) { return ((*points_vect)(f)); }
+
+static float points_ivf(FILE* f)
+
+{
+
+    winptr win;
+
+    win = txt2win(f);
+    return win->gfpoint;
 
 }
 
@@ -10931,8 +12092,9 @@ static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
 
         /* draw the picture */
         XWLOCK();
-        XPutImage(padisplay, sc->xbuf, sc->xcxt, fp->xi, 0, 0, x1-1, y1-1,
-                  x2-x1+1, y2-y1+1);
+        XPutImage(padisplay, sc->xbuf, sc->xcxt, fp->xi, 0, 0,
+                  L2PX(win, x1-1), L2PY(win, y1-1),
+                  L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
         XWUNLOCK();
 
     }
@@ -10943,7 +12105,8 @@ static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
         /* draw the rectangle */
         XWLOCK();
         XPutImage(padisplay, win->xwhan, sc->xcxt, fp->xi, 0, 0,
-                             x1-1, y1-1, x2-x1+1, y2-y1+1);
+                  L2PX(win, x1-1), L2PY(win, y1-1),
+                  L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
         XWUNLOCK();
         curon(win); /* show the cursor */
 
@@ -10972,25 +12135,33 @@ static void viewoffg_ivf(FILE* f, int x, int y)
 
 {
 
+    winptr win;
+
+    win = txt2win(f);
+    win->goffx = x;
+    win->goffy = y;
+
 }
 
 /** ****************************************************************************
 
 Set viewport scale
 
-Sets the viewport scale in x and y. The scale is a real fraction between 0 and
-1, with 1 being 1:1 scaling. Viewport scales are allways smaller than logical
-scales, which means that there are more than one logical pixel to map to a
-given physical pixel, but never the reverse. This means that pixels are lost
-in going to the display, but the display never needs to interpolate pixels
-from logical pixels.
+Sets the viewport scale factors in x and y. The scale is a positive floating
+point multiplier applied to logical drawing coordinates to produce physical
+pixel positions. A scale of 1.0 is identity (no scaling). Scales greater than
+1.0 magnify; scales less than 1.0 shrink.
 
-Note:
+The scale applies to user drawing primitives (lines, figures, pictures, text,
+cursor, child window placement) but does not affect UI chrome (title bars,
+frame decorations, menus, widget internals) or mouse coordinate reporting.
+Applications that need to convert mouse coordinates from physical to logical
+can use ami_scalex() and ami_scaley().
 
-Right now, symmetrical scaling (both x and y scales set the same) are all that
-works completely, since we don't presently have a method to warp text to fit
-a scaling process. However, this can be done by various means, including
-painting into a buffer and transfering asymmetrically, or using outlines.
+Asymmetric scaling (different x and y factors) is supported via FreeType's
+asymmetric pixel size facility, which stretches glyph outlines independently
+in each axis before rasterization. charspace and linespace track the
+asymmetric scale automatically.
 
 *******************************************************************************/
 
@@ -11001,6 +12172,57 @@ void ami_viewscale(FILE* f, float x, float y) { (*viewscale_vect)(f, x, y); }
 static void viewscale_ivf(FILE* f, float x, float y)
 
 {
+
+    winptr win;
+
+    if (x <= 0.0f || y <= 0.0f) error(esystem);
+    win = txt2win(f);
+    win->vsx = x;
+    win->vsy = y;
+    setfnt(win); /* re-select font at the new pixel size */
+
+}
+
+/** ****************************************************************************
+
+Convert physical pixel coordinate to logical drawing coordinate
+
+Applies the inverse of the current viewscale/viewoff transform. Used to map
+mouse coordinates (which stay in physical pixels for UI purposes) back to the
+logical drawing space so applications can hit-test or position against a
+scaled drawing.
+
+*******************************************************************************/
+
+void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp)
+    { *ofp = scalex_vect; scalex_vect = nfp; }
+int ami_scalex(FILE* f, int x) { return ((*scalex_vect)(f, x)); }
+
+static int scalex_ivf(FILE* f, int x)
+
+{
+
+    winptr win;
+
+    win = txt2win(f);
+    if (win->vsx == 0.0f) return x; /* defensive */
+    return (int)(((float)(x - win->goffx)) / win->vsx);
+
+}
+
+void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp)
+    { *ofp = scaley_vect; scaley_vect = nfp; }
+int ami_scaley(FILE* f, int y) { return ((*scaley_vect)(f, y)); }
+
+static int scaley_ivf(FILE* f, int y)
+
+{
+
+    winptr win;
+
+    win = txt2win(f);
+    if (win->vsy == 0.0f) return y;
+    return (int)(((float)(y - win->goffy)) / win->vsy);
 
 }
 
@@ -11502,7 +12724,14 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
     winptr         fwin; /* focus window */
 
     sc = win->screens[win->curdsp-1]; /* index screen */
-    if (e->type == Expose && win->xmwhan != e->xany.window) {
+
+    /* handle Expose on xmwhan for child-framed windows: repaint the frame */
+    if (e->type == Expose && win->childfrm &&
+        win->xmwhan == e->xany.window) {
+
+        childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+    } else if (e->type == Expose && win->xmwhan != e->xany.window) {
 
         if (win->bufmod) { /* use buffer to satisfy event */
 
@@ -11584,23 +12813,49 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
         if (win->xmwhan == e->xany.window) { /* it's the master window */
 
+            /* update master window tracking dimensions */
+            win->xmwr.w = e->xconfigure.width;
+            win->xmwr.h = e->xconfigure.height;
             /* find size of subclient */
             xwc.width = e->xconfigure.width; /* set frameless offset to client */
             xwc.height = e->xconfigure.height;
+            /* for child-framed windows, subtract frame thickness */
+            if (win->childfrm) {
+
+                xwc.width -= win->pfw;
+                xwc.height -= win->pfh;
+
+            }
             if (win->menu) /* if menu is active, remove that space from subclient */
-                xwc.height = e->xconfigure.height-win->menuspcy;
+                xwc.height -= win->menuspcy;
+            if (xwc.width <= 0) xwc.width = 1; /* set minimum width */
             if (xwc.height <= 0) xwc.height = 1; /* set minimum height */
             /* check subclient window has changed size */
             if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
 
                 XWLOCK();
-                XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+                if (win->childfrm) {
+
+                    /* keep the subclient offset by the frame thickness */
+                    XMoveResizeWindow(padisplay, win->xwhan,
+                                      win->cwox, win->cwoy,
+                                      xwc.width, xwc.height);
+
+                } else {
+
+                    XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+
+                }
                 XWUNLOCK();
 #ifdef WAITWMR
-                /* wait for the configure response with correct sizes */
+                /* wait for the next configure for this window. Do not require an
+                   exact size match: Wayland/XWayland (and tiling WMs) may clamp
+                   or override the requested size, so demanding the exact value
+                   would loop forever. Adopt the actual granted size instead. */
                 do { peekxevt(&xe); /* peek next event */
-                } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                         xe.xconfigure.height != xwc.height || xe.xany.window != win->xwhan);
+                } while (xe.type != ConfigureNotify || xe.xany.window != win->xwhan);
+                xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
+                xwc.height = xe.xconfigure.height;
 #endif
                 /* change saved size to match */
                 win->xwr.w = xwc.width;
@@ -11622,10 +12877,12 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                     XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
                     XWUNLOCK();
 #ifdef WAITWMR
-                    /* wait for the configure response with correct sizes */
+                    /* wait for the next configure for this window (any size --
+                       the WM may clamp the request; see note above) */
                     do { peekxevt(&xe); /* peek next event */
-                    } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                             xe.xconfigure.height != xwc.height || xe.xany.window != mwin->xmwhan);
+                    } while (xe.type != ConfigureNotify || xe.xany.window != mwin->xmwhan);
+                    xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
+                    xwc.height = xe.xconfigure.height;
 #endif
                     /* change saved size to match */
                     mwin->xmwr.w = xwc.width;
@@ -11634,6 +12891,9 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 }
 
             }
+
+            /* redraw child frame after master resize */
+            if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
         } else { /* its the subclient window */
 
@@ -11809,6 +13069,319 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
         }
 
+    } else if (win->childfrm && win->xmwhan == e->xany.window &&
+               (e->type == ButtonPress || e->type == ButtonRelease ||
+                e->type == MotionNotify)) {
+
+        /* update cursor shape based on hover position */
+        if (e->type == MotionNotify) {
+            childfrm_set_cursor(win, e->xmotion.x, e->xmotion.y);
+        }
+
+        /* child frame mouse interaction: title bar drag, close button, resize */
+        if (e->type == ButtonPress && e->xbutton.button == Button1) {
+
+            int mx = e->xbutton.x;
+            int my = e->xbutton.y;
+            int mw = win->xmwr.w;
+            int tbh = CFRM_TITBAR_H(win);
+            int bsz = CFRM_BUTTON_SZ(win);
+
+            /* selecting a child: raise it to the top of the stacking
+               order so it appears in front of its siblings, and
+               give it focus */
+            XWLOCK();
+            XRaiseWindow(padisplay, win->xmwhan);
+            XWUNLOCK();
+#ifndef NOFAKEFOCUS
+            if (!win->focus) {
+
+                ami_evtrec er2;
+                int ff;
+                ff = remfocus(root(win), win);
+                if (ff) {
+                    er2.etype = ami_etfocus;
+                    isendevent(win, &er2);
+                }
+                curoff(win);
+                win->focus = TRUE;
+                curon(win);
+                childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+                XWLOCK();
+                XSetInputFocus(padisplay, win->xmwhan, RevertToNone,
+                               CurrentTime);
+                XWUNLOCK();
+
+            }
+#endif
+
+            /* hit test: close, max, min buttons (right-aligned) */
+            int cbx = mw - bsz - CFRM_BUTTON_MG;
+            int cby = (tbh - bsz) / 2;
+            int mabx = cbx - bsz - CFRM_BUTTON_GAP;
+            int mibx = mabx - bsz - CFRM_BUTTON_GAP;
+            if (mx >= cbx && mx < cbx + bsz &&
+                my >= cby && my < cby + bsz) {
+
+                /* close button clicked: send terminate */
+                er->etype = ami_etterm;
+                *keep = TRUE;
+
+            } else if (mx >= mabx && mx < mabx + bsz &&
+                       my >= cby && my < cby + bsz) {
+
+                /* max button: when minimized, restore to previous size */
+                if (win->minimized) childfrm_restore(win);
+                *keep = FALSE;
+                return;
+
+            } else if (mx >= mibx && mx < mibx + bsz &&
+                       my >= cby && my < cby + bsz) {
+
+                /* min button: collapse to title-bar slot at bottom of parent */
+                if (!win->minimized) childfrm_minimize(win);
+                *keep = FALSE;
+                return;
+
+            } else if (my >= CFRM_BORDER_W && my < tbh &&
+                       mx >= CFRM_BORDER_W && mx < mw - CFRM_BORDER_W) {
+
+                /* title bar (excluding the top resize border and side
+                   resize borders that overlap the title bar): initiate drag */
+                int startx = e->xbutton.x_root;
+                int starty = e->xbutton.y_root;
+                int origx = win->xmwr.x;
+                int origy = win->xmwr.y;
+                XEvent de;
+                int dragging = TRUE;
+
+                /* grab pointer for drag tracking */
+                XWLOCK();
+                XGrabPointer(padisplay, win->xmwhan, False,
+                             ButtonReleaseMask | PointerMotionMask,
+                             GrabModeAsync, GrabModeAsync,
+                             None, None, CurrentTime);
+                XWUNLOCK();
+
+                while (dragging) {
+
+                    XWLOCK();
+                    XNextEvent(padisplay, &de);
+                    XWUNLOCK();
+                    if (de.type == MotionNotify) {
+
+                        /* Coalesce only the consecutive run of already-queued
+                           motion, stopping at any other event -- crucially the
+                           Expose events that repaint what the move damages. A
+                           fast drag thus collapses to one move per batch instead
+                           of stepping through every point, without starving the
+                           damage repaint (which is what left a trail before). */
+                        XWLOCK();
+                        while (XPending(padisplay)) {
+                            XEvent pk;
+                            XPeekEvent(padisplay, &pk);
+                            if (pk.type != MotionNotify) break;
+                            XNextEvent(padisplay, &de);
+                        }
+                        XWUNLOCK();
+                        int dx = de.xmotion.x_root - startx;
+                        int dy = de.xmotion.y_root - starty;
+                        win->xmwr.x = origx + dx;
+                        win->xmwr.y = origy + dy;
+                        XWLOCK();
+                        XMoveWindow(padisplay, win->xmwhan,
+                                    win->xmwr.x, win->xmwr.y);
+                        XWUNLOCK();
+
+                    } else if (de.type == ButtonRelease) {
+
+                        dragging = FALSE;
+
+                    } else if (de.type == Expose) {
+
+                        /* Repaint precisely what the move exposed: the parent
+                           area the window vacated, a sibling it uncovered, or
+                           this window's own frame/content re-entering the parent
+                           bounds after being clipped at an edge. */
+                        int ofn = fndevt(de.xany.window);
+                        if (ofn >= 0)
+                            drag_expose(lfn2win(ofn), de.xany.window,
+                                        de.xexpose.x, de.xexpose.y,
+                                        de.xexpose.width, de.xexpose.height);
+
+                    }
+
+                }
+                XWLOCK();
+                XUngrabPointer(padisplay, CurrentTime);
+                XWUNLOCK();
+                /* final repaint after release: the parent may be unbuffered
+                   (its Expose events were consumed during the drag), so force it
+                   to repaint via its own redraw handler; siblings are buffered */
+                if (win->parwin) {
+                    winptr sib;
+                    drag_repaint_full(win->parwin);
+                    for (sib = win->parwin->childwin; sib;
+                         sib = sib->childlst) {
+                        if (sib == win) continue;
+                        drag_repaint_full(sib);
+                        if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+                    }
+                }
+
+            } else if (!win->minimized &&
+                       (my >= win->xmwr.h - CFRM_BORDER_W ||
+                        mx >= win->xmwr.w - CFRM_BORDER_W ||
+                        mx < CFRM_BORDER_W ||
+                        my < CFRM_BORDER_W)) {
+
+                /* resize edge: determine which edges are grabbed (same L-shaped
+                   corner grab as the hover cursor, so a corner drag resizes on
+                   both axes over the widened corner zone, not just a 4px square) */
+                int rsz_left, rsz_right, rsz_top, rsz_bottom;
+                childfrm_resize_edges(mx, my, win->xmwr.w, win->xmwr.h,
+                                      &rsz_left, &rsz_right, &rsz_top, &rsz_bottom);
+                int startx = e->xbutton.x_root;
+                int starty = e->xbutton.y_root;
+                int origx = win->xmwr.x;
+                int origy = win->xmwr.y;
+                int origw = win->xmwr.w;
+                int origh = win->xmwr.h;
+                XEvent de;
+                int resizing = TRUE;
+
+                XWLOCK();
+                XGrabPointer(padisplay, win->xmwhan, False,
+                             ButtonReleaseMask | PointerMotionMask,
+                             GrabModeAsync, GrabModeAsync,
+                             None, None, CurrentTime);
+                XWUNLOCK();
+
+                while (resizing) {
+
+                    XWLOCK();
+                    XNextEvent(padisplay, &de);
+                    XWUNLOCK();
+                    if (de.type == MotionNotify) {
+
+                        /* motion compression: collapse a burst of queued motion
+                           to the latest position so a fast resize makes one
+                           resize+repaint instead of one per intermediate point
+                           (see the drag loop above) */
+                        XWLOCK();
+                        while (XCheckTypedEvent(padisplay, MotionNotify, &de));
+                        XWUNLOCK();
+                        int dx = de.xmotion.x_root - startx;
+                        int dy = de.xmotion.y_root - starty;
+                        int nx = origx;
+                        int ny = origy;
+                        int nw = origw;
+                        int nh = origh;
+                        if (rsz_right)  nw = origw + dx;
+                        if (rsz_bottom) nh = origh + dy;
+                        if (rsz_left) {
+                            nw = origw - dx;
+                            nx = origx + dx;
+                        }
+                        if (rsz_top) {
+                            nh = origh - dy;
+                            ny = origy + dy;
+                        }
+                        /* enforce minimums; if hitting min on left/top edge,
+                           keep the opposite edge fixed */
+                        if (nw < win->pfw + 40) {
+                            if (rsz_left) nx -= (win->pfw + 40 - nw);
+                            nw = win->pfw + 40;
+                        }
+                        if (nh < win->pfh + 40) {
+                            if (rsz_top) ny -= (win->pfh + 40 - nh);
+                            nh = win->pfh + 40;
+                        }
+                        int shrunk = (nw < win->xmwr.w || nh < win->xmwr.h);
+                        win->xmwr.x = nx;
+                        win->xmwr.y = ny;
+                        win->xmwr.w = nw;
+                        win->xmwr.h = nh;
+                        win->xwr.w = nw - win->pfw;
+                        win->xwr.h = nh - win->pfh;
+                        XWLOCK();
+                        if (nx != origx || ny != origy) {
+                            XMoveResizeWindow(padisplay, win->xmwhan,
+                                              nx, ny, nw, nh);
+                        } else {
+                            XResizeWindow(padisplay, win->xmwhan, nw, nh);
+                        }
+                        XResizeWindow(padisplay, win->xwhan,
+                                      win->xwr.w, win->xwr.h);
+                        XWUNLOCK();
+                        /* the client area may now be larger than the buffer;
+                           restore() copies the buffer to the screen and fills
+                           any uncovered margin with the background color */
+                        restore(win);
+                        childfrm_draw(win, nw, nh);
+                        /* if the child shrank, repaint the parent and
+                           sibling children where this child used to be */
+                        if (shrunk && win->parwin) {
+                            winptr sib;
+                            restore(win->parwin);
+                            for (sib = win->parwin->childwin; sib;
+                                 sib = sib->childlst) {
+                                if (sib == win) continue;
+                                restore(sib);
+                                if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+                            }
+                        }
+
+                    } else if (de.type == ButtonRelease) {
+
+                        resizing = FALSE;
+
+                    } else if (de.type == Expose) {
+
+                        /* repaint what the resize exposed -- the parent area the
+                           child vacated when it shrank, or an uncovered sibling
+                           -- dispatched to its window. Without this an unbuffered
+                           parent (restore() is a no-op for it) keeps a trail of
+                           the child's old size during the resize, exactly as the
+                           move loop above needs drag_expose for the same reason. */
+                        int ofn = fndevt(de.xany.window);
+                        if (ofn >= 0)
+                            drag_expose(lfn2win(ofn), de.xany.window,
+                                        de.xexpose.x, de.xexpose.y,
+                                        de.xexpose.width, de.xexpose.height);
+
+                    }
+
+                }
+                XWLOCK();
+                XUngrabPointer(padisplay, CurrentTime);
+                XWUNLOCK();
+                /* final repaint after release: an unbuffered parent had its
+                   Expose events consumed during the resize, so force it to
+                   repaint via its own redraw handler; siblings are buffered */
+                if (win->parwin) {
+                    winptr sib;
+                    drag_repaint_full(win->parwin);
+                    for (sib = win->parwin->childwin; sib;
+                         sib = sib->childlst) {
+                        if (sib == win) continue;
+                        drag_repaint_full(sib);
+                        if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+                    }
+                }
+
+                /* send resize event to the client */
+                er->etype = ami_etresize;
+                er->rszx = win->xwr.w / win->charspace;
+                er->rszy = win->xwr.h / win->linespace;
+                er->rszxg = win->xwr.w;
+                er->rszyg = win->xwr.h;
+                *keep = TRUE;
+
+            }
+
+        }
+
     } else if ((e->type == MotionNotify || e->type == ButtonPress ||
                e->type == ButtonRelease) && mouseenb) {
 
@@ -11829,6 +13402,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             curoff(win); /* remove cursor */
             win->focus = TRUE; /* put focus */
             curon(win); /* replace cursor */
+            if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
             XWLOCK();
             XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
             XWUNLOCK();
@@ -11842,17 +13416,38 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
         er->etype = ami_etnofocus; /* set no focus event */
         *keep = TRUE; /* set found */
 
     } else if (e->type == FocusIn) {
 
+        /* window has focus again -- cancel any pending decoration-change retry */
+        if (refocuswin == e->xany.window) refocuswin = 0;
+
         remfocus(root(win), win); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
         curon(win); /* replace cursor */
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
         er->etype = ami_etfocus; /* set focus event */
         *keep = TRUE; /* set found */
+
+    } else if (e->type == MapNotify) {
+
+        /* Turning decorations back on (ami_frame/sysbar/sizable) makes Mutter
+           re-decorate: it unmaps, reparents, and re-maps the window, and --
+           unlike the decorations-off case -- does NOT send a FocusIn to restore
+           our focus. The window has settled by this MapNotify, so re-assert
+           focus here. Doing it at the earlier FocusOut loses the race to the
+           unmap/remap that follows. Armed only for decorations-on changes. */
+        if (refocuswin && e->xany.window == refocuswin) {
+
+            Window rw = refocuswin;
+            refocuswin = 0; /* one-shot */
+            wmactivate(rw, 0);
+
+        }
 
     } else if (e->type == EnterNotify) {
 
@@ -11926,6 +13521,7 @@ static void xwinget(ami_evtrec* er, int* keep)
         while (evtque && !*keep) {
 
             dequexevt(&e); /* remove event from queue */
+            coalesce(&e); /* fold redundant resize/redraw bursts into one */
             xwinprc(&e, er, keep); /* process */
 
         }
@@ -11939,6 +13535,7 @@ static void xwinget(ami_evtrec* er, int* keep)
                 XWLOCK();
                 XNextEvent(padisplay, &e); /* get next event */
                 XWUNLOCK();
+                coalesce(&e); /* fold redundant resize/redraw bursts into one */
                 xwinprc(&e, er, keep); /* pass to processing */
 
             }
@@ -12541,10 +14138,22 @@ static void title_ivf(FILE* f, char* ts)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    XWLOCK();
-    XStoreName(padisplay, win->xmwhan, ts);
-    XSetIconName(padisplay, win->xwhan, ts);
-    XWUNLOCK();
+    if (win->childfrm) {
+
+        /* Ami-drawn child frame: store title and repaint frame */
+        if (win->wintitle) free(win->wintitle);
+        win->wintitle = strdup(ts);
+        childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+    } else {
+
+        /* top-level: set WM title */
+        XWLOCK();
+        XStoreName(padisplay, win->xmwhan, ts);
+        XSetIconName(padisplay, win->xwhan, ts);
+        XWUNLOCK();
+
+    }
 
 }
 
@@ -12693,60 +14302,102 @@ static void sizbufg_ivf(FILE* f, int x, int y)
 
 {
 
-    int            si;  /* index for current display screen */
-    XWindowChanges xwc; /* XWindow values */
-    winptr         win; /* pointer to windows context */
-    XEvent         e;   /* XWindow event */
+    int            si;     /* index for current display screen */
+    winptr         win;    /* pointer to windows context */
+    Pixmap         oldbuf; /* saved old buffer pixmap */
+    int            oldw, oldh; /* old buffer dimensions */
+    int            copyw, copyh; /* intersection to copy */
+    scnptr         sc;     /* screen pointer */
+    ami_evtrec     er;     /* event record for redraws */
+    int            depth;
 
     if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
     win = txt2win(f); /* get window context */
     if (!win->bufmod) error(ebufoff); /* error */
-    /* set buffer size */
+
+    /* save old buffer info from the current display screen */
+    sc = win->screens[win->curdsp-1];
+    oldbuf = sc->xbuf;
+    oldw = sc->maxxg;
+    oldh = sc->maxyg;
+
+    /* set new buffer size */
     win->gmaxx = x/win->charspace; /* find character size x */
     win->gmaxy = y/win->linespace; /* find character size y */
     win->gmaxxg = x; /* set size in pixels x */
     win->gmaxyg = y; /* set size in pixels y */
-    /* all the screen buffers are wrong, so tear them out */
+
+    /* tear out all screen buffers except we detach the current display
+       buffer's pixmap first (we saved it above) */
+    sc->xbuf = 0; /* detach so disscn doesn't free it */
     for (si = 0; si < MAXCON; si++) {
 
-        disscn(win, win->screens[si]);
-        ifree(win->screens[si]); /* free screen data */
-        win->screens[si] = NULL; /* clear screen data */
+        if (win->screens[si]) {
+
+            disscn(win, win->screens[si]);
+            ifree(win->screens[si]); /* free screen data */
+            win->screens[si] = NULL; /* clear screen data */
+
+        }
 
     }
+
+    /* allocate new screen buffer at the new size */
     win->screens[win->curdsp-1] = imalloc(sizeof(scncon));
-    iniscn(win, win->screens[win->curdsp-1]); /* initalize screen buffer */
+    iniscn(win, win->screens[win->curdsp-1]); /* creates new pixmap + clears it */
     if (win->curdsp != win->curupd) { /* also create the update buffer */
 
-        win->screens[win->curupd-1] = imalloc(sizeof(scncon)); /* get the display screen */
-        iniscn(win, win->screens[win->curupd-1]); /* initalize screen buffer */
+        win->screens[win->curupd-1] = imalloc(sizeof(scncon));
+        iniscn(win, win->screens[win->curupd-1]);
 
     }
-    xwc.width = win->gmaxxg; /* set XWindow width and height */
-    xwc.height = win->gmaxyg;
-    if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
+
+    /* copy the intersection of old and new buffers */
+    sc = win->screens[win->curdsp-1]; /* re-index (iniscn created new sc) */
+    copyw = oldw < x ? oldw : x;
+    copyh = oldh < y ? oldh : y;
+    if (copyw > 0 && copyh > 0) {
 
         XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        XCopyArea(padisplay, oldbuf, sc->xbuf, sc->xcxt,
+                  0, 0, copyw, copyh, 0, 0);
         XWUNLOCK();
-
-#ifdef WAITWMR
-        /* wait for the configure response with correct sizes */
-        do {
-
-            peekxevt(&e); /* peek next event */
-
-        } while (e.type != ConfigureNotify && e.xconfigure.width != x ||
-                 e.xconfigure.height != y || e.xany.window != win->xmwhan);
-#endif
-
-        /* set new size */
-        win->xmwr.w = win->gmaxxg;
-        win->xmwr.h = win->gmaxyg;
 
     }
 
-    restore(win); /* restore buffer to screen */
+    /* release the old buffer pixmap */
+    XWLOCK();
+    XFreePixmap(padisplay, oldbuf);
+    XWUNLOCK();
+
+    /* restore buffer to screen (handles margins if buffer < window) */
+    restore(win);
+
+    /* generate redraw events for newly exposed areas of the buffer
+       (areas in the new buffer not covered by the old buffer) */
+    if (x > oldw) {
+
+        /* right strip: from old width to new width, full new height */
+        er.etype = ami_etredraw;
+        er.rsx = oldw + 1;
+        er.rsy = 1;
+        er.rex = x;
+        er.rey = y;
+        isendevent(win, &er);
+
+    }
+    if (y > oldh) {
+
+        /* bottom strip: from old height to new height, old width only
+           (right strip already covered above) */
+        er.etype = ami_etredraw;
+        er.rsx = 1;
+        er.rsy = oldh + 1;
+        er.rex = oldw < x ? oldw : x;
+        er.rey = y;
+        isendevent(win, &er);
+
+    }
 
 }
 
@@ -12819,10 +14470,12 @@ static void buffer_ivf(FILE* f, int e)
         win->xmwr.w = xwc.width;
         win->xmwr.h = xwc.height;
 #ifdef WAITWMR
-        /* wait for the configure response with correct sizes */
+        /* wait for the next configure for this window (any size -- the WM may
+           clamp the request; see note above). Adopt the granted size. */
         do { peekxevt(&xe); /* peek next event */
-        } while (xe.type != ConfigureNotify || xe.xconfigure.width != xwc.width ||
-                 xe.xconfigure.height != xwc.height || xe.xany.window != win->xmwhan);
+        } while (xe.type != ConfigureNotify || xe.xany.window != win->xmwhan);
+        win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
+        win->xmwr.h = xe.xconfigure.height;
 #endif
         restore(win); /* restore buffer to screen */
 
@@ -13024,11 +14677,10 @@ static void menu_resize(FILE* f, winptr win, int menuon)
     XWUNLOCK();
 
 #ifdef WAITWMR
-    /* wait for the configure response */
+    /* wait for the next configure for this window (any geometry; see note in
+       the resize path -- the WM may not honor an exact request) */
     do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xconfigure.x != 0 ||
-             e.xconfigure.y != yes ||
-             e.xany.window != win->xwhan);
+    } while (e.type != ConfigureNotify || e.xany.window != win->xwhan);
 #endif
     restore(win);
 
@@ -13497,6 +15149,8 @@ static void setsizg_ivf(FILE* f, int x, int y)
     XEvent e; /* Xwindow event */
 
     win = txt2win(f); /* get window context */
+    /* if child, apply parent's viewport scale to the requested size */
+    if (win->parwin) { x = L2PW(win->parwin, x); y = L2PH(win->parwin, y); }
     /* change to client terms with zero clip */
     xwc.width = x-win->pfw; if (xwc.width < 1) xwc.width = 1;
     xwc.height = y-win->pfh; if (xwc.height < 1) xwc.height = 1;
@@ -13506,27 +15160,65 @@ static void setsizg_ivf(FILE* f, int x, int y)
 
         /* reconfigure window */
         XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+        if (win->childfrm) {
+
+            /* For child-framed windows: x/y are total master dimensions.
+               Master = x,y. Subclient = (x-pfw, y-pfh) at offset (cwox,cwoy). */
+            XResizeWindow(padisplay, win->xmwhan, x, y);
+            XMoveResizeWindow(padisplay, win->xwhan,
+                              win->cwox, win->cwoy,
+                              xwc.width, xwc.height);
+            win->xmwr.w = x;
+            win->xmwr.h = y;
+            win->xwr.x = win->cwox;
+            win->xwr.y = win->cwoy;
+            win->xwr.w = xwc.width;
+            win->xwr.h = xwc.height;
+
+        } else {
+
+            XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+            /* set new size */
+            win->xmwr.w = xwc.width;
+            win->xmwr.h = xwc.height;
+
+        }
         XWUNLOCK();
 
-        /* set new size */
-        win->xmwr.w = xwc.width;
-        win->xmwr.h = xwc.height;
+        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
 
 #ifdef WAITWMR
-        /* wait for the configure response with correct sizes */
-        do { peekxevt(&e); /* peek next event */
-        } while (e.type != ConfigureNotify || e.xconfigure.width != xwc.width ||
-                 e.xconfigure.height != xwc.height || e.xany.window != win->xmwhan);
+        /* wait for the next configure for this window (top-level only;
+           child-framed windows resize synchronously above and don't get
+           ConfigureNotify from a window manager). Do not require an exact size
+           match: Wayland/XWayland and tiling WMs may clamp or override the
+           requested size, and demanding the exact value would loop forever.
+           The actual granted size is adopted from the event below. */
+        if (!win->childfrm) {
+            do { peekxevt(&e); /* peek next event */
+            } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+        }
 #endif
 
         /* because this event may not reach ami_event() for some time, we have to
            set the dimensions now */
         if (!win->bufmod) {
 
-            /* reset tracking sizes */
-            win->gmaxxg = e.xconfigure.width; /* graphics x */
-            win->gmaxyg = e.xconfigure.height; /* graphics y */
+            /* reset tracking sizes. Child-framed windows resize synchronously
+               above and get no ConfigureNotify, so the event record e is never
+               filled for them; use the computed client dimensions directly
+               instead of reading the uninitialized event. */
+            if (win->childfrm) {
+
+                win->gmaxxg = xwc.width; /* graphics x */
+                win->gmaxyg = xwc.height; /* graphics y */
+
+            } else {
+
+                win->gmaxxg = e.xconfigure.width; /* graphics x */
+                win->gmaxyg = e.xconfigure.height; /* graphics y */
+
+            }
             /* find character size x */
             win->gmaxx = win->gmaxxg/win->charspace;
             /* find character size y */
@@ -13606,9 +15298,13 @@ static void setposg_ivf(FILE* f, int x, int y)
     /* don't repeat positions, it will cause a no-op in windows manager */
     if (x-1 != win->xmwr.x || y-1 != win->xmwr.y) {
 
-        /* reconfigure window */
+        /* reconfigure window; if child, apply parent's viewport scale */
         XWLOCK();
-        XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
+        if (win->parwin)
+            XMoveWindow(padisplay, win->xmwhan,
+                        L2PX(win->parwin, x-1), L2PY(win->parwin, y-1));
+        else
+            XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
         XWUNLOCK();
 
 #ifdef WAITWMR
@@ -13621,6 +15317,131 @@ static void setposg_ivf(FILE* f, int x, int y)
         win->xmwr.x = x-1;
         win->xmwr.y = y-1;
 
+    }
+
+}
+
+/** ****************************************************************************
+
+Drag a window under pointer control
+
+Interactively moves the given window, tracking the pointer until the mouse
+button is released. This is called when an application (typically a dialog that
+draws its own title bar) detects a press on its drag handle and wants the window
+to follow the pointer.
+
+The tracking is done entirely in desktop (root) coordinates against the window's
+position at the start of the drag:
+
+    window_pos = start_pos + (pointer_root_now - pointer_root_start)
+
+i.e. the window moves by exactly the pointer's root-space displacement, so the
+point of the window grabbed at button-down stays under the cursor. Because both
+terms are in root and parent coordinates -- never the window-relative client
+frame that moves as the window moves -- there is no feedback to diverge. The
+grab offset is captured once, implicitly, as the difference between the start
+pointer position and the start window position, and is never re-measured.
+
+The pointer is grabbed for the duration so motion continues to be delivered even
+when the pointer outruns the window and leaves its bounds, which a drag does
+constantly. XMoveWindow positions relative to the window's parent, so this works
+unchanged whether the window is a free desktop child, a child of one of our
+windows, or nested arbitrarily deep -- the move math and clipping are uniform at
+every level.
+
+*******************************************************************************/
+
+void ami_dragwin(FILE* f)
+
+{
+
+    winptr win;             /* pointer to windows context */
+    Window root_ret;        /* root the pointer is on */
+    Window child_ret;       /* child the pointer is in */
+    int    rx, ry;          /* pointer root position */
+    int    wx, wy;          /* pointer window position (unused) */
+    unsigned int mask;      /* button/modifier mask (unused) */
+    int    startx, starty;  /* pointer root position at drag start */
+    int    origx, origy;    /* window position at drag start */
+    XEvent de;              /* drag event */
+    int    dragging;        /* drag in progress */
+
+    win = txt2win(f); /* get window context */
+
+    XWLOCK();
+    /* snapshot the pointer's root position and the window's parent-relative
+       position at the instant the drag begins; their difference is the
+       (constant) grab offset, which never needs to be re-measured */
+    XQueryPointer(padisplay, win->xmwhan, &root_ret, &child_ret,
+                  &rx, &ry, &wx, &wy, &mask);
+    startx = rx; starty = ry;
+    origx = win->xmwr.x; origy = win->xmwr.y;
+    /* redirect all pointer motion to us for the duration, so tracking
+       continues even when the pointer leaves the window's bounds */
+    XGrabPointer(padisplay, win->xmwhan, False,
+                 ButtonReleaseMask | PointerMotionMask,
+                 GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+    XWUNLOCK();
+
+    dragging = TRUE;
+    while (dragging) {
+
+        XWLOCK();
+        XNextEvent(padisplay, &de);
+        XWUNLOCK();
+        if (de.type == MotionNotify) {
+
+            /* coalesce only the consecutive run of already-queued motion,
+               stopping at any other event (notably Expose) so a fast drag makes
+               one move per batch without starving the damage repaint
+               (see childfrm drag) */
+            XWLOCK();
+            while (XPending(padisplay)) {
+                XEvent pk;
+                XPeekEvent(padisplay, &pk);
+                if (pk.type != MotionNotify) break;
+                XNextEvent(padisplay, &de);
+            }
+            XWUNLOCK();
+            /* move the window by the pointer's root-space delta */
+            int dx = de.xmotion.x_root - startx;
+            int dy = de.xmotion.y_root - starty;
+            win->xmwr.x = origx + dx;
+            win->xmwr.y = origy + dy;
+            XWLOCK();
+            XMoveWindow(padisplay, win->xmwhan, win->xmwr.x, win->xmwr.y);
+            XWUNLOCK();
+
+        } else if (de.type == ButtonRelease) {
+
+            dragging = FALSE;
+
+        } else if (de.type == Expose) {
+
+            /* repaint exactly what the move exposed, dispatched to its window
+               (parent trail, uncovered sibling, or this window re-entering) */
+            int ofn = fndevt(de.xany.window);
+            if (ofn >= 0)
+                drag_expose(lfn2win(ofn), de.xany.window,
+                            de.xexpose.x, de.xexpose.y,
+                            de.xexpose.width, de.xexpose.height);
+
+        }
+
+    }
+    XWLOCK();
+    XUngrabPointer(padisplay, CurrentTime);
+    XWUNLOCK();
+    /* final repaint after release: an unbuffered parent had its Expose events
+       consumed during the drag, so force it to repaint via its redraw handler */
+    if (win->parwin) {
+        winptr sib;
+        drag_repaint_full(win->parwin);
+        for (sib = win->parwin->childwin; sib; sib = sib->childlst) {
+            if (sib == win) continue;
+            drag_repaint_full(sib);
+            if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+        }
     }
 
 }
@@ -13892,41 +15713,81 @@ static void frame_ivf(FILE* f, int e)
     win->size = FALSE;
     win->sysbar = FALSE;
     win->frame = !!e; /* set new status of frame */
-    enbxfrm(win->xmwhan, e); /* enable/disable frame */
 
-    if (e) {
+    if (win->childfrm) {
 
-        /* find net extra width of frame from client area */
-        win->pfw = frmextwdt[frmcfgall];
-        win->pfh = frmexthgt[frmcfgall];
-        /* find offset from parent origin to client origin */
-        win->cwox = frmoffx[frmcfgall];
-        win->cwoy = frmoffy[frmcfgall];
+        /* Ami-drawn child frame: adjust offsets and geometry */
+        if (e) {
+
+            win->pfw = CFRM_BORDER_W * 2;
+            win->pfh = CFRM_TITBAR_H(win) + CFRM_BORDER_W;
+            win->cwox = CFRM_BORDER_W;
+            win->cwoy = CFRM_TITBAR_H(win);
+
+        } else {
+
+            win->pfw = 0;
+            win->pfh = 0;
+            win->cwox = 0;
+            win->cwoy = 0;
+
+        }
+
+        if (chg) {
+
+            /* resize master window */
+            win->xmwr.w = win->gmaxxg + win->pfw;
+            win->xmwr.h = win->gmaxyg + win->pfh;
+            XWLOCK();
+            XResizeWindow(padisplay, win->xmwhan,
+                          win->xmwr.w, win->xmwr.h);
+            /* reposition and resize subclient within master */
+            XMoveResizeWindow(padisplay, win->xwhan,
+                              win->cwox, win->cwoy,
+                              win->gmaxxg, win->gmaxyg);
+            XWUNLOCK();
+
+            restore(win);
+            /* redraw the frame when it is turned back on */
+            if (e) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+        }
 
     } else {
 
-        /* find net extra width of frame from client area */
-        win->pfw = frmextwdt[frmcfgfrm];
-        win->pfh = frmexthgt[frmcfgfrm];
-        /* find offset from parent origin to client origin */
-        win->cwox = frmoffx[frmcfgfrm];
-        win->cwoy = frmoffy[frmcfgfrm];
+        /* top-level: use WM frame */
+        enbxfrm(win->xmwhan, e); /* enable/disable frame */
 
-    }
+        if (e) {
 
-    if (chg) { /* geometry has changed */
+            win->pfw = frmextwdt[frmcfgall];
+            win->pfh = frmexthgt[frmcfgall];
+            win->cwox = frmoffx[frmcfgall];
+            win->cwoy = frmoffy[frmcfgall];
 
-        xwc.width = win->gmaxxg; /* set XWindow width and height */
-        xwc.height = win->gmaxyg;
-        XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-        XWUNLOCK();
+        } else {
 
-        /* set new size */
-        win->xmwr.w = win->gmaxxg;
-        win->xmwr.h = win->gmaxyg;
+            win->pfw = frmextwdt[frmcfgfrm];
+            win->pfh = frmexthgt[frmcfgfrm];
+            win->cwox = frmoffx[frmcfgfrm];
+            win->cwoy = frmoffy[frmcfgfrm];
 
-        restore(win); /* restore buffer to screen */
+        }
+
+        if (chg) {
+
+            xwc.width = win->gmaxxg;
+            xwc.height = win->gmaxyg;
+            XWLOCK();
+            XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+            XWUNLOCK();
+
+            win->xmwr.w = win->gmaxxg;
+            win->xmwr.h = win->gmaxyg;
+
+            restore(win);
+
+        }
 
     }
 
@@ -14920,6 +16781,7 @@ static void ami_init_graphics(int argc, char *argv[])
     curyg_vect =           curyg_ivf;
     line_vect =            line_ivf;
     linewidth_vect =       linewidth_ivf;
+    linestyle_vect =       linestyle_ivf;
     rect_vect =            rect_ivf;
     frect_vect =           frect_ivf;
     rrect_vect =           rrect_ivf;
@@ -14949,6 +16811,8 @@ static void ami_init_graphics(int argc, char *argv[])
     font_vect =            font_ivf;
     fontnam_vect =         fontnam_ivf;
     fontsiz_vect =         fontsiz_ivf;
+    setpoints_vect =        setpoints_ivf;
+    points_vect =        points_ivf;
     chrspcy_vect =         chrspcy_ivf;
     chrspcx_vect =         chrspcx_ivf;
     dpmx_vect =            dpmx_ivf;
@@ -14977,6 +16841,8 @@ static void ami_init_graphics(int argc, char *argv[])
     delpict_vect =         delpict_ivf;
     viewoffg_vect =        viewoffg_ivf;
     viewscale_vect =       viewscale_ivf;
+    scalex_vect =          scalex_ivf;
+    scaley_vect =          scaley_ivf;
     scrollg_vect =         scrollg_ivf;
     path_vect =            path_ivf;
     title_vect =           title_ivf;
@@ -15337,10 +17203,12 @@ static void ami_init_graphics(int argc, char *argv[])
     /* find frame characteristics */
     fndfrm();
 
+#ifndef NOSTDWIN
     /* open stdin and stdout as I/O window set */
     ifn = fileno(stdin); /* get logical id stdin */
     ofn = fileno(stdout); /* get logical id stdout */
     openio(stdin, stdout, ifn, ofn, -1, 1, FALSE); /* process open */
+#endif
 
     /* select XWindow display file */
     XWLOCK();
@@ -15435,6 +17303,14 @@ static void ami_deinit_graphics()
     int    fn;
 
     ami_evtrec er;
+    ami_evtcod e; /* event index */
+
+    /* Reset all event vectors back to the default handler. The client program
+       may have installed overrides (e.g. longjmp-based terminate handlers)
+       that are no longer safe to call now that main() has returned — the
+       stack frame they longjmp into is gone. */
+    evtshan = defaultevent;
+    for (e = ami_etchar; e <= ami_ettabbar; e++) evthan[e] = defaultevent;
 
     /* try to get window from stdout */
     win = NULL; /* set no window */
@@ -15471,21 +17347,30 @@ static void ami_deinit_graphics()
         XWLOCK();
         /* destroy the main window */
         XDestroyWindow(padisplay, win->xwhan);
-        /* close X Window */
-        XCloseDisplay(padisplay);
+        /* Flush the destroy to the server, but do NOT call XCloseDisplay().
+           Like FT_Done_FreeType() and FcFini() below, it is process-exit
+           teardown that misbehaves under a static link: a statically linked
+           Xlib double-frees display-owned data in _XFreeDisplayStructure
+           ("double free or corruption" at every program exit). The process is
+           exiting, so the connection closes and the OS reclaims all memory
+           regardless. */
+        XFlush(padisplay);
+        /* XCloseDisplay(padisplay); -- skipped, see above */
         XWUNLOCK();
 
     }
 
     /* shutdown FreeType and fontconfig.
        Note: we clear the glyph cache (freeing X pixmaps) but do NOT call
-       FT_Done_FreeType(). Individual FT_Done_Face() calls have already
-       been made during window close, and FT_Done_FreeType() would try to
-       free them again (double-free → segfault). The process is exiting,
-       so the OS reclaims all heap memory regardless. */
+       FT_Done_FreeType() or FcFini(). Individual FT_Done_Face() calls have
+       already been made during window close, and FT_Done_FreeType() would try
+       to free them again (double-free → segfault). FcFini() has the same
+       problem under a statically linked fontconfig: it tears down fontconfig's
+       internal config, which double-frees at exit ("double free or corruption").
+       The process is exiting, so the OS reclaims all heap memory regardless. */
     ft_cache_clear();
     /* FT_Done_FreeType(ftlibrary); — skipped, see above */
-    FcFini();
+    /* FcFini(); — skipped, see above */
 
     /* close joysticks */
     for (ji = 0; ji < MAXJOY; ji++) if (joytab[ji]) close(joytab[ji]->fid);

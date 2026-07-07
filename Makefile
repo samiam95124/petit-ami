@@ -259,7 +259,7 @@ else ifeq ($(OSTYPE),FreeBSD)
 
 	CC=clang
 	CPP=clang++
-	CFLAGS=-g3 -Iinclude
+	CFLAGS=-g3 -Iinclude -I/usr/local/include/freetype2 -fcommon
 
 else
 
@@ -328,10 +328,12 @@ ifeq ($(STDIO_SOURCE),stdio)
     CFLAGS +=-Ilibc
     ifneq ($(OSTYPE),Windows_NT)
     ifneq ($(OSTYPE),Darwin)
-    ifneq ($(OSTYPE),FreeBSD)
-        # Linux needs bypass to coexist with system glibc
+        # Linux and FreeBSD use X11/libXau which accesses FILE* internals
+        # directly (backdoor access). STDIO_BYPASS prevents petit_ami from
+        # exporting fopen/fclose etc. as global symbols, so libXau always
+        # uses the real system fopen and a proper FILE*. Mac OS X is exempt
+        # because it uses Cocoa/CoreGraphics and does not involve libXau.
         CFLAGS += -DSTDIO_BYPASS
-    endif
     endif
     endif
 endif
@@ -452,8 +454,6 @@ endif
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	PLIBS += lib/petit_ami_plain.a
-    else ifeq ($(OSTYPE),FreeBSD)
-    	PLIBS += lib/petit_ami_plain.a
     else
     	PLIBS += -Wl,--whole-archive lib/petit_ami_plain.a -Wl,--no-whole-archive
     endif
@@ -471,13 +471,11 @@ endif
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	CLIBS += lib/petit_ami_term.a
-    else ifeq ($(OSTYPE),FreeBSD)
-    	CLIBS += lib/petit_ami_term.a
     else
     	CLIBS += -Wl,--whole-archive lib/petit_ami_term.a -Wl,--no-whole-archive
     endif
 else
-    CLIBS += stub/keeper.o lib/petit_ami_term.so 
+    CLIBS += stub/keeper.o lib/petit_ami_term.so
 endif
 
 CLIBSCPP = $(CLIBS) cpp/terminal.o
@@ -487,8 +485,6 @@ CLIBSCPP = $(CLIBS) cpp/terminal.o
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	GLIBS += -Wl,-force_load,lib/petit_ami_graph.a
-    else ifeq ($(OSTYPE),FreeBSD)
     	GLIBS += -Wl,-force_load,lib/petit_ami_graph.a
     else
     	GLIBS += -Wl,--whole-archive lib/petit_ami_graph.a -Wl,--no-whole-archive
@@ -537,9 +533,10 @@ else ifeq ($(OSTYPE),FreeBSD)
     #
     # BSD
     #
-	PLIBS += -L/usr/local/lib -lm -lpthread -lssl -lcrypto
-	CLIBS += -L/usr/local/lib -lm -lpthread -lssl -lcrypto
-	GLIBS += -L/usr/local/lib -lm -lpthread -lssl -lcrypto -lX11
+	PLIBS += -L/usr/local/lib -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	CLIBS += -L/usr/local/lib -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+	GLIBS += -L/usr/local/lib -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto \
+	         -lX11 -lfreetype -lfontconfig
 	PLIBSD +=
     CLIBSD +=
 	GLIBSD +=
@@ -576,17 +573,21 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 # Windows
 #
+# Note: network_test is not built on Windows. The automated test forks
+# loopback servers (fork()/sys/wait.h), which MinGW does not provide. Use the
+# manual procedure in network_test.txt (gettys/msgserver/msgclient/prtcertnet
+# are all built) instead.
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
-     line4 line5 clock
-    
+     line4 line5 clock calc
+
 else ifeq ($(OSTYPE),Darwin)
 
 #
@@ -596,12 +597,12 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5 clock
+     line2 line4 line5 clock calc
 
 else ifeq ($(OSTYPE),FreeBSD)
 
@@ -612,12 +613,12 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5 clock
+     line2 line4 line5 clock calc
     
 else
 
@@ -628,12 +629,12 @@ all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5 clock
+     line2 line4 line5 clock calc
     
 endif 
 
@@ -673,8 +674,6 @@ linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
 	$(CC) $(CFLAGS) -c linux/system_event.c -o linux/system_event.o
 	
-linux/rotated.o: linux/rotated.c linux/rotated.h Makefile
-	$(CC) $(CFLAGS) -c linux/rotated.c -o linux/rotated.o
 
 linux/screen_capture.o: linux/screen_capture.c Makefile
 	$(CC) $(CFLAGS) -c linux/screen_capture.c -o linux/screen_capture.o
@@ -748,32 +747,46 @@ macosx/screen_capture.o: macosx/screen_capture.c macosx/pa_cocoa.h Makefile
 # BSD can use some of the same components as Linux.
 #
 bsd/stdio.o: libc/stdio.c libc/stdio.h Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c libc/stdio.c -o bsd/stdio.o
-	
+
 bsd/services.o: linux/services.c include/services.h Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c linux/services.c -o bsd/services.o
-	
-bsd/sound.o: stub/sound.c include/sound.h Makefile
-	$(CC) $(CFLAGS) -c stub/sound.c -o bsd/sound.o
-	
+
+bsd/sound.o: linux/sound.c include/sound.h Makefile
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -I/usr/local/include -c linux/sound.c -o bsd/sound.o
+
+bsd/fluidsynthplug.o: linux/fluidsynthplug.c include/sound.h Makefile
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -I/usr/local/include -c linux/fluidsynthplug.c -o bsd/fluidsynthplug.o
+
+bsd/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -I/usr/local/include -c linux/dumpsynthplug.c -o bsd/dumpsynthplug.o
+
 bsd/network.o: stub/network.c include/network.h Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -I/usr/local/include \
 		-c stub/network.c -o bsd/network.o
-	
+
 bsd/terminal.o: linux/terminal.c include/terminal.h Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c linux/terminal.c -o bsd/terminal.o
-	
+
 bsd/graphics.o: linux/graphics.c include/graphics.h Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -I/usr/local/include -c linux/graphics.c \
 	-o bsd/graphics.o
 
-bsd/rotated.o: linux/rotated.c linux/rotated.h Makefile
-	$(CC) $(CFLAGS) -I/usr/local/include -c linux/rotated.c -o bsd/rotated.o
-	
+
 bsd/system_event.o: macosx/system_event.c linux/system_event.h Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c macosx/system_event.c -o bsd/system_event.o
 
 bsd/screen_capture.o: stub/screen_capture.c Makefile
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c stub/screen_capture.c -o bsd/screen_capture.o
 
 #
@@ -869,22 +882,27 @@ else ifeq ($(OSTYPE),FreeBSD)
 #
 # Use statically linked files, for BSD
 #
-lib/petit_ami_plain.a: bsd/services.o bsd/sound.o bsd/network.o \
-	utils/config.o utils/option.o bsd/stdio.o
+lib/petit_ami_plain.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
+	bsd/dumpsynthplug.o bsd/network.o utils/config.o utils/option.o bsd/stdio.o
 	ar rcs lib/petit_ami_plain.a bsd/services.o bsd/sound.o \
+	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
         bsd/network.o utils/config.o utils/option.o bsd/stdio.o
-	
-lib/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/network.o \
+
+lib/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
+	bsd/dumpsynthplug.o bsd/network.o \
     bsd/system_event.o bsd/terminal.o utils/config.o utils/option.o \
     bsd/stdio.o
 	ar rcs lib/petit_ami_term.a bsd/services.o bsd/sound.o \
+	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/terminal.o \
 	    utils/config.o utils/option.o bsd/stdio.o
-	
-lib/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/network.o \
-    bsd/graphics.o bsd/rotated.o bsd/system_event.o \
+
+lib/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
+	bsd/dumpsynthplug.o bsd/network.o \
+    bsd/graphics.o bsd/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
-	ar rcs lib/petit_ami_graph.a bsd/services.o bsd/sound.o bsd/rotated.o \
+	ar rcs lib/petit_ami_graph.a bsd/services.o bsd/sound.o \
+	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
 	    portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
 	
@@ -918,7 +936,7 @@ lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
     cpp/terminal.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
-		utils/option.o  cpp/terminal.o -o lib/petit_ami_term.so 
+		utils/option.o  cpp/terminal.o -lstdc++ -o lib/petit_ami_term.so
 	
 lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
@@ -930,20 +948,20 @@ lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 		 cpp/terminal.o
 	
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
-	linux/graphics.o linux/rotated.o linux/system_event.o \
+	linux/graphics.o linux/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
-		linux/graphics.o linux/rotated.o linux/system_event.o \
+		linux/graphics.o linux/system_event.o \
 		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
-        -o lib/petit_ami_graph.so
-	
+        -lstdc++ -o lib/petit_ami_graph.so
+
 lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/graphics.o linux/rotated.o linux/system_event.o \
+	linux/graphics.o linux/system_event.o \
 	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
 	ar rcs lib/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/graphics.o linux/rotated.o linux/system_event.o \
+		linux/graphics.o linux/system_event.o \
 		portable/gnome_widgets.o utils/config.o utils/option.o  \
 		cpp/terminal.o
 	
@@ -979,7 +997,7 @@ testc: $(CLIBSD) test.c
 	$(CC) $(CFLAGS) test.c $(CLIBS) -o testc
 	
 testg: $(GLIBSD) test.c
-	$(CC) $(CFLAGS) test.c $(GLIBS) -o testg
+	$(CC) $(CFLAGS) test.c -Wl,-u,ami_cursorg $(GLIBS) -o testg
 	
 test+: $(PLIBSD) test.cp
 	$(CPP) $(CFLAGS) test.cp $(PLIBS) -o test
@@ -994,7 +1012,7 @@ testc++: $(CLIBSCPPD) test.cpp
 	$(CPP) $(CFLAGSCPP) test.cpp $(CLIBSCPP) -o testc
 	
 testg++: $(GLIBSD) test.cpp
-	$(CPP) $(CFLAGS) test.cpp $(GLIBS) -o testg
+	$(CPP) $(CFLAGS) test.cpp -Wl,-u,ami_cursorg $(GLIBS) -o testg
 	
 #
 # Target programs that use Petit-Ami, such as games, utilities, etc.
@@ -1093,16 +1111,7 @@ genwaveg: $(GLIBSD) sound_programs/genwave.c
 	$(CC) $(CFLAGS) sound_programs/genwave.c $(GLIBS) -o bin/genwaveg
 
 #
-# Test console model compliant output
-#	
-terminal_test: $(CLIBSD) tests/terminal_test.c
-	$(CC) $(CFLAGS) tests/terminal_test.c $(CLIBS) -o bin/terminal_test
-
-terminal_testg: $(GLIBSD) tests/terminal_test.c
-	$(CC) $(CFLAGS) tests/terminal_test.c $(GLIBS) -o bin/terminal_testg
-	
-#
-# Test graph model compliant output
+# Screen capture object (platform-dependent)
 #
 ifeq ($(OSTYPE),Windows_NT)
 SCREEN_CAPTURE_OBJ = windows/screen_capture.o
@@ -1114,6 +1123,33 @@ else
 SCREEN_CAPTURE_OBJ = linux/screen_capture.o
 endif
 
+#
+# Test console model compliant output
+#
+ifeq ($(OSTYPE),Darwin)
+terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/terminal_test
+else ifeq ($(OSTYPE),Windows_NT)
+# Windows screen capture uses GDI, not X11, so libpng/zlib are required but
+# libX11 is not linked.
+terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lpng -lz -o bin/terminal_test
+else
+terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lX11 -lpng -lz -o bin/terminal_test
+endif
+
+ifeq ($(OSTYPE),Darwin)
+terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/terminal_testg
+else
+terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/terminal_testg
+endif
+
+#
+# Test graph model compliant output
+#
 ifeq ($(OSTYPE),Darwin)
 graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/graphics_test
@@ -1134,6 +1170,9 @@ testviewer: macosx/testviewer.c Makefile
 	$(CC) -g3 -x objective-c macosx/testviewer.c \
 	    -framework Cocoa -framework CoreGraphics -framework ImageIO \
 	    -o bin/testviewer
+else ifeq ($(OSTYPE),FreeBSD)
+testviewer: linux/testviewer.c Makefile
+	$(CC) -g3 -I/usr/local/include linux/testviewer.c -L/usr/local/lib -lX11 -lpng -o bin/testviewer
 else
 testviewer: linux/testviewer.c Makefile
 	$(CC) -g3 linux/testviewer.c -lX11 -lpng -o bin/testviewer
@@ -1142,8 +1181,13 @@ endif
 #
 # Test windows management model compliant output
 #
-management_test: $(GLIBSD) tests/management_test.c
-	$(CC) $(CFLAGS) tests/management_test.c $(GLIBS) -o bin/management_test 
+ifeq ($(OSTYPE),Darwin)
+management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
+else
+management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/management_test
+endif
 
 #
 # Test windows widget compliant output
@@ -1161,6 +1205,14 @@ sound_testg: $(GLIBSD) tests/sound_test.c
 	$(CC) $(CFLAGS) tests/sound_test.c $(GLIBS) -o bin/sound_testg 
 	
 #
+# Test network library (automated; replaces the manual list in
+# network_test.txt). Run from the project root so the TLS test certificates
+# are found.
+#
+network_test: $(PLIBSD) tests/network_test.c
+	$(CC) $(CFLAGS) tests/network_test.c $(PLIBS) -o bin/network_test
+	
+#
 # Test services module
 #
 # Note services test uses a separate program, services_test1, that tests the ability to
@@ -1169,6 +1221,12 @@ sound_testg: $(GLIBSD) tests/sound_test.c
 services_test: $(PLIBSD) tests/services_test.c
 	$(CC) $(CFLAGS) tests/services_test.c $(PLIBS) -o bin/services_test
 	$(CC) $(CFLAGS) tests/services_test1.c $(PLIBS) -o bin/services_test1
+
+#
+# Test the standard I/O library (printf/scanf/file I/O). Self checking.
+#
+stdio_test: $(PLIBSD) tests/stdio_test.c
+	$(CC) $(CFLAGS) tests/stdio_test.c $(PLIBS) -o bin/stdio_test
 
 #
 # Test event model (console and graph mode)
@@ -1398,6 +1456,12 @@ clock: $(GLIBSD) graph_programs/clock.c
 	$(CC) $(CFLAGS) graph_programs/clock.c $(GLIBS) -o bin/clock
 
 #
+# Calculator
+#
+calc: $(GLIBSD) graph_programs/calc.c
+	$(CC) $(CFLAGS) graph_programs/calc.c $(GLIBS) -o bin/calc
+
+#
 # Chess game
 #
 chess: $(GLIBSD) graph_games/chess.c
@@ -1441,7 +1505,7 @@ clean:
 	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
 	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
 	rm -f bin/management_test bin/widget_test bin/sound_test bin/sound_testg
-	rm -f bin/services_test bin/event bin/eventg bin/term bin/termg bin/snake 
+	rm -f bin/services_test bin/stdio_test bin/event bin/eventg bin/term bin/termg bin/snake
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
 	rm -f bin/getmail bin/getmailg bin/gettys bin/gettysg bin/msgclient 
@@ -1450,7 +1514,7 @@ clean:
 	rm -f bin/listcertnetg bin/prtconfig bin/prtconfigg bin/pixel bin/ball1
 	rm -f bin/ball2 bin/ball3 bin/ball4 bin/ball5 bin/ball6 bin/line1 bin/line2
 	rm -f bin/line4 bin/line5
-	rm -f bin/services_test1 bin/connectnet bin/connectnetg bin/clock
+	rm -f bin/services_test1 bin/connectnet bin/connectnetg bin/clock bin/calc
 	find . -name "*.o" -type f -delete
 	rm -f lib/*.a
 	rm -f lib/*.so

@@ -197,11 +197,15 @@ static void waittime(int n, int t)
 }
 
 
+extern void screen_capture(void);
+
 /* wait return to be pressed, or handle terminate */
 static void waitnext(void)
 {
 
     ami_evtrec er; /* event record */
+
+    screen_capture();
 
     do { ami_event(stdin, &er);
     } while (er.etype != ami_etenter);
@@ -1320,13 +1324,18 @@ int main(int argc, char *argv[])
     prtcen(ami_maxy(stdout), " Buffer follow test ");
     ami_cursor(stdout, 3, 3);
     printf("Resize the window, the frame should follow the window\n");
+    x = ami_maxx(stdout);
+    y = ami_maxy(stdout);
     do { 
 
         ami_event(stdin, &er);
         if (er.etype == ami_etresize) {
 
+            box(1, 1, x, y, ' ');
             ami_sizbuf(stdout, er.rszx, er.rszy);
             box(1, 1, ami_maxx(stdout), ami_maxy(stdout), '*');
+            x = ami_maxx(stdout);
+            y = ami_maxy(stdout);
             prtcen(ami_maxy(stdout), " Buffer follow test ");
             ami_cursor(stdout, 3, 3);
             printf("Resize the window, the frame should follow the window\n");
@@ -1515,6 +1524,8 @@ int main(int argc, char *argv[])
 
     if (ami_mouse(stdin) > 0) {  /* mouse test */
 
+        x = 1;
+        y = 1;
         printf("\f");
         ami_auto(stdout, FALSE);
         ami_curvis(stdout, FALSE);
@@ -1559,6 +1570,7 @@ int main(int argc, char *argv[])
             }
 
         } while (er.etype != ami_etenter);
+        ami_home(stdout);
         ami_auto(stdout, TRUE);
         ami_curvis(stdout, TRUE);
 

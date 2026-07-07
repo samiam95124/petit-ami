@@ -435,7 +435,7 @@ int ami_setparamwaveout(int p, string name, string value);
 void ami_getparamsynthin(int p, string name, string value, int len);
 void ami_getparamsynthout(int p, string name, string value, int len);
 void ami_getparamwavein(int p, string name, string value, int len);
-void ami_getparamswaveout(int p, string name, string value, int len);
+void ami_getparamwaveout(int p, string name, string value, int len);
 
 /* non-standard local access calls */
 

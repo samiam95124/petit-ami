@@ -843,9 +843,9 @@ long ami_elapsed(long r)
 {
 
     /* reference time */
-    int t;
+    long t;
 
-    t = clock();   /* get the current time */
+    t = ami_clock();   /* get the current time */
     if (t >= r) t -= r; /* time has not wrapped */
     else t += INT_MAX-r; /* time has wrapped */
 
@@ -1580,6 +1580,8 @@ void ami_brknam(
 
     int i, s, f, t; /* string indexes */
     char *s1, *s2;
+    char buf[MAXSTR]; /* trimmed working copy of the spec */
+    int len;          /* length of the trimmed spec */
 
     /* clear all strings */
     *p = 0;
@@ -1589,6 +1591,17 @@ void ami_brknam(
     s1 = fn; /* index file spec */
     /* skip spaces */
     while (*s1 && *s1 == ' ') s1++;
+    /* Work on a trimmed copy: drop trailing spaces (the input may be a space-
+       padded fixed string) and a single trailing path separator, so a
+       directory spec such as ".../bin/" yields name "bin" rather than an empty
+       name. The root "/" (len 1) keeps its separator. */
+    len = strlen(s1);
+    while (len > 0 && s1[len-1] == ' ') len--;
+    if (len > 1 && s1[len-1] == ami_pthchr()) len--;
+    if (len >= MAXSTR) error("String to large for destination\n");
+    memcpy(buf, s1, len);
+    buf[len] = 0;
+    s1 = buf;
     /* find last '/' that will mark the path */
     s2 = strrchr(s1, ami_pthchr());
     if (s2) {
@@ -3417,7 +3430,12 @@ Note the environment is unordered.
 
 *******************************************************************************/
 
-static void ami_init_services (int argc, char* argv[]) __attribute__((constructor (102)));
+/* Priority 101 (before the I/O models at 102+): the environment list this
+   builds is a dependency of config reading. The graphics/terminal/... init at
+   102+ call ami_config -> ami_getusr -> ami_getenv, which need the env list to
+   resolve $HOME; if services ran at the same priority (link-order dependent),
+   that lookup could fail and the user-home config would be missed. */
+static void ami_init_services (int argc, char* argv[]) __attribute__((constructor (101)));
 static void ami_init_services(int argc, char* argv[])
 
 {

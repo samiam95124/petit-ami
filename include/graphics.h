@@ -61,6 +61,8 @@ extern "C" {
    widgets placed onto it. */
 typedef enum { ami_black, ami_white, ami_red, ami_green, ami_blue, ami_cyan,
                ami_yellow, ami_magenta, ami_backcolor } ami_color;
+/* line styles */
+typedef enum { ami_lssolid, ami_lsdash, ami_lsdot } ami_lstyle;
 /* events */
 typedef enum {
     ami_etchar,     /* ANSI character returned */
@@ -400,6 +402,7 @@ int ami_curxg(FILE* f);
 int ami_curyg(FILE* f);
 void ami_line(FILE* f, int x1, int y1, int x2, int y2);
 void ami_linewidth(FILE* f, int w);
+void ami_linestyle(FILE* f, ami_lstyle style);
 void ami_rect(FILE* f, int x1, int y1, int x2, int y2);
 void ami_frect(FILE* f, int x1, int y1, int x2, int y2);
 void ami_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
@@ -429,6 +432,8 @@ int ami_fonts(FILE* f);
 void ami_font(FILE* f, int fc);
 void ami_fontnam(FILE* f, int fc, char* fns, int fnsl);
 void ami_fontsiz(FILE* f, int s);
+void ami_setpoints(FILE* f, float ps);
+float ami_points(FILE* f);
 void ami_chrspcy(FILE* f, int s);
 void ami_chrspcx(FILE* f, int s);
 int ami_dpmx(FILE* f);
@@ -457,6 +462,10 @@ void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2);
 void ami_delpict(FILE* f, int p);
 void ami_scrollg(FILE* f, int x, int y);
 void ami_path(FILE* f, int a);
+void ami_viewoffg(FILE* f, int x, int y);
+void ami_viewscale(FILE* f, float x, float y);
+int  ami_scalex(FILE* f, int x);
+int  ami_scaley(FILE* f, int y);
 
 /* Window management functions */
 
@@ -469,6 +478,7 @@ void ami_setsiz(FILE* f, int x, int y);
 void ami_setsizg(FILE* f, int x, int y);
 void ami_setpos(FILE* f, int x, int y);
 void ami_setposg(FILE* f, int x, int y);
+void ami_dragwin(FILE* f);
 void ami_scnsiz(FILE* f, int* x, int* y);
 void ami_scnsizg(FILE* f, int* x, int*y);
 void ami_scncen(FILE* f, int* x, int* y);
@@ -650,6 +660,7 @@ typedef int (*ami_curxg_t)(FILE* f);
 typedef int (*ami_curyg_t)(FILE* f);
 typedef void (*ami_line_t)(FILE* f, int x1, int y1, int x2, int y2);
 typedef void (*ami_linewidth_t)(FILE* f, int w);
+typedef void (*ami_linestyle_t)(FILE* f, ami_lstyle style);
 typedef void (*ami_rect_t)(FILE* f, int x1, int y1, int x2, int y2);
 typedef void (*ami_frect_t)(FILE* f, int x1, int y1, int x2, int y2);
 typedef void (*ami_rrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
@@ -679,6 +690,8 @@ typedef int (*ami_fonts_t)(FILE* f);
 typedef void (*ami_font_t)(FILE* f, int fc);
 typedef void (*ami_fontnam_t)(FILE* f, int fc, char* fns, int fnsl);
 typedef void (*ami_fontsiz_t)(FILE* f, int s);
+typedef void (*ami_setpoints_t)(FILE* f, float ps);
+typedef float (*ami_points_t)(FILE* f);
 typedef void (*ami_chrspcy_t)(FILE* f, int s);
 typedef void (*ami_chrspcx_t)(FILE* f, int s);
 typedef int (*ami_dpmx_t)(FILE* f);
@@ -705,6 +718,10 @@ typedef void (*ami_picture_t)(FILE* f, int p, int x1, int y1, int x2, int y2);
 typedef void (*ami_delpict_t)(FILE* f, int p);
 typedef void (*ami_scrollg_t)(FILE* f, int x, int y);
 typedef void (*ami_path_t)(FILE* f, int a);
+typedef void (*ami_viewoffg_t)(FILE* f, int x, int y);
+typedef void (*ami_viewscale_t)(FILE* f, float x, float y);
+typedef int  (*ami_scalex_t)(FILE* f, int x);
+typedef int  (*ami_scaley_t)(FILE* f, int y);
 typedef void (*ami_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, int wid);
 typedef void (*ami_buffer_t)(FILE* f, int e);
 typedef void (*ami_sizbufg_t)(FILE* f, int x, int y);
@@ -898,12 +915,15 @@ void _pa_band_ovr(ami_band_t nfp, ami_band_t* ofp);
 void _pa_for_ovr(ami_for_t nfp, ami_for_t* ofp);
 void _pa_bor_ovr(ami_bor_t nfp, ami_bor_t* ofp);
 void _pa_linewidth_ovr(ami_linewidth_t nfp, ami_linewidth_t* ofp);
+void _pa_linestyle_ovr(ami_linestyle_t nfp, ami_linestyle_t* ofp);
 void _pa_chrsizx_ovr(ami_chrsizx_t nfp, ami_chrsizx_t* ofp);
 void _pa_chrsizy_ovr(ami_chrsizy_t nfp, ami_chrsizy_t* ofp);
 void _pa_fonts_ovr(ami_fonts_t nfp, ami_fonts_t* ofp);
 void _pa_font_ovr(ami_font_t nfp, ami_font_t* ofp);
 void _pa_fontnam_ovr(ami_fontnam_t nfp, ami_fontnam_t* ofp);
 void _pa_fontsiz_ovr(ami_fontsiz_t nfp, ami_fontsiz_t* ofp);
+void _pa_setpoints_ovr(ami_setpoints_t nfp, ami_setpoints_t* ofp);
+void _pa_points_ovr(ami_points_t nfp, ami_points_t* ofp);
 void _pa_chrspcy_ovr(ami_chrspcy_t nfp, ami_chrspcy_t* ofp);
 void _pa_chrspcx_ovr(ami_chrspcx_t nfp, ami_chrspcx_t* ofp);
 void _pa_dpmx_ovr(ami_dpmx_t nfp, ami_dpmx_t* ofp);
@@ -971,6 +991,10 @@ void _pa_sizable_ovr(ami_sizable_t nfp, ami_sizable_t* ofp);
 void _pa_sysbar_ovr(ami_sysbar_t nfp, ami_sysbar_t* ofp);
 void _pa_focus_ovr(ami_focus_t nfp, ami_focus_t* ofp);
 void _pa_path_ovr(ami_path_t nfp, ami_path_t* ofp);
+void _pa_viewoffg_ovr(ami_viewoffg_t nfp, ami_viewoffg_t* ofp);
+void _pa_viewscale_ovr(ami_viewscale_t nfp, ami_viewscale_t* ofp);
+void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp);
+void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp);
 void _pa_getwigid_ovr(ami_getwigid_t nfp, ami_getwigid_t* ofp);
 void _pa_killwidget_ovr(ami_killwidget_t nfp, ami_killwidget_t* ofp);
 void _pa_selectwidget_ovr(ami_selectwidget_t nfp, ami_selectwidget_t* ofp);

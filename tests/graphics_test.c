@@ -506,6 +506,22 @@ static void grid(void)
 
 }
 
+/* draw screen edge */
+
+static void edge(void)
+
+{
+
+    /* draw boundary lines showing valid coordinate space */
+    ami_fcolor(stdout, ami_red);
+    ami_line(stdout, 1, 1, ami_maxxg(stdout), 1);
+    ami_line(stdout, 1, ami_maxyg(stdout), ami_maxxg(stdout), ami_maxyg(stdout));
+    ami_line(stdout, 1, 1, 1, ami_maxyg(stdout));
+    ami_line(stdout, ami_maxxg(stdout), 1, ami_maxxg(stdout), ami_maxyg(stdout));
+    ami_fcolor(stdout, ami_black);
+
+}
+
 /* This is the square2 program */
 #define MAXSQUARE  (10)
 #define REPRATE    (2) /* number of moves per frame, should be low */
@@ -600,7 +616,6 @@ static void squares(void)
     /* place squares on display */
     for (i = 0; i < MAXSQUARE; i++)
         drawsquare(baltbl[i].c, baltbl[i].x, baltbl[i].y);
-    ami_frametimer(stdout, TRUE); /* start frame timer */
     done = FALSE; /* set ! done */
     while (!done) {
 
@@ -740,9 +755,9 @@ typedef void (*benchtestFP)(int w, int t, long* s);
 /* run benchmark test
  *
  * Since different processors take different amounts of time to run the tests,
- * we normalize them to gather as much data as needed to run for 15 seconds
+ * we normalize them to gather as much data as needed to run for 5 seconds
  * per test. To find out how many test we need to run for that time, we measure
- * a small number of tests, then extrapolate that time to 15 seconds. Since the
+ * a small number of tests, then extrapolate that time to 5 seconds. Since the
  * test could iterate in a very short (unmeasurable) time, we run the tests at
  * progressive orders of magnitude until we run at least 10ms of test time and
  * at least 10 iterations.
@@ -771,8 +786,8 @@ static void benchtest(
 
     } while (et < SECOND); /* set minimum time to measure for stability */
     i /= 2; /* remove last scale */
-    /* find iterations for 15 second run */
-    i = (SECOND*15*0.0001)/(et*0.0001/i);
+    /* find iterations for 5 second run */
+    i = (SECOND*5*0.0001)/(et*0.0001/i);
     fp(w, i, &s); /* run final test */
     benchtab[bn].iter = i; /* place iterations */
     benchtab[bn].time = s; /* place time to run */
@@ -1188,6 +1203,7 @@ int main(void)
     long t, et;
     float f;
 
+    ami_frametimer(stdout, TRUE); /* start frame timer */
     if (setjmp(terminate_buf)) goto terminate;
     ami_curvis(stdout, FALSE);
     ami_binvis(stdout);
@@ -1395,6 +1411,176 @@ int main(void)
 
     }
     ami_linewidth(stdout, 1);
+    waitnext();
+
+    /* ************************** 45 degree lines test ************************* */
+
+    putchar('\f');
+    grid();
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/20;
+    /* Lines have slope 1 (y = x + y_intercept). Draw them long enough to
+       exit the window on both ends — X11 clips to the window area. Stepping
+       the y-intercept from below the top-right corner down to above the
+       bottom-left fills the whole usable window with parallel diagonals. */
+    ysize = ami_maxxg(stdout)+ami_maxyg(stdout);
+    y = -(ami_maxxg(stdout)-xspace);
+    w = 1;
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)-yspace) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, 0, y, ysize, y+ysize);
+        y = y+xspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    /* caption last — the text blanks the background behind it, so it's
+       still readable after the diagonals have swept through the bottom */
+    prtcen(ami_maxy(stdout), "45 degree lines test");
+    waitnext();
+
+    /* ******************** Line style tests (dashed + dotted) ***************** *
+     *                                                                          *
+     * Repeat the Vertical / Horizontal / 45 degree lines tests for each of the *
+     * two non-solid styles. Each page sets ami_linestyle once, draws the same  *
+     * family of increasing-width lines as the solid version, then restores     *
+     * ami_lssolid so subsequent tests are unaffected.                          *
+     *                                                                          *
+     **************************************************************************/
+
+    /* ********************** Vertical lines test — dashed ********************* */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdash);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/50;
+    y = yspace;
+    w = 1;
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, xspace, y, ami_maxxg(stdout)-xspace, y);
+        y = y+yspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "Vertical lines test (dashed)");
+    waitnext();
+
+    /* ********************** Vertical lines test — dotted ********************* */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdot);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/50;
+    y = yspace;
+    w = 1;
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, xspace, y, ami_maxxg(stdout)-xspace, y);
+        y = y+yspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "Vertical lines test (dotted)");
+    waitnext();
+
+    /* ********************* Horizontal lines test — dashed ******************** */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdash);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/20;
+    x = xspace;
+    w = 1;
+    while (x+w/2 < ami_maxxg(stdout)-20) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, x, yspace, x, ami_maxyg(stdout)-ami_chrsizy(stdout));
+        x = x+xspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "Horizontal lines test (dashed)");
+    waitnext();
+
+    /* ********************* Horizontal lines test — dotted ******************** */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdot);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/20;
+    x = xspace;
+    w = 1;
+    while (x+w/2 < ami_maxxg(stdout)-20) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, x, yspace, x, ami_maxyg(stdout)-ami_chrsizy(stdout));
+        x = x+xspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "Horizontal lines test (dotted)");
+    waitnext();
+
+    /* ********************* 45 degree lines test — dashed ********************* */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdash);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/20;
+    ysize = ami_maxxg(stdout)+ami_maxyg(stdout);
+    y = -(ami_maxxg(stdout)-xspace);
+    w = 1;
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)-yspace) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, 0, y, ysize, y+ysize);
+        y = y+xspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "45 degree lines test (dashed)");
+    waitnext();
+
+    /* ********************* 45 degree lines test — dotted ********************* */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdot);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/20;
+    ysize = ami_maxxg(stdout)+ami_maxyg(stdout);
+    y = -(ami_maxxg(stdout)-xspace);
+    w = 1;
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)-yspace) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, 0, y, ysize, y+ysize);
+        y = y+xspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "45 degree lines test (dotted)");
     waitnext();
 
     /* **************************** Polar lines test *************************** */
@@ -2573,7 +2759,7 @@ int main(void)
         ami_fcolor(stdout, c1);
         ami_bcolor(stdout, c2);
         ami_fontsiz(stdout, h);
-        puts(S2);
+        printf("%d:%.1f: %s\n", ami_chrsizy(stdout), ami_points(stdout), S2);
         h = h+5;
         if (c1 < ami_magenta) c1++; else c1 = ami_black;
         if (c1 == ami_white) c1++;
@@ -2589,23 +2775,50 @@ int main(void)
     prtcen(ami_maxy(stdout), "Font sizing test");
     waitnext();
 
+    /* ************************ Font point sizing test ************************* */
+
+    putchar('\f');
+    grid();
+    fsiz = ami_chrsizy(stdout); /* save character size to restore */
+    {
+        float ps = 6.0f;
+        ami_auto(stdout, OFF);
+        ami_font(stdout, AMI_FONT_SIGN);
+        c1 = ami_black;
+        c2 = ami_blue;
+        ami_bover(stdout);
+        while (ami_curyg(stdout)+ami_chrsizy(stdout) <= ami_maxyg(stdout)-20) {
+
+            ami_fcolor(stdout, c1);
+            ami_bcolor(stdout, c2);
+            ami_setpoints(stdout, ps);
+            printf("%d:%.1f: %s\n", ami_chrsizy(stdout), ami_points(stdout), S2);
+            ps = ps+3.0f;
+            if (c1 < ami_magenta) c1++; else c1 = ami_black;
+            if (c1 == ami_white) c1++;
+            if (c2 < ami_magenta) c2++; else c2 = ami_black;
+            if (c2 == ami_white) c2++;
+
+        }
+    }
+    ami_fontsiz(stdout, fsiz); /* restore font size */
+    ami_fcolor(stdout, ami_black);
+    ami_bcolor(stdout, ami_white);
+    ami_font(stdout, AMI_FONT_TERM);
+    ami_binvis(stdout);
+    prtcen(ami_maxy(stdout), "Font point sizing test");
+    waitnext();
+
     /* ***************************** Font list test **************************** */
 
     putchar('\f');
     grid();
     printf("Number of fonts: %d\n", ami_fonts(stdout));
     printf("\n");
-    i = 1;
     cnt = ami_fonts(stdout);
-    while (cnt > 0) {
+    for (i = 1; i <= cnt; i++) { /* visit each font code */
 
-        /* find defined font code */
-        do {
-
-            ami_fontnam(stdout, i, fns, 100);
-            if (!strlen(fns)) i++;
-
-        } while (!strlen(fns));
+        ami_fontnam(stdout, i, fns, 100);
         printf("%d: %s\n", i, fns);
         if (ami_cury(stdout) >= ami_maxy (stdout)) { /* screen overflows */
 
@@ -2615,8 +2828,6 @@ int main(void)
             grid();
 
         }
-        i = i+1; /* next font code */
-        cnt = cnt-1; /* count fonts */
 
     }
     printf("\n");
@@ -2630,17 +2841,10 @@ int main(void)
     ami_auto(stdout, OFF);
     ami_bcolor(stdout, ami_cyan);
     ami_bover(stdout);
-    i = 1;
     cnt = ami_fonts(stdout);
-    while (cnt) {
+    for (i = 1; i <= cnt; i++) { /* visit each font code */
 
-        /* find defined font code */
-        do {
-
-            ami_fontnam(stdout, i, fns, 100);
-            if (!strlen(fns)) i++;
-
-        } while (!strlen(fns));
+        ami_fontnam(stdout, i, fns, 100);
         ami_font(stdout, i);
         printf("%d: %s\n", i, fns);
         if (ami_cury(stdout) >= ami_maxy(stdout)) { /* screen overflows */
@@ -2654,8 +2858,6 @@ int main(void)
             ami_bcolor(stdout, ami_cyan);
 
         }
-        i++; /* next font code */
-        cnt--; /* count fonts */
 
     }
     ami_bcolor(stdout, ami_white);
@@ -2734,6 +2936,44 @@ int main(void)
     prtcen(ami_maxy(stdout), "Character sizes and positions");
     waitnext();
     ami_bcolor(stdout, ami_white);
+
+    /* ************************** Polar text lines test ************************ */
+
+    putchar('\f');
+    grid();
+    ami_auto(stdout, OFF); /* rotated text is incompatible with the text grid */
+    x = ami_maxxg(stdout)/2; /* window center */
+    y = ami_maxyg(stdout)/2;
+    l = ami_chrsizx(stdout)*5; /* start radius — 5 char widths from center */
+    ami_fcolor(stdout, ami_black);
+    ami_bover(stdout);
+    a = 0;
+    while (a < 360) {
+
+        /* Endpoint of radial at angle a, radius l. */
+        rectcord(a, l, &tx1, &ty1);
+        /* Rotate text so it reads OUTWARD along the radial. ami_path uses
+           the same compass convention as rectcord (0 = north, 90 = east),
+           ratioed to INT_MAX = 360°. */
+        ami_path(stdout, a*DEGREE);
+        /* Shift origin perpendicular to the drawing direction by half the
+           character height, so the radial passes through the vertical
+           center of the text (not the default top-left origin). The
+           baseline side sits in direction (cos(a), sin(a)) from the
+           origin in screen coords — we shift origin the opposite way. */
+        f = a*0.01745329; /* degrees to radians (matches rectcord) */
+        ami_cursorg(stdout,
+                    x+tx1 - (int)(ami_chrsizy(stdout)/2.0 * cos(f)),
+                    y-ty1 - (int)(ami_chrsizy(stdout)/2.0 * sin(f)));
+        printf("this is a test string");
+        a = a+10;
+
+    }
+    ami_path(stdout, INT_MAX/4); /* restore default (90° / east-reading) */
+    ami_binvis(stdout);
+    prtcen(ami_maxy(stdout), "Polar text lines");
+    waitnext();
+    ami_auto(stdout, ON); /* re-enable the text grid */
 
     /* ************************* Graphical tabbing test ************************ */
 
@@ -2909,35 +3149,198 @@ int main(void)
 
     /* ************************** View offset test **************************** */
 
-#if 0 /* view offsets are not completely working */
     putchar('\f');
-    ami_auto(stdout, OFF);
-    ami_viewoffg(stdout, -(ami_maxxg(stdout)/2), -(ami_maxyg(stdout)/2));
+    ami_auto(stdout, OFF); /* turn off autoscroll */
+    ami_curvis(stdout, FALSE); /* turn off cursor */
+    edge();
+    /* move the origin right and down */
+    ami_viewoffg(stdout, ami_maxxg(stdout)/2, ami_maxyg(stdout)/2);
     grid();
-    ami_fcolor(stdout, AMI_GREEN);
+    ami_fcolor(stdout, ami_green);
     ami_frect(stdout, 0, 0, 100, 100);
-    ami_cursorg(stdout, 1, -(maxyg(stdout)/2));
-    ami_fcolor(stdout, ami_black);
-    printf("View offset test\n");
-    printf("\n");
-    printf("The 1,1 origin is now at screen center\n");
-    waitnext();
+    ami_cursorg(stdout, 1, -(ami_maxyg(stdout)/2));
+    /* reset origin */
     ami_viewoffg(stdout, 0, 0);
-#endif
+    ami_fcolor(stdout, ami_black);
+    prtcen(ami_maxy(stdout), "View offset test");
+    prtcen(1, "The 1,1 origin is now at screen center\n");
+    waitnext();
+    ami_auto(stdout, ON); /* back to normal character */
+    ami_curvis(stdout, TRUE); /* turn on cursor */
 
    /* ************************** View scale test **************************** */
 
-#if 0 /* view scales are not completely working */
     putchar('\f');
     ami_auto(stdout, OFF);
-    ami_viewscale(stdout, 0.5);
+    ami_curvis(stdout, FALSE); /* turn off cursor */
+    edge();
+    ami_viewscale(stdout, 0.5f, 0.5f);
     grid();
-    ami_fcolor(stdout, AMI_GREEN);
+    ami_fcolor(stdout, ami_green);
     ami_frect(stdout, 0, 0, 100, 100);
+    ami_fcolor(stdout, ami_black);
+    /* reset origin and scale */
+    ami_viewscale(stdout, 1.0f, 1.0f);
+    ami_viewoffg(stdout, 0, 0);
     prtcen(1, "Logical coordinates are now 1/2 size");
-    prtcen(ami_maxy(stdout), "View scale text");
+    prtcen(ami_maxy(stdout), "View scale test");
     waitnext();
-#endif
+    ami_auto(stdout, ON); /* back to normal character */
+    ami_curvis(stdout, TRUE); /* turn on cursor */
+
+    /* ************************ Viewport scaling test ************************** */
+
+    putchar('\f');
+    ami_auto(stdout, OFF);
+    ami_curvis(stdout, FALSE); /* turn off cursor */
+    fsiz = ami_chrsizy(stdout); /* save default font size */
+    ami_font(stdout, AMI_FONT_SIGN);
+    {
+        int cx = ami_maxxg(stdout)/2; /* center x */
+        int cy = ami_maxyg(stdout)/2; /* center y */
+        int ww = ami_maxxg(stdout);   /* window width */
+        int wh = ami_maxyg(stdout);   /* window height */
+        int gs = 80; /* gate size */
+        float vsx = 1.0f, vsy = 1.0f;
+        int vox = 0, voy = 0;
+        ami_evtrec er;
+        int done = 0;
+
+        /* initial offset: center the drawing */
+        vox = (int)(ww/2 - (cx-1) * vsx);
+        voy = (int)(wh/2 - (cy-1) * vsy);
+        ami_viewoffg(stdout, vox, voy);
+
+        while (!done) {
+
+            putchar('\f');
+            /* draw boundary lines showing valid coordinate space */
+            ami_fcolor(stdout, ami_cyan);
+            ami_line(stdout, 1, 1, ami_maxxg(stdout), 1);
+            ami_line(stdout, 1, ami_maxyg(stdout), ami_maxxg(stdout), ami_maxyg(stdout));
+            ami_line(stdout, 1, 1, 1, ami_maxyg(stdout));
+            ami_line(stdout, ami_maxxg(stdout), 1, ami_maxxg(stdout), ami_maxyg(stdout));
+            /* draw a simple CMOS inverter schematic */
+            ami_fcolor(stdout, ami_black);
+            /* VDD and VSS rails */
+            ami_line(stdout, cx-gs*2, cy-gs*2, cx+gs*2, cy-gs*2); /* VDD */
+            ami_line(stdout, cx-gs*2, cy+gs*2, cx+gs*2, cy+gs*2); /* VSS */
+            /* PMOS: gate on left, source/drain vertical */
+            ami_rect(stdout, cx-gs/2, cy-gs*3/2, cx+gs/2, cy-gs/2); /* body */
+            ami_line(stdout, cx-gs, cy-gs, cx-gs/2, cy-gs); /* gate */
+            ami_line(stdout, cx, cy-gs*2, cx, cy-gs*3/2); /* source to VDD */
+            ami_line(stdout, cx, cy-gs/2, cx, cy); /* drain to mid */
+            /* NMOS: gate on left, source/drain vertical */
+            ami_rect(stdout, cx-gs/2, cy+gs/2, cx+gs/2, cy+gs*3/2); /* body */
+            ami_line(stdout, cx-gs, cy+gs, cx-gs/2, cy+gs); /* gate */
+            ami_line(stdout, cx, cy+gs*3/2, cx, cy+gs*2); /* source to VSS */
+            ami_line(stdout, cx, cy, cx, cy+gs/2); /* drain from mid */
+            /* input line */
+            ami_line(stdout, cx-gs*2, cy, cx-gs, cy);
+            ami_line(stdout, cx-gs, cy-gs, cx-gs, cy+gs);
+            /* output line */
+            ami_line(stdout, cx, cy, cx+gs*2, cy);
+            /* output dot */
+            ami_fellipse(stdout, cx+gs/4-5, cy-5, cx+gs/4+5, cy+5);
+            /* labels */
+            ami_fontsiz(stdout, 20);
+            ami_cursorg(stdout, cx-gs/4, cy-gs*2-5);
+            printf("VDD");
+            ami_cursorg(stdout, cx-gs/4, cy+gs*2+20);
+            printf("VSS");
+            ami_cursorg(stdout, cx-gs*2-30, cy+6);
+            printf("IN");
+            ami_cursorg(stdout, cx+gs*2+5, cy+6);
+            printf("OUT");
+            /* status at top, caption at bottom — draw at identity scale
+               so UI text stays the same physical size regardless of zoom */
+            ami_viewscale(stdout, 1.0f, 1.0f);
+            ami_viewoffg(stdout, 0, 0);
+            ami_fontsiz(stdout, fsiz);
+            ami_font(stdout, AMI_FONT_TERM);
+            {
+                char sb[120];
+                sprintf(sb, "Sx:%.2f Sy:%.2f Off:%d,%d PgUp/Dn=zoom Arrows=pan Home/End=Yzoom Enter=next",
+                        vsx, vsy, vox, voy);
+                prtcen(1, sb);
+            }
+            prtcen(ami_maxy(stdout), "View drawing scale test");
+            /* restore the current scale for next redraw */
+            ami_viewscale(stdout, vsx, vsy);
+            ami_viewoffg(stdout, vox, voy);
+            /* wait for key */
+            do { ami_event(stdin, &er); } while (er.etype != ami_etenter &&
+                er.etype != ami_etterm && er.etype != ami_etpagu &&
+                er.etype != ami_etpagd && er.etype != ami_etup &&
+                er.etype != ami_etdown && er.etype != ami_etleft &&
+                er.etype != ami_etright && er.etype != ami_ethomel &&
+                er.etype != ami_etendl);
+            if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+            else if (er.etype == ami_etenter) done = 1;
+            else if (er.etype == ami_etpagu) {
+
+                vsx *= 1.25f;
+                vsy *= 1.25f;
+                ami_viewscale(stdout, vsx, vsy);
+                vox = (int)(ww/2 - (cx-1) * vsx);
+                voy = (int)(wh/2 - (cy-1) * vsy);
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_etpagd) {
+
+                vsx /= 1.25f;
+                vsy /= 1.25f;
+                if (vsx < 0.01f) vsx = 0.01f;
+                if (vsy < 0.01f) vsy = 0.01f;
+                ami_viewscale(stdout, vsx, vsy);
+                vox = (int)(ww/2 - (cx-1) * vsx);
+                voy = (int)(wh/2 - (cy-1) * vsy);
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_ethomel) {
+
+                vsy *= 1.25f;
+                ami_viewscale(stdout, vsx, vsy);
+                voy = (int)(wh/2 - (cy-1) * vsy);
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_etendl) {
+
+                vsy /= 1.25f;
+                if (vsy < 0.01f) vsy = 0.01f;
+                ami_viewscale(stdout, vsx, vsy);
+                voy = (int)(wh/2 - (cy-1) * vsy);
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_etup) {
+
+                voy -= 20;
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_etdown) {
+
+                voy += 20;
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_etleft) {
+
+                vox -= 20;
+                ami_viewoffg(stdout, vox, voy);
+
+            } else if (er.etype == ami_etright) {
+
+                vox += 20;
+                ami_viewoffg(stdout, vox, voy);
+
+            }
+
+        }
+        /* reset to identity */
+        ami_viewscale(stdout, 1.0f, 1.0f);
+        ami_viewoffg(stdout, 0, 0);
+        ami_curvis(stdout, FALSE); /* turn off cursor */
+
+    }
 
     /* ************************** Benchmarks **************************** */
 
@@ -2948,96 +3351,112 @@ int main(void)
     s = benchtab[bnline1].time;
     printf("Line speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per line %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(linespeed, bnline10, 10);
     i = benchtab[bnline10].iter;
     s = benchtab[bnline10].time;
     printf("Line speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per line %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(rectspeed, bnrect1, 1);
     i = benchtab[bnrect1].iter;
     s = benchtab[bnrect1].time;
     printf("Rectangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rectangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(rectspeed, bnrect10, 10);
     i = benchtab[bnrect10].iter;
     s = benchtab[bnrect10].time;
     printf("Rectangle speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rectangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(rrectspeed, bnrrect1, 1);
     i = benchtab[bnrrect1].iter;
     s = benchtab[bnrrect1].time;
     printf("Rounded rectangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(rrectspeed, bnrrect10, 10);
     i = benchtab[bnrrect10].iter;
     s = benchtab[bnrrect10].time;
     printf("Rounded rectangle speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per rounded rectangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(frectspeed, bnfrect, 1);
     i = benchtab[bnfrect].iter;
     s = benchtab[bnfrect].time;
     printf("Filled rectangle speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled rectangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(frrectspeed, bnfrrect, 1);
     i = benchtab[bnfrrect].iter;
     s = benchtab[bnfrrect].time;
     printf("Filled rounded rectangle speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled rounded rectangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(ellipsespeed, bnellipse1, 1);
     i = benchtab[bnellipse1].iter;
     s = benchtab[bnellipse1].time;
     printf("Ellipse speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per ellipse %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(ellipsespeed, bnellipse10, 10);
     i = benchtab[bnellipse10].iter;
     s = benchtab[bnellipse10].time;
     printf("Ellipse speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per ellipse %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(fellipsespeed, bnfellipse, 1);
     i = benchtab[bnfellipse].iter;
     s = benchtab[bnfellipse].time;
     printf("Filled ellipse speed, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled ellipse %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(arcspeed, bnarc1, 1);
     i = benchtab[bnarc1].iter;
     s = benchtab[bnarc1].time;
     printf("Arc speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per arc %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(arcspeed, bnarc10, 1);
     i = benchtab[bnarc10].iter;
     s = benchtab[bnarc10].time;
     printf("Arc speed for width: 10, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per arc %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(farcspeed, bnfarc, 1);
     i = benchtab[bnfarc].iter;
     s = benchtab[bnfarc].time;
     printf("Filled arc speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled arc %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(fchordspeed, bnfchord, 1);
     i = benchtab[bnfchord].iter;
     s = benchtab[bnfchord].time;
     printf("Filled chord speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled chord %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(ftrianglespeed, bnftriangle, 1);
     i = benchtab[bnftriangle].iter;
     s = benchtab[bnftriangle].time;
     printf("Filled triangle speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per filled triangle %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     ami_bover(stdout);
     ami_fover(stdout);
@@ -3047,6 +3466,7 @@ int main(void)
     ami_home(stdout);
     printf("Text speed, with overwrite, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     ami_binvis(stdout);
     ami_fover(stdout);
@@ -3057,18 +3477,21 @@ int main(void)
     ami_bover(stdout);
     printf("Text speed, invisible background, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per write %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(fpictspeed, bnpict, 1);
     i = benchtab[bnpict].iter;
     s = benchtab[bnpict].time;
     printf("Picture draw speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per picture %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     benchtest(fpictnsspeed, bnpictns, 1);
     i = benchtab[bnpictns].iter;
     s = benchtab[bnpictns].time;
     printf("No scale picture draw speed for width: 1, %d iterations %f seconds\n", i, s*0.0001);
     printf("Seconds per picture %f\n", s*0.0001/i);
+    chkbrk(); /* check user break*/
 
     /* output table */
 

@@ -1,18 +1,24 @@
-/*******************************************************************************
-*                                                                              *
-*                            STANDARD I/O HEADER                               *
-*                                                                              *
-*                          COPYRIGHT 2007 (C) S. A. MOORE                      *
-*                                                                              *
-* FILE NAME: stdio.h                                                           *
-*                                                                              *
-* DESCRIPTION:                                                                 *
-*                                                                              *
-* Defines the serial I/O platform for whitebook C.                             *
-*                                                                              *
-* BUGS/ISSUES:                                                                 *
-*                                                                              *
-*******************************************************************************/
+/** **************************************************************************
+
+\file
+
+\brief Module stdio - standard I/O header
+
+Copyright 2007 (C) S. A. Moore
+
+Description
+
+Defines the serial I/O platform for whitebook C. This is the interface header
+for the stdio module; it declares the FILE structure, the standard streams, the
+buffering and end of file flag definitions, and the full set of stdio calls.
+
+Exports
+
+The complete public interface of the stdio module, including the FILE type, the
+stdin, stdout and stderr streams, and all of the stdio functions. See stdio.c
+for the implementation and the per function descriptions.
+
+******************************************************************************/
 
 #ifndef _STDIO_H_
 #define _STDIO_H_
@@ -36,55 +42,65 @@ extern "C" {
 #ifdef STDIO_BYPASS
 
 /*
-* Functions
-*/
-#define fopen       stdio_fopen
-#define freopen     stdio_freopen
-#define fdopen      stdio_fdopen
-#define fflush      stdio_fflush
-#define fclose      stdio_fclose
-#define remove      stdio_remove
-#define rename      stdio_rename
-#define tmpfile     stdio_tmpfile
-#define tmpnam      stdio_tmpnam
-#define setvbuf     stdio_setvbuf
-#define setbuf      stdio_setbuf
-#define fprintf     stdio_fprintf
-#define printf      stdio_printf
-#define sprintf     stdio_sprintf
-#define vprintf     stdio_vprintf
-#define vfprintf    stdio_vfprintf
-#define vsprintf    stdio_vsprintf
-#define fscanf      stdio_fscanf
-#define scanf       stdio_scanf
-#define sscanf      stdio_sscanf
-#define fgetc       stdio_fgetc
-#define getc        stdio_getc
-#define fgets       stdio_fgets
-#define fputc       stdio_fputc
-#define fputs       stdio_fputs
-#define putc        stdio_putc
-#define getchar     stdio_getchar
-#define gets        stdio_gets
-#define putc        stdio_putc
-#define putchar     stdio_putchar
-#define puts        stdio_puts
-#define ungetc      stdio_ungetc
-#define fread       stdio_fread
-#define fwrite      stdio_fwrite
-#define fseek       stdio_fseek
-#define ftell       stdio_ftell
-#define rewind      stdio_rewind
-#define fgetpos     stdio_fgetpos
-#define fsetpos     stdio_fsetpos
-#define clearerr    stdio_clearerr
-#define feof        stdio_feof
-#define ferror      stdio_ferror
-#define perror      stdio_perror
-#define fileno      stdio_fileno
+ * Functions
+ *
+ * These are function-like macros so bare identifiers (format-attribute
+ * arguments like `__attribute__((format(printf, 2, 3)))` in third-party
+ * headers, address-of expressions, etc.) are left alone — only actual
+ * `name(...)` calls get rewritten to `stdio_name(...)`.
+ */
+#define fopen(...)    stdio_fopen(__VA_ARGS__)
+#define freopen(...)  stdio_freopen(__VA_ARGS__)
+#define fdopen(...)   stdio_fdopen(__VA_ARGS__)
+#define fflush(...)   stdio_fflush(__VA_ARGS__)
+#define fclose(...)   stdio_fclose(__VA_ARGS__)
+#define remove(...)   stdio_remove(__VA_ARGS__)
+#define rename(...)   stdio_rename(__VA_ARGS__)
+#define tmpfile(...)  stdio_tmpfile(__VA_ARGS__)
+#define tmpnam(...)   stdio_tmpnam(__VA_ARGS__)
+#define setvbuf(...)  stdio_setvbuf(__VA_ARGS__)
+#define setbuf(...)   stdio_setbuf(__VA_ARGS__)
+#define fprintf(...)  stdio_fprintf(__VA_ARGS__)
+#define printf(...)   stdio_printf(__VA_ARGS__)
+#define sprintf(...)  stdio_sprintf(__VA_ARGS__)
+#define vprintf(...)  stdio_vprintf(__VA_ARGS__)
+#define vfprintf(...) stdio_vfprintf(__VA_ARGS__)
+#define vsprintf(...) stdio_vsprintf(__VA_ARGS__)
+#define snprintf(...) stdio_snprintf(__VA_ARGS__)
+#define vsnprintf(...) stdio_vsnprintf(__VA_ARGS__)
+#define fscanf(...)   stdio_fscanf(__VA_ARGS__)
+#define scanf(...)    stdio_scanf(__VA_ARGS__)
+#define sscanf(...)   stdio_sscanf(__VA_ARGS__)
+#define vscanf(...)   stdio_vscanf(__VA_ARGS__)
+#define vfscanf(...)  stdio_vfscanf(__VA_ARGS__)
+#define vsscanf(...)  stdio_vsscanf(__VA_ARGS__)
+#define fgetc(...)    stdio_fgetc(__VA_ARGS__)
+#define getc(...)     stdio_getc(__VA_ARGS__)
+#define fgets(...)    stdio_fgets(__VA_ARGS__)
+#define fputc(...)    stdio_fputc(__VA_ARGS__)
+#define fputs(...)    stdio_fputs(__VA_ARGS__)
+#define putc(...)     stdio_putc(__VA_ARGS__)
+#define getchar(...)  stdio_getchar(__VA_ARGS__)
+#define gets(...)     stdio_gets(__VA_ARGS__)
+#define putchar(...)  stdio_putchar(__VA_ARGS__)
+#define puts(...)     stdio_puts(__VA_ARGS__)
+#define ungetc(...)   stdio_ungetc(__VA_ARGS__)
+#define fread(...)    stdio_fread(__VA_ARGS__)
+#define fwrite(...)   stdio_fwrite(__VA_ARGS__)
+#define fseek(...)    stdio_fseek(__VA_ARGS__)
+#define ftell(...)    stdio_ftell(__VA_ARGS__)
+#define rewind(...)   stdio_rewind(__VA_ARGS__)
+#define fgetpos(...)  stdio_fgetpos(__VA_ARGS__)
+#define fsetpos(...)  stdio_fsetpos(__VA_ARGS__)
+#define clearerr(...) stdio_clearerr(__VA_ARGS__)
+#define feof(...)     stdio_feof(__VA_ARGS__)
+#define ferror(...)   stdio_ferror(__VA_ARGS__)
+#define perror(...)   stdio_perror(__VA_ARGS__)
+#define fileno(...)   stdio_fileno(__VA_ARGS__)
 
 /*
- * Declarations
+ * Type and global object-like renames (cannot be function-like since
+ * they are not invoked).
  */
 #define FILE        STDIO_FILE
 #define stdin       stdio_stdin
@@ -95,8 +111,16 @@ extern "C" {
 
 /* enable this next define for testing mode */
 
-#define L_tmpnam 9
-#define L_TMP_MAX 100
+/* Maximum length of a temporary file name from tmpnam(). Large enough to hold
+   the temp directory path plus the unique component generated by tmpnam(). */
+#define L_tmpnam 64
+/* Number of unique temporary names tmpnam()/tmpfile() will generate. */
+#define TMP_MAX 10000
+/* Default temporary file directory, used when no temp environment variable is
+   set. Overridden at runtime by TMPDIR, TEMP or TMP. */
+#ifndef P_tmpdir
+#define P_tmpdir "/tmp"
+#endif
 #define FOPEN_MAX 100
 
 #define EOF (-1)
@@ -115,23 +139,70 @@ extern "C" {
 
 typedef long fpos_t;
 
-/* standard file descriptor */
+/* Stream state and mode flags. These match the GNU libc _IO_FILE flag bits, so
+   that "backdoor" accessors (freadahead, __fpending, freadable, fwritable,
+   fseterr and friends) that read the FILE structure directly see the values
+   they expect. */
 
-typedef struct {
+#define _IO_MAGIC             0xFBAD0000 /* magic in the high word of _flags */
+#define _IO_USER_BUF          0x0001 /* buffer was provided by the user */
+#define _IO_UNBUFFERED        0x0002 /* stream is unbuffered */
+#define _IO_NO_READS          0x0004 /* stream cannot be read */
+#define _IO_NO_WRITES         0x0008 /* stream cannot be written */
+#define _IO_EOF_SEEN          0x0010 /* end of file has been seen */
+#define _IO_ERR_SEEN          0x0020 /* an I/O error has occurred */
+#define _IO_LINKED            0x0080 /* stream is on the open chain */
+#define _IO_IN_BACKUP         0x0100 /* reading from the backup (pushback) area */
+#define _IO_LINE_BUF          0x0200 /* stream is line buffered */
+#define _IO_CURRENTLY_PUTTING 0x0800 /* buffer currently holds pending writes */
+#define _IO_IS_APPENDING      0x1000 /* stream is in append mode */
+#define _IO_IS_FILEBUF        0x2000 /* stream is backed by a file */
 
-    int  fid;    /* file logical id, <0 means unused */
-    char *name;  /* name holder for error/diagnostics */
-    int  text;   /* text/binary mode flag */
-    int  mode;   /* r/w mode, 0=read, 1=write, 2=read/write */
-    int  append; /* append mode */
-    int  pback;  /* pushback character, only a single is implemented */
-    int  flags;  /* state flags, 0=EOF */
+/* compatibility names for the petit_ami end of file and error bits */
+#define _EFEOF _IO_EOF_SEEN
+#define _EFERR _IO_ERR_SEEN
+
+/* standard file descriptor. The leading fields follow the GNU libc _IO_FILE
+   layout (field names and order) so that code which reaches into the structure
+   directly finds what it expects. The petit_ami specific fields are appended at
+   the end. */
+
+typedef struct _stdio_file {
+
+    int   _flags;          /* status and mode flags, see _IO_* above */
+
+    char *_IO_read_ptr;    /* current position in the get area */
+    char *_IO_read_end;    /* end of valid read data in the get area */
+    char *_IO_read_base;   /* start of the get / putback area */
+    char *_IO_write_base;  /* start of pending write data */
+    char *_IO_write_ptr;   /* current position in the put area */
+    char *_IO_write_end;   /* end of the put area */
+    char *_IO_buf_base;    /* start of the reserve (buffer) area */
+    char *_IO_buf_end;     /* end of the reserve (buffer) area */
+    char *_IO_save_base;   /* start of a saved get area (backup) */
+    char *_IO_backup_base; /* first valid character of the backup area */
+    char *_IO_save_end;    /* end of a saved get area (backup) */
+
+    void *_markers;        /* unused, present for layout compatibility */
+    struct _stdio_file *_chain; /* unused, present for layout compatibility */
+
+    int   _fileno;         /* underlying file descriptor, <0 if unused */
+    int   _flags2;         /* secondary flags, unused */
+    long  _old_offset;     /* legacy offset, unused */
+
+    unsigned short _cur_column; /* unused */
+    signed char    _vtable_offset; /* unused */
+    char  _shortbuf[1];    /* one byte buffer for unbuffered pushback */
+
+    void *_lock;           /* unused */
+    long  _offset;         /* file offset for large file support, unused */
+
+    /* petit_ami specific fields, appended after the glibc layout */
+
+    char *name;            /* file name for error and diagnostics */
+    int   text;            /* text/binary mode flag */
 
 } FILE;
-
-/* error/status flags */
-
-#define _EFEOF 0x0001 /* stream EOF */
 
 /* standard in, out and error files */
 
@@ -153,16 +224,22 @@ void setbuf(FILE* stream, char *buf);
 int fprintf(FILE* stream, const char *format, ...);
 int printf(const char* format, ...);
 int sprintf(char* s, const char *format, ...);
+int snprintf(char* s, size_t n, const char *format, ...);
 int vprintf(const char* format, va_list arg);
 int vfprintf(FILE* stream, const char *format, va_list arg);
 int vsprintf(char* s, const char *format, va_list arg);
+int vsnprintf(char* s, size_t n, const char *format, va_list arg);
 int fscanf(FILE* stream, const char *format, ...);
 int scanf(const char* format, ...);
 int sscanf(const char* s, const char *format, ...);
+int vscanf(const char *format, va_list arg);
+int vfscanf(FILE* stream, const char *format, va_list arg);
+int vsscanf(const char* s, const char *format, va_list arg);
 int fgetc(FILE *stream);
 char *fgets(char *s, int n, FILE *stream);
 int fputc(int c, FILE *stream);
 int fputs(const char *s, FILE *stream);
+int getc(FILE *stream);
 int getchar(void);
 char *gets(char *s);
 int putc(int c, FILE *stream);

@@ -105,6 +105,23 @@ static char* str(char* s)
 
 }
 
+static int framenum = 0; /* current frame number */
+
+/* set the window title with the chapter frame number, as graphics_test does;
+   called at the start of each chapter so every screen is numbered, including
+   the interactive ones that wait on their own event loop instead of waitnext */
+static void setframe(void)
+
+{
+
+    char titlebuf[80];
+
+    framenum++;
+    sprintf(titlebuf, "widget_test: frame %d", framenum);
+    ami_title(stdout, titlebuf);
+
+}
+
 /* wait return to be pressed, or handle terminate */
 static void waitnext(void)
 
@@ -158,6 +175,8 @@ int main(void)
 
     /* ************************** Background test ************************* */
 
+    setframe();
+
     ami_bcolor(stdout, ami_backcolor);
     printf("\f");
     printf("Background pa_color test\n");
@@ -167,6 +186,8 @@ int main(void)
     ami_bcolor(stdout, ami_white);
 
     /* ************************** Terminal Button test ************************* */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -219,6 +240,8 @@ int main(void)
     ami_killwidget(stdout, 3);
 
     /* ************************* Graphical Buttons test ************************* */
+
+    setframe();
 
     printf("\f");
     printf("Graphical buttons test\n");
@@ -273,6 +296,8 @@ int main(void)
     ami_killwidget(stdout, 3);
 
     /* ************************** Terminal Checkbox test ************************** */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -358,6 +383,8 @@ int main(void)
     ami_killwidget(stdout, 3);
 
     /* ************************** Graphical Checkbox test ************************** */
+
+    setframe();
 
     printf("\f");
     printf("Graphical checkbox test\n");
@@ -447,6 +474,8 @@ int main(void)
 
     /* *********************** Terminal radio button test ********************* */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -531,6 +560,8 @@ int main(void)
     ami_killwidget(stdout, 3);
 
     /* *********************** Graphical radio button test ********************* */
+
+    setframe();
 
     printf("\f");
     printf("Graphical radio button test\n");
@@ -621,6 +652,8 @@ int main(void)
 
     /* *********************** Terminal Group box test ************************ */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -648,6 +681,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* *********************** Graphical Group box test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Graphical group box test\n");
@@ -682,6 +717,8 @@ int main(void)
 
     /* *********************** Terminal background test ************************ */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -698,6 +735,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* *********************** Graphical background test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Graphical background test\n");
@@ -720,6 +759,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* *********************** Terminal scroll bar test *********************** */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -759,6 +800,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* ******************* Terminal scroll bar sizing test ******************** */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -802,6 +845,8 @@ int main(void)
 
     /* ****************** Terminal scroll bar minimums test ******************* */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -835,6 +880,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* ************ Terminal scroll bar fat and skinny bars test ************** */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -874,6 +921,8 @@ int main(void)
 
     /* *********************** Graphical scroll bar test *********************** */
 
+    setframe();
+
     printf("\f");
     printf("Graphical scroll bar test\n");
     printf("\n");
@@ -910,6 +959,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* ******************* Graphical scroll bar sizing test ******************** */
+
+    setframe();
 
     printf("\f");
     printf("Graphical scroll bar sizing test\n");
@@ -957,6 +1008,8 @@ int main(void)
 
     /* ****************** Graphical scroll bar minimums test ******************* */
 
+    setframe();
+
     printf("\f");
     printf("Graphical scroll bar minimums test\n");
     printf("\n");
@@ -993,6 +1046,8 @@ int main(void)
     ami_killwidget(stdout, 2);
 
     /* ************ Graphical scroll bar fat and skinny bars test ************** */
+
+    setframe();
 
     printf("\f");
     printf("Graphical scroll bar fat and skinny bars test\n");
@@ -1036,6 +1091,8 @@ int main(void)
 
     /* ******************** Terminal number select box test ******************* */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -1054,6 +1111,8 @@ int main(void)
 
     /* ******************** Graphical number select box test ******************* */
 
+    setframe();
+
     printf("\f");
     printf("Graphical number select box test\n");
     printf("\n");
@@ -1069,6 +1128,8 @@ int main(void)
     ami_killwidget(stdout, 1);
 
     /* ************************* Terminal edit box test ************************ */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -1094,6 +1155,8 @@ int main(void)
 
     /* ************************* Graphical edit box test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Graphical edit box test\n");
     printf("\n");
@@ -1115,6 +1178,8 @@ int main(void)
     ami_killwidget(stdout, 1);
 
     /* *********************** Terminal progress bar test ********************* */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -1152,6 +1217,8 @@ int main(void)
 
     /* *********************** Graphical progress bar test ********************* */
 
+    setframe();
+
     printf("\f");
     printf("Graphical progress bar test\n");
     printf("\n");
@@ -1185,6 +1252,8 @@ int main(void)
     ami_killwidget(stdout, 1);
 
     /* ************************* Terminal list box test ************************ */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -1229,6 +1298,8 @@ int main(void)
 
     /* ************************* Graphical list box test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Graphical list box test\n");
     printf("\n");
@@ -1266,6 +1337,8 @@ int main(void)
     ami_killwidget(stdout, 1);
 
     /* ************************* Terminal dropdown box test ************************ */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -1310,6 +1383,8 @@ int main(void)
 
     /* ************************* Graphical dropdown box test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Graphical dropdown box test\n");
     printf("\n");
@@ -1348,6 +1423,8 @@ int main(void)
 
     /* ******************* Terminal dropdown edit box test ******************** */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -1385,6 +1462,8 @@ int main(void)
 
     /* ******************* Graphical dropdown edit box test ******************** */
 
+    setframe();
+
     printf("\f");
     printf("Graphical dropdown edit box test\n");
     printf("\n");
@@ -1417,6 +1496,8 @@ int main(void)
 
     /* ************************* Terminal slider test ************************ */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -1444,6 +1525,8 @@ int main(void)
     ami_killwidget(stdout, 4);
 
     /* ************************* Graphical slider test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Graphical slider test\n");
@@ -1481,6 +1564,8 @@ int main(void)
     ami_killwidget(stdout, 4);
 
     /* ************************* Terminal tab bar test ************************ */
+
+    setframe();
 
     printf("\f");
     chrgrid();
@@ -1589,6 +1674,8 @@ int main(void)
     ami_killwidget(stdout, 4);
 
    /* ************************* Graphical tab bar test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Graphical tab bar test\n");
@@ -1717,6 +1804,8 @@ int main(void)
 
     /* ************************* Terminal overlaid tab bar test ************************ */
 
+    setframe();
+
     printf("\f");
     chrgrid();
     ami_binvis(stdout);
@@ -1825,6 +1914,8 @@ int main(void)
 
     /* ************************* Graphical overlaid tab bar test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Graphical overlaid tab bar test\n");
     printf("\n");
@@ -1930,6 +2021,8 @@ int main(void)
 
     /* ************************* Alert test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Alert test\n");
     printf("\n");
@@ -1941,6 +2034,8 @@ int main(void)
     waitnext();
 
     /* ************************* Color query test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Color query test\n");
@@ -1959,6 +2054,8 @@ int main(void)
 
     /* ************************* Open file query test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Open file query test\n");
     printf("\n");
@@ -1974,6 +2071,8 @@ int main(void)
 
     /* ************************* Save file query test ************************ */
 
+    setframe();
+
     printf("\f");
     printf("Save file query test\n");
     printf("\n");
@@ -1988,6 +2087,8 @@ int main(void)
     waitnext();
 
     /* ************************* Find query test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Find query test\n");
@@ -2010,6 +2111,8 @@ int main(void)
     waitnext();
 
     /* ************************* Find/replace query test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Find/replace query test\n");
@@ -2041,6 +2144,8 @@ int main(void)
     waitnext();
 
     /* ************************* Font query test ************************ */
+
+    setframe();
 
     printf("\f");
     printf("Font query test\n");
