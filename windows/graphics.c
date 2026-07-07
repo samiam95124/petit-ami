@@ -6532,9 +6532,13 @@ void ami_fontsiz(FILE* f, int s)
 
 Set font size by point size
 
-Sets the font size by point size (typographic points). The font pixel height
-is computed from the display DPI, with 2835 being the number of points per
-meter (72 points per inch times 39.37 inches per meter). The resulting
+Sets the font size by point size (typographic points). The em-square pixel
+size is computed from the display DPI, with 2835 being the number of points
+per meter (72 points per inch times 39.37 inches per meter), matching the
+Linux driver. The point size gives the em square, which the character cell
+exceeds by the internal leading, so the current face is measured at that em
+size and the resulting cell height applied via ifontsiz(), whose heights
+(like positive CreateFont heights) select fonts by cell. The resulting
 character cell height can be queried via ami_chrsizy().
 
 *******************************************************************************/
@@ -6543,14 +6547,36 @@ void ami_setpoints(FILE* f, float ps)
 
 {
 
-    winptr win;  /* windows record pointer */
-    int    s;    /* font pixel height */
+    winptr     win;    /* windows record pointer */
+    int        pixsiz; /* em-square pixel size */
+    HFONT      tf;     /* probe font at em size */
+    HGDIOBJ    of;     /* previous font in DC */
+    TEXTMETRIC tm;     /* text metric structure */
+    scnptr     sc;     /* screen pointer */
+    int        b;      /* result holder */
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    s = (int)(ps*(float)win->sdpmy/2835.0f+0.5f); /* points to pixels */
-    if (s < 1) s = 1; /* clamp to minimum */
-    ifontsiz(win, s); /* set font size */
+    sc = win->screens[win->curupd-1];
+    pixsiz = (int)(ps*(float)win->sdpmy/2835.0f+0.5f); /* points to pixels */
+    if (pixsiz < 1) pixsiz = 1; /* clamp to minimum */
+    /* measure the cell height of the font newfont() will select, sized by
+       em square (negative CreateFont heights size the glyphs, like
+       FT_Set_Pixel_Sizes on Linux) */
+    tf = CreateFont(-pixsiz, 0, 0, 0, FW_REGULAR, FALSE, FALSE, FALSE,
+                    ANSI_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
+                    FQUALITY, sc->cfont->sys? FIXED_PITCH: DEFAULT_PITCH,
+                    sc->cfont->sys? "Consolas": sc->cfont->fn);
+    if (!tf) winerr(); /* process windows error */
+    of = SelectObject(sc->bdc, tf); /* select to buffer DC */
+    if (of == HGDI_ERROR) error(enosel);
+    b = GetTextMetrics(sc->bdc, &tm); /* get the metrics */
+    if (!b) winerr(); /* process windows error */
+    of = SelectObject(sc->bdc, of); /* restore previous font */
+    if (of == HGDI_ERROR) error(enosel);
+    b = DeleteObject(tf); /* release the probe font */
+    if (!b) winerr(); /* process windows error */
+    ifontsiz(win, tm.tmHeight); /* set font size by cell height */
     unlockmain(); /* end exclusive access */
 
 }
@@ -6560,7 +6586,9 @@ void ami_setpoints(FILE* f, float ps)
 Find font point size
 
 Returns the current font size in typographic points, derived from the font
-pixel height and the display DPI. This is the inverse of ami_setpoints().
+em-square pixel size and the display DPI. This is the inverse of
+ami_setpoints(). The em square is the character cell height less the
+internal leading, taken from the metrics of the currently selected font.
 
 *******************************************************************************/
 
@@ -6568,12 +6596,18 @@ float ami_points(FILE* f)
 
 {
 
-    winptr win;  /* windows record pointer */
-    float  ps;   /* point size */
+    winptr     win; /* windows record pointer */
+    float      ps;  /* point size */
+    TEXTMETRIC tm;  /* text metric structure */
+    int        b;   /* result holder */
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get window pointer from text file */
-    ps = (float)win->gfhigh*2835.0f/(float)win->sdpmy; /* pixels to points */
+    /* get the metrics of the current font */
+    b = GetTextMetrics(win->screens[win->curupd-1]->bdc, &tm);
+    if (!b) winerr(); /* process windows error */
+    /* the em square is the cell height less the internal leading */
+    ps = (float)(tm.tmHeight-tm.tmInternalLeading)*2835.0f/(float)win->sdpmy;
     unlockmain(); /* end exclusive access */
 
     return (ps);
@@ -10212,8 +10246,8 @@ static void opnwin(int fn, int pfn)
     win->svsize = GetDeviceCaps(win->devcon, VERTSIZE); /* size y in millimeters */
     win->shres = GetDeviceCaps(win->devcon, HORZRES); /* pixels in x */
     win->svres = GetDeviceCaps(win->devcon, VERTRES); /* pixels in y */
-    win->sdpmx = win->shres/win->shsize*1000; /* find dots per meter x */
-    win->sdpmy = win->svres/win->svsize*1000; /* find dots per meter y */
+    win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
+    win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
     win->gmaxxg = maxxd*win->charspace; /* find client size x */
     win->gmaxyg = maxyd*win->linespace; /* find client size y */
     win->gmaxx = maxxd; /* character max x */
