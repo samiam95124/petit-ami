@@ -195,6 +195,11 @@ void pa_cocoa_query_save(char* path, int pathlen);
 /* Inject a close event into the event queue (used by signal handlers). */
 void pa_cocoa_inject_close(void);
 
+#ifdef __CORETEXT__
+/* Get system monospace font (SF Mono) as CTFontRef. Caller must CFRelease. */
+CTFontRef pa_cocoa_system_mono_font(CGFloat size);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

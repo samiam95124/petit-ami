@@ -14,6 +14,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import <CoreGraphics/CoreGraphics.h>
+#import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #include <stdlib.h>
 #include <string.h>
@@ -782,4 +783,11 @@ void pa_cocoa_inject_close(void)
     e.type = PA_EVT_CLOSE;
     e.win  = NULL;
     evt_push(&e);
+}
+
+CTFontRef pa_cocoa_system_mono_font(CGFloat size)
+{
+    NSFont* f = [NSFont monospacedSystemFontOfSize:size weight:NSFontWeightRegular];
+    if (f) return CTFontCreateWithName((__bridge CFStringRef)[f fontName], size, NULL);
+    return NULL;
 }
