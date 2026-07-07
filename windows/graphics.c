@@ -3037,6 +3037,22 @@ through the context, including text, is then transformed.
 
 *******************************************************************************/
 
+/* A GDI call on a window device context can fail transiently, with no error
+   code set, while the window tree is changing under it -- for example another
+   thread inside ShowWindow() making a child window visible, which forces this
+   window's clip region to be recomputed. Nothing is wrong with the window or
+   the DC; the operation just needs to be retried after the change settles.
+   Distinguishes that benign case (skip and retry later) from a real error
+   (abort via winerr). */
+
+static int gditransient(void)
+
+{
+
+    return (GetLastError() == 0);
+
+}
+
 static void settrans(HDC dc, scnptr sc)
 
 {
@@ -3044,13 +3060,13 @@ static void settrans(HDC dc, scnptr sc)
     int b; /* return value */
 
     b = SetMapMode(dc, MM_ANISOTROPIC);
-    if (!b) winerr(); /* process windows error */
+    if (!b) { if (gditransient()) return; winerr(); }
     b = SetWindowExtEx(dc, sc->wextx, sc->wexty, NULL);
-    if (!b) winerr(); /* process windows error */
+    if (!b) { if (gditransient()) return; winerr(); }
     b = SetViewportExtEx(dc, sc->vextx, sc->vexty, NULL);
-    if (!b) winerr(); /* process windows error */
+    if (!b) { if (gditransient()) return; winerr(); }
     b = SetViewportOrgEx(dc, sc->offx, sc->offy, NULL);
-    if (!b) winerr(); /* process windows error */
+    if (!b) { if (gditransient()) return; winerr(); }
 
 }
 
@@ -3062,6 +3078,23 @@ Updates all the buffer and screen parameters from the display screen to the
 terminal.
 
 *******************************************************************************/
+
+/* Abandon a restore pass that hit a transient GDI failure: request a fresh
+   paint so the restore is retried after the window change settles, and show
+   the cursor hidden at restore entry. */
+
+static void rstskip(winptr win)
+
+{
+
+    InvalidateRect(win->winhan, NULL, FALSE);
+    setcur(win); /* show the cursor */
+
+}
+
+/* bail out of a restore pass if the failure is transient */
+#define RSTCHK(failed) \
+    if (failed) { if (gditransient()) { rstskip(win); return; } winerr(); }
 
 static void restore(winptr win,   /* window to restore */
                     int    whole) /* whole or part window */
@@ -3085,16 +3118,16 @@ static void restore(winptr win,   /* window to restore */
         if (BIT(sarev) & sc->attr)  { /* reverse */
 
             r = SetBkColor(win->devcon, sc->fcrgb);
-            if (r == -1) winerr(); /* process windows error */
+            RSTCHK(r == -1); /* process windows error */
             r = SetTextColor(win->devcon, sc->bcrgb);
-            if (r == -1) winerr(); /* process windows error */
+            RSTCHK(r == -1); /* process windows error */
 
         } else {
 
             r = SetBkColor(win->devcon, sc->bcrgb);
-            if (r == -1) winerr(); /* process windows error */
+            RSTCHK(r == -1); /* process windows error */
             r = SetTextColor(win->devcon, sc->fcrgb);
-            if (r == -1) winerr(); /* process windows error */
+            RSTCHK(r == -1); /* process windows error */
 
         }
         /* The buffer already contains the viewport offset and scale, which
@@ -3102,21 +3135,21 @@ static void restore(winptr win,   /* window to restore */
            1:1. Reset both device contexts to identity for the copy; the
            drawing transforms are reapplied below. */
         b = SetMapMode(win->devcon, MM_TEXT);
-        if (!b)  winerr(); /* process windows error */
+        RSTCHK(!b); /* process windows error */
         b = SetViewportOrgEx(win->devcon, 0, 0, NULL);
-        if (!b)  winerr(); /* process windows error */
+        RSTCHK(!b); /* process windows error */
         b = SetMapMode(sc->bdc, MM_TEXT);
-        if (!b)  winerr(); /* process windows error */
+        RSTCHK(!b); /* process windows error */
         b = SetViewportOrgEx(sc->bdc, 0, 0, NULL);
-        if (!b)  winerr(); /* process windows error */
+        RSTCHK(!b); /* process windows error */
         oh = SelectObject(win->devcon, sc->font); /* select font to display */
-        if (oh == HGDI_ERROR) winerr();
+        RSTCHK(oh == HGDI_ERROR);
         oh = SelectObject(win->devcon, sc->fpen); /* select pen to display */
-        if (oh == HGDI_ERROR) winerr();
+        RSTCHK(oh == HGDI_ERROR);
         if (whole) { /* get whole client area */
 
             b = GetClientRect(win->winhan, &cr);
-            if (!b) winerr(); /* process windows error */
+            RSTCHK(!b); /* process windows error */
 
         } else
             /* get only update area. This only happens during a WM_PAINT
@@ -3145,7 +3178,7 @@ static void restore(winptr win,   /* window to restore */
             /* Now fill the right and bottom sides of the client beyond the
                bitmap. */
            hb = CreateSolidBrush(sc->bcrgb); /* get a brush for background */
-           if (hb == 0) winerr(); /* process windows error */
+           RSTCHK(hb == 0); /* process windows error */
            /* check right side fill */
            memcpy(&cr2, &cr, sizeof(RECT)); /* copy update rectangle */
            /* subtract overlapping space */
@@ -3159,7 +3192,7 @@ static void restore(winptr win,   /* window to restore */
            if (cr2.top <= cr2.bottom) /* still has height */
                 b = FillRect(win->devcon, &cr2, hb);
             b = DeleteObject(hb); /* free the brush */
-            if (!b)  winerr(); /* process windows error */
+            RSTCHK(!b); /* process windows error */
 
         }
         /* reapply the drawing transforms removed for the copy */
@@ -10002,7 +10035,13 @@ static void regstd(void)
        The message mirror reflects messages that should be handled
        by the program back into the queue, sending others on to
        the windows default handler */
-//    wc.style      = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    /* CS_OWNDC is required: each window's device context is fetched once at
+       window open and kept for the window's lifetime (win->devcon), which is
+       only valid for a private (own) DC. Without an explicit style this field
+       was uninitialized stack garbage, so windows could randomly share DCs
+       (CS_CLASSDC/CS_PARENTDC), failing GDI calls when multiple windows drew
+       concurrently. */
+    wc.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
     wc.lpfnWndProc   = wndproc;
     wc.cbClsExtra    = 0;
     wc.cbWndExtra    = 0;
@@ -10038,6 +10077,16 @@ static void kilwin(HWND wh)
     MSG  msg; /* intertask message */
     BOOL b;
 
+    if (GetCurrentThreadId() == GetWindowThreadProcessId(dispwin, NULL)) {
+
+        /* We already are the display thread (an error abort from inside a
+           message handler lands here). The message round trip below would
+           wait on a reply only this thread can produce, deadlocking; destroy
+           the window directly instead. */
+        DestroyWindow(wh);
+        return;
+
+    }
     stdwinwin = wh; /* place window handle */
     /* order window to close */
     b = PostMessage(dispwin, UM_CLSWIN, 0, 0);
@@ -10533,6 +10582,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
         *infile = fopen("nul", "r"); /* open null as read only */
         lockmain(); /* start exclusive access */
         if (!*infile) error(enoopn); /* can't open */
+        setvbuf(*infile, NULL, _IONBF, 0); /* turn off buffering */
 
     }
     /* open output file */
@@ -10541,6 +10591,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
     ofn = fileno(*outfile); /* get logical file no. */
     if (ofn == -1) error(esystem);
     if (!*outfile) error(enoopn); /* can't open */
+    setvbuf(*outfile, NULL, _IONBF, 0); /* turn off buffering */
 
     /* check either input is unused, or is already an input side of a window */
     if (opnfil[ifn]) /* entry exists */
@@ -15473,6 +15524,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
     imptr   ip;  /* intratask message pointer */
     int     udw; /* up/down control width */
     RECT    cr;  /* client rectangle */
+    MINMAXINFO* mmi; /* window min/max tracking info */
 
     /* dump messages (diagnostic) */
     if (dmpmsg) {
@@ -15483,6 +15535,24 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
 
     if (imsg == WM_CREATE) {
 
+        r = 0;
+
+    } else if (imsg == WM_GETMINMAXINFO) {
+
+        /* Windows limits interactive resizing to a minimum tracking size
+           that scales with DPI (~200 pixels wide at 150%). Lower it so the
+           user can drag windows down to any size. */
+        mmi = (MINMAXINFO*)lparam;
+        mmi->ptMinTrackSize.x = 1;
+        mmi->ptMinTrackSize.y = 1;
+        r = 0;
+
+    } else if (imsg == WM_WINDOWPOSCHANGING) {
+
+        /* Don't pass this to DefWindowProc, whose default processing clamps
+           programmatic sizing (SetWindowPos) to the DPI-scaled minimum
+           tracking size regardless of WM_GETMINMAXINFO, silently overriding
+           small setsiz/setsizg requests. */
         r = 0;
 
     } else if (imsg == WM_PAINT) {
