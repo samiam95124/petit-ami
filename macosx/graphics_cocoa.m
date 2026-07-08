@@ -65,13 +65,17 @@ static int evt_empty(void) { return evt_head == evt_tail; }
 
 @interface PAView : NSView {
 @public
-    CGContextRef  bitmap;   /* offscreen drawing surface */
-    int           bmpW;     /* bitmap width  in pixels  */
-    int           bmpH;     /* bitmap height in pixels  */
-    pa_winhan     owner;    /* back-pointer to PAWindow */
+    CGContextRef  bitmap;      /* offscreen drawing surface (update screen) */
+    CGContextRef  screens[10]; /* per-screen bitmaps (0-based, lazily created) */
+    int           updscr;      /* current update screen (0-based) */
+    int           dspscr;      /* current display screen (0-based) */
+    int           bmpW;        /* bitmap width  in points */
+    int           bmpH;        /* bitmap height in points */
+    pa_winhan     owner;       /* back-pointer to PAWindow */
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
+- (CGContextRef)ensureScreen:(int)idx;
 @end
 
 @implementation PAView
@@ -81,38 +85,61 @@ static int evt_empty(void) { return evt_head == evt_tail; }
 
 - (void)createBitmapWidth:(int)w height:(int)h
 {
-    CGFloat       scale  = self.window ? [self.window backingScaleFactor] : 1.0;
-    int           pw     = (int)(w * scale);
-    int           ph     = (int)(h * scale);
-    CGColorSpaceRef cs   = CGColorSpaceCreateDeviceRGB();
-
-    if (bitmap) CGContextRelease(bitmap);
-    bitmap = CGBitmapContextCreate(NULL, pw, ph, 8, pw * 4, cs,
-                                   kCGImageAlphaPremultipliedFirst |
-                                   kCGBitmapByteOrder32Host);
-    CGColorSpaceRelease(cs);
-
-    /* scale so callers use logical (point) coordinates */
-    CGContextScaleCTM(bitmap, scale, scale);
-
-    /* fill white */
-    CGContextSetRGBFillColor(bitmap, 1, 1, 1, 1);
-    CGContextFillRect(bitmap, CGRectMake(0, 0, w, h));
+    /* release all existing screen bitmaps */
+    for (int i = 0; i < 10; i++) {
+        if (screens[i]) { CGContextRelease(screens[i]); screens[i] = NULL; }
+    }
+    bitmap = NULL;
 
     bmpW = w;
     bmpH = h;
+    updscr = 0;
+    dspscr = 0;
+
+    /* create screen 0 as the default */
+    screens[0] = [self createOneBitmapWidth:w height:h];
+    bitmap = screens[0];
+}
+
+- (CGContextRef)createOneBitmapWidth:(int)w height:(int)h
+{
+    CGFloat       scale = self.window ? [self.window backingScaleFactor] : 1.0;
+    int           pw    = (int)(w * scale);
+    int           ph    = (int)(h * scale);
+    CGColorSpaceRef cs  = CGColorSpaceCreateDeviceRGB();
+
+    CGContextRef ctx = CGBitmapContextCreate(NULL, pw, ph, 8, pw * 4, cs,
+                                             kCGImageAlphaPremultipliedFirst |
+                                             kCGBitmapByteOrder32Host);
+    CGColorSpaceRelease(cs);
+    CGContextScaleCTM(ctx, scale, scale);
+    CGContextSetRGBFillColor(ctx, 1, 1, 1, 1);
+    CGContextFillRect(ctx, CGRectMake(0, 0, w, h));
+    return ctx;
+}
+
+- (CGContextRef)ensureScreen:(int)idx
+{
+    if (idx < 0 || idx >= 10) return screens[0];
+    if (!screens[idx])
+        screens[idx] = [self createOneBitmapWidth:bmpW height:bmpH];
+    return screens[idx];
 }
 
 - (void)destroyBitmap
 {
-    if (bitmap) { CGContextRelease(bitmap); bitmap = NULL; }
+    for (int i = 0; i < 10; i++) {
+        if (screens[i]) { CGContextRelease(screens[i]); screens[i] = NULL; }
+    }
+    bitmap = NULL;
 }
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-    if (!bitmap) return;
+    CGContextRef dsp = screens[dspscr];
+    if (!dsp) return;
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
-    CGImageRef   img = CGBitmapContextCreateImage(bitmap);
+    CGImageRef   img = CGBitmapContextCreateImage(dsp);
     CGContextDrawImage(ctx, NSRectToCGRect(self.bounds), img);
     CGImageRelease(img);
 }
@@ -452,7 +479,7 @@ void pa_cocoa_set_sizable(pa_winhan win, int on)
 CGContextRef pa_cocoa_get_context(pa_winhan win)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
-    return pw->view->bitmap;
+    return pw->view->screens[pw->view->updscr];
 }
 
 void pa_cocoa_flush(pa_winhan win)
@@ -462,6 +489,19 @@ void pa_cocoa_flush(pa_winhan win)
     /* pump the run loop briefly so the display actually updates */
     [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
                              beforeDate:[NSDate dateWithTimeIntervalSinceNow:0]];
+}
+
+void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    PAView*   v  = pw->view;
+    if (upd < 0 || upd >= 10 || dsp < 0 || dsp >= 10) return;
+    [v ensureScreen:upd];
+    [v ensureScreen:dsp];
+    v->updscr = upd;
+    int old_dsp = v->dspscr;
+    v->dspscr = dsp;
+    if (dsp != old_dsp) [v setNeedsDisplay:YES];
 }
 
 /*----------------------------------------------------------------------------

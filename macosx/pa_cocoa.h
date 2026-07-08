@@ -126,6 +126,7 @@ void pa_cocoa_set_sizable(pa_winhan win, int on);
 
 CGContextRef pa_cocoa_get_context(pa_winhan win);
 void         pa_cocoa_flush(pa_winhan win);       /* blit offscreen → screen */
+void         pa_cocoa_select_screens(pa_winhan win, int upd, int dsp); /* 0-based */
 
 /*----------------------------------------------------------------------------
  * Event polling — single-threaded poll model.
