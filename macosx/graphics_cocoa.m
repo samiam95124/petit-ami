@@ -77,6 +77,8 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     int           curVisible;  /* cursor visible flag */
     int           curX, curY;  /* cursor position (0-based pixels) */
     int           curW, curH;  /* cursor size (pixels) */
+    int           bufmod;      /* buffered mode flag */
+    float         bgR, bgG, bgB; /* background color for margins */
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
@@ -145,8 +147,31 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     if (!dsp) return;
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
     CGImageRef   img = CGBitmapContextCreateImage(dsp);
-    CGContextDrawImage(ctx, NSRectToCGRect(self.bounds), img);
+
+    int viewW = (int)self.bounds.size.width;
+    int viewH = (int)self.bounds.size.height;
+
+    /* draw bitmap at 1:1, clipped to view bounds (view is flipped) */
+    CGContextSaveGState(ctx);
+    if (viewW < bmpW || viewH < bmpH) {
+        int clipW = viewW < bmpW ? viewW : bmpW;
+        int clipH = viewH < bmpH ? viewH : bmpH;
+        CGContextClipToRect(ctx, CGRectMake(0, 0, clipW, clipH));
+    }
+    CGContextDrawImage(ctx, CGRectMake(0, 0, bmpW, bmpH), img);
+    CGContextRestoreGState(ctx);
     CGImageRelease(img);
+
+    /* fill margins with background color if window is larger than buffer */
+    if (bmpW < viewW || bmpH < viewH) {
+        CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
+        if (bmpW < viewW)
+            CGContextFillRect(ctx, CGRectMake(bmpW, 0,
+                                              viewW - bmpW, viewH));
+        if (bmpH < viewH)
+            CGContextFillRect(ctx, CGRectMake(0, bmpH,
+                                              bmpW, viewH - bmpH));
+    }
 
     if (curVisible && curW > 0 && curH > 0) {
         CGContextSetBlendMode(ctx, kCGBlendModeDifference);
@@ -159,7 +184,10 @@ static int evt_empty(void) { return evt_head == evt_tail; }
 {
     [super viewDidEndLiveResize];
     NSSize s = self.bounds.size;
-    [self createBitmapWidth:(int)s.width height:(int)s.height];
+    if (!bufmod) {
+        /* unbuffered: resize the bitmap to match the new window */
+        [self createBitmapWidth:(int)s.width height:(int)s.height];
+    }
     pa_rawevent e = {0};
     e.type       = PA_EVT_RESIZE;
     e.win        = owner;
@@ -518,6 +546,20 @@ void pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h)
     v->curW = w;
     v->curH = h;
     if (changed) [v setNeedsDisplay:YES];
+}
+
+void pa_cocoa_set_bufmod(pa_winhan win, int on)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    pw->view->bufmod = on;
+}
+
+void pa_cocoa_set_background(pa_winhan win, float r, float g, float b)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    pw->view->bgR = r;
+    pw->view->bgG = g;
+    pw->view->bgB = b;
 }
 
 void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)

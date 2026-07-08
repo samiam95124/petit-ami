@@ -127,7 +127,8 @@ typedef struct winrec {
 
     /* font */
     fontptr     cfont;         /* current font */
-    CGFloat     fontsz;        /* font size in points */
+    CGFloat     fontsz;        /* font size in pixels (CTFont logical size) */
+    float       gfpoint;       /* current font size in typographic points */
 
     /* event handler */
     ami_pevthan evthan;
@@ -570,6 +571,7 @@ static void win_init(winptr win, int wid, int parwid, int w, int h)
     int spx_h  = pa_cocoa_screen_h();
     win->dpmx  = (smm_w > 0) ? spx_w * 1000 / smm_w : 3780; /* ~96 dpi */
     win->dpmy  = (smm_h > 0) ? spx_h * 1000 / smm_h : 3780;
+    win->gfpoint = win->fontsz * 2835.0f / (float)win->dpmy;
 
     /* character cell size from font metrics */
     CTFontRef f = fntlst ? fntlst->ctfont : NULL;
@@ -796,6 +798,8 @@ static void pa_graphics_init(void)
         win->han   = han;
         win->focus = TRUE;
         opnfil[1]  = 1; /* mark slot in use */
+        pa_cocoa_set_bufmod(han, win->bufmod);
+        pa_cocoa_set_background(han, 1.0f, 1.0f, 1.0f);
         clear_window(win);
         pa_cocoa_show_window(han);
         pa_cocoa_flush(han);
@@ -1023,12 +1027,11 @@ static void plcchr(winptr win, char c)
         /* newline: CR+LF — move to column 1 on next row */
         sc->curx  = 1;
         sc->curxg = 1;
-        if (sc->cury >= win->maxy) {
-            if (sc->autof) scroll_up(win);
-            /* else: cursor stays, no scroll */
+        if (sc->cury >= win->maxy && sc->autof) {
+            scroll_up(win);
         } else {
             sc->cury++;
-            sc->curyg = (sc->cury - 1) * win->linespace + 1;
+            sc->curyg += win->linespace;
         }
     } else if (c == '\r') {
         sc->curx  = 1;
@@ -1068,7 +1071,7 @@ static void plcchr(winptr win, char c)
                     scroll_up(win);
                 } else {
                     sc->cury++;
-                    sc->curyg = (sc->cury - 1) * win->linespace + 1;
+                    sc->curyg += win->linespace;
                 }
             }
         }
@@ -1198,19 +1201,22 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
         er->etype  = ami_etresize;
         er->rszxg  = raw->resize.w;
         er->rszyg  = raw->resize.h;
-        /* update char dimensions */
+        er->rszx   = raw->resize.w;
+        er->rszy   = raw->resize.h;
         {
             winptr win = NULL;
             for (int i = 0; i < MAXFIL; i++)
                 if (opnfil[i] && wintbl[i].han == raw->win)
                     { win = &wintbl[i]; break; }
             if (win) {
-                win->maxxg = raw->resize.w;
-                win->maxyg = raw->resize.h;
-                win->maxx  = win->maxxg / win->charspace;
-                win->maxy  = win->maxyg / win->linespace;
-                er->rszx   = win->maxx;
-                er->rszy   = win->maxy;
+                er->rszx = raw->resize.w / win->charspace;
+                er->rszy = raw->resize.h / win->linespace;
+                if (!win->bufmod) {
+                    win->maxxg = raw->resize.w;
+                    win->maxyg = raw->resize.h;
+                    win->maxx  = er->rszx;
+                    win->maxy  = er->rszy;
+                }
             }
         }
         break;
@@ -1425,7 +1431,9 @@ void ami_fcolor(FILE* f, ami_color c)
 void ami_bcolor(FILE* f, ami_color c)
 {
     winptr win = f2win(f); if (!win) return;
-    curscn(win)->bc = ami2rgba(c);
+    pa_rgba bc = ami2rgba(c);
+    curscn(win)->bc = bc;
+    if (win->han) pa_cocoa_set_background(win->han, bc.r, bc.g, bc.b);
 }
 
 void ami_auto(FILE* f, int e)
@@ -1499,8 +1507,28 @@ void ami_viewscale(FILE* f, float x, float y)
     settrans(win);
 }
 void ami_linestyle(FILE* f, ami_lstyle style)     { /* stub */ }
-void ami_setpoints(FILE* f, float ps)             { /* stub */ }
-float ami_points(FILE* f)                         { return 11.0; }
+void ami_setpoints(FILE* f, float ps)
+{
+    winptr win = f2win(f); if (!win) return;
+    int pixsiz = (int)(ps * (float)win->dpmy / 2835.0f + 0.5f);
+    if (pixsiz < 1) pixsiz = 1;
+    win->fontsz  = (CGFloat)pixsiz;
+    win->gfpoint = ps;
+    scnptr sc = curscn(win);
+    if (sc->font && sc->font->name) {
+        if (sc->font->ctfont) CFRelease(sc->font->ctfont);
+        sc->font->ctfont = make_ctfont(sc->font->name, win->fontsz,
+                                       sc->bold, sc->italic);
+        sc->font->size   = win->fontsz;
+        update_metrics(win);
+    }
+}
+
+float ami_points(FILE* f)
+{
+    winptr win = f2win(f);
+    return win ? win->gfpoint : 11.0f;
+}
 
 int  ami_funkey(FILE* f)         { return 12; /* F1-F12 */ }
 
@@ -1938,6 +1966,7 @@ void ami_fontsiz(FILE* f, int s)
 {
     winptr win = f2win(f); if (!win) return;
     win->fontsz = (CGFloat)(s > 0 ? s : DEF_FONT_H);
+    win->gfpoint = win->fontsz * 2835.0f / (float)win->dpmy;
     /* rebuild current font at new size */
     scnptr sc = curscn(win);
     if (sc->font && sc->font->name) {
@@ -2142,6 +2171,7 @@ void ami_bcolorg(FILE* f, int r, int g, int b)
     winptr win = f2win(f); if (!win) return;
     pa_rgba c = { r/(double)INT_MAX, g/(double)INT_MAX, b/(double)INT_MAX, 1.0 };
     curscn(win)->bc = c;
+    if (win->han) pa_cocoa_set_background(win->han, c.r, c.g, c.b);
 }
 
 void ami_bcolorc(FILE* f, int r, int g, int b) { ami_bcolorg(f, r, g, b); }
@@ -2365,6 +2395,8 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     win->infile  = inf;
     win->outfile = outf;
     opnfil[ofn]  = 1;
+    pa_cocoa_set_bufmod(han, win->bufmod);
+    pa_cocoa_set_background(han, 1.0f, 1.0f, 1.0f);
 
     pa_cocoa_show_window(han);
     clear_window(win);
@@ -2378,6 +2410,7 @@ void ami_buffer(FILE* f, int e)
 {
     winptr win = f2win(f); if (!win) return;
     win->bufmod = e;
+    if (win->han) pa_cocoa_set_bufmod(win->han, e);
 }
 
 void ami_getsiz(FILE* f, int* x, int* y)
