@@ -33,7 +33,10 @@ typedef enum {
     PA_EVT_MOUSE_UP,    /* mouse button released */
     PA_EVT_REDRAW,      /* window needs redraw */
     PA_EVT_TIMER,       /* timer fired */
-    PA_EVT_FRAME        /* frame timer */
+    PA_EVT_FRAME,       /* frame timer */
+    PA_EVT_JOY_MOVE,    /* joystick axis moved */
+    PA_EVT_JOY_DOWN,    /* joystick button pressed */
+    PA_EVT_JOY_UP       /* joystick button released */
 } pa_evttype;
 
 /* Special key codes */
@@ -68,6 +71,8 @@ typedef struct {
         struct { int x, y; int buttons; }              mouse;
         struct { int id; }                             timer;
         struct { int x, y, w, h; }                    redraw;
+        struct { int jn; int ax[6]; }                  joymove;
+        struct { int jn; int btn; }                    joybtn;
     };
 } pa_rawevent;
 
@@ -127,6 +132,7 @@ void pa_cocoa_set_sizable(pa_winhan win, int on);
 CGContextRef pa_cocoa_get_context(pa_winhan win);
 void         pa_cocoa_flush(pa_winhan win);       /* blit offscreen → screen */
 void         pa_cocoa_select_screens(pa_winhan win, int upd, int dsp); /* 0-based */
+void         pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h);
 
 /*----------------------------------------------------------------------------
  * Event polling — single-threaded poll model.
@@ -195,6 +201,13 @@ void pa_cocoa_query_save(char* path, int pathlen);
 
 /* Inject a close event into the event queue (used by signal handlers). */
 void pa_cocoa_inject_close(void);
+
+/* Joystick support via GameController framework */
+void pa_cocoa_joy_init(void);
+void pa_cocoa_joy_deinit(void);
+int  pa_cocoa_joy_count(void);
+int  pa_cocoa_joy_buttons(int j);
+int  pa_cocoa_joy_axes(int j);
 
 #ifdef __CORETEXT__
 /* Get system monospace font (SF Mono) as CTFontRef. Caller must CFRelease. */

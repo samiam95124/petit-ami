@@ -18,7 +18,9 @@
 #import <objc/runtime.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <assert.h>
+#include <IOKit/hid/IOHIDManager.h>
 #include "pa_cocoa.h"
 
 /* Associated object key for storing tag on views that lack a settable tag */
@@ -72,6 +74,9 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     int           bmpW;        /* bitmap width  in points */
     int           bmpH;        /* bitmap height in points */
     pa_winhan     owner;       /* back-pointer to PAWindow */
+    int           curVisible;  /* cursor visible flag */
+    int           curX, curY;  /* cursor position (0-based pixels) */
+    int           curW, curH;  /* cursor size (pixels) */
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
@@ -142,6 +147,12 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     CGImageRef   img = CGBitmapContextCreateImage(dsp);
     CGContextDrawImage(ctx, NSRectToCGRect(self.bounds), img);
     CGImageRelease(img);
+
+    if (curVisible && curW > 0 && curH > 0) {
+        CGContextSetBlendMode(ctx, kCGBlendModeDifference);
+        CGContextSetRGBFillColor(ctx, 1, 1, 1, 1);
+        CGContextFillRect(ctx, CGRectMake(curX, curY, curW, curH));
+    }
 }
 
 - (void)viewDidEndLiveResize
@@ -423,8 +434,12 @@ void pa_cocoa_resize_window(pa_winhan win, int w, int h)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
     NSRect f = pw->window.frame;
-    f.size = NSMakeSize(w, h);
-    [pw->window setFrame:f display:YES];
+    CGFloat oldTop = f.origin.y + f.size.height;
+    NSRect content = NSMakeRect(0, 0, w, h);
+    NSRect newFrame = [pw->window frameRectForContentRect:content];
+    newFrame.origin.x = f.origin.x;
+    newFrame.origin.y = oldTop - newFrame.size.height;
+    [pw->window setFrame:newFrame display:YES];
     [pw->view createBitmapWidth:w height:h];
 }
 
@@ -489,6 +504,20 @@ void pa_cocoa_flush(pa_winhan win)
     /* pump the run loop briefly so the display actually updates */
     [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
                              beforeDate:[NSDate dateWithTimeIntervalSinceNow:0]];
+}
+
+void pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    PAView*   v  = pw->view;
+    int changed = (v->curVisible != visible || v->curX != x || v->curY != y ||
+                   v->curW != w || v->curH != h);
+    v->curVisible = visible;
+    v->curX = x;
+    v->curY = y;
+    v->curW = w;
+    v->curH = h;
+    if (changed) [v setNeedsDisplay:YES];
 }
 
 void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)
@@ -823,6 +852,221 @@ void pa_cocoa_inject_close(void)
     e.type = PA_EVT_CLOSE;
     e.win  = NULL;
     evt_push(&e);
+}
+
+/*----------------------------------------------------------------------------
+ * Joystick support via IOKit HID
+ *----------------------------------------------------------------------------*/
+
+#define MAXJOY 10
+#define MAXJAX 6
+
+typedef struct {
+    IOHIDDeviceRef dev;
+    int            axes;
+    int            buttons;
+    int            axsav[MAXJAX];
+    IOHIDElementRef axelem[MAXJAX];
+    long           axmin[MAXJAX];
+    long           axmax[MAXJAX];
+} joyrec;
+
+static joyrec          joytab[MAXJOY];
+static int             numjoy;
+static IOHIDManagerRef hidmgr;
+
+static int joy_find(IOHIDDeviceRef dev)
+{
+    for (int i = 0; i < numjoy; i++)
+        if (joytab[i].dev == dev) return i;
+    return -1;
+}
+
+static int scale_hid(long val, long lo, long hi)
+{
+    if (hi <= lo) return 0;
+    long mid = (lo + hi) / 2;
+    long half = (hi - lo) / 2;
+    if (half == 0) return 0;
+    long long scaled = (long long)(val - mid) * INT_MAX / half;
+    if (scaled > INT_MAX) return INT_MAX;
+    if (scaled < -INT_MAX) return -INT_MAX;
+    return (int)scaled;
+}
+
+static int axis_index_for_usage(uint32_t usage)
+{
+    switch (usage) {
+    case kHIDUsage_GD_X:  return 0;
+    case kHIDUsage_GD_Y:  return 1;
+    case kHIDUsage_GD_Z:  return 2;
+    case kHIDUsage_GD_Rx: return 3;
+    case kHIDUsage_GD_Ry: return 4;
+    case kHIDUsage_GD_Rz: return 5;
+    default: return -1;
+    }
+}
+
+static void hid_input_cb(void* ctx, IOReturn result, void* sender,
+                          IOHIDValueRef value)
+{
+    IOHIDElementRef elem = IOHIDValueGetElement(value);
+    IOHIDDeviceRef  dev  = IOHIDElementGetDevice(elem);
+    int idx = joy_find(dev);
+    if (idx < 0) return;
+    joyrec* jp = &joytab[idx];
+
+    uint32_t page  = IOHIDElementGetUsagePage(elem);
+    uint32_t usage = IOHIDElementGetUsage(elem);
+    long     raw   = IOHIDValueGetIntegerValue(value);
+
+    if (page == kHIDPage_GenericDesktop) {
+        int ai = axis_index_for_usage(usage);
+        if (ai >= 0 && ai < jp->axes) {
+            jp->axsav[ai] = scale_hid(raw, jp->axmin[ai], jp->axmax[ai]);
+            pa_rawevent e = {0};
+            e.type = PA_EVT_JOY_MOVE;
+            e.win  = NULL;
+            e.joymove.jn = idx;
+            for (int i = 0; i < MAXJAX; i++)
+                e.joymove.ax[i] = jp->axsav[i];
+            evt_push(&e);
+        }
+        if (usage == kHIDUsage_GD_Hatswitch) {
+            /* hat switch: map to axes 4,5 if not already used */
+            /* for now just skip hat */
+        }
+    } else if (page == kHIDPage_Button) {
+        int btn = (int)usage; /* 1-based */
+        pa_rawevent e = {0};
+        e.type = raw ? PA_EVT_JOY_DOWN : PA_EVT_JOY_UP;
+        e.win  = NULL;
+        e.joybtn.jn  = idx;
+        e.joybtn.btn = btn;
+        evt_push(&e);
+    }
+}
+
+static void hid_match_cb(void* ctx, IOReturn result, void* sender,
+                          IOHIDDeviceRef dev)
+{
+    if (numjoy >= MAXJOY) return;
+    if (joy_find(dev) >= 0) return;
+
+    joyrec* jp = &joytab[numjoy];
+    memset(jp, 0, sizeof(*jp));
+    jp->dev = dev;
+
+    /* enumerate elements to count axes and buttons */
+    CFArrayRef elems = IOHIDDeviceCopyMatchingElements(dev, NULL,
+                           kIOHIDOptionsTypeNone);
+    if (!elems) { jp->dev = NULL; return; }
+
+    int nax = 0, nbtn = 0;
+    CFIndex n = CFArrayGetCount(elems);
+    for (CFIndex i = 0; i < n; i++) {
+        IOHIDElementRef el = (IOHIDElementRef)CFArrayGetValueAtIndex(elems, i);
+        IOHIDElementType etype = IOHIDElementGetType(el);
+        if (etype != kIOHIDElementTypeInput_Misc &&
+            etype != kIOHIDElementTypeInput_Axis &&
+            etype != kIOHIDElementTypeInput_Button)
+            continue;
+        uint32_t pg = IOHIDElementGetUsagePage(el);
+        uint32_t us = IOHIDElementGetUsage(el);
+
+        if (pg == kHIDPage_GenericDesktop) {
+            int ai = axis_index_for_usage(us);
+            if (ai >= 0 && ai < MAXJAX) {
+                jp->axelem[ai] = el;
+                jp->axmin[ai]  = IOHIDElementGetLogicalMin(el);
+                jp->axmax[ai]  = IOHIDElementGetLogicalMax(el);
+                if (ai + 1 > nax) nax = ai + 1;
+            }
+        } else if (pg == kHIDPage_Button) {
+            int bn = (int)us;
+            if (bn > nbtn) nbtn = bn;
+        }
+    }
+    CFRelease(elems);
+
+    jp->axes    = nax > MAXJAX ? MAXJAX : nax;
+    jp->buttons = nbtn;
+    numjoy++;
+}
+
+static void hid_remove_cb(void* ctx, IOReturn result, void* sender,
+                           IOHIDDeviceRef dev)
+{
+    int idx = joy_find(dev);
+    if (idx < 0) return;
+    joytab[idx].dev = NULL;
+    joytab[idx].axes = 0;
+    joytab[idx].buttons = 0;
+}
+
+void pa_cocoa_joy_init(void)
+{
+    numjoy = 0;
+    hidmgr = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
+    if (!hidmgr) return;
+
+    /* match joysticks and gamepads */
+    NSDictionary* joy = @{
+        @(kIOHIDDeviceUsagePageKey): @(kHIDPage_GenericDesktop),
+        @(kIOHIDDeviceUsageKey):     @(kHIDUsage_GD_Joystick)
+    };
+    NSDictionary* pad = @{
+        @(kIOHIDDeviceUsagePageKey): @(kHIDPage_GenericDesktop),
+        @(kIOHIDDeviceUsageKey):     @(kHIDUsage_GD_GamePad)
+    };
+    NSDictionary* multi = @{
+        @(kIOHIDDeviceUsagePageKey): @(kHIDPage_GenericDesktop),
+        @(kIOHIDDeviceUsageKey):     @(kHIDUsage_GD_MultiAxisController)
+    };
+    IOHIDManagerSetDeviceMatchingMultiple(hidmgr,
+        (__bridge CFArrayRef)@[joy, pad, multi]);
+
+    IOHIDManagerRegisterDeviceMatchingCallback(hidmgr, hid_match_cb, NULL);
+    IOHIDManagerRegisterDeviceRemovalCallback(hidmgr, hid_remove_cb, NULL);
+    IOHIDManagerRegisterInputValueCallback(hidmgr, hid_input_cb, NULL);
+    IOHIDManagerScheduleWithRunLoop(hidmgr, CFRunLoopGetMain(),
+                                    kCFRunLoopDefaultMode);
+    IOHIDManagerOpen(hidmgr, kIOHIDOptionsTypeNone);
+
+    /* pump the run loop once to pick up already-connected devices */
+    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, false);
+}
+
+void pa_cocoa_joy_deinit(void)
+{
+    if (hidmgr) {
+        IOHIDManagerClose(hidmgr, kIOHIDOptionsTypeNone);
+        IOHIDManagerUnscheduleFromRunLoop(hidmgr, CFRunLoopGetMain(),
+                                          kCFRunLoopDefaultMode);
+        CFRelease(hidmgr);
+        hidmgr = NULL;
+    }
+    for (int i = 0; i < numjoy; i++) {
+        joytab[i].dev = NULL;
+        joytab[i].axes = 0;
+        joytab[i].buttons = 0;
+    }
+    numjoy = 0;
+}
+
+int pa_cocoa_joy_count(void)   { return numjoy; }
+
+int pa_cocoa_joy_buttons(int j)
+{
+    if (j < 1 || j > numjoy) return 0;
+    return joytab[j-1].buttons;
+}
+
+int pa_cocoa_joy_axes(int j)
+{
+    if (j < 1 || j > numjoy) return 0;
+    int a = joytab[j-1].axes;
+    return a > MAXJAX ? MAXJAX : a;
 }
 
 CTFontRef pa_cocoa_system_mono_font(CGFloat size)

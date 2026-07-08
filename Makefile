@@ -518,15 +518,28 @@ else ifeq ($(OSTYPE),Darwin)
     #
     # Mac OS X
     #
-    PLIBS += $(SSL_LIBS)
-    CLIBS += $(SSL_LIBS)
+    PLIBS += $(SSL_LIBS) \
+             -framework CoreFoundation \
+             -framework CoreGraphics \
+             -framework ImageIO \
+             -framework CoreMIDI \
+             -framework AudioToolbox
+    CLIBS += $(SSL_LIBS) \
+             -framework CoreFoundation \
+             -framework CoreGraphics \
+             -framework ImageIO \
+             -framework CoreMIDI \
+             -framework AudioToolbox
     GLIBS += $(SSL_LIBS) \
              -framework Cocoa \
              -framework CoreGraphics \
              -framework CoreText \
              -framework CoreFoundation \
              -framework ImageIO \
-             -framework QuartzCore
+             -framework QuartzCore \
+             -framework CoreMIDI \
+             -framework AudioToolbox \
+             -framework IOKit
 
 else ifeq ($(OSTYPE),FreeBSD)
 
@@ -594,7 +607,8 @@ else ifeq ($(OSTYPE),Darwin)
 # Mac OS X
 #
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
-     playwaveg printdev printdevg connectmidi connectmidig connectwave \
+     playwaveg playtextmidi playtextmidig printdev printdevg connectmidi \
+     connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
@@ -717,8 +731,8 @@ macosx/stdio.o: libc/stdio.c libc/stdio.h Makefile
 macosx/services.o: linux/services.c include/services.h Makefile
 	$(CC) $(CFLAGS) -c linux/services.c -o macosx/services.o
 	
-macosx/sound.o: stub/sound.c include/sound.h Makefile
-	$(CC) $(CFLAGS) -c stub/sound.c -o macosx/sound.o
+macosx/sound.o: macosx/sound.c include/sound.h Makefile
+	$(CC) $(CFLAGS) -c macosx/sound.c -o macosx/sound.o
 	
 macosx/network.o: linux/network.c include/network.h Makefile
 	$(CC) $(CFLAGS) -c linux/network.c -o macosx/network.o
@@ -1055,6 +1069,15 @@ playmidi: $(PLIBSD) sound_programs/playmidi.c
 	
 playmidig: $(GLIBSD) sound_programs/playmidi.c
 	$(CC) $(CFLAGS) sound_programs/playmidi.c $(GLIBS) -o bin/playmidig
+
+#
+# Play text midi files (mf2t/t2mf format)
+#
+playtextmidi: $(PLIBSD) sound_programs/playtextmidi.c
+	$(CC) $(CFLAGS) sound_programs/playtextmidi.c $(PLIBS) -o bin/playtextmidi
+
+playtextmidig: $(GLIBSD) sound_programs/playtextmidi.c
+	$(CC) $(CFLAGS) sound_programs/playtextmidi.c $(GLIBS) -o bin/playtextmidig
 
 #
 # Play wave files

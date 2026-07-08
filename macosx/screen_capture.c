@@ -20,7 +20,9 @@
 #include <CoreGraphics/CoreGraphics.h>
 #include <ImageIO/ImageIO.h>
 
-#include "pa_cocoa.h"
+typedef void* pa_winhan;
+
+#include <dlfcn.h>
 
 #define CAPTURE_FILENAME "test_images"
 
@@ -30,18 +32,32 @@ static FILE     *cap_file        = NULL;
 static uint32_t  cap_frame_count = 0;
 static int       cap_disabled    = 0;
 
-/* Get the pa_winhan for the stdout window (defined in macosx/graphics.c) */
-extern pa_winhan pa_stdout_winhan(void);
+/* Function pointers resolved at runtime via dlsym so screen_capture works
+   in both graphical and terminal (non-graphical) builds. */
+typedef pa_winhan (*fn_stdout_winhan)(void);
+typedef CGContextRef (*fn_get_context)(pa_winhan);
+static fn_stdout_winhan  p_stdout_winhan;
+static fn_get_context    p_get_context;
+static int               syms_resolved;
 
 /* ---------- public entry point ---------- */
 
 void screen_capture(void) {
     if (cap_disabled || !cap_file) return;
 
-    pa_winhan wh = pa_stdout_winhan();
+    if (!syms_resolved) {
+        syms_resolved = 1;
+        p_stdout_winhan = (fn_stdout_winhan)dlsym(RTLD_DEFAULT,
+                                                   "pa_stdout_winhan");
+        p_get_context   = (fn_get_context)dlsym(RTLD_DEFAULT,
+                                                 "pa_cocoa_get_context");
+    }
+    if (!p_stdout_winhan || !p_get_context) return;
+
+    pa_winhan wh = p_stdout_winhan();
     if (!wh) return;
 
-    CGContextRef ctx = pa_cocoa_get_context(wh);
+    CGContextRef ctx = p_get_context(wh);
     if (!ctx) return;
 
     CGImageRef raw = CGBitmapContextCreateImage(ctx);

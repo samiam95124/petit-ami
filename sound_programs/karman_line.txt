@@ -1,0 +1,238 @@
+MFile 1 6 480
+MTrk
+0 Tempo 461538
+0 Meta TrkEnd
+TrkEnd
+MTrk
+0 PrCh ch=1 p=89
+0 Par ch=1 c=7 v=90
+0 Par ch=1 c=10 v=54
+0 Par ch=1 c=91 v=80
+0 NoteOn ch=1 n=48 v=50
+960 NoteOn ch=1 n=55 v=45
+1920 NoteOn ch=1 n=60 v=55
+2880 NoteOff ch=1 n=48 v=0
+2880 NoteOff ch=1 n=55 v=0
+2880 NoteOff ch=1 n=60 v=0
+2880 NoteOn ch=1 n=53 v=50
+3840 NoteOn ch=1 n=60 v=48
+4800 NoteOn ch=1 n=65 v=52
+5760 NoteOff ch=1 n=53 v=0
+5760 NoteOff ch=1 n=60 v=0
+5760 NoteOff ch=1 n=65 v=0
+5760 NoteOn ch=1 n=55 v=52
+6720 NoteOn ch=1 n=60 v=50
+7680 NoteOn ch=1 n=64 v=54
+8640 NoteOff ch=1 n=55 v=0
+8640 NoteOff ch=1 n=60 v=0
+8640 NoteOff ch=1 n=64 v=0
+8640 NoteOn ch=1 n=51 v=48
+9600 NoteOn ch=1 n=55 v=45
+10560 NoteOn ch=1 n=60 v=50
+11520 NoteOff ch=1 n=51 v=0
+11520 NoteOff ch=1 n=55 v=0
+11520 NoteOff ch=1 n=60 v=0
+11520 NoteOn ch=1 n=48 v=52
+12480 NoteOn ch=1 n=55 v=48
+13440 NoteOn ch=1 n=60 v=56
+14400 NoteOff ch=1 n=48 v=0
+14400 NoteOff ch=1 n=55 v=0
+14400 NoteOff ch=1 n=60 v=0
+14400 NoteOn ch=1 n=53 v=50
+15360 NoteOn ch=1 n=60 v=50
+16320 NoteOn ch=1 n=65 v=55
+17280 NoteOff ch=1 n=53 v=0
+17280 NoteOff ch=1 n=60 v=0
+17280 NoteOff ch=1 n=65 v=0
+17280 NoteOn ch=1 n=55 v=55
+18240 NoteOn ch=1 n=60 v=52
+19200 NoteOn ch=1 n=64 v=58
+20160 NoteOff ch=1 n=55 v=0
+20160 NoteOff ch=1 n=60 v=0
+20160 NoteOff ch=1 n=64 v=0
+20160 NoteOn ch=1 n=51 v=50
+21120 NoteOn ch=1 n=55 v=48
+22080 NoteOn ch=1 n=60 v=52
+23040 NoteOff ch=1 n=51 v=0
+23040 NoteOff ch=1 n=55 v=0
+23040 NoteOff ch=1 n=60 v=0
+23040 Meta TrkEnd
+TrkEnd
+MTrk
+0 PrCh ch=2 p=1
+0 Par ch=2 c=7 v=70
+0 Par ch=2 c=10 v=74
+0 Par ch=2 c=91 v=60
+5760 NoteOn ch=2 n=72 v=60
+6000 NoteOff ch=2 n=72 v=0
+6240 NoteOn ch=2 n=67 v=55
+6480 NoteOff ch=2 n=67 v=0
+6720 NoteOn ch=2 n=72 v=65
+7200 NoteOff ch=2 n=72 v=0
+7200 NoteOn ch=2 n=71 v=58
+7440 NoteOff ch=2 n=71 v=0
+7680 NoteOn ch=2 n=72 v=62
+7920 NoteOff ch=2 n=72 v=0
+8160 NoteOn ch=2 n=76 v=68
+8640 NoteOff ch=2 n=76 v=0
+8640 NoteOn ch=2 n=74 v=55
+8880 NoteOff ch=2 n=74 v=0
+9120 NoteOn ch=2 n=72 v=60
+9360 NoteOff ch=2 n=72 v=0
+9600 NoteOn ch=2 n=67 v=55
+10080 NoteOff ch=2 n=67 v=0
+10080 NoteOn ch=2 n=65 v=50
+10320 NoteOff ch=2 n=65 v=0
+10560 NoteOn ch=2 n=67 v=58
+11040 NoteOff ch=2 n=67 v=0
+11520 NoteOn ch=2 n=72 v=65
+11760 NoteOff ch=2 n=72 v=0
+12000 NoteOn ch=2 n=67 v=58
+12240 NoteOff ch=2 n=67 v=0
+12480 NoteOn ch=2 n=72 v=70
+12960 NoteOff ch=2 n=72 v=0
+12960 NoteOn ch=2 n=71 v=60
+13200 NoteOff ch=2 n=71 v=0
+13440 NoteOn ch=2 n=72 v=65
+13680 NoteOff ch=2 n=72 v=0
+13920 NoteOn ch=2 n=76 v=72
+14400 NoteOff ch=2 n=76 v=0
+14400 NoteOn ch=2 n=79 v=75
+14880 NoteOff ch=2 n=79 v=0
+14880 NoteOn ch=2 n=76 v=65
+15120 NoteOff ch=2 n=76 v=0
+15360 NoteOn ch=2 n=72 v=60
+15840 NoteOff ch=2 n=72 v=0
+15840 NoteOn ch=2 n=74 v=62
+16080 NoteOff ch=2 n=74 v=0
+16320 NoteOn ch=2 n=76 v=68
+16800 NoteOff ch=2 n=76 v=0
+17280 NoteOn ch=2 n=84 v=50
+17520 NoteOff ch=2 n=84 v=0
+17760 NoteOn ch=2 n=79 v=55
+18000 NoteOff ch=2 n=79 v=0
+18240 NoteOn ch=2 n=84 v=58
+18720 NoteOff ch=2 n=84 v=0
+18720 NoteOn ch=2 n=83 v=52
+18960 NoteOff ch=2 n=83 v=0
+19200 NoteOn ch=2 n=84 v=60
+19440 NoteOff ch=2 n=84 v=0
+19680 NoteOn ch=2 n=88 v=70
+20160 NoteOff ch=2 n=88 v=0
+20160 NoteOn ch=2 n=86 v=55
+20400 NoteOff ch=2 n=86 v=0
+20640 NoteOn ch=2 n=84 v=60
+20880 NoteOff ch=2 n=84 v=0
+21120 NoteOn ch=2 n=79 v=55
+21600 NoteOff ch=2 n=79 v=0
+21600 NoteOn ch=2 n=77 v=50
+21840 NoteOff ch=2 n=77 v=0
+22080 NoteOn ch=2 n=79 v=55
+22560 NoteOff ch=2 n=79 v=0
+23040 Meta TrkEnd
+TrkEnd
+MTrk
+0 PrCh ch=3 p=49
+0 Par ch=3 c=7 v=80
+0 Par ch=3 c=10 v=64
+0 Par ch=3 c=91 v=70
+0 Par ch=3 c=93 v=40
+2880 NoteOn ch=3 n=60 v=45
+2880 NoteOn ch=3 n=64 v=42
+2880 NoteOn ch=3 n=67 v=40
+5760 NoteOff ch=3 n=60 v=0
+5760 NoteOff ch=3 n=64 v=0
+5760 NoteOff ch=3 n=67 v=0
+5760 NoteOn ch=3 n=60 v=50
+5760 NoteOn ch=3 n=65 v=48
+5760 NoteOn ch=3 n=69 v=45
+8640 NoteOff ch=3 n=60 v=0
+8640 NoteOff ch=3 n=65 v=0
+8640 NoteOff ch=3 n=69 v=0
+8640 NoteOn ch=3 n=60 v=55
+8640 NoteOn ch=3 n=64 v=52
+8640 NoteOn ch=3 n=67 v=50
+11520 NoteOff ch=3 n=60 v=0
+11520 NoteOff ch=3 n=64 v=0
+11520 NoteOff ch=3 n=67 v=0
+11520 NoteOn ch=3 n=63 v=55
+11520 NoteOn ch=3 n=67 v=52
+11520 NoteOn ch=3 n=72 v=58
+14400 NoteOff ch=3 n=63 v=0
+14400 NoteOff ch=3 n=67 v=0
+14400 NoteOff ch=3 n=72 v=0
+14400 NoteOn ch=3 n=65 v=60
+14400 NoteOn ch=3 n=69 v=58
+14400 NoteOn ch=3 n=72 v=62
+17280 NoteOff ch=3 n=65 v=0
+17280 NoteOff ch=3 n=69 v=0
+17280 NoteOff ch=3 n=72 v=0
+17280 NoteOn ch=3 n=67 v=65
+17280 NoteOn ch=3 n=71 v=62
+17280 NoteOn ch=3 n=74 v=68
+20160 NoteOff ch=3 n=67 v=0
+20160 NoteOff ch=3 n=71 v=0
+20160 NoteOff ch=3 n=74 v=0
+20160 NoteOn ch=3 n=65 v=55
+20160 NoteOn ch=3 n=69 v=52
+20160 NoteOn ch=3 n=72 v=58
+23040 NoteOff ch=3 n=65 v=0
+23040 NoteOff ch=3 n=69 v=0
+23040 NoteOff ch=3 n=72 v=0
+23040 Meta TrkEnd
+TrkEnd
+MTrk
+0 PrCh ch=4 p=39
+0 Par ch=4 c=7 v=85
+0 Par ch=4 c=10 v=64
+0 Par ch=4 c=91 v=50
+5760 NoteOn ch=4 n=36 v=65
+7680 NoteOff ch=4 n=36 v=0
+7680 NoteOn ch=4 n=36 v=60
+8160 NoteOff ch=4 n=36 v=0
+8640 NoteOn ch=4 n=31 v=65
+10560 NoteOff ch=4 n=31 v=0
+10560 NoteOn ch=4 n=31 v=60
+11040 NoteOff ch=4 n=31 v=0
+11520 NoteOn ch=4 n=36 v=70
+13440 NoteOff ch=4 n=36 v=0
+13440 NoteOn ch=4 n=36 v=65
+13920 NoteOff ch=4 n=36 v=0
+14400 NoteOn ch=4 n=41 v=72
+16320 NoteOff ch=4 n=41 v=0
+16320 NoteOn ch=4 n=41 v=68
+16800 NoteOff ch=4 n=41 v=0
+17280 NoteOn ch=4 n=43 v=75
+19200 NoteOff ch=4 n=43 v=0
+19200 NoteOn ch=4 n=43 v=70
+19680 NoteOff ch=4 n=43 v=0
+20160 NoteOn ch=4 n=41 v=70
+22080 NoteOff ch=4 n=41 v=0
+22080 NoteOn ch=4 n=41 v=65
+22560 NoteOff ch=4 n=41 v=0
+23040 Meta TrkEnd
+TrkEnd
+MTrk
+0 PrCh ch=5 p=100
+0 Par ch=5 c=7 v=55
+0 Par ch=5 c=10 v=40
+0 Par ch=5 c=91 v=100
+0 Par ch=5 c=93 v=70
+0 NoteOn ch=5 n=72 v=30
+5760 NoteOff ch=5 n=72 v=0
+0 NoteOn ch=5 n=79 v=25
+5760 NoteOff ch=5 n=79 v=0
+5760 NoteOn ch=5 n=77 v=35
+11520 NoteOff ch=5 n=77 v=0
+5760 NoteOn ch=5 n=84 v=28
+11520 NoteOff ch=5 n=84 v=0
+11520 NoteOn ch=5 n=72 v=32
+17280 NoteOff ch=5 n=72 v=0
+11520 NoteOn ch=5 n=76 v=30
+17280 NoteOff ch=5 n=76 v=0
+17280 NoteOn ch=5 n=79 v=38
+23040 NoteOff ch=5 n=79 v=0
+17280 NoteOn ch=5 n=84 v=35
+23040 NoteOff ch=5 n=84 v=0
+23040 Meta TrkEnd
+TrkEnd
