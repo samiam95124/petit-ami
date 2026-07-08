@@ -53,6 +53,7 @@ static int        maxcnt;       /* maximize counter */
 static int        nrmcnt;       /* normalize counter */
 static int        i;
 static int        xs, ys;
+static int        mxs, mys;      /* maximum window size the WM will grant */
 static int        cs;
 static long       t, et;
 static ami_color   c1, c2, c3;
@@ -483,7 +484,14 @@ int main(void)
     ox = ami_maxxg(stdout);
     oy = ami_maxyg(stdout);
     sqrrat(&xs, &ys, 1.5); /* find square ratio */
-    for (x = xs; x <= xs*4; x += xs/64) {
+    /* Find the maximum size the window manager will grant, which can be less
+       than the screen size (windows are typically limited to a single monitor,
+       less any panels). Requests past this limit are silently clamped, so cap
+       the resize loops to it. */
+    ami_scnsizg(stdout, &mxs, &mys);
+    ami_setsizg(stdout, mxs, mys);
+    ami_getsizg(stdout, &mxs, &mys);
+    for (x = xs; x <= xs*4 && x <= mxs; x += xs/64) {
 
         ami_setsizg(stdout, x, ys);
         ami_getsizg(stdout, &x2, &y2);
@@ -509,7 +517,7 @@ int main(void)
     printf("\n");
     printf("Complete\n");
     waitnext();
-    for (y = ys; y <= ys*4; y += ys/64) {
+    for (y = ys; y <= ys*4 && y <= mys; y += ys/64) {
 
         ami_setsizg(stdout, xs, y);
         ami_getsizg(stdout, &x2, &y2);
@@ -518,7 +526,7 @@ int main(void)
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
             printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
-                   x2, y2, 300, y);
+                   x2, y2, xs, y);
             printf("*** Getsiz does ! match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
