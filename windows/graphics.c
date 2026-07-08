@@ -677,6 +677,7 @@ static HANDLE    imsgrdy;      /* message ready event */
 static COLORREF  gcolorsav[16];
 static int       i;            /* index for that */
 static int       fndrepmsg;    /* message assignment for find/replace */
+static HWND      fndrepwin;    /* active modeless find/replace dialog, or NULL */
 static HWND      dispwin;      /* handle to display thread window */
 static HWND      dialogwin;    /* handle to dialog thread window */
 static HANDLE    threadstart;  /* thread start event handle */
@@ -16068,6 +16069,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 /* start find dialog */
                 fndrepmsg = RegisterWindowMessage("commdlg_FindReplace");
                 ip->fndhan = FindText(frrp); /* perform dialog */
+                fndrepwin = ip->fndhan; /* mark active for IsDialogMessage */
                 /* now bring that to the front */
                 b = SetWindowPos(ip->fndhan, HWND_TOP, 0, 0, 0, 0,
                                  SWP_NOMOVE | SWP_NOSIZE);
@@ -16109,6 +16111,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
                 /* start find dialog */
                 fndrepmsg = RegisterWindowMessage("commdlg_FindReplace");
                 ip->fnrhan = ReplaceText(frrp); /* perform dialog */
+                fndrepwin = ip->fnrhan; /* mark active for IsDialogMessage */
                 /* now bring that to the front */
                 b = SetWindowPos(ip->fnrhan, HWND_TOP, 0, 0, 0, 0,
                                      SWP_NOMOVE | SWP_NOSIZE);
@@ -16205,6 +16208,7 @@ static LRESULT CALLBACK wndprocdialog(HWND hwnd, UINT imsg, WPARAM wparam,
            data" in int. */
         frrp = (FINDREPLACEA*) lparam; /* get find/replace data pointer */
         ip = (imptr)frrp->lCustData; /* get im pointer */
+        fndrepwin = NULL; /* dialog going away, stop routing dialog keys */
         if (ip->im == imqfind) { /* it"s a find */
 
             b = DestroyWindow(ip->fndhan); /* destroy the dialog */
@@ -16267,6 +16271,12 @@ static DWORD WINAPI dialogthread(LPVOID lpParameter)
     /* message handling loop */
     while (GetMessage(&msg, 0, 0, 0)) { /* not a quit message */
 
+        /* The find/replace boxes are modeless dialogs. Give the active one
+           dialog-manager keyboard handling (Tab between fields, Enter for the
+           default button, Esc to cancel); without this the dialog only
+           responds to the mouse. IsDialogMessage consumes the message when it
+           belongs to the dialog. */
+        if (fndrepwin && IsDialogMessage(fndrepwin, &msg)) continue;
         b = TranslateMessage(&msg); /* translate keyboard events */
         r = DispatchMessage(&msg);
 
@@ -16617,6 +16627,7 @@ static void ami_init_graph()
     /* mainlock = createmutex(FALSE); */ /* create mutex with no owner */
     /* if mainlock == 0  winerr(); */ /* process windows error */
     fndrepmsg = 0; /* set no find/replace message active */
+    fndrepwin = NULL; /* set no find/replace dialog active */
     for (i = 0; i < 16; i++) gcolorsav[i] = 0xffffff; /* set all to white */
 
     /* clear event vector table */
