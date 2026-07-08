@@ -538,7 +538,8 @@ else ifeq ($(OSTYPE),Darwin)
              -framework ImageIO \
              -framework QuartzCore \
              -framework CoreMIDI \
-             -framework AudioToolbox
+             -framework AudioToolbox \
+             -framework IOKit
 
 else ifeq ($(OSTYPE),FreeBSD)
 

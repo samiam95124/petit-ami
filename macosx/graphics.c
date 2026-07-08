@@ -800,6 +800,8 @@ static void pa_graphics_init(void)
         pa_cocoa_show_window(han);
         pa_cocoa_flush(han);
     }
+
+    if (joyenb) pa_cocoa_joy_init();
 }
 
 __attribute__((destructor))
@@ -845,6 +847,7 @@ static void pa_graphics_deinit(void)
         ovr_close(ofpclose, &cppclose);
     }
 
+    if (joyenb) pa_cocoa_joy_deinit();
     pa_cocoa_deinit();
 }
 
@@ -1261,6 +1264,32 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
         er->rsy   = raw->redraw.y;
         er->rex   = raw->redraw.x + raw->redraw.w - 1;
         er->rey   = raw->redraw.y + raw->redraw.h - 1;
+        break;
+
+    case PA_EVT_JOY_MOVE:
+        er->etype = ami_etjoymov;
+        er->winid = 0;
+        er->mjoyn = raw->joymove.jn + 1;
+        er->joypx = raw->joymove.ax[0];
+        er->joypy = raw->joymove.ax[1];
+        er->joypz = raw->joymove.ax[2];
+        er->joyp4 = raw->joymove.ax[3];
+        er->joyp5 = raw->joymove.ax[4];
+        er->joyp6 = raw->joymove.ax[5];
+        break;
+
+    case PA_EVT_JOY_DOWN:
+        er->etype  = ami_etjoyba;
+        er->winid  = 0;
+        er->ajoyn  = raw->joybtn.jn + 1;
+        er->ajoybn = raw->joybtn.btn;
+        break;
+
+    case PA_EVT_JOY_UP:
+        er->etype  = ami_etjoybd;
+        er->winid  = 0;
+        er->djoyn  = raw->joybtn.jn + 1;
+        er->djoybn = raw->joybtn.btn;
         break;
 
     default:
@@ -2513,9 +2542,9 @@ void ami_killtimer(FILE* f, int i)
 
 int ami_mouse(FILE* f)        { return 1; }  /* one mouse */
 int ami_mousebutton(FILE* f, int m) { return 3; }  /* three buttons */
-int ami_joystick(FILE* f)     { return 0; }
-int ami_joybutton(FILE* f, int j) { return 0; }
-int ami_joyaxis(FILE* f, int j)   { return 0; }
+int ami_joystick(FILE* f)         { return pa_cocoa_joy_count(); }
+int ami_joybutton(FILE* f, int j) { return pa_cocoa_joy_buttons(j); }
+int ami_joyaxis(FILE* f, int j)   { return pa_cocoa_joy_axes(j); }
 
 /*******************************************************************************
 *                                                                              *
