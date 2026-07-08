@@ -32,8 +32,10 @@
 /* libc/stdio.c vector override types — same ABI as the internal vectors */
 typedef ssize_t (*pwrite_t)(int, const void*, size_t);
 typedef ssize_t (*pread_t)(int, void*, size_t);
+typedef int     (*pclose_t)(int);
 extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
 extern void ovr_read(pread_t  nfp, pread_t*  ofp);
+extern void ovr_close(pclose_t nfp, pclose_t* ofp);
 
 /*******************************************************************************
 *                                                                              *
@@ -147,6 +149,7 @@ static int      fend;                   /* program ending flag */
 static int      fautohold;             /* global auto hold */
 static pwrite_t ofpwrite;              /* saved write vector */
 static pread_t  ofpread;               /* saved read vector */
+static pclose_t ofpclose;              /* saved close vector */
 static int      maxxd;                 /* default window width in pixels */
 static int      maxyd;                 /* default window height in pixels */
 
@@ -166,6 +169,7 @@ static void    clear_window(winptr win);
 static void    plcchr(winptr win, char c);
 static ssize_t iwrite(int fd, const void* buff, size_t count);
 static ssize_t iread(int fd, void* buff, size_t count);
+static int     iclose(int fd);
 static void    update_metrics(winptr win);
 
 
@@ -747,6 +751,7 @@ static void pa_graphics_init(void)
     /* hook libc/stdio.c write/read vectors */
     ovr_write(iwrite, &ofpwrite);
     ovr_read(iread,  &ofpread);
+    ovr_close(iclose, &ofpclose);
 
     /* compute default window pixel size from TERM font character grid */
     {
@@ -789,6 +794,7 @@ static void pa_graphics_init(void)
         winptr win = &wintbl[1];
         win_init(win, 1, 0, maxxd, maxyd);
         win->han   = han;
+        win->focus = TRUE;
         opnfil[1]  = 1; /* mark slot in use */
         clear_window(win);
         pa_cocoa_show_window(han);
@@ -833,8 +839,10 @@ static void pa_graphics_deinit(void)
     {
         pwrite_t cppwrite;
         pread_t  cppread;
+        pclose_t cppclose;
         ovr_write(ofpwrite, &cppwrite);
         ovr_read(ofpread, &cppread);
+        ovr_close(ofpclose, &cppclose);
     }
 
     pa_cocoa_deinit();
@@ -1064,6 +1072,18 @@ static void plcchr(winptr win, char c)
     }
 }
 
+/* Sync cursor state to the Cocoa view for overlay drawing */
+static void update_cursor(winptr win)
+{
+    scnptr sc = curscn(win);
+    int vis = sc->curv && win->focus &&
+              sc->curxg >= 1 && sc->curyg >= 1 &&
+              sc->curx <= win->maxx && sc->cury <= win->maxy;
+    pa_cocoa_set_cursor(win->han, vis,
+                        sc->curxg - 1, sc->curyg - 1,
+                        win->charspace, win->linespace);
+}
+
 /* Write interceptor: routes writes to stdout/window fds through plcchr() */
 static ssize_t iwrite(int fd, const void* buff, size_t count)
 {
@@ -1072,7 +1092,8 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
         size_t      cnt = count;
         winptr      win = &wintbl[fd];
         while (cnt--) plcchr(win, *p++);
-        pa_cocoa_flush(win->han); /* blit to screen after each write */
+        update_cursor(win);
+        pa_cocoa_flush(win->han);
         return (ssize_t)count;
     }
     return (*ofpwrite)(fd, buff, count);
@@ -1082,6 +1103,16 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
 static ssize_t iread(int fd, void* buff, size_t count)
 {
     return (*ofpread)(fd, buff, count);
+}
+
+static int iclose(int fd)
+{
+    if (fd >= 0 && fd < MAXFIL && opnfil[fd] && wintbl[fd].han) {
+        pa_cocoa_destroy_window(wintbl[fd].han);
+        wintbl[fd].han = NULL;
+        opnfil[fd] = 0;
+    }
+    return (*ofpclose)(fd);
 }
 
 /*******************************************************************************
@@ -1187,10 +1218,32 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
 
     case PA_EVT_FOCUS:
         er->etype = ami_etfocus;
+        {
+            winptr fw = NULL;
+            for (int i = 0; i < MAXFIL; i++)
+                if (opnfil[i] && wintbl[i].han == raw->win)
+                    { fw = &wintbl[i]; break; }
+            if (fw) {
+                fw->focus = TRUE;
+                update_cursor(fw);
+                pa_cocoa_flush(fw->han);
+            }
+        }
         break;
 
     case PA_EVT_UNFOCUS:
         er->etype = ami_etnofocus;
+        {
+            winptr fw = NULL;
+            for (int i = 0; i < MAXFIL; i++)
+                if (opnfil[i] && wintbl[i].han == raw->win)
+                    { fw = &wintbl[i]; break; }
+            if (fw) {
+                fw->focus = FALSE;
+                update_cursor(fw);
+                pa_cocoa_flush(fw->han);
+            }
+        }
         break;
 
     case PA_EVT_TIMER:
@@ -1356,6 +1409,8 @@ void ami_curvis(FILE* f, int e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->curv = e;
+    update_cursor(win);
+    pa_cocoa_flush(win->han);
 }
 
 void ami_scroll(FILE* f, int x, int y)
@@ -2269,8 +2324,10 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
         fclose(inf); fclose(outf); return;
     }
 
-    /* create the Cocoa window */
-    pa_winhan han = pa_cocoa_create_window(100, 100, maxxd, maxyd, "");
+    /* create the Cocoa window, cascaded from the main window */
+    int wx = 100 + (wid - 1) * 30;
+    int wy = 100 + (wid - 1) * 30;
+    pa_winhan han = pa_cocoa_create_window(wx, wy, maxxd, maxyd, "");
     if (!han) { fclose(inf); fclose(outf); return; }
 
     winptr win = &wintbl[ofn];
@@ -2322,6 +2379,10 @@ void ami_setsizg(FILE* f, int x, int y)
     win->maxyg = y;
     win->maxx  = x / win->charspace;
     win->maxy  = y / win->linespace;
+    scnptr sc = curscn(win);
+    sc->lwidth = 1.0;
+    CGContextRef ctx = pa_cocoa_get_context(win->han);
+    if (ctx) CGContextSetLineWidth(ctx, 1.0);
 }
 
 void ami_setpos(FILE* f, int x, int y)

@@ -72,6 +72,9 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     int           bmpW;        /* bitmap width  in points */
     int           bmpH;        /* bitmap height in points */
     pa_winhan     owner;       /* back-pointer to PAWindow */
+    int           curVisible;  /* cursor visible flag */
+    int           curX, curY;  /* cursor position (0-based pixels) */
+    int           curW, curH;  /* cursor size (pixels) */
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
@@ -142,6 +145,12 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     CGImageRef   img = CGBitmapContextCreateImage(dsp);
     CGContextDrawImage(ctx, NSRectToCGRect(self.bounds), img);
     CGImageRelease(img);
+
+    if (curVisible && curW > 0 && curH > 0) {
+        CGContextSetBlendMode(ctx, kCGBlendModeDifference);
+        CGContextSetRGBFillColor(ctx, 1, 1, 1, 1);
+        CGContextFillRect(ctx, CGRectMake(curX, curY, curW, curH));
+    }
 }
 
 - (void)viewDidEndLiveResize
@@ -423,8 +432,12 @@ void pa_cocoa_resize_window(pa_winhan win, int w, int h)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
     NSRect f = pw->window.frame;
-    f.size = NSMakeSize(w, h);
-    [pw->window setFrame:f display:YES];
+    CGFloat oldTop = f.origin.y + f.size.height;
+    NSRect content = NSMakeRect(0, 0, w, h);
+    NSRect newFrame = [pw->window frameRectForContentRect:content];
+    newFrame.origin.x = f.origin.x;
+    newFrame.origin.y = oldTop - newFrame.size.height;
+    [pw->window setFrame:newFrame display:YES];
     [pw->view createBitmapWidth:w height:h];
 }
 
@@ -489,6 +502,20 @@ void pa_cocoa_flush(pa_winhan win)
     /* pump the run loop briefly so the display actually updates */
     [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
                              beforeDate:[NSDate dateWithTimeIntervalSinceNow:0]];
+}
+
+void pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    PAView*   v  = pw->view;
+    int changed = (v->curVisible != visible || v->curX != x || v->curY != y ||
+                   v->curW != w || v->curH != h);
+    v->curVisible = visible;
+    v->curX = x;
+    v->curY = y;
+    v->curW = w;
+    v->curH = h;
+    if (changed) [v setNeedsDisplay:YES];
 }
 
 void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)
