@@ -44,6 +44,7 @@ extern void ovr_read(pread_t  nfp, pread_t*  ofp);
 #define MAXFIL      100     /* maximum open file/window slots */
 #define MAXPIC      50      /* maximum loadable pictures */
 #define MAXTIM      10      /* maximum timers per window */
+#define FRMTIM      (MAXTIM-1) /* reserved slot for frame timer (0-based) */
 #define MAXCON      10      /* maximum screen contexts per window */
 #define MAXXD       80      /* default terminal width in chars */
 #define MAXYD       25      /* default terminal height in chars */
@@ -89,6 +90,9 @@ typedef struct scncon {
     int         hollow, raised;
     int         reverse;
     int         autof;         /* auto scroll/wrap mode */
+    int         textpath;      /* text angle (PA units: INT_MAX=360°) */
+    int         offx, offy;    /* viewport offset (pixels) */
+    float       scalex, scaley;/* viewport scale */
 } scncon, *scnptr;
 
 /* Per-window record */
@@ -117,6 +121,7 @@ typedef struct winrec {
     int         bufmod;        /* double-buffer on */
     int         focus;
     int         fautohold;     /* auto hold on exit */
+    int         frmrun;        /* frame timer running */
 
     /* font */
     fontptr     cfont;         /* current font */
@@ -484,6 +489,10 @@ static void draw_string(CGContextRef ctx, fontptr fp, scnptr sc,
     CGContextSaveGState(ctx);
     CGContextTranslateCTM(ctx, tx, ty);
     CGContextScaleCTM(ctx, 1.0, -1.0);
+    if (sc->textpath != INT_MAX / 4) {
+        CGFloat rot = -(sc->textpath - INT_MAX / 4) * (2.0 * M_PI) / (double)INT_MAX;
+        CGContextRotateCTM(ctx, rot);
+    }
     CGContextSetTextMatrix(ctx, CGAffineTransformIdentity);
     CGContextSetTextPosition(ctx, 0, 0);
 
@@ -597,6 +606,11 @@ static void win_init(winptr win, int wid, int parwid, int w, int h)
         sc->lwidth  = 1.0;
         sc->font    = fntlst;
         sc->autof   = TRUE;
+        sc->textpath = INT_MAX / 4; /* default: east (normal reading) */
+        sc->offx    = 0;
+        sc->offy    = 0;
+        sc->scalex  = 1.0f;
+        sc->scaley  = 1.0f;
     }
 }
 
@@ -860,15 +874,42 @@ static CGContextRef get_ctx(winptr win)
     return ctx;
 }
 
+/* Apply viewport offset/scale transform to the bitmap context.
+ * Resets the CTM to retina-scale-only, then applies offset + scale. */
+static void settrans(winptr win)
+{
+    CGContextRef ctx = pa_cocoa_get_context(win->han);
+    if (!ctx) return;
+    scnptr sc = curscn(win);
+    CGAffineTransform cur = CGContextGetCTM(ctx);
+    CGAffineTransform inv = CGAffineTransformInvert(cur);
+    CGContextConcatCTM(ctx, inv);
+    size_t pw = CGBitmapContextGetWidth(ctx);
+    CGFloat retina = (win->maxxg > 0) ? (CGFloat)pw / win->maxxg : 1.0;
+    CGContextScaleCTM(ctx, retina, retina);
+    if (sc->offx || sc->offy)
+        CGContextTranslateCTM(ctx, (CGFloat)sc->offx, (CGFloat)sc->offy);
+    if (sc->scalex != 1.0f || sc->scaley != 1.0f)
+        CGContextScaleCTM(ctx, sc->scalex, sc->scaley);
+}
+
 /* Clear the window to background color */
 static void clear_window(winptr win)
 {
     CGContextRef ctx = pa_cocoa_get_context(win->han);
     if (!ctx) return;
     scnptr sc = curscn(win);
+    CGContextSaveGState(ctx);
+    CGAffineTransform cur = CGContextGetCTM(ctx);
+    CGAffineTransform inv = CGAffineTransformInvert(cur);
+    CGContextConcatCTM(ctx, inv);
+    size_t pw = CGBitmapContextGetWidth(ctx);
+    CGFloat retina = (win->maxxg > 0) ? (CGFloat)pw / win->maxxg : 1.0;
+    CGContextScaleCTM(ctx, retina, retina);
+    CGContextSetBlendMode(ctx, kCGBlendModeNormal);
     CGContextSetRGBFillColor(ctx, sc->bc.r, sc->bc.g, sc->bc.b, 1.0);
     CGContextFillRect(ctx, CGRectMake(0, 0, win->maxxg, win->maxyg));
-    CGContextSetRGBFillColor(ctx, sc->fc.r, sc->fc.g, sc->fc.b, 1.0);
+    CGContextRestoreGState(ctx);
 }
 
 /*******************************************************************************
@@ -938,7 +979,19 @@ static int draw_char_at(winptr win, char c)
     if (sc->bmod != mdinvis) {
         CGContextSetBlendMode(ctx, mode2blend(sc->bmod));
         CGContextSetRGBFillColor(ctx, sc->bc.r, sc->bc.g, sc->bc.b, 1.0);
-        CGContextFillRect(ctx, CGRectMake(px, py, cw, win->linespace));
+        if (sc->textpath != INT_MAX / 4) {
+            CGFloat ascent = fp ? CTFontGetAscent(fp->ctfont) : (CGFloat)win->linespace * 0.75;
+            CGContextSaveGState(ctx);
+            CGContextTranslateCTM(ctx, px, py + ascent);
+            CGContextScaleCTM(ctx, 1.0, -1.0);
+            double a = -(sc->textpath - INT_MAX / 4) * (2.0 * M_PI) / (double)INT_MAX;
+            CGContextRotateCTM(ctx, a);
+            CGContextFillRect(ctx, CGRectMake(0, ascent - (CGFloat)win->linespace,
+                                              cw, win->linespace));
+            CGContextRestoreGState(ctx);
+        } else {
+            CGContextFillRect(ctx, CGRectMake(px, py, cw, win->linespace));
+        }
     }
 
     /* draw glyph (use foreground blend mode) */
@@ -990,17 +1043,22 @@ static void plcchr(winptr win, char c)
     } else if ((unsigned char)c >= 0x20) {
         /* printable character — draw and advance by actual glyph width */
         int cs = draw_char_at(win, c);
-        sc->curx++;
-        sc->curxg += cs;
-        if (sc->curx > win->maxx && sc->autof) {
-            /* auto wrap to next line */
-            sc->curx  = 1;
-            sc->curxg = 1;
-            if (sc->cury >= win->maxy) {
-                scroll_up(win);
-            } else {
-                sc->cury++;
-                sc->curyg = (sc->cury - 1) * win->linespace + 1;
+        if (sc->textpath != INT_MAX / 4) {
+            double a = sc->textpath * (2.0 * M_PI) / (double)INT_MAX;
+            sc->curxg += (int)round(cs * sin(a));
+            sc->curyg -= (int)round(cs * cos(a));
+        } else {
+            sc->curx++;
+            sc->curxg += cs;
+            if (sc->curx > win->maxx && sc->autof) {
+                sc->curx  = 1;
+                sc->curxg = 1;
+                if (sc->cury >= win->maxy) {
+                    scroll_up(win);
+                } else {
+                    sc->cury++;
+                    sc->curyg = (sc->cury - 1) * win->linespace + 1;
+                }
             }
         }
     }
@@ -1136,8 +1194,12 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
         break;
 
     case PA_EVT_TIMER:
-        er->etype  = ami_ettim;
-        er->timnum = raw->timer.id + 1; /* PA timers are 1-based */
+        if (raw->timer.id == FRMTIM) {
+            er->etype = ami_etframe;
+        } else {
+            er->etype  = ami_ettim;
+            er->timnum = raw->timer.id + 1; /* PA timers are 1-based */
+        }
         break;
 
     case PA_EVT_REDRAW:
@@ -1322,15 +1384,57 @@ int ami_curbnd(FILE* f)
            sc->cury >= 1 && sc->cury <= win->maxy;
 }
 
-void ami_select(FILE* f, int u, int d) { /* stub */ }
+void ami_select(FILE* f, int u, int d)
+{
+    winptr win = f2win(f); if (!win) return;
+    if (u < 1 || u > MAXCON || d < 1 || d > MAXCON) return;
+    win->curupd = u;
+    win->curdsp = d;
+    pa_cocoa_select_screens(win->han, u - 1, d - 1);
+}
 
 void ami_settab(FILE* f, int t)  { /* stub */ }
 void ami_restab(FILE* f, int t)  { /* stub */ }
 void ami_clrtab(FILE* f)         { /* stub */ }
 
+void ami_viewoffg(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    scnptr sc = curscn(win);
+    sc->offx = x;
+    sc->offy = y;
+    settrans(win);
+}
+
+void ami_viewscale(FILE* f, float x, float y)
+{
+    winptr win = f2win(f); if (!win) return;
+    scnptr sc = curscn(win);
+    sc->scalex = x;
+    sc->scaley = y;
+    settrans(win);
+}
+void ami_linestyle(FILE* f, ami_lstyle style)     { /* stub */ }
+void ami_setpoints(FILE* f, float ps)             { /* stub */ }
+float ami_points(FILE* f)                         { return 11.0; }
+
 int  ami_funkey(FILE* f)         { return 12; /* F1-F12 */ }
 
-void ami_frametimer(FILE* f, int e) { /* stub */ }
+void ami_frametimer(FILE* f, int e)
+{
+    winptr win = f2win(f); if (!win) return;
+    if (e) {
+        if (!win->frmrun) {
+            pa_cocoa_set_timer(win->han, FRMTIM, 170, 1); /* 17ms repeating */
+            win->frmrun = TRUE;
+        }
+    } else {
+        if (win->frmrun) {
+            pa_cocoa_kill_timer(win->han, FRMTIM);
+            win->frmrun = FALSE;
+        }
+    }
+}
 void ami_autohold(int e)            { fautohold = e; }
 
 void ami_wrtstr(FILE* f, char* s)
@@ -2056,6 +2160,8 @@ void ami_scrollg(FILE* f, int x, int y)
     int w = win->maxxg;
     int h = win->maxyg;
 
+    if (x == 0 && y == 0) return;
+
     /* if scroll exceeds screen, just clear */
     if (abs(x) >= w || abs(y) >= h) {
         clear_window(win);
@@ -2063,8 +2169,8 @@ void ami_scrollg(FILE* f, int x, int y)
         return;
     }
 
-    /* Work directly on the raw bitmap pixels.
-     * The bitmap is at Retina scale, so convert logical to physical. */
+    /* All operations use raw pixel data to avoid mixing memmove with CG calls
+       (which is undefined per Apple docs for bitmap contexts). */
     size_t   pw       = CGBitmapContextGetWidth(ctx);
     size_t   ph       = CGBitmapContextGetHeight(ctx);
     size_t   rowbytes = CGBitmapContextGetBytesPerRow(ctx);
@@ -2072,17 +2178,21 @@ void ami_scrollg(FILE* f, int x, int y)
     if (!data) return;
 
     float scale = (w > 0) ? (float)pw / w : 1.0f;
-    int px = (int)(abs(x) * scale + 0.5f); /* physical pixel offsets */
-    int py = (int)(abs(y) * scale + 0.5f);
-    int bpp = (int)(rowbytes / pw); /* bytes per pixel */
+    int ppx = (int)(abs(x) * scale + 0.5f);
+    int ppy = (int)(abs(y) * scale + 0.5f);
+    int bpp = (int)(rowbytes / pw);
+
+    /* build fill pixel in bitmap format (ARGB premultiplied, host byte order) */
+    uint32_t fr = (uint32_t)(sc->bc.r * 255 + 0.5);
+    uint32_t fg = (uint32_t)(sc->bc.g * 255 + 0.5);
+    uint32_t fb = (uint32_t)(sc->bc.b * 255 + 0.5);
+    uint32_t fillpx = (0xFFu << 24) | (fr << 16) | (fg << 8) | fb;
 
     /* shift rows vertically */
     if (y > 0) {
-        /* content moves up: copy from py..ph to 0..ph-py */
-        memmove(data, data + py * rowbytes, (ph - py) * rowbytes);
+        memmove(data, data + ppy * rowbytes, (ph - ppy) * rowbytes);
     } else if (y < 0) {
-        /* content moves down: copy from 0..ph-py to py..ph */
-        memmove(data + py * rowbytes, data, (ph - py) * rowbytes);
+        memmove(data + ppy * rowbytes, data, (ph - ppy) * rowbytes);
     }
 
     /* shift columns horizontally */
@@ -2090,30 +2200,50 @@ void ami_scrollg(FILE* f, int x, int y)
         for (size_t row = 0; row < ph; row++) {
             uint8_t* rp = data + row * rowbytes;
             if (x > 0) {
-                /* content moves left: copy from px..pw to 0..pw-px */
-                memmove(rp, rp + px * bpp, (pw - px) * bpp);
+                memmove(rp, rp + ppx * bpp, (pw - ppx) * bpp);
             } else {
-                /* content moves right: copy from 0..pw-px to px..pw */
-                memmove(rp + px * bpp, rp, (pw - px) * bpp);
+                memmove(rp + ppx * bpp, rp, (pw - ppx) * bpp);
             }
         }
     }
 
-    /* fill vacated strips with background color */
-    CGContextSetBlendMode(ctx, kCGBlendModeNormal);
-    CGContextSetRGBFillColor(ctx, sc->bc.r, sc->bc.g, sc->bc.b, 1.0);
-    if (x > 0) /* strip on right */
-        CGContextFillRect(ctx, CGRectMake(w - x, 0, x, h));
-    else if (x < 0) /* strip on left */
-        CGContextFillRect(ctx, CGRectMake(0, 0, -x, h));
-    if (y > 0) /* strip on bottom */
-        CGContextFillRect(ctx, CGRectMake(0, h - y, w, y));
-    else if (y < 0) /* strip on top */
-        CGContextFillRect(ctx, CGRectMake(0, 0, w, -y));
+    /* fill vacated strips with background color using raw pixels */
+    /* vertical vacated strip */
+    if (y > 0) {
+        /* bottom strip: rows ph-ppy .. ph-1 */
+        for (size_t row = ph - ppy; row < ph; row++) {
+            uint32_t* rp = (uint32_t*)(data + row * rowbytes);
+            for (size_t col = 0; col < pw; col++) rp[col] = fillpx;
+        }
+    } else if (y < 0) {
+        /* top strip: rows 0 .. ppy-1 */
+        for (size_t row = 0; row < (size_t)ppy; row++) {
+            uint32_t* rp = (uint32_t*)(data + row * rowbytes);
+            for (size_t col = 0; col < pw; col++) rp[col] = fillpx;
+        }
+    }
+    /* horizontal vacated strip */
+    if (x > 0) {
+        /* right strip: cols pw-ppx .. pw-1 */
+        for (size_t row = 0; row < ph; row++) {
+            uint32_t* rp = (uint32_t*)(data + row * rowbytes);
+            for (size_t col = pw - ppx; col < pw; col++) rp[col] = fillpx;
+        }
+    } else if (x < 0) {
+        /* left strip: cols 0 .. ppx-1 */
+        for (size_t row = 0; row < ph; row++) {
+            uint32_t* rp = (uint32_t*)(data + row * rowbytes);
+            for (size_t col = 0; col < (size_t)ppx; col++) rp[col] = fillpx;
+        }
+    }
 
     pa_cocoa_flush(win->han);
 }
-void ami_path(FILE* f, int a)                    { /* stub */ }
+void ami_path(FILE* f, int a)
+{
+    winptr win = f2win(f); if (!win) return;
+    curscn(win)->textpath = a;
+}
 
 /*******************************************************************************
 *                                                                              *
