@@ -155,6 +155,32 @@
 * Picture draw                  0.32    0.002281                               *
 * No scaling picture draw       5.66    0.002523                               *
 *                                                                              *
+* Benchmark results, Mac OS X/Mac Mini, Apple M4 chip.                         *
+* emulation                                                                    *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                  5.01    0.000004                               *
+* line width 10                 5.02    0.000005                               *
+* rectangle width 1             5.02    0.000004                               *
+* rectangle width 10            5.03    0.000005                               *
+* rounded rectangle width 1     5.01    0.000008                               *
+* rounded rectangle width 10    5.03    0.000020                               *
+* filled rectangle              4.99    0.000004                               *
+* filled rounded rectangle      5.02    0.000009                               *
+* ellipse width 1               4.98    0.000009                               *
+* ellipse width 10              5.03    0.000022                               *
+* filled ellipse                4.96    0.000009                               *
+* arc width 1                   5.00    0.000005                               *
+* arc width 10                  5.00    0.000005                               *
+* filled arc                    4.98    0.000006                               *
+* filled chord                  5.01    0.000006                               *
+* filled triangle               5.00    0.000008                               *
+* text                          5.01    0.000035                               *
+* background invisible text     5.00    0.000031                               *
+* Picture draw                  5.00    0.000275                               *
+* No scaling picture draw       4.98    0.000007                               *
+*                                                                              *
 *******************************************************************************/
 
 /* base C defines */
