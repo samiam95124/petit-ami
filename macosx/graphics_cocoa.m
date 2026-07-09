@@ -194,6 +194,16 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     e.resize.w   = (int)s.width;
     e.resize.h   = (int)s.height;
     evt_push(&e);
+    if (!bufmod) {
+        pa_rawevent r = {0};
+        r.type     = PA_EVT_REDRAW;
+        r.win      = owner;
+        r.redraw.x = 0;
+        r.redraw.y = 0;
+        r.redraw.w = (int)s.width;
+        r.redraw.h = (int)s.height;
+        evt_push(&r);
+    }
     [self setNeedsDisplay:YES];
 }
 
@@ -500,9 +510,25 @@ void pa_cocoa_focus(pa_winhan win)
 void pa_cocoa_set_frame(pa_winhan win, int on)
 {
     PAWindow*       pw    = (__bridge PAWindow*)win;
+    NSWindowStyleMask all = NSWindowStyleMaskTitled |
+                            NSWindowStyleMaskClosable |
+                            NSWindowStyleMaskMiniaturizable |
+                            NSWindowStyleMaskResizable;
     NSWindowStyleMask m   = pw->window.styleMask;
-    if (on) m |=  NSWindowStyleMaskTitled;
-    else    m &= ~NSWindowStyleMaskTitled;
+    if (on) m |=  all;
+    else    m &= ~all;
+    pw->window.styleMask = m;
+}
+
+void pa_cocoa_set_sysbar(pa_winhan win, int on)
+{
+    PAWindow*       pw  = (__bridge PAWindow*)win;
+    NSWindowStyleMask bar = NSWindowStyleMaskTitled |
+                            NSWindowStyleMaskClosable |
+                            NSWindowStyleMaskMiniaturizable;
+    NSWindowStyleMask m = pw->window.styleMask;
+    if (on) m |=  bar;
+    else    m &= ~bar;
     pw->window.styleMask = m;
 }
 
@@ -546,6 +572,51 @@ void pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h)
     v->curW = w;
     v->curH = h;
     if (changed) [v setNeedsDisplay:YES];
+}
+
+void pa_cocoa_resize_bitmap(pa_winhan win, int w, int h)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    PAView*   v  = pw->view;
+
+    int oldW = v->bmpW;
+    int oldH = v->bmpH;
+
+    /* save old display screen bitmap */
+    CGContextRef oldCtx = v->screens[v->dspscr];
+    CGImageRef oldImg = oldCtx ? CGBitmapContextCreateImage(oldCtx) : NULL;
+
+    /* release all screen bitmaps except detach the display one */
+    v->screens[v->dspscr] = NULL;
+    for (int i = 0; i < 10; i++) {
+        if (v->screens[i]) { CGContextRelease(v->screens[i]); v->screens[i] = NULL; }
+    }
+    if (oldCtx) CGContextRelease(oldCtx);
+
+    /* create new bitmaps at new size */
+    v->bmpW = w;
+    v->bmpH = h;
+    v->screens[v->dspscr] = [v createOneBitmapWidth:w height:h];
+    v->bitmap = v->screens[v->dspscr];
+    if (v->updscr != v->dspscr) {
+        v->screens[v->updscr] = [v createOneBitmapWidth:w height:h];
+    }
+
+    /* copy intersection of old content into new display bitmap */
+    if (oldImg) {
+        int copyW = oldW < w ? oldW : w;
+        int copyH = oldH < h ? oldH : h;
+        if (copyW > 0 && copyH > 0) {
+            CGContextRef dst = v->screens[v->dspscr];
+            CGContextSaveGState(dst);
+            CGContextClipToRect(dst, CGRectMake(0, 0, copyW, copyH));
+            CGContextDrawImage(dst, CGRectMake(0, 0, oldW, oldH), oldImg);
+            CGContextRestoreGState(dst);
+        }
+        CGImageRelease(oldImg);
+    }
+
+    [v setNeedsDisplay:YES];
 }
 
 void pa_cocoa_set_bufmod(pa_winhan win, int on)
