@@ -118,6 +118,7 @@ void pa_cocoa_back(pa_winhan win);
 void pa_cocoa_focus(pa_winhan win);
 /* window chrome */
 void pa_cocoa_set_frame(pa_winhan win, int on);
+void pa_cocoa_set_sysbar(pa_winhan win, int on);
 void pa_cocoa_set_sizable(pa_winhan win, int on);
 
 /*----------------------------------------------------------------------------
@@ -133,6 +134,7 @@ CGContextRef pa_cocoa_get_context(pa_winhan win);
 void         pa_cocoa_flush(pa_winhan win);       /* blit offscreen → screen */
 void         pa_cocoa_select_screens(pa_winhan win, int upd, int dsp); /* 0-based */
 void         pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h);
+void         pa_cocoa_resize_bitmap(pa_winhan win, int w, int h);
 void         pa_cocoa_set_bufmod(pa_winhan win, int on);
 void         pa_cocoa_set_background(pa_winhan win, float r, float g, float b);
 

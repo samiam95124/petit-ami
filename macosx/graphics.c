@@ -1562,8 +1562,24 @@ void ami_wrtstrn(FILE* f, char* s, int n)
     fwrite(s, 1, n, f);
 }
 
-void ami_sizbuf(FILE* f, int x, int y)   { /* stub */ }
-void ami_sizbufg(FILE* f, int x, int y)  { /* stub */ }
+void ami_sizbufg(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    if (x < 1 || y < 1) return;
+    pa_cocoa_resize_bitmap(win->han, x, y);
+    win->maxxg = x;
+    win->maxyg = y;
+    win->maxx  = x / win->charspace;
+    win->maxy  = y / win->linespace;
+    if (win->maxx < 1) win->maxx = 1;
+    if (win->maxy < 1) win->maxy = 1;
+}
+
+void ami_sizbuf(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    ami_sizbufg(f, x * win->charspace, y * win->linespace);
+}
 
 void ami_title(FILE* f, char* ts)
 {
@@ -2521,7 +2537,12 @@ void ami_sizable(FILE* f, int e)
     pa_cocoa_set_sizable(win->han, e);
 }
 
-void ami_sysbar(FILE* f, int e)       { /* stub */ }
+void ami_sysbar(FILE* f, int e)
+{
+    winptr win = f2win(f); if (!win) return;
+    win->sysbar = e;
+    pa_cocoa_set_sysbar(win->han, e);
+}
 void ami_menu(FILE* f, ami_menuptr m) { /* stub */ }
 void ami_menuena(FILE* f, int id, int onoff) { /* stub */ }
 void ami_menusel(FILE* f, int id, int select) { /* stub */ }
