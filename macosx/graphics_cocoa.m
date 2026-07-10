@@ -20,8 +20,32 @@
 #include <string.h>
 #include <limits.h>
 #include <assert.h>
+#include <pthread.h>
+#include <dlfcn.h>
+#include <crt_externs.h>
 #include <IOKit/hid/IOHIDManager.h>
 #include "pa_cocoa.h"
+
+/*----------------------------------------------------------------------------
+ * Threading state
+ *
+ * In threaded mode the Cocoa event loop runs on the main thread
+ * ([NSApp run] or equivalent), and the user program runs on a worker
+ * thread.  The two communicate through the event ring buffer protected
+ * by evt_mutex / evt_cond.
+ *----------------------------------------------------------------------------*/
+
+static pthread_mutex_t evt_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  evt_cond  = PTHREAD_COND_INITIALIZER;
+static int             threaded_mode = 0;
+
+static void run_on_main(dispatch_block_t block) {
+    if (!threaded_mode || [NSThread isMainThread]) {
+        block();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), block);
+    }
+}
 
 /* Associated object key for storing tag on views that lack a settable tag */
 static char kPATagKey;
@@ -45,21 +69,58 @@ static int          evt_tail = 0;   /* next read  position */
 
 static void evt_push(const pa_rawevent* e)
 {
+    if (threaded_mode) pthread_mutex_lock(&evt_mutex);
+
+    /* coalesce resize events: overwrite an existing resize for the same window */
+    if (e->type == PA_EVT_RESIZE) {
+        for (int i = evt_tail; i != evt_head; i = (i + 1) % EVT_QUEUE_SIZE) {
+            if (evt_queue[i].type == PA_EVT_RESIZE && evt_queue[i].win == e->win) {
+                evt_queue[i] = *e;
+                if (threaded_mode) {
+                    pthread_cond_signal(&evt_cond);
+                    pthread_mutex_unlock(&evt_mutex);
+                }
+                return;
+            }
+        }
+    }
+
     int next = (evt_head + 1) % EVT_QUEUE_SIZE;
-    if (next == evt_tail) return; /* full — drop oldest could be done here */
+    if (next == evt_tail) {
+        if (threaded_mode) pthread_mutex_unlock(&evt_mutex);
+        return;
+    }
     evt_queue[evt_head] = *e;
     evt_head = next;
+
+    if (threaded_mode) {
+        pthread_cond_signal(&evt_cond);
+        pthread_mutex_unlock(&evt_mutex);
+    }
 }
 
 static int evt_pop(pa_rawevent* e)
 {
-    if (evt_head == evt_tail) return 0;
+    if (threaded_mode) pthread_mutex_lock(&evt_mutex);
+    if (evt_head == evt_tail) {
+        if (threaded_mode) pthread_mutex_unlock(&evt_mutex);
+        return 0;
+    }
     *e = evt_queue[evt_tail];
     evt_tail = (evt_tail + 1) % EVT_QUEUE_SIZE;
+    if (threaded_mode) pthread_mutex_unlock(&evt_mutex);
     return 1;
 }
 
-static int evt_empty(void) { return evt_head == evt_tail; }
+static int evt_empty(void) {
+    if (threaded_mode) {
+        pthread_mutex_lock(&evt_mutex);
+        int empty = (evt_head == evt_tail);
+        pthread_mutex_unlock(&evt_mutex);
+        return empty;
+    }
+    return evt_head == evt_tail;
+}
 
 /*----------------------------------------------------------------------------
  * PAView — custom NSView, owns the offscreen bitmap
@@ -79,6 +140,8 @@ static int evt_empty(void) { return evt_head == evt_tail; }
     int           curW, curH;  /* cursor size (pixels) */
     int           bufmod;      /* buffered mode flag */
     float         bgR, bgG, bgB; /* background color for margins */
+    CGImageRef    displayImage;  /* snapshot for drawRect (threaded mode) */
+    int           dispW, dispH;  /* dimensions of displayImage */
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
@@ -89,6 +152,30 @@ static int evt_empty(void) { return evt_head == evt_tail; }
 
 - (BOOL)isFlipped { return YES; } /* make (0,0) top-left */
 - (BOOL)acceptsFirstResponder { return YES; }
+
+- (void)setFrameSize:(NSSize)newSize
+{
+    [super setFrameSize:newSize];
+    if ([self inLiveResize] && !bufmod) {
+        int w = (int)newSize.width;
+        int h = (int)newSize.height;
+        if (w > 0 && h > 0 && (w != bmpW || h != bmpH)) {
+            pa_rawevent e = {0};
+            e.type     = PA_EVT_RESIZE;
+            e.win      = owner;
+            e.resize.w = w;
+            e.resize.h = h;
+            evt_push(&e);
+            pa_rawevent r = {0};
+            r.type     = PA_EVT_REDRAW;
+            r.win      = owner;
+            r.redraw.w = w;
+            r.redraw.h = h;
+            evt_push(&r);
+        }
+        [self setNeedsDisplay:YES];
+    }
+}
 
 - (void)createBitmapWidth:(int)w height:(int)h
 {
@@ -143,35 +230,54 @@ static int evt_empty(void) { return evt_head == evt_tail; }
 
 - (void)drawRect:(NSRect)dirtyRect
 {
-    CGContextRef dsp = screens[dspscr];
-    if (!dsp) return;
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
-    CGImageRef   img = CGBitmapContextCreateImage(dsp);
-
     int viewW = (int)self.bounds.size.width;
     int viewH = (int)self.bounds.size.height;
 
-    /* draw bitmap at 1:1, clipped to view bounds (view is flipped) */
-    CGContextSaveGState(ctx);
-    if (viewW < bmpW || viewH < bmpH) {
-        int clipW = viewW < bmpW ? viewW : bmpW;
-        int clipH = viewH < bmpH ? viewH : bmpH;
-        CGContextClipToRect(ctx, CGRectMake(0, 0, clipW, clipH));
+    /* In threaded mode, use the pre-rendered snapshot */
+    CGImageRef img;
+    int imgW, imgH;
+    if (threaded_mode) {
+        pthread_mutex_lock(&evt_mutex);
+        img = displayImage;
+        if (!img) { pthread_mutex_unlock(&evt_mutex); return; }
+        CGImageRetain(img);
+        imgW = dispW;
+        imgH = dispH;
+        pthread_mutex_unlock(&evt_mutex);
+    } else {
+        CGContextRef dsp = screens[dspscr];
+        if (!dsp) return;
+        img = CGBitmapContextCreateImage(dsp);
+        imgW = bmpW;
+        imgH = bmpH;
     }
-    CGContextDrawImage(ctx, CGRectMake(0, 0, bmpW, bmpH), img);
-    CGContextRestoreGState(ctx);
-    CGImageRelease(img);
 
-    /* fill margins with background color if window is larger than buffer */
-    if (bmpW < viewW || bmpH < viewH) {
-        CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
-        if (bmpW < viewW)
-            CGContextFillRect(ctx, CGRectMake(bmpW, 0,
-                                              viewW - bmpW, viewH));
-        if (bmpH < viewH)
-            CGContextFillRect(ctx, CGRectMake(0, bmpH,
-                                              bmpW, viewH - bmpH));
+    if ([self inLiveResize] && !bufmod && (imgW != viewW || imgH != viewH)) {
+        /* scale last content to fill window during live resize */
+        CGContextDrawImage(ctx, CGRectMake(0, 0, viewW, viewH), img);
+    } else {
+        /* draw bitmap at 1:1, clipped to view bounds */
+        CGContextSaveGState(ctx);
+        if (viewW < imgW || viewH < imgH) {
+            int clipW = viewW < imgW ? viewW : imgW;
+            int clipH = viewH < imgH ? viewH : imgH;
+            CGContextClipToRect(ctx, CGRectMake(0, 0, clipW, clipH));
+        }
+        CGContextDrawImage(ctx, CGRectMake(0, 0, imgW, imgH), img);
+        CGContextRestoreGState(ctx);
+
+        if (imgW < viewW || imgH < viewH) {
+            CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
+            if (imgW < viewW)
+                CGContextFillRect(ctx, CGRectMake(imgW, 0,
+                                                  viewW - imgW, viewH));
+            if (imgH < viewH)
+                CGContextFillRect(ctx, CGRectMake(0, imgH,
+                                                  imgW, viewH - imgH));
+        }
     }
+    CGImageRelease(img);
 
     if (curVisible && curW > 0 && curH > 0) {
         CGContextSetBlendMode(ctx, kCGBlendModeDifference);
@@ -184,24 +290,23 @@ static int evt_empty(void) { return evt_head == evt_tail; }
 {
     [super viewDidEndLiveResize];
     NSSize s = self.bounds.size;
-    if (!bufmod) {
-        /* unbuffered: resize the bitmap to match the new window */
-        [self createBitmapWidth:(int)s.width height:(int)s.height];
+    int w = (int)s.width;
+    int h = (int)s.height;
+    if (!threaded_mode && !bufmod && (w != bmpW || h != bmpH)) {
+        [self createBitmapWidth:w height:h];
     }
     pa_rawevent e = {0};
     e.type       = PA_EVT_RESIZE;
     e.win        = owner;
-    e.resize.w   = (int)s.width;
-    e.resize.h   = (int)s.height;
+    e.resize.w   = w;
+    e.resize.h   = h;
     evt_push(&e);
     if (!bufmod) {
         pa_rawevent r = {0};
         r.type     = PA_EVT_REDRAW;
         r.win      = owner;
-        r.redraw.x = 0;
-        r.redraw.y = 0;
-        r.redraw.w = (int)s.width;
-        r.redraw.h = (int)s.height;
+        r.redraw.w = w;
+        r.redraw.h = h;
         evt_push(&r);
     }
     [self setNeedsDisplay:YES];
@@ -293,6 +398,25 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 @end
 
 /*----------------------------------------------------------------------------
+ * PAKeyWindow — NSWindow subclass that accepts key status even when borderless
+ *----------------------------------------------------------------------------*/
+
+@interface PAKeyWindow : NSWindow
+@property (nonatomic) BOOL suppressResignKey;
+@end
+
+@implementation PAKeyWindow
+- (BOOL)canBecomeKeyWindow  { return YES; }
+- (BOOL)canBecomeMainWindow { return YES; }
+- (void)resignKeyWindow {
+    if (!self.suppressResignKey) [super resignKeyWindow];
+}
+- (void)resignMainWindow {
+    if (!self.suppressResignKey) [super resignMainWindow];
+}
+@end
+
+/*----------------------------------------------------------------------------
  * PAWindow — wraps NSWindow + PAView + timers
  *----------------------------------------------------------------------------*/
 
@@ -321,10 +445,11 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
                               NSWindowStyleMaskMiniaturizable |
                               NSWindowStyleMaskResizable;
 
-    window = [[NSWindow alloc] initWithContentRect:frame
-                                         styleMask:style
-                                           backing:NSBackingStoreBuffered
-                                             defer:NO];
+    window = [[PAKeyWindow alloc] initWithContentRect:frame
+                                            styleMask:style
+                                              backing:NSBackingStoreBuffered
+                                                defer:NO];
+    window.releasedWhenClosed = NO;
     if (title) window.title = [NSString stringWithUTF8String:title];
     window.delegate = self;
     window.acceptsMouseMovedEvents = YES;
@@ -397,6 +522,55 @@ void pa_cocoa_init(void)
 void pa_cocoa_deinit(void) { /* nothing for now */ }
 
 /*----------------------------------------------------------------------------
+ * Thread transition — move user's main() to a worker thread so the
+ * main thread can run the Cocoa event loop.  This mirrors the Windows
+ * architecture where the display thread owns the message pump and the
+ * user's thread blocks on WaitForSingleObject.
+ *----------------------------------------------------------------------------*/
+
+typedef int (*pa_main_func_t)(int, char**);
+
+static void* pa_worker_func(void* arg)
+{
+    pa_main_func_t user_main = (pa_main_func_t)arg;
+    int argc  = *_NSGetArgc();
+    char** argv = *_NSGetArgv();
+    int result = user_main(argc, argv);
+    exit(result);
+    return NULL;
+}
+
+void pa_cocoa_start_event_thread(void)
+{
+    pa_main_func_t user_main = (pa_main_func_t)dlsym(RTLD_DEFAULT, "main");
+    if (!user_main) {
+        fprintf(stderr, "pa_cocoa: cannot find main() — single-threaded fallback\n");
+        return;
+    }
+
+    threaded_mode = 1;
+
+    pthread_t worker;
+    pthread_create(&worker, NULL, pa_worker_func, (void*)user_main);
+    pthread_detach(worker);
+
+    /* Main thread enters the Cocoa event loop — never returns.
+       The worker thread calls main() which eventually calls exit(). */
+    while (1) {
+        @autoreleasepool {
+            NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                               untilDate:[NSDate distantFuture]
+                                                  inMode:NSDefaultRunLoopMode
+                                                 dequeue:YES];
+            if (event) {
+                [NSApp sendEvent:event];
+                [NSApp updateWindows];
+            }
+        }
+    }
+}
+
+/*----------------------------------------------------------------------------
  * Screen queries
  *----------------------------------------------------------------------------*/
 
@@ -427,118 +601,221 @@ int pa_cocoa_screen_hmm(void)
 pa_winhan pa_cocoa_create_window(int x, int y, int w, int h,
                                   const char* title)
 {
-    pa_cocoa_init();
-    /* Cocoa screen coords: (0,0) is bottom-left; flip y */
-    int screeny = pa_cocoa_screen_h() - y - h;
-    PAWindow* pw = [[PAWindow alloc] initWithX:x y:screeny width:w height:h
-                                         title:title];
-    return (__bridge_retained pa_winhan)pw;
+    __block pa_winhan result;
+    run_on_main(^{
+        pa_cocoa_init();
+        int screeny = pa_cocoa_screen_h() - y - h;
+        PAWindow* pw = [[PAWindow alloc] initWithX:x y:screeny width:w height:h
+                                             title:title];
+        result = (__bridge_retained pa_winhan)pw;
+    });
+    return result;
 }
 
 void pa_cocoa_destroy_window(pa_winhan win)
 {
-    PAWindow* pw = (__bridge_transfer PAWindow*)win;
-    [pw->window close];
-    (void)pw;
+    if (threaded_mode) {
+        PAWindow* pw = (__bridge PAWindow*)win;
+        pthread_mutex_lock(&evt_mutex);
+        CGImageRef old = pw->view->displayImage;
+        pw->view->displayImage = NULL;
+        pthread_mutex_unlock(&evt_mutex);
+        if (old) CGImageRelease(old);
+        run_on_main(^{
+            PAWindow* pw2 = (__bridge PAWindow*)win;
+            [pw2->window close];
+        });
+        dispatch_async(dispatch_get_main_queue(), ^{
+            CFRelease(win);
+        });
+    } else {
+        PAWindow* pw = (__bridge PAWindow*)win;
+        if (pw->view->displayImage) {
+            CGImageRelease(pw->view->displayImage);
+            pw->view->displayImage = NULL;
+        }
+        [pw->window close];
+        CFRelease(win);
+    }
 }
 
 void pa_cocoa_show_window(pa_winhan win)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    [pw->window makeKeyAndOrderFront:nil];
-    [NSApp activateIgnoringOtherApps:YES];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        [pw->window makeKeyAndOrderFront:nil];
+        [NSApp activateIgnoringOtherApps:YES];
+    });
 }
 
 void pa_cocoa_hide_window(pa_winhan win)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    [pw->window orderOut:nil];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        [pw->window orderOut:nil];
+    });
 }
 
 void pa_cocoa_set_title(pa_winhan win, const char* title)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    pw->window.title = [NSString stringWithUTF8String:title];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        pw->window.title = [NSString stringWithUTF8String:title];
+    });
 }
 
 void pa_cocoa_move_window(pa_winhan win, int x, int y)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    int screeny = pa_cocoa_screen_h() - y - (int)pw->window.frame.size.height;
-    [pw->window setFrameOrigin:NSMakePoint(x, screeny)];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        int screeny = pa_cocoa_screen_h() - y - (int)pw->window.frame.size.height;
+        [pw->window setFrameOrigin:NSMakePoint(x, screeny)];
+    });
 }
 
 void pa_cocoa_resize_window(pa_winhan win, int w, int h)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSRect f = pw->window.frame;
-    CGFloat oldTop = f.origin.y + f.size.height;
-    NSRect content = NSMakeRect(0, 0, w, h);
-    NSRect newFrame = [pw->window frameRectForContentRect:content];
-    newFrame.origin.x = f.origin.x;
-    newFrame.origin.y = oldTop - newFrame.size.height;
-    [pw->window setFrame:newFrame display:YES];
-    [pw->view createBitmapWidth:w height:h];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSRect f = pw->window.frame;
+        CGFloat oldTop = f.origin.y + f.size.height;
+        NSRect content = NSMakeRect(0, 0, w, h);
+        NSRect newFrame = [pw->window frameRectForContentRect:content];
+        newFrame.origin.x = f.origin.x;
+        newFrame.origin.y = oldTop - newFrame.size.height;
+        [pw->window setFrame:newFrame display:YES];
+        [pw->view createBitmapWidth:w height:h];
+    });
 }
 
 void pa_cocoa_get_size(pa_winhan win, int* w, int* h)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSSize s = pw->view.bounds.size;
-    *w = (int)s.width;
-    *h = (int)s.height;
+    __block int rw, rh;
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSSize s = pw->view.bounds.size;
+        rw = (int)s.width;
+        rh = (int)s.height;
+    });
+    *w = rw;
+    *h = rh;
 }
 
 void pa_cocoa_front(pa_winhan win)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    [pw->window orderFront:nil];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        [pw->window orderFront:nil];
+    });
 }
 
 void pa_cocoa_back(pa_winhan win)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    [pw->window orderBack:nil];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        [pw->window orderBack:nil];
+    });
 }
 
 void pa_cocoa_focus(pa_winhan win)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    [pw->window makeKeyAndOrderFront:nil];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        [pw->window makeKeyAndOrderFront:nil];
+    });
+}
+
+void pa_cocoa_set_parent(pa_winhan child, pa_winhan parent)
+{
+    run_on_main(^{
+        PAWindow* cw = (__bridge PAWindow*)child;
+        PAWindow* pw = (__bridge PAWindow*)parent;
+        [pw->window addChildWindow:cw->window ordered:NSWindowAbove];
+    });
+}
+
+/* Move a child window to (x,y) relative to the parent's content area,
+   PA convention: (0,0) = top-left of parent client, y increasing down. */
+void pa_cocoa_move_window_child(pa_winhan win, pa_winhan parent, int x, int y)
+{
+    run_on_main(^{
+        PAWindow* cw = (__bridge PAWindow*)win;
+        PAWindow* pw = (__bridge PAWindow*)parent;
+        NSRect pc = [pw->window contentRectForFrameRect:pw->window.frame];
+        CGFloat sx = pc.origin.x + x;
+        CGFloat sy = pc.origin.y + pc.size.height - y
+                     - cw->window.frame.size.height;
+        [cw->window setFrameOrigin:NSMakePoint(sx, sy)];
+    });
+}
+
+static void refocus_window(NSWindow* w)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [w makeKeyAndOrderFront:nil];
+        [NSApp activateIgnoringOtherApps:YES];
+    });
 }
 
 void pa_cocoa_set_frame(pa_winhan win, int on)
 {
-    PAWindow*       pw    = (__bridge PAWindow*)win;
-    NSWindowStyleMask all = NSWindowStyleMaskTitled |
-                            NSWindowStyleMaskClosable |
-                            NSWindowStyleMaskMiniaturizable |
-                            NSWindowStyleMaskResizable;
-    NSWindowStyleMask m   = pw->window.styleMask;
-    if (on) m |=  all;
-    else    m &= ~all;
-    pw->window.styleMask = m;
+    run_on_main(^{
+        PAWindow*       pw    = (__bridge PAWindow*)win;
+        PAKeyWindow*    kw    = (PAKeyWindow*)pw->window;
+        NSWindowStyleMask all = NSWindowStyleMaskTitled |
+                                NSWindowStyleMaskClosable |
+                                NSWindowStyleMaskMiniaturizable |
+                                NSWindowStyleMaskResizable;
+        NSWindowStyleMask m   = kw.styleMask;
+        if (on) m |=  all;
+        else    m &= ~all;
+        kw.suppressResignKey = YES;
+        kw.styleMask = m;
+        [kw makeKeyAndOrderFront:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            kw.suppressResignKey = NO;
+            [kw makeKeyAndOrderFront:nil];
+        });
+    });
 }
 
 void pa_cocoa_set_sysbar(pa_winhan win, int on)
 {
-    PAWindow*       pw  = (__bridge PAWindow*)win;
-    NSWindowStyleMask bar = NSWindowStyleMaskTitled |
-                            NSWindowStyleMaskClosable |
-                            NSWindowStyleMaskMiniaturizable;
-    NSWindowStyleMask m = pw->window.styleMask;
-    if (on) m |=  bar;
-    else    m &= ~bar;
-    pw->window.styleMask = m;
+    run_on_main(^{
+        PAWindow*       pw  = (__bridge PAWindow*)win;
+        PAKeyWindow*    kw  = (PAKeyWindow*)pw->window;
+        NSWindowStyleMask bar = NSWindowStyleMaskTitled |
+                                NSWindowStyleMaskClosable |
+                                NSWindowStyleMaskMiniaturizable;
+        NSWindowStyleMask m = kw.styleMask;
+        if (on) m |=  bar;
+        else    m &= ~bar;
+        kw.suppressResignKey = YES;
+        kw.styleMask = m;
+        [kw makeKeyAndOrderFront:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            kw.suppressResignKey = NO;
+            [kw makeKeyAndOrderFront:nil];
+        });
+    });
 }
 
 void pa_cocoa_set_sizable(pa_winhan win, int on)
 {
-    PAWindow*       pw  = (__bridge PAWindow*)win;
-    NSWindowStyleMask m = pw->window.styleMask;
-    if (on) m |=  NSWindowStyleMaskResizable;
-    else    m &= ~NSWindowStyleMaskResizable;
-    pw->window.styleMask = m;
+    run_on_main(^{
+        PAWindow*       pw  = (__bridge PAWindow*)win;
+        PAKeyWindow*    kw  = (PAKeyWindow*)pw->window;
+        NSWindowStyleMask m = kw.styleMask;
+        if (on) m |=  NSWindowStyleMaskResizable;
+        else    m &= ~NSWindowStyleMaskResizable;
+        kw.suppressResignKey = YES;
+        kw.styleMask = m;
+        [kw makeKeyAndOrderFront:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            kw.suppressResignKey = NO;
+            [kw makeKeyAndOrderFront:nil];
+        });
+    });
 }
 
 /*----------------------------------------------------------------------------
@@ -554,10 +831,42 @@ CGContextRef pa_cocoa_get_context(pa_winhan win)
 void pa_cocoa_flush(pa_winhan win)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
-    [pw->view setNeedsDisplay:YES];
-    /* pump the run loop briefly so the display actually updates */
-    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
-                             beforeDate:[NSDate dateWithTimeIntervalSinceNow:0]];
+    if (threaded_mode) {
+        PAView* v = pw->view;
+        CGContextRef ctx = v->screens[v->dspscr];
+        if (!ctx) return;
+        size_t w = CGBitmapContextGetWidth(ctx);
+        size_t h = CGBitmapContextGetHeight(ctx);
+        size_t bpr = CGBitmapContextGetBytesPerRow(ctx);
+        void* data = CGBitmapContextGetData(ctx);
+        if (!data || w == 0 || h == 0) return;
+        CFDataRef pixelData = CFDataCreate(NULL, (const UInt8*)data, h * bpr);
+        if (!pixelData) return;
+        CGColorSpaceRef cs = CGBitmapContextGetColorSpace(ctx);
+        CGDataProviderRef dp = CGDataProviderCreateWithCFData(pixelData);
+        CFRelease(pixelData);
+        CGImageRef snap = CGImageCreate(w, h,
+            CGBitmapContextGetBitsPerComponent(ctx),
+            CGBitmapContextGetBitsPerPixel(ctx),
+            bpr, cs, CGBitmapContextGetBitmapInfo(ctx),
+            dp, NULL, false, kCGRenderingIntentDefault);
+        CGDataProviderRelease(dp);
+        if (!snap) return;
+        pthread_mutex_lock(&evt_mutex);
+        CGImageRef old = v->displayImage;
+        v->displayImage = snap;
+        v->dispW = (int)w;
+        v->dispH = (int)h;
+        pthread_mutex_unlock(&evt_mutex);
+        if (old) CGImageRelease(old);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [v setNeedsDisplay:YES];
+        });
+    } else {
+        [pw->view setNeedsDisplay:YES];
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                                 beforeDate:[NSDate dateWithTimeIntervalSinceNow:0]];
+    }
 }
 
 void pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h)
@@ -571,7 +880,15 @@ void pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h)
     v->curY = y;
     v->curW = w;
     v->curH = h;
-    if (changed) [v setNeedsDisplay:YES];
+    if (changed) {
+        if (threaded_mode) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [v setNeedsDisplay:YES];
+            });
+        } else {
+            [v setNeedsDisplay:YES];
+        }
+    }
 }
 
 void pa_cocoa_resize_bitmap(pa_winhan win, int w, int h)
@@ -616,7 +933,7 @@ void pa_cocoa_resize_bitmap(pa_winhan win, int w, int h)
         CGImageRelease(oldImg);
     }
 
-    [v setNeedsDisplay:YES];
+    if (!threaded_mode) [v setNeedsDisplay:YES];
 }
 
 void pa_cocoa_set_bufmod(pa_winhan win, int on)
@@ -643,7 +960,15 @@ void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)
     v->updscr = upd;
     int old_dsp = v->dspscr;
     v->dspscr = dsp;
-    if (dsp != old_dsp) [v setNeedsDisplay:YES];
+    if (dsp != old_dsp) {
+        if (threaded_mode) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [v setNeedsDisplay:YES];
+            });
+        } else {
+            [v setNeedsDisplay:YES];
+        }
+    }
 }
 
 /*----------------------------------------------------------------------------
@@ -652,6 +977,7 @@ void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)
 
 void pa_cocoa_process_ns_events(void)
 {
+    if (threaded_mode) return;
     NSEvent* event;
     while ((event = [NSApp nextEventMatchingMask:NSEventMaskAny
                                        untilDate:[NSDate distantPast]
@@ -669,18 +995,26 @@ int pa_cocoa_dequeue(pa_rawevent* evt)
 
 void pa_cocoa_wait(pa_rawevent* evt)
 {
-    while (evt_empty()) {
-        /* short timeout so timer events and signal-injected events get picked up */
-        NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                                           untilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]
-                                              inMode:NSDefaultRunLoopMode
-                                             dequeue:YES];
-        if (event) {
-            [NSApp sendEvent:event];
-            [NSApp updateWindows];
+    if (threaded_mode) {
+        pthread_mutex_lock(&evt_mutex);
+        while (evt_tail == evt_head)
+            pthread_cond_wait(&evt_cond, &evt_mutex);
+        *evt = evt_queue[evt_tail];
+        evt_tail = (evt_tail + 1) % EVT_QUEUE_SIZE;
+        pthread_mutex_unlock(&evt_mutex);
+    } else {
+        while (evt_empty()) {
+            NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                               untilDate:[NSDate dateWithTimeIntervalSinceNow:0.001]
+                                                  inMode:NSDefaultRunLoopMode
+                                                 dequeue:YES];
+            if (event) {
+                [NSApp sendEvent:event];
+                [NSApp updateWindows];
+            }
         }
+        evt_pop(evt);
     }
-    evt_pop(evt);
 }
 
 /*----------------------------------------------------------------------------
@@ -689,25 +1023,28 @@ void pa_cocoa_wait(pa_rawevent* evt)
 
 void pa_cocoa_set_timer(pa_winhan win, int id, long us100, int repeat)
 {
-    PAWindow* pw  = (__bridge PAWindow*)win;
     if (id < 0 || id >= 10) return;
-    if (pw->timers[id]) { [pw->timers[id] invalidate]; pw->timers[id] = nil; }
-    /* PA timer units are 100 microseconds (0.0001s) */
-    NSTimeInterval interval = us100 * 0.0001;
-    NSNumber* tid  = [NSNumber numberWithInt:id];
-    pw->timers[id] = [NSTimer scheduledTimerWithTimeInterval:interval
-                                                      target:pw
-                                                    selector:@selector(timerFired:)
-                                                    userInfo:tid
-                                                     repeats:(repeat ? YES : NO)];
+    run_on_main(^{
+        PAWindow* pw  = (__bridge PAWindow*)win;
+        if (pw->timers[id]) { [pw->timers[id] invalidate]; pw->timers[id] = nil; }
+        NSTimeInterval interval = us100 * 0.0001;
+        NSNumber* tid  = [NSNumber numberWithInt:id];
+        pw->timers[id] = [NSTimer scheduledTimerWithTimeInterval:interval
+                                                          target:pw
+                                                        selector:@selector(timerFired:)
+                                                        userInfo:tid
+                                                         repeats:(repeat ? YES : NO)];
+    });
 }
 
 void pa_cocoa_kill_timer(pa_winhan win, int id)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
     if (id < 0 || id >= 10) return;
-    [pw->timers[id] invalidate];
-    pw->timers[id] = nil;
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        [pw->timers[id] invalidate];
+        pw->timers[id] = nil;
+    });
 }
 
 /*----------------------------------------------------------------------------
@@ -726,168 +1063,199 @@ static NSView* find_widget(pa_winhan win, int id)
 void pa_cocoa_button(pa_winhan win, int x, int y, int w, int h,
                      const char* label, int id)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    b.title      = [NSString stringWithUTF8String:label];
-    b.bezelStyle = NSBezelStyleRounded;
-    b.buttonType = NSButtonTypeMomentaryPushIn;
-    b.tag        = id;
-    b.target     = pw;
-    b.action     = @selector(widgetAction:);
-    [pw->view addSubview:b];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        b.title      = [NSString stringWithUTF8String:label];
+        b.bezelStyle = NSBezelStyleRounded;
+        b.buttonType = NSButtonTypeMomentaryPushIn;
+        b.tag        = id;
+        b.target     = pw;
+        b.action     = @selector(widgetAction:);
+        [pw->view addSubview:b];
+    });
 }
 
 void pa_cocoa_checkbox(pa_winhan win, int x, int y, int w, int h,
                        const char* label, int id)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    b.title      = [NSString stringWithUTF8String:label];
-    b.buttonType = NSButtonTypeSwitch;
-    b.tag        = id;
-    b.target     = pw;
-    b.action     = @selector(widgetAction:);
-    [pw->view addSubview:b];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        b.title      = [NSString stringWithUTF8String:label];
+        b.buttonType = NSButtonTypeSwitch;
+        b.tag        = id;
+        b.target     = pw;
+        b.action     = @selector(widgetAction:);
+        [pw->view addSubview:b];
+    });
 }
 
 void pa_cocoa_radiobutton(pa_winhan win, int x, int y, int w, int h,
                           const char* label, int id)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    b.title      = [NSString stringWithUTF8String:label];
-    b.buttonType = NSButtonTypeRadio;
-    b.tag        = id;
-    b.target     = pw;
-    b.action     = @selector(widgetAction:);
-    [pw->view addSubview:b];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        b.title      = [NSString stringWithUTF8String:label];
+        b.buttonType = NSButtonTypeRadio;
+        b.tag        = id;
+        b.target     = pw;
+        b.action     = @selector(widgetAction:);
+        [pw->view addSubview:b];
+    });
 }
 
 void pa_cocoa_editbox(pa_winhan win, int x, int y, int w, int h, int id)
 {
-    PAWindow*    pw = (__bridge PAWindow*)win;
-    NSTextField* tf = [[NSTextField alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    tf.tag = id;
-    [pw->view addSubview:tf];
+    run_on_main(^{
+        PAWindow*    pw = (__bridge PAWindow*)win;
+        NSTextField* tf = [[NSTextField alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        tf.tag = id;
+        [pw->view addSubview:tf];
+    });
 }
 
 void pa_cocoa_scrollvert(pa_winhan win, int x, int y, int w, int h, int id)
 {
-    PAWindow*  pw = (__bridge PAWindow*)win;
-    NSScroller* s = [[NSScroller alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    s.tag = id;
-    s.target  = pw;
-    s.action  = @selector(scrollAction:);
-    [pw->view addSubview:s];
+    run_on_main(^{
+        PAWindow*  pw = (__bridge PAWindow*)win;
+        NSScroller* s = [[NSScroller alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        s.tag = id;
+        s.target  = pw;
+        s.action  = @selector(scrollAction:);
+        [pw->view addSubview:s];
+    });
 }
 
 void pa_cocoa_scrollhoriz(pa_winhan win, int x, int y, int w, int h, int id)
 {
-    pa_cocoa_scrollvert(win, x, y, w, h, id); /* same control, different orientation */
+    pa_cocoa_scrollvert(win, x, y, w, h, id);
 }
 
 void pa_cocoa_slider_horiz(pa_winhan win, int x, int y, int w, int h,
                            int mark, int id)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    s.minValue   = 0;
-    s.maxValue   = INT_MAX;
-    s.intValue   = mark;
-    s.tag        = id;
-    s.target     = pw;
-    s.action     = @selector(sliderAction:);
-    [pw->view addSubview:s];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        s.minValue   = 0;
+        s.maxValue   = INT_MAX;
+        s.intValue   = mark;
+        s.tag        = id;
+        s.target     = pw;
+        s.action     = @selector(sliderAction:);
+        [pw->view addSubview:s];
+    });
 }
 
 void pa_cocoa_slider_vert(pa_winhan win, int x, int y, int w, int h,
                           int mark, int id)
 {
-    PAWindow* pw = (__bridge PAWindow*)win;
-    NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    s.vertical   = YES;
-    s.minValue   = 0;
-    s.maxValue   = INT_MAX;
-    s.intValue   = mark;
-    s.tag        = id;
-    s.target     = pw;
-    s.action     = @selector(sliderAction:);
-    [pw->view addSubview:s];
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        s.vertical   = YES;
+        s.minValue   = 0;
+        s.maxValue   = INT_MAX;
+        s.intValue   = mark;
+        s.tag        = id;
+        s.target     = pw;
+        s.action     = @selector(sliderAction:);
+        [pw->view addSubview:s];
+    });
 }
 
 void pa_cocoa_progressbar(pa_winhan win, int x, int y, int w, int h, int id)
 {
-    PAWindow*        pw = (__bridge PAWindow*)win;
-    NSProgressIndicator* p =
-        [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-    p.style          = NSProgressIndicatorStyleBar;
-    p.indeterminate  = NO;
-    p.minValue       = 0;
-    p.maxValue       = INT_MAX;
-    pa_set_tag(p, id);
-    [pw->view addSubview:p];
+    run_on_main(^{
+        PAWindow*        pw = (__bridge PAWindow*)win;
+        NSProgressIndicator* p =
+            [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        p.style          = NSProgressIndicatorStyleBar;
+        p.indeterminate  = NO;
+        p.minValue       = 0;
+        p.maxValue       = INT_MAX;
+        pa_set_tag(p, id);
+        [pw->view addSubview:p];
+    });
 }
 
 void pa_cocoa_kill_widget(pa_winhan win, int id)
 {
-    NSView* v = find_widget(win, id);
-    if (v) [v removeFromSuperview];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v) [v removeFromSuperview];
+    });
 }
 
 void pa_cocoa_widget_text(pa_winhan win, int id, const char* s)
 {
-    NSView* v = find_widget(win, id);
-    if (!v) return;
-    NSString* ns = [NSString stringWithUTF8String:s];
-    if ([v isKindOfClass:[NSControl class]])
-        [(NSControl*)v setStringValue:ns];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (!v) return;
+        NSString* ns = [NSString stringWithUTF8String:s];
+        if ([v isKindOfClass:[NSControl class]])
+            [(NSControl*)v setStringValue:ns];
+    });
 }
 
 void pa_cocoa_widget_get_text(pa_winhan win, int id, char* s, int sl)
 {
-    NSView* v = find_widget(win, id);
-    if (!v) { if (sl > 0) s[0] = 0; return; }
-    if ([v isKindOfClass:[NSControl class]]) {
-        const char* cs = [[(NSControl*)v stringValue] UTF8String];
-        strncpy(s, cs, sl-1);
-        s[sl-1] = 0;
-    }
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (!v) { if (sl > 0) s[0] = 0; return; }
+        if ([v isKindOfClass:[NSControl class]]) {
+            const char* cs = [[(NSControl*)v stringValue] UTF8String];
+            strncpy(s, cs, sl-1);
+            s[sl-1] = 0;
+        }
+    });
 }
 
 void pa_cocoa_widget_enable(pa_winhan win, int id, int on)
 {
-    NSView* v = find_widget(win, id);
-    if (v && [v isKindOfClass:[NSControl class]])
-        [(NSControl*)v setEnabled:(on ? YES : NO)];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v && [v isKindOfClass:[NSControl class]])
+            [(NSControl*)v setEnabled:(on ? YES : NO)];
+    });
 }
 
 void pa_cocoa_widget_select(pa_winhan win, int id, int on)
 {
-    NSView* v = find_widget(win, id);
-    if (v && [v isKindOfClass:[NSButton class]])
-        [(NSButton*)v setState:(on ? NSControlStateValueOn : NSControlStateValueOff)];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v && [v isKindOfClass:[NSButton class]])
+            [(NSButton*)v setState:(on ? NSControlStateValueOn : NSControlStateValueOff)];
+    });
 }
 
 void pa_cocoa_scrollbar_pos(pa_winhan win, int id, int pos)
 {
-    NSView* v = find_widget(win, id);
-    if (v && [v isKindOfClass:[NSScroller class]])
-        [(NSScroller*)v setFloatValue:(float)pos / INT_MAX];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v && [v isKindOfClass:[NSScroller class]])
+            [(NSScroller*)v setFloatValue:(float)pos / INT_MAX];
+    });
 }
 
 void pa_cocoa_scrollbar_siz(pa_winhan win, int id, int range)
 {
-    /* NSScroller knob proportion — range is 0..INT_MAX */
-    NSView* v = find_widget(win, id);
-    if (v && [v isKindOfClass:[NSScroller class]])
-        [(NSScroller*)v setKnobProportion:(float)range / INT_MAX];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v && [v isKindOfClass:[NSScroller class]])
+            [(NSScroller*)v setKnobProportion:(float)range / INT_MAX];
+    });
 }
 
 void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
 {
-    NSView* v = find_widget(win, id);
-    if (v && [v isKindOfClass:[NSProgressIndicator class]])
-        [(NSProgressIndicator*)v setDoubleValue:(double)pos];
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v && [v isKindOfClass:[NSProgressIndicator class]])
+            [(NSProgressIndicator*)v setDoubleValue:(double)pos];
+    });
 }
 
 /*----------------------------------------------------------------------------
@@ -920,43 +1288,190 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
 @end
 
 /*----------------------------------------------------------------------------
+ * Menus — native macOS menu bar
+ *----------------------------------------------------------------------------*/
+
+/* Layout-compatible mirror of ami_menurec so we can walk the tree */
+typedef struct pa_menu_node {
+    struct pa_menu_node* next;
+    struct pa_menu_node* branch;
+    int onoff;
+    int oneof;
+    int bar;
+    int id;
+    char* face;
+} pa_menu_node;
+
+/* Menu action target — fires PA_EVT_MENU events */
+@interface PAMenuTarget : NSObject
+@property (assign) pa_winhan owner;
+- (void)menuItemAction:(NSMenuItem*)sender;
+@end
+
+@implementation PAMenuTarget
+- (void)menuItemAction:(NSMenuItem*)sender
+{
+    pa_rawevent e = {0};
+    e.type    = PA_EVT_MENU;
+    e.win     = self.owner;
+    e.menu.id = (int)sender.tag;
+    evt_push(&e);
+}
+@end
+
+static PAMenuTarget* menuTarget = nil;
+static NSMenu* savedAppMenu = nil;
+
+static NSMenuItem* findMenuItemByTag(NSMenu* menu, int tag)
+{
+    for (NSInteger i = 0; i < menu.numberOfItems; i++) {
+        NSMenuItem* item = [menu itemAtIndex:i];
+        if (item.tag == tag && !item.hasSubmenu) return item;
+        if (item.hasSubmenu) {
+            NSMenuItem* found = findMenuItemByTag(item.submenu, tag);
+            if (found) return found;
+        }
+    }
+    return nil;
+}
+
+static void buildMenu(NSMenu* menu, pa_menu_node* list, PAMenuTarget* target)
+{
+    menu.autoenablesItems = NO;
+    for (pa_menu_node* m = list; m; m = m->next) {
+        NSString* title = [NSString stringWithUTF8String:m->face];
+        if (m->branch) {
+            NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:title
+                                                          action:nil
+                                                   keyEquivalent:@""];
+            item.tag = m->id;
+            NSMenu* sub = [[NSMenu alloc] initWithTitle:title];
+            buildMenu(sub, m->branch, target);
+            item.submenu = sub;
+            [menu addItem:item];
+        } else {
+            NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:title
+                                                          action:@selector(menuItemAction:)
+                                                   keyEquivalent:@""];
+            item.target = target;
+            item.tag = m->id;
+            [menu addItem:item];
+        }
+        if (m->bar) {
+            [menu addItem:[NSMenuItem separatorItem]];
+        }
+    }
+}
+
+void pa_cocoa_menu(pa_winhan win, void* menu_list)
+{
+    run_on_main(^{
+        pa_menu_node* list = (pa_menu_node*)menu_list;
+
+        if (!menuTarget) {
+            menuTarget = [[PAMenuTarget alloc] init];
+        }
+        menuTarget.owner = win;
+
+        NSMenu* mainMenu = [[NSMenu alloc] initWithTitle:@""];
+        mainMenu.autoenablesItems = NO;
+
+        /* preserve app menu (first item), append PA items into its submenu */
+        if (!savedAppMenu) {
+            NSMenu* cur = [NSApp mainMenu];
+            if (cur && cur.numberOfItems > 0) {
+                savedAppMenu = [[cur itemAtIndex:0] copy];
+            }
+        }
+        if (savedAppMenu) {
+            NSMenuItem* appItem = [savedAppMenu copy];
+            if (list) {
+                NSMenu* appSub = appItem.submenu;
+                appSub.autoenablesItems = NO;
+                [appSub addItem:[NSMenuItem separatorItem]];
+                buildMenu(appSub, list, menuTarget);
+            }
+            [mainMenu addItem:appItem];
+        } else if (list) {
+            NSString* progName = [NSProcessInfo processInfo].processName;
+            NSMenuItem* appItem = [[NSMenuItem alloc] initWithTitle:progName
+                                                              action:nil
+                                                       keyEquivalent:@""];
+            NSMenu* appSub = [[NSMenu alloc] initWithTitle:progName];
+            appSub.autoenablesItems = NO;
+            buildMenu(appSub, list, menuTarget);
+            appItem.submenu = appSub;
+            [mainMenu addItem:appItem];
+        }
+
+        [NSApp setMainMenu:mainMenu];
+    });
+}
+
+void pa_cocoa_menu_enable(pa_winhan win, int id, int on)
+{
+    run_on_main(^{
+        NSMenu* mainMenu = [NSApp mainMenu];
+        if (!mainMenu) return;
+        NSMenuItem* item = findMenuItemByTag(mainMenu, id);
+        if (item) item.enabled = on ? YES : NO;
+    });
+}
+
+void pa_cocoa_menu_check(pa_winhan win, int id, int on)
+{
+    run_on_main(^{
+        NSMenu* mainMenu = [NSApp mainMenu];
+        if (!mainMenu) return;
+        NSMenuItem* item = findMenuItemByTag(mainMenu, id);
+        if (item) item.state = on ? NSControlStateValueOn : NSControlStateValueOff;
+    });
+}
+
+/*----------------------------------------------------------------------------
  * Dialogs
  *----------------------------------------------------------------------------*/
 
 void pa_cocoa_alert(const char* title, const char* message)
 {
-    NSAlert* a    = [[NSAlert alloc] init];
-    a.messageText = [NSString stringWithUTF8String:title   ? title   : ""];
-    a.informativeText = [NSString stringWithUTF8String:message ? message : ""];
-    [a addButtonWithTitle:@"OK"];
-    [a runModal];
+    run_on_main(^{
+        NSAlert* a    = [[NSAlert alloc] init];
+        a.messageText = [NSString stringWithUTF8String:title   ? title   : ""];
+        a.informativeText = [NSString stringWithUTF8String:message ? message : ""];
+        [a addButtonWithTitle:@"OK"];
+        [a runModal];
+    });
 }
 
 void pa_cocoa_query_open(char* path, int pathlen)
 {
-    NSOpenPanel* p = [NSOpenPanel openPanel];
-    p.canChooseFiles    = YES;
-    p.canChooseDirectories = NO;
-    p.allowsMultipleSelection = NO;
-    if ([p runModal] == NSModalResponseOK && p.URLs.count > 0) {
-        const char* u = [p.URLs[0].path UTF8String];
-        strncpy(path, u, pathlen-1);
-        path[pathlen-1] = 0;
-    } else {
-        path[0] = 0;
-    }
+    run_on_main(^{
+        NSOpenPanel* p = [NSOpenPanel openPanel];
+        p.canChooseFiles    = YES;
+        p.canChooseDirectories = NO;
+        p.allowsMultipleSelection = NO;
+        if ([p runModal] == NSModalResponseOK && p.URLs.count > 0) {
+            const char* u = [p.URLs[0].path UTF8String];
+            strncpy(path, u, pathlen-1);
+            path[pathlen-1] = 0;
+        } else {
+            path[0] = 0;
+        }
+    });
 }
 
 void pa_cocoa_query_save(char* path, int pathlen)
 {
-    NSSavePanel* p = [NSSavePanel savePanel];
-    if ([p runModal] == NSModalResponseOK && p.URL) {
-        const char* u = [p.URL.path UTF8String];
-        strncpy(path, u, pathlen-1);
-        path[pathlen-1] = 0;
-    } else {
-        path[0] = 0;
-    }
+    run_on_main(^{
+        NSSavePanel* p = [NSSavePanel savePanel];
+        if ([p runModal] == NSModalResponseOK && p.URL) {
+            const char* u = [p.URL.path UTF8String];
+            strncpy(path, u, pathlen-1);
+            path[pathlen-1] = 0;
+        } else {
+            path[0] = 0;
+        }
+    });
 }
 
 void pa_cocoa_inject_close(void)

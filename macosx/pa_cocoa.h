@@ -36,7 +36,8 @@ typedef enum {
     PA_EVT_FRAME,       /* frame timer */
     PA_EVT_JOY_MOVE,    /* joystick axis moved */
     PA_EVT_JOY_DOWN,    /* joystick button pressed */
-    PA_EVT_JOY_UP       /* joystick button released */
+    PA_EVT_JOY_UP,      /* joystick button released */
+    PA_EVT_MENU         /* menu item selected */
 } pa_evttype;
 
 /* Special key codes */
@@ -73,6 +74,7 @@ typedef struct {
         struct { int x, y, w, h; }                    redraw;
         struct { int jn; int ax[6]; }                  joymove;
         struct { int jn; int btn; }                    joybtn;
+        struct { int id; }                             menu;
     };
 } pa_rawevent;
 
@@ -116,6 +118,8 @@ void pa_cocoa_get_size(pa_winhan win, int* w, int* h);
 void pa_cocoa_front(pa_winhan win);
 void pa_cocoa_back(pa_winhan win);
 void pa_cocoa_focus(pa_winhan win);
+void pa_cocoa_set_parent(pa_winhan child, pa_winhan parent);
+void pa_cocoa_move_window_child(pa_winhan win, pa_winhan parent, int x, int y);
 /* window chrome */
 void pa_cocoa_set_frame(pa_winhan win, int on);
 void pa_cocoa_set_sysbar(pa_winhan win, int on);
@@ -192,6 +196,15 @@ void pa_cocoa_scrollbar_siz(pa_winhan win, int id, int range);
 void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos);
 
 /*----------------------------------------------------------------------------
+ * Menus — builds macOS menu bar from PA menu tree.
+ * The menu_list parameter is an ami_menurec* cast to void*.
+ *----------------------------------------------------------------------------*/
+
+void pa_cocoa_menu(pa_winhan win, void* menu_list);
+void pa_cocoa_menu_enable(pa_winhan win, int id, int on);
+void pa_cocoa_menu_check(pa_winhan win, int id, int on);
+
+/*----------------------------------------------------------------------------
  * Dialogs
  *----------------------------------------------------------------------------*/
 
@@ -202,6 +215,10 @@ void pa_cocoa_query_save(char* path, int pathlen);
 /*----------------------------------------------------------------------------
  * Miscellaneous
  *----------------------------------------------------------------------------*/
+
+/* Start threaded event delivery: moves user's main() to worker thread,
+   keeps Cocoa event loop on the main thread. Never returns. */
+void pa_cocoa_start_event_thread(void);
 
 /* Inject a close event into the event queue (used by signal handlers). */
 void pa_cocoa_inject_close(void);

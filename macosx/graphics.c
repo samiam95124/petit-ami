@@ -806,6 +806,8 @@ static void pa_graphics_init(void)
     }
 
     if (joyenb) pa_cocoa_joy_init();
+
+    pa_cocoa_start_event_thread();
 }
 
 __attribute__((destructor))
@@ -1216,6 +1218,8 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
                     win->maxyg = raw->resize.h;
                     win->maxx  = er->rszx;
                     win->maxy  = er->rszy;
+                    pa_cocoa_resize_bitmap(win->han,
+                                           raw->resize.w, raw->resize.h);
                 }
             }
         }
@@ -1296,6 +1300,11 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
         er->winid  = 0;
         er->djoyn  = raw->joybtn.jn + 1;
         er->djoybn = raw->joybtn.btn;
+        break;
+
+    case PA_EVT_MENU:
+        er->etype  = ami_etmenus;
+        er->menuid = raw->menu.id;
         break;
 
     default:
@@ -2418,6 +2427,12 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     clear_window(win);
     pa_cocoa_flush(han);
 
+    if (parent) {
+        winptr pwin = f2win(parent);
+        if (pwin && pwin->han)
+            pa_cocoa_set_parent(han, pwin->han);
+    }
+
     *infile  = inf;
     *outfile = outf;
 }
@@ -2463,13 +2478,35 @@ void ami_setsizg(FILE* f, int x, int y)
     if (ctx) CGContextSetLineWidth(ctx, 1.0);
 }
 
+/* get parent window record, or NULL if window has no parent */
+static winptr parwin(winptr win)
+{
+    if (win->parwid > 0 && win->parwid < MAXFIL && opnfil[win->parwid])
+        return &wintbl[win->parwid];
+    return NULL;
+}
+
+void ami_setposg(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    winptr par = parwin(win);
+    if (par && par->han)
+        pa_cocoa_move_window_child(win->han, par->han, x - 1, y - 1);
+    else
+        pa_cocoa_move_window(win->han, x - 1, y - 1);
+}
+
 void ami_setpos(FILE* f, int x, int y)
 {
     winptr win = f2win(f); if (!win) return;
-    pa_cocoa_move_window(win->han, x, y);
+    winptr par = parwin(win);
+    /* character positions scale by the parent's character cell; a window
+       with no parent sits on the desktop, which has no character grid, so
+       the position is taken directly as pixels */
+    if (par) ami_setposg(f, (x - 1) * par->charspace + 1,
+                            (y - 1) * par->linespace + 1);
+    else     ami_setposg(f, x, y);
 }
-
-void ami_setposg(FILE* f, int x, int y) { ami_setpos(f, x, y); }
 
 void ami_scnsiz(FILE* f, int* x, int* y)
 {
@@ -2543,10 +2580,116 @@ void ami_sysbar(FILE* f, int e)
     win->sysbar = e;
     pa_cocoa_set_sysbar(win->han, e);
 }
-void ami_menu(FILE* f, ami_menuptr m) { /* stub */ }
-void ami_menuena(FILE* f, int id, int onoff) { /* stub */ }
-void ami_menusel(FILE* f, int id, int select) { /* stub */ }
-void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm) { /* stub */ }
+void ami_menu(FILE* f, ami_menuptr m)
+{
+    winptr win = f2win(f); if (!win) return;
+    pa_cocoa_menu(win->han, (void*)m);
+}
+
+void ami_menuena(FILE* f, int id, int onoff)
+{
+    winptr win = f2win(f); if (!win) return;
+    pa_cocoa_menu_enable(win->han, id, onoff);
+}
+
+void ami_menusel(FILE* f, int id, int select)
+{
+    winptr win = f2win(f); if (!win) return;
+    pa_cocoa_menu_check(win->han, id, select);
+}
+
+static void stdmenu_append(ami_menuptr* list, ami_menuptr m)
+{
+    m->next = NULL;
+    if (!*list) { *list = m; return; }
+    ami_menuptr lp = *list;
+    while (lp->next) lp = lp->next;
+    lp->next = m;
+}
+
+static void stdmenu_new(ami_menuptr* m, int id, const char* face)
+{
+    *m = malloc(sizeof(ami_menurec));
+    (*m)->next   = NULL;
+    (*m)->branch = NULL;
+    (*m)->onoff  = FALSE;
+    (*m)->oneof  = FALSE;
+    (*m)->bar    = FALSE;
+    (*m)->id     = id;
+    (*m)->face   = strdup(face);
+}
+
+static void stdmenu_additem(ami_stdmenusel sms, int i, ami_menuptr* m,
+                            ami_menuptr* list, const char* face, int bar)
+{
+    if (BIT(i) & sms) {
+        stdmenu_new(m, i, face);
+        stdmenu_append(list, *m);
+        (*m)->bar = bar;
+    }
+}
+
+void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+{
+    ami_menuptr m, hm;
+
+    *sm = NULL;
+
+    if (sms & (BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) | BIT(AMI_SMCLOSE) |
+               BIT(AMI_SMSAVE) | BIT(AMI_SMSAVEAS) | BIT(AMI_SMPAGESET) |
+               BIT(AMI_SMPRINT) | BIT(AMI_SMEXIT))) {
+        stdmenu_new(&hm, 0, "File");
+        stdmenu_append(sm, hm);
+        stdmenu_additem(sms, AMI_SMNEW, &m, &hm->branch, "New", FALSE);
+        stdmenu_additem(sms, AMI_SMOPEN, &m, &hm->branch, "Open", FALSE);
+        stdmenu_additem(sms, AMI_SMCLOSE, &m, &hm->branch, "Close", FALSE);
+        stdmenu_additem(sms, AMI_SMSAVE, &m, &hm->branch, "Save", FALSE);
+        stdmenu_additem(sms, AMI_SMSAVEAS, &m, &hm->branch, "Save As", TRUE);
+        stdmenu_additem(sms, AMI_SMPAGESET, &m, &hm->branch, "Page Setup", FALSE);
+        stdmenu_additem(sms, AMI_SMPRINT, &m, &hm->branch, "Print", TRUE);
+        stdmenu_additem(sms, AMI_SMEXIT, &m, &hm->branch, "Exit", FALSE);
+    }
+
+    if (sms & (BIT(AMI_SMUNDO) | BIT(AMI_SMCUT) | BIT(AMI_SMPASTE) |
+               BIT(AMI_SMDELETE) | BIT(AMI_SMFIND) | BIT(AMI_SMFINDNEXT) |
+               BIT(AMI_SMREPLACE) | BIT(AMI_SMGOTO) | BIT(AMI_SMSELECTALL))) {
+        stdmenu_new(&hm, 0, "Edit");
+        stdmenu_append(sm, hm);
+        stdmenu_additem(sms, AMI_SMUNDO, &m, &hm->branch, "Undo", TRUE);
+        stdmenu_additem(sms, AMI_SMCUT, &m, &hm->branch, "Cut", FALSE);
+        stdmenu_additem(sms, AMI_SMPASTE, &m, &hm->branch, "Paste", FALSE);
+        stdmenu_additem(sms, AMI_SMDELETE, &m, &hm->branch, "Delete", TRUE);
+        stdmenu_additem(sms, AMI_SMFIND, &m, &hm->branch, "Find", FALSE);
+        stdmenu_additem(sms, AMI_SMFINDNEXT, &m, &hm->branch, "Find Next", FALSE);
+        stdmenu_additem(sms, AMI_SMREPLACE, &m, &hm->branch, "Replace", FALSE);
+        stdmenu_additem(sms, AMI_SMGOTO, &m, &hm->branch, "Goto", TRUE);
+        stdmenu_additem(sms, AMI_SMSELECTALL, &m, &hm->branch, "Select All", FALSE);
+    }
+
+    while (pm) {
+        m = pm;
+        pm = pm->next;
+        stdmenu_append(sm, m);
+    }
+
+    if (sms & (BIT(AMI_SMNEWWINDOW) | BIT(AMI_SMTILEHORIZ) | BIT(AMI_SMTILEVERT) |
+               BIT(AMI_SMCASCADE) | BIT(AMI_SMCLOSEALL))) {
+        stdmenu_new(&hm, 0, "Window");
+        stdmenu_append(sm, hm);
+        stdmenu_additem(sms, AMI_SMNEWWINDOW, &m, &hm->branch, "New Window", TRUE);
+        stdmenu_additem(sms, AMI_SMTILEHORIZ, &m, &hm->branch, "Tile Horizontally", FALSE);
+        stdmenu_additem(sms, AMI_SMTILEVERT, &m, &hm->branch, "Tile Vertically", FALSE);
+        stdmenu_additem(sms, AMI_SMCASCADE, &m, &hm->branch, "Cascade", TRUE);
+        stdmenu_additem(sms, AMI_SMCLOSEALL, &m, &hm->branch, "Close All", FALSE);
+    }
+
+    if (sms & (BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT))) {
+        stdmenu_new(&hm, 0, "Help");
+        stdmenu_append(sm, hm);
+        stdmenu_additem(sms, AMI_SMHELPTOPIC, &m, &hm->branch, "Help Topics", TRUE);
+        stdmenu_additem(sms, AMI_SMABOUT, &m, &hm->branch, "About", FALSE);
+    }
+}
 
 int ami_getwinid(void)
 {
