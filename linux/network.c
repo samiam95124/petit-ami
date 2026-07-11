@@ -1746,8 +1746,16 @@ void ami_clsmsg(int fn)
 
     close(fn); /* close the socket */
 
-    /* if DTLS, free the ssl struct */
-    if (opnfil[fn]->sudp) SSL_free(opnfil[fn]->ssl);
+    /* If DTLS, free the ssl struct. Clear the entry so the exit-time
+       cleanup in ami_deinit_network does not free it a second time. */
+    if (opnfil[fn]->sudp) {
+
+        SSL_free(opnfil[fn]->ssl);
+        opnfil[fn]->ssl  = NULL;
+        opnfil[fn]->sudp = FALSE;
+
+    }
+    opnfil[fn]->opn = FALSE;
 
 }
 
