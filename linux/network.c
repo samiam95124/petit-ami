@@ -103,9 +103,12 @@
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
 
-/* this is missing from Mac OS X */
+/* Mac OS X has no IP_MTU socket option; the MTU is found from the
+   interface the connected socket routes through instead */
 #ifdef __MACH__ /* Mac OS X */
-#define IP_MTU 14 /* int */
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #endif
 
 /* socket structures */
@@ -1374,9 +1377,14 @@ int ami_waitmsg(/* port number to wait on */ int port,
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     newfil(fn); /* clear the fid entry */
 
-    /* set socket options, multiple servers on address and same port */
+    /* Set socket options, multiple servers on address and same port.
+       SO_REUSEPORT is required as well: the DTLS accept path binds a
+       second socket to this same port while this one is still live,
+       which BSD/macOS only allows with SO_REUSEPORT on both sockets. */
     opt = 1;
     r = setsockopt(fn, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    if (r < 0) linuxerror();
+    r = setsockopt(fn, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     if (r < 0) linuxerror();
 
     /* clear server address */
@@ -1427,6 +1435,7 @@ int ami_waitmsg(/* port number to wait on */ int port,
         if (fn2 < 0) linuxerror();
 
         setsockopt(fn2, SOL_SOCKET, SO_REUSEADDR, (const void*) &on, (socklen_t) sizeof(on));
+        setsockopt(fn2, SOL_SOCKET, SO_REUSEPORT, (const void*) &on, (socklen_t) sizeof(on));
         r = bind(fn2, (const struct sockaddr *) &opnfil[fn]->saddr.s6, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
         r = connect(fn2, (struct sockaddr *) &caddr.s6, sizeof(struct sockaddr_in6));
@@ -1480,6 +1489,49 @@ packet breakage is possible.
 
 *******************************************************************************/
 
+#ifdef __MACH__
+/* Find the MTU of the interface a connected socket routes through:
+   match the socket's local address against the interface list and ask
+   that interface for its MTU. */
+static int sockmtu(int fn, int family)
+{
+    struct sockaddr_storage la;
+    socklen_t       ll = sizeof(la);
+    struct ifaddrs* ifl;
+    struct ifaddrs* ifa;
+    int             mtu = 1500; /* fallback: standard ethernet */
+
+    if (getsockname(fn, (struct sockaddr*)&la, &ll)) return (mtu);
+    if (getifaddrs(&ifl)) return (mtu);
+    for (ifa = ifl; ifa; ifa = ifa->ifa_next) {
+
+        int match = 0;
+        if (!ifa->ifa_addr || ifa->ifa_addr->sa_family != family) continue;
+        if (family == AF_INET)
+            match = ((struct sockaddr_in*)ifa->ifa_addr)->sin_addr.s_addr ==
+                    ((struct sockaddr_in*)&la)->sin_addr.s_addr;
+        else
+            match = !memcmp(&((struct sockaddr_in6*)ifa->ifa_addr)->sin6_addr,
+                            &((struct sockaddr_in6*)&la)->sin6_addr, 16);
+        if (match) {
+
+            struct ifreq ifr;
+            int s = socket(family, SOCK_DGRAM, 0);
+            memset(&ifr, 0, sizeof(ifr));
+            strncpy(ifr.ifr_name, ifa->ifa_name, IFNAMSIZ-1);
+            if (s >= 0 && !ioctl(s, SIOCGIFMTU, &ifr)) mtu = ifr.ifr_mtu;
+            if (s >= 0) close(s);
+            break;
+
+        }
+
+    }
+    freeifaddrs(ifl);
+
+    return (mtu);
+}
+#endif
+
 int ami_maxmsg(unsigned long addr)
 
 {
@@ -1492,10 +1544,12 @@ int ami_maxmsg(unsigned long addr)
 
     mtulen = sizeof(mtu); /* set length of word */
 
-    /* set up target address */
+    /* set up target address. The port just needs to be nonzero for the
+       routing lookup: BSD/macOS refuses a UDP connect to port 0 */
     memset(&saddr, 0, sizeof(saddr));
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = htonl(addr);
+    saddr.sin_port = htons(9); /* discard port; nothing is sent */
 
     /* create socket */
     fn = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1506,8 +1560,13 @@ int ami_maxmsg(unsigned long addr)
     if (r < 0) linuxerror();
 
     /* find mtu */
+#ifdef __MACH__
+    mtu = sockmtu(fn, AF_INET);
+    (void)mtulen;
+#else
     r = getsockopt(fn, IPPROTO_IP, IP_MTU, &mtu, (socklen_t*)&mtulen);
     if (r < 0) linuxerror();
+#endif
 
     close(fn);
 
@@ -1541,10 +1600,11 @@ int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 
     mtulen = sizeof(mtu); /* set length of word */
 
-    /* set up target address */
+    /* set up target address (nonzero port: see ami_maxmsg) */
     memset(&saddr, 0, sizeof(saddr));
     saddr.sin6_family = AF_INET6;
     get64t128(addrh, addrl, &saddr);
+    saddr.sin6_port = htons(9); /* discard port; nothing is sent */
 
     /* create socket */
     fn = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -1555,8 +1615,13 @@ int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     if (r < 0) linuxerror();
 
     /* find mtu */
+#ifdef __MACH__
+    mtu = sockmtu(fn, AF_INET6);
+    (void)mtulen;
+#else
     r = getsockopt(fn, IPPROTO_IP, IP_MTU, &mtu, (socklen_t*)&mtulen);
     if (r < 0) linuxerror();
+#endif
 
     close(fn);
 
@@ -1681,8 +1746,16 @@ void ami_clsmsg(int fn)
 
     close(fn); /* close the socket */
 
-    /* if DTLS, free the ssl struct */
-    if (opnfil[fn]->sudp) SSL_free(opnfil[fn]->ssl);
+    /* If DTLS, free the ssl struct. Clear the entry so the exit-time
+       cleanup in ami_deinit_network does not free it a second time. */
+    if (opnfil[fn]->sudp) {
+
+        SSL_free(opnfil[fn]->ssl);
+        opnfil[fn]->ssl  = NULL;
+        opnfil[fn]->sudp = FALSE;
+
+    }
+    opnfil[fn]->opn = FALSE;
 
 }
 
@@ -1717,10 +1790,14 @@ FILE* ami_waitnet(/* port number to wait on */ int port,
     if (sfn < 0 || sfn >= MAXFIL) error(einvhan); /* invalid file handle */
     newfil(sfn); /* clear the fid entry */
 
-    /* set socket options, multiple servers on address and same port */
+    /* set socket options, multiple servers on address and same port.
+       Option names are not bit flags and cannot be ORed together: on
+       Linux SO_REUSEADDR|SO_REUSEPORT happens to equal SO_REUSEPORT,
+       on macOS it is an invalid option (ENOPROTOOPT). */
     opt = 1;
-    r = setsockopt(sfn, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
-                   sizeof(opt));
+    r = setsockopt(sfn, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    if (r < 0) linuxerror();
+    r = setsockopt(sfn, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     if (r < 0) linuxerror();
 
     /* set up address */
