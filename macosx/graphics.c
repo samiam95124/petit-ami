@@ -936,10 +936,10 @@ static void clear_window(winptr win)
 *******************************************************************************/
 
 /* Scroll window content up by one text line.
- * Uses raw bitmap memmove: row 0 in the bitmap data is the top of the screen
- * (because CGBitmapContextCreateImage + flipped NSView compose to that).
- * Shifts physical rows toward lower addresses (upward), then redraws the
- * cleared bottom strip with the background color. */
+ * Uses raw bitmap memmove: the bitmap context is CG y-up, so row 0 of the
+ * data is the BOTTOM of the screen. Shifts physical rows toward higher
+ * addresses (visually upward), then redraws the freed bottom strip with
+ * the background color. */
 static void scroll_up(winptr win)
 {
     CGContextRef ctx = pa_cocoa_get_context(win->han);
@@ -957,8 +957,11 @@ static void scroll_up(winptr win)
     if (physLS == 0 || physLS >= height) return;
     (void)width; /* not needed for row-wise memmove */
 
-    /* move rows up */
-    memmove(data, data + physLS * rowbytes, (height - physLS) * rowbytes);
+    /* Move the content up one text line. The bitmap is CG y-up: data row 0
+       is the BOTTOM of the screen (drawing flips logical coordinates via
+       PY()), so shifting visual content up means moving data rows toward
+       higher addresses. */
+    memmove(data + physLS * rowbytes, data, (height - physLS) * rowbytes);
 
     /* fill the freed rows at the bottom with the background color using CG */
     scnptr sc = curscn(win);
@@ -1317,6 +1320,69 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
 
     case PA_EVT_NORM:
         er->etype = ami_etnorm;
+        break;
+
+    case PA_EVT_WIDGET:
+        switch (raw->widget.act) {
+        case PA_WIDGET_BUTTON:
+            er->etype = ami_etbutton;
+            er->butid = raw->widget.id;
+            break;
+        case PA_WIDGET_CHECKBOX:
+            er->etype  = ami_etchkbox;
+            er->ckbxid = raw->widget.id;
+            break;
+        case PA_WIDGET_RADIO:
+            er->etype  = ami_etradbut;
+            er->radbid = raw->widget.id;
+            break;
+        case PA_WIDGET_SCROLL_PAGEUP:
+            er->etype  = ami_etsclulp;
+            er->sclupid = raw->widget.id;
+            break;
+        case PA_WIDGET_SCROLL_PAGEDN:
+            er->etype  = ami_etscldrp;
+            er->scldpid = raw->widget.id;
+            break;
+        case PA_WIDGET_SCROLL_POS:
+            er->etype  = ami_etsclpos;
+            er->sclpid = raw->widget.id;
+            er->sclpos = raw->widget.pos;
+            break;
+        case PA_WIDGET_SLIDER_POS:
+            er->etype  = ami_etsldpos;
+            er->sldpid = raw->widget.id;
+            er->sldpos = raw->widget.pos;
+            break;
+        case PA_WIDGET_EDIT_DONE:
+            er->etype  = ami_etedtbox;
+            er->edtbid = raw->widget.id;
+            break;
+        case PA_WIDGET_NUM_DONE:
+            er->etype  = ami_etnumbox;
+            er->numbid = raw->widget.id;
+            er->numbsl = raw->widget.pos;
+            break;
+        case PA_WIDGET_LIST_SEL:
+            er->etype  = ami_etlstbox;
+            er->lstbid = raw->widget.id;
+            er->lstbsl = raw->widget.pos;
+            break;
+        case PA_WIDGET_DROP_SEL:
+            er->etype  = ami_etdrpbox;
+            er->drpbid = raw->widget.id;
+            er->drpbsl = raw->widget.pos;
+            break;
+        case PA_WIDGET_DROPED_DONE:
+            er->etype  = ami_etdrebox;
+            er->drebid = raw->widget.id;
+            break;
+        case PA_WIDGET_TAB_SEL:
+            er->etype  = ami_ettabbar;
+            er->tabid  = raw->widget.id;
+            er->tabsel = raw->widget.pos;
+            break;
+        }
         break;
 
     default:
@@ -2859,97 +2925,193 @@ void ami_backwidget(FILE* f, int id)                { /* stub */ }
 void ami_frontwidget(FILE* f, int id)               { /* stub */ }
 void ami_focuswidget(FILE* f, int id)               { /* stub */ }
 
-void ami_buttonsiz(FILE* f, char* s, int* w, int* h)
+/* The plain widget calls take CHARACTER coordinates/sizes; the -g calls
+   take pixels. Character rects convert to pixel rects covering the full
+   character cells (Windows semantics), and pixel sizes convert to
+   character sizes rounding up. */
+
+static void chr2grrect(winptr win, int* x1, int* y1, int* x2, int* y2)
+{
+    *x1 = (*x1 - 1) * win->charspace + 1;
+    *y1 = (*y1 - 1) * win->linespace + 1;
+    *x2 = (*x2) * win->charspace;
+    *y2 = (*y2) * win->linespace;
+}
+
+static void gr2chrsiz(winptr win, int* w, int* h)
+{
+    *w = (*w - 1) / win->charspace + 1;
+    *h = (*h - 1) / win->linespace + 1;
+}
+
+void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
 {
     *w = ami_strsiz(f, s) + 20;
     *h = ami_chrsizy(f) + 8;
 }
 
-void ami_buttonsizg(FILE* f, char* s, int* w, int* h) { ami_buttonsiz(f, s, w, h); }
+void ami_buttonsiz(FILE* f, char* s, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_buttonsizg(f, s, w, h);
+    gr2chrsiz(win, w, h);
+}
 
-void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_button(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 {
-    ami_button(f, x1, y1, x2, y2, s, id);
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_buttong(f, x1, y1, x2, y2, s, id);
 }
 
-void ami_checkboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
 {
     *w = ami_strsiz(f, s) + 24;
     *h = ami_chrsizy(f) + 4;
 }
 
-void ami_checkboxsizg(FILE* f, char* s, int* w, int* h) { ami_checkboxsiz(f, s, w, h); }
+void ami_checkboxsiz(FILE* f, char* s, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_checkboxsizg(f, s, w, h);
+    gr2chrsiz(win, w, h);
+}
 
-void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_checkbox(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 {
-    ami_checkbox(f, x1, y1, x2, y2, s, id);
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_checkboxg(f, x1, y1, x2, y2, s, id);
 }
 
-void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 {
     *w = ami_strsiz(f, s) + 24;
     *h = ami_chrsizy(f) + 4;
 }
 
-void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h) { ami_radiobuttonsiz(f, s, w, h); }
+void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_radiobuttonsizg(f, s, w, h);
+    gr2chrsiz(win, w, h);
+}
 
-void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_radiobutton(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 {
-    ami_radiobutton(f, x1, y1, x2, y2, s, id);
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_radiobuttong(f, x1, y1, x2, y2, s, id);
 }
 
 void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
-{ *w = cw + 10; *h = ch + 20; *ox = 5; *oy = 15; }
+{
+    /* the group must be at least wide enough for its title as NSBox
+       renders it, and tall enough for the title plus the client area */
+    int tw, th;
+    pa_cocoa_group_title_size(s, &tw, &th);
+    *w = tw + 7 * 2;
+    if (cw + 7 * 2 > *w) *w = cw + 7 * 2;
+    *h  = th + ch + 5 * 2;
+    *ox = 5;
+    *oy = th;
+}
 
 void ami_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
-{ ami_groupsizg(f, s, cw, ch, w, h, ox, oy); }
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; *ox = *oy = 0; return; }
+    ami_groupsizg(f, s, cw * win->charspace, ch * win->linespace, w, h, ox, oy);
+    gr2chrsiz(win, w, h);
+    gr2chrsiz(win, ox, oy);
+}
 
-void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)   { /* stub */ }
-void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)  { /* stub */ }
-void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id)       { /* stub */ }
-void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)      { /* stub */ }
+void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+{
+    winptr win = f2win(f); if (!win || !s) return;
+    pa_cocoa_group(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
+}
+
+void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_groupg(f, x1, y1, x2, y2, s, id);
+}
+
+void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    pa_cocoa_background(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
+}
+
+void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_backgroundg(f, x1, y1, x2, y2, id);
+}
 
 void ami_scrollvertsizg(FILE* f, int* w, int* h)  { *w = 16; *h = 100; }
-void ami_scrollvertsiz(FILE* f, int* w, int* h)   { ami_scrollvertsizg(f, w, h); }
 
-void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvertsiz(FILE* f, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_scrollvertsizg(f, w, h);
+    gr2chrsiz(win, w, h);
+}
+
+void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_scrollvert(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
-{ ami_scrollvert(f, x1, y1, x2, y2, id); }
+void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_scrollvertg(f, x1, y1, x2, y2, id);
+}
 
 void ami_scrollhorizsizg(FILE* f, int* w, int* h)  { *w = 100; *h = 16; }
-void ami_scrollhorizsiz(FILE* f, int* w, int* h)   { ami_scrollhorizsizg(f, w, h); }
 
-void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhorizsiz(FILE* f, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_scrollhorizsizg(f, w, h);
+    gr2chrsiz(win, w, h);
+}
+
+void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_scrollhoriz(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
-{ ami_scrollhoriz(f, x1, y1, x2, y2, id); }
+void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_scrollhorizg(f, x1, y1, x2, y2, id);
+}
 
 void ami_scrollpos(FILE* f, int id, int r)
 {
@@ -2964,35 +3126,70 @@ void ami_scrollsiz(FILE* f, int id, int r)
 }
 
 void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h) { *w = 80; *h = 24; }
-void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h)  { ami_numselboxsizg(f, l, u, w, h); }
-void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id) { /* stub */ }
-void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id) { /* stub */ }
+
+void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_numselboxsizg(f, l, u, w, h);
+    gr2chrsiz(win, w, h);
+}
+void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    pa_cocoa_numselbox(win->han, x1, y1, x2-x1+1, y2-y1+1, l, u, id);
+}
+
+void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_numselboxg(f, x1, y1, x2, y2, l, u, id);
+}
 
 void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
 { *w = ami_strsiz(f, s) + 20; *h = ami_chrsizy(f) + 8; }
 
-void ami_editboxsiz(FILE* f, char* s, int* w, int* h) { ami_editboxsizg(f, s, w, h); }
+void ami_editboxsiz(FILE* f, char* s, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_editboxsizg(f, s, w, h);
+    gr2chrsiz(win, w, h);
+}
 
-void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_editbox(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
-{ ami_editbox(f, x1, y1, x2, y2, id); }
+void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_editboxg(f, x1, y1, x2, y2, id);
+}
 
 void ami_progbarsizg(FILE* f, int* w, int* h) { *w = 200; *h = 20; }
-void ami_progbarsiz(FILE* f, int* w, int* h)  { ami_progbarsizg(f, w, h); }
 
-void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbarsiz(FILE* f, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_progbarsizg(f, w, h);
+    gr2chrsiz(win, w, h);
+}
+
+void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_progressbar(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
-{ ami_progbar(f, x1, y1, x2, y2, id); }
+void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_progbarg(f, x1, y1, x2, y2, id);
+}
 
 void ami_progbarpos(FILE* f, int id, int pos)
 {
@@ -3000,68 +3197,254 @@ void ami_progbarpos(FILE* f, int id, int pos)
     pa_cocoa_progressbar_pos(win->han, id, pos);
 }
 
-void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h) { *w = 150; *h = 100; }
-void ami_listboxsiz(FILE* f, ami_strptr sp, int* w, int* h)  { ami_listboxsizg(f, sp, w, h); }
-void ami_listbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)   { /* stub */ }
-void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)  { /* stub */ }
+void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h)
+{
+    /* wide enough for the longest entry plus scroller and border, tall
+       enough for all entries at the native ~18px row height */
+    int mw = 0, n = 0;
+    for (ami_strptr p = sp; p; p = p->next) {
+        int sw = ami_strsiz(f, p->str);
+        if (sw > mw) mw = sw;
+        n++;
+    }
+    *w = mw + 40;
+    *h = n * 18 + 6;
+}
+
+void ami_listboxsiz(FILE* f, ami_strptr sp, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_listboxsizg(f, sp, w, h);
+    gr2chrsiz(win, w, h);
+}
+
+void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    int n = 0;
+    for (ami_strptr p = sp; p; p = p->next) n++;
+    if (!n) return;
+    const char** strs = malloc(n * sizeof(char*));
+    if (!strs) return;
+    int i = 0;
+    for (ami_strptr p = sp; p; p = p->next) strs[i++] = p->str;
+    pa_cocoa_listbox(win->han, x1, y1, x2-x1+1, y2-y1+1, strs, n, id);
+    free(strs);
+}
+
+void ami_listbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_listboxg(f, x1, y1, x2, y2, sp, id);
+}
 
 void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
 { *cw = 150; *ch = 24; *ow = 150; *oh = 100; }
 
 void ami_dropboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
-{ ami_dropboxsizg(f, sp, cw, ch, ow, oh); }
+{
+    winptr win = f2win(f); if (!win) { *cw = *ch = *ow = *oh = 1; return; }
+    ami_dropboxsizg(f, sp, cw, ch, ow, oh);
+    gr2chrsiz(win, cw, ch);
+    gr2chrsiz(win, ow, oh);
+}
 
-void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)   { /* stub */ }
-void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)  { /* stub */ }
+void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    int n = 0;
+    for (ami_strptr p = sp; p; p = p->next) n++;
+    if (!n) return;
+    const char** strs = malloc(n * sizeof(char*));
+    if (!strs) return;
+    int i = 0;
+    for (ami_strptr p = sp; p; p = p->next) strs[i++] = p->str;
+    pa_cocoa_dropbox(win->han, x1, y1, x2-x1+1, y2-y1+1, strs, n, id);
+    free(strs);
+}
+
+void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_dropboxg(f, x1, y1, x2, y2, sp, id);
+}
 
 void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
 { ami_dropboxsizg(f, sp, cw, ch, ow, oh); }
 
 void ami_dropeditboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
-{ ami_dropeditboxsizg(f, sp, cw, ch, ow, oh); }
+{
+    winptr win = f2win(f); if (!win) { *cw = *ch = *ow = *oh = 1; return; }
+    ami_dropeditboxsizg(f, sp, cw, ch, ow, oh);
+    gr2chrsiz(win, cw, ch);
+    gr2chrsiz(win, ow, oh);
+}
 
-void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id) { /* stub */ }
-void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id) { /* stub */ }
+void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    int n = 0;
+    for (ami_strptr p = sp; p; p = p->next) n++;
+    if (!n) return;
+    const char** strs = malloc(n * sizeof(char*));
+    if (!strs) return;
+    int i = 0;
+    for (ami_strptr p = sp; p; p = p->next) strs[i++] = p->str;
+    pa_cocoa_dropeditbox(win->han, x1, y1, x2-x1+1, y2-y1+1, strs, n, id);
+    free(strs);
+}
+
+void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_dropeditboxg(f, x1, y1, x2, y2, sp, id);
+}
 
 void ami_slidehorizsizg(FILE* f, int* w, int* h) { *w = 150; *h = 20; }
-void ami_slidehorizsiz(FILE* f, int* w, int* h)  { ami_slidehorizsizg(f, w, h); }
 
-void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehorizsiz(FILE* f, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_slidehorizsizg(f, w, h);
+    gr2chrsiz(win, w, h);
+}
+
+void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_slider_horiz(win->han, x1, y1, x2-x1+1, y2-y1+1, mark, id);
 }
 
-void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
-{ ami_slidehoriz(f, x1, y1, x2, y2, mark, id); }
+void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_slidehorizg(f, x1, y1, x2, y2, mark, id);
+}
 
 void ami_slidevertsizg(FILE* f, int* w, int* h) { *w = 20; *h = 150; }
-void ami_slidevertsiz(FILE* f, int* w, int* h)  { ami_slidevertsizg(f, w, h); }
 
-void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevertsiz(FILE* f, int* w, int* h)
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
+    ami_slidevertsizg(f, w, h);
+    gr2chrsiz(win, w, h);
+}
+
+void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_slider_vert(win->han, x1, y1, x2-x1+1, y2-y1+1, mark, id);
 }
 
-void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
-{ ami_slidevert(f, x1, y1, x2, y2, mark, id); }
+void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    ami_slidevertg(f, x1, y1, x2, y2, mark, id);
+}
 
+/* tab bar height, matching the shim's PATabBar bar strip */
+#define TABBAR_H 24
+
+/* size of a tab panel for the given client size: the bar adds its height
+   on the oriented side; (ox,oy) is the client offset within the panel */
 void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
-{ *w = cw + 10; *h = ch + 30; *ox = 5; *oy = 25; }
+{
+    switch (tor) {
+    case ami_totop:
+        *w = cw; *h = ch + TABBAR_H; *ox = 0; *oy = TABBAR_H; break;
+    case ami_tobottom:
+        *w = cw; *h = ch + TABBAR_H; *ox = 0; *oy = 0; break;
+    case ami_toleft:
+        *w = cw + TABBAR_H; *h = ch; *ox = TABBAR_H; *oy = 0; break;
+    default: /* ami_toright */
+        *w = cw + TABBAR_H; *h = ch; *ox = 0; *oy = 0; break;
+    }
+}
 
 void ami_tabbarsiz(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
-{ ami_tabbarsizg(f, tor, cw, ch, w, h, ox, oy); }
+{
+    winptr win = f2win(f); if (!win) { *w = *h = 1; *ox = *oy = 0; return; }
+    ami_tabbarsizg(f, tor, cw * win->charspace, ch * win->linespace,
+                   w, h, ox, oy);
+    gr2chrsiz(win, w, h);
+    /* offsets round up to whole cells so the client clears the bar */
+    *ox = (*ox + win->charspace - 1) / win->charspace;
+    *oy = (*oy + win->linespace - 1) / win->linespace;
+}
 
 void ami_tabbarclientg(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy)
-{ *cw = w - 10; *ch = h - 30; *ox = 5; *oy = 25; }
+{
+    switch (tor) {
+    case ami_totop:
+        *cw = w; *ch = h - TABBAR_H; *ox = 0; *oy = TABBAR_H; break;
+    case ami_tobottom:
+        *cw = w; *ch = h - TABBAR_H; *ox = 0; *oy = 0; break;
+    case ami_toleft:
+        *cw = w - TABBAR_H; *ch = h; *ox = TABBAR_H; *oy = 0; break;
+    default: /* ami_toright */
+        *cw = w - TABBAR_H; *ch = h; *ox = 0; *oy = 0; break;
+    }
+    if (*cw < 1) *cw = 1;
+    if (*ch < 1) *ch = 1;
+}
 
 void ami_tabbarclient(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy)
-{ ami_tabbarclientg(f, tor, w, h, cw, ch, ox, oy); }
+{
+    winptr win = f2win(f); if (!win) { *cw = *ch = 1; *ox = *oy = 0; return; }
+    ami_tabbarclientg(f, tor, w * win->charspace, h * win->linespace,
+                      cw, ch, ox, oy);
+    gr2chrsiz(win, cw, ch);
+    *ox = (*ox + win->charspace - 1) / win->charspace;
+    *oy = (*oy + win->linespace - 1) / win->linespace;
+}
 
-void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)  { /* stub */ }
-void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id) { /* stub */ }
-void ami_tabsel(FILE* f, int id, int tn) { /* stub */ }
+static void tabbar_common(winptr win, int x1, int y1, int x2, int y2,
+                          ami_strptr sp, ami_tabori tor, int barh, int id)
+{
+    int n = 0;
+    for (ami_strptr p = sp; p; p = p->next) n++;
+    if (!n) return;
+    const char** strs = malloc(n * sizeof(char*));
+    if (!strs) return;
+    int i = 0;
+    for (ami_strptr p = sp; p; p = p->next) strs[i++] = p->str;
+    pa_cocoa_tabbar(win->han, x1, y1, x2-x1+1, y2-y1+1, strs, n,
+                    (int)tor, barh, id);
+    free(strs);
+}
+
+void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    tabbar_common(win, x1, y1, x2, y2, sp, tor, TABBAR_H, id);
+}
+
+void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)
+{
+    winptr win = f2win(f); if (!win) return;
+    /* character metrics rounded the bar up to whole cells; use that same
+       thickness so the client area lands exactly on character cells */
+    int barh;
+    if (tor == ami_totop || tor == ami_tobottom)
+        barh = (TABBAR_H + win->linespace - 1) / win->linespace
+               * win->linespace;
+    else
+        barh = (TABBAR_H + win->charspace - 1) / win->charspace
+               * win->charspace;
+    chr2grrect(win, &x1, &y1, &x2, &y2);
+    tabbar_common(win, x1, y1, x2, y2, sp, tor, barh, id);
+}
+
+void ami_tabsel(FILE* f, int id, int tn)
+{
+    winptr win = f2win(f); if (!win) return;
+    pa_cocoa_tabbar_sel(win->han, id, tn);
+}
 
 /*******************************************************************************
 *                                                                              *
@@ -3076,16 +3459,47 @@ void ami_alert(char* title, char* message)
 
 void ami_querycolor(int* r, int* g, int* b)
 {
-    /* stub — NSColorPanel could be added */
-    *r = *g = *b = 0;
+    pa_cocoa_query_color(r, g, b);
 }
 
 void ami_queryopen(char* s, int sl)  { pa_cocoa_query_open(s, sl); }
 void ami_querysave(char* s, int sl)  { pa_cocoa_query_save(s, sl); }
 
-void ami_queryfind(char* s, int sl, ami_qfnopts* opt)         { if (sl>0) s[0]=0; }
-void ami_queryfindrep(char* s, int sl, char* r, int rl,
-                      ami_qfropts* opt)                       { if (sl>0) s[0]=0; if (rl>0) r[0]=0; }
+void ami_queryfind(char* s, int sl, ami_qfnopts* opt)
+{
+    pa_cocoa_query_find(s, sl, opt);
+}
+
+void ami_queryfindrep(char* s, int sl, char* r, int rl, ami_qfropts* opt)
+{
+    pa_cocoa_query_findrep(s, sl, r, rl, opt);
+}
+
 void ami_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg,
                    int* fb, int* br, int* bg, int* bb,
-                   ami_qfteffects* effect)                    { /* stub */ }
+                   ami_qfteffects* effect)
+{
+    char family[128] = "";
+    int  n;
+
+    /* seed the dialog with the current font code's family name */
+    n = 1;
+    for (fontptr fp = fntlst; fp; fp = fp->next, n++)
+        if (n == *fc && fp->name) {
+            strncpy(family, fp->name, sizeof(family) - 1);
+            break;
+        }
+
+    pa_cocoa_query_font(family, sizeof(family), s,
+                        fr, fg, fb, br, bg, bb);
+
+    /* map the returned family name back to a PA font code; if the family
+       is not in the font list, leave the code unchanged */
+    n = 1;
+    for (fontptr fp = fntlst; fp; fp = fp->next, n++)
+        if (fp->name && !strcasecmp(fp->name, family)) {
+            *fc = n;
+            break;
+        }
+    (void)effect; /* text effects unchanged */
+}
