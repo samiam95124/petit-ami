@@ -1307,6 +1307,18 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
         er->menuid = raw->menu.id;
         break;
 
+    case PA_EVT_MIN:
+        er->etype = ami_etmin;
+        break;
+
+    case PA_EVT_MAX:
+        er->etype = ami_etmax;
+        break;
+
+    case PA_EVT_NORM:
+        er->etype = ami_etnorm;
+        break;
+
     default:
         er->etype = ami_etchar;
         er->echar = 0;
@@ -1582,6 +1594,9 @@ void ami_sizbufg(FILE* f, int x, int y)
     win->maxy  = y / win->linespace;
     if (win->maxx < 1) win->maxx = 1;
     if (win->maxy < 1) win->maxy = 1;
+    /* the buffer's drawing surface was recreated: drawing attributes reset
+       to defaults, matching the Windows DC-recreation behavior */
+    curscn(win)->lwidth = 1.0;
 }
 
 void ami_sizbuf(FILE* f, int x, int y)
@@ -2408,10 +2423,18 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
         fclose(inf); fclose(outf); return;
     }
 
-    /* create the Cocoa window, cascaded from the main window */
+    /* create the Cocoa window: with a parent it becomes an embedded child
+       view clipped to the parent; otherwise a top-level window cascaded
+       from the main window */
     int wx = 100 + (wid - 1) * 30;
     int wy = 100 + (wid - 1) * 30;
-    pa_winhan han = pa_cocoa_create_window(wx, wy, maxxd, maxyd, "");
+    pa_winhan han;
+    winptr pwin = parent ? f2win(parent) : NULL;
+    if (pwin && pwin->han)
+        han = pa_cocoa_create_child_window(pwin->han, wx - 100, wy - 100,
+                                           maxxd, maxyd);
+    else
+        han = pa_cocoa_create_window(wx, wy, maxxd, maxyd, "");
     if (!han) { fclose(inf); fclose(outf); return; }
 
     winptr win = &wintbl[ofn];
@@ -2427,12 +2450,6 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
     clear_window(win);
     pa_cocoa_flush(han);
 
-    if (parent) {
-        winptr pwin = f2win(parent);
-        if (pwin && pwin->han)
-            pa_cocoa_set_parent(han, pwin->han);
-    }
-
     *infile  = inf;
     *outfile = outf;
 }
@@ -2444,39 +2461,11 @@ void ami_buffer(FILE* f, int e)
     if (win->han) pa_cocoa_set_bufmod(win->han, e);
 }
 
-void ami_getsiz(FILE* f, int* x, int* y)
-{
-    winptr win = f2win(f);
-    if (win) { *x = win->maxx; *y = win->maxy; }
-    else     { *x = 80;        *y = 25; }
-}
-
-void ami_getsizg(FILE* f, int* x, int* y)
-{
-    winptr win = f2win(f);
-    if (win) { *x = win->maxxg; *y = win->maxyg; }
-    else     { *x = maxxd;    *y = maxyd; }
-}
-
-void ami_setsiz(FILE* f, int x, int y)
-{
-    ami_setsizg(f, x * (f2win(f) ? f2win(f)->charspace : 8),
-                   y * (f2win(f) ? f2win(f)->linespace  : 16));
-}
-
-void ami_setsizg(FILE* f, int x, int y)
-{
-    winptr win = f2win(f); if (!win) return;
-    pa_cocoa_resize_window(win->han, x, y);
-    win->maxxg = x;
-    win->maxyg = y;
-    win->maxx  = x / win->charspace;
-    win->maxy  = y / win->linespace;
-    scnptr sc = curscn(win);
-    sc->lwidth = 1.0;
-    CGContextRef ctx = pa_cocoa_get_context(win->han);
-    if (ctx) CGContextSetLineWidth(ctx, 1.0);
-}
+/* Standard character cell for desktop (parentless) windows. The desktop
+   has no character grid, so window sizes/positions in character terms use
+   this made-up cell, matching the Windows/Linux implementations. */
+#define STDCHRX 8
+#define STDCHRY 12
 
 /* get parent window record, or NULL if window has no parent */
 static winptr parwin(winptr win)
@@ -2486,14 +2475,73 @@ static winptr parwin(winptr win)
     return NULL;
 }
 
-void ami_setposg(FILE* f, int x, int y)
+/* chrome extra size (window minus client) for the window's current state */
+static void curextra(winptr win, int* dw, int* dh)
+{
+    pa_cocoa_frame_extra(win->han, win->frame, win->sizable, win->sysbar,
+                         dw, dh);
+}
+
+/* window sizes are OUTER dimensions, frame included, per PA semantics */
+
+void ami_getsizg(FILE* f, int* x, int* y)
+{
+    winptr win = f2win(f);
+    /* the actual on-screen window size, not the buffer size: the drawing
+       surface is independent of the window in buffered mode */
+    if (win) pa_cocoa_get_window_size(win->han, x, y);
+    else { *x = maxxd; *y = maxyd; }
+}
+
+void ami_getsiz(FILE* f, int* x, int* y)
+{
+    winptr win = f2win(f);
+    if (!win) { *x = 80; *y = 25; return; }
+    ami_getsizg(f, x, y);
+    winptr par = parwin(win);
+    if (par) { *x = (*x - 1) / par->charspace + 1;
+               *y = (*y - 1) / par->linespace + 1; }
+    else     { *x = (*x - 1) / STDCHRX + 1;
+               *y = (*y - 1) / STDCHRY + 1; }
+}
+
+void ami_setsizg(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    int dw, dh;
+    curextra(win, &dw, &dh);
+    int cw = x - dw; if (cw < 1) cw = 1;
+    int ch = y - dh; if (ch < 1) ch = 1;
+    pa_cocoa_resize_window(win->han, cw, ch);
+    /* the drawing surface (maxxg/maxyg) belongs to the buffer, sized by
+       ami_sizbuf; only an unbuffered window's surface tracks the window */
+    if (!win->bufmod) {
+        win->maxxg = cw;
+        win->maxyg = ch;
+        win->maxx  = cw / win->charspace;
+        win->maxy  = ch / win->linespace;
+        pa_cocoa_resize_bitmap(win->han, cw, ch);
+        scnptr sc = curscn(win);
+        sc->lwidth = 1.0;
+        CGContextRef ctx = pa_cocoa_get_context(win->han);
+        if (ctx) CGContextSetLineWidth(ctx, 1.0);
+    }
+}
+
+void ami_setsiz(FILE* f, int x, int y)
 {
     winptr win = f2win(f); if (!win) return;
     winptr par = parwin(win);
-    if (par && par->han)
-        pa_cocoa_move_window_child(win->han, par->han, x - 1, y - 1);
-    else
-        pa_cocoa_move_window(win->han, x - 1, y - 1);
+    if (par) ami_setsizg(f, x * par->charspace, y * par->linespace);
+    else     ami_setsizg(f, x * STDCHRX, y * STDCHRY);
+}
+
+void ami_setposg(FILE* f, int x, int y)
+{
+    winptr win = f2win(f); if (!win) return;
+    /* pa_cocoa_move_window positions a child relative to the parent's
+       top-left and a top-level window on the screen */
+    pa_cocoa_move_window(win->han, x - 1, y - 1);
 }
 
 void ami_setpos(FILE* f, int x, int y)
@@ -2501,11 +2549,11 @@ void ami_setpos(FILE* f, int x, int y)
     winptr win = f2win(f); if (!win) return;
     winptr par = parwin(win);
     /* character positions scale by the parent's character cell; a window
-       with no parent sits on the desktop, which has no character grid, so
-       the position is taken directly as pixels */
+       with no parent uses the standard desktop character cell */
     if (par) ami_setposg(f, (x - 1) * par->charspace + 1,
                             (y - 1) * par->linespace + 1);
-    else     ami_setposg(f, x, y);
+    else     ami_setposg(f, (x - 1) * STDCHRX + 1,
+                            (y - 1) * STDCHRY + 1);
 }
 
 void ami_scnsiz(FILE* f, int* x, int* y)
@@ -2538,14 +2586,32 @@ void ami_scnceng(FILE* f, int* x, int* y)
     *y = pa_cocoa_screen_h() / 2;
 }
 
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
-{
-    *wx = cx; *wy = cy; /* stub — no chrome adjustment yet */
-}
-
 void ami_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
 {
-    *wx = cx; *wy = cy;
+    winptr win = f2win(f);
+    if (!win) { *wx = cx; *wy = cy; return; }
+    int dw, dh;
+    pa_cocoa_frame_extra(win->han,
+                         (ms & BIT(ami_wmframe))  != 0,
+                         (ms & BIT(ami_wmsize))   != 0,
+                         (ms & BIT(ami_wmsysbar)) != 0,
+                         &dw, &dh);
+    *wx = cx + dw;
+    *wy = cy + dh;
+}
+
+void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+{
+    winptr win = f2win(f);
+    if (!win) { *wx = cx; *wy = cy; return; }
+    /* client size in this window's characters -> outer size in the parent's
+       characters (or the standard desktop cell for parentless windows) */
+    ami_winclientg(f, cx * win->charspace, cy * win->linespace, wx, wy, ms);
+    winptr par = parwin(win);
+    if (par) { *wx = (*wx - 1) / par->charspace + 1;
+               *wy = (*wy - 1) / par->linespace + 1; }
+    else     { *wx = (*wx - 1) / STDCHRX + 1;
+               *wy = (*wy - 1) / STDCHRY + 1; }
 }
 
 void ami_front(FILE* f)
