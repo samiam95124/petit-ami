@@ -148,10 +148,53 @@ static int evt_empty(void) {
 - (CGContextRef)ensureScreen:(int)idx;
 @end
 
+/* true when the PA window is a child (an embedded view with no NSWindow
+   of its own); defined after PAWindow */
+static int pa_win_is_child(pa_winhan h);
+
 @implementation PAView
+
+/* NSView.clipsToBounds defaults to NO since macOS 14, letting drawing
+   escape the view's bounds and leave stale pixels behind when the view
+   moves; restore the classic clipping behavior */
+- (instancetype)initWithFrame:(NSRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        if (@available(macOS 14.0, *)) self.clipsToBounds = YES;
+    }
+    return self;
+}
 
 - (BOOL)isFlipped { return YES; } /* make (0,0) top-left */
 - (BOOL)acceptsFirstResponder { return YES; }
+
+/* Child PA windows are views inside the parent's content view, so their
+   focus is first-responder status, not NSWindow key status. Top-level
+   windows report focus from windowDidBecomeKey/-ResignKey instead. */
+- (BOOL)becomeFirstResponder
+{
+    if (owner && pa_win_is_child(owner)) {
+        pa_rawevent e = {0};
+        e.type = PA_EVT_FOCUS;
+        e.win  = owner;
+        evt_push(&e);
+        [self.superview setNeedsDisplay:YES]; /* chrome button colors */
+    }
+    return YES;
+}
+
+- (BOOL)resignFirstResponder
+{
+    if (owner && pa_win_is_child(owner)) {
+        pa_rawevent e = {0};
+        e.type = PA_EVT_UNFOCUS;
+        e.win  = owner;
+        evt_push(&e);
+        [self.superview setNeedsDisplay:YES]; /* chrome button colors */
+    }
+    return YES;
+}
 
 - (void)setFrameSize:(NSSize)newSize
 {
@@ -390,10 +433,376 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 
 - (void)mouseMoved:(NSEvent*)e      { [self pushMouseEvent:PA_EVT_MOUSE_MOVE event:e]; }
 - (void)mouseDragged:(NSEvent*)e    { [self pushMouseEvent:PA_EVT_MOUSE_MOVE event:e]; }
-- (void)mouseDown:(NSEvent*)e       { [self pushMouseEvent:PA_EVT_MOUSE_DOWN event:e]; }
+- (void)mouseDown:(NSEvent*)e
+{
+    [self.window makeFirstResponder:self]; /* clicking a child view focuses it */
+    [self pushMouseEvent:PA_EVT_MOUSE_DOWN event:e];
+}
 - (void)mouseUp:(NSEvent*)e         { [self pushMouseEvent:PA_EVT_MOUSE_UP   event:e]; }
 - (void)rightMouseDown:(NSEvent*)e  { [self pushMouseEvent:PA_EVT_MOUSE_DOWN event:e]; }
 - (void)rightMouseUp:(NSEvent*)e    { [self pushMouseEvent:PA_EVT_MOUSE_UP   event:e]; }
+
+@end
+
+/*----------------------------------------------------------------------------
+ * PAChildFrame — Ami-drawn chrome for child windows.
+ *
+ * Cocoa has no child windows in the Win32 sense, so a PA child window is a
+ * view embedded in the parent's content view, and the frame chrome (title
+ * bar, close/minimize/zoom buttons, resize borders) is drawn by us — the
+ * same approach as the Linux implementation's Ami-drawn child frames.
+ * The container holds the client PAView inset by the chrome metrics.
+ *----------------------------------------------------------------------------*/
+
+#define CFRM_TITBAR   24  /* title bar height */
+#define CFRM_BORDER    4  /* resize border width */
+#define CFRM_CORNER   16  /* corner resize grab length */
+#define CFRM_BTN      12  /* button diameter */
+#define CFRM_BTN_GAP   8  /* gap between buttons */
+#define CFRM_BTN_MG    8  /* button margin from edge */
+#define CFRM_MIN_W   120  /* minimum child window width */
+#define CFRM_MIN_H   (CFRM_TITBAR + 2 * CFRM_BORDER) /* minimum height */
+#define CFRM_MINWIN_W 200 /* width of a minimized child window */
+
+/* resize edge bits */
+#define CFRM_EDGE_L 1
+#define CFRM_EDGE_R 2
+#define CFRM_EDGE_T 4
+#define CFRM_EDGE_B 8
+
+@interface PAChildFrame : NSView {
+@public
+    pa_winhan ownerHan;    /* owning PAWindow */
+    PAView*   client;      /* the client-area view */
+    NSString* title;       /* title bar text */
+    int  frameOn;          /* draw any chrome at all */
+    int  sysbarOn;         /* draw the title bar */
+    int  sizableOn;        /* border resize enabled */
+    int  dragging;         /* moving via title bar */
+    int  resizing;         /* resize edge mask, 0 = not resizing */
+    NSPoint dragStart;     /* mouse position at drag start (superview coords) */
+    NSRect  frameStart;    /* our frame at drag start */
+    int  minimized;
+    NSRect restoreMin;     /* frame to restore after minimize */
+    int  maximized;
+    NSRect restoreMax;     /* frame to restore after maximize */
+}
+- (void)layoutClient;
+- (void)setClientSize:(NSSize)size;
+@end
+
+@implementation PAChildFrame
+
+/* see PAView initWithFrame: — clip drawing to bounds (macOS 14 default NO) */
+- (instancetype)initWithFrame:(NSRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        if (@available(macOS 14.0, *)) self.clipsToBounds = YES;
+    }
+    return self;
+}
+
+- (BOOL)isFlipped { return YES; }
+
+/* chrome insets around the client area */
+- (NSEdgeInsets)chromeInsets
+{
+    if (!frameOn) return NSEdgeInsetsMake(0, 0, 0, 0);
+    return NSEdgeInsetsMake(sysbarOn ? CFRM_TITBAR : CFRM_BORDER,
+                            CFRM_BORDER, CFRM_BORDER, CFRM_BORDER);
+}
+
+- (void)layoutClient
+{
+    NSEdgeInsets in = [self chromeInsets];
+    NSRect b = self.bounds;
+    client.frame = NSMakeRect(in.left, in.top,
+                              b.size.width - in.left - in.right,
+                              b.size.height - in.top - in.bottom);
+}
+
+/* resize the container so the client area has the given size,
+   keeping the top-left corner in place */
+- (void)setClientSize:(NSSize)size
+{
+    NSEdgeInsets in = [self chromeInsets];
+    [self setFrameSize:NSMakeSize(size.width + in.left + in.right,
+                                  size.height + in.top + in.bottom)];
+    [self layoutClient];
+    [self.superview setNeedsDisplay:YES];
+}
+
+- (BOOL)clientFocused
+{
+    return self.window.firstResponder == client &&
+           self.window.isKeyWindow;
+}
+
+- (NSRect)buttonRect:(int)i /* 0 = close, 1 = minimize, 2 = zoom */
+{
+    return NSMakeRect(CFRM_BTN_MG + i * (CFRM_BTN + CFRM_BTN_GAP),
+                      (CFRM_TITBAR - CFRM_BTN) / 2, CFRM_BTN, CFRM_BTN);
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    if (!frameOn) return;
+    NSRect b = self.bounds;
+
+    /* border + bar background */
+    [[NSColor colorWithWhite:0.82 alpha:1.0] setFill];
+    NSRectFill(b);
+
+    if (!sysbarOn) return;
+
+    /* title bar */
+    [[NSColor colorWithWhite:0.85 alpha:1.0] setFill];
+    NSRectFill(NSMakeRect(0, 0, b.size.width, CFRM_TITBAR));
+    [[NSColor colorWithWhite:0.70 alpha:1.0] setFill];
+    NSRectFill(NSMakeRect(0, CFRM_TITBAR - 1, b.size.width, 1));
+
+    /* traffic-light buttons: close, minimize, zoom */
+    int focused = [self clientFocused];
+    NSColor* cols[3];
+    if (focused) {
+        cols[0] = [NSColor colorWithRed:1.00 green:0.37 blue:0.34 alpha:1];
+        cols[1] = [NSColor colorWithRed:1.00 green:0.74 blue:0.18 alpha:1];
+        cols[2] = [NSColor colorWithRed:0.16 green:0.78 blue:0.25 alpha:1];
+    } else {
+        cols[0] = cols[1] = cols[2] = [NSColor colorWithWhite:0.75 alpha:1];
+    }
+    for (int i = 0; i < 3; i++) {
+        NSBezierPath* p = [NSBezierPath bezierPathWithOvalInRect:
+                              [self buttonRect:i]];
+        [cols[i] setFill];
+        [p fill];
+        [[NSColor colorWithWhite:0.55 alpha:1] setStroke];
+        [p setLineWidth:0.5];
+        [p stroke];
+    }
+
+    /* centered title, truncated with an ellipsis if needed */
+    if (title.length) {
+        NSMutableParagraphStyle* ps = [[NSMutableParagraphStyle alloc] init];
+        ps.alignment = NSTextAlignmentCenter;
+        ps.lineBreakMode = NSLineBreakByTruncatingTail;
+        NSDictionary* at = @{
+            NSFontAttributeName: [NSFont systemFontOfSize:12],
+            NSForegroundColorAttributeName:
+                focused ? [NSColor blackColor]
+                        : [NSColor colorWithWhite:0.45 alpha:1],
+            NSParagraphStyleAttributeName: ps
+        };
+        CGFloat lx = NSMaxX([self buttonRect:2]) + CFRM_BTN_GAP;
+        NSRect tr = NSMakeRect(lx, (CFRM_TITBAR - 15) / 2,
+                               b.size.width - 2 * lx, 16);
+        [title drawInRect:tr withAttributes:at];
+    }
+}
+
+/* which resize edges is (p) over? p in local flipped coords */
+- (int)edgeMaskAt:(NSPoint)p
+{
+    if (!frameOn || !sizableOn) return 0;
+    NSRect b = self.bounds;
+    int m = 0;
+    int nearL = p.x < CFRM_BORDER;
+    int nearR = p.x > b.size.width - CFRM_BORDER;
+    int nearT = p.y < CFRM_BORDER;
+    int nearB = p.y > b.size.height - CFRM_BORDER;
+    /* widen edge bands near corners so diagonals are grabbable */
+    if (nearL && p.y < CFRM_CORNER) nearT = 1;
+    if (nearR && p.y < CFRM_CORNER) nearT = 1;
+    if (nearL && p.y > b.size.height - CFRM_CORNER) nearB = 1;
+    if (nearR && p.y > b.size.height - CFRM_CORNER) nearB = 1;
+    if (nearT && p.x < CFRM_CORNER) nearL = 1;
+    if (nearB && p.x < CFRM_CORNER) nearL = 1;
+    if (nearT && p.x > b.size.width - CFRM_CORNER) nearR = 1;
+    if (nearB && p.x > b.size.width - CFRM_CORNER) nearR = 1;
+    if (nearL) m |= CFRM_EDGE_L;
+    if (nearR) m |= CFRM_EDGE_R;
+    if (nearT) m |= CFRM_EDGE_T;
+    if (nearB) m |= CFRM_EDGE_B;
+    return m;
+}
+
+- (void)pushResize
+{
+    pa_rawevent e = {0};
+    e.type     = PA_EVT_RESIZE;
+    e.win      = ownerHan;
+    e.resize.w = (int)client.frame.size.width;
+    e.resize.h = (int)client.frame.size.height;
+    evt_push(&e);
+}
+
+- (void)toggleMinimize
+{
+    if (minimized) {
+        self.frame = restoreMin;
+        client.hidden = NO;
+        minimized = 0;
+    } else {
+        restoreMin = self.frame;
+        /* arrange minimized windows along the parent's bottom edge,
+           taskbar style: take the first free slot from the left */
+        int slot = 0;
+        for (int taken = 1; taken; slot += taken) {
+            taken = 0;
+            for (NSView* v in self.superview.subviews)
+                if (v != self && [v isKindOfClass:[PAChildFrame class]] &&
+                    ((PAChildFrame*)v)->minimized &&
+                    (int)v.frame.origin.x ==
+                        slot * (CFRM_MINWIN_W + CFRM_BORDER))
+                    taken = 1;
+        }
+        NSRect pb = self.superview.bounds;
+        self.frame = NSMakeRect(slot * (CFRM_MINWIN_W + CFRM_BORDER),
+                                pb.size.height - CFRM_TITBAR,
+                                CFRM_MINWIN_W, CFRM_TITBAR);
+        client.hidden = YES;
+        minimized = 1;
+    }
+    [self layoutClient];
+    [self.window invalidateCursorRectsForView:self];
+    [self.superview setNeedsDisplay:YES];
+}
+
+- (void)toggleMaximize
+{
+    if (minimized) [self toggleMinimize];
+    if (maximized) {
+        self.frame = restoreMax;
+        maximized = 0;
+    } else {
+        restoreMax = self.frame;
+        self.frame = self.superview.bounds;
+        maximized = 1;
+    }
+    [self layoutClient];
+    [self.superview setNeedsDisplay:YES];
+    [self pushResize];
+}
+
+- (void)mouseDown:(NSEvent*)e
+{
+    NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
+
+    int m = [self edgeMaskAt:p];
+    if (m && !minimized) {
+        resizing   = m;
+        dragStart  = [self.superview convertPoint:e.locationInWindow
+                                         fromView:nil];
+        frameStart = self.frame;
+        return;
+    }
+
+    if (frameOn && sysbarOn && p.y < CFRM_TITBAR) {
+        [self.window makeFirstResponder:client]; /* clicking chrome focuses */
+        if (NSPointInRect(p, [self buttonRect:0])) {
+            pa_rawevent ev = {0};
+            ev.type = PA_EVT_CLOSE;
+            ev.win  = ownerHan;
+            evt_push(&ev);
+            return;
+        }
+        if (NSPointInRect(p, [self buttonRect:1])) { [self toggleMinimize]; return; }
+        if (NSPointInRect(p, [self buttonRect:2])) { [self toggleMaximize]; return; }
+        dragging   = 1;
+        dragStart  = [self.superview convertPoint:e.locationInWindow
+                                         fromView:nil];
+        frameStart = self.frame;
+    }
+}
+
+- (void)mouseDragged:(NSEvent*)e
+{
+    NSPoint p = [self.superview convertPoint:e.locationInWindow fromView:nil];
+    CGFloat dx = p.x - dragStart.x;
+    CGFloat dy = p.y - dragStart.y;
+
+    if (dragging) {
+        [self setFrameOrigin:NSMakePoint(frameStart.origin.x + dx,
+                                         frameStart.origin.y + dy)];
+        [self.superview setNeedsDisplay:YES];
+    } else if (resizing) {
+        NSRect f = frameStart; /* flipped superview: origin = top-left */
+        if (resizing & CFRM_EDGE_L) { f.origin.x += dx; f.size.width  -= dx; }
+        if (resizing & CFRM_EDGE_R) { f.size.width  += dx; }
+        if (resizing & CFRM_EDGE_T) { f.origin.y += dy; f.size.height -= dy; }
+        if (resizing & CFRM_EDGE_B) { f.size.height += dy; }
+        if (f.size.width  < CFRM_MIN_W) f.size.width  = CFRM_MIN_W;
+        if (f.size.height < CFRM_MIN_H) f.size.height = CFRM_MIN_H;
+        self.frame = f;
+        [self layoutClient];
+        [self setNeedsDisplay:YES];
+        [self.superview setNeedsDisplay:YES];
+    }
+}
+
+- (void)mouseUp:(NSEvent*)e
+{
+    if (resizing) [self pushResize];
+    dragging = 0;
+    resizing = 0;
+}
+
+/* diagonal resize cursor; nwse selects the top-left/bottom-right axis.
+   The frame-resize cursors are macOS 15+; fall back to a crosshair. */
+static NSCursor* diag_cursor(int nwse)
+{
+    if (@available(macOS 15.0, *)) {
+        return [NSCursor frameResizeCursorFromPosition:
+                    (nwse ? NSCursorFrameResizePositionTopLeft
+                          : NSCursorFrameResizePositionTopRight)
+                             inDirections:NSCursorFrameResizeDirectionsAll];
+    }
+    return [NSCursor crosshairCursor];
+}
+
+- (void)resetCursorRects
+{
+    if (!frameOn || !sizableOn || minimized) return;
+    NSRect b = self.bounds;
+    CGFloat w = b.size.width, h = b.size.height;
+
+    /* edges */
+    [self addCursorRect:NSMakeRect(0, 0, CFRM_BORDER, h)
+                 cursor:[NSCursor resizeLeftRightCursor]];
+    [self addCursorRect:NSMakeRect(w - CFRM_BORDER, 0, CFRM_BORDER, h)
+                 cursor:[NSCursor resizeLeftRightCursor]];
+    [self addCursorRect:NSMakeRect(0, h - CFRM_BORDER, w, CFRM_BORDER)
+                 cursor:[NSCursor resizeUpDownCursor]];
+    [self addCursorRect:NSMakeRect(0, 0, w, CFRM_BORDER)
+                 cursor:[NSCursor resizeUpDownCursor]];
+
+    /* corners: L-shaped pairs matching the widened grab bands, added last
+       so they win over the straight edge bands. A full square would cover
+       the title bar buttons with a resize cursor. */
+    [self addCursorRect:NSMakeRect(0, 0, CFRM_BORDER, CFRM_CORNER)
+                 cursor:diag_cursor(1)];
+    [self addCursorRect:NSMakeRect(0, 0, CFRM_CORNER, CFRM_BORDER)
+                 cursor:diag_cursor(1)];
+    [self addCursorRect:NSMakeRect(w - CFRM_BORDER, h - CFRM_CORNER,
+                                   CFRM_BORDER, CFRM_CORNER)
+                 cursor:diag_cursor(1)];
+    [self addCursorRect:NSMakeRect(w - CFRM_CORNER, h - CFRM_BORDER,
+                                   CFRM_CORNER, CFRM_BORDER)
+                 cursor:diag_cursor(1)];
+    [self addCursorRect:NSMakeRect(w - CFRM_BORDER, 0,
+                                   CFRM_BORDER, CFRM_CORNER)
+                 cursor:diag_cursor(0)];
+    [self addCursorRect:NSMakeRect(w - CFRM_CORNER, 0,
+                                   CFRM_CORNER, CFRM_BORDER)
+                 cursor:diag_cursor(0)];
+    [self addCursorRect:NSMakeRect(0, h - CFRM_CORNER,
+                                   CFRM_BORDER, CFRM_CORNER)
+                 cursor:diag_cursor(0)];
+    [self addCursorRect:NSMakeRect(0, h - CFRM_BORDER,
+                                   CFRM_CORNER, CFRM_BORDER)
+                 cursor:diag_cursor(0)];
+}
 
 @end
 
@@ -422,13 +831,17 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 
 @interface PAWindow : NSObject <NSWindowDelegate> {
 @public
-    NSWindow*  window;
-    PAView*    view;
-    int        winid;       /* PA window id */
-    NSTimer*   timers[10];  /* up to 10 per-window timers */
+    NSWindow*      window;  /* nil for child windows (embedded views) */
+    PAView*        view;    /* client area */
+    PAChildFrame*  cframe;  /* chrome container; child windows only */
+    int            winid;   /* PA window id */
+    int            wasZoomed; /* last observed isZoomed state */
+    NSTimer*       timers[10]; /* up to 10 per-window timers */
 }
 - (instancetype)initWithX:(int)x y:(int)y width:(int)w height:(int)h
                     title:(const char*)title;
+- (instancetype)initChildInParent:(PAWindow*)parent
+                                x:(int)x y:(int)y width:(int)w height:(int)h;
 @end
 
 @implementation PAWindow
@@ -463,6 +876,40 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
     return self;
 }
 
+/* A child PA window has no NSWindow: it is a PAView embedded in the
+   parent's content view via a PAChildFrame container that draws the
+   chrome. It is clipped to the parent, moves with it, and z-orders
+   among its sibling views. The parent view is flipped, so (x,y) is the
+   offset from the parent's top-left; (w,h) is the client size. */
+- (instancetype)initChildInParent:(PAWindow*)parent
+                                x:(int)x y:(int)y width:(int)w height:(int)h
+{
+    self = [super init];
+    if (!self) return nil;
+
+    window = nil;
+    view = [[PAView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
+    view->owner = (__bridge pa_winhan)self;
+    [view createBitmapWidth:w height:h];
+
+    cframe = [[PAChildFrame alloc] initWithFrame:
+                 NSMakeRect(x, y,
+                            w + 2 * CFRM_BORDER,
+                            h + CFRM_TITBAR + CFRM_BORDER)];
+    cframe->ownerHan  = (__bridge pa_winhan)self;
+    cframe->client    = view;
+    cframe->title     = @"";
+    cframe->frameOn   = 1;
+    cframe->sysbarOn  = 1;
+    cframe->sizableOn = 1;
+    [cframe addSubview:view];
+    [cframe layoutClient];
+    [parent->view addSubview:cframe];
+
+    memset(timers, 0, sizeof(timers));
+    return self;
+}
+
 /*--- NSWindowDelegate ---*/
 
 - (BOOL)windowShouldClose:(NSWindow*)sender
@@ -490,6 +937,50 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
     evt_push(&e);
 }
 
+/*--- minimize / maximize / restore ---*/
+
+- (void)pushStateEvent:(pa_evttype)t
+{
+    pa_rawevent e = {0};
+    e.type = t;
+    e.win  = (__bridge pa_winhan)self;
+    evt_push(&e);
+}
+
+- (void)windowDidMiniaturize:(NSNotification*)n
+{
+    [self pushStateEvent:PA_EVT_MIN];
+}
+
+- (void)windowDidDeminiaturize:(NSNotification*)n
+{
+    [self pushStateEvent:PA_EVT_NORM];
+}
+
+/* the green button enters fullscreen on modern macOS */
+- (void)windowDidEnterFullScreen:(NSNotification*)n
+{
+    [self pushStateEvent:PA_EVT_MAX];
+}
+
+- (void)windowDidExitFullScreen:(NSNotification*)n
+{
+    [self pushStateEvent:PA_EVT_NORM];
+}
+
+/* zoom (option-green or title bar double-click) has no dedicated
+   notification; watch isZoomed transitions across resizes */
+- (void)windowDidResize:(NSNotification*)n
+{
+    if (window.styleMask & NSWindowStyleMaskFullScreen)
+        return; /* fullscreen is reported by its own notifications */
+    int z = window.isZoomed ? 1 : 0;
+    if (z != wasZoomed) {
+        wasZoomed = z;
+        [self pushStateEvent:z ? PA_EVT_MAX : PA_EVT_NORM];
+    }
+}
+
 /*--- Timer support ---*/
 
 - (void)timerFired:(NSTimer*)t
@@ -503,6 +994,11 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 }
 
 @end
+
+static int pa_win_is_child(pa_winhan h)
+{
+    return ((__bridge PAWindow*)h)->window == nil;
+}
 
 /*----------------------------------------------------------------------------
  * Global NSApplication setup
@@ -612,6 +1108,37 @@ pa_winhan pa_cocoa_create_window(int x, int y, int w, int h,
     return result;
 }
 
+pa_winhan pa_cocoa_create_child_window(pa_winhan parent,
+                                        int x, int y, int w, int h)
+{
+    __block pa_winhan result;
+    run_on_main(^{
+        PAWindow* par = (__bridge PAWindow*)parent;
+        PAWindow* pw = [[PAWindow alloc] initChildInParent:par
+                                                         x:x y:y
+                                                     width:w height:h];
+        result = (__bridge_retained pa_winhan)pw;
+    });
+    return result;
+}
+
+/* Close a window. A child (embedded view) is removed from the parent's
+   view and keyboard focus is handed back to the parent view; a top-level
+   window is closed normally. */
+static void close_and_refocus_parent(PAWindow* pw)
+{
+    if (!pw->window) {
+        NSView* sup = pw->cframe.superview;
+        [pw->cframe removeFromSuperview];
+        if (sup) {
+            [sup.window makeFirstResponder:sup];
+            [sup setNeedsDisplay:YES];
+        }
+        return;
+    }
+    [pw->window close];
+}
+
 void pa_cocoa_destroy_window(pa_winhan win)
 {
     if (threaded_mode) {
@@ -623,7 +1150,7 @@ void pa_cocoa_destroy_window(pa_winhan win)
         if (old) CGImageRelease(old);
         run_on_main(^{
             PAWindow* pw2 = (__bridge PAWindow*)win;
-            [pw2->window close];
+            close_and_refocus_parent(pw2);
         });
         dispatch_async(dispatch_get_main_queue(), ^{
             CFRelease(win);
@@ -634,7 +1161,7 @@ void pa_cocoa_destroy_window(pa_winhan win)
             CGImageRelease(pw->view->displayImage);
             pw->view->displayImage = NULL;
         }
-        [pw->window close];
+        close_and_refocus_parent(pw);
         CFRelease(win);
     }
 }
@@ -643,6 +1170,10 @@ void pa_cocoa_show_window(pa_winhan win)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            pw->cframe.hidden = NO;
+            return;
+        }
         [pw->window makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
     });
@@ -652,6 +1183,10 @@ void pa_cocoa_hide_window(pa_winhan win)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            pw->cframe.hidden = YES;
+            return;
+        }
         [pw->window orderOut:nil];
     });
 }
@@ -660,7 +1195,13 @@ void pa_cocoa_set_title(pa_winhan win, const char* title)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
-        pw->window.title = [NSString stringWithUTF8String:title];
+        NSString* t = [NSString stringWithUTF8String:title ? title : ""];
+        if (!pw->window) {
+            pw->cframe->title = t;
+            [pw->cframe setNeedsDisplay:YES];
+            return;
+        }
+        pw->window.title = t;
     });
 }
 
@@ -668,6 +1209,13 @@ void pa_cocoa_move_window(pa_winhan win, int x, int y)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            /* child: (x,y) is the offset from the parent's top-left; the
+               parent view is flipped so it maps directly */
+            [pw->cframe setFrameOrigin:NSMakePoint(x, y)];
+            [pw->cframe.superview setNeedsDisplay:YES];
+            return;
+        }
         int screeny = pa_cocoa_screen_h() - y - (int)pw->window.frame.size.height;
         [pw->window setFrameOrigin:NSMakePoint(x, screeny)];
     });
@@ -677,6 +1225,10 @@ void pa_cocoa_resize_window(pa_winhan win, int w, int h)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            [pw->cframe setClientSize:NSMakeSize(w, h)];
+            return;
+        }
         NSRect f = pw->window.frame;
         CGFloat oldTop = f.origin.y + f.size.height;
         NSRect content = NSMakeRect(0, 0, w, h);
@@ -686,6 +1238,51 @@ void pa_cocoa_resize_window(pa_winhan win, int w, int h)
         [pw->window setFrame:newFrame display:YES];
         [pw->view createBitmapWidth:w height:h];
     });
+}
+
+/* Extra size (window minus client) a window's chrome would add for the
+   given frame/size/sysbar flags: the AdjustWindowRectEx equivalent. */
+void pa_cocoa_frame_extra(pa_winhan win, int frame, int size, int sysbar,
+                          int* dw, int* dh)
+{
+    __block int rw = 0, rh = 0;
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            /* Ami-drawn child chrome */
+            if (frame) {
+                rw = 2 * CFRM_BORDER;
+                rh = (sysbar ? CFRM_TITBAR : CFRM_BORDER) + CFRM_BORDER;
+            }
+        } else {
+            NSWindowStyleMask m = NSWindowStyleMaskBorderless;
+            if (frame && sysbar)
+                m |= NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+                     NSWindowStyleMaskMiniaturizable;
+            if (frame && size) m |= NSWindowStyleMaskResizable;
+            NSRect c = NSMakeRect(0, 0, 400, 400);
+            NSRect f = [NSWindow frameRectForContentRect:c styleMask:m];
+            rw = (int)(f.size.width  - c.size.width);
+            rh = (int)(f.size.height - c.size.height);
+        }
+    });
+    *dw = rw;
+    *dh = rh;
+}
+
+/* actual on-screen OUTER window size, chrome included (GetWindowRect) */
+void pa_cocoa_get_window_size(pa_winhan win, int* w, int* h)
+{
+    __block int rw, rh;
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSSize s = pw->window ? pw->window.frame.size
+                              : pw->cframe.frame.size;
+        rw = (int)s.width;
+        rh = (int)s.height;
+    });
+    *w = rw;
+    *h = rh;
 }
 
 void pa_cocoa_get_size(pa_winhan win, int* w, int* h)
@@ -705,6 +1302,14 @@ void pa_cocoa_front(pa_winhan win)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            /* child: move the view to the top of its siblings */
+            NSView* sup = pw->cframe.superview;
+            [pw->cframe removeFromSuperview];
+            [sup addSubview:pw->cframe];
+            [sup setNeedsDisplay:YES];
+            return;
+        }
         [pw->window orderFront:nil];
     });
 }
@@ -713,6 +1318,16 @@ void pa_cocoa_back(pa_winhan win)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            /* child: move the view below its siblings */
+            NSView* sup = pw->cframe.superview;
+            [pw->cframe removeFromSuperview];
+            [sup addSubview:pw->cframe
+                 positioned:NSWindowBelow
+                 relativeTo:nil];
+            [sup setNeedsDisplay:YES];
+            return;
+        }
         [pw->window orderBack:nil];
     });
 }
@@ -721,31 +1336,11 @@ void pa_cocoa_focus(pa_winhan win)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
+        if (!pw->window) {
+            [pw->view.window makeFirstResponder:pw->view];
+            return;
+        }
         [pw->window makeKeyAndOrderFront:nil];
-    });
-}
-
-void pa_cocoa_set_parent(pa_winhan child, pa_winhan parent)
-{
-    run_on_main(^{
-        PAWindow* cw = (__bridge PAWindow*)child;
-        PAWindow* pw = (__bridge PAWindow*)parent;
-        [pw->window addChildWindow:cw->window ordered:NSWindowAbove];
-    });
-}
-
-/* Move a child window to (x,y) relative to the parent's content area,
-   PA convention: (0,0) = top-left of parent client, y increasing down. */
-void pa_cocoa_move_window_child(pa_winhan win, pa_winhan parent, int x, int y)
-{
-    run_on_main(^{
-        PAWindow* cw = (__bridge PAWindow*)win;
-        PAWindow* pw = (__bridge PAWindow*)parent;
-        NSRect pc = [pw->window contentRectForFrameRect:pw->window.frame];
-        CGFloat sx = pc.origin.x + x;
-        CGFloat sy = pc.origin.y + pc.size.height - y
-                     - cw->window.frame.size.height;
-        [cw->window setFrameOrigin:NSMakePoint(sx, sy)];
     });
 }
 
@@ -757,25 +1352,51 @@ static void refocus_window(NSWindow* w)
     });
 }
 
+/* Change the window style mask without losing keyboard focus. Changing
+   styleMask rebuilds the window frame hierarchy, which resets the first
+   responder to the window itself and issues a transient key-status resign;
+   suppress the resign across the change and put the content view back as
+   first responder so key events keep reaching it. */
+static void set_style_mask(PAWindow* pw, NSWindowStyleMask m)
+{
+    PAKeyWindow* kw = (PAKeyWindow*)pw->window;
+    kw.suppressResignKey = YES;
+    kw.styleMask = m;
+    [kw makeKeyAndOrderFront:nil];
+    [kw makeFirstResponder:pw->view];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        kw.suppressResignKey = NO;
+        [kw makeKeyAndOrderFront:nil];
+        [kw makeFirstResponder:pw->view];
+    });
+}
+
+/* toggle a chrome flag on a child frame, preserving the client size */
+static void child_chrome(PAChildFrame* cf, int* flag, int on)
+{
+    NSSize client = cf->client.frame.size;
+    *flag = on;
+    [cf setClientSize:client];
+    [cf.window invalidateCursorRectsForView:cf];
+    [cf setNeedsDisplay:YES];
+}
+
 void pa_cocoa_set_frame(pa_winhan win, int on)
 {
     run_on_main(^{
         PAWindow*       pw    = (__bridge PAWindow*)win;
-        PAKeyWindow*    kw    = (PAKeyWindow*)pw->window;
+        if (!pw->window) {
+            child_chrome(pw->cframe, &pw->cframe->frameOn, on);
+            return;
+        }
         NSWindowStyleMask all = NSWindowStyleMaskTitled |
                                 NSWindowStyleMaskClosable |
                                 NSWindowStyleMaskMiniaturizable |
                                 NSWindowStyleMaskResizable;
-        NSWindowStyleMask m   = kw.styleMask;
+        NSWindowStyleMask m   = pw->window.styleMask;
         if (on) m |=  all;
         else    m &= ~all;
-        kw.suppressResignKey = YES;
-        kw.styleMask = m;
-        [kw makeKeyAndOrderFront:nil];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            kw.suppressResignKey = NO;
-            [kw makeKeyAndOrderFront:nil];
-        });
+        set_style_mask(pw, m);
     });
 }
 
@@ -783,20 +1404,17 @@ void pa_cocoa_set_sysbar(pa_winhan win, int on)
 {
     run_on_main(^{
         PAWindow*       pw  = (__bridge PAWindow*)win;
-        PAKeyWindow*    kw  = (PAKeyWindow*)pw->window;
+        if (!pw->window) {
+            child_chrome(pw->cframe, &pw->cframe->sysbarOn, on);
+            return;
+        }
         NSWindowStyleMask bar = NSWindowStyleMaskTitled |
                                 NSWindowStyleMaskClosable |
                                 NSWindowStyleMaskMiniaturizable;
-        NSWindowStyleMask m = kw.styleMask;
+        NSWindowStyleMask m = pw->window.styleMask;
         if (on) m |=  bar;
         else    m &= ~bar;
-        kw.suppressResignKey = YES;
-        kw.styleMask = m;
-        [kw makeKeyAndOrderFront:nil];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            kw.suppressResignKey = NO;
-            [kw makeKeyAndOrderFront:nil];
-        });
+        set_style_mask(pw, m);
     });
 }
 
@@ -804,17 +1422,14 @@ void pa_cocoa_set_sizable(pa_winhan win, int on)
 {
     run_on_main(^{
         PAWindow*       pw  = (__bridge PAWindow*)win;
-        PAKeyWindow*    kw  = (PAKeyWindow*)pw->window;
-        NSWindowStyleMask m = kw.styleMask;
+        if (!pw->window) {
+            child_chrome(pw->cframe, &pw->cframe->sizableOn, on);
+            return;
+        }
+        NSWindowStyleMask m = pw->window.styleMask;
         if (on) m |=  NSWindowStyleMaskResizable;
         else    m &= ~NSWindowStyleMaskResizable;
-        kw.suppressResignKey = YES;
-        kw.styleMask = m;
-        [kw makeKeyAndOrderFront:nil];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            kw.suppressResignKey = NO;
-            [kw makeKeyAndOrderFront:nil];
-        });
+        set_style_mask(pw, m);
     });
 }
 
@@ -939,7 +1554,19 @@ void pa_cocoa_resize_bitmap(pa_winhan win, int w, int h)
 void pa_cocoa_set_bufmod(pa_winhan win, int on)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
+    int was = pw->view->bufmod;
     pw->view->bufmod = on;
+    /* leaving buffered mode makes the application responsible for painting
+       on redraw events; push an initial redraw so it paints the first
+       frame without waiting for a user resize */
+    if (was && !on) {
+        pa_rawevent e = {0};
+        e.type     = PA_EVT_REDRAW;
+        e.win      = win;
+        e.redraw.w = pw->view->bmpW;
+        e.redraw.h = pw->view->bmpH;
+        evt_push(&e);
+    }
 }
 
 void pa_cocoa_set_background(pa_winhan win, float r, float g, float b)

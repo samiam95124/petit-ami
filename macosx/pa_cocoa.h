@@ -37,7 +37,10 @@ typedef enum {
     PA_EVT_JOY_MOVE,    /* joystick axis moved */
     PA_EVT_JOY_DOWN,    /* joystick button pressed */
     PA_EVT_JOY_UP,      /* joystick button released */
-    PA_EVT_MENU         /* menu item selected */
+    PA_EVT_MENU,        /* menu item selected */
+    PA_EVT_MIN,         /* window minimized */
+    PA_EVT_MAX,         /* window maximized/zoomed/fullscreen */
+    PA_EVT_NORM         /* window restored to normal */
 } pa_evttype;
 
 /* Special key codes */
@@ -108,6 +111,10 @@ int pa_cocoa_screen_hmm(void);     /* screen height in mm      */
 
 pa_winhan pa_cocoa_create_window(int x, int y, int w, int h,
                                   const char* title);
+/* Child windows are views embedded in the parent's content area:
+   clipped to the parent, positioned relative to its top-left. */
+pa_winhan pa_cocoa_create_child_window(pa_winhan parent,
+                                        int x, int y, int w, int h);
 void pa_cocoa_destroy_window(pa_winhan win);
 void pa_cocoa_show_window(pa_winhan win);
 void pa_cocoa_hide_window(pa_winhan win);
@@ -115,11 +122,14 @@ void pa_cocoa_set_title(pa_winhan win, const char* title);
 void pa_cocoa_move_window(pa_winhan win, int x, int y);
 void pa_cocoa_resize_window(pa_winhan win, int w, int h);
 void pa_cocoa_get_size(pa_winhan win, int* w, int* h);
+/* actual outer window size, chrome included */
+void pa_cocoa_get_window_size(pa_winhan win, int* w, int* h);
+/* chrome extra (window minus client) for the given frame flags */
+void pa_cocoa_frame_extra(pa_winhan win, int frame, int size, int sysbar,
+                          int* dw, int* dh);
 void pa_cocoa_front(pa_winhan win);
 void pa_cocoa_back(pa_winhan win);
 void pa_cocoa_focus(pa_winhan win);
-void pa_cocoa_set_parent(pa_winhan child, pa_winhan parent);
-void pa_cocoa_move_window_child(pa_winhan win, pa_winhan parent, int x, int y);
 /* window chrome */
 void pa_cocoa_set_frame(pa_winhan win, int on);
 void pa_cocoa_set_sysbar(pa_winhan win, int on);
