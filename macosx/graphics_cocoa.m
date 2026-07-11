@@ -1678,12 +1678,46 @@ void pa_cocoa_kill_timer(pa_winhan win, int id)
  * Widgets
  *----------------------------------------------------------------------------*/
 
-/* Helper: find a subview by tag */
+/* Opaque backing for a widget. Win32 widgets are child windows that fully
+   cover their rectangle; Cocoa controls can be translucent (e.g. a disabled
+   button), letting window content show through. Each control sits in one
+   of these, painted with the window background color. */
+@interface PAWidgetBox : NSView {
+@public
+    float r, g, b;
+}
+@end
+
+@implementation PAWidgetBox
+- (BOOL)isFlipped { return YES; }
+- (void)drawRect:(NSRect)dirtyRect
+{
+    [[NSColor colorWithRed:r green:g blue:b alpha:1.0] setFill];
+    NSRectFill(self.bounds);
+}
+@end
+
+/* wrap a control in an opaque backing box and add it to the window */
+static void add_widget_boxed(PAWindow* pw, NSView* ctl, NSRect rect)
+{
+    PAWidgetBox* box = [[PAWidgetBox alloc] initWithFrame:rect];
+    box->r = pw->view->bgR;
+    box->g = pw->view->bgG;
+    box->b = pw->view->bgB;
+    ctl.frame = NSMakeRect(0, 0, rect.size.width, rect.size.height);
+    [box addSubview:ctl];
+    [pw->view addSubview:box];
+}
+
+/* Helper: find a control by tag (controls live inside PAWidgetBox) */
 static NSView* find_widget(pa_winhan win, int id)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
-    for (NSView* v in pw->view.subviews)
+    for (NSView* v in pw->view.subviews) {
         if (pa_get_tag(v) == id) return v;
+        for (NSView* s in v.subviews)
+            if (pa_get_tag(s) == id) return s;
+    }
     return nil;
 }
 
@@ -1694,12 +1728,15 @@ void pa_cocoa_button(pa_winhan win, int x, int y, int w, int h,
         PAWindow* pw = (__bridge PAWindow*)win;
         NSButton* b  = [[NSButton alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
         b.title      = [NSString stringWithUTF8String:label];
-        b.bezelStyle = NSBezelStyleRounded;
+        /* the standard rounded bezel has a fixed height; oversized buttons
+           need a bezel that stretches to fill the frame */
+        b.bezelStyle = (h > 32) ? NSBezelStyleRegularSquare
+                                : NSBezelStyleRounded;
         b.buttonType = NSButtonTypeMomentaryPushIn;
         b.tag        = id;
         b.target     = pw;
-        b.action     = @selector(widgetAction:);
-        [pw->view addSubview:b];
+        b.action     = @selector(buttonAction:);
+        add_widget_boxed(pw, b, NSMakeRect(x-1, y-1, w, h));
     });
 }
 
@@ -1713,8 +1750,8 @@ void pa_cocoa_checkbox(pa_winhan win, int x, int y, int w, int h,
         b.buttonType = NSButtonTypeSwitch;
         b.tag        = id;
         b.target     = pw;
-        b.action     = @selector(widgetAction:);
-        [pw->view addSubview:b];
+        b.action     = @selector(checkboxAction:);
+        add_widget_boxed(pw, b, NSMakeRect(x-1, y-1, w, h));
     });
 }
 
@@ -1728,8 +1765,54 @@ void pa_cocoa_radiobutton(pa_winhan win, int x, int y, int w, int h,
         b.buttonType = NSButtonTypeRadio;
         b.tag        = id;
         b.target     = pw;
-        b.action     = @selector(widgetAction:);
-        [pw->view addSubview:b];
+        b.action     = @selector(radioAction:);
+        add_widget_boxed(pw, b, NSMakeRect(x-1, y-1, w, h));
+    });
+}
+
+/* size of a group box title as NSBox will render it (11pt system font) */
+void pa_cocoa_group_title_size(const char* s, int* w, int* h)
+{
+    __block int rw, rh;
+    run_on_main(^{
+        NSString* str = [NSString stringWithUTF8String:s ? s : ""];
+        NSDictionary* at = @{ NSFontAttributeName:
+                                  [NSFont systemFontOfSize:11] };
+        NSSize sz = [str sizeWithAttributes:at];
+        rw = (int)(sz.width + 0.5);
+        rh = (int)(sz.height + 0.5);
+    });
+    *w = rw;
+    *h = rh;
+}
+
+void pa_cocoa_group(pa_winhan win, int x, int y, int w, int h,
+                    const char* label, int id)
+{
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        NSBox* box = [[NSBox alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        box.title = [NSString stringWithUTF8String:label ? label : ""];
+        box.titlePosition = (label && label[0]) ? NSAtTop : NSNoTitle;
+        box.titleFont = [NSFont systemFontOfSize:11];
+        pa_set_tag(box, id);
+        /* a group box is an outline only — no opaque backing, so widgets
+           and window content inside it stay visible (Win32 semantics) */
+        [pw->view addSubview:box];
+    });
+}
+
+void pa_cocoa_background(pa_winhan win, int x, int y, int w, int h, int id)
+{
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        PAWidgetBox* bg =
+            [[PAWidgetBox alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        bg->r = pw->view->bgR;
+        bg->g = pw->view->bgG;
+        bg->b = pw->view->bgB;
+        pa_set_tag(bg, id);
+        [pw->view addSubview:bg];
     });
 }
 
@@ -1738,26 +1821,456 @@ void pa_cocoa_editbox(pa_winhan win, int x, int y, int w, int h, int id)
     run_on_main(^{
         PAWindow*    pw = (__bridge PAWindow*)win;
         NSTextField* tf = [[NSTextField alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-        tf.tag = id;
-        [pw->view addSubview:tf];
+        tf.tag    = id;
+        tf.target = pw;
+        tf.action = @selector(editAction:);
+        add_widget_boxed(pw, tf, NSMakeRect(x-1, y-1, w, h));
+    });
+}
+
+/* PAScroller — Ami-drawn scrollbar. NSScroller draws only at the fixed
+   system girth and refuses scaled coordinate systems, but PA scrollbars
+   can be any size ("fat and skinny bars"), so we draw our own: a rounded
+   track with a draggable knob, in the style of the legacy macOS scroller.
+   Knob drags report positions; trough clicks report page up/down. */
+
+@interface PAWindow (Actions)
+- (void)pushWidget:(int)act wid:(int)wid pos:(int)pos;
+@end
+
+@interface PAScroller : NSView {
+@public
+    __weak PAWindow* owner;
+    int    wid;        /* PA widget id */
+    int    vertical;
+    double value;      /* 0..1 */
+    double knobProp;   /* knob proportion 0..1 */
+    int    dragging;
+    double dragOff;    /* grab offset from knob start, in pixels */
+}
+@end
+
+@implementation PAScroller
+
+- (BOOL)isFlipped { return YES; }
+
+- (NSRect)knobRect
+{
+    NSRect b = self.bounds;
+    if (vertical) {
+        CGFloat kh = b.size.height * knobProp;
+        if (kh < 20) kh = 20;
+        if (kh > b.size.height) kh = b.size.height;
+        return NSMakeRect(2, value * (b.size.height - kh),
+                          b.size.width - 4, kh);
+    } else {
+        CGFloat kw = b.size.width * knobProp;
+        if (kw < 20) kw = 20;
+        if (kw > b.size.width) kw = b.size.width;
+        return NSMakeRect(value * (b.size.width - kw), 2,
+                          kw, b.size.height - 4);
+    }
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    NSRect b = self.bounds;
+    /* track */
+    [[NSColor colorWithWhite:0.96 alpha:1.0] setFill];
+    NSRectFill(b);
+    [[NSColor colorWithWhite:0.85 alpha:1.0] setStroke];
+    NSBezierPath* edge = [NSBezierPath bezierPathWithRect:
+                             NSInsetRect(b, 0.5, 0.5)];
+    [edge setLineWidth:1.0];
+    [edge stroke];
+    /* knob */
+    NSRect k = [self knobRect];
+    CGFloat r = (vertical ? k.size.width : k.size.height) / 2;
+    if (r > 8) r = 8;
+    NSBezierPath* knob = [NSBezierPath bezierPathWithRoundedRect:k
+                                                         xRadius:r
+                                                         yRadius:r];
+    [[NSColor colorWithWhite:0.55 alpha:1.0] setFill];
+    [knob fill];
+}
+
+- (void)pushPos
+{
+    [owner pushWidget:PA_WIDGET_SCROLL_POS wid:wid
+                  pos:(int)(value * INT_MAX)];
+}
+
+- (void)mouseDown:(NSEvent*)e
+{
+    NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
+    NSRect  k = [self knobRect];
+    if (NSPointInRect(p, k)) {
+        dragging = 1;
+        dragOff  = vertical ? p.y - k.origin.y : p.x - k.origin.x;
+        return;
+    }
+    /* trough click: page toward the click */
+    int before = vertical ? (p.y < k.origin.y) : (p.x < k.origin.x);
+    [owner pushWidget:(before ? PA_WIDGET_SCROLL_PAGEUP
+                              : PA_WIDGET_SCROLL_PAGEDN)
+                  wid:wid pos:0];
+}
+
+- (void)mouseDragged:(NSEvent*)e
+{
+    if (!dragging) return;
+    NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
+    NSRect  b = self.bounds;
+    NSRect  k = [self knobRect];
+    double range = vertical ? b.size.height - k.size.height
+                            : b.size.width  - k.size.width;
+    if (range <= 0) return;
+    double v = ((vertical ? p.y : p.x) - dragOff) / range;
+    if (v < 0) v = 0;
+    if (v > 1) v = 1;
+    value = v;
+    [self setNeedsDisplay:YES];
+    [self pushPos];
+}
+
+- (void)mouseUp:(NSEvent*)e
+{
+    dragging = 0;
+}
+
+@end
+
+static void make_scroller(PAWindow* pw, int vertical, NSRect rect, int id)
+{
+    PAScroller* s = [[PAScroller alloc] initWithFrame:rect];
+    s->owner    = pw;
+    s->wid      = id;
+    s->vertical = vertical;
+    s->value    = 0.0;
+    s->knobProp = 0.1;
+    pa_set_tag(s, id);
+    add_widget_boxed(pw, s, rect);
+}
+
+/* PANumSel — number select box: an edit field paired with a stepper,
+   the macOS equivalent of the Win32 up-down control. */
+@interface PANumSel : NSView {
+@public
+    __weak PAWindow* owner;
+    int          wid;
+    NSTextField* field;
+    NSStepper*   stepper;
+}
+@end
+
+@implementation PANumSel
+
+- (BOOL)isFlipped { return YES; }
+
+- (void)pushValue:(int)v
+{
+    [owner pushWidget:PA_WIDGET_NUM_DONE wid:wid pos:v];
+}
+
+- (void)stepperAct:(id)sender
+{
+    /* the arrows only adjust the displayed number; the selection event
+       fires when the user commits with return in the field */
+    field.intValue = stepper.intValue;
+}
+
+- (void)fieldAct:(id)sender
+{
+    int v = field.intValue;
+    if (v < stepper.minValue) v = (int)stepper.minValue;
+    if (v > stepper.maxValue) v = (int)stepper.maxValue;
+    field.intValue   = v;
+    stepper.intValue = v;
+    [self pushValue:v];
+}
+
+@end
+
+void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
+                        int l, int u, int id)
+{
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        PANumSel* ns = [[PANumSel alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
+        ns->owner = pw;
+        ns->wid   = id;
+
+        CGFloat stepw = 19;
+        ns->field = [[NSTextField alloc]
+                        initWithFrame:NSMakeRect(0, 0, w - stepw - 2, h)];
+        ns->field.intValue = l;
+        ns->field.target   = ns;
+        ns->field.action   = @selector(fieldAct:);
+        [ns addSubview:ns->field];
+
+        ns->stepper = [[NSStepper alloc]
+                          initWithFrame:NSMakeRect(w - stepw, (h - 27) / 2,
+                                                   stepw, 27)];
+        ns->stepper.minValue  = l;
+        ns->stepper.maxValue  = u;
+        ns->stepper.intValue  = l;
+        ns->stepper.increment = 1;
+        ns->stepper.valueWraps = NO; /* stall at the ends, don't wrap */
+        ns->stepper.target    = ns;
+        ns->stepper.action    = @selector(stepperAct:);
+        [ns addSubview:ns->stepper];
+
+        pa_set_tag(ns, id);
+        add_widget_boxed(pw, ns, NSMakeRect(x-1, y-1, w, h));
+    });
+}
+
+/* PAListBox — list box as a single-column table in a scroll view */
+@interface PAListBox : NSScrollView <NSTableViewDataSource, NSTableViewDelegate> {
+@public
+    __weak PAWindow*    owner;
+    int                 wid;
+    NSArray<NSString*>* items;
+    NSTableView*        table;
+}
+@end
+
+@implementation PAListBox
+
+- (NSInteger)numberOfRowsInTableView:(NSTableView*)tv
+{
+    return items.count;
+}
+
+- (NSView*)tableView:(NSTableView*)tv
+  viewForTableColumn:(NSTableColumn*)col
+                 row:(NSInteger)row
+{
+    NSTextField* tf = [tv makeViewWithIdentifier:@"cell" owner:self];
+    if (!tf) {
+        tf = [[NSTextField alloc] init];
+        tf.identifier      = @"cell";
+        tf.bordered        = NO;
+        tf.editable        = NO;
+        tf.drawsBackground = NO;
+    }
+    tf.stringValue = items[row];
+    return tf;
+}
+
+- (void)tableViewSelectionDidChange:(NSNotification*)n
+{
+    NSInteger r = table.selectedRow;
+    if (r >= 0)
+        [owner pushWidget:PA_WIDGET_LIST_SEL wid:wid pos:(int)r + 1];
+}
+
+@end
+
+void pa_cocoa_listbox(pa_winhan win, int x, int y, int w, int h,
+                      const char** strs, int count, int id)
+{
+    /* copy the strings before crossing to the main thread */
+    NSMutableArray<NSString*>* arr = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++)
+        [arr addObject:[NSString stringWithUTF8String:strs[i] ? strs[i] : ""]];
+
+    run_on_main(^{
+        PAWindow*  pw = (__bridge PAWindow*)win;
+        PAListBox* lb = [[PAListBox alloc]
+                            initWithFrame:NSMakeRect(0, 0, w, h)];
+        lb->owner = pw;
+        lb->wid   = id;
+        lb->items = arr;
+
+        NSTableView* t = [[NSTableView alloc]
+                             initWithFrame:NSMakeRect(0, 0, w, h)];
+        NSTableColumn* c = [[NSTableColumn alloc] initWithIdentifier:@"c"];
+        c.width = w;
+        [t addTableColumn:c];
+        t.headerView = nil;
+        /* fixed row metrics so ami_listboxsiz's 18px-per-entry holds;
+           plain style avoids the macOS 11 automatic inset padding */
+        if (@available(macOS 11.0, *)) t.style = NSTableViewStylePlain;
+        t.rowHeight        = 15;
+        t.intercellSpacing = NSMakeSize(3, 3);
+        t.dataSource = lb;
+        t.delegate   = lb;
+        lb->table    = t;
+
+        lb.documentView          = t;
+        lb.hasVerticalScroller   = YES;
+        lb.autohidesScrollers    = YES; /* only appears if entries overflow */
+        lb.borderType            = NSBezelBorder;
+
+        pa_set_tag(lb, id);
+        add_widget_boxed(pw, lb, NSMakeRect(x-1, y-1, w, h));
+        [t reloadData];
+    });
+}
+
+void pa_cocoa_dropbox(pa_winhan win, int x, int y, int w, int h,
+                      const char** strs, int count, int id)
+{
+    NSMutableArray<NSString*>* arr = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++)
+        [arr addObject:[NSString stringWithUTF8String:strs[i] ? strs[i] : ""]];
+
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        /* the PA rect reserves room for the dropped-down list; the control
+           itself occupies only the closed height at the top */
+        int ch = h < 25 ? h : 25;
+        NSPopUpButton* b = [[NSPopUpButton alloc]
+                               initWithFrame:NSMakeRect(0, 0, w, ch)
+                                   pullsDown:NO];
+        for (NSString* t in arr) [b addItemWithTitle:t];
+        b.tag    = id;
+        b.target = pw;
+        b.action = @selector(dropboxAction:);
+        add_widget_boxed(pw, b, NSMakeRect(x-1, y-1, w, ch));
+    });
+}
+
+void pa_cocoa_dropeditbox(pa_winhan win, int x, int y, int w, int h,
+                          const char** strs, int count, int id)
+{
+    NSMutableArray<NSString*>* arr = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++)
+        [arr addObject:[NSString stringWithUTF8String:strs[i] ? strs[i] : ""]];
+
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        /* as with the drop box, only the closed height is the control */
+        int ch = h < 24 ? h : 24;
+        NSComboBox* b = [[NSComboBox alloc]
+                            initWithFrame:NSMakeRect(0, 0, w, ch)];
+        [b addItemsWithObjectValues:arr];
+        b.completes = YES;
+        b.tag    = id;
+        b.target = pw;
+        b.action = @selector(dropeditAction:);
+        add_widget_boxed(pw, b, NSMakeRect(x-1, y-1, w, ch));
+    });
+}
+
+/* PATabBar — a tabbed panel: segment bar on the oriented edge plus an
+   opaque, outlined client area filling the rest of the PA rect, matching
+   the Win32 tab control's appearance. */
+@interface PATabBar : NSView {
+@public
+    int   ori;   /* 0 top, 1 right, 2 bottom, 3 left */
+    int   barH;
+    float r, g, b; /* client background */
+}
+@end
+
+@implementation PATabBar
+
+- (BOOL)isFlipped { return YES; }
+
+- (NSRect)clientRect
+{
+    NSRect bo = self.bounds;
+    switch (ori) {
+    case 0:  return NSMakeRect(0, barH, bo.size.width, bo.size.height - barH);
+    case 2:  return NSMakeRect(0, 0, bo.size.width, bo.size.height - barH);
+    case 3:  return NSMakeRect(barH, 0, bo.size.width - barH, bo.size.height);
+    default: return NSMakeRect(0, 0, bo.size.width - barH, bo.size.height);
+    }
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    /* the whole panel is opaque, bar strip included, like a Win32 tab
+       control; the client area gets an outline */
+    [[NSColor colorWithRed:r green:g blue:b alpha:1.0] setFill];
+    NSRectFill(self.bounds);
+    [[NSColor colorWithWhite:0.65 alpha:1.0] setStroke];
+    NSBezierPath* edge = [NSBezierPath bezierPathWithRect:
+                             NSInsetRect([self clientRect], 0.5, 0.5)];
+    [edge setLineWidth:1.0];
+    [edge stroke];
+}
+
+@end
+
+void pa_cocoa_tabbar(pa_winhan win, int x, int y, int w, int h,
+                     const char** strs, int count, int ori, int barh,
+                     int id)
+{
+    NSMutableArray<NSString*>* arr = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++)
+        [arr addObject:[NSString stringWithUTF8String:strs[i] ? strs[i] : ""]];
+
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        /* the PA rect is the whole tabbed panel: bar strip of the given
+           thickness on the oriented edge, framed client area filling the
+           remainder */
+        const int ctlH = 24; /* natural segmented control height */
+        int vertical = (ori == 1 || ori == 3); /* right/left */
+
+        PATabBar* tb = [[PATabBar alloc]
+                           initWithFrame:NSMakeRect(x-1, y-1, w, h)];
+        tb->ori  = ori;
+        tb->barH = barh;
+        tb->r = pw->view->bgR;
+        tb->g = pw->view->bgG;
+        tb->b = pw->view->bgB;
+
+        NSSegmentedControl* sc = [[NSSegmentedControl alloc]
+                                     initWithFrame:NSMakeRect(0, 0,
+                                        vertical ? h : w, ctlH)];
+        sc.segmentCount = arr.count;
+        for (NSInteger i = 0; i < (NSInteger)arr.count; i++)
+            [sc setLabel:arr[i] forSegment:i];
+        sc.selectedSegment = 0;
+        sc.tag    = id;
+        sc.target = pw;
+        sc.action = @selector(tabbarAction:);
+
+        /* the control sits in the strip against the client edge */
+        if (vertical) {
+            /* a segmented control is horizontal-only: place it in the side
+               strip and rotate it upright; hit testing follows */
+            CGFloat sx = (ori == 3) ? barh - ctlH : w - barh;
+            sc.frame = NSMakeRect(sx + (ctlH - h) / 2.0,
+                                  (h - ctlH) / 2.0, h, ctlH);
+            sc.frameCenterRotation = 90; /* first item at top on both sides */
+        } else {
+            CGFloat sy = (ori == 0) ? barh - ctlH : h - barh;
+            sc.frame = NSMakeRect(0, sy, w, ctlH);
+        }
+        [tb addSubview:sc];
+        pa_set_tag(tb, id);
+        [pw->view addSubview:tb];
+    });
+}
+
+void pa_cocoa_tabbar_sel(pa_winhan win, int id, int tn)
+{
+    run_on_main(^{
+        NSView* v = find_widget(win, id);
+        if (v && [v isKindOfClass:[NSSegmentedControl class]])
+            [(NSSegmentedControl*)v setSelectedSegment:tn - 1];
     });
 }
 
 void pa_cocoa_scrollvert(pa_winhan win, int x, int y, int w, int h, int id)
 {
     run_on_main(^{
-        PAWindow*  pw = (__bridge PAWindow*)win;
-        NSScroller* s = [[NSScroller alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
-        s.tag = id;
-        s.target  = pw;
-        s.action  = @selector(scrollAction:);
-        [pw->view addSubview:s];
+        PAWindow* pw = (__bridge PAWindow*)win;
+        make_scroller(pw, 1, NSMakeRect(x-1, y-1, w, h), id);
     });
 }
 
 void pa_cocoa_scrollhoriz(pa_winhan win, int x, int y, int w, int h, int id)
 {
-    pa_cocoa_scrollvert(win, x, y, w, h, id);
+    run_on_main(^{
+        PAWindow* pw = (__bridge PAWindow*)win;
+        make_scroller(pw, 0, NSMakeRect(x-1, y-1, w, h), id);
+    });
 }
 
 void pa_cocoa_slider_horiz(pa_winhan win, int x, int y, int w, int h,
@@ -1768,11 +2281,14 @@ void pa_cocoa_slider_horiz(pa_winhan win, int x, int y, int w, int h,
         NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
         s.minValue   = 0;
         s.maxValue   = INT_MAX;
-        s.intValue   = mark;
+        s.doubleValue = 0;
+        /* mark is the tick frequency on the Windows 0..100 trackbar scale;
+           0 disables tick marks */
+        s.numberOfTickMarks = (mark > 0) ? 100 / mark + 1 : 0;
         s.tag        = id;
         s.target     = pw;
         s.action     = @selector(sliderAction:);
-        [pw->view addSubview:s];
+        add_widget_boxed(pw, s, NSMakeRect(x-1, y-1, w, h));
     });
 }
 
@@ -1785,11 +2301,12 @@ void pa_cocoa_slider_vert(pa_winhan win, int x, int y, int w, int h,
         s.vertical   = YES;
         s.minValue   = 0;
         s.maxValue   = INT_MAX;
-        s.intValue   = mark;
+        s.doubleValue = 0;
+        s.numberOfTickMarks = (mark > 0) ? 100 / mark + 1 : 0;
         s.tag        = id;
         s.target     = pw;
         s.action     = @selector(sliderAction:);
-        [pw->view addSubview:s];
+        add_widget_boxed(pw, s, NSMakeRect(x-1, y-1, w, h));
     });
 }
 
@@ -1804,7 +2321,7 @@ void pa_cocoa_progressbar(pa_winhan win, int x, int y, int w, int h, int id)
         p.minValue       = 0;
         p.maxValue       = INT_MAX;
         pa_set_tag(p, id);
-        [pw->view addSubview:p];
+        add_widget_boxed(pw, p, NSMakeRect(x-1, y-1, w, h));
     });
 }
 
@@ -1812,7 +2329,10 @@ void pa_cocoa_kill_widget(pa_winhan win, int id)
 {
     run_on_main(^{
         NSView* v = find_widget(win, id);
-        if (v) [v removeFromSuperview];
+        if (!v) return;
+        /* remove the opaque backing box along with the control */
+        if ([v.superview isKindOfClass:[PAWidgetBox class]]) v = v.superview;
+        [v removeFromSuperview];
     });
 }
 
@@ -1862,8 +2382,10 @@ void pa_cocoa_scrollbar_pos(pa_winhan win, int id, int pos)
 {
     run_on_main(^{
         NSView* v = find_widget(win, id);
-        if (v && [v isKindOfClass:[NSScroller class]])
-            [(NSScroller*)v setFloatValue:(float)pos / INT_MAX];
+        if (v && [v isKindOfClass:[PAScroller class]]) {
+            ((PAScroller*)v)->value = (double)pos / INT_MAX;
+            [v setNeedsDisplay:YES];
+        }
     });
 }
 
@@ -1871,8 +2393,10 @@ void pa_cocoa_scrollbar_siz(pa_winhan win, int id, int range)
 {
     run_on_main(^{
         NSView* v = find_widget(win, id);
-        if (v && [v isKindOfClass:[NSScroller class]])
-            [(NSScroller*)v setKnobProportion:(float)range / INT_MAX];
+        if (v && [v isKindOfClass:[PAScroller class]]) {
+            ((PAScroller*)v)->knobProp = (double)range / INT_MAX;
+            [v setNeedsDisplay:YES];
+        }
     });
 }
 
@@ -1891,25 +2415,79 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
 
 @implementation PAWindow (Actions)
 
-- (void)widgetAction:(id)sender
+- (void)pushWidget:(int)act wid:(int)wid pos:(int)pos
 {
-    NSControl*  ctrl = (NSControl*)sender;
-    pa_rawevent e    = {0};
-    e.win            = (__bridge pa_winhan)self;
-
-    e.type   = PA_EVT_CHAR; /* TODO: map to proper PA widget events */
-    e.key.ch = (uint32_t)ctrl.tag; /* carry widget id */
+    pa_rawevent e = {0};
+    e.type       = PA_EVT_WIDGET;
+    e.win        = (__bridge pa_winhan)self;
+    e.widget.id  = wid;
+    e.widget.act = act;
+    e.widget.pos = pos;
     evt_push(&e);
+}
+
+- (void)buttonAction:(id)sender
+{
+    [self pushWidget:PA_WIDGET_BUTTON wid:(int)[(NSControl*)sender tag] pos:0];
+}
+
+- (void)checkboxAction:(id)sender
+{
+    [self pushWidget:PA_WIDGET_CHECKBOX wid:(int)[(NSControl*)sender tag] pos:0];
+}
+
+- (void)radioAction:(id)sender
+{
+    [self pushWidget:PA_WIDGET_RADIO wid:(int)[(NSControl*)sender tag] pos:0];
+}
+
+- (void)editAction:(id)sender
+{
+    [self pushWidget:PA_WIDGET_EDIT_DONE wid:(int)[(NSControl*)sender tag] pos:0];
 }
 
 - (void)scrollAction:(id)sender
 {
-    /* TODO: translate scroller position to PA scroll events */
+    NSScroller* sc = (NSScroller*)sender;
+    int wid = (int)sc.tag;
+    switch (sc.hitPart) {
+    case NSScrollerDecrementPage:
+        [self pushWidget:PA_WIDGET_SCROLL_PAGEUP wid:wid pos:0];
+        break;
+    case NSScrollerIncrementPage:
+        [self pushWidget:PA_WIDGET_SCROLL_PAGEDN wid:wid pos:0];
+        break;
+    default: /* knob / knob slot: report the new position */
+        [self pushWidget:PA_WIDGET_SCROLL_POS wid:wid
+                     pos:(int)(sc.floatValue * INT_MAX)];
+        break;
+    }
 }
 
 - (void)sliderAction:(id)sender
 {
-    /* TODO: translate slider position to PA slider events */
+    NSSlider* sl = (NSSlider*)sender;
+    [self pushWidget:PA_WIDGET_SLIDER_POS wid:(int)sl.tag pos:sl.intValue];
+}
+
+- (void)dropboxAction:(id)sender
+{
+    NSPopUpButton* b = (NSPopUpButton*)sender;
+    [self pushWidget:PA_WIDGET_DROP_SEL wid:(int)b.tag
+                 pos:(int)b.indexOfSelectedItem + 1];
+}
+
+- (void)dropeditAction:(id)sender
+{
+    [self pushWidget:PA_WIDGET_DROPED_DONE wid:(int)[(NSControl*)sender tag]
+                 pos:0];
+}
+
+- (void)tabbarAction:(id)sender
+{
+    NSSegmentedControl* sc = (NSSegmentedControl*)sender;
+    [self pushWidget:PA_WIDGET_TAB_SEL wid:(int)sc.tag
+                 pos:(int)sc.selectedSegment + 1];
 }
 
 @end
@@ -2065,9 +2643,315 @@ void pa_cocoa_alert(const char* title, const char* message)
         NSAlert* a    = [[NSAlert alloc] init];
         a.messageText = [NSString stringWithUTF8String:title   ? title   : ""];
         a.informativeText = [NSString stringWithUTF8String:message ? message : ""];
+        /* unbundled programs have no app icon, which renders as a generic
+           folder; use the standard caution badge instead */
+        a.icon = [NSImage imageNamed:NSImageNameCaution];
         [a addButtonWithTitle:@"OK"];
         [a runModal];
     });
+}
+
+/*--- modal query panels ---*/
+
+/* ends a modal session from OK/Cancel buttons */
+@interface PAModalEnd : NSObject
+@end
+
+@implementation PAModalEnd
+- (void)ok:(id)s     { [NSApp stopModalWithCode:NSModalResponseOK]; }
+- (void)cancel:(id)s { [NSApp stopModalWithCode:NSModalResponseCancel]; }
+@end
+
+static PAModalEnd* modal_end(void)
+{
+    static PAModalEnd* me = nil;
+    if (!me) me = [[PAModalEnd alloc] init];
+    return me;
+}
+
+/* create an empty titled modal panel of the given content size */
+static NSWindow* modal_panel(NSString* title, int w, int h)
+{
+    NSWindow* p = [[NSWindow alloc]
+                      initWithContentRect:NSMakeRect(0, 0, w, h)
+                                styleMask:NSWindowStyleMaskTitled
+                                  backing:NSBackingStoreBuffered
+                                    defer:NO];
+    p.releasedWhenClosed = NO;
+    p.title = title;
+    [p center];
+    return p;
+}
+
+/* add OK and Cancel buttons along the bottom of a panel */
+static void modal_buttons(NSWindow* p)
+{
+    NSRect  b  = [p.contentView bounds];
+    NSButton* ok = [[NSButton alloc]
+                       initWithFrame:NSMakeRect(b.size.width - 90, 10, 80, 28)];
+    ok.title = @"OK";
+    ok.bezelStyle = NSBezelStyleRounded;
+    ok.keyEquivalent = @"\r";
+    ok.target = modal_end();
+    ok.action = @selector(ok:);
+    [p.contentView addSubview:ok];
+
+    NSButton* ca = [[NSButton alloc]
+                       initWithFrame:NSMakeRect(b.size.width - 180, 10, 80, 28)];
+    ca.title = @"Cancel";
+    ca.bezelStyle = NSBezelStyleRounded;
+    ca.keyEquivalent = @"\033";
+    ca.target = modal_end();
+    ca.action = @selector(cancel:);
+    [p.contentView addSubview:ca];
+}
+
+static NSTextField* modal_label(NSWindow* p, NSString* text, NSRect r)
+{
+    NSTextField* l = [[NSTextField alloc] initWithFrame:r];
+    l.stringValue     = text;
+    l.bordered        = NO;
+    l.editable        = NO;
+    l.drawsBackground = NO;
+    [p.contentView addSubview:l];
+    return l;
+}
+
+static NSButton* modal_check(NSWindow* p, NSString* text, NSRect r, int on)
+{
+    NSButton* c = [[NSButton alloc] initWithFrame:r];
+    c.buttonType = NSButtonTypeSwitch;
+    c.title      = text;
+    c.state      = on ? NSControlStateValueOn : NSControlStateValueOff;
+    [p.contentView addSubview:c];
+    return c;
+}
+
+void pa_cocoa_query_color(int* r, int* g, int* b)
+{
+    __block int rr = *r, rg = *g, rb = *b;
+    run_on_main(^{
+        NSWindow* p = modal_panel(@"Select Color", 260, 130);
+        NSColorWell* well = [[NSColorWell alloc]
+                                initWithFrame:NSMakeRect(80, 55, 100, 60)];
+        well.color = [NSColor colorWithRed:(CGFloat)rr / INT_MAX
+                                     green:(CGFloat)rg / INT_MAX
+                                      blue:(CGFloat)rb / INT_MAX
+                                     alpha:1.0];
+        [p.contentView addSubview:well];
+        modal_buttons(p);
+        /* the well/color-panel link is unreliable inside a modal session;
+           track the shared color panel directly and mirror it in the well */
+        NSColorPanel* cp = NSColorPanel.sharedColorPanel;
+        id obs = [[NSNotificationCenter defaultCenter]
+                     addObserverForName:NSColorPanelColorDidChangeNotification
+                                 object:cp
+                                  queue:nil
+                             usingBlock:^(NSNotification* n) {
+                                 well.color = cp.color;
+                             }];
+        NSModalResponse rc = [NSApp runModalForWindow:p];
+        [[NSNotificationCenter defaultCenter] removeObserver:obs];
+        [cp orderOut:nil];
+        [p orderOut:nil];
+        if (rc == NSModalResponseOK) {
+            NSColor* c = [well.color
+                colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
+            rr = (int)(c.redComponent   * INT_MAX);
+            rg = (int)(c.greenComponent * INT_MAX);
+            rb = (int)(c.blueComponent  * INT_MAX);
+        }
+    });
+    *r = rr;
+    *g = rg;
+    *b = rb;
+}
+
+void pa_cocoa_query_find(char* s, int sl, int* opt)
+{
+    __block int ropt = *opt;
+    __block NSString* rstr = nil;
+    NSString* init = [NSString stringWithUTF8String:s ? s : ""];
+    run_on_main(^{
+        NSWindow* p = modal_panel(@"Find", 340, 165);
+        modal_label(p, @"Find:", NSMakeRect(15, 130, 60, 20));
+        NSTextField* tf = [[NSTextField alloc]
+                              initWithFrame:NSMakeRect(75, 127, 250, 24)];
+        tf.stringValue = init;
+        [p.contentView addSubview:tf];
+        NSButton* ccase = modal_check(p, @"Case sensitive",
+                                      NSMakeRect(15, 100, 200, 20),
+                                      ropt & PA_QF_CASE);
+        NSButton* cup   = modal_check(p, @"Search up",
+                                      NSMakeRect(15, 78, 200, 20),
+                                      ropt & PA_QF_UP);
+        NSButton* cre   = modal_check(p, @"Regular expression",
+                                      NSMakeRect(15, 56, 200, 20),
+                                      ropt & PA_QF_RE);
+        modal_buttons(p);
+        [p makeFirstResponder:tf];
+        NSModalResponse rc = [NSApp runModalForWindow:p];
+        [p orderOut:nil];
+        if (rc == NSModalResponseOK) {
+            rstr = tf.stringValue;
+            ropt = 0;
+            if (ccase.state == NSControlStateValueOn) ropt |= PA_QF_CASE;
+            if (cup.state   == NSControlStateValueOn) ropt |= PA_QF_UP;
+            if (cre.state   == NSControlStateValueOn) ropt |= PA_QF_RE;
+        } else
+            rstr = @"";
+    });
+    if (sl > 0) {
+        strncpy(s, rstr.UTF8String, sl - 1);
+        s[sl - 1] = 0;
+    }
+    *opt = ropt;
+}
+
+void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, int* opt)
+{
+    __block int ropt = *opt;
+    __block NSString* fstr = nil;
+    __block NSString* rstr = nil;
+    NSString* finit = [NSString stringWithUTF8String:s ? s : ""];
+    NSString* rinit = [NSString stringWithUTF8String:r ? r : ""];
+    run_on_main(^{
+        NSWindow* p = modal_panel(@"Find and Replace", 360, 235);
+        modal_label(p, @"Find:", NSMakeRect(15, 200, 70, 20));
+        NSTextField* ff = [[NSTextField alloc]
+                              initWithFrame:NSMakeRect(90, 197, 250, 24)];
+        ff.stringValue = finit;
+        [p.contentView addSubview:ff];
+        modal_label(p, @"Replace:", NSMakeRect(15, 172, 70, 20));
+        NSTextField* rf = [[NSTextField alloc]
+                              initWithFrame:NSMakeRect(90, 169, 250, 24)];
+        rf.stringValue = rinit;
+        [p.contentView addSubview:rf];
+        NSButton* ccase = modal_check(p, @"Case sensitive",
+                                      NSMakeRect(15, 142, 160, 20),
+                                      ropt & PA_QF_CASE);
+        NSButton* cup   = modal_check(p, @"Search up",
+                                      NSMakeRect(15, 120, 160, 20),
+                                      ropt & PA_QF_UP);
+        NSButton* cre   = modal_check(p, @"Regular expression",
+                                      NSMakeRect(15, 98, 160, 20),
+                                      ropt & PA_QF_RE);
+        NSButton* cfnd  = modal_check(p, @"Find only",
+                                      NSMakeRect(185, 142, 160, 20),
+                                      ropt & PA_QF_FIND);
+        NSButton* cfil  = modal_check(p, @"All in file",
+                                      NSMakeRect(185, 120, 160, 20),
+                                      ropt & PA_QF_ALLFIL);
+        NSButton* clin  = modal_check(p, @"All on line(s)",
+                                      NSMakeRect(185, 98, 160, 20),
+                                      ropt & PA_QF_ALLLIN);
+        modal_buttons(p);
+        [p makeFirstResponder:ff];
+        NSModalResponse rc = [NSApp runModalForWindow:p];
+        [p orderOut:nil];
+        if (rc == NSModalResponseOK) {
+            fstr = ff.stringValue;
+            rstr = rf.stringValue;
+            ropt = 0;
+            if (ccase.state == NSControlStateValueOn) ropt |= PA_QF_CASE;
+            if (cup.state   == NSControlStateValueOn) ropt |= PA_QF_UP;
+            if (cre.state   == NSControlStateValueOn) ropt |= PA_QF_RE;
+            if (cfnd.state  == NSControlStateValueOn) ropt |= PA_QF_FIND;
+            if (cfil.state  == NSControlStateValueOn) ropt |= PA_QF_ALLFIL;
+            if (clin.state  == NSControlStateValueOn) ropt |= PA_QF_ALLLIN;
+        } else {
+            fstr = @"";
+            rstr = @"";
+        }
+    });
+    if (sl > 0) { strncpy(s, fstr.UTF8String, sl - 1); s[sl - 1] = 0; }
+    if (rl > 0) { strncpy(r, rstr.UTF8String, rl - 1); r[rl - 1] = 0; }
+    *opt = ropt;
+}
+
+void pa_cocoa_query_font(char* family, int famlen, int* size,
+                         int* fr, int* fg, int* fb,
+                         int* br, int* bg, int* bb)
+{
+    __block int rsize = *size;
+    __block int rfr = *fr, rfg = *fg, rfb = *fb;
+    __block int rbr = *br, rbg = *bg, rbb = *bb;
+    __block NSString* rfam = nil;
+    NSString* finit = [NSString stringWithUTF8String:family ? family : ""];
+    run_on_main(^{
+        NSWindow* p = modal_panel(@"Select Font", 360, 215);
+        modal_label(p, @"Font:", NSMakeRect(15, 180, 60, 20));
+        NSPopUpButton* fpop = [[NSPopUpButton alloc]
+                                  initWithFrame:NSMakeRect(75, 176, 265, 26)
+                                      pullsDown:NO];
+        NSArray<NSString*>* fams =
+            [[NSFontManager sharedFontManager] availableFontFamilies];
+        fams = [fams sortedArrayUsingSelector:
+                         @selector(caseInsensitiveCompare:)];
+        for (NSString* f in fams) [fpop addItemWithTitle:f];
+        if (finit.length) [fpop selectItemWithTitle:finit];
+        [p.contentView addSubview:fpop];
+
+        modal_label(p, @"Size:", NSMakeRect(15, 148, 60, 20));
+        NSTextField* sf = [[NSTextField alloc]
+                              initWithFrame:NSMakeRect(75, 145, 60, 24)];
+        sf.intValue = rsize;
+        [p.contentView addSubview:sf];
+
+        modal_label(p, @"Foreground:", NSMakeRect(15, 110, 100, 20));
+        NSColorWell* fwell = [[NSColorWell alloc]
+                                 initWithFrame:NSMakeRect(115, 100, 60, 32)];
+        fwell.color = [NSColor colorWithRed:(CGFloat)rfr / INT_MAX
+                                      green:(CGFloat)rfg / INT_MAX
+                                       blue:(CGFloat)rfb / INT_MAX
+                                      alpha:1.0];
+        [p.contentView addSubview:fwell];
+
+        modal_label(p, @"Background:", NSMakeRect(185, 110, 100, 20));
+        NSColorWell* bwell = [[NSColorWell alloc]
+                                 initWithFrame:NSMakeRect(285, 100, 60, 32)];
+        bwell.color = [NSColor colorWithRed:(CGFloat)rbr / INT_MAX
+                                      green:(CGFloat)rbg / INT_MAX
+                                       blue:(CGFloat)rbb / INT_MAX
+                                      alpha:1.0];
+        [p.contentView addSubview:bwell];
+
+        modal_buttons(p);
+        NSColorPanel* cp = NSColorPanel.sharedColorPanel;
+        id obs = [[NSNotificationCenter defaultCenter]
+                     addObserverForName:NSColorPanelColorDidChangeNotification
+                                 object:cp
+                                  queue:nil
+                             usingBlock:^(NSNotification* n) {
+                                 if (fwell.isActive) fwell.color = cp.color;
+                                 if (bwell.isActive) bwell.color = cp.color;
+                             }];
+        NSModalResponse rc = [NSApp runModalForWindow:p];
+        [[NSNotificationCenter defaultCenter] removeObserver:obs];
+        [cp orderOut:nil];
+        [p orderOut:nil];
+        if (rc == NSModalResponseOK) {
+            rfam = fpop.titleOfSelectedItem;
+            rsize = sf.intValue > 0 ? sf.intValue : rsize;
+            NSColor* c = [fwell.color
+                colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
+            rfr = (int)(c.redComponent   * INT_MAX);
+            rfg = (int)(c.greenComponent * INT_MAX);
+            rfb = (int)(c.blueComponent  * INT_MAX);
+            c = [bwell.color
+                colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
+            rbr = (int)(c.redComponent   * INT_MAX);
+            rbg = (int)(c.greenComponent * INT_MAX);
+            rbb = (int)(c.blueComponent  * INT_MAX);
+        }
+    });
+    if (rfam && famlen > 0) {
+        strncpy(family, rfam.UTF8String, famlen - 1);
+        family[famlen - 1] = 0;
+    }
+    *size = rsize;
+    *fr = rfr; *fg = rfg; *fb = rfb;
+    *br = rbr; *bg = rbg; *bb = rbb;
 }
 
 void pa_cocoa_query_open(char* path, int pathlen)

@@ -40,8 +40,26 @@ typedef enum {
     PA_EVT_MENU,        /* menu item selected */
     PA_EVT_MIN,         /* window minimized */
     PA_EVT_MAX,         /* window maximized/zoomed/fullscreen */
-    PA_EVT_NORM         /* window restored to normal */
+    PA_EVT_NORM,        /* window restored to normal */
+    PA_EVT_WIDGET       /* widget activated (see pa_widgetact) */
 } pa_evttype;
+
+/* widget activation kinds for PA_EVT_WIDGET */
+typedef enum {
+    PA_WIDGET_BUTTON = 1,    /* push button pressed */
+    PA_WIDGET_CHECKBOX,      /* checkbox toggled */
+    PA_WIDGET_RADIO,         /* radio button selected */
+    PA_WIDGET_SCROLL_PAGEUP, /* scroll page up/left */
+    PA_WIDGET_SCROLL_PAGEDN, /* scroll page down/right */
+    PA_WIDGET_SCROLL_POS,    /* scroll thumb moved; pos 0..INT_MAX */
+    PA_WIDGET_SLIDER_POS,    /* slider moved; pos 0..INT_MAX */
+    PA_WIDGET_EDIT_DONE,     /* edit box completed (return pressed) */
+    PA_WIDGET_NUM_DONE,      /* number select box changed; pos = value */
+    PA_WIDGET_LIST_SEL,      /* list box selection; pos = 1-based index */
+    PA_WIDGET_DROP_SEL,      /* drop box selection; pos = 1-based index */
+    PA_WIDGET_DROPED_DONE,   /* drop edit box completed */
+    PA_WIDGET_TAB_SEL        /* tab bar selection; pos = 1-based index */
+} pa_widgetact;
 
 /* Special key codes */
 typedef enum {
@@ -78,6 +96,7 @@ typedef struct {
         struct { int jn; int ax[6]; }                  joymove;
         struct { int jn; int btn; }                    joybtn;
         struct { int id; }                             menu;
+        struct { int id; int act; int pos; }           widget;
     };
 } pa_rawevent;
 
@@ -186,9 +205,25 @@ void pa_cocoa_checkbox(pa_winhan win, int x, int y, int w, int h,
                        const char* label, int id);
 void pa_cocoa_radiobutton(pa_winhan win, int x, int y, int w, int h,
                           const char* label, int id);
+void pa_cocoa_group_title_size(const char* s, int* w, int* h);
+void pa_cocoa_group(pa_winhan win, int x, int y, int w, int h,
+                    const char* label, int id);
+void pa_cocoa_background(pa_winhan win, int x, int y, int w, int h, int id);
 void pa_cocoa_editbox(pa_winhan win, int x, int y, int w, int h, int id);
+void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
+                        int l, int u, int id);
 void pa_cocoa_listbox(pa_winhan win, int x, int y, int w, int h,
                       const char** items, int count, int id);
+void pa_cocoa_dropbox(pa_winhan win, int x, int y, int w, int h,
+                      const char** items, int count, int id);
+void pa_cocoa_dropeditbox(pa_winhan win, int x, int y, int w, int h,
+                          const char** items, int count, int id);
+/* ori: 0 = top, 1 = right, 2 = bottom, 3 = left (matches ami_tabori);
+   barh is the bar strip thickness in pixels (client = rect minus strip) */
+void pa_cocoa_tabbar(pa_winhan win, int x, int y, int w, int h,
+                     const char** items, int count, int ori, int barh,
+                     int id);
+void pa_cocoa_tabbar_sel(pa_winhan win, int id, int tn);
 void pa_cocoa_scrollvert(pa_winhan win, int x, int y, int w, int h, int id);
 void pa_cocoa_scrollhoriz(pa_winhan win, int x, int y, int w, int h, int id);
 void pa_cocoa_slider_horiz(pa_winhan win, int x, int y, int w, int h,
@@ -221,6 +256,23 @@ void pa_cocoa_menu_check(pa_winhan win, int id, int on);
 void pa_cocoa_alert(const char* title, const char* message);
 void pa_cocoa_query_open(char* path, int pathlen);
 void pa_cocoa_query_save(char* path, int pathlen);
+/* find/find-replace option bits, matching BIT(ami_qfnopt)/BIT(ami_qfropt) */
+#define PA_QF_CASE   (1 << 0) /* case sensitive */
+#define PA_QF_UP     (1 << 1) /* search up */
+#define PA_QF_RE     (1 << 2) /* regular expression */
+#define PA_QF_FIND   (1 << 3) /* find only (find/replace dialog) */
+#define PA_QF_ALLFIL (1 << 4) /* replace all in file */
+#define PA_QF_ALLLIN (1 << 5) /* replace all on line(s) */
+
+/* color components are 0..INT_MAX (PA scale); in/out */
+void pa_cocoa_query_color(int* r, int* g, int* b);
+/* find/find-replace dialogs; opt bits per ami_qfnopt/ami_qfropt */
+void pa_cocoa_query_find(char* s, int sl, int* opt);
+void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, int* opt);
+/* font dialog: family name in/out, size in points, fg/bg 0..INT_MAX */
+void pa_cocoa_query_font(char* family, int famlen, int* size,
+                         int* fr, int* fg, int* fb,
+                         int* br, int* bg, int* bb);
 
 /*----------------------------------------------------------------------------
  * Miscellaneous
