@@ -270,7 +270,15 @@ static int wopen(
     /** open flags */      int flags,
     /** permission bits */ int perm
 )
+#ifdef __MINGW32__
+    /* The Ami stdio is unix modeled: a file is a byte stream with LF line
+       ends on every platform, so the same text (intermediate decks, error
+       files) interchanges between the windows and unix built tools. Open
+       binary so the windows C runtime does not impose CRLF translation. */
+    { return open(pathname, flags | O_BINARY, perm); }
+#else
     { return open(pathname, flags, perm); }
+#endif
 static int wclose(
     /** file descriptor */ int fd
 )
