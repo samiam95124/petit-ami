@@ -1437,7 +1437,7 @@ void ami_brknam(
 {
 
     int i, s, f, t; /* string indexes */
-    char *s1, *s2;
+    char *s1, *s2, *t2;
 
     /* clear all strings */
     *p = 0;
@@ -1447,8 +1447,13 @@ void ami_brknam(
     s1 = fn; /* index file spec */
     /* skip spaces */
     while (*s1 && *s1 == ' ') s1++;
-    /* find last '/' that will mark the path */
+    /* Find the last separator that will mark the path. The windows file APIs
+       accept '/' as well as '\', so both count as separators here; this also
+       lets unix style paths pass through when the windows programs are driven
+       under an exe emulator. */
     s2 = strrchr(s1, ami_pthchr());
+    t2 = strrchr(s1, '/');
+    if (!s2 || (t2 && t2 > s2)) s2 = t2;
     if (s2) {
 
         /* there was a path, store that */
@@ -1527,10 +1532,11 @@ void ami_maknam(
 
     if (strlen(p) > fnl) error("String too large for destination");
     strcpy(fn, p); /* place path */
-    /* check path properly terminated */
+    /* check path properly terminated; a '/' terminator counts, since the
+       windows file APIs accept it as a separator (see brknam) */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
-        if (p[i-1] != ami_pthchr()) {
+        if (p[i-1] != ami_pthchr() && p[i-1] != '/') {
 
         if (strlen(fn)+1 > fnl) error("String too large for destination");
         s[0] = ami_pthchr(); /* set up path character as string */
@@ -1966,12 +1972,11 @@ void ami_filchr(ami_chrset fc)
     /* clear set */
     for (i = 0; i < CSETLEN; i++) fc[i] = 0;
 
-    /* add everything but control characters and space */
+    /* add everything but control characters and space, the same set as the
+       other platforms. The path characters must be included so that full
+       pathnames parse as filenames, including unix style paths when the
+       windows programs are driven under an exe emulator. */
     for (i = ' '+1; i <= 0x7e; i++) ADDCSET(fc, i);
-    SUBCSET(fc, ami_optchr()); /* remove option character */
-    SUBCSET(fc, ami_pthchr()); /* remove path character */
-    SUBCSET(fc, '"'); /* remove quote characters */
-    SUBCSET(fc, '\'');
 
 }
 
