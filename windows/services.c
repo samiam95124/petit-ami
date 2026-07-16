@@ -915,7 +915,9 @@ static void fndenv(
     *ep = NULL; /* set no string found */
     while (p && *ep == NULL) {  /* traverse */
 
-        if (!strcmp(esn, p->name)) *ep = p; /* found */
+        /* windows environment names are case insensitive: a program run from
+           cmd sees "Path", one run from an msys/cygwin shell sees "PATH" */
+        if (!_stricmp(esn, p->name)) *ep = p; /* found */
         else p = p->next;/* next string */
 
     }
