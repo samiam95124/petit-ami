@@ -1685,6 +1685,10 @@ void ami_getusr(
     bufstr b, b1; /* buffer for result */
 
     ami_getenv("USERPROFILE", b, MAXSTR);
+    /* HOME is the unix convention, but is commonly set on windows (msys,
+       cygwin, git bash), and a program can set it to relocate the user
+       path; honor it next */
+    if (!*b) ami_getenv("HOME", b, MAXSTR);
     if (!*b) { /* not found */
 
         ami_getenv("HOMEPATH", b, MAXSTR);
@@ -1698,7 +1702,7 @@ void ami_getusr(
         if (!*b) { /* not found */
 
             ami_getenv("USERNAME", b, MAXSTR);
-            if (!*b) { /* path that */
+            if (*b) { /* path that */
 
                 strcpy(b1, b); /* copy */
                 strcpy(b, "\\users\\"); /* set prefix */
