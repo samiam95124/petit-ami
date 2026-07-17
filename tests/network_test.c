@@ -5,8 +5,8 @@
 * Automated test for the network library. Replaces the manual procedure in    *
 * network_test.txt: each of the manual tests (gettys/telnet, msgserver/       *
 * msgclient, prtcertnet, plain and secure) is run automatically against a     *
-* loopback server forked from this program, so no external server and no      *
-* second console is needed.                                                   *
+* loopback server run on a thread of this program, so no external server and  *
+* no second console is needed.                                                 *
 *                                                                              *
 * The tests:                                                                  *
 *                                                                              *
@@ -34,10 +34,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
-#include <sys/wait.h>
+#endif
 
 #include <localdefs.h>
+#include <services.h>
 #include <network.h>
 
 #define BUFLEN 250
@@ -65,74 +70,122 @@ static void result(const char* name, int pass)
 
 Loopback servers
 
-Each server runs in a forked child: it serves exactly one client, then exits.
-The parent gives the child a moment to come up before connecting.
+Each server runs on a thread started with the services thread api: it serves
+exactly one client, then flags completion. The client side hands the server
+its parameters in the statics below before starting it (the tests run one at
+a time, so one set suffices), and synchronizes with it by lock and signal.
 
 *******************************************************************************/
 
-/* TCP server: read a line from the client, send a line back */
-static int tcpserver(int port, int secure)
+static int lockid;    /* handshake lock */
+static int sigid;     /* handshake signal */
+
+static int srvport;   /* port for the server to serve */
+static int srvsecure; /* serve secured */
+static int clidone;   /* client is finished with the connection */
+static int srvdone;   /* server has finished */
+
+/* Let the server come up before connecting to it. waitnet/waitmsg bind,
+   listen and accept in a single call, so there is no ready event the server
+   could flag before it blocks; a delay is the only handshake available. */
+static void waitsrv(void)
 
 {
 
-    int  pid;
+#ifdef _WIN32
+    Sleep(1000);
+#else
+    sleep(1);
+#endif
+
+}
+
+/* start a server thread on the given port */
+static void startsrv(void (*srv)(void), int port, int secure)
+
+{
+
+    srvport = port;
+    srvsecure = secure;
+    clidone = FALSE;
+    srvdone = FALSE;
+    ami_newthread(srv);
+    waitsrv(); /* let the server come up */
+
+}
+
+/* tell the server we are done with the connection */
+static void clientdone(void)
+
+{
+
+    ami_lock(lockid);
+    clidone = TRUE;
+    ami_sendsig(sigid);
+    ami_unlock(lockid);
+
+}
+
+/* flag server completion (run on the server thread) */
+static void serverdone(void)
+
+{
+
+    ami_lock(lockid);
+    srvdone = TRUE;
+    ami_sendsig(sigid);
+    ami_unlock(lockid);
+
+}
+
+/* finish with a server thread */
+static void finish(void)
+
+{
+
+    ami_lock(lockid);
+    while (!srvdone) ami_waitsig(lockid, sigid);
+    ami_unlock(lockid);
+
+}
+
+/* TCP server: read a line from the client, send a line back */
+static void tcpserver(void)
+
+{
+
     FILE* f;
     char buff[BUFLEN];
 
-    pid = fork();
-    if (!pid) { /* child */
-
-        f = ami_waitnet(port, secure);
-        if (fgets(buff, BUFLEN, f))
-            ; /* client line received */
-        fputs("Hello, client\n", f);
-        fflush(f);
-        /* hold the connection up briefly so the client can read and the
-           certificate tests can inspect, then exit (closing it) */
-        sleep(2);
-        exit(0);
-
-    }
-    sleep(1); /* let the server come up */
-
-    return (pid);
+    f = ami_waitnet(srvport, srvsecure);
+    if (fgets(buff, BUFLEN, f))
+        ; /* client line received */
+    fputs("Hello, client\n", f);
+    fflush(f);
+    /* hold the connection up until the client has read and the certificate
+       tests have inspected, then close it */
+    ami_lock(lockid);
+    while (!clidone) ami_waitsig(lockid, sigid);
+    ami_unlock(lockid);
+    fclose(f);
+    serverdone();
 
 }
 
 /* message server: receive one message, send one back */
-static int msgserver(int port, int secure)
+static void msgserver(void)
 
 {
 
-    int  pid;
     int  fn;
     int  len;
     char buff[BUFLEN];
 
-    pid = fork();
-    if (!pid) { /* child */
-
-        fn = ami_waitmsg(port, secure);
-        len = ami_rdmsg(fn, buff, BUFLEN);
-        ami_wrmsg(fn, "Hello, client", 13);
-        ami_clsmsg(fn);
-        exit(0);
-
-    }
-    sleep(1); /* let the server come up */
-
-    return (pid);
-
-}
-
-/* finish with a server child */
-static void finish(int pid)
-
-{
-
-    int st;
-
-    waitpid(pid, &st, 0);
+    fn = ami_waitmsg(srvport, srvsecure);
+    len = ami_rdmsg(fn, buff, BUFLEN);
+    ami_wrmsg(fn, "Hello, client", 13);
+    ami_clsmsg(fn);
+    serverdone();
 
 }
 
@@ -163,11 +216,10 @@ static void ttcp(const char* name, int port, int secure)
     unsigned long addr;
     FILE* f;
     char  buff[BUFLEN];
-    int   pid;
     int   pass;
 
     pass = FALSE;
-    pid = tcpserver(port, secure);
+    startsrv(tcpserver, port, secure);
     ami_addrnet("localhost", &addr);
     f = ami_opennet(addr, port, secure);
     fputs("Hello, server\n", f);
@@ -175,7 +227,8 @@ static void ttcp(const char* name, int port, int secure)
     if (fgets(buff, BUFLEN, f))
         pass = !strcmp(buff, "Hello, client\n");
     fclose(f);
-    finish(pid);
+    clientdone();
+    finish();
     result(name, pass);
 
 }
@@ -189,18 +242,17 @@ static void tmsg(const char* name, int port, int secure)
     int  fn;
     int  len;
     char buff[BUFLEN];
-    int  pid;
     int  pass;
 
     pass = FALSE;
-    pid = msgserver(port, secure);
+    startsrv(msgserver, port, secure);
     ami_addrnet("localhost", &addr);
     fn = ami_openmsg(addr, port, secure);
     ami_wrmsg(fn, "Hello, server", 13);
     len = ami_rdmsg(fn, buff, BUFLEN);
     if (len == 13) pass = !strncmp(buff, "Hello, client", 13);
     ami_clsmsg(fn);
-    finish(pid);
+    finish();
     result(name, pass);
 
 }
@@ -231,10 +283,9 @@ static void tcert(void)
     FILE* f;
     char  cert[10000];
     char  buff[BUFLEN];
-    int   pid;
     int   r;
 
-    pid = tcpserver(PORT_CERT, TRUE);
+    startsrv(tcpserver, PORT_CERT, TRUE);
     ami_addrnet("localhost", &addr);
     f = ami_opennet(addr, PORT_CERT, TRUE);
 
@@ -248,7 +299,8 @@ static void tcert(void)
     fflush(f);
     if (fgets(buff, BUFLEN, f)) ; /* response */
     fclose(f);
-    finish(pid);
+    clientdone();
+    finish();
 
 }
 
@@ -258,6 +310,9 @@ int main(int argc, char **argv)
 
     printf("Network test vs. 0.1\n");
     printf("\n");
+
+    lockid = ami_initlock();
+    sigid = ami_initsig();
 
     taddrnet();
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);

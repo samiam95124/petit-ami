@@ -3065,7 +3065,11 @@ int ami_initsig(void)
 {
 
     int i;
+    PCONDITION_VARIABLE sp;
 
+    /* get new semaphore entry out of lock */
+    sp = malloc(sizeof(CONDITION_VARIABLE));
+    if (!sp) error("Out of memory"); /* couldn't allocate */
     EnterCriticalSection(&semtbllck); /* lock semaphore table */
     /* find free table entry */
     i = 0;
@@ -3076,9 +3080,11 @@ int ami_initsig(void)
         error("Semaphore table full");
 
     }
-    /* create condition variable */
-    InitializeConditionVariable(sematbl[i]);
+    /* place semaphore data block */
+    sematbl[i] = sp;
     LeaveCriticalSection(&semtbllck); /* unlock semaphore table */
+    /* now we own the table entry, create condition variable */
+    InitializeConditionVariable(sp);
 
     return (i+1); /* return the lock logical id to caller */
 
@@ -3105,6 +3111,7 @@ void ami_deinitsig(int sn)
     LeaveCriticalSection(&semtbllck); /* unlock semaphore table */
     if (!sp) error("Semaphore by logical id is not active");
     /* Windows does not have a delete conditional variable routine */
+    free(sp); /* free semaphore data */
 
 }
 
@@ -3189,7 +3196,7 @@ void ami_waitsig(int ln, int sn)
     if (!lp) error("Concurrency lock by logical id is not active");
     if (sn < 1 || sn > MAXSEMA) error("Semaphore logical id");
     /* assume this is an atomic access (single word) */
-    sp = sematbl[ln-1]; /* get semaphore pointer */
+    sp = sematbl[sn-1]; /* get semaphore pointer */
     if (!sp) error("Semaphore by logical id is not active");
     /* wait on signal with lock release */
     r = SleepConditionVariableCS(sp, lp, INFINITE);
