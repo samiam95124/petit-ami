@@ -89,6 +89,16 @@
 #include <openssl/hmac.h>
 #include <openssl/x509v3.h>
 
+/* OpenSSL 3.0 renamed SSL_get_peer_certificate to SSL_get1_peer_certificate.
+   The old name survives only as a deprecated alias, which mingw's OpenSSL 3.x
+   build compiles out, so map it to the current name. Both return a reference
+   the caller must X509_free. */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifndef SSL_get_peer_certificate
+#define SSL_get_peer_certificate SSL_get1_peer_certificate
+#endif
+#endif
+
 /* Petit-Ami definitions */
 #include <localdefs.h>
 #include <network.h>
