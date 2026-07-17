@@ -509,9 +509,9 @@ ifeq ($(OSTYPE),Windows_NT)
     #
     # Windows
     #
-    PLIBS += -lwinmm -lwsock32
-    CLIBS += -lwinmm -lgdi32 -lwsock32
-    GLIBS += -lwinmm -lgdi32 -lcomdlg32 -lwsock32
+    PLIBS += -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32
+    CLIBS += -lwinmm -lgdi32 -lssl -lcrypto -lws2_32 -lcrypt32
+    GLIBS += -lwinmm -lgdi32 -lcomdlg32 -lssl -lcrypto -lws2_32 -lcrypt32
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -586,15 +586,14 @@ ifeq ($(OSTYPE),Windows_NT)
 #
 # Windows
 #
-# Note: network_test is not built on Windows. The automated test forks
-# loopback servers (fork()/sys/wait.h), which MinGW does not provide. Use the
-# manual procedure in network_test.txt (gettys/msgserver/msgclient/prtcertnet
-# are all built) instead.
+# Note: network_test runs its loopback servers on threads (services thread
+# api), so it builds and runs on Windows against the full Winsock/OpenSSL
+# network implementation (TCP, TLS, messages, DTLS and certificates).
 all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
-     sound_test sound_testg services_test stdio_test event eventg term termg snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
