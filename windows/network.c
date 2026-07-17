@@ -1554,9 +1554,17 @@ int ami_maxmsg(unsigned long addr)
     r = connect(sock, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r == SOCKET_ERROR) wskerr();
 
-    /* find mtu */
+    /* Find the mtu. Unix reads the connected socket's path mtu with
+       getsockopt(IP_MTU); Windows has no such option, so fall back to the
+       standard ethernet mtu (clampmtu bounds it to the udp payload). A later
+       refinement can read the real interface mtu through the IP helper API
+       (GetBestInterfaceEx + GetIpInterfaceEntry). */
+#ifdef IP_MTU
     r = getsockopt(sock, IPPROTO_IP, IP_MTU, (char*)&mtu, &mtulen);
     if (r == SOCKET_ERROR) wskerr();
+#else
+    (void)mtulen; mtu = 1500;
+#endif
 
     closesocket(sock);
 
@@ -1603,9 +1611,13 @@ int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     r = connect(sock, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r == SOCKET_ERROR) wskerr();
 
-    /* find mtu */
+    /* find the mtu; see ami_maxmsg for why Windows uses the default */
+#ifdef IPV6_MTU
     r = getsockopt(sock, IPPROTO_IPV6, IPV6_MTU, (char*)&mtu, &mtulen);
     if (r == SOCKET_ERROR) wskerr();
+#else
+    (void)mtulen; mtu = 1500;
+#endif
 
     closesocket(sock);
 
