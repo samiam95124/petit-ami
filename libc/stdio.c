@@ -1965,6 +1965,23 @@ int rename(
 }
 #endif
 
+/* On Windows the portable link()/unlink() rename() above is unavailable (no
+   POSIX link()). A non-STDIO_BYPASS build simply uses the native CRT rename()
+   in its place, so nothing is needed. A STDIO_BYPASS consumer, however, has its
+   rename() calls coined to stdio_rename() (see stdio.h), so that funnel entry
+   must exist: provide it for the Windows bypass build, mapping to the CRT
+   rename(). The coining macro is suspended only around the call, so the coined
+   name is defined in terms of the real one. */
+#if defined(__MINGW32__) && defined(STDIO_BYPASS)
+int stdio_rename(const char *oldname, const char *newname)
+{
+#undef rename
+    extern int rename(const char *oldname, const char *newname);
+    return rename(oldname, newname); /* native CRT rename */
+#define rename(...) stdio_rename(__VA_ARGS__)
+}
+#endif
+
 /** **************************************************************************
 
 Function tmpdir
