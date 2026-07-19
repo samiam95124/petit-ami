@@ -10888,22 +10888,29 @@ static void createmenu(winptr win, ami_menuptr m, HMENU* mh)
 
 }
 
-/* AdjustWindowRectEx wrapper matching the WM_NCCALCSIZE treatment: a top
-   level sizing-frame window without the full caption drops the top frame
-   reservation (the side and bottom frames are drawn outside the visible
-   bounds, but the top one would show as a strip of pixels above the client
-   where the caption would have been), so remove it from the calculation as
-   well. The client rectangle is expected at origin (top = 0). */
-static BOOL adjwinrect(RECT* cr, int fl, BOOL menu)
+/* size of the sizing grip zones on frameless sizable windows */
+#define GRIPSIZ 6
+
+/* Reduce a constructed style for a caption-less top level window. Such a
+   window is based on WS_POPUP: WS_OVERLAPPED (value zero) implies a caption
+   and border on any top level window regardless of the absent style bits,
+   which shrinks the client below the calculated size (a strip of missing
+   pixels above the client). It also carries no sizing frame: the frame
+   would draw a strip of pixels over the top of the client where the
+   caption would have been; when the window is sizable, WM_NCHITTEST
+   provides the edge sizing grips instead. WS_CAPTION is
+   WS_BORDER|WS_DLGFRAME, so the test is for the full combination. */
+static int redstyle(int fl)
 {
 
-    BOOL b;
+    if (!(fl & WS_CHILD) && (fl & WS_CAPTION) != WS_CAPTION) {
 
-    b = AdjustWindowRectEx(cr, fl, menu, 0);
-    if (!(fl & WS_CHILD) && (fl & WS_CAPTION) != WS_CAPTION &&
-        (fl & WS_THICKFRAME)) cr->top = 0;
+        fl &= ~WS_THICKFRAME;
+        fl |= WS_POPUP;
 
-    return (b);
+    }
+
+    return (fl);
 
 }
 
@@ -10951,18 +10958,14 @@ static void imenu(winptr win, ami_menuptr m)
         fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
     /* add flags for child window */
     if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
-    /* A top level window without the full caption must be based on WS_POPUP:
-       WS_OVERLAPPED (zero) implies a caption and border on any top level
-       window regardless of the absent style bits, which shrinks the client
-       below the calculated size (a strip of missing pixels). */
-    if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD)) fl1 |= WS_POPUP;
+    fl1 = redstyle(fl1); /* reduce for caption-less window */
     /* change window size to match new mode */
     cr.left = 0; /* set up desired client rectangle */
     cr.top = 0;
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = adjwinrect(&cr, fl1, TRUE);
+    b = AdjustWindowRectEx(&cr, fl1, TRUE, 0);
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11541,14 +11544,9 @@ static void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy,
                                          WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
     }
-    /* A top level window without the full caption must be based on WS_POPUP:
-       WS_OVERLAPPED (zero) implies a caption and border on any top level
-       window regardless of the absent style bits, which shrinks the client
-       below the calculated size (a strip of missing pixels). WS_CAPTION is
-       WS_BORDER|WS_DLGFRAME, so the test is for the full combination. */
-    if ((fl & WS_CAPTION) != WS_CAPTION && !(fl & WS_CHILD)) fl |= WS_POPUP;
+    fl = redstyle(fl); /* reduce for caption-less window */
     /* find window size from client size */
-    b = adjwinrect(&cr, fl, FALSE);
+    b = AdjustWindowRectEx(&cr, fl, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     *wx = cr.right-cr.left; /* return window size */
     *wy = cr.bottom-cr.top;
@@ -11651,11 +11649,7 @@ static void iframe(winptr win, int e)
                                WS_MAXIMIZEBOX;
 
     }
-    /* A top level window without the full caption must be based on WS_POPUP:
-       WS_OVERLAPPED (zero) implies a caption and border on any top level
-       window regardless of the absent style bits, which shrinks the client
-       below the calculated size (a strip of missing pixels). */
-    if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD)) fl1 |= WS_POPUP;
+    fl1 = redstyle(fl1); /* reduce for caption-less window */
     unlockmain(); /* end exclusive access */
     r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
     lockmain(); /* start exclusive access */
@@ -11675,7 +11669,7 @@ static void iframe(winptr win, int e)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = adjwinrect(&cr, fl1, FALSE);
+    b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11731,12 +11725,7 @@ static void isizable(winptr win, int e)
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
-        /* A top level window without the full caption must be based on
-           WS_POPUP: WS_OVERLAPPED (zero) implies a caption and border on any
-           top level window regardless of the absent style bits, which shrinks
-           the client below the calculated size (a strip of missing pixels). */
-        if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD))
-            fl1 |= WS_POPUP;
+        fl1 = redstyle(fl1); /* reduce for caption-less window */
         unlockmain(); /* end exclusive access */
         r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
@@ -11756,7 +11745,7 @@ static void isizable(winptr win, int e)
         cr.right = win->gmaxxg;
         cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = adjwinrect(&cr, fl1, FALSE);
+        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11814,12 +11803,7 @@ static void isysbar(winptr win, int e)
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
-        /* A top level window without the full caption must be based on
-           WS_POPUP: WS_OVERLAPPED (zero) implies a caption and border on any
-           top level window regardless of the absent style bits, which shrinks
-           the client below the calculated size (a strip of missing pixels). */
-        if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD))
-            fl1 |= WS_POPUP;
+        fl1 = redstyle(fl1); /* reduce for caption-less window */
         unlockmain(); /* end exclusive access */
         r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
@@ -11839,7 +11823,7 @@ static void isysbar(winptr win, int e)
         cr.right = win->gmaxxg;
         cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = adjwinrect(&cr, fl1, FALSE);
+        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -15603,25 +15587,48 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
            small setsiz/setsizg requests. */
         r = 0;
 
-    } else if (imsg == WM_NCCALCSIZE) {
+    } else if (imsg == WM_NCHITTEST) {
 
-        /* A top level window with a sizing frame but no caption reserves a
-           frame strip at the top of the window that shows as a strip of
-           pixels above the client (the side and bottom frames are drawn
-           outside the visible bounds, the top one inside, where the caption
-           would have been). Drop the top reservation so the client reaches
-           the top of the window; adjwinrect makes the same correction in the
-           sizing calculations. The first field of the parameter is a RECT in
-           both message forms. */
+        /* A caption-less top level window is styled frameless (a sizing
+           frame would draw a strip of pixels over the top of the client
+           where the caption would have been), so when the window is
+           sizable the sizing grips are provided here: points near the
+           window edges hit-test as the sizing borders. */
         LONG st = GetWindowLong(hwnd, GWL_STYLE);
+        r = DefWindowProc(hwnd, imsg, wparam, lparam);
         if (!(st & WS_CHILD) && (st & WS_CAPTION) != WS_CAPTION &&
-            (st & WS_THICKFRAME)) {
+            r == HTCLIENT) {
 
-            LONG rtop = ((RECT*)lparam)->top;
-            r = DefWindowProc(hwnd, imsg, wparam, lparam);
-            ((RECT*)lparam)->top = rtop; /* client reaches the window top */
+            lockmain(); /* start exclusive access */
+            ofn = hwn2lfn(hwnd); /* get logical output file */
+            win = NULL;
+            if (ofn) win = lfn2win(ofn); /* index window */
+            unlockmain(); /* end exclusive access */
+            if (win && win->size) { /* window is sizable: map edge grips */
 
-        } else r = DefWindowProc(hwnd, imsg, wparam, lparam);
+                RECT  wr;
+                POINT pt;
+                int lft, rgt, top, bot;
+
+                pt.x = (short)LOWORD(lparam); /* screen point of the test */
+                pt.y = (short)HIWORD(lparam);
+                GetWindowRect(hwnd, &wr);
+                lft = pt.x < wr.left+GRIPSIZ;
+                rgt = pt.x >= wr.right-GRIPSIZ;
+                top = pt.y < wr.top+GRIPSIZ;
+                bot = pt.y >= wr.bottom-GRIPSIZ;
+                if (top && lft) r = HTTOPLEFT;
+                else if (top && rgt) r = HTTOPRIGHT;
+                else if (bot && lft) r = HTBOTTOMLEFT;
+                else if (bot && rgt) r = HTBOTTOMRIGHT;
+                else if (top) r = HTTOP;
+                else if (bot) r = HTBOTTOM;
+                else if (lft) r = HTLEFT;
+                else if (rgt) r = HTRIGHT;
+
+            }
+
+        }
 
     } else if (imsg == WM_PAINT) {
 
