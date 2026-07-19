@@ -59,6 +59,8 @@
 
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 #include <windows.h>
 #include <terminal.h>
@@ -2716,14 +2718,38 @@ Sets the title of the current window.
 *******************************************************************************/
 
 void ami_title(FILE* f, char* ts)
-    
-{ 
+
+{
 
     int r;
 
     r = SetConsoleTitle(ts);
     if (!r) winerr();
-    
+
+}
+
+/** ****************************************************************************
+
+Set window title, with length
+
+Sets the title of the current window. The string carries an explicit length
+and is not NUL terminated.
+
+*******************************************************************************/
+
+void ami_titlen(FILE* f, char* ts, int n)
+
+{
+
+    char* p;
+
+    p = (char*)malloc(n+1); /* space for terminator */
+    if (!p) error(enomem);
+    memcpy(p, ts, n);
+    p[n] = 0; /* terminate */
+    ami_title(f, p); /* set as a standard title string */
+    free(p);
+
 }
 
 /*******************************************************************************

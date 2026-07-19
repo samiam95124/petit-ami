@@ -16773,3 +16773,182 @@ static void ami_deinit_graph(void)
     SetConsoleCtrlHandler(NULL, FALSE);
 
 }
+
+/** ****************************************************************************
+
+Graphics call set completions
+
+These complete the windows implementation of the graphics call set so the
+full API links. The widget related calls (the anonymous window/widget id
+allocators and the widget geometry calls) are part of the portable "build
+your own widgets and dialogs" support API: windows carries its own native
+widget set, and the portable widget package over these calls is not yet
+ported here, so they are placeholders pending that port. The remainder are
+graphics calls not yet implemented in this port; as with the other
+unimplemented calls in this file, they are no-ops or return neutral values
+until implemented.
+
+*******************************************************************************/
+
+/* write string with explicit length (not NUL terminated) */
+void ami_wrtstrn(FILE* f, char* s, int n)
+
+{
+
+    char* p;
+
+    p = (char*)imalloc(n+1); /* space for terminator */
+    memcpy(p, s, n);
+    p[n] = 0; /* terminate */
+    ami_wrtstr(f, p); /* write as a standard string */
+    free(p);
+
+}
+
+/* send event into the input queue: not implemented */
+void ami_sendevent(FILE* f, ami_evtrec* er)
+
+{
+
+   /* not implemented */
+
+}
+
+/* foreground/background raster op selections: not implemented */
+void ami_fand(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_band(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_for(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_bor(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+/* scale coordinates: no scaling in this port, identity */
+int ami_scalex(FILE* f, int x)
+
+{
+
+   return (x); /* identity */
+
+}
+
+int ami_scaley(FILE* f, int y)
+
+{
+
+   return (y); /* identity */
+
+}
+
+/* drag window: not implemented */
+void ami_dragwin(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+/* find screen center, character and graphical: not implemented */
+void ami_scncen(FILE* f, int* x, int* y)
+
+{
+
+   *x = 1; /* neutral (home) position */
+   *y = 1;
+
+}
+
+void ami_scnceng(FILE* f, int* x, int* y)
+
+{
+
+   *x = 1; /* neutral (home) position */
+   *y = 1;
+
+}
+
+/* set focus to window: not implemented */
+void ami_focus(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+/* Anonymous window and widget id allocators, for the portable widget and
+   dialog support. Anonymous window ids are negative (never 0), so they can
+   never collide with the client program's own ids. This allocator hands out
+   distinct ids; tracking them through the window equivalence table (which on
+   windows does not yet carry the negative id range linux does) comes with
+   the portable widget port. */
+int ami_getwinid(void)
+
+{
+
+   static int anonwid = 0; /* last anonymous window id given out */
+
+   if (anonwid <= -MAXFIL) error(ewinuse); /* out of anonymous ids */
+   anonwid--; /* next anonymous id */
+
+   return (anonwid);
+
+}
+
+int ami_getwigid(FILE* f)
+
+{
+
+   return (0); /* no widget id allocated: pending the portable widget port */
+
+}
+
+/* widget geometry management: not implemented */
+void ami_sizwidget(FILE* f, int id, int x, int y)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_poswidget(FILE* f, int id, int x, int y)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_focuswidget(FILE* f, int id)
+
+{
+
+   /* not implemented */
+
+}
