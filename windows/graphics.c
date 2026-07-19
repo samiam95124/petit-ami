@@ -10932,6 +10932,11 @@ static void imenu(winptr win, ami_menuptr m)
         fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
     /* add flags for child window */
     if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+    /* A top level window without the full caption must be based on WS_POPUP:
+       WS_OVERLAPPED (zero) implies a caption and border on any top level
+       window regardless of the absent style bits, which shrinks the client
+       below the calculated size (a strip of missing pixels). */
+    if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD)) fl1 |= WS_POPUP;
     /* change window size to match new mode */
     cr.left = 0; /* set up desired client rectangle */
     cr.top = 0;
@@ -11517,6 +11522,12 @@ static void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy,
                                          WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
     }
+    /* A top level window without the full caption must be based on WS_POPUP:
+       WS_OVERLAPPED (zero) implies a caption and border on any top level
+       window regardless of the absent style bits, which shrinks the client
+       below the calculated size (a strip of missing pixels). WS_CAPTION is
+       WS_BORDER|WS_DLGFRAME, so the test is for the full combination. */
+    if ((fl & WS_CAPTION) != WS_CAPTION && !(fl & WS_CHILD)) fl |= WS_POPUP;
     /* find window size from client size */
     b = AdjustWindowRectEx(&cr, fl, FALSE, 0);
     if (!b) winerr(); /* process windows error */
@@ -11621,6 +11632,11 @@ static void iframe(winptr win, int e)
                                WS_MAXIMIZEBOX;
 
     }
+    /* A top level window without the full caption must be based on WS_POPUP:
+       WS_OVERLAPPED (zero) implies a caption and border on any top level
+       window regardless of the absent style bits, which shrinks the client
+       below the calculated size (a strip of missing pixels). */
+    if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD)) fl1 |= WS_POPUP;
     unlockmain(); /* end exclusive access */
     r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
     lockmain(); /* start exclusive access */
@@ -11696,6 +11712,12 @@ static void isizable(winptr win, int e)
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
+        /* A top level window without the full caption must be based on
+           WS_POPUP: WS_OVERLAPPED (zero) implies a caption and border on any
+           top level window regardless of the absent style bits, which shrinks
+           the client below the calculated size (a strip of missing pixels). */
+        if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD))
+            fl1 |= WS_POPUP;
         unlockmain(); /* end exclusive access */
         r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
@@ -11773,6 +11795,12 @@ static void isysbar(winptr win, int e)
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
+        /* A top level window without the full caption must be based on
+           WS_POPUP: WS_OVERLAPPED (zero) implies a caption and border on any
+           top level window regardless of the absent style bits, which shrinks
+           the client below the calculated size (a strip of missing pixels). */
+        if ((fl1 & WS_CAPTION) != WS_CAPTION && !(fl1 & WS_CHILD))
+            fl1 |= WS_POPUP;
         unlockmain(); /* end exclusive access */
         r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
