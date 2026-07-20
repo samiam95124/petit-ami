@@ -14490,34 +14490,40 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
     /* I can"t find a reasonable system metrics version of the drop arrow
        demensions, so they are hardcoded here. */
     const int darrowx = 17;
-    const int darrowy = 20;
 
-    SIZE sz; /* size holder */
-    BOOL b;  /* return value */
-    HDC  dc; /* dc for screen */
+    SIZE sz;    /* size holder */
+    HWND mh;    /* measuring combo box */
+    RECT wr;    /* window rectangle */
+    int  itemh; /* drop list item height */
+    int  n;     /* string list entry count */
 
-    /* calculate first line */
-    getsizlin(sp->str, &sz); /* find sizing for line */
-    /* Find size of string x, drop arrow width, box edges, and add fudge factor
-       to space text out. */
-//    cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-    *ow = *cw; /* open is the same */
-    /* drop arrow height+shadow overhead+drop box bounding */
-    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
-    /* drop arrow height+shadow overhead */
-//    ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
-    /* add all lines to drop box section */
+    /* The control chooses its own closed height, and trims the drop section
+       to a whole number of items, so measure a throwaway combo box instead
+       of predicting its metrics. */
+    mh = CreateWindowEx(0, "combobox", "", WS_POPUP | CBS_DROPDOWN,
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    itemh = SendMessage(mh, CB_GETITEMHEIGHT, 0, 0); /* drop list item height */
+    if (!GetWindowRect(mh, &wr)) winerr(); /* the closed height it took */
+    DestroyWindow(mh);
+    *ch = wr.bottom-wr.top; /* closed height the control enforces */
+    *cw = 0; /* clear widths for maximum search */
+    n = 0; /* clear string count */
     while (sp) { /* traverse string list */
 
         getsizlin(sp->str, &sz); /* find sizing for this line */
-        /* find open width on this string only */
+        /* Find size of string x, drop arrow width, box edges, and add fudge
+           factor to space text out. */
         *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
-        *oh = *oh+sz.cy; /* add to open height */
+        if (*ow > *cw) *cw = *ow; /* larger than others, set new max */
+        n++; /* count list entries */
         sp = sp->next; /* next string */
 
     }
-    *ow = *cw; /* set maximum open width */
+    *ow = *cw; /* open width is the same as closed */
+    /* closed section, drop list border, and a whole item per entry */
+    *oh = *ch+GetSystemMetrics(SM_CYEDGE)*2+n*itemh;
 
 }
 
