@@ -10124,6 +10124,51 @@ static void kilwin(HWND wh)
 
 /*******************************************************************************
 
+Find window rectangle for client at the window's DPI
+
+This process is set per monitor DPI aware at initialization, and in such a
+process AdjustWindowRectEx computes with 96 DPI frame metrics while the
+actual window frames scale with the monitor's DPI -- the calculated frame
+is too small on a scaled display (a window sized for a given client comes
+up short by the scaling difference). AdjustWindowRectExForDpi (windows 10
+1607 and later) computes with the window's real DPI. Resolved dynamically
+with a fallback to the plain call for older systems.
+
+*******************************************************************************/
+
+static BOOL adjwinrect(winptr win, RECT* cr, DWORD fl, BOOL menu)
+
+{
+
+    typedef BOOL (WINAPI *awrfd_t)(LPRECT, DWORD, BOOL, DWORD, UINT);
+    typedef UINT (WINAPI *gdfw_t)(HWND);
+
+    static awrfd_t awrfd = NULL; /* AdjustWindowRectExForDpi */
+    static gdfw_t  gdfw = NULL;  /* GetDpiForWindow */
+    static int     dpiinit = FALSE;
+
+    if (!dpiinit) {
+
+        HMODULE u32 = GetModuleHandle("user32.dll");
+
+        if (u32) {
+
+            awrfd = (awrfd_t)GetProcAddress(u32, "AdjustWindowRectExForDpi");
+            gdfw = (gdfw_t)GetProcAddress(u32, "GetDpiForWindow");
+
+        }
+        dpiinit = TRUE;
+
+    }
+    if (awrfd && gdfw && win->winhan)
+        return (awrfd(cr, fl, menu, 0, gdfw(win->winhan)));
+
+    return (AdjustWindowRectEx(cr, fl, menu, 0));
+
+}
+
+/*******************************************************************************
+
 Open and present window
 
 Given a windows record, opens and presents the window associated with it. All
@@ -10348,7 +10393,7 @@ static void opnwin(int fn, int pfn)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    b = adjwinrect(win, &cr, WS_OVERLAPPEDWINDOW, FALSE);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our character mode */
     unlockmain(); /* end exclusive access */
@@ -10674,7 +10719,7 @@ static void isizbufg(winptr win, int x, int y)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    b = adjwinrect(win, &cr, WS_OVERLAPPEDWINDOW, FALSE);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our new buffer size */
     unlockmain(); /* end exclusive access */
@@ -10771,7 +10816,7 @@ static void ibuffer(winptr win, int e)
         r.right = win->gmaxxg;
         r.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(&r, WS_OVERLAPPEDWINDOW, FALSE, 0);
+        b = adjwinrect(win, &r, WS_OVERLAPPEDWINDOW, FALSE);
         if (!b) winerr(); /* process windows error */
         /* resize the window to just fit our buffer size */
         unlockmain(); /* end exclusive access */
@@ -10990,7 +11035,7 @@ static void imenu(winptr win, ami_menuptr m)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, fl1, TRUE, 0);
+    b = adjwinrect(win, &cr, fl1, TRUE);
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11571,7 +11616,7 @@ static void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy,
     }
     fl = redstyle(fl); /* reduce for caption-less window */
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, fl, FALSE, 0);
+    b = adjwinrect(win, &cr, fl, FALSE);
     if (!b) winerr(); /* process windows error */
     *wx = cr.right-cr.left; /* return window size */
     *wy = cr.bottom-cr.top;
@@ -11694,7 +11739,7 @@ static void iframe(winptr win, int e)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+    b = adjwinrect(win, &cr, fl1, FALSE);
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11770,7 +11815,7 @@ static void isizable(winptr win, int e)
         cr.right = win->gmaxxg;
         cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+        b = adjwinrect(win, &cr, fl1, FALSE);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11848,7 +11893,7 @@ static void isysbar(winptr win, int e)
         cr.right = win->gmaxxg;
         cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+        b = adjwinrect(win, &cr, fl1, FALSE);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0,
