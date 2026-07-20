@@ -15604,7 +15604,10 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
             win = NULL;
             if (ofn) win = lfn2win(ofn); /* index window */
             unlockmain(); /* end exclusive access */
-            if (win && win->size) { /* window is sizable: map edge grips */
+            /* Map the edge grips only when the window carries a frame and is
+               sizable: with the frame off entirely the window has no bars of
+               any kind, including sizing. */
+            if (win && win->size && win->frame) {
 
                 RECT  wr;
                 POINT pt;
