@@ -294,10 +294,11 @@ static void tcert(void)
     r = ami_certnet(f, 1, cert, sizeof(cert));
     result("certnet raw certificate", strlen(cert) > 0);
 
-    /* complete the exchange so the server exits */
+    /* complete the exchange so the server exits; the response content is
+       not checked here, only consumed */
     fputs("Hello, server\n", f);
     fflush(f);
-    if (fgets(buff, BUFLEN, f)) ; /* response */
+    if (!fgets(buff, BUFLEN, f)) buff[0] = 0;
     fclose(f);
     clientdone();
     finish();
