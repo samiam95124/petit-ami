@@ -8212,6 +8212,31 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
 
         }
 
+    } else if (msg->message == WM_EXITSIZEMOVE) { /* end of interactive move/size */
+
+        if (!win->bufmod) {
+
+            /* During the interactive sizing modal loop, sizing requests the
+               program issues in response to resize events (say, resizing
+               child windows to track the parent) can be applied out of order
+               against the drag, leaving stale final geometry. Deliver one
+               final resize with the settled client size so the program makes
+               an authoritative last pass. */
+            b = GetClientRect(win->winhan, &cr); /* get the settled size */
+            win->gmaxxg = cr.right; /* set x size */
+            win->gmaxyg = cr.bottom; /* set y size */
+            win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
+            win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
+            win->screens[win->curdsp-1]->maxx = win->gmaxx; /* copy to screen control */
+            win->screens[win->curdsp-1]->maxy = win->gmaxy;
+            win->screens[win->curdsp-1]->maxxg = win->gmaxxg;
+            win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
+            /* place the resize message */
+            er->etype = ami_etresize; /* set resize message */
+            *keep = TRUE; /* set keep event */
+
+        }
+
     } else if (msg->message == WM_CHAR) keyevent(er, msg, keep); /* process characters */
     else if (msg->message == WM_KEYDOWN) {
 
@@ -15820,6 +15845,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
             case WM_HSCROLL: case WM_NOTIFY: case MM_JOY1MOVE: case MM_JOY2MOVE:
             case MM_JOY1ZMOVE: case MM_JOY2ZMOVE: case MM_JOY1BUTTONDOWN:
             case MM_JOY2BUTTONDOWN: case MM_JOY1BUTTONUP: case MM_JOY2BUTTONUP:
+            case WM_EXITSIZEMOVE:
 
 /*
 fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt);
