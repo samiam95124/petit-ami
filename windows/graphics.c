@@ -14312,9 +14312,7 @@ static void idropboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
 
 {
 
-    /* I can't find a reasonable system metrics version of the drop arrow
-       demensions, so they are hardcoded here. */
-    const int darrowx = 17;
+    int darrowx; /* drop arrow width */
 
     SIZE sz;    /* size holder */
     HWND mh;    /* measuring combo box */
@@ -14322,6 +14320,8 @@ static void idropboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
     int  itemh; /* drop list item height */
     int  n;     /* string list entry count */
 
+    /* the drop arrow is a scroll bar width at the display's scaling */
+    darrowx = GetSystemMetrics(SM_CXVSCROLL);
     /* The control chooses its own closed height, and trims the drop section
        to a whole number of items, so measure a throwaway combo box instead
        of predicting its metrics. */
@@ -14487,9 +14487,7 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
 
 {
 
-    /* I can"t find a reasonable system metrics version of the drop arrow
-       demensions, so they are hardcoded here. */
-    const int darrowx = 17;
+    int darrowx; /* drop arrow width */
 
     SIZE sz;    /* size holder */
     HWND mh;    /* measuring combo box */
@@ -14497,6 +14495,8 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
     int  itemh; /* drop list item height */
     int  n;     /* string list entry count */
 
+    /* the drop arrow is a scroll bar width at the display's scaling */
+    darrowx = GetSystemMetrics(SM_CXVSCROLL);
     /* The control chooses its own closed height, and trims the drop section
        to a whole number of items, so measure a throwaway combo box instead
        of predicting its metrics. */
@@ -14654,14 +14654,43 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
+/* Find the thumb length a trackbar will really use. The metric depends on
+   which common controls version is live in the process (the classic 5.x
+   thumb is fixed, the 6.0 thumb scales with the DPI), so measure a
+   throwaway trackbar rather than predicting it. */
+static int slidethumb(int vert)
+
+{
+
+    HWND mh;   /* measuring trackbar */
+    int  len;  /* thumb length */
+
+    mh = CreateWindowEx(0, TRACKBAR_CLASS, "",
+                        WS_POPUP | TBS_AUTOTICKS | (vert? TBS_VERT: TBS_HORZ),
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    len = SendMessage(mh, TBM_GETTHUMBLENGTH, 0, 0);
+    DestroyWindow(mh);
+
+    return (len);
+
+}
+
 static void islidehorizsizg(winptr win, int* w, int* h)
 
 {
 
-    /* The width is that of an average slider. The height is what is needed to
-       present the slider, tick marks, and 2 pixels of spacing around it. */
-    *w = 200;
-    *h = 32;
+    HDC dc; /* screen dc */
+
+    /* The width is that of an average slider, scaled to the display DPI. The
+       height is what is needed to present the thumb, tick marks, and edge
+       spacing around them. */
+    dc = GetWindowDC(NULL);
+    if (!dc) winerr(); /* process windows error */
+    *w = 200*GetDeviceCaps(dc, LOGPIXELSX)/96;
+    ReleaseDC(NULL, dc);
+    *h = slidethumb(FALSE)+GetSystemMetrics(SM_CYEDGE)*2+12;
 
 }
 
@@ -14783,10 +14812,16 @@ static void islidevertsizg(winptr win, int* w, int* h)
 
 {
 
-    /* The height is that of an average slider. The width is what is needed to
-       present the slider, tick marks, and 2 pixels of spacing around it. */
-    *w = 32;
-    *h = 200;
+    HDC dc; /* screen dc */
+
+    /* The height is that of an average slider, scaled to the display DPI. The
+       width is what is needed to present the thumb, tick marks, and edge
+       spacing around them. */
+    *w = slidethumb(TRUE)+GetSystemMetrics(SM_CXEDGE)*2+12;
+    dc = GetWindowDC(NULL);
+    if (!dc) winerr(); /* process windows error */
+    *h = 200*GetDeviceCaps(dc, LOGPIXELSY)/96;
+    ReleaseDC(NULL, dc);
 
 }
 
