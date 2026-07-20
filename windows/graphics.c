@@ -14312,37 +14312,43 @@ static void idropboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
 
 {
 
-    /* I can't find a reasonable system metrics version of the drop arrow
-       demensions, so they are hardcoded here. */
-    const int darrowx = 17;
-    const int darrowy = 20;
+    int darrowx; /* drop arrow width */
 
-    SIZE sz; /* size holder */
-    BOOL b;  /* return value */
-    HDC  dc; /* dc for screen */
+    SIZE sz;    /* size holder */
+    HWND mh;    /* measuring combo box */
+    RECT wr;    /* window rectangle */
+    int  itemh; /* drop list item height */
+    int  n;     /* string list entry count */
 
-    /* calculate first line */
-    getsizlin(sp->str, &sz); /* find sizing for line */
-    /* Find size of string x, drop arrow width, box edges, and add fudge factor
-      to space text out. */
-    *cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-    *ow = *cw; /* open is the same */
-    /* drop arrow height+shadow overhead+drop box bounding */
-    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
-    /* drop arrow height+shadow overhead */
-    *ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
-    /* add all lines to drop box section */
+    /* the drop arrow is a scroll bar width at the display's scaling */
+    darrowx = GetSystemMetrics(SM_CXVSCROLL);
+    /* The control chooses its own closed height, and trims the drop section
+       to a whole number of items, so measure a throwaway combo box instead
+       of predicting its metrics. */
+    mh = CreateWindowEx(0, "combobox", "", WS_POPUP | CBS_DROPDOWNLIST,
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    itemh = SendMessage(mh, CB_GETITEMHEIGHT, 0, 0); /* drop list item height */
+    if (!GetWindowRect(mh, &wr)) winerr(); /* the closed height it took */
+    DestroyWindow(mh);
+    *ch = wr.bottom-wr.top; /* closed height the control enforces */
+    *cw = 0; /* clear widths for maximum search */
+    n = 0; /* clear string count */
     while (sp) { /* traverse string list */
 
         getsizlin(sp->str, &sz); /* find sizing for this line */
-        /* find open width on this string only */
+        /* Find size of string x, drop arrow width, box edges, and add fudge
+           factor to space text out. */
         *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
-        *oh = *oh+sz.cy; /* add to open height */
+        if (*ow > *cw) *cw = *ow; /* larger than others, set new max */
+        n++; /* count list entries */
         sp = sp->next; /* next string */
 
     }
-    *ow = *cw; /* set maximum open width */
+    *ow = *cw; /* open width is the same as closed */
+    /* closed section, drop list border, and a whole item per entry */
+    *oh = *ch+GetSystemMetrics(SM_CYEDGE)*2+n*itemh;
 
 }
 
@@ -14481,37 +14487,43 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
 
 {
 
-    /* I can"t find a reasonable system metrics version of the drop arrow
-       demensions, so they are hardcoded here. */
-    const int darrowx = 17;
-    const int darrowy = 20;
+    int darrowx; /* drop arrow width */
 
-    SIZE sz; /* size holder */
-    BOOL b;  /* return value */
-    HDC  dc; /* dc for screen */
+    SIZE sz;    /* size holder */
+    HWND mh;    /* measuring combo box */
+    RECT wr;    /* window rectangle */
+    int  itemh; /* drop list item height */
+    int  n;     /* string list entry count */
 
-    /* calculate first line */
-    getsizlin(sp->str, &sz); /* find sizing for line */
-    /* Find size of string x, drop arrow width, box edges, and add fudge factor
-       to space text out. */
-//    cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-    *ow = *cw; /* open is the same */
-    /* drop arrow height+shadow overhead+drop box bounding */
-    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
-    /* drop arrow height+shadow overhead */
-//    ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
-    /* add all lines to drop box section */
+    /* the drop arrow is a scroll bar width at the display's scaling */
+    darrowx = GetSystemMetrics(SM_CXVSCROLL);
+    /* The control chooses its own closed height, and trims the drop section
+       to a whole number of items, so measure a throwaway combo box instead
+       of predicting its metrics. */
+    mh = CreateWindowEx(0, "combobox", "", WS_POPUP | CBS_DROPDOWN,
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    itemh = SendMessage(mh, CB_GETITEMHEIGHT, 0, 0); /* drop list item height */
+    if (!GetWindowRect(mh, &wr)) winerr(); /* the closed height it took */
+    DestroyWindow(mh);
+    *ch = wr.bottom-wr.top; /* closed height the control enforces */
+    *cw = 0; /* clear widths for maximum search */
+    n = 0; /* clear string count */
     while (sp) { /* traverse string list */
 
         getsizlin(sp->str, &sz); /* find sizing for this line */
-        /* find open width on this string only */
+        /* Find size of string x, drop arrow width, box edges, and add fudge
+           factor to space text out. */
         *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
-        *oh = *oh+sz.cy; /* add to open height */
+        if (*ow > *cw) *cw = *ow; /* larger than others, set new max */
+        n++; /* count list entries */
         sp = sp->next; /* next string */
 
     }
-    *ow = *cw; /* set maximum open width */
+    *ow = *cw; /* open width is the same as closed */
+    /* closed section, drop list border, and a whole item per entry */
+    *oh = *ch+GetSystemMetrics(SM_CYEDGE)*2+n*itemh;
 
 }
 
@@ -14642,14 +14654,43 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
+/* Find the thumb length a trackbar will really use. The metric depends on
+   which common controls version is live in the process (the classic 5.x
+   thumb is fixed, the 6.0 thumb scales with the DPI), so measure a
+   throwaway trackbar rather than predicting it. */
+static int slidethumb(int vert)
+
+{
+
+    HWND mh;   /* measuring trackbar */
+    int  len;  /* thumb length */
+
+    mh = CreateWindowEx(0, TRACKBAR_CLASS, "",
+                        WS_POPUP | TBS_AUTOTICKS | (vert? TBS_VERT: TBS_HORZ),
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    len = SendMessage(mh, TBM_GETTHUMBLENGTH, 0, 0);
+    DestroyWindow(mh);
+
+    return (len);
+
+}
+
 static void islidehorizsizg(winptr win, int* w, int* h)
 
 {
 
-    /* The width is that of an average slider. The height is what is needed to
-       present the slider, tick marks, and 2 pixels of spacing around it. */
-    *w = 200;
-    *h = 32;
+    HDC dc; /* screen dc */
+
+    /* The width is that of an average slider, scaled to the display DPI. The
+       height is what is needed to present the thumb, tick marks, and edge
+       spacing around them. */
+    dc = GetWindowDC(NULL);
+    if (!dc) winerr(); /* process windows error */
+    *w = 200*GetDeviceCaps(dc, LOGPIXELSX)/96;
+    ReleaseDC(NULL, dc);
+    *h = slidethumb(FALSE)+GetSystemMetrics(SM_CYEDGE)*2+12;
 
 }
 
@@ -14771,10 +14812,16 @@ static void islidevertsizg(winptr win, int* w, int* h)
 
 {
 
-    /* The height is that of an average slider. The width is what is needed to
-       present the slider, tick marks, and 2 pixels of spacing around it. */
-    *w = 32;
-    *h = 200;
+    HDC dc; /* screen dc */
+
+    /* The height is that of an average slider, scaled to the display DPI. The
+       width is what is needed to present the thumb, tick marks, and edge
+       spacing around them. */
+    *w = slidethumb(TRUE)+GetSystemMetrics(SM_CXEDGE)*2+12;
+    dc = GetWindowDC(NULL);
+    if (!dc) winerr(); /* process windows error */
+    *h = 200*GetDeviceCaps(dc, LOGPIXELSY)/96;
+    ReleaseDC(NULL, dc);
 
 }
 
