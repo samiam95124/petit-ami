@@ -163,6 +163,12 @@ typedef struct { /* screen context */
     int      autof;       /* current status of scroll and wrap */
     int      tab[MAXTAB]; /* tabbing array */
     int      sattr;       /* current character attributes */
+    /* The shadow holds the true contents of the screen surface, maxx*maxy
+       cells. The console buffer is only a view of it: the console rewraps
+       its own contents when the window width changes, so after any resize
+       the view is repainted from here. */
+    char*    shdc;        /* shadow characters */
+    WORD*    shda;        /* shadow attributes */
 
 } scncon, *scnptr;
 
@@ -625,6 +631,108 @@ characters on the screen to spaces with the current colors and attributes.
 
 *******************************************************************************/
 
+/* Allocate or reallocate the shadow store to the current maxx/maxy,
+   blank filled with the given attribute. Any previous store is freed. */
+
+static void shdnew(scnptr sc, WORD a)
+
+{
+
+    int i;
+
+    if (sc->shdc) free(sc->shdc);
+    if (sc->shda) free(sc->shda);
+    sc->shdc = malloc(sc->maxx*sc->maxy);
+    sc->shda = malloc(sc->maxx*sc->maxy*sizeof(WORD));
+    if (sc->shdc) memset(sc->shdc, ' ', sc->maxx*sc->maxy);
+    if (sc->shda) for (i = 0; i < sc->maxx*sc->maxy; i++) sc->shda[i] = a;
+
+}
+
+/* Place a character and attribute in the shadow. Coordinates are 0 based
+   within the display surface; out of range writes are dropped. */
+
+static void shdput(scnptr sc, int x, int y, char c, WORD a)
+
+{
+
+    if (!sc->shdc || !sc->shda) return;
+    if (x < 0 || x >= sc->maxx || y < 0 || y >= sc->maxy) return;
+    sc->shdc[y*sc->maxx+x] = c;
+    sc->shda[y*sc->maxx+x] = a;
+
+}
+
+/* Repaint the console's visible area from the shadow: the truth about the
+   surface. The console rewraps its own contents when the window width
+   changes, so this is run after any window resize. The surface is clipped
+   to the window, and window area beyond the surface is blank filled. The
+   buffer width is pinned to the window width; the height (and thus the
+   scrollback above the display area on the primary buffer) is preserved. */
+
+static void present(scnptr sc)
+
+{
+
+    CONSOLE_SCREEN_BUFFER_INFO sbi; /* screen buffer info */
+    CHAR_INFO* ci;  /* repaint cell array */
+    COORD      bs;  /* block size */
+    COORD      bo;  /* block origin */
+    SMALL_RECT wr;  /* write region */
+    int        vx, vy; /* visible size */
+    int        x, y;
+    char       c;
+    WORD       a;
+
+    if (!sc->shdc || !sc->shda) return;
+    if (!GetConsoleScreenBufferInfo(sc->han, &sbi)) return;
+    vx = sbi.srWindow.Right-sbi.srWindow.Left+1;
+    vy = sbi.srWindow.Bottom-sbi.srWindow.Top+1;
+    if (vx < 1 || vy < 1) return;
+    /* the display area sits where the window is */
+    sc->offy = sbi.srWindow.Top;
+    /* build the visible area from the shadow, blank filled beyond it */
+    ci = malloc(vx*vy*sizeof(CHAR_INFO));
+    if (!ci) return;
+    for (y = 0; y < vy; y++)
+        for (x = 0; x < vx; x++) {
+
+        c = ' ';
+        a = sc->sattr;
+        if (x < sc->maxx && y < sc->maxy) {
+
+            c = sc->shdc[y*sc->maxx+x];
+            a = sc->shda[y*sc->maxx+x];
+
+        }
+        ci[y*vx+x].Char.AsciiChar = c;
+        ci[y*vx+x].Attributes = a;
+
+    }
+    bs.X = vx;
+    bs.Y = vy;
+    bo.X = 0;
+    bo.Y = 0;
+    wr.Left = sbi.srWindow.Left;
+    wr.Top = sbi.srWindow.Top;
+    wr.Right = sbi.srWindow.Right;
+    wr.Bottom = sbi.srWindow.Bottom;
+    WriteConsoleOutput(sc->han, ci, bs, bo, &wr);
+    free(ci);
+    /* Trim the buffer to the right and bottom window edges so no scroll
+       bars appear; scrollback above the window is preserved. */
+    if (sbi.dwSize.X > sbi.srWindow.Right+1 ||
+        sbi.dwSize.Y > sbi.srWindow.Bottom+1) {
+
+        bs.X = sbi.srWindow.Right+1;
+        bs.Y = sbi.srWindow.Bottom+1;
+        SetConsoleScreenBufferSize(sc->han, bs);
+
+    }
+    setcur(sc); /* replace the cursor */
+
+}
+
 static void iclear(scnptr sc)
 
 {
@@ -646,6 +754,7 @@ static void iclear(scnptr sc)
             xy.Y = y+sc->offy;
             b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
             b = WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
+            shdput(sc, x, y, cb, ab); /* mirror to shadow */
 
         }
 
@@ -686,6 +795,9 @@ static void iniscn(scnptr sc)
     sc->autof = gautof; /* set auto scroll and wrap */
     sc->curv = gcurv; /* set cursor visibility */
     setcolor(sc); /* set current color */
+    sc->shdc = NULL; /* allocate the shadow surface */
+    sc->shda = NULL;
+    shdnew(sc, sc->sattr);
     iclear(sc); /* clear screen buffer with that */
     /* set up tabbing to be on each 8th position */
     for (i = 0; i < sc->maxx; i++) sc->tab[i] = i%8 == 0;
@@ -726,6 +838,49 @@ scroll as a separate sequence in each x and y direction. This makes the code
 simpler, and lets Windows perform the fills for us.
 
 *******************************************************************************/
+
+/* Scroll the shadow surface by the given deltas, blank filling vacated
+   cells with the current attributes. Each destination cell takes its
+   source from the cell offset by the deltas, or blank if off surface. */
+
+static void shdscroll(scnptr sc, int x, int y)
+
+{
+
+    int   r, c;
+    int   sx, sy; /* source coordinates */
+    char* nc;     /* new character array */
+    WORD* na;     /* new attribute array */
+
+    if (!sc->shdc || !sc->shda) return;
+    if (!x && !y) return;
+    nc = malloc(sc->maxx*sc->maxy);
+    na = malloc(sc->maxx*sc->maxy*sizeof(WORD));
+    if (!nc || !na) { if (nc) free(nc); if (na) free(na); return; }
+    for (r = 0; r < sc->maxy; r++)
+        for (c = 0; c < sc->maxx; c++) {
+
+        sx = c+x; /* content moves opposite the scroll */
+        sy = r+y;
+        if (sx >= 0 && sx < sc->maxx && sy >= 0 && sy < sc->maxy) {
+
+            nc[r*sc->maxx+c] = sc->shdc[sy*sc->maxx+sx];
+            na[r*sc->maxx+c] = sc->shda[sy*sc->maxx+sx];
+
+        } else {
+
+            nc[r*sc->maxx+c] = ' ';
+            na[r*sc->maxx+c] = sc->sattr;
+
+        }
+
+    }
+    free(sc->shdc);
+    free(sc->shda);
+    sc->shdc = nc;
+    sc->shda = na;
+
+}
 
 static void iscroll(int x, int y)
 
@@ -789,6 +944,7 @@ static void iscroll(int x, int y)
             b = ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
 
         }
+        shdscroll(sc, x, y); /* mirror the scroll to the shadow */
 
     }
 
@@ -979,6 +1135,8 @@ static void idown(void)
                 ScrollConsoleScreenBuffer(sc->han, &sr, NULL, xy, &f);
 
             }
+            /* either way the display area content moved up one line */
+            shdscroll(sc, 0, 1);
 
         }
 
@@ -1551,6 +1709,7 @@ static void plcchr(char c)
             xy.Y = sc->cury+sc->offy-1;
             b = WriteConsoleOutputCharacter(sc->han, &cb, 1, xy, &len);
             b = WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
+            shdput(sc, sc->curx-1, sc->cury-1, cb, ab); /* mirror to shadow */
 
         }
         iright(); /* move cursor right */
@@ -2347,7 +2506,10 @@ static void ievent(ami_evtptr er)
                        buffering mechanism and tells the program what the
                        window is, in case it cares. Read the displayed
                        buffer's window rectangle for the visible size and
-                       report net changes; no driver state is touched. */
+                       report net changes. The view is repainted from the
+                       surface first: the console rewraps its own contents
+                       on window width changes, which would otherwise leave
+                       the presentation scrambled. */
                     b = GetConsoleScreenBufferInfo(screens[curdsp-1]->han, &bi);
                     if (b) {
 
@@ -2357,6 +2519,7 @@ static void ievent(ami_evtptr er)
 
                             wszx = x; /* record last reported size */
                             wszy = y;
+                            present(screens[curdsp-1]); /* repaint the view */
                             er->etype = ami_etresize; /* set resize */
                             er->rszx = x; /* send the size in the event */
                             er->rszy = y;
@@ -2833,6 +2996,7 @@ void ami_wrtstrn(FILE* f, char *s, int n)
             xy.Y = sc->cury+sc->offy-1;
             WriteConsoleOutputCharacter(sc->han, s, 1, xy, &len);
             WriteConsoleOutputAttribute(sc->han, &ab, 1, xy, &len);
+            shdput(sc, sc->curx-1, sc->cury-1, *s, ab); /* mirror to shadow */
 
         }
         iright(); /* move cursor right */
@@ -2871,43 +3035,43 @@ void ami_sizbuf(FILE* f, int x, int y)
 
 {
 
-    COORD ns;       /* new buffer size */
-    SMALL_RECT nw;  /* new window rectangle */
-    CONSOLE_SCREEN_BUFFER_INFO sbi; /* screen buffer info */
-    int wx, wy;     /* current window size */
-    BOOL b;
+    scnptr sc;    /* screen context */
+    char*  nc;    /* new shadow characters */
+    WORD*  na;    /* new shadow attributes */
+    int    r, c;
 
     if (x < 1 || y < 1) error(ami_dispeinvpos); /* invalid size */
-    /* The console requires the window to fit inside the buffer: clip the
-       window first when the buffer shrinks below it. The window is
-       otherwise left alone; a buffer larger than the window is simply
-       scrollable, and the resize event reports the window independently. */
-    b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &sbi);
-    if (b) {
+    sc = screens[curupd-1];
+    /* Create the new surface and copy the old contents over, clipped or
+       expanded with blank space to the new size, then present the result.
+       The console buffer is only a view of the surface and needs no
+       resizing of its own. */
+    nc = malloc(x*y);
+    na = malloc(x*y*sizeof(WORD));
+    if (!nc || !na) { if (nc) free(nc); if (na) free(na); return; }
+    for (r = 0; r < y; r++)
+        for (c = 0; c < x; c++) {
 
-        wx = sbi.srWindow.Right-sbi.srWindow.Left+1;
-        wy = sbi.srWindow.Bottom-sbi.srWindow.Top+1;
-        if (wx > x || wy > y) {
+        if (sc->shdc && sc->shda && r < sc->maxy && c < sc->maxx) {
 
-            nw.Left = 0;
-            nw.Top = 0;
-            nw.Right = (wx > x? x: wx)-1;
-            nw.Bottom = (wy > y? y: wy)-1;
-            SetConsoleWindowInfo(screens[curupd-1]->han, TRUE, &nw);
+            nc[r*x+c] = sc->shdc[r*sc->maxx+c];
+            na[r*x+c] = sc->shda[r*sc->maxx+c];
+
+        } else {
+
+            nc[r*x+c] = ' ';
+            na[r*x+c] = sc->sattr;
 
         }
 
     }
-    ns.X = x; /* set the new buffer size */
-    ns.Y = y;
-    b = SetConsoleScreenBufferSize(screens[curupd-1]->han, ns);
-    if (b) {
-
-        screens[curupd-1]->maxx = x; /* record the new dimensions */
-        screens[curupd-1]->maxy = y;
-        screens[curupd-1]->offy = 0; /* sized buffer has no scrollback */
-
-    }
+    if (sc->shdc) free(sc->shdc);
+    if (sc->shda) free(sc->shda);
+    sc->shdc = nc;
+    sc->shda = na;
+    sc->maxx = x; /* set the new surface dimensions */
+    sc->maxy = y;
+    present(sc); /* repaint the view of the new surface */
 
 }
 
@@ -3698,6 +3862,46 @@ dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: 
     /* set up tabbing to be on each 8th position */
     for (i = 0; i < screens[curupd-1]->maxx; i++)
         screens[curupd-1]->tab[i] = (i) % 8 == 0;
+    /* Allocate the shadow surface and capture the present display area
+       contents into it, so the first repaint reproduces what is already
+       on screen rather than blanking it. */
+    screens[curupd-1]->shdc = NULL;
+    screens[curupd-1]->shda = NULL;
+    shdnew(screens[curupd-1], screens[curupd-1]->sattr);
+    if (screens[curupd-1]->shdc && screens[curupd-1]->shda) {
+
+        CHAR_INFO* cci;
+        COORD      cbs, cbo;
+        SMALL_RECT crr;
+        int        cx, cy;
+        scnptr     csc = screens[curupd-1];
+
+        cci = malloc(csc->maxx*csc->maxy*sizeof(CHAR_INFO));
+        if (cci) {
+
+            cbs.X = csc->maxx;
+            cbs.Y = csc->maxy;
+            cbo.X = 0;
+            cbo.Y = 0;
+            crr.Left = 0;
+            crr.Top = csc->offy;
+            crr.Right = csc->maxx-1;
+            crr.Bottom = csc->offy+csc->maxy-1;
+            if (ReadConsoleOutput(csc->han, cci, cbs, cbo, &crr))
+                for (cy = 0; cy < csc->maxy; cy++)
+                    for (cx = 0; cx < csc->maxx; cx++) {
+
+                    csc->shdc[cy*csc->maxx+cx] =
+                        cci[cy*csc->maxx+cx].Char.AsciiChar;
+                    csc->shda[cy*csc->maxx+cx] =
+                        cci[cy*csc->maxx+cx].Attributes;
+
+                }
+            free(cci);
+
+        }
+
+    }
     /* turn on mouse events */
     GetConsoleMode(inphdl, &mode);
     mode &= ~ENABLE_QUICK_EDIT_MODE; /* enable the mouse */
