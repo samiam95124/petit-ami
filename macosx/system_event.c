@@ -271,7 +271,7 @@ int system_event_addsesig(int sig)
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     sid = getsys(); /* get a new system event id */
-    systab[sid-1]->typ = se_inp; /* set type */
+    systab[sid-1]->typ = se_sig; /* set type */
     systab[sid-1]->sig = sig; /* set signal */
 
     /* add this signal to mask set */
