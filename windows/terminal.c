@@ -113,6 +113,7 @@ static enum { /* debug levels */
 #define UIV_HOVER          0x800a /* hover timer matures */
 
 #define HOVERTIME 1000 /* hover timeout, milliseconds */
+#define MOUSEPOLL 100  /* unfocused mouse poll interval, milliseconds */
 
 /* types of system vectors for override calls */
 
@@ -211,6 +212,8 @@ static int     nmpx, nmpy;      /* new mouse current position */
 static int     hover;           /* mouse is hovering in window */
 static int     hovpend;         /* hover event pending delivery */
 static int     hovtim;          /* hover timeout timer handle */
+static int     poltim;          /* unfocused mouse poll timer handle */
+static int     polx, poly;      /* last injected polled mouse position */
 static char    inpbuf[MAXLIN];  /* input line buffer */
 static int     inpptr;          /* input line index */
 static scnptr  screens[MAXCON]; /* screen contexts array */
@@ -1904,6 +1907,62 @@ contempt for the whole double click concept.
 
 */
 
+/* Poll the mouse while the console is unfocused. The console only delivers
+   mouse events to the focused window, but the linux terminal reports motion
+   whenever the pointer is in the window, focused or not -- so hover (and
+   movement) would otherwise follow focus here. Track the cursor against the
+   console window and inject the position through the console queue as a
+   normal mouse event; the regular mouse path deduplicates and delivers.
+   While the console is focused the real events own the position, so the
+   poll stands down (mixing the two invites off by one cell jitter). */
+
+static void CALLBACK mousepoll(UINT id, UINT msg, DWORD_PTR usr,
+                               DWORD_PTR dw1, DWORD_PTR dw2)
+
+{
+
+    HWND  wh;  /* console window handle */
+    POINT p;   /* cursor position */
+    RECT  cr;  /* client rectangle */
+    CONSOLE_SCREEN_BUFFER_INFO sbi; /* screen buffer info */
+    INPUT_RECORD inpevt; /* windows event record */
+    DWORD ne;  /* number of events written */
+    int   cols, rows; /* visible character dimensions */
+    int   cx, cy;     /* cell coordinates */
+
+    wh = GetConsoleWindow();
+    if (!wh || IsIconic(wh)) return; /* no window or minimized */
+    if (GetForegroundWindow() == wh) return; /* focused: real events rule */
+    if (!GetCursorPos(&p)) return;
+    if (!ScreenToClient(wh, &p)) return;
+    if (!GetClientRect(wh, &cr)) return;
+    if (p.x < 0 || p.y < 0 || p.x >= cr.right || p.y >= cr.bottom)
+        return; /* pointer outside the window */
+    if (!GetConsoleScreenBufferInfo(screens[curdsp-1]->han, &sbi)) return;
+    cols = sbi.srWindow.Right-sbi.srWindow.Left+1;
+    rows = sbi.srWindow.Bottom-sbi.srWindow.Top+1;
+    if (cols < 1 || rows < 1 || cr.right < 1 || cr.bottom < 1) return;
+    /* find buffer cell under the pointer */
+    cx = sbi.srWindow.Left+p.x*cols/cr.right;
+    cy = sbi.srWindow.Top+p.y*rows/cr.bottom;
+    if (cx == polx && cy == poly) return; /* no motion, no traffic */
+    polx = cx;
+    poly = cy;
+    inpevt.EventType = MOUSE_EVENT;
+    inpevt.Event.MouseEvent.dwMousePosition.X = cx;
+    inpevt.Event.MouseEvent.dwMousePosition.Y = cy;
+    /* carry the current button state so no phantom releases appear */
+    inpevt.Event.MouseEvent.dwButtonState =
+        (nmb1? FROM_LEFT_1ST_BUTTON_PRESSED: 0) |
+        (nmb2? RIGHTMOST_BUTTON_PRESSED: 0) |
+        (nmb3? FROM_LEFT_2ND_BUTTON_PRESSED: 0) |
+        (nmb4? FROM_LEFT_3RD_BUTTON_PRESSED: 0);
+    inpevt.Event.MouseEvent.dwControlKeyState = 0;
+    inpevt.Event.MouseEvent.dwEventFlags = MOUSE_MOVED;
+    WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
+
+}
+
 /* Hover timeout matured: the mouse stopped moving. Sent up through the
    console queue as a custom event, the same way the timers do. */
 
@@ -3595,6 +3654,12 @@ dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: 
     /* find number of mouse buttons */
     nummbt = GetSystemMetrics(SM_CMOUSEBUTTONS);
     if (nummbt > 4) nummbt = 4; /* limit the number of buttons to 4 */
+    /* start the unfocused mouse poll */
+    polx = -1; /* set no polled position yet */
+    poly = -1;
+    poltim = timeSetEvent(MOUSEPOLL, 0, mousepoll, 0,
+                          TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS |
+                          TIME_PERIODIC);
     /* interlock to make sure that thread starts before we continue */
     threadstart = 0;
     h = CreateThread(NULL, 0, dummyloop, NULL, 0, &threadid);
