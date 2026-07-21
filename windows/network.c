@@ -1119,6 +1119,42 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
 
 }
 
+/*******************************************************************************
+
+Share a connection with a duplicated descriptor
+
+The read and write sides of a network pair are separate descriptors dup'd
+from one connection. The connection state is indexed by descriptor here, so
+the duplicate must be entered as well or its I/O would fall through the
+interdictions to the parked nul device. The sharers reference one socket and
+ssl; the close path tears the connection down when the last sharer closes.
+
+*******************************************************************************/
+
+void ami_netshare(int fd, int fd2)
+
+{
+
+    filptr sp; /* source file entry */
+    filptr dp; /* duplicate file entry */
+
+    if (fd < 0 || fd >= MAXFIL || !opnfil[fd] || !opnfil[fd]->net) return;
+    if (fd2 < 0 || fd2 >= MAXFIL) return;
+    newfil(fd2); /* get/renew the duplicate's entry */
+    sp = opnfil[fd]; /* index entries */
+    dp = opnfil[fd2];
+    dp->sock = sp->sock; /* share the connection */
+    dp->sock2 = sp->sock2;
+    dp->ssl = sp->ssl;
+    dp->bio = sp->bio;
+    dp->cert = sp->cert;
+    dp->sec = sp->sec;
+    dp->msg = sp->msg;
+    dp->sudp = sp->sudp;
+    dp->net = TRUE; /* set as network file */
+
+}
+
 FILE* ami_opennet(/* IP address */      unsigned long addr,
                  /* port */            int port,
                  /* link is secured */ int secure
@@ -2091,17 +2127,30 @@ static int iclose(int fd)
 {
 
     filptr fp;
+    int    i;
+    int    shared;
 
     if (fd >= 0 && fd < MAXFIL && opnfil[fd] && opnfil[fd]->net) {
 
         fp = opnfil[fd]; /* index that */
-        if (fp->ssl) SSL_free(fp->ssl); /* free the ssl */
+        /* A connection can be shared across descriptors (the read and
+           write sides of a network pair are dups of one socket). Tear the
+           connection down only when the last sharer closes. */
+        shared = FALSE;
+        for (i = 0; i < MAXFIL; i++)
+            if (i != fd && opnfil[i] && opnfil[i]->net &&
+                opnfil[i]->sock == fp->sock) shared = TRUE;
+        if (!shared) {
+
+            if (fp->ssl) SSL_free(fp->ssl); /* free the ssl */
+            if (fp->cert) X509_free(fp->cert); /* free certificate */
+            if (fp->sock != INVALID_SOCKET) closesocket(fp->sock);
+            if (fp->sock2 != INVALID_SOCKET) closesocket(fp->sock2);
+
+        }
         fp->ssl = NULL;
         fp->bio = NULL; /* freed with the ssl */
-        if (fp->cert) X509_free(fp->cert); /* free certificate */
         fp->cert = NULL;
-        if (fp->sock != INVALID_SOCKET) closesocket(fp->sock);
-        if (fp->sock2 != INVALID_SOCKET) closesocket(fp->sock2);
         fp->sock = INVALID_SOCKET;
         fp->sock2 = INVALID_SOCKET;
         fp->net = FALSE;
