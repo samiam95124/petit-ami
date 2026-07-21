@@ -214,6 +214,7 @@ static int     hovpend;         /* hover event pending delivery */
 static int     hovtim;          /* hover timeout timer handle */
 static int     poltim;          /* unfocused mouse poll timer handle */
 static int     polx, poly;      /* last injected polled mouse position */
+static int     polcols, polrows; /* last polled visible window size */
 static char    inpbuf[MAXLIN];  /* input line buffer */
 static int     inpptr;          /* input line index */
 static scnptr  screens[MAXCON]; /* screen contexts array */
@@ -1932,16 +1933,35 @@ static void CALLBACK mousepoll(UINT id, UINT msg, DWORD_PTR usr,
 
     wh = GetConsoleWindow();
     if (!wh || IsIconic(wh)) return; /* no window or minimized */
+    if (!GetConsoleScreenBufferInfo(screens[curdsp-1]->han, &sbi)) return;
+    cols = sbi.srWindow.Right-sbi.srWindow.Left+1;
+    rows = sbi.srWindow.Bottom-sbi.srWindow.Top+1;
+    if (cols < 1 || rows < 1) return;
+    /* Detect visible window size changes. The console only posts buffer
+       size events when the underlying buffer changes, which a height drag
+       never does (the buffer holds the scrollback; the window is just a
+       viewport). Inject one; the handler rereads the real dimensions and
+       drops no-change duplicates. */
+    if (cols != polcols || rows != polrows) {
+
+        if (polcols > 0) { /* not the first poll, report */
+
+            inpevt.EventType = WINDOW_BUFFER_SIZE_EVENT;
+            inpevt.Event.WindowBufferSizeEvent.dwSize = sbi.dwSize;
+            WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
+
+        }
+        polcols = cols; /* record new size */
+        polrows = rows;
+
+    }
     if (GetForegroundWindow() == wh) return; /* focused: real events rule */
     if (!GetCursorPos(&p)) return;
     if (!ScreenToClient(wh, &p)) return;
     if (!GetClientRect(wh, &cr)) return;
     if (p.x < 0 || p.y < 0 || p.x >= cr.right || p.y >= cr.bottom)
         return; /* pointer outside the window */
-    if (!GetConsoleScreenBufferInfo(screens[curdsp-1]->han, &sbi)) return;
-    cols = sbi.srWindow.Right-sbi.srWindow.Left+1;
-    rows = sbi.srWindow.Bottom-sbi.srWindow.Top+1;
-    if (cols < 1 || rows < 1 || cr.right < 1 || cr.bottom < 1) return;
+    if (cr.right < 1 || cr.bottom < 1) return;
     /* find buffer cell under the pointer */
     cx = sbi.srWindow.Left+p.x*cols/cr.right;
     cy = sbi.srWindow.Top+p.y*rows/cr.bottom;
@@ -3657,6 +3677,8 @@ dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: 
     /* start the unfocused mouse poll */
     polx = -1; /* set no polled position yet */
     poly = -1;
+    polcols = -1; /* set no polled window size yet */
+    polrows = -1;
     poltim = timeSetEvent(MOUSEPOLL, 0, mousepoll, 0,
                           TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS |
                           TIME_PERIODIC);
