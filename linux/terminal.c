@@ -706,8 +706,10 @@ static int    fend;        /* end of program ordered flag */
 static int    fautohold;   /* automatic hold on exit flag */
 static int    errflg;      /* error occurred */
 
-/* maximum power of 10 in integer */
-static int    maxpow10;
+/* Maximum power of 10 in integer. Statically initialized for the 32 bit
+   int case so integers written before init are not printed empty (init
+   recomputes it for the actual int width). */
+static int    maxpow10 = 1000000000;
 static int    numjoy;         /* number of joysticks found */
 
 static int    frmfid;         /* framing timer fid */
@@ -1556,18 +1558,82 @@ static void trm_attroff(void) { putstrc("\33[0m"); }
 /** turn off cursor */ static void trm_curoff(void) { putstrc("\33[?25l"); }
 /** turn on cursor */ static void trm_curon(void) { putstrc("\33[?25h"); }
 
+/* Does the terminal support 24 bit "truecolor" SGR sequences? Terminals
+   that do advertise it in $COLORTERM (iTerm2, modern xterms, most Linux
+   terminals). Apple's Terminal.app does not support truecolor and
+   silently ignores the sequences, so colors must fall back to the
+   xterm 256 color palette there. */
+static int havetruecolor(void)
+
+{
+
+    static int truecolor = -1;
+    char* ct;
+
+    if (truecolor < 0) {
+
+        ct = getenv("COLORTERM");
+        truecolor = ct && (strstr(ct, "truecolor") || strstr(ct, "24bit"));
+
+    }
+
+    return (truecolor);
+
+}
+
+/** map 24 bit rgb components to the nearest xterm 256 palette index */
+static int rgb256(int r, int g, int b)
+
+{
+
+    int qr, qg, qb;
+
+    if (r == g && g == b) { /* grayscale */
+
+        if (r < 8) return (16);    /* black cube corner */
+        if (r > 248) return (231); /* white cube corner */
+        return (232+(r-8)*24/240); /* grayscale ramp */
+
+    }
+    qr = r < 48 ? 0 : r < 115 ? 1 : (r-35)/40;
+    qg = g < 48 ? 0 : g < 115 ? 1 : (g-35)/40;
+    qb = b < 48 ? 0 : b < 115 ? 1 : (b-35)/40;
+
+    return (16+36*qr+6*qg+qb);
+
+}
+
+/** set foreground/background color from rgb components */
+static void trm_colorrgbc(int fore, int r, int g, int b)
+
+{
+
+    if (havetruecolor()) {
+
+        putstrc(fore? "\33[38;2;": "\33[48;2;");
+        wrtint(r);
+        putstrc(";");
+        wrtint(g);
+        putstrc(";");
+        wrtint(b);
+        putstrc("m");
+
+    } else { /* fall back to the 256 color palette */
+
+        putstrc(fore? "\33[38;5;": "\33[48;5;");
+        wrtint(rgb256(r, g, b));
+        putstrc("m");
+
+    }
+
+}
+
 /** set foreground color in rgb */
 static void trm_fcolorrgb(int rgb)
 
 {
 
-    putstrc("\33[38;2;");
-    wrtint(rgb >> 16 & 0xff);
-    putstrc(";");
-    wrtint(rgb >> 8 & 0xff);
-    putstrc(";");
-    wrtint(rgb & 0xff);
-    putstrc("m");
+    trm_colorrgbc(TRUE, rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
 
 }
 
@@ -1576,13 +1642,7 @@ static void trm_bcolorrgb(int rgb)
 
 {
 
-    putstrc("\33[48;2;");
-    wrtint(rgb >> 16 & 0xff);
-    putstrc(";");
-    wrtint(rgb >> 8 & 0xff);
-    putstrc(";");
-    wrtint(rgb & 0xff);
-    putstrc("m");
+    trm_colorrgbc(FALSE, rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
 
 }
 
@@ -1595,13 +1655,7 @@ static void trm_fcolor(ami_color c)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstrc("\33[38;2;");
-    wrtint(r);
-    putstrc(";");
-    wrtint(g);
-    putstrc(";");
-    wrtint(b);
-    putstrc("m");
+    trm_colorrgbc(TRUE, r, g, b);
 #else
     putstrc("\33[");
     /* override "bright" black, which is more like grey */
@@ -1621,13 +1675,7 @@ static void trm_bcolor(ami_color c)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstrc("\33[48;2;");
-    wrtint(r);
-    putstrc(";");
-    wrtint(g);
-    putstrc(";");
-    wrtint(b);
-    putstrc("m");
+    trm_colorrgbc(FALSE, r, g, b);
 #else
     putstrc("\33[");
     /* override "bright" black, which is more like grey */
