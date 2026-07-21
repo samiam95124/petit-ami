@@ -215,6 +215,7 @@ static int     hovtim;          /* hover timeout timer handle */
 static int     poltim;          /* unfocused mouse poll timer handle */
 static int     polx, poly;      /* last injected polled mouse position */
 static int     polcols, polrows; /* last polled visible window size */
+static int     wszx, wszy;      /* last reported window size */
 static char    inpbuf[MAXLIN];  /* input line buffer */
 static int     inpptr;          /* input line index */
 static scnptr  screens[MAXCON]; /* screen contexts array */
@@ -2309,8 +2310,7 @@ static void ievent(ami_evtptr er)
     BOOL         b;      /* int return value */
     DWORD        ne;     /* number of events */
     INPUT_RECORD inpevt; /* event read buffer */
-    int          x, y, oy;
-    int          ssy;
+    int          x, y;
 
     do {
 
@@ -2342,26 +2342,29 @@ static void ievent(ami_evtptr er)
 
                 } else if (inpevt.EventType == WINDOW_BUFFER_SIZE_EVENT) {
 
-                    er->etype = ami_etresize; /* set resize */
-                    keep = TRUE; /* set keep event */
-                    b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &bi);
-                    /* Compensate for windows scrollback buffer by placing us in
-                       the display area */
-                    ssy = bi.srWindow.Bottom-bi.srWindow.Top+1; /* find displayed y size */
-                    x = bi.dwSize.X; /* place maximum sizes */
-                    y = ssy; /* set y is displayed only */
-                    oy = bi.dwSize.Y-ssy; /* then set offset to area */
-                    if (screens[curupd-1]->maxx != x || screens[curupd-1]->maxy != y) {
+                    /* The resize event reports what the on screen window is
+                       doing, independent of any buffer: it bypasses the
+                       buffering mechanism and tells the program what the
+                       window is, in case it cares. Read the displayed
+                       buffer's window rectangle for the visible size and
+                       report net changes; no driver state is touched. */
+                    b = GetConsoleScreenBufferInfo(screens[curdsp-1]->han, &bi);
+                    if (b) {
 
-                        /* filter out any messages with no net change. This was
-                           seen commonly. */
-                        screens[curupd-1]->maxx = x; /* place maximum sizes */
-                        screens[curupd-1]->maxy = y; /* set y is displayed only */
-                        screens[curupd-1]->offy = oy; /* then set offset to area */
-                        er->rszx = x; /* send the new size in the event */
-                        er->rszy = y;
+                        x = bi.srWindow.Right-bi.srWindow.Left+1;
+                        y = bi.srWindow.Bottom-bi.srWindow.Top+1;
+                        if (x != wszx || y != wszy) {
 
-                    } else keep = FALSE; /* otherwise no event */
+                            wszx = x; /* record last reported size */
+                            wszy = y;
+                            er->etype = ami_etresize; /* set resize */
+                            er->rszx = x; /* send the size in the event */
+                            er->rszy = y;
+                            keep = TRUE; /* set keep event */
+
+                        }
+
+                    }
 
                 }
 
@@ -2867,6 +2870,44 @@ Sets or resets the size of the buffer surface.
 void ami_sizbuf(FILE* f, int x, int y)
 
 {
+
+    COORD ns;       /* new buffer size */
+    SMALL_RECT nw;  /* new window rectangle */
+    CONSOLE_SCREEN_BUFFER_INFO sbi; /* screen buffer info */
+    int wx, wy;     /* current window size */
+    BOOL b;
+
+    if (x < 1 || y < 1) error(ami_dispeinvpos); /* invalid size */
+    /* The console requires the window to fit inside the buffer: clip the
+       window first when the buffer shrinks below it. The window is
+       otherwise left alone; a buffer larger than the window is simply
+       scrollable, and the resize event reports the window independently. */
+    b = GetConsoleScreenBufferInfo(screens[curupd-1]->han, &sbi);
+    if (b) {
+
+        wx = sbi.srWindow.Right-sbi.srWindow.Left+1;
+        wy = sbi.srWindow.Bottom-sbi.srWindow.Top+1;
+        if (wx > x || wy > y) {
+
+            nw.Left = 0;
+            nw.Top = 0;
+            nw.Right = (wx > x? x: wx)-1;
+            nw.Bottom = (wy > y? y: wy)-1;
+            SetConsoleWindowInfo(screens[curupd-1]->han, TRUE, &nw);
+
+        }
+
+    }
+    ns.X = x; /* set the new buffer size */
+    ns.Y = y;
+    b = SetConsoleScreenBufferSize(screens[curupd-1]->han, ns);
+    if (b) {
+
+        screens[curupd-1]->maxx = x; /* record the new dimensions */
+        screens[curupd-1]->maxy = y;
+        screens[curupd-1]->offy = 0; /* sized buffer has no scrollback */
+
+    }
 
 }
 
@@ -3679,6 +3720,14 @@ dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: 
     poly = -1;
     polcols = -1; /* set no polled window size yet */
     polrows = -1;
+    /* baseline the reported window size so startup does not produce a
+       spurious resize event */
+    if (GetConsoleScreenBufferInfo(screens[curdsp-1]->han, &bi)) {
+
+        wszx = bi.srWindow.Right-bi.srWindow.Left+1;
+        wszy = bi.srWindow.Bottom-bi.srWindow.Top+1;
+
+    }
     poltim = timeSetEvent(MOUSEPOLL, 0, mousepoll, 0,
                           TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS |
                           TIME_PERIODIC);
