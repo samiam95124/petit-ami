@@ -1612,7 +1612,19 @@ void ami_getpgm(
     char   path[MAXPTH]; /* execution path */
     int    i;            /* index for path */
     int    f;            /* path found */
+    DWORD  r;            /* return length */
 
+    /* The module filename is the true program path, independent of how the
+       command line spelled the program (a bare name resolved through PATH
+       carries no path at all, which broke self-spawning programs). Fall
+       back to the command line parse only if the direct call fails. */
+    r = GetModuleFileNameA(NULL, cb, MAXSTR);
+    if (r > 0 && r < MAXSTR) {
+
+        ami_brknam(cb, p, pl, n, MAXSTR, e, MAXSTR); /* break off the path */
+        if (*p) return; /* have the path */
+
+    }
     cp = GetCommandLine(); /* get the command line */
     fstwrd(cp, cb, MAXSTR); /* get command */
     ami_brknam(cb, p, pl, n, MAXSTR, e, MAXSTR); /* break off the path */
