@@ -44,7 +44,7 @@ Color helper
 
 *******************************************************************************/
 
-#define CLR(v) ((v) * (INT_MAX / 255))
+#define CLR(v) ((v) * (LONG_MAX / 255))
 
 /*******************************************************************************
 
@@ -401,8 +401,8 @@ void show_message(const char *msg)
 void play_sound(int note, int dur)
 {
     if (!sound_enabled) return;
-    ami_noteon(AMI_SYNTH_OUT, 0, 1, note, INT_MAX);
-    ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+dur, 1, note, INT_MAX);
+    ami_noteon(AMI_SYNTH_OUT, 0, 1, note, LONG_MAX);
+    ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+dur, 1, note, LONG_MAX);
 }
 
 #define WAVE_SLIDE 1
@@ -2276,14 +2276,14 @@ int main(void)
         FILE *pf;
         pf = fopen("backgammon.pos", "r");
         if (pf) {
-            int pw, ph, ppx, ppy;
+            long pw, ph, ppx, ppy;
             char line[256];
 
             /* skip header line */
             if (fgets(line, sizeof(line), pf) &&
                 fgets(line, sizeof(line), pf) && /* blank line */
                 fgets(line, sizeof(line), pf)) {
-                if (sscanf(line, "width: %d height: %d position x: %d position y: %d",
+                if (sscanf(line, "width: %ld height: %ld position x: %ld position y: %ld",
                            &pw, &ph, &ppx, &ppy) >= 2) {
                     if (pw > 100 && ph > 100) {
                         ami_setsizg(stdout, pw, ph);
@@ -2501,13 +2501,13 @@ int main(void)
     /* save window position/size */
     {
         FILE *pf;
-        int wx, wy;
+        long wx, wy;
 
         ami_getsizg(stdout, &wx, &wy);
         pf = fopen("backgammon.pos", "w");
         if (pf) {
             fprintf(pf, "Backgammon position\n\n");
-            fprintf(pf, "width: %d height: %d position x: 0 position y: 0\n",
+            fprintf(pf, "width: %ld height: %ld position x: 0 position y: 0\n",
                     wx, wy);
             fclose(pf);
         }

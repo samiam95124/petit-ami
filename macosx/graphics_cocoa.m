@@ -1834,8 +1834,28 @@ void pa_cocoa_editbox(pa_winhan win, int x, int y, int w, int h, int id)
    track with a draggable knob, in the style of the legacy macOS scroller.
    Knob drags report positions; trough clicks report page up/down. */
 
+/* PA full scale is 0..LONG_MAX.  (double)LONG_MAX rounds up to 2^63,
+   one past LONG_MAX, so a ratio of 1.0 (or a scale value at the top of
+   the range) must be clamped before the cast to avoid signed overflow. */
+
+/* scale a 0..1 ratio to PA full scale 0..LONG_MAX, clamped */
+static long pa_frac_to_long(double v)
+{
+    if (v <= 0.0) return 0;
+    if (v >= 1.0) return LONG_MAX;
+    return (long)(v * (double)LONG_MAX);
+}
+
+/* clamp a double already on the PA scale into 0..LONG_MAX */
+static long pa_double_to_long(double d)
+{
+    if (d <= 0.0) return 0;
+    if (d >= (double)LONG_MAX) return LONG_MAX;
+    return (long)d;
+}
+
 @interface PAWindow (Actions)
-- (void)pushWidget:(int)act wid:(int)wid pos:(int)pos;
+- (void)pushWidget:(int)act wid:(int)wid pos:(long)pos;
 @end
 
 @interface PAScroller : NSView {
@@ -1897,7 +1917,7 @@ void pa_cocoa_editbox(pa_winhan win, int x, int y, int w, int h, int id)
 - (void)pushPos
 {
     [owner pushWidget:PA_WIDGET_SCROLL_POS wid:wid
-                  pos:(int)(value * INT_MAX)];
+                  pos:pa_frac_to_long(value)];
 }
 
 - (void)mouseDown:(NSEvent*)e
@@ -1967,7 +1987,7 @@ static void make_scroller(PAWindow* pw, int vertical, NSRect rect, int id)
 
 - (BOOL)isFlipped { return YES; }
 
-- (void)pushValue:(int)v
+- (void)pushValue:(long)v
 {
     [owner pushWidget:PA_WIDGET_NUM_DONE wid:wid pos:v];
 }
@@ -1976,23 +1996,28 @@ static void make_scroller(PAWindow* pw, int vertical, NSRect rect, int id)
 {
     /* the arrows only adjust the displayed number; the selection event
        fires when the user commits with return in the field */
-    field.intValue = stepper.intValue;
+    field.integerValue = stepper.integerValue;
 }
 
 - (void)fieldAct:(id)sender
 {
-    int v = field.intValue;
-    if (v < stepper.minValue) v = (int)stepper.minValue;
-    if (v > stepper.maxValue) v = (int)stepper.maxValue;
-    field.intValue   = v;
-    stepper.intValue = v;
+    /* NSInteger is long on 64-bit macOS.  The stepper limits are doubles;
+       a long limit near LONG_MAX rounds up to 2^63 as a double, one past
+       LONG_MAX, so clamp before casting back to long. */
+    double mn = stepper.minValue;
+    double mx = stepper.maxValue;
+    long v = (long)field.integerValue;
+    if (v < mn) v = (mn <= (double)LONG_MIN) ? LONG_MIN : (long)mn;
+    if (v > mx) v = (mx >= (double)LONG_MAX) ? LONG_MAX : (long)mx;
+    field.integerValue   = v;
+    stepper.integerValue = v;
     [self pushValue:v];
 }
 
 @end
 
 void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
-                        int l, int u, int id)
+                        long l, long u, int id)
 {
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
@@ -2003,7 +2028,7 @@ void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
         CGFloat stepw = 19;
         ns->field = [[NSTextField alloc]
                         initWithFrame:NSMakeRect(0, 0, w - stepw - 2, h)];
-        ns->field.intValue = l;
+        ns->field.integerValue = l;
         ns->field.target   = ns;
         ns->field.action   = @selector(fieldAct:);
         [ns addSubview:ns->field];
@@ -2013,7 +2038,7 @@ void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
                                                    stepw, 27)];
         ns->stepper.minValue  = l;
         ns->stepper.maxValue  = u;
-        ns->stepper.intValue  = l;
+        ns->stepper.integerValue = l;
         ns->stepper.increment = 1;
         ns->stepper.valueWraps = NO; /* stall at the ends, don't wrap */
         ns->stepper.target    = ns;
@@ -2062,7 +2087,7 @@ void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
 {
     NSInteger r = table.selectedRow;
     if (r >= 0)
-        [owner pushWidget:PA_WIDGET_LIST_SEL wid:wid pos:(int)r + 1];
+        [owner pushWidget:PA_WIDGET_LIST_SEL wid:wid pos:(long)r + 1];
 }
 
 @end
@@ -2280,7 +2305,7 @@ void pa_cocoa_slider_horiz(pa_winhan win, int x, int y, int w, int h,
         PAWindow* pw = (__bridge PAWindow*)win;
         NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
         s.minValue   = 0;
-        s.maxValue   = INT_MAX;
+        s.maxValue   = (double)LONG_MAX;
         s.doubleValue = 0;
         /* mark is the tick frequency on the Windows 0..100 trackbar scale;
            0 disables tick marks */
@@ -2300,7 +2325,7 @@ void pa_cocoa_slider_vert(pa_winhan win, int x, int y, int w, int h,
         NSSlider* s  = [[NSSlider alloc] initWithFrame:NSMakeRect(x-1, y-1, w, h)];
         s.vertical   = YES;
         s.minValue   = 0;
-        s.maxValue   = INT_MAX;
+        s.maxValue   = (double)LONG_MAX;
         s.doubleValue = 0;
         s.numberOfTickMarks = (mark > 0) ? 100 / mark + 1 : 0;
         s.tag        = id;
@@ -2319,7 +2344,7 @@ void pa_cocoa_progressbar(pa_winhan win, int x, int y, int w, int h, int id)
         p.style          = NSProgressIndicatorStyleBar;
         p.indeterminate  = NO;
         p.minValue       = 0;
-        p.maxValue       = INT_MAX;
+        p.maxValue       = (double)LONG_MAX;
         pa_set_tag(p, id);
         add_widget_boxed(pw, p, NSMakeRect(x-1, y-1, w, h));
     });
@@ -2378,29 +2403,29 @@ void pa_cocoa_widget_select(pa_winhan win, int id, int on)
     });
 }
 
-void pa_cocoa_scrollbar_pos(pa_winhan win, int id, int pos)
+void pa_cocoa_scrollbar_pos(pa_winhan win, int id, long pos)
 {
     run_on_main(^{
         NSView* v = find_widget(win, id);
         if (v && [v isKindOfClass:[PAScroller class]]) {
-            ((PAScroller*)v)->value = (double)pos / INT_MAX;
+            ((PAScroller*)v)->value = (double)pos / (double)LONG_MAX;
             [v setNeedsDisplay:YES];
         }
     });
 }
 
-void pa_cocoa_scrollbar_siz(pa_winhan win, int id, int range)
+void pa_cocoa_scrollbar_siz(pa_winhan win, int id, long range)
 {
     run_on_main(^{
         NSView* v = find_widget(win, id);
         if (v && [v isKindOfClass:[PAScroller class]]) {
-            ((PAScroller*)v)->knobProp = (double)range / INT_MAX;
+            ((PAScroller*)v)->knobProp = (double)range / (double)LONG_MAX;
             [v setNeedsDisplay:YES];
         }
     });
 }
 
-void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
+void pa_cocoa_progressbar_pos(pa_winhan win, int id, long pos)
 {
     run_on_main(^{
         NSView* v = find_widget(win, id);
@@ -2415,7 +2440,7 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
 
 @implementation PAWindow (Actions)
 
-- (void)pushWidget:(int)act wid:(int)wid pos:(int)pos
+- (void)pushWidget:(int)act wid:(int)wid pos:(long)pos
 {
     pa_rawevent e = {0};
     e.type       = PA_EVT_WIDGET;
@@ -2459,7 +2484,7 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
         break;
     default: /* knob / knob slot: report the new position */
         [self pushWidget:PA_WIDGET_SCROLL_POS wid:wid
-                     pos:(int)(sc.floatValue * INT_MAX)];
+                     pos:pa_frac_to_long(sc.doubleValue)];
         break;
     }
 }
@@ -2467,14 +2492,15 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
 - (void)sliderAction:(id)sender
 {
     NSSlider* sl = (NSSlider*)sender;
-    [self pushWidget:PA_WIDGET_SLIDER_POS wid:(int)sl.tag pos:sl.intValue];
+    [self pushWidget:PA_WIDGET_SLIDER_POS wid:(int)sl.tag
+                 pos:pa_double_to_long(sl.doubleValue)];
 }
 
 - (void)dropboxAction:(id)sender
 {
     NSPopUpButton* b = (NSPopUpButton*)sender;
     [self pushWidget:PA_WIDGET_DROP_SEL wid:(int)b.tag
-                 pos:(int)b.indexOfSelectedItem + 1];
+                 pos:(long)b.indexOfSelectedItem + 1];
 }
 
 - (void)dropeditAction:(id)sender
@@ -2487,7 +2513,7 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos)
 {
     NSSegmentedControl* sc = (NSSegmentedControl*)sender;
     [self pushWidget:PA_WIDGET_TAB_SEL wid:(int)sc.tag
-                 pos:(int)sc.selectedSegment + 1];
+                 pos:(long)sc.selectedSegment + 1];
 }
 
 @end
@@ -2727,16 +2753,16 @@ static NSButton* modal_check(NSWindow* p, NSString* text, NSRect r, int on)
     return c;
 }
 
-void pa_cocoa_query_color(int* r, int* g, int* b)
+void pa_cocoa_query_color(long* r, long* g, long* b)
 {
-    __block int rr = *r, rg = *g, rb = *b;
+    __block long rr = *r, rg = *g, rb = *b;
     run_on_main(^{
         NSWindow* p = modal_panel(@"Select Color", 260, 130);
         NSColorWell* well = [[NSColorWell alloc]
                                 initWithFrame:NSMakeRect(80, 55, 100, 60)];
-        well.color = [NSColor colorWithRed:(CGFloat)rr / INT_MAX
-                                     green:(CGFloat)rg / INT_MAX
-                                      blue:(CGFloat)rb / INT_MAX
+        well.color = [NSColor colorWithRed:(CGFloat)((double)rr / (double)LONG_MAX)
+                                     green:(CGFloat)((double)rg / (double)LONG_MAX)
+                                      blue:(CGFloat)((double)rb / (double)LONG_MAX)
                                      alpha:1.0];
         [p.contentView addSubview:well];
         modal_buttons(p);
@@ -2757,9 +2783,9 @@ void pa_cocoa_query_color(int* r, int* g, int* b)
         if (rc == NSModalResponseOK) {
             NSColor* c = [well.color
                 colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
-            rr = (int)(c.redComponent   * INT_MAX);
-            rg = (int)(c.greenComponent * INT_MAX);
-            rb = (int)(c.blueComponent  * INT_MAX);
+            rr = pa_frac_to_long(c.redComponent);
+            rg = pa_frac_to_long(c.greenComponent);
+            rb = pa_frac_to_long(c.blueComponent);
         }
     });
     *r = rr;
@@ -2767,9 +2793,9 @@ void pa_cocoa_query_color(int* r, int* g, int* b)
     *b = rb;
 }
 
-void pa_cocoa_query_find(char* s, int sl, int* opt)
+void pa_cocoa_query_find(char* s, int sl, long* opt)
 {
-    __block int ropt = *opt;
+    __block long ropt = *opt;
     __block NSString* rstr = nil;
     NSString* init = [NSString stringWithUTF8String:s ? s : ""];
     run_on_main(^{
@@ -2808,9 +2834,9 @@ void pa_cocoa_query_find(char* s, int sl, int* opt)
     *opt = ropt;
 }
 
-void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, int* opt)
+void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, long* opt)
 {
-    __block int ropt = *opt;
+    __block long ropt = *opt;
     __block NSString* fstr = nil;
     __block NSString* rstr = nil;
     NSString* finit = [NSString stringWithUTF8String:s ? s : ""];
@@ -2869,13 +2895,13 @@ void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, int* opt)
     *opt = ropt;
 }
 
-void pa_cocoa_query_font(char* family, int famlen, int* size,
-                         int* fr, int* fg, int* fb,
-                         int* br, int* bg, int* bb)
+void pa_cocoa_query_font(char* family, int famlen, long* size,
+                         long* fr, long* fg, long* fb,
+                         long* br, long* bg, long* bb)
 {
-    __block int rsize = *size;
-    __block int rfr = *fr, rfg = *fg, rfb = *fb;
-    __block int rbr = *br, rbg = *bg, rbb = *bb;
+    __block long rsize = *size;
+    __block long rfr = *fr, rfg = *fg, rfb = *fb;
+    __block long rbr = *br, rbg = *bg, rbb = *bb;
     __block NSString* rfam = nil;
     NSString* finit = [NSString stringWithUTF8String:family ? family : ""];
     run_on_main(^{
@@ -2895,24 +2921,24 @@ void pa_cocoa_query_font(char* family, int famlen, int* size,
         modal_label(p, @"Size:", NSMakeRect(15, 148, 60, 20));
         NSTextField* sf = [[NSTextField alloc]
                               initWithFrame:NSMakeRect(75, 145, 60, 24)];
-        sf.intValue = rsize;
+        sf.integerValue = rsize;
         [p.contentView addSubview:sf];
 
         modal_label(p, @"Foreground:", NSMakeRect(15, 110, 100, 20));
         NSColorWell* fwell = [[NSColorWell alloc]
                                  initWithFrame:NSMakeRect(115, 100, 60, 32)];
-        fwell.color = [NSColor colorWithRed:(CGFloat)rfr / INT_MAX
-                                      green:(CGFloat)rfg / INT_MAX
-                                       blue:(CGFloat)rfb / INT_MAX
+        fwell.color = [NSColor colorWithRed:(CGFloat)((double)rfr / (double)LONG_MAX)
+                                      green:(CGFloat)((double)rfg / (double)LONG_MAX)
+                                       blue:(CGFloat)((double)rfb / (double)LONG_MAX)
                                       alpha:1.0];
         [p.contentView addSubview:fwell];
 
         modal_label(p, @"Background:", NSMakeRect(185, 110, 100, 20));
         NSColorWell* bwell = [[NSColorWell alloc]
                                  initWithFrame:NSMakeRect(285, 100, 60, 32)];
-        bwell.color = [NSColor colorWithRed:(CGFloat)rbr / INT_MAX
-                                      green:(CGFloat)rbg / INT_MAX
-                                       blue:(CGFloat)rbb / INT_MAX
+        bwell.color = [NSColor colorWithRed:(CGFloat)((double)rbr / (double)LONG_MAX)
+                                      green:(CGFloat)((double)rbg / (double)LONG_MAX)
+                                       blue:(CGFloat)((double)rbb / (double)LONG_MAX)
                                       alpha:1.0];
         [p.contentView addSubview:bwell];
 
@@ -2932,17 +2958,17 @@ void pa_cocoa_query_font(char* family, int famlen, int* size,
         [p orderOut:nil];
         if (rc == NSModalResponseOK) {
             rfam = fpop.titleOfSelectedItem;
-            rsize = sf.intValue > 0 ? sf.intValue : rsize;
+            rsize = sf.integerValue > 0 ? (long)sf.integerValue : rsize;
             NSColor* c = [fwell.color
                 colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
-            rfr = (int)(c.redComponent   * INT_MAX);
-            rfg = (int)(c.greenComponent * INT_MAX);
-            rfb = (int)(c.blueComponent  * INT_MAX);
+            rfr = pa_frac_to_long(c.redComponent);
+            rfg = pa_frac_to_long(c.greenComponent);
+            rfb = pa_frac_to_long(c.blueComponent);
             c = [bwell.color
                 colorUsingColorSpace:NSColorSpace.genericRGBColorSpace];
-            rbr = (int)(c.redComponent   * INT_MAX);
-            rbg = (int)(c.greenComponent * INT_MAX);
-            rbb = (int)(c.blueComponent  * INT_MAX);
+            rbr = pa_frac_to_long(c.redComponent);
+            rbg = pa_frac_to_long(c.greenComponent);
+            rbb = pa_frac_to_long(c.blueComponent);
         }
     });
     if (rfam && famlen > 0) {

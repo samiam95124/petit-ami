@@ -36,11 +36,11 @@ Find random number between 0 and N.
 
 *******************************************************************************/
 
-static int randn(int limit)
+static long randn(long limit)
 
 {
 
-    return (long)limit*rand()/RAND_MAX;
+    return limit*rand()/RAND_MAX;
 
 }
 

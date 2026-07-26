@@ -1110,8 +1110,8 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
 }
 
 FILE* ami_opennet(/* IP address */      unsigned long addr,
-                 /* port */            int port,
-                 /* link is secured */ int secure
+                 /* port */            long port,
+                 /* link is secured */ long secure
 )
 
 {
@@ -1141,8 +1141,8 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
 FILE* ami_opennetv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -1201,10 +1201,10 @@ static int msgfil(SOCKET sock)
 
 }
 
-int ami_openmsg(
+long ami_openmsg(
     /* ip address */      unsigned long addr,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -1290,11 +1290,11 @@ int ami_openmsg(
 
 }
 
-int ami_openmsgv6(
+long ami_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -1390,9 +1390,9 @@ another program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-int ami_waitmsg(/* port number to wait on */ int port,
-               /* secure mode */            int secure
-               )
+long ami_waitmsg(/* port number to wait on */ long port,
+                /* secure mode */            long secure
+                )
 
 {
 
@@ -1529,7 +1529,7 @@ static int clampmtu(int mtu)
 
 }
 
-int ami_maxmsg(unsigned long addr)
+long ami_maxmsg(unsigned long addr)
 
 {
 
@@ -1578,7 +1578,7 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -1622,7 +1622,7 @@ size (including 0) up to ami_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void ami_wrmsg(int fn, void* msg, unsigned long len)
+void ami_wrmsg(long fn, void* msg, unsigned long len)
 
 {
 
@@ -1666,7 +1666,7 @@ of the buffer should be equal to maxmsg to pass all possible messages, unless it
 is known that a given message size will never be exceeded.
 
 *******************************************************************************/
-int ami_rdmsg(int fn, void* msg, unsigned long len)
+long ami_rdmsg(long fn, void* msg, unsigned long len)
 
 {
 
@@ -1718,7 +1718,7 @@ Closes the given message file.
 
 *******************************************************************************/
 
-void ami_clsmsg(int fn)
+void ami_clsmsg(long fn)
 
 {
 
@@ -1740,7 +1740,7 @@ void ami_clsmsg(int fn)
     opnfil[fn]->msg = FALSE;
     opnfil[fn]->sudp = FALSE;
 
-    _close(fn); /* release the parked fd */
+    _close((int)fn); /* release the parked fd */
 
 }
 
@@ -1756,8 +1756,8 @@ program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* ami_waitnet(/* port number to wait on */ int port,
-                 /* secure mode */            int secure
+FILE* ami_waitnet(/* port number to wait on */ long port,
+                 /* secure mode */            long secure
                 )
 
 {
@@ -1826,7 +1826,7 @@ carried on the wire. Thus it is reliable by definition.
 
 *******************************************************************************/
 
-int ami_relymsg(unsigned long addr)
+long ami_relymsg(unsigned long addr)
 
 {
 
@@ -1834,7 +1834,7 @@ int ami_relymsg(unsigned long addr)
 
 }
 
-int ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -1870,7 +1870,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int ami_certmsg(int fn, int which, string buff, int len)
+long ami_certmsg(long fn, long which, string buff, long len)
 
 {
 
@@ -1921,7 +1921,7 @@ int ami_certmsg(int fn, int which, string buff, int len)
         if (!r) error(ewrbio);
 
         /* read certificate back to memory */
-        r = BIO_read(cb, buff, len);
+        r = BIO_read(cb, buff, (int)len);
         if (r < 0) error(erdbio);
         if (!BIO_eof(cb)) error(ecerttl);
 
@@ -1960,7 +1960,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int ami_certnet(FILE* f, int which, string buff, int len)
+long ami_certnet(FILE* f, long which, string buff, long len)
 
 {
 
@@ -1992,7 +1992,7 @@ unimplemented.
 
 *******************************************************************************/
 
-void ami_certlistnet(FILE *f, int which, ami_certptr* list)
+void ami_certlistnet(FILE *f, long which, ami_certptr* list)
 
 {
 
@@ -2010,7 +2010,7 @@ ami_certlistnet.
 
 *******************************************************************************/
 
-void ami_certlistmsg(int fn, int which, ami_certptr* list)
+void ami_certlistmsg(long fn, long which, ami_certptr* list)
 
 {
 

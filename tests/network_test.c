@@ -77,8 +77,8 @@ a time, so one set suffices), and synchronizes with it by lock and signal.
 
 *******************************************************************************/
 
-static int lockid;    /* handshake lock */
-static int sigid;     /* handshake signal */
+static long lockid;   /* handshake lock */
+static long sigid;    /* handshake signal */
 
 static int srvport;   /* port for the server to serve */
 static int srvsecure; /* serve secured */
@@ -177,8 +177,8 @@ static void msgserver(void)
 
 {
 
-    int  fn;
-    int  len;
+    long fn;
+    long len;
     char buff[BUFLEN];
 
     fn = ami_waitmsg(srvport, srvsecure);
@@ -239,8 +239,8 @@ static void tmsg(const char* name, int port, int secure)
 {
 
     unsigned long addr;
-    int  fn;
-    int  len;
+    long fn;
+    long len;
     char buff[BUFLEN];
     int  pass;
 
@@ -263,8 +263,8 @@ static void tmsglim(void)
 {
 
     unsigned long addr;
-    int max;
-    int rely;
+    long max;
+    long rely;
 
     ami_addrnet("localhost", &addr);
     max = ami_maxmsg(addr);
@@ -283,7 +283,7 @@ static void tcert(void)
     FILE* f;
     char  cert[10000];
     char  buff[BUFLEN];
-    int   r;
+    long  r;
 
     startsrv(tcpserver, PORT_CERT, TRUE);
     ami_addrnet("localhost", &addr);

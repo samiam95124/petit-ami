@@ -134,7 +134,7 @@ typedef enum {
 } scnatt;
 
 /* rectangle */
-typedef struct { int x1, y1, x2, y2; } rectangle;
+typedef struct { long x1, y1, x2, y2; } rectangle;
 
 /* drag type */
 
@@ -284,15 +284,15 @@ typedef struct metrec {
     metptr chnhd;              /* head of "one of" chain */
     int    ena;                /* enabled/disabled */
     int    bar;                /* has bar under */
-    int    id;                 /* user id of item */
-    int    fx1, fy1, fx2, fy2; /* subclient position of window */
+    long   id;                 /* user id of item */
+    long   fx1, fy1, fx2, fy2; /* subclient position of window */
     int    prime;              /* is a prime (onscreen) entry */
     int    pressed;            /* in the pressed state */
     FILE*  wf;                 /* output file for the menu window */
     char*  title;              /* title text */
     FILE*  parent;             /* parent window */
     FILE*  evtfil;             /* file to post menu events to */
-    int    wid;                /* menu window id */
+    long   wid;                /* menu window id */
 
 } metrec;
 
@@ -318,7 +318,7 @@ typedef struct winrec {
     int      root;              /* window is the root */
     int      parlfn;            /* logical parent */
     winptr   parwin;            /* link to parent (or NULL for parentless) */
-    int      wid;               /* this window logical id */
+    long     wid;               /* this window logical id */
     winptr   childwin;          /* list of child windows */
     winptr   childlst;          /* list pointer if this is a child */
     winptr   winlst;            /* master list of all windows */
@@ -328,23 +328,23 @@ typedef struct winrec {
     scnrec*  screens[MAXCON];   /* screen contexts array */
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
-    int      orgx;              /* window origin in root x */
-    int      orgy;              /* window origin in root y */
-    int      coffx;             /* client offset x */
-    int      coffy;             /* client offset y */
+    long     orgx;              /* window origin in root x */
+    long     orgy;              /* window origin in root y */
+    long     coffx;             /* client offset x */
+    long     coffy;             /* client offset y */
     /* note: maxx/y tracks the buffer size in buffered mode, but tracks the
        client size with buffering off */
-    int      maxx;              /* maximum x size */
-    int      maxy;              /* maximum y size */
-    int      bufx;              /* buffer size x characters */
-    int      bufy;              /* buffer size y characters */
-    int      cmaxx;             /* onscreen client size x */
-    int      cmaxy;             /* onscreen client size x */
-    int      pmaxx;             /* parent maximum x */
-    int      pmaxy;             /* parent maximum y */
-    int      mpx, mpy;          /* mouse current position */
-    int      curx;              /* current cursor location x */
-    int      cury;              /* current cursor location y */
+    long     maxx;              /* maximum x size */
+    long     maxy;              /* maximum y size */
+    long     bufx;              /* buffer size x characters */
+    long     bufy;              /* buffer size y characters */
+    long     cmaxx;             /* onscreen client size x */
+    long     cmaxy;             /* onscreen client size x */
+    long     pmaxx;             /* parent maximum x */
+    long     pmaxy;             /* parent maximum y */
+    long     mpx, mpy;          /* mouse current position */
+    long     curx;              /* current cursor location x */
+    long     cury;              /* current cursor location y */
     int      attr;              /* set of active attributes */
     ami_color fcolor;            /* foreground color */
     ami_color bcolor;            /* background color */
@@ -365,7 +365,7 @@ typedef struct winrec {
     int      hover;             /* window being hovered */
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
     unsigned char* fmask;       /* forward mask in bits per character */
-    int      fmasklen;          /* length of the bitmask */
+    long     fmasklen;          /* length of the bitmask */
     int      timers[AMI_MAXTIM]; /* timer id array */
     int      frmtim;            /* frame timer */
     ami_color frmcolor;          /* frame color */
@@ -456,8 +456,8 @@ static int    filwin[MAXFIL];     /* file to window equivalence table */
 static int      attr;         /* set of active attributes */
 static ami_color fcolor;       /* foreground color */
 static ami_color bcolor;       /* background color */
-static int      curx;         /* cursor x */
-static int      cury;         /* cursor y */
+static long     curx;         /* cursor x */
+static long     cury;         /* cursor y */
 static int      curon;        /* current on/off visible state of cursor */
 static winptr   winfre;       /* free windows structure list */
 static winptr   winlst;       /* master list of all windows */
@@ -466,21 +466,21 @@ static winptr   zmin2max;     /* Z order minimum to maximum list */
 static winptr   zmax2min;     /* Z order maximum to minimum list */
 static winptr   curfocus;     /* current focus window, or NULL */
 static int      ztop;         /* current maximum/front Z order */
-static int      mousex;       /* mouse tracking x */
-static int      mousey;       /* mouse tracking y */
+static long     mousex;       /* mouse tracking x */
+static long     mousey;       /* mouse tracking y */
 static winptr   timtbl[AMI_MAXTIM]; /* timer translation table */
-static int      timids[AMI_MAXTIM]; /* timer logical ids */
+static long     timids[AMI_MAXTIM]; /* timer logical ids */
 static int      fautohold;    /* automatic hold on exit flag */
 static int      fend;         /* end of program ordered flag */
 static drgtyp   drag;         /* drag type in progress */
 static winptr   drgwin;       /* drag window */
-static int      drgx;         /* drag pin x */
-static int      drgy;         /* drag pin y */
+static long     drgx;         /* drag pin x */
+static long     drgy;         /* drag pin y */
 static ami_pevthan evthan[ami_etmenus+1]; /* array of event handler routines */
 static ami_pevthan evtshan;        /* single master event handler routine */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
-static int        dimx, dimy;     /* terminal/root dimensions */
+static long       dimx, dimy;     /* terminal/root dimensions */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -602,30 +602,30 @@ static void prtevt(
 
 {
 
-    fprintf(stderr, "PA Event: Window: %d ", er->winid);
+    fprintf(stderr, "PA Event: Window: %ld ", er->winid);
     prtevtt(er->etype);
     switch (er->etype) {
 
         case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-        case ami_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
-        case ami_etmoumov: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+        case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
+        case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
                                   er->mmoun, er->moupx, er->moupy); break;
-        case ami_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+        case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
                                  er->amoun, er->amoubn); break;
-        case ami_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+        case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
                                  er->dmoun, er->dmoubn); break;
-        case ami_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+        case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
                                  er->ajoyn, er->ajoybn); break;
-        case ami_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+        case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
                                  er->djoyn, er->djoybn); break;
-        case ami_etjoymov: fprintf(stderr, ": joystick: %d x: %4d y: %4d z: %4d "
-                                  "a4: %4d a5: %4d a6: %4d", er->mjoyn,
+        case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
+                                  "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
                                   er->joypx, er->joypy, er->joypz,
                                   er->joyp4, er->joyp5, er->joyp6); break;
-        case ami_etresize: fprintf(stderr, ": x: %d y: %d", er->rszx, er->rszy);
+        case ami_etresize: fprintf(stderr, ": x: %ld y: %ld", er->rszx, er->rszy);
                           break;
-        case ami_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
-        case ami_etmenus: fprintf(stderr, ": id: %d", er->menuid); break;
+        case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
+        case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
 
         default: ;
 
@@ -646,14 +646,14 @@ void prtscnbuf(winptr win, int bufno)
 {
 
     scnptr sc;
-    int y;
-    int x;
+    long y;
+    long x;
 
-    fprintf(stderr, "Buffer for wid: %d\n", win->wid);
+    fprintf(stderr, "Buffer for wid: %ld\n", win->wid);
     sc = win->screens[bufno-1]; /* index screen */
     for (y = 1; y <= win->maxy; y++) {
 
-        fprintf(stderr, "%02d: \"", y);
+        fprintf(stderr, "%02ld: \"", y);
         for (x = 1; x <= win->maxx; x++)
             fputc(SCNBUF(sc, x, y).ch, stderr);
         fprintf(stderr, "\"\n"); fflush(stderr);
@@ -788,7 +788,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(int wid)
+static winptr lwn2win(long wid)
 
 {
 
@@ -835,7 +835,7 @@ coordinates.
 *******************************************************************************/
 
 /* set rectangle to values */
-static void setrect(rectangle* r, int x1, int y1, int x2, int y2)
+static void setrect(rectangle* r, long x1, long y1, long x2, long y2)
 
 {
 
@@ -1121,7 +1121,7 @@ Sets the root cursor if it has changed.
 
 *******************************************************************************/
 
-static int setcursor(int x, int y)
+static void setcursor(long x, long y)
 
 {
 
@@ -1207,13 +1207,13 @@ nearest primary color to the given RGB color.
 
 ******************************************************************************/
 
-static ami_color colrgbnum(int r, int g, int b)
+static ami_color colrgbnum(long r, long g, long b)
 
 {
 
     ami_color c;
 
-    switch ((r > INT_MAX/2) << 2 | (g > INT_MAX/2) << 1 | (b > INT_MAX/2)) {
+    switch ((r > LONG_MAX/2) << 2 | (g > LONG_MAX/2) << 1 | (b > LONG_MAX/2)) {
 
         /* rgb */
         /* 000 */ case 0: c = ami_black;   break;
@@ -1297,7 +1297,7 @@ static void setattrs(int at)
 Output character to root window
 
 Outputs a single character to the root window and advances the x cursor. Note
-we assume auto is off and x can climb to infinity (INT_MAX).
+we assume auto is off and x can climb to infinity (LONG_MAX).
 
 *******************************************************************************/
 
@@ -1315,7 +1315,7 @@ static void wrtchr(char c)
 Output character string to root window
 
 Outputs a string to the root window and advances the x cursor. Note we assume
-auto is off and x can climb to infinity (INT_MAX).
+auto is off and x can climb to infinity (LONG_MAX).
 
 *******************************************************************************/
 
@@ -1332,7 +1332,7 @@ static void wrtstr(char* s)
 Output extended character string to root window
 
 Outputs a string to the root window and advances the x cursor. Note we assume
-auto is off and x can climb to infinity (INT_MAX). This routine writes extended
+auto is off and x can climb to infinity (LONG_MAX). This routine writes extended
 UTF-8 characters, meaning that it only advances the cursor once for the whole
 string.
 
@@ -1356,7 +1356,7 @@ so.
 
 *******************************************************************************/
 
-static int inrect(int x, int y, rectangle* r)
+static int inrect(long x, long y, rectangle* r)
 
 {
 
@@ -1369,7 +1369,7 @@ static int inrect(int x, int y, rectangle* r)
 Output character to root window with clipping
 
 Outputs a single character to the root window and advances the x cursor. Note
-we assume auto is off and x can climb to infinity (INT_MAX).
+we assume auto is off and x can climb to infinity (LONG_MAX).
 
 Clips to the given rectangle. Note the cursor position is still advanced.
 
@@ -1393,13 +1393,13 @@ static void wrtchrclp(char c, rectangle* cr)
 Output character string to root window with clipping
 
 Outputs a string to the root window and advances the x cursor. Note we assume
-auto is off and x can climb to infinity (INT_MAX).
+auto is off and x can climb to infinity (LONG_MAX).
 
 Clips to the given rectangle. Note the cursor position is still advanced.
 
 *******************************************************************************/
 
-static void wrtstrclp(char* s, int l, rectangle* cr)
+static void wrtstrclp(char* s, long l, rectangle* cr)
 
 {
 
@@ -1412,7 +1412,7 @@ static void wrtstrclp(char* s, int l, rectangle* cr)
 Output extended character string to root window
 
 Outputs a string to the root window and advances the x cursor. Note we assume
-auto is off and x can climb to infinity (INT_MAX). This routine writes extended
+auto is off and x can climb to infinity (LONG_MAX). This routine writes extended
 UTF-8 characters, meaning that it only advances the cursor once for the whole
 string.
 
@@ -1503,7 +1503,7 @@ static void alcfmask(winptr win)
 
 {
 
-    int i, t;
+    long i, t;
 
     t = win->bufy*win->bufx; /* find total characters in buffer */
     i = t/8; /* find bytes for forward mask */
@@ -1531,9 +1531,9 @@ static void calcfmask(winptr win)
 
     winptr    wp;         /* window structure pointer */
     rectangle r1, r2, r3; /* window rectangles */
-    int       x, y;
-    int       cx, cy;
-    int       l;
+    long      x, y;
+    long      cx, cy;
+    long      l;
 
     memset(win->fmask, 0xff, win->fmasklen); /* set the bitmap */
     /* find the onscreen client rectangle in root terms */
@@ -1569,16 +1569,16 @@ static void calcfmask(winptr win)
 
     /* diagnostic: print forward mask */
 #ifdef PRTFMASK
-    fprintf(stderr, "Forward mask: wid: %d size x: %d y: %d\n", 
-                    win->wid, win->maxx, win->maxy); 
+    fprintf(stderr, "Forward mask: wid: %ld size x: %ld y: %ld\n",
+                    win->wid, win->maxx, win->maxy);
     fflush(stderr);
     fprintf(stderr, "     ");
-    for (x = 1; x <= win->maxx; x++) fprintf(stderr, "%c", x%10+'0');
+    for (x = 1; x <= win->maxx; x++) fprintf(stderr, "%c", (char)(x%10+'0'));
     fprintf(stderr, "\n");
     fflush(stderr);
     for (y = 1; y <= win->maxy; y++) {
 
-        fprintf(stderr, "%03d: ", y);
+        fprintf(stderr, "%03ld: ", y);
         for (x = 1; x <= win->maxx; x++) {
 
             l = (y-1)*win->bufx+(x-1); /* find character location */
@@ -1676,7 +1676,7 @@ static void drwfrm(winptr win, rectangle* cr)
 
 {
 
-    int x, y, l;
+    long x, y, l;
 
     if (win->frame) { /* draw window frame */
 
@@ -1882,7 +1882,7 @@ static void restoreclp(winptr win,   /* window to restore */
 
     scnrec* scp;   /* pointer to screen location */
     scnrec* sc;
-    int x, y;
+    long x, y;
     rectangle r1, r2;
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
@@ -1973,7 +1973,7 @@ the max 2 min list given.
 
 *******************************************************************************/
 
-static void redraw(winptr win, int x1, int y1, int x2, int y2)
+static void redraw(winptr win, long x1, long y1, long x2, long y2)
 
 {
 
@@ -2056,7 +2056,7 @@ static void itab(FILE* f)
 {
 
     winptr win; /* windows record pointer */
-    int i;
+    long i;
     scnptr sc;
 
     win = txt2win(f); /* get window from file */
@@ -2144,7 +2144,7 @@ include frame or system bar.
 
 *******************************************************************************/
 
-static int inclient(winptr win, int x, int y)
+static int inclient(winptr win, long x, long y)
 
 {
 
@@ -2169,7 +2169,7 @@ but does not contain the mouse in it's client area, the hover mode is cancelled.
 
 *******************************************************************************/
 
-static void remhover(int x, int y)
+static void remhover(long x, long y)
 
 {
 
@@ -2202,7 +2202,7 @@ point. If there is no containing window, NULL is returned.
 
 *******************************************************************************/
 
-static winptr fndtop(int x, int y)
+static winptr fndtop(long x, long y)
 
 {
 
@@ -2346,7 +2346,7 @@ static void prtmin2maxlst(void)
     wp = zmin2max; /* index top of list */
     while (wp) {
 
-        fprintf(stderr, "Window; %d zorder: %d\n", wp->wid, wp->zorder);
+        fprintf(stderr, "Window; %ld zorder: %d\n", wp->wid, wp->zorder);
         wp = wp->zmin2max; /* next */
 
     }
@@ -2373,7 +2373,7 @@ static void prtmax2minlst(void)
     wp = zmax2min; /* index top of list */
     while (wp) {
 
-        fprintf(stderr, "Window; %d zorder: %d\n", wp->wid, wp->zorder);
+        fprintf(stderr, "Window; %ld zorder: %d\n", wp->wid, wp->zorder);
         wp = wp->zmax2min; /* next */
 
     }
@@ -2554,7 +2554,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn, int wid, int subclient, int root)
+static void opnwin(int fn, int pfn, long wid, int subclient, int root)
 
 {
 
@@ -2683,7 +2683,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   int wid, int subclient, int root)
+                   long wid, int subclient, int root)
 
 {
 
@@ -2741,7 +2741,7 @@ static int fndfil(FILE* fp)
 
 }
 
-static void intopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void intopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
@@ -2876,7 +2876,7 @@ static void dumpbuffer(winptr win)
     int    x, y;
 
     sc = win->screens[win->curupd-1]; /* index current screen */
-    fprintf(stderr, "Window: %d buffer\n", win->wid); fflush(stderr);
+    fprintf(stderr, "Window: %ld buffer\n", win->wid); fflush(stderr);
     for (y = 1; y <= win->maxy; y++) { /* lines */
 
         fprintf(stderr, "\"");
@@ -2911,17 +2911,17 @@ to the window.
 
 *******************************************************************************/
 
-static void intscroll(winptr win, int x, int y)
+static void intscroll(winptr win, long x, long y)
 
 {
 
-    int      xi, yi;       /* screen counters */
+    long     xi, yi;       /* screen counters */
     scnptr   scnsav;       /* full screen buffer save */
-    int      lx;           /* last unmatching character index */
+    long     lx;           /* last unmatching character index */
     int      m;            /* match flag */
     scnptr   sc;           /* pointer to current screen */
     scnptr   sp;           /* pointer to screen record */
-    int      curxs, curys; /* cursor position save */
+    long     curxs, curys; /* cursor position save */
 
     /* when the scroll is arbitrary, we do it by completely refreshing the
        contents of the screen from the buffer */
@@ -2975,7 +2975,7 @@ static void intscroll(winptr win, int x, int y)
                     /* move lines up */
                     memcpy(&sc[(yi-1)*win->maxx], &sc[(yi+y-1)*win->maxx],
                            win->maxx*sizeof(scnrec));
-            for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
+            for (yi = 1; yi <= labs(y); yi++) /* clear blank lines at start */
                 for (xi = 1; xi <= win->maxx; xi++) {
 
                 sp = &SCNBUF(sc, xi, yi);
@@ -3020,7 +3020,7 @@ static void intscroll(winptr win, int x, int y)
                         memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                 /* clear blank spaces at left */
-                for (xi = 1; xi <= abs(x); xi++) {
+                for (xi = 1; xi <= labs(x); xi++) {
 
                     sp = &SCNBUF(sc, xi, yi);
                     sp->ch = ' ';   /* clear to blanks at colors and attributes */
@@ -3099,11 +3099,11 @@ Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
-static void intsetsiz(winptr win, int x, int y)
+static void intsetsiz(winptr win, long x, long y)
 
 {
 
-    int ox, oy; /* previous size of window */
+    long ox, oy; /* previous size of window */
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
     if (win->frame && win->size) {
@@ -3183,11 +3183,11 @@ order.
 
 *******************************************************************************/
 
-static void intsetpos(winptr win, int x, int y)
+static void intsetpos(winptr win, long x, long y)
 
 {
 
-    int ox, oy; /* previous position of window */
+    long ox, oy; /* previous position of window */
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
     ox = win->orgx; /* save previous position of window */
@@ -3251,7 +3251,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(FILE* f, int x, int y)
+static void icursor(FILE* f, long x, long y)
 
 {
 
@@ -3273,7 +3273,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-static int imaxx(FILE* f)
+static long imaxx(FILE* f)
 
 {
 
@@ -3294,7 +3294,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-static int imaxy(FILE* f)
+static long imaxy(FILE* f)
 
 {
 
@@ -3335,7 +3335,7 @@ Move cursor up
 Moves the cursor position up one line. If the cursor is at screen top, and auto
 is on, the screen is scrolled up, meaning that the screen contents are moved
 down a line of text. If auto is off, the cursor can simply continue into
-negative space as long as it stays within the bounds -INT_MAX to INT_MAX.
+negative space as long as it stays within the bounds -LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
@@ -3350,7 +3350,7 @@ static void iup(FILE* f)
     if (win->cury > 1) win->cury--; /* update position */
     else if (win->autof) intscroll(win, 0, -1); /* scroll up */
     /* check won't overflow */
-    else if (win->cury > -INT_MAX) win->cury--; /* set new position */
+    else if (win->cury > -LONG_MAX) win->cury--; /* set new position */
     setcur(win); /* activate cursor onscreen as required */
 
 }
@@ -3362,7 +3362,7 @@ Move cursor down
 Moves the cursor position down one line. If the cursor is at screen bottom, and
 auto is on, the screen is scrolled down, meaning that the screen contents are
 moved up a line of text. If auto is off, the cursor can simply continue into
-undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
+undrawn space as long as it stays within the bounds of -LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
@@ -3378,7 +3378,7 @@ static void idown(FILE* f)
     if (win->cury < win->maxy) win->cury++; /* update position */
     else if (win->autof) intscroll(win, 0, +1); /* scroll down */
     /* check won't overflow */
-    else if (win->cury < INT_MAX) win->cury++; /* set new position */
+    else if (win->cury < LONG_MAX) win->cury++; /* set new position */
     setcur(win); /* activate cursor onscreen as required */
 
 }
@@ -3411,7 +3411,7 @@ static void ileft(FILE* f)
 
         } else
             /* check won't overflow */
-            if (win->curx > -INT_MAX) win->curx--; /* update position */
+            if (win->curx > -LONG_MAX) win->curx--; /* update position */
 
     }
     setcur(win); /* activate cursor onscreen as required */
@@ -3444,7 +3444,7 @@ static void iright(FILE* f)
 
         } else
             /* check won't overflow */
-            if (win->curx < INT_MAX) win->curx++; /* update position */
+            if (win->curx < LONG_MAX) win->curx++; /* update position */
 
     }
     setcur(win); /* activate cursor onscreen as required */
@@ -3482,7 +3482,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-static void iblink(FILE* f, int e)
+static void iblink(FILE* f, long e)
 
 {
 
@@ -3503,7 +3503,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-static void ireverse(FILE* f, int e)
+static void ireverse(FILE* f, long e)
 
 {
 
@@ -3524,7 +3524,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-static void iunderline(FILE* f, int e)
+static void iunderline(FILE* f, long e)
 
 {
 
@@ -3547,7 +3547,7 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 *******************************************************************************/
 
-static void isuperscript(FILE* f, int e)
+static void isuperscript(FILE* f, long e)
 
 {
 
@@ -3570,7 +3570,7 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 *******************************************************************************/
 
-static void isubscript(FILE* f, int e)
+static void isubscript(FILE* f, long e)
 
 {
 
@@ -3591,7 +3591,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void iitalic(FILE* f, int e)
+static void iitalic(FILE* f, long e)
 
 {
 
@@ -3612,7 +3612,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ibold(FILE* f, int e)
+static void ibold(FILE* f, long e)
 
 {
 
@@ -3635,7 +3635,7 @@ just placed.
 
 *******************************************************************************/
 
-static void istrikeout(FILE* f, int e)
+static void istrikeout(FILE* f, long e)
 
 {
 
@@ -3656,7 +3656,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void istandout(FILE* f, int e)
+static void istandout(FILE* f, long e)
 
 {
 
@@ -3695,7 +3695,7 @@ Sets the foreground color from individual r, g, and b values.
 
 *******************************************************************************/
 
-static void ifcolorc(FILE* f, int r, int g, int b)
+static void ifcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -3733,7 +3733,7 @@ Sets the background color from individual r, g, and b values.
 
 *******************************************************************************/
 
-static void ibcolorc(FILE* f, int r, int g, int b)
+static void ibcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -3769,7 +3769,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(FILE* f, int e)
+static void iauto(FILE* f, long e)
 
 {
 
@@ -3788,7 +3788,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-static void icurvis(FILE* f, int e)
+static void icurvis(FILE* f, long e)
 
 {
 
@@ -3817,7 +3817,7 @@ to the window.
 
 *******************************************************************************/
 
-static void iscroll(FILE* f, int x, int y)
+static void iscroll(FILE* f, long x, long y)
 
 {
 
@@ -3837,7 +3837,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-static int icurx(FILE* f)
+static long icurx(FILE* f)
 
 {
 
@@ -3857,7 +3857,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-static int icury(FILE* f)
+static long icury(FILE* f)
 
 {
 
@@ -3877,7 +3877,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-static int icurbnd(FILE* f)
+static long icurbnd(FILE* f)
 
 {
 
@@ -3903,7 +3903,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-static void iselect(FILE* f, int u, int d)
+static void iselect(FILE* f, long u, long d)
 
 {
 
@@ -3982,7 +3982,7 @@ static void intevent(FILE* f)
 
     ami_evtrec ev, er;    /* local event record */
     winptr    win;   /* windows record pointer */
-    int       x, y;
+    long      x, y;
 
     win = NULL; /* set no window active */
     (*event_vect)(stdin, &ev); /* get root event */
@@ -4474,8 +4474,8 @@ static void readline(int fd)
     ami_evtrec er;   /* event record */
     winptr    win;  /* window pointer */
     int       ins;  /* insert/overwrite mode */
-    int       xoff; /* x starting line offset */
-    int       l;    /* buffer length */
+    long      xoff; /* x starting line offset */
+    long      l;    /* buffer length */
     int       ofn;  /* logical output file */
     int       lcmp; /* line complete */
     int       i;
@@ -4733,7 +4733,7 @@ the associated input file.
 
 *******************************************************************************/
 
-static void itimer(FILE* f, int i, long t, int r)
+static void itimer(FILE* f, long i, long t, long r)
 
 {
 
@@ -4765,7 +4765,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-static void ikilltimer(FILE* f, int i)
+static void ikilltimer(FILE* f, long i)
 
 {
 
@@ -4791,7 +4791,7 @@ Returns the number of mice implemented. This is a pure passthrough function.
 
 *******************************************************************************/
 
-static int imouse(FILE* f)
+static long imouse(FILE* f)
 
 {
 
@@ -4808,7 +4808,7 @@ function.
 
 *******************************************************************************/
 
-static int imousebutton(FILE* f, int m)
+static long imousebutton(FILE* f, long m)
 
 {
 
@@ -4824,7 +4824,7 @@ Return number of joysticks attached. This is a pure passthrough function.
 
 *******************************************************************************/
 
-static int ijoystick(FILE* f)
+static long ijoystick(FILE* f)
 
 {
 
@@ -4841,7 +4841,7 @@ function.
 
 *******************************************************************************/
 
-static int ijoybutton(FILE* f, int j)
+static long ijoybutton(FILE* f, long j)
 
 {
 
@@ -4860,7 +4860,7 @@ passthrough function.
 
 *******************************************************************************/
 
-static int ijoyaxis(FILE* f, int j)
+static long ijoyaxis(FILE* f, long j)
 
 {
 
@@ -4876,7 +4876,7 @@ Sets a tab at the indicated column number.
 
 *******************************************************************************/
 
-static void isettab(FILE* f, int t)
+static void isettab(FILE* f, long t)
 
 {
 
@@ -4896,7 +4896,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-static void irestab(FILE* f, int t)
+static void irestab(FILE* f, long t)
 
 {
 
@@ -4938,7 +4938,7 @@ passthrough function.
 
 *******************************************************************************/
 
-static int ifunkey(FILE* f)
+static long ifunkey(FILE* f)
 
 {
 
@@ -4957,7 +4957,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-static void iframetimer(FILE* f, int e)
+static void iframetimer(FILE* f, long e)
 
 {
 
@@ -5006,7 +5006,7 @@ holding manager unaware programs.
 
 *******************************************************************************/
 
-static void iautohold(int e)
+static void iautohold(long e)
 
 {
 
@@ -5035,14 +5035,14 @@ character attributes.
 
 *******************************************************************************/
 
-static void iwrtstrn(FILE* f, char* s, int n)
+static void iwrtstrn(FILE* f, char* s, long n)
 
 {
 
     winptr win; /* window record pointer */
     scnptr scp; /* screen buffer */
     char*  ss;
-    int    ns;
+    long   ns;
 
     win = txt2win(f); /* get window from file */
     if (win->autof) error("Cannot direct write string with auto on");
@@ -5124,7 +5124,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-static void ititlen(FILE* f, char* ts, int n)
+static void ititlen(FILE* f, char* ts, long n)
 
 {
 
@@ -5182,7 +5182,7 @@ window.
 
 *******************************************************************************/
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
@@ -5200,7 +5200,7 @@ freed.
 
 *******************************************************************************/
 
-static void ibuffer(FILE* f, int e)
+static void ibuffer(FILE* f, long e)
 
 {
 
@@ -5244,7 +5244,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-static void isizbuf(FILE* f, int x, int y)
+static void isizbuf(FILE* f, long x, long y)
 
 {
 
@@ -5276,7 +5276,7 @@ Gets the onscreen parent window size, in character terms.
 
 *******************************************************************************/
 
-static void igetsiz(FILE* f, int* x, int* y)
+static void igetsiz(FILE* f, long* x, long* y)
 
 {
 
@@ -5296,7 +5296,7 @@ Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
-static void isetsiz(FILE* f, int x, int y)
+static void isetsiz(FILE* f, long x, long y)
 
 {
 
@@ -5317,7 +5317,7 @@ relative measurement.
 
 *******************************************************************************/
 
-static void isetpos(FILE* f, int x, int y)
+static void isetpos(FILE* f, long x, long y)
 
 {
 
@@ -5336,7 +5336,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-static void iscnsiz(FILE* f, int* x, int* y)
+static void iscnsiz(FILE* f, long* x, long* y)
 
 {
 
@@ -5362,7 +5362,7 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-static void iscncen(FILE* f, int* x, int* y)
+static void iscncen(FILE* f, long* x, long* y)
 
 {
 
@@ -5389,7 +5389,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-static void iwinclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+static void iwinclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
@@ -5449,7 +5449,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-static void iframe(FILE* f, int e)
+static void iframe(FILE* f, long e)
 
 {
 
@@ -5478,7 +5478,7 @@ managers.
 
 *******************************************************************************/
 
-static void isizable(FILE* f, int e)
+static void isizable(FILE* f, long e)
 
 {
 
@@ -5506,7 +5506,7 @@ used to create component windows.
 
 *******************************************************************************/
 
-static void isysbar(FILE* f, int e)
+static void isysbar(FILE* f, long e)
 
 {
 
@@ -5548,7 +5548,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-static void imenuena(FILE* f, int id, int onoff)
+static void imenuena(FILE* f, long id, long onoff)
 
 {
 
@@ -5563,7 +5563,7 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-static void imenusel(FILE* f, int id, int select)
+static void imenusel(FILE* f, long id, long select)
 
 {
 
@@ -5611,11 +5611,11 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 *******************************************************************************/
 
-static int igetwinid(void)
+static long igetwinid(void)
 
 {
 
-    int wid; /* window id */
+    long wid; /* window id */
 
     wid = -1; /* start at -1 */
     /* find any open entry */
@@ -5671,7 +5671,7 @@ static void plcchr(FILE* f, char c)
 
     winptr  win;   /* windows record pointer */
     scnrec* scp;   /* pointer to screen location */
-    int     l;
+    long    l;
 
     win = txt2win(f); /* get window from file */
     if (!win->visible) winvis(win); /* make sure we are displayed */

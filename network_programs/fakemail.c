@@ -27,7 +27,7 @@ char* mailmsg[] = {
 
 };
 
-int secure = FALSE;
+long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -42,15 +42,16 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    int port = 4433; /* note: can't use correct 110 port, it is denied */
-    int argi = 1;
+    long port = 4433; /* note: can't use correct 110 port, it is denied */
+    long argi = 1;
+    long argcl = argc;
     int end;
     int i;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 1) {
+    if (argcl != 1) {
 
         fprintf(stderr, "Usage: fakemail [--secure|-s]\n");
         exit(1);
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
 
     while (1) { /* serve this port until cancelled */
 
-        printf("Fakemail server waits on port %d for connections\n", port);
+        printf("Fakemail server waits on port %ld for connections\n", port);
         fp = ami_waitnet(port, secure);
 
         printf("Inbound connection\n");

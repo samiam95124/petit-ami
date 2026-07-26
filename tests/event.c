@@ -67,24 +67,24 @@ int main()
             case ami_etprint:   printf("print document\n"); break;
             case ami_etprintb:  printf("print block\n"); break;
             case ami_etprints:  printf("print screen\n"); break;
-            case ami_etfun:     printf("Function key, number: %d\n", er.fkey); break;
+            case ami_etfun:     printf("Function key, number: %ld\n", er.fkey); break;
             case ami_etmenu:    printf("display menu\n"); break;
-            case ami_etmouba:   printf("mouse button assertion, mouse: %d button: %d\n",
+            case ami_etmouba:   printf("mouse button assertion, mouse: %ld button: %ld\n",
                                       er.amoun, er.amoubn); break;
-            case ami_etmoubd:   printf("mouse button deassertion, mouse: %d button: %d\n",
+            case ami_etmoubd:   printf("mouse button deassertion, mouse: %ld button: %ld\n",
                                       er.dmoun, er.dmoubn); break;
-            case ami_etmoumov:  printf("mouse move, mouse: %d x: %d y: %d\n",
+            case ami_etmoumov:  printf("mouse move, mouse: %ld x: %ld y: %ld\n",
                                       er.mmoun, er.moupx, er.moupy); break;
-            case ami_ettim:     printf("timer matures, timer: %d\n", er.timnum); break;
-            case ami_etjoyba:   printf("joystick button assertion, stick: %d button: %d\n",
+            case ami_ettim:     printf("timer matures, timer: %ld\n", er.timnum); break;
+            case ami_etjoyba:   printf("joystick button assertion, stick: %ld button: %ld\n",
                                       er.ajoyn, er.ajoybn); break;
-            case ami_etjoybd:   printf("joystick button deassertion, stick: %d button: %d\n",
+            case ami_etjoybd:   printf("joystick button deassertion, stick: %ld button: %ld\n",
                                       er.djoyn, er.djoybn); break;
-            case ami_etjoymov:  printf("joystick move, stick: %d x: %d y: %d z: %d\n",
+            case ami_etjoymov:  printf("joystick move, stick: %ld x: %ld y: %ld z: %ld\n",
                                       er.mjoyn, er.joypx, er.joypy, er.joypz); break;
             case ami_etresize:
                 printf("Window resized\n");
-                printf("New size: x: %d y: %d\n", ami_maxx(stdout), ami_maxy(stdout));
+                printf("New size: x: %ld y: %ld\n", ami_maxx(stdout), ami_maxy(stdout));
                 break;
             case ami_etterm:    printf("terminate program\n"); break;
             default: ;

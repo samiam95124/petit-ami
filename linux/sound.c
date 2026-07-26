@@ -63,6 +63,7 @@
 #include <sys/event.h>
 #endif
 #include <stdlib.h>
+#include <limits.h>
 #include <stdint.h>
 
 #include <localdefs.h>
@@ -255,8 +256,8 @@ typedef struct fmthdr {
 /* port/id structure to start player tasks */
 typedef struct portid {
 
-    int port;
-    int id;
+    long port;
+    long id;
 
 } portid;
 
@@ -282,26 +283,26 @@ typedef struct snddev {
     int            pback;      /* pushback for input */
     int            sync;       /* midi channel synced */
     /* These entries support plug in devices, but are also set for internal devices */
-    void (*open)(int p);                  /* open port */
-    void (*close)(int p);                 /* close port */
-    void (*wrseq)(int p, ami_seqptr sp);      /* write MIDI out device */
-    void (*rdseq)(int p, ami_seqptr sp);      /* read MIDI in device */
-    void (*wrwav)(int p, byte* buff, int len); /* write wave out device */
-    int (*rdwav)(int p, byte* buff, int len); /* read wave in device */
-    void (*chanwavout)(int p, int c);     /* channels for wave output */
-    void (*ratewavout)(int p, int r);     /* rate for wave output */
-    void (*lenwavout)(int p, int l);      /* bitlength for wave output */
-    void (*sgnwavout)(int p, int s);      /* sign for wave output */
-    void (*fltwavout)(int p, int f);      /* float for wave output */
-    void (*endwavout)(int p, int e);      /* endian for wave output */
-    int (*chanwavin)(int p);              /* channels for wave input */
-    int (*ratewavin)(int p);              /* rate for wave input */
-    int (*lenwavin)(int p);               /* bitlength for wave input */
-    int (*sgnwavin)(int p);               /* sign for wave input */
-    int (*fltwavin)(int p);               /* float for wave input */
-    int (*endwavin)(int p);               /* endian for wave input */
-    int (*setparam)(int p, string name, string value); /* set parameter */
-    void (*getparam)(int p, string name, string value, int len); /* get parameter */
+    void (*open)(long p);                  /* open port */
+    void (*close)(long p);                 /* close port */
+    void (*wrseq)(long p, ami_seqptr sp);      /* write MIDI out device */
+    void (*rdseq)(long p, ami_seqptr sp);      /* read MIDI in device */
+    void (*wrwav)(long p, byte* buff, long len); /* write wave out device */
+    long (*rdwav)(long p, byte* buff, long len); /* read wave in device */
+    void (*chanwavout)(long p, long c);     /* channels for wave output */
+    void (*ratewavout)(long p, long r);     /* rate for wave output */
+    void (*lenwavout)(long p, long l);      /* bitlength for wave output */
+    void (*sgnwavout)(long p, long s);      /* sign for wave output */
+    void (*fltwavout)(long p, long f);      /* float for wave output */
+    void (*endwavout)(long p, long e);      /* endian for wave output */
+    long (*chanwavin)(long p);              /* channels for wave input */
+    long (*ratewavin)(long p);              /* rate for wave input */
+    long (*lenwavin)(long p);               /* bitlength for wave input */
+    long (*sgnwavin)(long p);               /* sign for wave input */
+    long (*fltwavin)(long p);               /* float for wave input */
+    long (*endwavin)(long p);               /* endian for wave input */
+    long (*setparam)(long p, string name, string value); /* set parameter */
+    void (*getparam)(long p, string name, string value, long len); /* get parameter */
     int            devopn;     /* device open flag */
 
 } snddev;
@@ -429,8 +430,8 @@ static int alsapcmoutplug; /* PCM out */
 static int alsapcminplug; /* PCM in */
 
 /* forwards */
-static void alsaplaysynth_kickoff(int p, int s);
-static void alsaplaywave_kickoff(int p, int w);
+static void alsaplaysynth_kickoff(long p, long s);
+static void alsaplaywave_kickoff(long p, long w);
 
 /*******************************************************************************
 
@@ -793,12 +794,12 @@ wrap.
 
 *******************************************************************************/
 
-static int timediff(struct timeval* rt)
+static long timediff(struct timeval* rt)
 
 {
 
-    int ds; /* seconds difference */
-    int du; /* microseconds difference */
+    long ds; /* seconds difference */
+    long du; /* microseconds difference */
     struct timeval tv; /* record to get time */
 
     gettimeofday(&tv, NULL); /* get current time */
@@ -822,7 +823,7 @@ static void acttim(void)
 {
 
     struct itimerspec ts; /* timer data */
-    int    elap;          /* elapsed time */
+    long    elap;          /* elapsed time */
     long tl;
 
     if (!seqtimact && seqlst) { /* sequencer list has contents, activate timer */
@@ -907,114 +908,114 @@ static void dmpseq(ami_seqptr p)
 
     switch (p->st) { /* sequencer message type */
 
-        case st_noteon:       printf("noteon: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Velocity: %d\n",
+        case st_noteon:       printf("noteon: Time: %ld Port: %ld Channel: %ld "
+                                     "Note: %ld Velocity: %ld\n",
                                      p->time, p->port, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_noteoff:      printf("noteoff: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Velocity: %d\n", p->time,
+        case st_noteoff:      printf("noteoff: Time: %ld Port: %ld Channel: %ld "
+                                     "Note: %ld Velocity: %ld\n", p->time,
                                      p->port, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_instchange:   printf("instchange: Time: %d Port: %d p->port "
-                                     "Channel: %d Instrument: %d\n", p->time,
+        case st_instchange:   printf("instchange: Time: %ld Port: %ld p->port "
+                                     "Channel: %ld Instrument: %ld\n", p->time,
                                      p->port, p->icc, p->ici);
                               break;
-        case st_attack:       printf("attack: Time: %d Port: %d Channel: %d "
-                                     "attack time: %d\n", p->time, p->port,
+        case st_attack:       printf("attack: Time: %ld Port: %ld Channel: %ld "
+                                     "attack time: %ld\n", p->time, p->port,
                                      p->vsc, p->vsv);
                               break;
-        case st_release:      printf("release: Time: %d Port: %d Channel: %d "
-                                     "release time: %d\n", p->time, p->port,
+        case st_release:      printf("release: Time: %ld Port: %ld Channel: %ld "
+                                     "release time: %ld\n", p->time, p->port,
                                      p->vsc, p->vsv);
                               break;
-        case st_legato:       printf("legato: Time: %d Port: %d Channel: %d "
-                                     "legato on/off: %d\n", p->time, p->port,
+        case st_legato:       printf("legato: Time: %ld Port: %ld Channel: %ld "
+                                     "legato on/off: %ld\n", p->time, p->port,
                                      p->bsc, p->bsb);
                               break;
-        case st_portamento:   printf("portamento: Time: %d Port: %d Channel: %d "
-                                     "portamento on/off: %d\n", p->time, p->port,
+        case st_portamento:   printf("portamento: Time: %ld Port: %ld Channel: %ld "
+                                     "portamento on/off: %ld\n", p->time, p->port,
                                      p->bsc, p->bsb);
                               break;
-        case st_vibrato:      printf("vibrato: Time: %d Port: %d Channel: %d "
-                                     "Vibrato: %d\n", p->time, p->port, p->vsc,
+        case st_vibrato:      printf("vibrato: Time: %ld Port: %ld Channel: %ld "
+                                     "Vibrato: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_volsynthchan: printf("volsynthchan: Time: %d Port: %d Channel: %d "
-                                     "Volume: %d\n", p->time, p->port, p->vsc,
+        case st_volsynthchan: printf("volsynthchan: Time: %ld Port: %ld Channel: %ld "
+                                     "Volume: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_porttime:     printf("porttime: Time: %d Port: %d Channel: %d "
-                                     "Portamento time: %d\n", p->time, p->port,
+        case st_porttime:     printf("porttime: Time: %ld Port: %ld Channel: %ld "
+                                     "Portamento time: %ld\n", p->time, p->port,
                                      p->vsc, p->vsv);
                               break;
-        case st_balance:      printf("attack: Time: %d Port: %d Channel: %d "
-                                     "Ballance: %d\n", p->time, p->port, p->vsc,
+        case st_balance:      printf("attack: Time: %ld Port: %ld Channel: %ld "
+                                     "Ballance: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_pan:          printf("pan: Time: %d Port: %d Channel: %d "
-                                     "Pan: %d\n", p->time, p->port, p->vsc,
+        case st_pan:          printf("pan: Time: %ld Port: %ld Channel: %ld "
+                                     "Pan: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_timbre:       printf("timbre: Time: %d Port: %d Channel: %d "
-                                     "Timbre: %d\n", p->time, p->port, p->vsc,
+        case st_timbre:       printf("timbre: Time: %ld Port: %ld Channel: %ld "
+                                     "Timbre: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_brightness:   printf("brightness: Time: %d Port: %d Channel: %d "
-                                     "Brightness: %d\n", p->time, p->port,
+        case st_brightness:   printf("brightness: Time: %ld Port: %ld Channel: %ld "
+                                     "Brightness: %ld\n", p->time, p->port,
                                      p->vsc, p->vsv);
                               break;
-        case st_reverb:       printf("reverb: Time: %d Port: %d Channel: %d "
-                                     "Reverb: %d\n", p->time, p->port, p->vsc,
+        case st_reverb:       printf("reverb: Time: %ld Port: %ld Channel: %ld "
+                                     "Reverb: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_tremulo:      printf("tremulo: Time: %d Port: %d Channel: %d "
-                                     "Tremulo: %d\n", p->time, p->port, p->vsc,
+        case st_tremulo:      printf("tremulo: Time: %ld Port: %ld Channel: %ld "
+                                     "Tremulo: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_chorus:       printf("chorus: Time: %d Port: %d Channel: %d "
-                                     "Chorus: %d\n", p->time, p->port, p->vsc,
+        case st_chorus:       printf("chorus: Time: %ld Port: %ld Channel: %ld "
+                                     "Chorus: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_celeste:      printf("celeste: Time: %d Port: %d Channel: %d "
-                                     "Celeste: %d\n", p->time, p->port, p->vsc,
+        case st_celeste:      printf("celeste: Time: %ld Port: %ld Channel: %ld "
+                                     "Celeste: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_phaser:       printf("Phaser: Time: %d Port: %d Channel: %d "
-                                     "Phaser: %d\n", p->time, p->port, p->vsc,
+        case st_phaser:       printf("Phaser: Time: %ld Port: %ld Channel: %ld "
+                                     "Phaser: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_aftertouch:   printf("aftertouch: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Aftertouch: %d\n", p->time,
+        case st_aftertouch:   printf("aftertouch: Time: %ld Port: %ld Channel: %ld "
+                                     "Note: %ld Aftertouch: %ld\n", p->time,
                                      p->port, p->ntc, p->ntn, p->ntv);
                               break;
-        case st_pressure:     printf("pressure: Time: %d Port: %d Channel: %d "
-                                     "Pressure: %d\n", p->time, p->port, p->ntc,
+        case st_pressure:     printf("pressure: Time: %ld Port: %ld Channel: %ld "
+                                     "Pressure: %ld\n", p->time, p->port, p->ntc,
                                      p->ntv);
                               break;
-        case st_pitch:        printf("pitch: Time: %d Port: %d Channel: %d "
-                                     "Pitch: %d\n", p->time, p->port, p->vsc,
+        case st_pitch:        printf("pitch: Time: %ld Port: %ld Channel: %ld "
+                                     "Pitch: %ld\n", p->time, p->port, p->vsc,
                                      p->vsv);
                               break;
-        case st_pitchrange:   printf("pitchrange: Time: %d Port: %d Channel: %d "
-                                     "Pitch range: %d\n", p->time, p->port,
+        case st_pitchrange:   printf("pitchrange: Time: %ld Port: %ld Channel: %ld "
+                                     "Pitch range: %ld\n", p->time, p->port,
                                      p->vsc, p->vsv);
                               break;
-        case st_mono:         printf("mono: Time: %d Port: %d Channel: %d "
-                                     "Mono notes: %d\n", p->time, p->port,
+        case st_mono:         printf("mono: Time: %ld Port: %ld Channel: %ld "
+                                     "Mono notes: %ld\n", p->time, p->port,
                                      p->vsc, p->vsv);
                               break;
-        case st_poly:         printf("poly: Time: %d Port: %d Channel: %d\n",
+        case st_poly:         printf("poly: Time: %ld Port: %ld Channel: %ld\n",
                                      p->time, p->port, p->pc);
                               break;
-        case st_playsynth:    printf("playsynth: Time: %d Port: %d "
-                                     ".mid file id: %d\n", p->time, p->port,
+        case st_playsynth:    printf("playsynth: Time: %ld Port: %ld "
+                                     ".mid file id: %ld\n", p->time, p->port,
                                      p->sid);
                               break;
-        case st_playwave:     printf("playwave: Time: %d Port: %d "
-                                     ".wav file logical number: %d\n", p->time,
+        case st_playwave:     printf("playwave: Time: %ld Port: %ld "
+                                     ".wav file logical number: %ld\n", p->time,
                                      p->port, p->wt);
                               break;
-        case st_volwave:      printf("volwave: Time: %d Port: %d Volume: %d\n",
+        case st_volwave:      printf("volwave: Time: %ld Port: %ld Volume: %ld\n",
                                      p->time, p->port, p->wv);
                               break;
 
@@ -1126,7 +1127,7 @@ Processes a controller value set, from 0 to 127.
 
 *******************************************************************************/
 
-static void ctlchg(int p, ami_channel c, int cn, int v)
+static void ctlchg(long p, ami_channel c, int cn, int v)
 
 {
 
@@ -1142,33 +1143,43 @@ Execute sequencer message
 Directly encodes the sequencer message in MIDI format, and outputs to the MIDI
 device assocated with the port.
 
+Note on scaling: API full scale values are 0..LONG_MAX (or -LONG_MAX..LONG_MAX
+for signed controls). These are reduced to MIDI ranges by dividing first:
+LONG_MAX/128+1 maps full scale to 0..127, LONG_MAX/8192+1 to a signed 13 bit
+value (+0x2000 gives the 14 bit positive MIDI range), and LONG_MAX/16384+1 to
+14 bits for the fine controller bits. The divisors are expressed relative to
+LONG_MAX so they are correct for either 32 or 64 bit longs. Dividing first
+(instead of value*127/LONG_MAX) avoids overflow, at the cost of treating full
+scale as a power of two instead of LONG_MAX, an error of 1 part in LONG_MAX
+which is far below the MIDI quantization.
+
 *******************************************************************************/
 
-void _pa_excseq(int p, ami_seqptr sp)
+void _pa_excseq(long p, ami_seqptr sp)
 
 {
 
-    int b;
-    int pt;
+    long b;
+    long pt;
 
     switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
             midimsg3(alsamidiout[sp->port-1]->midi, MESS_NOTE_ON+(sp->ntc-1),
-                     sp->ntn-1, sp->ntv/0x01000000);
+                     sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_noteoff:
             midimsg3(alsamidiout[sp->port-1]->midi, MESS_NOTE_OFF+(sp->ntc-1),
-                     sp->ntn-1, sp->ntv/0x01000000);
+                     sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_instchange:
             midimsg2(alsamidiout[sp->port-1]->midi, MESS_PGM_CHG+(sp->icc-1),
                      sp->ici-1);
             break;
         case st_attack: ctlchg(sp->port, sp->vsc, CTLR_SOUND_ATTACK_TIME,
-                               sp->vsv/0x01000000);
+                               sp->vsv/(LONG_MAX/128+1));
             break;
-        case st_release: ctlchg(sp->port, sp->vsc, CTLR_SOUND_RELEASE_TIME, sp->vsv/0x01000000);
+        case st_release: ctlchg(sp->port, sp->vsc, CTLR_SOUND_RELEASE_TIME, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_legato: ctlchg(sp->port, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*127);
             break;
@@ -1176,61 +1187,61 @@ void _pa_excseq(int p, ami_seqptr sp)
             break;
         case st_vibrato:
             /* set high */
-            ctlchg(sp->port, sp->vsc, CTLR_MODULATION_WHEEL_COARSE, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_MODULATION_WHEEL_COARSE, sp->vsv/(LONG_MAX/128+1));
             /* set low */
-            ctlchg(sp->port, sp->vsc, CTLR_MODULATION_WHEEL_FINE, sp->vsv/0x00020000 & 0x7f);
+            ctlchg(sp->port, sp->vsc, CTLR_MODULATION_WHEEL_FINE, sp->vsv/(LONG_MAX/16384+1) & 0x7f);
             break;
         case st_volsynthchan:
-            ctlchg(sp->port, sp->vsc, CTLR_VOLUME_COARSE, sp->vsv/0x01000000); /* set high */
-            ctlchg(sp->port, sp->vsc, CTLR_VOLUME_FINE, sp->vsv/0x00020000 & 0x7f); /* set low */
+            ctlchg(sp->port, sp->vsc, CTLR_VOLUME_COARSE, sp->vsv/(LONG_MAX/128+1)); /* set high */
+            ctlchg(sp->port, sp->vsc, CTLR_VOLUME_FINE, sp->vsv/(LONG_MAX/16384+1) & 0x7f); /* set low */
             break;
         case st_porttime:
             /* set high */
-            ctlchg(sp->port, sp->vsc, CTLR_PORTAMENTO_TIME_COARSE, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_PORTAMENTO_TIME_COARSE, sp->vsv/(LONG_MAX/128+1));
             /* set low */
-            ctlchg(sp->port, sp->vsc, CTLR_PORTAMENTO_TIME_FINE, sp->vsv/0x00020000 & 0x7f);
+            ctlchg(sp->port, sp->vsc, CTLR_PORTAMENTO_TIME_FINE, sp->vsv/(LONG_MAX/16384+1) & 0x7f);
             break;
         case st_balance:
-            b = sp->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            b = sp->vsv/(LONG_MAX/8192+1)+0x2000; /* reduce to 14 bits, positive only */
             ctlchg(sp->port, sp->vsc, CTLR_BALANCE_COARSE, b/0x80); /* set high */
             ctlchg(sp->port, sp->vsc, CTLR_BALANCE_FINE, b & 0x7f); /* set low */
             break;
         case st_pan:
-            b = sp->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            b = sp->vsv/(LONG_MAX/8192+1)+0x2000; /* reduce to 14 bits, positive only */
             ctlchg(sp->port, sp->vsc, CTLR_PAN_POSITION_COARSE, b/0x80); /* set high */
             ctlchg(sp->port, sp->vsc, CTLR_PAN_POSITION_FINE, b & 0x7f); /* set low */
             break;
         case st_timbre:
-            ctlchg(sp->port, sp->vsc, CTLR_SOUND_TIMBRE, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_SOUND_TIMBRE, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_brightness:
-            ctlchg(sp->port, sp->vsc, CTLR_SOUND_BRIGHTNESS, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_SOUND_BRIGHTNESS, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_reverb:
-            ctlchg(sp->port, sp->vsc, CTLR_EFFECTS_LEVEL, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_EFFECTS_LEVEL, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_tremulo:
-            ctlchg(sp->port, sp->vsc, CTLR_TREMULO_LEVEL, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_TREMULO_LEVEL, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_chorus:
-            ctlchg(sp->port, sp->vsc, CTLR_CHORUS_LEVEL, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_CHORUS_LEVEL, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_celeste:
-            ctlchg(sp->port, sp->vsc, CTLR_CELESTE_LEVEL, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_CELESTE_LEVEL, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_phaser:
-            ctlchg(sp->port, sp->vsc, CTLR_PHASER_LEVEL, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_PHASER_LEVEL, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_aftertouch:
             midimsg3(alsamidiout[sp->port-1]->midi, MESS_AFTTCH+(sp->ntc-1),
-                     sp->ntn-1, sp->ntv/0x01000000);
+                     sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_pressure:
             midimsg2(alsamidiout[sp->port-1]->midi, MESS_CHN_PRES+(sp->ntc-1),
-                     sp->ntv/0x01000000);
+                     sp->ntv/(LONG_MAX/128+1));
             break;
         case st_pitch:
-            pt = sp->vsv/0x00040000+0x2000; /* reduce to 14 bits, positive only */
+            pt = sp->vsv/(LONG_MAX/8192+1)+0x2000; /* reduce to 14 bits, positive only */
             /* construct midi message */
             midimsg3(alsamidiout[sp->port-1]->midi, MESS_PTCH_WHL+(sp->vsc-1),
                      pt & 0x7f, pt/0x80);
@@ -1242,10 +1253,10 @@ void _pa_excseq(int p, ami_seqptr sp)
             /* set low */
             ctlchg(sp->port, sp->vsc, CTLR_REGISTERED_PARAMETER_FINE, 0);
             /* set high */
-            ctlchg(sp->port, sp->vsc, CTLR_DATA_ENTRY_COARSE, sp->vsv/0x01000000);
+            ctlchg(sp->port, sp->vsc, CTLR_DATA_ENTRY_COARSE, sp->vsv/(LONG_MAX/128+1));
             /* set low */
             ctlchg(sp->port, sp->vsc, CTLR_DATA_ENTRY_FINE,
-                   sp->vsv/0x00020000 & 0x7f);
+                   sp->vsv/(LONG_MAX/16384+1) & 0x7f);
             break;
         case st_mono:
             ctlchg(sp->port, sp->vsc, CTLR_MONO_OPERATION, sp->vsv);
@@ -1332,13 +1343,13 @@ static void rdsynthvar(devptr mp, unsigned int* v)
 
 }
 
-static void inpseq(int p, ami_seqptr sp)
+static void inpseq(long p, ami_seqptr sp)
 
 {
 
     devptr mp; /* midi input port */
     byte b;
-    int t;
+    long t;
     byte p1;
     byte p2;
     byte p3;
@@ -1374,7 +1385,7 @@ static void inpseq(int p, ami_seqptr sp)
                   sp->st = st_noteoff; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set velocity */
+                  sp->ntv = p2*(LONG_MAX/128+1); /* set velocity */
                   break;
         case 0x9: /* note on */
                   p1 = rdsynth(mp);
@@ -1384,7 +1395,7 @@ static void inpseq(int p, ami_seqptr sp)
                   sp->st = st_noteon; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set velocity */
+                  sp->ntv = p2*(LONG_MAX/128+1); /* set velocity */
                   break;
         case 0xa: /* polyphonic key pressure */
                   p1 = rdsynth(mp);
@@ -1394,7 +1405,7 @@ static void inpseq(int p, ami_seqptr sp)
                   sp->st = st_aftertouch; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set aftertouch */
+                  sp->ntv = p2*(LONG_MAX/128+1); /* set aftertouch */
                   break;
         case 0xb: /* controller change/channel mode */
                   p1 = rdsynth(mp);
@@ -1459,7 +1470,7 @@ static void inpseq(int p, ami_seqptr sp)
                   sp->time = t; /* set time */
                   sp->st = st_pressure; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
-                  sp->ntv = p1*0x01000000; /* set pressure */
+                  sp->ntv = p1*(LONG_MAX/128+1); /* set pressure */
                   break;
         case 0xe: /* pitch bend */
                   p1 = rdsynth(mp);
@@ -1510,7 +1521,7 @@ Opens an ALSA MIDI output port for use.
 
 *******************************************************************************/
 
-static void openalsamidiout(int p)
+static void openalsamidiout(long p)
 
 {
 
@@ -1535,7 +1546,7 @@ regardless. We do the safe/complete thing there.
 
 *******************************************************************************/
 
-static void closealsamidiout(int p)
+static void closealsamidiout(long p)
 
 {
 
@@ -1557,7 +1568,7 @@ Opens an ALSA MIDI input port for use.
 
 *******************************************************************************/
 
-static void openalsamidiin(int p)
+static void openalsamidiin(long p)
 
 {
 
@@ -1577,7 +1588,7 @@ Closes an ALSA MIDI input port for use.
 
 *******************************************************************************/
 
-static void closealsamidiin(int p)
+static void closealsamidiin(long p)
 
 {
 
@@ -1593,7 +1604,7 @@ Opens an ALSA PCM output port for use.
 
 *******************************************************************************/
 
-static void openalsapcmout(int p)
+static void openalsapcmout(long p)
 
 {
 
@@ -1613,7 +1624,7 @@ Closes an ALSA PCM output device for use.
 
 *******************************************************************************/
 
-static void closealsapcmout(int p)
+static void closealsapcmout(long p)
 
 {
 
@@ -1629,7 +1640,7 @@ Opens an ALSA PCM input port for use.
 
 *******************************************************************************/
 
-static void openalsapcmin(int p)
+static void openalsapcmin(long p)
 
 {
 
@@ -1684,7 +1695,7 @@ Closes an ALSA PCM input port for use.
 
 *******************************************************************************/
 
-static void closealsapcmin(int p)
+static void closealsapcmin(long p)
 
 {
 
@@ -1713,7 +1724,7 @@ recommended to be 1ms or less (64 samples at a 44100 sample rate).
 
 *******************************************************************************/
 
-static void wralsapcmout(int p, byte* buff, int len)
+static void wralsapcmout(long p, byte* buff, long len)
 
 {
 
@@ -1773,11 +1784,11 @@ ami_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-static int rdalsapcmin(int p, byte* buff, int len)
+static long rdalsapcmin(long p, byte* buff, long len)
 
 {
 
-    int r;
+    long r;
 
     do {
 
@@ -1809,7 +1820,7 @@ for the next sample.
 
 *******************************************************************************/
 
-static void chanalsapcmout(int p, int c)
+static void chanalsapcmout(long p, long c)
 
 {
 
@@ -1829,7 +1840,7 @@ at the given rate, buffering as required.
 
 *******************************************************************************/
 
-static void ratealsapcmout(int p, int r)
+static void ratealsapcmout(long p, long r)
 
 {
 
@@ -1850,7 +1861,7 @@ cound would mainly indicate precision only.
 
 *******************************************************************************/
 
-static void lenalsapcmout(int p, int l)
+static void lenalsapcmout(long p, long l)
 
 {
 
@@ -1868,7 +1879,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-static void sgnalsapcmout(int p, int s)
+static void sgnalsapcmout(long p, long s)
 
 {
 
@@ -1885,7 +1896,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-static void fltalsapcmout(int p, int f)
+static void fltalsapcmout(long p, long f)
 
 {
 
@@ -1904,7 +1915,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-static void endalsapcmout(int p, int e)
+static void endalsapcmout(long p, long e)
 
 {
 
@@ -1925,7 +1936,7 @@ sample.
 
 *******************************************************************************/
 
-int chanalsapcmin(int p)
+long chanalsapcmin(long p)
 
 {
 
@@ -1943,7 +1954,7 @@ and it must be open. Input samples are timed at the rate.
 
 *******************************************************************************/
 
-int ratealsapcmin(int p)
+long ratealsapcmin(long p)
 
 {
 
@@ -1970,7 +1981,7 @@ round up bit lengths as shown above.
 
 *******************************************************************************/
 
-int lenalsapcmin(int p)
+long lenalsapcmin(long p)
 
 {
 
@@ -1987,7 +1998,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-int sgnalsapcmin(int p)
+long sgnalsapcmin(long p)
 
 {
 
@@ -2003,7 +2014,7 @@ Returns true if the given ALSA PCM device has big endian sampling.
 
 *******************************************************************************/
 
-int endalsapcmin(int p)
+long endalsapcmin(long p)
 
 {
 
@@ -2019,7 +2030,7 @@ Returns true if the given ALSA PCM device has floating point sampling.
 
 *******************************************************************************/
 
-int fltalsapcmin(int p)
+long fltalsapcmin(long p)
 
 {
 
@@ -2067,7 +2078,7 @@ ALSA has no set parameter function, so this always an error.
 
 *******************************************************************************/
 
-static int setalsaparam(int p, string name, string value)
+static long setalsaparam(long p, string name, string value)
 
 {
 
@@ -2083,7 +2094,7 @@ ALSA has no get parameter function, so this always returns an empty string.
 
 *******************************************************************************/
 
-static void getalsaparam(int p, string name, string value, int len)
+static void getalsaparam(long p, string name, string value, long len)
 
 {
 
@@ -2106,14 +2117,14 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_synthoutplug(
-    /* add to end */    int addend,
+    /* add to end */    long addend,
     /* name */          string name,
-    /* open synth */    void (*open)(int p),
-    /* close synth */   void (*close)(int p),
-    /* write synth */   void (*wrseq)(int p, ami_seqptr sp),
-    /* set parameter */ int (*setparam)(int p, string name, string value),
-    /* get parameter */ void (*getparam)(int p, string name, string value,
-                                         int len)
+    /* open synth */    void (*open)(long p),
+    /* close synth */   void (*close)(long p),
+    /* write synth */   void (*wrseq)(long p, ami_seqptr sp),
+    /* set parameter */ long (*setparam)(long p, string name, string value),
+    /* get parameter */ void (*getparam)(long p, string name, string value,
+                                         long len)
 )
 
 {
@@ -2164,14 +2175,14 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_synthinplug(
-    /* add to end */      int addend,
+    /* add to end */      long addend,
     /* name */            string name,
-    /* open sequencer */  void (*open)(int p),
-    /* close sequencer */ void (*close)(int p),
-    /* read sequencer */  void (*rdseq)(int p, ami_seqptr sp),
-    /* set parameter */   int (*setparam)(int p, string name, string value),
-    /* get parameter */   void (*getparam)(int p, string name, string value,
-                                           int len)
+    /* open sequencer */  void (*open)(long p),
+    /* close sequencer */ void (*close)(long p),
+    /* read sequencer */  void (*rdseq)(long p, ami_seqptr sp),
+    /* set parameter */   long (*setparam)(long p, string name, string value),
+    /* get parameter */   void (*getparam)(long p, string name, string value,
+                                           long len)
 )
 
 {
@@ -2221,21 +2232,21 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_waveoutplug(
-    /* add to end */                int addend,
+    /* add to end */                long addend,
     /* name */                      string name,
-    /* open sequencer */            void (*open)(int p),
-    /* close sequencer */           void (*close)(int p),
-    /* channels for wave output */  void (*chanwavout)(int p, int c),
-    /* rate for wave output */      void (*ratewavout)(int p, int r),
-    /* bitlength for wave output */ void (*lenwavout)(int p, int l),
-    /* sign for wave output */      void (*sgnwavout)(int p, int s),
-    /* float for wave output */     void (*fltwavout)(int p, int f),
-    /* endian for wave output */    void (*endwavout)(int p, int e),
-    /* write wave */                void (*wrwav)(int p, byte* buff, int len),
-    /* set parameter */             int (*setparam)(int p, string name,
+    /* open sequencer */            void (*open)(long p),
+    /* close sequencer */           void (*close)(long p),
+    /* channels for wave output */  void (*chanwavout)(long p, long c),
+    /* rate for wave output */      void (*ratewavout)(long p, long r),
+    /* bitlength for wave output */ void (*lenwavout)(long p, long l),
+    /* sign for wave output */      void (*sgnwavout)(long p, long s),
+    /* float for wave output */     void (*fltwavout)(long p, long f),
+    /* endian for wave output */    void (*endwavout)(long p, long e),
+    /* write wave */                void (*wrwav)(long p, byte* buff, long len),
+    /* set parameter */             long (*setparam)(long p, string name,
                                                     string value),
-    /* get parameter */             void (*getparam)(int p, string name,
-                                                     string value, int len)
+    /* get parameter */             void (*getparam)(long p, string name,
+                                                     string value, long len)
 )
 
 {
@@ -2292,21 +2303,21 @@ devices that should not take over the default, such as accessory devices.
 *******************************************************************************/
 
 void _pa_waveinplug(
-    /* add to end */               int addend,
+    /* add to end */               long addend,
     /* name */                     string name,
-    /* open sequencer */           void (*open)(int p),
-    /* close sequencer */          void (*close)(int p),
-    /* channels for wave input */  int (*chanwavin)(int p),
-    /* rate for wave input */      int (*ratewavin)(int p),
-    /* bitlength for wave input */ int (*lenwavin)(int p),
-    /* sign for wave input */      int (*sgnwavin)(int p),
-    /* float for wave input */     int (*fltwavin)(int p),
-    /* endian for wave input */    int (*endwavein)(int p),
-    /* read wave */                int (*rdwav)(int p, byte* buff, int len),
-    /* set parameter */            int (*setparam)(int p, string name,
+    /* open sequencer */           void (*open)(long p),
+    /* close sequencer */          void (*close)(long p),
+    /* channels for wave input */  long (*chanwavin)(long p),
+    /* rate for wave input */      long (*ratewavin)(long p),
+    /* bitlength for wave input */ long (*lenwavin)(long p),
+    /* sign for wave input */      long (*sgnwavin)(long p),
+    /* float for wave input */     long (*fltwavin)(long p),
+    /* endian for wave input */    long (*endwavein)(long p),
+    /* read wave */                long (*rdwav)(long p, byte* buff, long len),
+    /* set parameter */            long (*setparam)(long p, string name,
                                                    string value),
-    /* get parameter */            void (*getparam)(int p, string name,
-                                                     string value, int len)
+    /* get parameter */            void (*getparam)(long p, string name,
+                                                     string value, long len)
 )
 
 {
@@ -2363,7 +2374,7 @@ a direct user call OR a background thread.
 
 *******************************************************************************/
 
-snd_rawmidi_t* _pa_getsythouthdl(int p)
+snd_rawmidi_t* _pa_getsythouthdl(long p)
 
 {
 
@@ -2391,7 +2402,7 @@ a direct user call OR a background thread.
 
 *******************************************************************************/
 
-snd_rawmidi_t* _pa_getsythinhdl(int p)
+snd_rawmidi_t* _pa_getsythinhdl(long p)
 
 {
 
@@ -2419,7 +2430,7 @@ a direct user call OR a background thread.
 
 *******************************************************************************/
 
-snd_pcm_t* _pa_getwaveouthdl(int p)
+snd_pcm_t* _pa_getwaveouthdl(long p)
 
 {
 
@@ -2447,7 +2458,7 @@ a direct user call OR a background thread.
 
 *******************************************************************************/
 
-snd_pcm_t* _pa_getwaveinhdl(int p)
+snd_pcm_t* _pa_getwaveinhdl(long p)
 
 {
 
@@ -2483,7 +2494,7 @@ static void* sequencer_thread(void* data)
 {
 
     ami_seqptr p;             /* message entry pointer */
-    int    elap;          /* elapsed time */
+    long    elap;          /* elapsed time */
     struct itimerspec ts; /* timer data */
     uint64_t   exp;      /* timer expiration time */
     long tl;
@@ -2567,7 +2578,7 @@ Returns the total number of output midi ports.
 
 *******************************************************************************/
 
-int ami_synthout(void)
+long ami_synthout(void)
 
 {
 
@@ -2583,7 +2594,7 @@ Returns the total number of input midi ports.
 
 *******************************************************************************/
 
-int ami_synthin(void)
+long ami_synthin(void)
 
 {
 
@@ -2602,7 +2613,7 @@ midi chained devices outside the computer.
 
 *******************************************************************************/
 
-void ami_opensynthout(int p)
+void ami_opensynthout(long p)
 
 {
 
@@ -2623,7 +2634,7 @@ Closes a previously opened midi output port.
 
 *******************************************************************************/
 
-void ami_closesynthout(int p)
+void ami_closesynthout(long p)
 
 {
 
@@ -2731,7 +2742,7 @@ sequencer started.
 
 *******************************************************************************/
 
-int ami_curtimeout(void)
+long ami_curtimeout(void)
 
 {
 
@@ -2786,7 +2797,7 @@ sequencer started.
 
 *******************************************************************************/
 
-int ami_curtimein(void)
+long ami_curtimein(void)
 
 {
 
@@ -2808,14 +2819,14 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void ami_noteon(int p, int t, ami_channel c, ami_note n, int v)
+void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
 
 
 
 {
 
     int     r;    /* return value */
-    int     elap; /* current elapsed time */
+    long     elap; /* current elapsed time */
     ami_seqptr  sp;   /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -2864,12 +2875,12 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void ami_noteoff(int p, int t, ami_channel c, ami_note n, int v)
+void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
 
 {
 
     int r;
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
     ami_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -2914,12 +2925,12 @@ by Midi GM encoding, 1 to 128. Takes a time for sequencing.
 
 *******************************************************************************/
 
-void ami_instchange(int p, int t, ami_channel c, ami_instrument i)
+void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
 
 {
 
     int r;
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
     ami_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -2963,12 +2974,12 @@ full on.
 
 *******************************************************************************/
 
-void ami_attack(int p, int t, ami_channel c, int at)
+void ami_attack(long p, long t, ami_channel c, long at)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3010,12 +3021,12 @@ full off.
 
 *******************************************************************************/
 
-void ami_release(int p, int t, ami_channel c, int rt)
+void ami_release(long p, long t, ami_channel c, long rt)
 
 {
 
     ami_seqptr sp; /* message pointer */
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3056,11 +3067,11 @@ Sets the legato mode on/off.
 
 *******************************************************************************/
 
-void ami_legato(int p, int t, ami_channel c, int b)
+void ami_legato(long p, long t, ami_channel c, long b)
 
 {
 
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
     ami_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3102,11 +3113,11 @@ Sets the portamento mode on/off.
 
 *******************************************************************************/
 
-void ami_portamento(int p, int t, ami_channel c, int b)
+void ami_portamento(long p, long t, ami_channel c, long b)
 
 {
 
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
     ami_seqptr sp; /* message pointer */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
@@ -3148,12 +3159,12 @@ Sets synthesizer volume, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_volsynthchan(int p, int t, ami_channel c, int v)
+void ami_volsynthchan(long p, long t, ami_channel c, long v)
 
 {
 
     ami_seqptr sp; /* message pointer */
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3195,12 +3206,12 @@ maxint is all right.
 
 *******************************************************************************/
 
-void ami_balance(int p, int t, ami_channel c, int b)
+void ami_balance(long p, long t, ami_channel c, long b)
 
 {
 
     ami_seqptr sp; /* message pointer */
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3241,12 +3252,12 @@ Sets portamento time, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_porttime(int p, int t, ami_channel c, int v)
+void ami_porttime(long p, long t, ami_channel c, long v)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3287,12 +3298,12 @@ Sets modulaton value, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_vibrato(int p, int t, ami_channel c, int v)
+void ami_vibrato(long p, long t, ami_channel c, long v)
 
 {
 
     ami_seqptr sp; /* message pointer */
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3334,12 +3345,12 @@ maxint is hard right.
 
 *******************************************************************************/
 
-void ami_pan(int p, int t, ami_channel c, int b)
+void ami_pan(long p, long t, ami_channel c, long b)
 
 {
 
     ami_seqptr sp; /* message pointer */
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3380,12 +3391,12 @@ Sets the sound timbre, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_timbre(int p, int t, ami_channel c, int tb)
+void ami_timbre(long p, long t, ami_channel c, long tb)
 
 {
 
     ami_seqptr sp; /* message pointer */
-    int elap;  /* current elapsed time */
+    long elap;  /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3426,12 +3437,12 @@ Sets the sound brightness, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_brightness(int p, int t, ami_channel c, int b)
+void ami_brightness(long p, long t, ami_channel c, long b)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3472,12 +3483,12 @@ Sets the sound reverb, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_reverb(int p, int t, ami_channel c, int r)
+void ami_reverb(long p, long t, ami_channel c, long r)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3518,12 +3529,12 @@ Sets the sound tremulo, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_tremulo(int p, int t, ami_channel c, int tr)
+void ami_tremulo(long p, long t, ami_channel c, long tr)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3564,12 +3575,12 @@ Sets the sound chorus, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_chorus(int p, int t, ami_channel c, int cr)
+void ami_chorus(long p, long t, ami_channel c, long cr)
 
 {
 
     ami_seqptr sp;  /* message pointer */
-    int elap; /* current elapsed time */
+    long elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3610,12 +3621,12 @@ Sets the sound celeste, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_celeste(int p, int t, ami_channel c, int ce)
+void ami_celeste(long p, long t, ami_channel c, long ce)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3656,12 +3667,12 @@ Sets the sound phaser, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_phaser(int p, int t, ami_channel c, int ph)
+void ami_phaser(long p, long t, ami_channel c, long ph)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3706,12 +3717,12 @@ could be reached with a slide, for example.
 
 *******************************************************************************/
 
-void ami_pitchrange(int p, int t, ami_channel c, int v)
+void ami_pitchrange(long p, long t, ami_channel c, long v)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3754,12 +3765,12 @@ with 0 being "allways select single note mode".
 
 *******************************************************************************/
 
-void ami_mono(int p, int t, ami_channel c, int ch)
+void ami_mono(long p, long t, ami_channel c, long ch)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3801,12 +3812,12 @@ Reenables polyphonic mode after a monophonic operation.
 
 *******************************************************************************/
 
-void ami_poly(int p, int t, ami_channel c)
+void ami_poly(long p, long t, ami_channel c)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3846,12 +3857,12 @@ Controls aftertouch, 0 to maxint, on a note.
 
 *******************************************************************************/
 
-void ami_aftertouch(int p, int t, ami_channel c, ami_note n, int at)
+void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3894,12 +3905,12 @@ Controls channel pressure, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_pressure(int p, int t, ami_channel c, int pr)
+void ami_pressure(long p, long t, ami_channel c, long pr)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3943,12 +3954,12 @@ C#.
 
 *******************************************************************************/
 
-void ami_pitch(int p, int t, ami_channel c, int pt)
+void ami_pitch(long p, long t, ami_channel c, long pt)
 
 {
 
     ami_seqptr sp;  /* message pointer */
-    int elap; /* current elapsed time */
+    long elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Bad port number");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -3993,7 +4004,7 @@ static void *alsaplaymidi(void* data)
 
 {
 
-    int               curtim;  /* current time in 100us */
+    long               curtim;  /* current time in 100us */
     int               qnote;   /* number of 100us/quarter note */
     ami_seqptr         sp;      /* sequencer entry */
     ami_seqptr         seqlst;  /* sorted sequencer list */
@@ -4002,8 +4013,8 @@ static void *alsaplaymidi(void* data)
     uint64_t          exp;     /* timer expire value */
     struct timeval    strtim;  /* start time for sequencer */
     portidptr         pip;     /* pointer for data we need */
-    int               s;       /* synthesizer file instance */
-    int               p;       /* port */
+    long              s;       /* synthesizer file instance */
+    long              p;       /* port */
     long              tl;
 
     pip = (portidptr) data; /* get data pointer */
@@ -4078,7 +4089,7 @@ thread, and this routine spawns a thread to accomplish that. The thread is
 
 *******************************************************************************/
 
-void alsaplaysynth_kickoff(int p, int s)
+void alsaplaysynth_kickoff(long p, long s)
 
 {
 
@@ -4162,7 +4173,7 @@ static void prttxt(FILE* fh, unsigned int len)
 
 }
 
-static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
+static int dcdmidi(FILE* fh, byte b, int* endtrk, long p, long t, int* qnote,
                    ami_seqptr* rsp)
 
 {
@@ -4190,7 +4201,7 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
                   sp->st = st_noteoff; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set velocity */
+                  sp->ntv = p2*(LONG_MAX/128+1); /* set velocity */
                   break;
         case 0x9: /* note on */
                   p1 = readbyt(fh); cnt++;
@@ -4201,7 +4212,7 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
                   sp->st = st_noteon; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set velocity */
+                  sp->ntv = p2*(LONG_MAX/128+1); /* set velocity */
                   break;
         case 0xa: /* polyphonic key pressure */
                   p1 = readbyt(fh); cnt++;
@@ -4212,7 +4223,7 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
                   sp->st = st_aftertouch; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = p2*0x01000000; /* set aftertouch */
+                  sp->ntv = p2*(LONG_MAX/128+1); /* set aftertouch */
                   break;
         case 0xb: /* controller change/channel mode */
                   p1 = readbyt(fh); cnt++;
@@ -4281,7 +4292,7 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, int p, int t, int* qnote,
                   sp->time = t; /* set time */
                   sp->st = st_pressure; /* set type */
                   sp->ntc = (b&15)+1; /* set channel */
-                  sp->ntv = p1*0x01000000; /* set pressure */
+                  sp->ntv = p1*(LONG_MAX/128+1); /* set pressure */
                   break;
         case 0xe: /* pitch bend */
                   p1 = readbyt(fh); cnt++;
@@ -4387,7 +4398,7 @@ void prthid(FILE* fh, unsigned int id)
 
 }
 
-void ami_loadsynth(int s, string fn)
+void ami_loadsynth(long s, string fn)
 
 {
 
@@ -4403,7 +4414,7 @@ void ami_loadsynth(int s, string fn)
     unsigned short division;     /* delta time */
     int            found;        /* found our header */
     unsigned int   id;           /* id */
-    int            curtim;       /* current time in 100us */
+    long            curtim;       /* current time in 100us */
     int            qnote;        /* number of 100us/quarter note */
     ami_seqptr      sp, sp2, sp3; /* sequencer entry */
     ami_seqptr      seqlst;       /* sorted sequencer list */
@@ -4479,7 +4490,7 @@ void ami_loadsynth(int s, string fn)
 
                     len = readvar(fh, &delta_time); /* get delta time */
                     rem -= len; /* count */
-                    curtim += delta_time*qnote/division; /* advance with delta time */
+                    curtim += (long)delta_time*qnote/division; /* advance with delta time */
                     b = getc(fh); /* get the command byte */
                     rem--; /* count */
                     if (b < 0x80) { /* process running status or repeat */
@@ -4589,7 +4600,7 @@ result in this routine blocking until it is complete.
 
 *******************************************************************************/
 
-void ami_delsynth(int s)
+void ami_delsynth(long s)
 
 {
 
@@ -4645,12 +4656,12 @@ it is open, then reopening it afterwards.
 
 *******************************************************************************/
 
-void ami_playsynth(int p, int t, int s)
+void ami_playsynth(long p, long t, long s)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
@@ -4704,7 +4715,7 @@ sequencer(s), including background tasks.
 
 *******************************************************************************/
 
-void ami_waitsynth(int p)
+void ami_waitsynth(long p)
 
 {
 
@@ -4726,7 +4737,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-int ami_waveout(void)
+long ami_waveout(void)
 
 {
 
@@ -4742,7 +4753,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-int ami_wavein(void)
+long ami_wavein(void)
 
 {
 
@@ -4759,7 +4770,7 @@ output device. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_openwaveout(int p)
+void ami_openwaveout(long p)
 
 {
 
@@ -4783,7 +4794,7 @@ Closes a wave output device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewaveout(int p)
+void ami_closewaveout(long p)
 
 {
 
@@ -4822,8 +4833,8 @@ static void* alsaplaywave(void* data)
     unsigned int      xfrsiz; /* partial transfer size */
     snd_pcm_uframes_t frmbuf; /* frames in buffer */
     portidptr         pip;    /* pointer for data we need */
-    int               w;      /* wave file instance */
-    int               p;      /* port */
+    long              w;      /* wave file instance */
+    long              p;      /* port */
     int               fh;
     int               r;
     int               len;
@@ -4958,7 +4969,7 @@ thread, and this routine spawns a thread to accomplish that. The thread is
 
 *******************************************************************************/
 
-static void alsaplaywave_kickoff(int p, int w)
+static void alsaplaywave_kickoff(long p, long w)
 
 {
 
@@ -4988,7 +4999,7 @@ the test system, the latency to play is acceptable.
 
 *******************************************************************************/
 
-void ami_loadwave(int w, string fn)
+void ami_loadwave(long w, string fn)
 
 {
 
@@ -5020,7 +5031,7 @@ redefined.
 
 *******************************************************************************/
 
-void ami_delwave(int w)
+void ami_delwave(long w)
 
 {
 
@@ -5048,12 +5059,12 @@ The file is specified by file name, and the file type is system dependent.
 
 *******************************************************************************/
 
-void ami_playwave(int p, int t, int w)
+void ami_playwave(long p, long t, long w)
 
 {
 
     ami_seqptr sp;   /* message pointer */
-    int    elap; /* current elapsed time */
+    long    elap; /* current elapsed time */
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave port");
     if (!alsapcmout[p-1]) error("No wave device defined for logical port");
@@ -5096,7 +5107,7 @@ Not implemented at present.
 
 *******************************************************************************/
 
-void ami_volwave(int p, int t, int v)
+void ami_volwave(long p, long t, long v)
 
 {
 
@@ -5123,7 +5134,7 @@ wait until they all stop.
 
 *******************************************************************************/
 
-void ami_waitwave(int p)
+void ami_waitwave(long p)
 
 {
 
@@ -5149,7 +5160,7 @@ for the next sample.
 
 *******************************************************************************/
 
-void ami_chanwaveout(int p, int c)
+void ami_chanwaveout(long p, long c)
 
 {
 
@@ -5173,7 +5184,7 @@ required.
 
 *******************************************************************************/
 
-void ami_ratewaveout(int p, int r)
+void ami_ratewaveout(long p, long r)
 
 {
 
@@ -5197,7 +5208,7 @@ cound would mainly indicate precision only.
 
 *******************************************************************************/
 
-void ami_lenwaveout(int p, int l)
+void ami_lenwaveout(long p, long l)
 
 {
 
@@ -5218,7 +5229,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-void ami_sgnwaveout(int p, int s)
+void ami_sgnwaveout(long p, long s)
 
 {
 
@@ -5238,7 +5249,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-void ami_fltwaveout(int p, int f)
+void ami_fltwaveout(long p, long f)
 
 {
 
@@ -5260,7 +5271,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-void ami_endwaveout(int p, int e)
+void ami_endwaveout(long p, long e)
 
 {
 
@@ -5292,7 +5303,7 @@ recommended to be 1ms or less (64 samples at a 44100 sample rate).
 
 *******************************************************************************/
 
-void ami_wrwave(int p, byte* buff, int len)
+void ami_wrwave(long p, byte* buff, long len)
 
 {
 
@@ -5317,7 +5328,7 @@ but we assert them here on open.
 
 *******************************************************************************/
 
-void ami_openwavein(int p)
+void ami_openwavein(long p)
 
 {
 
@@ -5338,7 +5349,7 @@ Closes a wave input device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewavein(int p)
+void ami_closewavein(long p)
 
 {
 
@@ -5363,7 +5374,7 @@ sample.
 
 *******************************************************************************/
 
-int ami_chanwavein(int p)
+long ami_chanwavein(long p)
 
 {
 
@@ -5385,7 +5396,7 @@ and it must be open. Input samples are timed at the rate.
 
 *******************************************************************************/
 
-int ami_ratewavein(int p)
+long ami_ratewavein(long p)
 
 {
 
@@ -5416,7 +5427,7 @@ round up bit lengths as shown above.
 
 *******************************************************************************/
 
-int ami_lenwavein(int p)
+long ami_lenwavein(long p)
 
 {
 
@@ -5437,7 +5448,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-int ami_sgnwavein(int p)
+long ami_sgnwavein(long p)
 
 {
 
@@ -5457,7 +5468,7 @@ Returns true if the given wave input device has big endian sampling.
 
 *******************************************************************************/
 
-int ami_endwavein(int p)
+long ami_endwavein(long p)
 
 {
 
@@ -5477,7 +5488,7 @@ Returns true if the given wave input device has floating point sampling.
 
 *******************************************************************************/
 
-int ami_fltwavein(int p)
+long ami_fltwavein(long p)
 
 {
 
@@ -5517,7 +5528,7 @@ ami_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-int ami_rdwave(int p, byte* buff, int len)
+long ami_rdwave(long p, byte* buff, long len)
 
 {
 
@@ -5553,7 +5564,7 @@ Returns the ALSA device name of the given synthsizer output port.
 
 *******************************************************************************/
 
-void ami_synthoutname(int p, string name, int len)
+void ami_synthoutname(long p, string name, long len)
 
 {
 
@@ -5586,7 +5597,7 @@ Returns the ALSA device name of the given synthsizer input port.
 
 *******************************************************************************/
 
-void ami_synthinname(int p, string name, int len)
+void ami_synthinname(long p, string name, long len)
 
 {
 
@@ -5619,7 +5630,7 @@ Returns the ALSA device name of the given wave output port.
 
 *******************************************************************************/
 
-void ami_waveoutname(int p, string name, int len)
+void ami_waveoutname(long p, string name, long len)
 
 {
 
@@ -5652,7 +5663,7 @@ Returns the ALSA device name of the given wave input port.
 
 *******************************************************************************/
 
-void ami_waveinname(int p, string name, int len)
+void ami_waveinname(long p, string name, long len)
 
 {
 
@@ -5685,7 +5696,7 @@ The given synthesizer port is opened and ready for reading.
 
 *******************************************************************************/
 
-void ami_opensynthin(int p)
+void ami_opensynthin(long p)
 
 {
 
@@ -5708,7 +5719,7 @@ Closes the given synthsizer port for reading.
 
 *******************************************************************************/
 
-void ami_closesynthin(int p)
+void ami_closesynthin(long p)
 
 {
 
@@ -5737,7 +5748,7 @@ a parameter.
 
 *******************************************************************************/
 
-void ami_wrsynth(int p, ami_seqptr sp)
+void ami_wrsynth(long p, ami_seqptr sp)
 
 {
 
@@ -5797,7 +5808,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void ami_rdsynth(int p, ami_seqptr sp)
+void ami_rdsynth(long p, ami_seqptr sp)
 
 {
 
@@ -5823,7 +5834,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthout(int p, string name, string value, int len)
+void ami_getparamsynthout(long p, string name, string value, long len)
 
 {
 
@@ -5847,7 +5858,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthin(int p, string name, string value, int len)
+void ami_getparamsynthin(long p, string name, string value, long len)
 
 {
 
@@ -5871,7 +5882,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwaveout(int p, string name, string value, int len)
+void ami_getparamwaveout(long p, string name, string value, long len)
 
 {
 
@@ -5895,7 +5906,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwavein(int p, string name, string value, int len)
+void ami_getparamwavein(long p, string name, string value, long len)
 
 {
 
@@ -5919,7 +5930,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamsynthout(int p, string name, string value)
+long ami_setparamsynthout(long p, string name, string value)
 
 {
 
@@ -5943,7 +5954,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamsynthin(int p, string name, string value)
+long ami_setparamsynthin(long p, string name, string value)
 
 {
 
@@ -5968,7 +5979,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamwaveout(int p, string name, string value)
+long ami_setparamwaveout(long p, string name, string value)
 
 {
 
@@ -5992,7 +6003,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamwavein(int p, string name, string value)
+long ami_setparamwavein(long p, string name, string value)
 
 {
 

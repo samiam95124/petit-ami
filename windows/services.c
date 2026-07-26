@@ -127,11 +127,11 @@ static bufstr langstr;  /* buffer for language country string (locale) */
 
 static ami_envrec *envlst;   /* our environment list */
 
-static int language;    /* current language */
-static int country;     /* current country */
+static long language;    /* current language */
+static long country;     /* current country */
 
-void ami_brknam(char *fn, char *p, int pl, char *n, int nl, char *e, int el);
-void ami_maknam(char *fn, int fnl, char *p, char *n, char *e);
+void ami_brknam(char *fn, char *p, long pl, char *n, long nl, char *e, long el);
+void ami_maknam(char *fn, long fnl, char *p, char *n, char *e);
 
 static CRITICAL_SECTION    thdtbllck;            /* thread table lock */
 static HANDLE              threadtbl[MAXTHREAD]; /* thread id table */
@@ -359,7 +359,7 @@ long filetimetoseconds(FILETIME* ft)
 
     t.LowPart = ft->dwLowDateTime;
     t.HighPart = ft->dwHighDateTime;
-    if (!t.QuadPart) t.QuadPart = -INT_MAX;
+    if (!t.QuadPart) t.QuadPart = -LONG_MAX;
     else t.QuadPart = (t.QuadPart-0x01bf53eb256d4000ull)/10000000ull;
 
     return (t.QuadPart);
@@ -497,8 +497,8 @@ Converts the given time into a string.
 
 void ami_times(
     /** result string */           char *s,
-    /** result string length */    int sl,
-    /** time to convert */         int t
+    /** result string length */    long sl,
+    /** time to convert */         long t
 )
 
 {
@@ -573,8 +573,8 @@ Converts the given date into a string.
 
 void ami_dates(
     /** string to place date into */   char *s,
-    /** string to place date length */ int sl,
-    /** time record to write from */   int t
+    /** string to place date length */ long sl,
+    /** time record to write from */   long t
 )
 
 {
@@ -606,7 +606,7 @@ void ami_dates(
         error("*** String to small to hold date");
     if (t < 0) y = 1999; else y = 2000; /* set initial year */
     done = 0;   /* set no loop exit */
-    t = abs(t);   /* find seconds magnitude */
+    t = labs(t);   /* find seconds magnitude */
     do {
 
         yd = 365;   /* set days in this year */
@@ -673,7 +673,7 @@ Writes the time to a given file, from a time record.
 
 void ami_writetime(
         /** file to write to */ FILE *f,
-        /** time record to write from */ int t
+        /** time record to write from */ long t
 )
 
 {
@@ -697,7 +697,7 @@ used by windows.
 
 void ami_writedate(
         /* file to write to */ FILE *f,
-        /* time record to write from */ int t
+        /* time record to write from */ long t
 )
 
 {
@@ -722,13 +722,13 @@ long ami_time(void)
 {
 
     SYSTEMTIME  st; /* windows system format time */
-    int         t;  /* S2000 time */
+    long        t;  /* S2000 time */
     int         r;  /* result buffer */
     FILETIME    ft; /* 64 bit file time */
 
     GetSystemTime(&st); /* get windows time */
     r = SystemTimeToFileTime(&st, &ft); /* convert to 64 bit time */
-    t = filetimetoseconds(&ft); /* and that to 32 bit time */
+    t = filetimetoseconds(&ft); /* and that to seconds time */
 
     return (t); /* return time */
 
@@ -798,7 +798,7 @@ long ami_elapsed(long r)
 
     t = ami_clock();   /* get the current time */
     if (t >= r) t -= r; /* time has not wrapped */
-    else t += INT_MAX-r; /* time has wrapped */
+    else t += LONG_MAX-r; /* time has wrapped */
 
     return t;   /* return result */
 
@@ -816,13 +816,13 @@ is null or all blanks
 
 ********************************************************************************/
 
-int ami_validfile(
+long ami_validfile(
     /* string to validate */ char *s
 )
 
 {
 
-    int r;   /* good/bad result */
+    long r;   /* good/bad result */
 
     r = 1;   /* set result good by default */
     while (*s && *s == ' ') s++; /* check all blanks */
@@ -843,13 +843,13 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
-int ami_validpath(
+long ami_validpath(
     /* string to validate */ char *s
 )
 
 {
 
-    int r;   /* good/bad result */
+    long r;   /* good/bad result */
 
     r = 1;   /* set result good by default */
     while (*s && *s == ' ') s++; /* check all blanks */
@@ -869,13 +869,13 @@ on that directory.
 
 ********************************************************************************/
 
-int ami_wild(
+long ami_wild(
     /* filename */ char *s
 )
 
 {
 
-    int r;   /* result flag */
+    long r;   /* result flag */
     int i;   /* index for string */
     int ln;   /* length of string */
 
@@ -935,7 +935,7 @@ Returns an environment string by name.
 void ami_getenv(
     /** string name */        char* esn,
     /** string data */        char* esd,
-    /** string data length */ int esdl
+    /** string data length */ long esdl
 )
 {
 
@@ -1163,7 +1163,7 @@ The pathing is broken, we need to add this manually.
 static void execwin(char* cmd,   /* command to execute */
              char* el,    /* environment list */
              int   wait,  /* wait for completion */
-             int*  ec)    /* return error */
+             long* ec)    /* return error */
 
 {
 
@@ -1235,7 +1235,7 @@ void ami_exec(
 
 {
 
-    int e;              /* result code */
+    long e;             /* result code */
 
     execwin(cmd, 0, 0, &e); /* execute with no environment */
 
@@ -1251,7 +1251,7 @@ Executes a program by name. Waits for the program to complete.
 
 void ami_execw(
     /* program name to execute */ char *cmd,
-    /* return error */            int *err
+    /* return error */            long *err
 )
 
 {
@@ -1323,7 +1323,7 @@ void ami_exece(
 {
 
     char* evstbl; /* windows environment table */
-    int e;
+    long e;
 
     trnenv(el, &evstbl); /* translate environment */
     execwin(cmd, evstbl, 0, &e); /* execute */
@@ -1344,7 +1344,7 @@ program environment.
 void ami_execew(
         /* program name to execute */ char*      cmd,
         /* environment */             ami_envrec* el,
-        /* return error */            int*       err
+        /* return error */            long*      err
 )
 
 {
@@ -1367,7 +1367,7 @@ Returns the current path in the given padded string.
 
 void ami_getcur(
         /** buffer to get path */ char *pn,
-        /** length of buffer */   int l
+        /** length of buffer */   long l
 )
 
 {
@@ -1431,9 +1431,9 @@ were a normal character.
 
 void ami_brknam(
         /* file specification */ char *fn,
-        /* path */               char *p, int pl,
-        /* name */               char *n, int nl,
-        /* extention */          char *e, int el
+        /* path */               char *p, long pl,
+        /* name */               char *n, long nl,
+        /* extention */          char *e, long el
 )
 
 {
@@ -1521,7 +1521,7 @@ concatenating.
 
 void ami_maknam(
     /** file specification to build */ char *fn,
-    /** file specification length */   int fnl,
+    /** file specification length */   long fnl,
     /** path */                        char *p,
     /** filename */                    char *n,
     /** extension */                   char *e
@@ -1572,7 +1572,7 @@ No validity check is done. Garbage in, garbage out.
 
 void ami_fulnam(
     /** filename */        char *fn,
-    /** filename length */ int fnl
+    /** filename length */ long fnl
 )
 {
 
@@ -1602,7 +1602,7 @@ extract the program path from that.
 
 void ami_getpgm(
     /** program path */        char* p,
-    /** program path length */ int   pl
+    /** program path length */ long  pl
 )
 {
 
@@ -1677,7 +1677,7 @@ directory.
 
 void ami_getusr(
     /** pathname */        char *fn,
-    /** pathname length */ int fnl
+    /** pathname length */ long fnl
 )
 
 {
@@ -2028,8 +2028,8 @@ Find latitude
 Finds the latitude of the host. Returns the latitude as a ratioed integer:
 
 0           Equator
-INT_MAX     North pole
--INT_MAX    South pole
+LONG_MAX    North pole
+-LONG_MAX   South pole
 
 This means each increment equals 0.0000000419 degrees or about 0.00465 meters
 (approximate because it is an angular measurement on an elipsiod).
@@ -2044,7 +2044,7 @@ host location.
 
 *******************************************************************************/
 
-int ami_latitude(void)
+long ami_latitude(void)
 
 {
 
@@ -2059,8 +2059,8 @@ Find longitude
 Finds the longitude of the host. Returns the longitude as a ratioed integer:
 
 0           The prime meridian (Greenwitch)
-INT_MAX     The prime meridian eastward around the world
--INT_MAX    The prime meridian westward around the world
+LONG_MAX    The prime meridian eastward around the world
+-LONG_MAX   The prime meridian westward around the world
 
 This means that each increment equals 0.0000000838 degrees or about 0.00933
 meters (approximate because it is an angular measurement on an elipsoid).
@@ -2071,7 +2071,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int ami_longitude(void)
+long ami_longitude(void)
 
 {
 
@@ -2086,8 +2086,8 @@ Find altitude
 Finds the altitude of the host. Returns the altitude as a ratioed integer:
 
 0           MSL
-INT_MAX     100km high
--INT_MAX    100km depth
+LONG_MAX    100km high
+-LONG_MAX   100km depth
 
 This means that each increment is 0.0000465 meters. MSL is determined by WGS84
 (World Geodetic System of 1984), which estalishes an ideal elipsoid as an
@@ -2106,7 +2106,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int ami_altitude(void)
+long ami_altitude(void)
 
 {
 
@@ -2124,7 +2124,7 @@ determined by latitude/longitude.
 
 *******************************************************************************/
 
-int ami_country(void)
+long ami_country(void)
 
 {
 
@@ -2413,8 +2413,8 @@ countryety countrytab[] = {
 
 void ami_countrys(
     /** string buffer */           char* s,
-    /** length of buffer */        int len,
-    /** ISO 3166-1 country code */ int c)
+    /** length of buffer */        long len,
+    /** ISO 3166-1 country code */ long c)
 
 {
 
@@ -2437,7 +2437,7 @@ negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
-int ami_timezone(void)
+long ami_timezone(void)
 
 {
 
@@ -2468,7 +2468,7 @@ Note that local() already takes daylight savings into account.
 
 *******************************************************************************/
 
-int ami_daysave(void)
+long ami_daysave(void)
 
 
 {
@@ -2492,7 +2492,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-int ami_time24hour(void)
+long ami_time24hour(void)
 
 {
 
@@ -2512,7 +2512,7 @@ necessarily be added at the end, and thus out of order.
 
 *******************************************************************************/
 
-int ami_language(void)
+long ami_language(void)
 
 {
 
@@ -2736,7 +2736,7 @@ static langety langtab[] = {
 
 };
 
-void ami_languages(char* s, int len, int l)
+void ami_languages(char* s, long len, long l)
 
 {
 
@@ -2804,7 +2804,7 @@ Note that times() compensates for this.
 
 *******************************************************************************/
 
-int ami_timeorder(void)
+long ami_timeorder(void)
 
 {
 
@@ -2836,7 +2836,7 @@ Note that dates() compensates for this.
 
 *******************************************************************************/
 
-int ami_dateorder(void)
+long ami_dateorder(void)
 
 {
 
@@ -2920,7 +2920,7 @@ static DWORD WINAPI dummystart(LPVOID function)
 
 }
 
-int ami_newthread(void (*threadmain)(void))
+long ami_newthread(void (*threadmain)(void))
 
 {
 
@@ -2960,7 +2960,7 @@ Creates a new concurrency lock and returns the logical id for it.
 
 *******************************************************************************/
 
-int ami_initlock(void)
+long ami_initlock(void)
 
 {
 
@@ -2998,7 +2998,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-void ami_deinitlock(int ln)
+void ami_deinitlock(long ln)
 
 {
 
@@ -3024,7 +3024,7 @@ come first served.
 
 *******************************************************************************/
 
-void ami_lock(int ln)
+void ami_lock(long ln)
 
 {
 
@@ -3048,7 +3048,7 @@ lock and that is in a runnable state is set to run.
 
 *******************************************************************************/
 
-void ami_unlock(int ln)
+void ami_unlock(long ln)
 
 {
 
@@ -3071,7 +3071,7 @@ Creates a new concurrency signal and returns the logical id for it.
 
 *******************************************************************************/
 
-int ami_initsig(void)
+long ami_initsig(void)
 
 {
 
@@ -3109,7 +3109,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-void ami_deinitsig(int sn)
+void ami_deinitsig(long sn)
 
 {
 
@@ -3135,7 +3135,7 @@ signal or just one is set to run by a signal.
 
 *******************************************************************************/
 
-void ami_sendsig(int sn)
+void ami_sendsig(long sn)
 
 {
 
@@ -3164,7 +3164,7 @@ still active, and not just assume it.
 
 *******************************************************************************/
 
-void ami_sendsigone(int sn)
+void ami_sendsigone(long sn)
 
 {
 
@@ -3193,7 +3193,7 @@ run, and thus the wait and signal operations are synchronized together.
 
 *******************************************************************************/
 
-void ami_waitsig(int ln, int sn)
+void ami_waitsig(long ln, long sn)
 
 {
 

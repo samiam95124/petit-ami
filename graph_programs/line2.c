@@ -17,11 +17,11 @@ Program to draw random lines on screen
 
 typedef struct {
 
-    int x1, y1, x2, y2;
+    long x1, y1, x2, y2;
 
 } linrec;
 
-static int      x1, y1, xd1, yd1, i, x2, y2, xd2, yd2, lx1, ly1, lx2, ly2;
+static long     x1, y1, xd1, yd1, i, x2, y2, xd2, yd2, lx1, ly1, lx2, ly2;
 static int      cc; /* color counter */
 static ami_color clr;
 static linrec   last[MAXLAG];
@@ -52,11 +52,11 @@ Find random number between 0 and N.
 
 *******************************************************************************/
 
-static int randn(int limit)
+static long randn(long limit)
 
 {
 
-    return (long)limit*rand()/RAND_MAX;
+    return limit*rand()/RAND_MAX;
 
 }
 

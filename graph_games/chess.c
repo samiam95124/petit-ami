@@ -488,8 +488,8 @@ Execute a move on the board
 
 void play_sound(int note, int dur)
 {
-    ami_noteon(AMI_SYNTH_OUT, 0, 1, note, INT_MAX);
-    ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+dur, 1, note, INT_MAX);
+    ami_noteon(AMI_SYNTH_OUT, 0, 1, note, LONG_MAX);
+    ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+dur, 1, note, LONG_MAX);
 }
 
 int sound_enabled; /* only play sounds for real moves, not AI search */
@@ -761,18 +761,18 @@ Drawing
 
 *******************************************************************************/
 
-#define LIGHT_R (240 * (INT_MAX/255))
-#define LIGHT_G (217 * (INT_MAX/255))
-#define LIGHT_B (181 * (INT_MAX/255))
-#define DARK_R  (181 * (INT_MAX/255))
-#define DARK_G  (136 * (INT_MAX/255))
-#define DARK_B  (99  * (INT_MAX/255))
-#define SEL_R   (130 * (INT_MAX/255))
-#define SEL_G   (151 * (INT_MAX/255))
-#define SEL_B   (105 * (INT_MAX/255))
-#define MOVE_R  (170 * (INT_MAX/255))
-#define MOVE_G  (162 * (INT_MAX/255))
-#define MOVE_B  (58  * (INT_MAX/255))
+#define LIGHT_R (240 * (LONG_MAX/255))
+#define LIGHT_G (217 * (LONG_MAX/255))
+#define LIGHT_B (181 * (LONG_MAX/255))
+#define DARK_R  (181 * (LONG_MAX/255))
+#define DARK_G  (136 * (LONG_MAX/255))
+#define DARK_B  (99  * (LONG_MAX/255))
+#define SEL_R   (130 * (LONG_MAX/255))
+#define SEL_G   (151 * (LONG_MAX/255))
+#define SEL_B   (105 * (LONG_MAX/255))
+#define MOVE_R  (170 * (LONG_MAX/255))
+#define MOVE_G  (162 * (LONG_MAX/255))
+#define MOVE_B  (58  * (LONG_MAX/255))
 
 void load_pieces(void)
 {
@@ -857,8 +857,8 @@ void draw_board(void)
         char label[2] = {0, 0};
 
         ami_fontsiz(stdout, sz / 4);
-        ami_fcolorg(stdout, 80 * (INT_MAX/255), 80 * (INT_MAX/255),
-                    80 * (INT_MAX/255));
+        ami_fcolorg(stdout, 80 * (LONG_MAX/255), 80 * (LONG_MAX/255),
+                    80 * (LONG_MAX/255));
 
         for (c = 0; c < 8; c++) {
             label[0] = 'a' + c;
@@ -889,8 +889,8 @@ void draw_status(void)
     ami_frect(stdout, 1, sy, ami_maxxg(stdout), ami_maxyg(stdout));
 
     ami_fontsiz(stdout, fsz);
-    ami_fcolorg(stdout, 40 * (INT_MAX/255), 40 * (INT_MAX/255),
-                40 * (INT_MAX/255));
+    ami_fcolorg(stdout, 40 * (LONG_MAX/255), 40 * (LONG_MAX/255),
+                40 * (LONG_MAX/255));
 
     if (gamestate == 1) {
         sprintf(msg, "Checkmate! %s wins.",

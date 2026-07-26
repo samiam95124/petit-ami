@@ -241,10 +241,10 @@ typedef struct metrec {
     struct metrec* next;   /* next entry */
     HMENU          han;    /* handle of menu entry is attached to */
     int            inx;    /* index position, 0-n, of item */
-    int            onoff;  /* the item is on-off highlighted */
-    int            select; /* the current on/off state of the highlight */
+    long           onoff;  /* the item is on-off highlighted */
+    long           select; /* the current on/off state of the highlight */
     struct metrec* oneof;  /* "one of" chain pointer */
-    int            id;     /* user id of item */
+    long           id;     /* user id of item */
 
 } metrec, *metptr;
 
@@ -262,12 +262,12 @@ typedef struct wigrec {
     struct wigrec* next; /* next entry in list */
     HWND           han;  /* handle to widget window */
     HWND           han2; /* handle to "buddy" window */
-    int            id;   /* logical id of widget */
+    long           id;   /* logical id of widget */
     wigtyp         typ;  /* type of widget */
     int            siz;  /* size of slider in scroll widget, in windows terms */
     WNDPROC        wprc; /* subclassed windows procedure, converted to int */
-    int            low;  /* low limit of up/down control */
-    int            high; /* high limit of up/down control */
+    long           low;  /* low limit of up/down control */
+    long           high; /* high limit of up/down control */
     int            enb;  /* widget is enabled */
 
 } wigrec, *wigptr;
@@ -279,37 +279,37 @@ typedef struct scncon { /* screen context */
     HPEN    fpen;        /* foreground pen handle */
     HBRUSH  fbrush;      /* foreground brush handle */
     HPEN    fspen;       /* foreground single pixel pen */
-    int     lwidth;      /* width of lines */
+    long    lwidth;      /* width of lines */
     ami_lstyle lstyle;   /* style of lines */
-    int     angle;       /* text drawing path angle */
+    long    angle;       /* text drawing path angle */
     /* note that the pixel and character dimensions and positions are kept
       in parallel for both characters and pixels */
-    int     maxx;        /* maximum characters in x */
-    int     maxy;        /* maximum characters in y */
-    int     maxxg;       /* maximum pixels in x */
-    int     maxyg;       /* maximum pixels in y */
-    int     curx;        /* current cursor location x */
-    int     cury;        /* current cursor location y */
-    int     curxg;       /* current cursor location in pixels x */
-    int     curyg;       /* current cursor location in pixels y */
+    long    maxx;        /* maximum characters in x */
+    long    maxy;        /* maximum characters in y */
+    long    maxxg;       /* maximum pixels in x */
+    long    maxyg;       /* maximum pixels in y */
+    long    curx;        /* current cursor location x */
+    long    cury;        /* current cursor location y */
+    long    curxg;       /* current cursor location in pixels x */
+    long    curyg;       /* current cursor location in pixels y */
     int     fcrgb;       /* current writing foreground color in rgb */
     int     bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
     mode    bmod;        /* background mix mode */
     HFONT   font;        /* current font handle */
     fontptr cfont;       /* active font entry */
-    int     cspc;        /* character spacing */
-    int     lspc;        /* line spacing */
+    long    cspc;        /* character spacing */
+    long    lspc;        /* line spacing */
     int     attr;        /* set of active attributes */
     int     autof;       /* current status of scroll and wrap */
     int     tab[MAXTAB]; /* tabbing array */
     int     curv;        /* cursor visible */
-    int     offx;        /* viewport offset x */
-    int     offy;        /* viewport offset y */
-    int     wextx;       /* window extent x */
-    int     wexty;       /* window extent y */
-    int     vextx;       /* viewport extent x */
-    int     vexty;       /* viewport extent y */
+    long    offx;        /* viewport offset x */
+    long    offy;        /* viewport offset y */
+    long    wextx;       /* window extent x */
+    long    wexty;       /* window extent y */
+    long    vextx;       /* viewport extent x */
+    long    vexty;       /* viewport extent y */
 
 } scncon, *scnptr;
 
@@ -318,8 +318,8 @@ typedef struct pict { /* picture tracking record */
     HBITMAP han; /* handle to bitmap */
     HDC     hdc; /* handle to DC for bitmap */
     HGDIOBJ ohn; /* handle to previous object */
-    int     sx;  /* size in x */
-    int     sy;  /* size in y */
+    long    sx;  /* size in x */
+    long    sy;  /* size in y */
 
 } pict;
 
@@ -335,65 +335,65 @@ typedef struct winrec {
     int      curupd;          /* index for current update screen */
     /* global sets. these are the global set parameters that apply to any new
       created screen buffer */
-    int      gmaxx;           /* maximum x size */
-    int      gmaxy;           /* maximum y size */
-    int      gmaxxg;          /* size of client area in x */
-    int      gmaxyg;          /* size of client area in y */
-    int      bufx;            /* buffer size x characters */
-    int      bufy;            /* buffer size y characters */
-    int      bufxg;           /* buffer size x pixels */
-    int      bufyg;           /* buffer size y pixels */
+    long     gmaxx;           /* maximum x size */
+    long     gmaxy;           /* maximum y size */
+    long     gmaxxg;          /* size of client area in x */
+    long     gmaxyg;          /* size of client area in y */
+    long     bufx;            /* buffer size x characters */
+    long     bufy;            /* buffer size y characters */
+    long     bufxg;           /* buffer size x pixels */
+    long     bufyg;           /* buffer size y pixels */
     int      gattr;           /* current attributes */
     int      gauto;           /* state of auto */
     int      gfcrgb;          /* foreground color in rgb */
     int      gbcrgb;          /* background color in rgb */
     int      gcurv;           /* state of cursor visible */
     fontptr  gcfont;          /* current font select */
-    int      gfhigh;          /* current font height */
+    long     gfhigh;          /* current font height */
     mode     gfmod;           /* foreground mix mode */
     mode     gbmod;           /* background mix mode */
-    int      goffx;           /* viewport offset x */
-    int      goffy;           /* viewport offset y */
-    int      gwextx;          /* window extent x */
-    int      gwexty;          /* window extent y */
-    int      gvextx;          /* viewpor extent x */
-    int      gvexty;          /* viewport extent y */
-    int      termfnt;         /* terminal font number */
-    int      bookfnt;         /* book font number */
-    int      signfnt;         /* sign font number */
-    int      techfnt;         /* technical font number */
+    long     goffx;           /* viewport offset x */
+    long     goffy;           /* viewport offset y */
+    long     gwextx;          /* window extent x */
+    long     gwexty;          /* window extent y */
+    long     gvextx;          /* viewpor extent x */
+    long     gvexty;          /* viewport extent y */
+    long     termfnt;         /* terminal font number */
+    long     bookfnt;         /* book font number */
+    long     signfnt;         /* sign font number */
+    long     techfnt;         /* technical font number */
     int      mb1;             /* mouse assert status button 1 */
     int      mb2;             /* mouse assert status button 2 */
     int      mb3;             /* mouse assert status button 3 */
-    int      mpx, mpy;        /* mouse current position */
-    int      mpxg, mpyg;      /* mouse current position graphical */
+    long     mpx, mpy;        /* mouse current position */
+    long     mpxg, mpyg;      /* mouse current position graphical */
     int      nmb1;            /* new mouse assert status button 1 */
     int      nmb2;            /* new mouse assert status button 2 */
     int      nmb3;            /* new mouse assert status button 3 */
-    int      nmpx, nmpy;      /* new mouse current position */
-    int      nmpxg, nmpyg;    /* new mouse current position graphical */
-    int      linespace;       /* line spacing in pixels */
-    int      charspace;       /* character spacing in pixels */
-    int      curspace;        /* size of cursor, in pixels */
-    int      baseoff;         /* font baseline offset from top */
+    long     nmpx, nmpy;      /* new mouse current position */
+    long     nmpxg, nmpyg;    /* new mouse current position graphical */
+    long     linespace;       /* line spacing in pixels */
+    long     charspace;       /* character spacing in pixels */
+    long     curspace;        /* size of cursor, in pixels */
+    long     baseoff;         /* font baseline offset from top */
     int      shift;           /* state of shift key */
     int      cntrl;           /* state of control key */
     int      fcurdwn;         /* cursor on screen flag */
     int      numjoy;          /* number of joysticks found */
     int      joy1cap;         /* joystick 1 is captured */
     int      joy2cap;         /* joystick 2 is captured */
-    int      joy1xs;          /* last joystick position 1x */
-    int      joy1ys;          /* last joystick position 1y */
-    int      joy1zs;          /* last joystick position 1z */
-    int      joy2xs;          /* last joystick position 2x */
-    int      joy2ys;          /* last joystick position 2y */
-    int      joy2zs;          /* last joystick position 2z */
-    int      shsize;          /* display screen size x in millimeters */
-    int      svsize;          /* display screen size y in millimeters */
-    int      shres;           /* display screen pixels in x */
-    int      svres;           /* display screen pixels in y */
-    int      sdpmx;           /* display screen find dots per meter x */
-    int      sdpmy;           /* display screen find dots per meter y */
+    long     joy1xs;          /* last joystick position 1x */
+    long     joy1ys;          /* last joystick position 1y */
+    long     joy1zs;          /* last joystick position 1z */
+    long     joy2xs;          /* last joystick position 2x */
+    long     joy2ys;          /* last joystick position 2y */
+    long     joy2zs;          /* last joystick position 2z */
+    long     shsize;          /* display screen size x in millimeters */
+    long     svsize;          /* display screen size y in millimeters */
+    long     shres;           /* display screen pixels in x */
+    long     svres;           /* display screen pixels in y */
+    long     sdpmx;           /* display screen find dots per meter x */
+    long     sdpmy;           /* display screen find dots per meter y */
     char     inpbuf[MAXLIN];  /* input line buffer */
     int      inpptr;          /* input line index */
     int      frmrun;          /* framing timer is running */
@@ -474,9 +474,9 @@ typedef struct imrec { /* intermessage record */
         };
         struct { /* imqcolor */
 
-            int clrred;   /* colors */
-            int clrgreen;
-            int clrblue;
+            long clrred;   /* colors */
+            long clrgreen;
+            long clrblue;
 
         };
         struct { /* imqopen */
@@ -492,7 +492,7 @@ typedef struct imrec { /* intermessage record */
         struct { /* imqfind */
 
             char* fndstr; /* string to find */
-            int   fndopt; /* find options */
+            long  fndopt; /* find options */
             HWND  fndhan; /* dialog window handle */
 
         };
@@ -500,21 +500,21 @@ typedef struct imrec { /* intermessage record */
 
             char* fnrsch; /* string to search for */
             char* fnrrep; /* string to replace */
-            int   fnropt; /* options */
+            long  fnropt; /* options */
             HWND  fnrhan; /* dialog window handle */
 
         };
         struct { /* imqfont */
 
             char* fntstr; /* font string */
-            int fnteff;   /* font effects */
-            int fntfr;    /* foreground red */
-            int fntfg;    /* foreground green */
-            int fntfb;    /* foreground blue */
-            int fntbr;    /* background red */
-            int fntbg;    /* background green */
-            int fntbb;    /* bakcground blue */
-            int fntsiz;   /* size */
+            long fnteff;   /* font effects */
+            long fntfr;    /* foreground red */
+            long fntfg;    /* foreground green */
+            long fntfb;    /* foreground blue */
+            long fntbr;    /* background red */
+            long fntbg;    /* background green */
+            long fntbb;    /* bakcground blue */
+            long fntsiz;   /* size */
 
         };
         struct { /* imupdown */
@@ -525,12 +525,12 @@ typedef struct imrec { /* intermessage record */
             int     udcx;     /* width */
             int     udcy;     /* height */
             HWND    udpar;    /* parent window */
-            int     udid;     /* id */
+            long    udid;     /* id */
             HMODULE udinst;   /* instance */
             HWND    udbuddy;  /* buddy window handle */
-            int     udup;     /* upper bound */
-            int     udlow;    /* lower bound */
-            int     udpos;    /* control position */
+            long    udup;     /* upper bound */
+            long    udlow;    /* lower bound */
+            long    udpos;    /* control position */
             HWND    udhan;    /* returns handle to control */
 
         };
@@ -544,7 +544,7 @@ typedef struct imrec { /* intermessage record */
             int     wigw;   /* width */
             int     wigh;   /* height */
             HWND    wigpar; /* parent window handle */
-            int     wigid;  /* widget id */
+            long    wigid;  /* widget id */
             HMODULE wigmod; /* module */
             HWND    wigwin; /* handle to widget */
             HWND    wigscl; /* handle to superclass window */
@@ -803,10 +803,10 @@ static void prtmenuelm(ami_menuptr m, int offset)
     while (m) { /* list entries */
 
         /* print menu entries */
-        dooff(offset); fprintf(stderr, "Onoff:  %d\n", m->onoff);
-        dooff(offset); fprintf(stderr, "Oneof:  %d\n", m->oneof);
-        dooff(offset); fprintf(stderr, "Bar:    %d\n", m->bar);
-        dooff(offset); fprintf(stderr, "Id:     %d\n", m->id);
+        dooff(offset); fprintf(stderr, "Onoff:  %ld\n", m->onoff);
+        dooff(offset); fprintf(stderr, "Oneof:  %ld\n", m->oneof);
+        dooff(offset); fprintf(stderr, "Bar:    %ld\n", m->bar);
+        dooff(offset); fprintf(stderr, "Id:     %ld\n", m->id);
         dooff(offset); fprintf(stderr, "Face:   %s\n", m->face);
         fprintf(stderr, "\n");
         /* if branch exists, print that list as sublist */
@@ -844,7 +844,7 @@ static void prtwig(wigptr wp)
     fprintf(stderr, "%p", wp->han);
     fprintf(stderr, " \"buddy\" Window handle: ");
     fprintf(stderr, "%p", wp->han2);
-    fprintf(stderr, " Logical id: %d", wp->id);
+    fprintf(stderr, " Logical id: %ld", wp->id);
     fprintf(stderr, " Type: ");
     switch (wp->typ) { /* widget */
 
@@ -1695,70 +1695,70 @@ static void prtevt(ami_evtrec* ev)
 {
 
     prtevtcod(ev->etype);
-    fprintf(stderr, " Window: %d Handled: %d", ev->winid, ev->handled);
+    fprintf(stderr, " Window: %ld Handled: %ld", ev->winid, ev->handled);
     switch (ev->etype) {
 
         case ami_etchar: fprintf(stderr, " Char: %c", ev->echar); break;
-        case ami_ettim: fprintf(stderr, " Timer: %d", ev->timnum); break;
+        case ami_ettim: fprintf(stderr, " Timer: %ld", ev->timnum); break;
         case ami_etmoumov:
-            fprintf(stderr, " Mouse: %d x: %d y: %d", ev->mmoun, ev->moupx,
+            fprintf(stderr, " Mouse: %ld x: %ld y: %ld", ev->mmoun, ev->moupx,
                     ev->moupy);
             break;
         case ami_etmouba:
-            fprintf(stderr, " Mouse: %d Button: %d", ev->amoun, ev->amoubn);
+            fprintf(stderr, " Mouse: %ld Button: %ld", ev->amoun, ev->amoubn);
             break;
         case ami_etmoubd:
-            fprintf(stderr, " Mouse: %d Button: %d", ev->dmoun, ev->dmoubn);
+            fprintf(stderr, " Mouse: %ld Button: %ld", ev->dmoun, ev->dmoubn);
             break;
         case ami_etjoyba:
-            fprintf(stderr, " Joystick: %d Button: %d", ev->ajoyn, ev->ajoybn);
+            fprintf(stderr, " Joystick: %ld Button: %ld", ev->ajoyn, ev->ajoybn);
             break;
         case ami_etjoybd:
-            fprintf(stderr, " Joystick: %d Button: %d", ev->djoyn, ev->djoybn);
+            fprintf(stderr, " Joystick: %ld Button: %ld", ev->djoyn, ev->djoybn);
             break;
         case ami_etjoymov:
-            fprintf(stderr, " Joystick: %d x: %d y: %d z: %d", ev->mjoyn,
+            fprintf(stderr, " Joystick: %ld x: %ld y: %ld z: %ld", ev->mjoyn,
                     ev->joypx, ev->joypy, ev->joypz);
             break;
-        case ami_etfun: fprintf(stderr, " Function key: %d", ev->fkey);
+        case ami_etfun: fprintf(stderr, " Function key: %ld", ev->fkey);
         case ami_etmoumovg:
-            fprintf(stderr, " Mouse: %d x: %d y: %d", ev->mmoung, ev->moupxg,
+            fprintf(stderr, " Mouse: %ld x: %ld y: %ld", ev->mmoung, ev->moupxg,
                     ev->moupyg);
             break;
         case ami_etredraw:
-            fprintf(stderr, " bounds: sx: %d sy: %d ex: %d ey: %d", ev->rsx,
+            fprintf(stderr, " bounds: sx: %ld sy: %ld ex: %ld ey: %ld", ev->rsx,
                     ev->rsy, ev->rex, ev->rey);
             break;
-        case ami_etmenus: fprintf(stderr, " Menu: %d", ev->menuid); break;
-        case ami_etbutton: fprintf(stderr, " Button: %d", ev->butid); break;
-        case ami_etchkbox: fprintf(stderr, " Checkbox: %d", ev->ckbxid); break;
-        case ami_etradbut: fprintf(stderr, " Button: %d", ev->radbid); break;
-        case ami_etsclull: fprintf(stderr, " Scroll bar: %d", ev->sclulid); break;
-        case ami_etscldrl: fprintf(stderr, " Scroll bar: %d", ev->scldrid); break;
-        case ami_etsclulp: fprintf(stderr, " Scroll bar: %d", ev->sclupid); break;
-        case ami_etscldrp: fprintf(stderr, " Scroll bar: %d", ev->scldpid); break;
+        case ami_etmenus: fprintf(stderr, " Menu: %ld", ev->menuid); break;
+        case ami_etbutton: fprintf(stderr, " Button: %ld", ev->butid); break;
+        case ami_etchkbox: fprintf(stderr, " Checkbox: %ld", ev->ckbxid); break;
+        case ami_etradbut: fprintf(stderr, " Button: %ld", ev->radbid); break;
+        case ami_etsclull: fprintf(stderr, " Scroll bar: %ld", ev->sclulid); break;
+        case ami_etscldrl: fprintf(stderr, " Scroll bar: %ld", ev->scldrid); break;
+        case ami_etsclulp: fprintf(stderr, " Scroll bar: %ld", ev->sclupid); break;
+        case ami_etscldrp: fprintf(stderr, " Scroll bar: %ld", ev->scldpid); break;
         case ami_etsclpos:
-            fprintf(stderr, " Scroll bar: %d position: %d", ev->sclpid,
+            fprintf(stderr, " Scroll bar: %ld position: %ld", ev->sclpid,
                     ev->sclpos);
             break;
-        case ami_etedtbox: fprintf(stderr, " Edit box: %d", ev->edtbid); break;
+        case ami_etedtbox: fprintf(stderr, " Edit box: %ld", ev->edtbid); break;
         case ami_etnumbox:
-            fprintf(stderr, " Number box: %d value: %d", ev->numbid,
+            fprintf(stderr, " Number box: %ld value: %ld", ev->numbid,
                     ev->numbsl);
             break;
         case ami_etlstbox:
-            fprintf(stderr, " List box: %d select: %d", ev->lstbid, ev->lstbsl);
+            fprintf(stderr, " List box: %ld select: %ld", ev->lstbid, ev->lstbsl);
             break;
         case ami_etdrpbox:
-            fprintf(stderr, " Drop box: %d select: %d", ev->drpbid, ev->drpbsl);
+            fprintf(stderr, " Drop box: %ld select: %ld", ev->drpbid, ev->drpbsl);
             break;
-        case ami_etdrebox: fprintf(stderr, " Drop edit box: %d", ev->drebid);
+        case ami_etdrebox: fprintf(stderr, " Drop edit box: %ld", ev->drebid);
             break;
         case ami_etsldpos:
-            fprintf(stderr, " Slider: %d position: %d", ev->sldpid, ev->sldpos);
+            fprintf(stderr, " Slider: %ld position: %ld", ev->sldpid, ev->sldpos);
             break;
         case ami_ettabbar:
-            fprintf(stderr, " Tab bar: %d select: %d", ev->tabid, ev->tabsel);
+            fprintf(stderr, " Tab bar: %ld select: %ld", ev->tabid, ev->tabsel);
             break;
 
     }
@@ -2253,7 +2253,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(int wid)
+static winptr lwn2win(long wid)
 
 {
 
@@ -2427,7 +2427,7 @@ Finds the given widget by number.
 
 *******************************************************************************/
 
-static wigptr fndwig(winptr win, int id)
+static wigptr fndwig(winptr win, long id)
 
 {
 
@@ -2510,11 +2510,11 @@ static int colnum(ami_color c)
 
 Translate color to rgb
 
-Translates colors to rgb, in ratioed INT_MAX form.
+Translates colors to rgb, in ratioed LONG_MAX form.
 
 *******************************************************************************/
 
-static void colrgb(ami_color c, int* r, int* g, int* b)
+static void colrgb(ami_color c, long* r, long* g, long* b)
 
 {
 
@@ -2522,13 +2522,13 @@ static void colrgb(ami_color c, int* r, int* g, int* b)
     switch (c) { /* color */
 
         case ami_black:     *r = 0; *g = 0; *b = 0; break;
-        case ami_white:     *r = INT_MAX; *g = INT_MAX; *b = INT_MAX; break;
-        case ami_red:       *r = INT_MAX; *g = 0; *b = 0; break;
-        case ami_green:     *r = 0; *g = INT_MAX; *b = 0; break;
-        case ami_blue:      *r = 0; *g = 0; *b = INT_MAX; break;
-        case ami_cyan:      *r = 0; *g = INT_MAX; *b = INT_MAX; break;
-        case ami_yellow:    *r = INT_MAX; *g = INT_MAX; *b = 0; break;
-        case ami_magenta:   *r = INT_MAX; *g = 0; *b = INT_MAX; break;
+        case ami_white:     *r = LONG_MAX; *g = LONG_MAX; *b = LONG_MAX; break;
+        case ami_red:       *r = LONG_MAX; *g = 0; *b = 0; break;
+        case ami_green:     *r = 0; *g = LONG_MAX; *b = 0; break;
+        case ami_blue:      *r = 0; *g = 0; *b = LONG_MAX; break;
+        case ami_cyan:      *r = 0; *g = LONG_MAX; *b = LONG_MAX; break;
+        case ami_yellow:    *r = LONG_MAX; *g = LONG_MAX; *b = 0; break;
+        case ami_magenta:   *r = LONG_MAX; *g = 0; *b = LONG_MAX; break;
         case ami_backcolor: *r = 0xea*0x800000; *g = 0xe9*0x800000;
                            *b = 0xd8*0x800000; break;
 
@@ -2540,23 +2540,23 @@ static void colrgb(ami_color c, int* r, int* g, int* b)
 
 Translate rgb to color
 
-Translates rgb to color, in ratioed INT_MAX form. Works by choosing the nearest
+Translates rgb to color, in ratioed LONG_MAX form. Works by choosing the nearest
 colors.
 
 *******************************************************************************/
 
-static void rgbcol(int r, int g, int b, ami_color* c)
+static void rgbcol(long r, long g, long b, ami_color* c)
 
 {
 
-   if (r < INT_MAX/2 && g < INT_MAX/2 && b < INT_MAX/2) *c = ami_black;
-   else if (r >= INT_MAX/2 && g < INT_MAX/2 && b < INT_MAX/2) *c = ami_red;
-   else if (r < INT_MAX/2 && g >= INT_MAX/2 && b < INT_MAX/2) *c = ami_green;
-   else if (r < INT_MAX/2 && g < INT_MAX/2 && b >= INT_MAX/2) *c = ami_blue;
-   else if (r < INT_MAX/2 && g >= INT_MAX/2 && b >= INT_MAX/2) *c = ami_cyan;
-   else if (r >= INT_MAX/2 && g >= INT_MAX/2 && b < INT_MAX/2) *c = ami_yellow;
-   else if (r >= INT_MAX/2 && g < INT_MAX/2 && b >= INT_MAX/2) *c = ami_magenta;
-   else if (r >= INT_MAX/2 && g >= INT_MAX/2 && b >= INT_MAX/2) *c = ami_white;
+   if (r < LONG_MAX/2 && g < LONG_MAX/2 && b < LONG_MAX/2) *c = ami_black;
+   else if (r >= LONG_MAX/2 && g < LONG_MAX/2 && b < LONG_MAX/2) *c = ami_red;
+   else if (r < LONG_MAX/2 && g >= LONG_MAX/2 && b < LONG_MAX/2) *c = ami_green;
+   else if (r < LONG_MAX/2 && g < LONG_MAX/2 && b >= LONG_MAX/2) *c = ami_blue;
+   else if (r < LONG_MAX/2 && g >= LONG_MAX/2 && b >= LONG_MAX/2) *c = ami_cyan;
+   else if (r >= LONG_MAX/2 && g >= LONG_MAX/2 && b < LONG_MAX/2) *c = ami_yellow;
+   else if (r >= LONG_MAX/2 && g < LONG_MAX/2 && b >= LONG_MAX/2) *c = ami_magenta;
+   else if (r >= LONG_MAX/2 && g >= LONG_MAX/2 && b >= LONG_MAX/2) *c = ami_white;
    else error(esystem); /* should have been one of those */
 
 }
@@ -2565,12 +2565,12 @@ static void rgbcol(int r, int g, int b, ami_color* c)
 
 Translate rgb to windows color
 
-Translates a ratioed INT_MAX graph color to the windows form, which is a 32
+Translates a ratioed LONG_MAX graph color to the windows form, which is a 32
 bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static int rgb2win(int r, int g, int b)
+static long rgb2win(long r, long g, long b)
 
 {
 
@@ -2582,11 +2582,11 @@ static int rgb2win(int r, int g, int b)
 
 Translate windows color to rgb color
 
-Translates a windows int color to our ratioed INT_MAX rgb color.
+Translates a windows int color to our ratioed LONG_MAX rgb color.
 
 *******************************************************************************/
 
-static void win2rgb(int wc, int* r, int* g, int* b)
+static void win2rgb(long wc, long* r, long* g, long* b)
 
 {
 
@@ -2700,7 +2700,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-static int icurbnd(scnptr sc)
+static long icurbnd(scnptr sc)
 
 {
 
@@ -2709,7 +2709,7 @@ static int icurbnd(scnptr sc)
 
 }
 
-int ami_curbnd(FILE* f)
+long ami_curbnd(FILE* f)
 
 {
 
@@ -2925,9 +2925,9 @@ static void newfont(winptr win)
 
     }
     /* convert the text path angle (compass convention, 0 = north,
-       90 = east, INT_MAX = 360 degrees) to GDI escapement, which is in
+       90 = east, LONG_MAX = 360 degrees) to GDI escapement, which is in
        tenths of a degree counterclockwise from horizontal */
-    esc = 900-(int)floor((double)sc->angle/INT_MAX*3600.0+0.5);
+    esc = 900-(int)floor((double)sc->angle/LONG_MAX*3600.0+0.5);
     while (esc < 0) esc = esc+3600;
     while (esc >= 3600) esc = esc-3600;
     if (sc->cfont->sys && !esc && win->gfhigh == sysfhigh) {
@@ -3324,7 +3324,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->curv = win->gcurv; /* set cursor visibility */
     sc->lwidth = 1; /* set single pixel width */
     sc->lstyle = ami_lssolid; /* set solid lines */
-    sc->angle = INT_MAX/4; /* set text path to normal reading (east) */
+    sc->angle = LONG_MAX/4; /* set text path to normal reading (east) */
     sc->font = 0; /* set no font active */
     sc->cfont = win->gcfont; /* set current font */
     sc->fmod = win->gfmod; /* set mix modes */
@@ -3467,7 +3467,7 @@ to the window.
 
 *******************************************************************************/
 
-static void iscrollg(winptr win, int x, int y)
+static void iscrollg(winptr win, long x, long y)
 
 {
 
@@ -3566,7 +3566,7 @@ static void iscrollg(winptr win, int x, int y)
 
 }
 
-void ami_scrollg(FILE* f, int x, int y)
+void ami_scrollg(FILE* f, long x, long y)
 
 {
 
@@ -3579,7 +3579,7 @@ void ami_scrollg(FILE* f, int x, int y)
 
 }
 
-void ami_scroll(FILE* f, int x, int y)
+void ami_scroll(FILE* f, long x, long y)
 
 {
 
@@ -3600,7 +3600,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(winptr win, int x, int y)
+static void icursor(winptr win, long x, long y)
 
 {
 
@@ -3620,7 +3620,7 @@ static void icursor(winptr win, int x, int y)
 
 }
 
-void ami_cursor(FILE* f, int x, int y)
+void ami_cursor(FILE* f, long x, long y)
 
 {
 
@@ -3641,7 +3641,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-static void icursorg(winptr win, int x, int y)
+static void icursorg(winptr win, long x, long y)
 
 {
 
@@ -3660,7 +3660,7 @@ static void icursorg(winptr win, int x, int y)
 
 }
 
-void ami_cursorg(FILE* f, int x, int y)
+void ami_cursorg(FILE* f, long x, long y)
 
 {
 
@@ -3682,7 +3682,7 @@ to the font baseline. The baseline is the line all characters rest on.
 
 *******************************************************************************/
 
-int ami_baseline(FILE* f)
+long ami_baseline(FILE* f)
 
 {
 
@@ -3707,7 +3707,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int ami_maxx(FILE* f)
+long ami_maxx(FILE* f)
 
 {
 
@@ -3732,7 +3732,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int ami_maxy(FILE* f)
+long ami_maxy(FILE* f)
 
 {
 
@@ -3757,7 +3757,7 @@ pixels.
 
 *******************************************************************************/
 
-int ami_maxxg(FILE* f)
+long ami_maxxg(FILE* f)
 
 {
 
@@ -3782,7 +3782,7 @@ pixels.
 
 *******************************************************************************/
 
-int ami_maxyg(FILE* f)
+long ami_maxyg(FILE* f)
 
 {
 
@@ -3857,7 +3857,7 @@ static void iup(winptr win)
     } else if (sc->autof)
         iscrollg(win, 0*win->charspace, -1*win->linespace); /* scroll up */
     /* check won't overflow */
-    else if (sc->cury > -INT_MAX) {
+    else if (sc->cury > -LONG_MAX) {
 
         /* set new position */
         sc->cury = sc->cury-1;
@@ -3905,7 +3905,7 @@ static void idown(winptr win)
     /* check auto mode */
     } else if (sc->autof)
        iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
-    else if (sc->cury < INT_MAX) {
+    else if (sc->cury < LONG_MAX) {
 
        sc->cury = sc->cury+1; /* set new position */
        sc->curyg = sc->curyg+win->linespace;
@@ -3934,7 +3934,7 @@ Move cursor left internal
 
 Moves the cursor one character left. If the cursor is at the extreme left and
 auto mode is on, the cursor will wrap to the right, up one line, otherwise
-the cursor will move into negative space, limited only by INT_MAX.
+the cursor will move into negative space, limited only by LONG_MAX.
 
 *******************************************************************************/
 
@@ -3962,7 +3962,7 @@ static void ileft(winptr win)
 
        } else
           /* check won"t overflow */
-          if (sc->curx > -INT_MAX) {
+          if (sc->curx > -LONG_MAX) {
 
           sc->curx = sc->curx-1; /* update position */
           sc->curxg = sc->curxg-win->charspace;
@@ -4018,7 +4018,7 @@ void iright(winptr win)
           sc->curxg = 1;
 
        /* check won"t overflow */
-       } else if (sc->curx < INT_MAX)  {
+       } else if (sc->curx < LONG_MAX)  {
 
           sc->curx = sc->curx+1; /* update position */
           sc->curxg = sc->curxg+win->charspace;
@@ -4089,7 +4089,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_blink(FILE* f, int e)
+void ami_blink(FILE* f, long e)
 
 {
 
@@ -4106,7 +4106,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-static void ireverse(winptr win, int e)
+static void ireverse(winptr win, long e)
 
 {
 
@@ -4156,7 +4156,7 @@ static void ireverse(winptr win, int e)
 
 }
 
-void ami_reverse(FILE* f, int e)
+void ami_reverse(FILE* f, long e)
 
 {
 
@@ -4180,7 +4180,7 @@ character drawn.
 
 *******************************************************************************/
 
-static void iunderline(winptr win, int e)
+static void iunderline(winptr win, long e)
 
 {
 
@@ -4202,7 +4202,7 @@ static void iunderline(winptr win, int e)
 
 }
 
-void ami_underline(FILE* f, int e)
+void ami_underline(FILE* f, long e)
 
 {
 
@@ -4224,7 +4224,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void isuperscript(winptr win, int e)
+static void isuperscript(winptr win, long e)
 
 {
 
@@ -4246,7 +4246,7 @@ static void isuperscript(winptr win, int e)
 
 }
 
-void ami_superscript(FILE* f, int e)
+void ami_superscript(FILE* f, long e)
 
 {
 
@@ -4268,7 +4268,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void isubscript(winptr win, int e)
+static void isubscript(winptr win, long e)
 
 {
 
@@ -4290,7 +4290,7 @@ static void isubscript(winptr win, int e)
 
 }
 
-void ami_subscript(FILE* f, int e)
+void ami_subscript(FILE* f, long e)
 
 {
 
@@ -4317,7 +4317,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-static void iitalic(winptr win, int e)
+static void iitalic(winptr win, long e)
 
 {
 
@@ -4339,7 +4339,7 @@ static void iitalic(winptr win, int e)
 
 }
 
-void ami_italic(FILE* f, int e)
+void ami_italic(FILE* f, long e)
 
 {
 
@@ -4365,7 +4365,7 @@ colors, which an ATTRIBUTE command seems to mess with not.
 
 *******************************************************************************/
 
-static void ibold(winptr win, int e)
+static void ibold(winptr win, long e)
 
 {
 
@@ -4387,7 +4387,7 @@ static void ibold(winptr win, int e)
 
 }
 
-void ami_bold(FILE* f, int e)
+void ami_bold(FILE* f, long e)
 
 {
 
@@ -4411,7 +4411,7 @@ just placed.
 
 *******************************************************************************/
 
-static void istrikeout(winptr win, int e)
+static void istrikeout(winptr win, long e)
 
 {
 
@@ -4433,7 +4433,7 @@ static void istrikeout(winptr win, int e)
 
 }
 
-void ami_strikeout(FILE* f, int e)
+void ami_strikeout(FILE* f, long e)
 
 {
 
@@ -4455,7 +4455,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_standout(FILE* f, int e)
+void ami_standout(FILE* f, long e)
 
 {
 
@@ -4555,12 +4555,12 @@ void ami_fcolor(FILE* f, ami_color c)
 Set foreground color graphical
 
 Sets the foreground color from RGB primaries. The RGB values are scaled from
-INT_MAX, so 255 == INT_MAX. This means that if the color resolution ever goes
+LONG_MAX, so 255 == LONG_MAX. This means that if the color resolution ever goes
 up, we will be ready.
 
 *******************************************************************************/
 
-static void ifcolorg(winptr win, int r, int g, int b)
+static void ifcolorg(winptr win, long r, long g, long b)
 
 {
 
@@ -4626,7 +4626,7 @@ static void ifcolorg(winptr win, int r, int g, int b)
 
 }
 
-void ami_fcolorg(FILE* f, int r, int g, int b)
+void ami_fcolorg(FILE* f, long r, long g, long b)
 
 {
 
@@ -4639,7 +4639,7 @@ void ami_fcolorg(FILE* f, int r, int g, int b)
 
 }
 
-void ami_fcolorc(FILE* f, int r, int g, int b)
+void ami_fcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -4714,12 +4714,12 @@ void ami_bcolor(FILE* f, ami_color c)
 Set background color graphical
 
 Sets the background color from RGB primaries. The RGB values are scaled from
-INT_MAX, so 255 == INT_MAX. This means that if the color resolution ever goes
+LONG_MAX, so 255 == LONG_MAX. This means that if the color resolution ever goes
 up, we will be ready.
 
 *******************************************************************************/
 
-static void ibcolorg(winptr win, int r, int g, int b)
+static void ibcolorg(winptr win, long r, long g, long b)
 
 {
 
@@ -4760,7 +4760,7 @@ static void ibcolorg(winptr win, int r, int g, int b)
 
 }
 
-void ami_bcolorg(FILE* f, int r, int g, int b)
+void ami_bcolorg(FILE* f, long r, long g, long b)
 
 {
 
@@ -4773,7 +4773,7 @@ void ami_bcolorg(FILE* f, int r, int g, int b)
 
 }
 
-void ami_bcolorc(FILE* f, int r, int g, int b)
+void ami_bcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -4806,7 +4806,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(winptr win, int e)
+static void iauto(winptr win, long e)
 
 {
 
@@ -4827,7 +4827,7 @@ static void iauto(winptr win, int e)
 
 }
 
-void ami_auto(FILE* f, int e)
+void ami_auto(FILE* f, long e)
 
 {
 
@@ -4858,7 +4858,7 @@ void icurvis(winptr win, int e)
 
 }
 
-void ami_curvis(FILE* f, int e)
+void ami_curvis(FILE* f, long e)
 
 {
 
@@ -4879,7 +4879,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int ami_curx(FILE* f)
+long ami_curx(FILE* f)
 
 {
 
@@ -4903,7 +4903,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int ami_cury(FILE* f)
+long ami_cury(FILE* f)
 
 {
 
@@ -4927,7 +4927,7 @@ Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
-int ami_curxg(FILE* f)
+long ami_curxg(FILE* f)
 
 {
 
@@ -4951,7 +4951,7 @@ Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
-int ami_curyg(FILE* f)
+long ami_curyg(FILE* f)
 
 {
 
@@ -4982,7 +4982,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-static void iselect(winptr win, int u, int d)
+static void iselect(winptr win, long u, long d)
 
 {
 
@@ -5018,7 +5018,7 @@ static void iselect(winptr win, int u, int d)
 
 }
 
-void ami_select(FILE* f, int u, int d)
+void ami_select(FILE* f, long u, long d)
 
 {
 
@@ -5101,19 +5101,19 @@ static void plcchr(winptr win, char c)
         }
         /* note the system font is substituted with a scalable font when the
            text path is rotated, so it advances as proportional below */
-        if (sc->cfont->sys && sc->angle == INT_MAX/4)
+        if (sc->cfont->sys && sc->angle == LONG_MAX/4)
             iright(win); /* move cursor right character */
         else { /* perform proportional version */
 
             b = GetTextExtentPoint32(sc->bdc, &c, 1, &sz); /* get spacing */
             if (!b) winerr(); /* process windows error */
-            if (sc->angle == INT_MAX/4) { /* normal reading text */
+            if (sc->angle == LONG_MAX/4) { /* normal reading text */
 
                 sc->curxg = sc->curxg+sz.cx; /* advance the character width */
 
             } else { /* advance along the text path direction */
 
-                a = (double)sc->angle/INT_MAX*2.0*PI; /* angle in radians */
+                a = (double)sc->angle/LONG_MAX*2.0*PI; /* angle in radians */
                 sc->curxg = sc->curxg+(int)floor(sz.cx*sin(a)+0.5);
                 sc->curyg = sc->curyg-(int)floor(sz.cx*cos(a)+0.5);
                 sc->cury = sc->curyg/win->linespace+1; /* recalculate row */
@@ -5180,10 +5180,10 @@ static void iwrtstr(winptr win,  char* s)
     }
     /* note the system font is substituted with a scalable font when the
        text path is rotated, so it advances as proportional below */
-    if (sc->cfont->sys && sc->angle == INT_MAX/4) {
+    if (sc->cfont->sys && sc->angle == LONG_MAX/4) {
         /* perform fixed system advance */
 
-          /* should check if this exceeds INT_MAX */
+          /* should check if this exceeds LONG_MAX */
           sc->curx = sc->curx+strlen(s); /* update position */
           sc->curxg = sc->curxg+win->charspace*strlen(s);
 
@@ -5191,13 +5191,13 @@ static void iwrtstr(winptr win,  char* s)
 
        b = GetTextExtentPoint32(sc->bdc, s, strlen(s), &sz); /* get spacing */
        if (!b) winerr(); /* process windows error */
-       if (sc->angle == INT_MAX/4) { /* normal reading text */
+       if (sc->angle == LONG_MAX/4) { /* normal reading text */
 
            sc->curxg = sc->curxg+sz.cx; /* advance the character width */
 
        } else { /* advance along the text path direction */
 
-           a = (double)sc->angle/INT_MAX*2.0*PI; /* angle in radians */
+           a = (double)sc->angle/LONG_MAX*2.0*PI; /* angle in radians */
            sc->curxg = sc->curxg+(int)floor(sz.cx*sin(a)+0.5);
            sc->curyg = sc->curyg-(int)floor(sz.cx*cos(a)+0.5);
            sc->cury = sc->curyg/win->linespace+1; /* recalculate row */
@@ -5263,7 +5263,7 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-static void iline(winptr win, int x1, int y1, int x2, int y2)
+static void iline(winptr win, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5313,7 +5313,7 @@ static void iline(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void ami_line(FILE* f, int x1, int y1, int x2, int y2)
+void ami_line(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5334,7 +5334,7 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
-static void irect(winptr win, int x1, int y1, int x2, int y2)
+static void irect(winptr win, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5360,7 +5360,7 @@ static void irect(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void ami_rect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5381,7 +5381,7 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
-static void ifrect(winptr win, int x1, int y1, int x2, int y2)
+static void ifrect(winptr win, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5429,7 +5429,7 @@ static void ifrect(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void ami_frect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5450,7 +5450,7 @@ Draws a rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-static void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
+static void irrect(winptr win, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
@@ -5477,7 +5477,7 @@ static void irrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
 
 }
 
-void ami_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
@@ -5498,7 +5498,7 @@ Draws a filled rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-static void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
+static void ifrrect(winptr win, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
@@ -5546,7 +5546,7 @@ static void ifrrect(winptr win, int x1, int y1, int x2, int y2, int xs, int ys)
 
 }
 
-void ami_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
@@ -5567,7 +5567,7 @@ Draws an ellipse with the current foreground color and line width.
 
 *******************************************************************************/
 
-static void iellipse(winptr win, int x1, int y1, int x2, int y2)
+static void iellipse(winptr win, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5593,7 +5593,7 @@ static void iellipse(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void ami_ellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5614,7 +5614,7 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
-static void ifellipse(winptr win, int x1, int y1, int x2, int y2)
+static void ifellipse(winptr win, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5662,7 +5662,7 @@ static void ifellipse(winptr win, int x1, int y1, int x2, int y2)
 
 }
 
-void ami_fellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -5690,7 +5690,7 @@ point on the circle is found by triangulation.
 
 The larger the circle of precision, the more angles can be represented, but
 the trade off is that the circle must not reach the edge of an int
-(-INT_MAX..INT_MAX). That means that the total logical coordinate space must be
+(-LONG_MAX..LONG_MAX). That means that the total logical coordinate space must be
 shortened by the precision. To find out what division of the circle precis
 represents, use cd = precis*2*PI. So, for example, precis == 100 means 628
 divisions of the circle.
@@ -5703,7 +5703,7 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
+static void iarc(winptr win, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -5719,8 +5719,8 @@ static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; };
     if (y1 > y2) { t = y1; y1 = y2; y2 = t; };
     /* convert start and end to radian measure */
-    saf = sa*2.0*PI/INT_MAX;
-    eaf = ea*2.0*PI/INT_MAX;
+    saf = sa*2.0*PI/LONG_MAX;
+    eaf = ea*2.0*PI/LONG_MAX;
     /* find center of ellipse */
     xc = (x2-x1) / 2+x1;
     yc = (y2-y1) / 2+y1;
@@ -5749,7 +5749,7 @@ static void iarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-void ami_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -5771,7 +5771,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-static void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
+static void ifarc(winptr win, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -5790,8 +5790,8 @@ static void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; };
     if (y1 > y2) { t = y1; y1 = y2; y2 = t; };
     /* convert start and end to radian measure */
-    saf = sa*2*PI/INT_MAX;
-    eaf = ea*2*PI/INT_MAX;
+    saf = sa*2*PI/LONG_MAX;
+    eaf = ea*2*PI/LONG_MAX;
     /* find center of ellipse */
     xc = (x2-x1)/2+x1;
     yc = (y2-y1)/2+y1;
@@ -5840,7 +5840,7 @@ static void ifarc(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-void ami_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -5862,7 +5862,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-static void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
+static void ifchord(winptr win, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -5881,8 +5881,8 @@ static void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
     if (x1 > x2) { t = x1; x1 = x2; x2 = t; }
     if (y1 > y2)  { t = y1; y1 = y2; y2 = t; }
     /* convert start and end to radian measure */
-    saf = sa*2*PI/INT_MAX;
-    eaf = ea*2*PI/INT_MAX;
+    saf = sa*2*PI/LONG_MAX;
+    eaf = ea*2*PI/LONG_MAX;
     /* find center of ellipse */
     xc = (x2-x1)/2+x1;
     yc = (y2-y1)/2+y1;
@@ -5931,7 +5931,7 @@ static void ifchord(winptr win, int x1, int y1, int x2, int y2, int sa, int ea)
 
 }
 
-void ami_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -5952,7 +5952,7 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y3)
+static void iftriangle(winptr win, long x1, long y1, long x2, long y2, long x3, long y3)
 
 {
 
@@ -6008,7 +6008,7 @@ static void iftriangle(winptr win, int x1, int y1, int x2, int y2, int x3, int y
 
 }
 
-void ami_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
 
 {
 
@@ -6029,7 +6029,7 @@ Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
-static void isetpixel(winptr win, int x, int y)
+static void isetpixel(winptr win, long x, long y)
 
 {
 
@@ -6056,7 +6056,7 @@ static void isetpixel(winptr win, int x, int y)
 
 }
 
-void ami_setpixel(FILE* f, int x, int y)
+void ami_setpixel(FILE* f, long x, long y)
 
 {
 
@@ -6282,7 +6282,7 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
-static void ilinewidth(winptr win, int w)
+static void ilinewidth(winptr win, long w)
 
 {
 
@@ -6311,7 +6311,7 @@ static void ilinewidth(winptr win, int w)
 
 }
 
-void ami_linewidth(FILE* f, int w)
+void ami_linewidth(FILE* f, long w)
 
 {
 
@@ -6381,7 +6381,7 @@ Returns the character width.
 
 *******************************************************************************/
 
-int ami_chrsizx(FILE* f)
+long ami_chrsizx(FILE* f)
 
 {
 
@@ -6405,7 +6405,7 @@ Returns the character height.
 
 *******************************************************************************/
 
-int ami_chrsizy(FILE* f)
+long ami_chrsizy(FILE* f)
 
 {
 
@@ -6429,7 +6429,7 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-int ami_fonts(FILE* f)
+long ami_fonts(FILE* f)
 
 {
 
@@ -6445,7 +6445,7 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-static void ifont(winptr win, int fc)
+static void ifont(winptr win, long fc)
 
 {
 
@@ -6471,7 +6471,7 @@ static void ifont(winptr win, int fc)
 
 }
 
-void ami_font(FILE* f, int fc)
+void ami_font(FILE* f, long fc)
 
 {
 
@@ -6492,7 +6492,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-static void ifontnam(winptr win, int fc, char* fns, int fnsl)
+static void ifontnam(winptr win, long fc, char* fns, long fnsl)
 
 {
 
@@ -6513,7 +6513,7 @@ static void ifontnam(winptr win, int fc, char* fns, int fnsl)
 
 }
 
-void ami_fontnam(FILE* f, int fc, char* fns, int fnsl)
+void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
 
 {
 
@@ -6535,7 +6535,7 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-static void ifontsiz(winptr win, int s)
+static void ifontsiz(winptr win, long s)
 
 {
 
@@ -6549,7 +6549,7 @@ static void ifontsiz(winptr win, int s)
 
 }
 
-void ami_fontsiz(FILE* f, int s)
+void ami_fontsiz(FILE* f, long s)
 
 {
 
@@ -6659,7 +6659,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_chrspcy(FILE* f, int s)
+void ami_chrspcy(FILE* f, long s)
 
 {
 
@@ -6678,7 +6678,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_chrspcx(FILE* f, int s)
+void ami_chrspcx(FILE* f, long s)
 
 {
 
@@ -6694,7 +6694,7 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-int ami_dpmx(FILE* f)
+long ami_dpmx(FILE* f)
 
 {
 
@@ -6718,7 +6718,7 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-int ami_dpmy(FILE* f)
+long ami_dpmy(FILE* f)
 
 {
 
@@ -6743,7 +6743,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-static int istrsiz(winptr win, const char* s)
+static long istrsiz(winptr win, const char* s)
 
 {
 
@@ -6761,7 +6761,7 @@ static int istrsiz(winptr win, const char* s)
 
 }
 
-int ami_strsiz(FILE* f, const char* s)
+long ami_strsiz(FILE* f, const char* s)
 
 {
 
@@ -6785,7 +6785,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-static int ichrpos(winptr win, const char* s, int p)
+static long ichrpos(winptr win, const char* s, long p)
 
 {
 
@@ -6810,7 +6810,7 @@ static int ichrpos(winptr win, const char* s, int p)
 
 }
 
-int ami_chrpos(FILE* f, const char* s, int p)
+long ami_chrpos(FILE* f, const char* s, long p)
 
 {
 
@@ -6836,7 +6836,7 @@ the system font.
 
 *******************************************************************************/
 
-static void iwritejust(winptr win, const char* s, int n)
+static void iwritejust(winptr win, const char* s, long n)
 
 {
 
@@ -6899,7 +6899,7 @@ static void iwritejust(winptr win, const char* s, int n)
 
 }
 
-void ami_writejust(FILE* f, const char* s, int n)
+void ami_writejust(FILE* f, const char* s, long n)
 
 {
 
@@ -6924,7 +6924,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-static int ijustpos(winptr win, const char* s, int p, int n)
+static long ijustpos(winptr win, const char* s, long p, long n)
 
 {
 
@@ -6969,7 +6969,7 @@ static int ijustpos(winptr win, const char* s, int p, int n)
 
 }
 
-int ami_justpos(FILE* f, const char* s, int p, int n)
+long ami_justpos(FILE* f, const char* s, long p, long n)
 
 {
 
@@ -6996,7 +6996,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void icondensed(winptr win, int e)
+static void icondensed(winptr win, long e)
 
 {
 
@@ -7018,7 +7018,7 @@ static void icondensed(winptr win, int e)
 
 }
 
-void ami_condensed(FILE* f, int e)
+void ami_condensed(FILE* f, long e)
 
 {
 
@@ -7044,7 +7044,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-static void iextended(winptr win, int e)
+static void iextended(winptr win, long e)
 
 {
 
@@ -7066,7 +7066,7 @@ static void iextended(winptr win, int e)
 
 }
 
-void ami_extended(FILE* f, int e)
+void ami_extended(FILE* f, long e)
 
 {
 
@@ -7090,7 +7090,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ixlight(winptr win, int e)
+static void ixlight(winptr win, long e)
 
 {
 
@@ -7112,7 +7112,7 @@ static void ixlight(winptr win, int e)
 
 }
 
-void ami_xlight(FILE* f, int e)
+void ami_xlight(FILE* f, long e)
 
 {
 
@@ -7136,7 +7136,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ilight(winptr win, int e)
+static void ilight(winptr win, long e)
 
 {
 
@@ -7158,7 +7158,7 @@ static void ilight(winptr win, int e)
 
 }
 
-void ami_light(FILE* f, int e)
+void ami_light(FILE* f, long e)
 
 {
 
@@ -7182,7 +7182,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ixbold(winptr win, int e)
+static void ixbold(winptr win, long e)
 
 {
 
@@ -7204,7 +7204,7 @@ static void ixbold(winptr win, int e)
 
 }
 
-void ami_xbold(FILE* f, int e)
+void ami_xbold(FILE* f, long e)
 
 {
 
@@ -7228,7 +7228,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ihollow(winptr win, int e)
+static void ihollow(winptr win, long e)
 
 {
 
@@ -7250,7 +7250,7 @@ static void ihollow(winptr win, int e)
 
 }
 
-void ami_hollow(FILE* f, int e)
+void ami_hollow(FILE* f, long e)
 
 {
 
@@ -7274,7 +7274,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void iraised(winptr win, int e)
+static void iraised(winptr win, long e)
 
 {
 
@@ -7296,7 +7296,7 @@ static void iraised(winptr win, int e)
 
 }
 
-void ami_raised(FILE* f, int e)
+void ami_raised(FILE* f, long e)
 
 {
 
@@ -7317,7 +7317,7 @@ Deletes a loaded picture.
 
 *******************************************************************************/
 
-static void idelpict(winptr win, int p)
+static void idelpict(winptr win, long p)
 
 {
 
@@ -7337,7 +7337,7 @@ static void idelpict(winptr win, int p)
 
 }
 
-void ami_delpict(FILE* f, int p)
+void ami_delpict(FILE* f, long p)
 
 {
 
@@ -7395,7 +7395,7 @@ static int exists(char *fn)
 
 }
 
-static void iloadpict(winptr win, int p, char* fn)
+static void iloadpict(winptr win, long p, char* fn)
 
 {
 
@@ -7443,7 +7443,7 @@ static void iloadpict(winptr win, int p, char* fn)
 
 }
 
-void ami_loadpict(FILE* f, int p, char* fn)
+void ami_loadpict(FILE* f, long p, char* fn)
 
 {
 
@@ -7464,7 +7464,7 @@ Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-int ami_pictsizx(FILE* f, int p)
+long ami_pictsizx(FILE* f, long p)
 
 {
 
@@ -7490,7 +7490,7 @@ Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-int ami_pictsizy(FILE* f, int p)
+long ami_pictsizy(FILE* f, long p)
 
 {
 
@@ -7519,7 +7519,7 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-static void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
+static void ipicture(winptr win, long p, long x1, long y1, long x2, long y2)
 
 {
 
@@ -7564,7 +7564,7 @@ static void ipicture(winptr win, int p, int x1, int y1, int x2, int y2)
 
 }
 
-void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
+void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
 
 {
 
@@ -7582,7 +7582,7 @@ void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
 Set text draw path
 
 Sets the angle text is drawn at, in compass convention (0 = north, 90 = east),
-scaled so that INT_MAX = 360 degrees. The default is INT_MAX/4 (east), which
+scaled so that LONG_MAX = 360 degrees. The default is LONG_MAX/4 (east), which
 is the normal reading path. The font is recreated with the matching GDI
 escapement, which rotates the glyphs as well as the underline and strikeout
 attributes, and character advance follows the path direction.
@@ -7592,7 +7592,7 @@ the character grid.
 
 *******************************************************************************/
 
-static void ipath(winptr win, int a)
+static void ipath(winptr win, long a)
 
 {
 
@@ -7609,7 +7609,7 @@ static void ipath(winptr win, int a)
 
 }
 
-void ami_path(FILE* f, int a)
+void ami_path(FILE* f, long a)
 
 {
 
@@ -7627,11 +7627,11 @@ void ami_path(FILE* f, int a)
 Set viewport offset graphical
 
 Sets the offset of the viewport in logical space, in pixels, anywhere from
--INT_MAX to INT_MAX.
+-LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
-static void iviewoffg(winptr win, int x, int y)
+static void iviewoffg(winptr win, long x, long y)
 
 {
 
@@ -7649,7 +7649,7 @@ static void iviewoffg(winptr win, int x, int y)
 
 }
 
-void ami_viewoffg(FILE* f, int x, int y)
+void ami_viewoffg(FILE* f, long x, long y)
 
 {
 
@@ -8147,8 +8147,8 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
     int    r;          /* result holder */
     int    b;          /* int result */
     int    v;          /* value */
-    int    x, y, z;    /* joystick readback */
-    int    dx, dy, dz; /* joystick readback differences */
+    long   x, y, z;    /* joystick readback */
+    long   dx, dy, dz; /* joystick readback differences */
     int    nm;         /* notification message */
     float  f;          /* floating point temp */
     NMHDR* nhp;        /* notification header */
@@ -8311,10 +8311,10 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
         /* now reject moves below the threshold */
         if (dx > 65535 / 255 || dy > 65535 / 255 || dz > 65535 / 255) {
 
-            /* scale axies between -INT_MAX..INT_MAX and place */
-            er->joypx = (x - 32767)*(INT_MAX/32768);
-            er->joypy = (y - 32767)*(INT_MAX/32768);
-            er->joypz = (z - 32767)*(INT_MAX/32768);
+            /* scale axies between -LONG_MAX..LONG_MAX and place */
+            er->joypx = (x - 32767)*(LONG_MAX/32768);
+            er->joypy = (y - 32767)*(LONG_MAX/32768);
+            er->joypz = (z - 32767)*(LONG_MAX/32768);
             *keep = TRUE; /* set keep event */
 
         }
@@ -8441,9 +8441,9 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
                     er->etype = ami_etsclpos; /* set scroll position event */
                     er->sclpid = wp->id; /* set widget id */
                     f = msg->wParam/0x10000; /* get current position to float */
-                    /* clamp to INT_MAX */
-                    if (f*INT_MAX/(255-wp->siz) >= INT_MAX) er->sclpos = INT_MAX;
-                    else er->sclpos = f*INT_MAX/(255-wp->siz);
+                    /* clamp to LONG_MAX */
+                    if (f*LONG_MAX/(255-wp->siz) >= LONG_MAX) er->sclpos = LONG_MAX;
+                    else er->sclpos = f*LONG_MAX/(255-wp->siz);
                     /*er->sclpos = msg->wParam / 65536*0x800000*/ /* get position */
 
                 }
@@ -8455,13 +8455,13 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
                 er->sldpid = wp->id; /* set widget id */
                 /* get position */
                 if (v == SB_THUMBTRACK) /* message includes position */
-                    er->sldpos = msg->wParam/65536*(INT_MAX/100);
+                    er->sldpos = msg->wParam/65536*(LONG_MAX/100);
                 else { /* must retrive the position by message */
 
                     unlockmain(); /* end exclusive access */
                     r = SendMessage(wp->han, TBM_GETPOS, 0, 0);
                     lockmain(); /* start exclusive access */
-                    er->sldpos = r*(INT_MAX/100); /* set position */
+                    er->sldpos = r*(LONG_MAX/100); /* set position */
 
                 }
                 *keep = TRUE; /* set keep event */
@@ -8516,13 +8516,13 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
                 er->sldpid = wp->id; /* set widget id */
                 /* get position */
                 if (v == SB_THUMBTRACK) /* message includes position */
-                    er->sldpos = msg->wParam/65536*(INT_MAX/100);
+                    er->sldpos = msg->wParam/65536*(LONG_MAX/100);
                 else { /* must retrive the position by message */
 
                     unlockmain(); /* end exclusive access */
                     r = SendMessage(wp->han, TBM_GETPOS, 0, 0);
                     lockmain(); /* start exclusive access */
-                    er->sldpos = r*(INT_MAX/100); /* set position */
+                    er->sldpos = r*(LONG_MAX/100); /* set position */
 
                 }
                 *keep = TRUE; /* set keep event */
@@ -8596,7 +8596,7 @@ static void sigevt(ami_evtrec* er, MSG* msg, int* keep)
 
 }
 
-static void ievent(int ifn, ami_evtrec* er)
+static void ievent(long ifn, ami_evtrec* er)
 
 {
 
@@ -8838,10 +8838,10 @@ the associated input file.
 *******************************************************************************/
 
 static void itimer(winptr win, /* file to send event to */
-                   int    lf,  /* logical file number */
-                   int    i,   /* timer handle */
+                   long    lf,  /* logical file number */
+                   long    i,   /* timer handle */
                    long   t,   /* number of tenth-milliseconds to run */
-                   int    r)   /* timer is to rerun after completion */
+                   long    r)   /* timer is to rerun after completion */
 
 {
 
@@ -8867,9 +8867,9 @@ static void itimer(winptr win, /* file to send event to */
 }
 
 void ami_timer(FILE* f, /* file to send event to */
-                     int   i, /* timer handle */
+                     long   i, /* timer handle */
                      long  t, /* number of tenth-milliseconds to run */
-                     int   r) /* timer is to rerun after completion */
+                     long   r) /* timer is to rerun after completion */
 
 {
 
@@ -8891,7 +8891,7 @@ Kills a given timer, by it"s id number. Only repeating timers should be killed.
 *******************************************************************************/
 
 static void ikilltimer(winptr win, /* file to kill timer on */
-                       int    i)   /* handle of timer */
+                       long    i)   /* handle of timer */
 
 {
 
@@ -8904,7 +8904,7 @@ static void ikilltimer(winptr win, /* file to kill timer on */
 }
 
 void ami_killtimer(FILE* f, /* file to kill timer on */
-               int   i) /* handle of timer */
+               long   i) /* handle of timer */
 
 {
 
@@ -8928,7 +8928,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-static void iframetimer(winptr win, int lf, int e)
+static void iframetimer(winptr win, long lf, long e)
 
 {
 
@@ -8960,7 +8960,7 @@ static void iframetimer(winptr win, int lf, int e)
 
 }
 
-void ami_frametimer(FILE* f, int e)
+void ami_frametimer(FILE* f, long e)
 
 {
 
@@ -8988,7 +8988,7 @@ holding graph unaware programs.
 
 *******************************************************************************/
 
-void ami_autohold(int e)
+void ami_autohold(long e)
 
 {
 
@@ -9004,7 +9004,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-int ami_mouse(FILE* f)
+long ami_mouse(FILE* f)
 
 {
 
@@ -9025,7 +9025,7 @@ version.
 
 *******************************************************************************/
 
-int ami_mousebutton(FILE* f, int m)
+long ami_mousebutton(FILE* f, long m)
 
 {
 
@@ -9048,7 +9048,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int ami_joystick(FILE* f)
+long ami_joystick(FILE* f)
 
 {
 
@@ -9072,7 +9072,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int ami_joybutton(FILE* f, int j)
+long ami_joybutton(FILE* f, long j)
 
 {
 
@@ -9105,7 +9105,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-static int ijoyaxis(winptr win, int j)
+static long ijoyaxis(winptr win, long j)
 
 {
 
@@ -9124,7 +9124,7 @@ static int ijoyaxis(winptr win, int j)
 
 }
 
-int ami_joyaxis(FILE* f, int j)
+long ami_joyaxis(FILE* f, long j)
 
 {
 
@@ -9148,7 +9148,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void isettabg(winptr win, int t)
+static void isettabg(winptr win, long t)
 
 {
 
@@ -9174,7 +9174,7 @@ static void isettabg(winptr win, int t)
 
 }
 
-void ami_settabg(FILE* f, int t)
+void ami_settabg(FILE* f, long t)
 
 {
 
@@ -9195,7 +9195,7 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void ami_settab(FILE* f, int t)
+void ami_settab(FILE* f, long t)
 
 {
 
@@ -9216,7 +9216,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void irestabg(winptr win, int t)
+static void irestabg(winptr win, long t)
 
 {
 
@@ -9239,7 +9239,7 @@ static void irestabg(winptr win, int t)
 
 }
 
-void ami_restabg(FILE* f, int t)
+void ami_restabg(FILE* f, long t)
 
 {
 
@@ -9260,7 +9260,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void ami_restab(FILE* f, int t)
+void ami_restab(FILE* f, long t)
 
 {
 
@@ -9306,7 +9306,7 @@ function keys as well.
 
 *******************************************************************************/
 
-int ami_funkey(FILE* f)
+long ami_funkey(FILE* f)
 
 {
 
@@ -10304,18 +10304,18 @@ static void opnwin(int fn, int pfn)
     win->gmaxy = maxyd; /* character max y */
 
 #if 0
-    dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
-    dbg_printf(dlinfo, "Display height in pixels: %d\n", win->svres);
-    dbg_printf(dlinfo, "Display width in mm:      %d\n", win->shsize);
-    dbg_printf(dlinfo, "Display height in mm:     %d\n", win->svsize);
-    dbg_printf(dlinfo, "Dots per meter x:         %d\n", win->sdpmx);
-    dbg_printf(dlinfo, "Dots per meter y:         %d\n", win->sdpmy);
-    dbg_printf(dlinfo, "Client width in pixels:   %d\n", win->gmaxxg);
-    dbg_printf(dlinfo, "Client height in pixels:  %d\n", win->gmaxyg);
-    dbg_printf(dlinfo, "Characters in x:          %d\n", win->gmaxx);
-    dbg_printf(dlinfo, "Characters in y:          %d\n", win->gmaxy);
-    dbg_printf(dlinfo, "Character size x:         %d\n", win->charspace);
-    dbg_printf(dlinfo, "Character size y:         %d\n", win->linespace);
+    dbg_printf(dlinfo, "Display width in pixels:  %ld\n", win->shres);
+    dbg_printf(dlinfo, "Display height in pixels: %ld\n", win->svres);
+    dbg_printf(dlinfo, "Display width in mm:      %ld\n", win->shsize);
+    dbg_printf(dlinfo, "Display height in mm:     %ld\n", win->svsize);
+    dbg_printf(dlinfo, "Dots per meter x:         %ld\n", win->sdpmx);
+    dbg_printf(dlinfo, "Dots per meter y:         %ld\n", win->sdpmy);
+    dbg_printf(dlinfo, "Client width in pixels:   %ld\n", win->gmaxxg);
+    dbg_printf(dlinfo, "Client height in pixels:  %ld\n", win->gmaxyg);
+    dbg_printf(dlinfo, "Characters in x:          %ld\n", win->gmaxx);
+    dbg_printf(dlinfo, "Characters in y:          %ld\n", win->gmaxy);
+    dbg_printf(dlinfo, "Character size x:         %ld\n", win->charspace);
+    dbg_printf(dlinfo, "Character size y:         %ld\n", win->linespace);
 #endif
 
     cr.left = 0; /* set up desired client rectangle */
@@ -10565,7 +10565,7 @@ static int fndfil(FILE* fp)
 
 }
 
-static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
+static void iopenwin(FILE** infile, FILE** outfile, long pfn, long wid)
 
 {
 
@@ -10606,7 +10606,7 @@ static void iopenwin(FILE** infile, FILE** outfile, int pfn, int wid)
 
 }
 
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
@@ -10631,7 +10631,7 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-static void isizbufg(winptr win, int x, int y)
+static void isizbufg(winptr win, long x, long y)
 
 {
 
@@ -10677,7 +10677,7 @@ static void isizbufg(winptr win, int x, int y)
 
 }
 
-void ami_sizbufg(FILE* f, int x, int y)
+void ami_sizbufg(FILE* f, long x, long y)
 
 {
 
@@ -10698,7 +10698,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void ami_sizbuf(FILE* f, int x, int y)
+void ami_sizbuf(FILE* f, long x, long y)
 
 {
 
@@ -10721,7 +10721,7 @@ freed.
 
 *******************************************************************************/
 
-static void ibuffer(winptr win, int e)
+static void ibuffer(winptr win, long e)
 
 {
 
@@ -10794,7 +10794,7 @@ static void ibuffer(winptr win, int e)
 
 }
 
-void ami_buffer(FILE* f, int e)
+void ami_buffer(FILE* f, long e)
 
 {
 
@@ -10971,7 +10971,7 @@ If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
 
-static metptr fndmenu(winptr win, int id)
+static metptr fndmenu(winptr win, long id)
 
 {
 
@@ -11006,7 +11006,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-static void imenuena(winptr win, int id, int onoff)
+static void imenuena(winptr win, long id, long onoff)
 
 {
 
@@ -11027,7 +11027,7 @@ static void imenuena(winptr win, int id, int onoff)
 
 }
 
-void ami_menuena(FILE* f, int id, int onoff)
+void ami_menuena(FILE* f, long id, long onoff)
 
 {
 
@@ -11084,7 +11084,7 @@ static void clrlst(int* fl, metptr mp)
 
 }
 
-static void imenusel(winptr win, int id, int select)
+static void imenusel(winptr win, long id, long select)
 
 {
 
@@ -11108,7 +11108,7 @@ static void imenusel(winptr win, int id, int select)
 
 }
 
-void ami_menusel(FILE* f, int id, int select)
+void ami_menusel(FILE* f, long id, long select)
 
 {
 
@@ -11226,7 +11226,7 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-static void igetsizg(winptr win, int* x, int* y)
+static void igetsizg(winptr win, long* x, long* y)
 
 {
 
@@ -11240,7 +11240,7 @@ static void igetsizg(winptr win, int* x, int* y)
 
 }
 
-void ami_getsizg(FILE* f, int* x, int* y)
+void ami_getsizg(FILE* f, long* x, long* y)
 
 {
 
@@ -11266,7 +11266,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_getsiz(FILE* f, int* x, int* y)
+void ami_getsiz(FILE* f, long* x, long* y)
 
 {
 
@@ -11301,7 +11301,7 @@ Sets the onscreen window to the given size.
 
 *******************************************************************************/
 
-static void isetsizg(winptr win, int x, int y)
+static void isetsizg(winptr win, long x, long y)
 
 {
 
@@ -11314,7 +11314,7 @@ static void isetsizg(winptr win, int x, int y)
 
 }
 
-void ami_setsizg(FILE* f, int x, int y)
+void ami_setsizg(FILE* f, long x, long y)
 
 {
 
@@ -11340,7 +11340,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_setsiz(FILE* f, int x, int y)
+void ami_setsiz(FILE* f, long x, long y)
 
 {
 
@@ -11375,7 +11375,7 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-static void isetposg(winptr win, int x, int y)
+static void isetposg(winptr win, long x, long y)
 
 {
 
@@ -11388,7 +11388,7 @@ static void isetposg(winptr win, int x, int y)
 
 }
 
-void ami_setposg(FILE* f, int x, int y)
+void ami_setposg(FILE* f, long x, long y)
 
 {
 
@@ -11414,7 +11414,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_setpos(FILE* f, int x, int y)
+void ami_setpos(FILE* f, long x, long y)
 
 {
 
@@ -11449,7 +11449,7 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-static void iscnsizg(winptr win, int* x, int* y)
+static void iscnsizg(winptr win, long* x, long* y)
 
 {
 
@@ -11465,7 +11465,7 @@ static void iscnsizg(winptr win, int* x, int* y)
 
 }
 
-void ami_scnsizg(FILE* f, int* x, int* y)
+void ami_scnsizg(FILE* f, long* x, long* y)
 
 {
 
@@ -11493,7 +11493,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-static void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy,
+static void iwinclientg(winptr win, long cx, long cy, long* wx, long* wy,
                         ami_winmodset ms)
 
 {
@@ -11526,7 +11526,7 @@ static void iwinclientg(winptr win, int cx, int cy, int* wx, int* wy,
 
 }
 
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
@@ -11555,7 +11555,7 @@ void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
 
 }
 
-void ami_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
@@ -11579,7 +11579,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void ami_scnsiz(FILE* f, int* x, int* y)
+void ami_scnsiz(FILE* f, long* x, long* y)
 
 {
 
@@ -11602,7 +11602,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-static void iframe(winptr win, int e)
+static void iframe(winptr win, long e)
 
 {
 
@@ -11651,7 +11651,7 @@ static void iframe(winptr win, int e)
 
 }
 
-void ami_frame(FILE* f, int e)
+void ami_frame(FILE* f, long e)
 
 {
 
@@ -11672,7 +11672,7 @@ Turns the window sizing on and off.
 
 *******************************************************************************/
 
-static void isizable(winptr win, int e)
+static void isizable(winptr win, long e)
 
 {
 
@@ -11728,7 +11728,7 @@ static void isizable(winptr win, int e)
 
 }
 
-void ami_sizable(FILE* f, int e)
+void ami_sizable(FILE* f, long e)
 
 {
 
@@ -11749,7 +11749,7 @@ Turns the system bar on and off.
 
 *******************************************************************************/
 
-static void isysbar(winptr win, int e)
+static void isysbar(winptr win, long e)
 
 {
 
@@ -11805,7 +11805,7 @@ static void isysbar(winptr win, int e)
 
 }
 
-void ami_sysbar(FILE* f, int e)
+void ami_sysbar(FILE* f, long e)
 
 {
 
@@ -11864,7 +11864,7 @@ end of the menu,  the program selections placed in the menu.
 *******************************************************************************/
 
 /* get menu entry */
-static void getmenu(ami_menuptr* m, int id, char* face)
+static void getmenu(ami_menuptr* m, long id, char* face)
 
 {
 
@@ -11999,8 +11999,8 @@ trying to start them on the main window.
 *******************************************************************************/
 
 /* create widget according to type */
-static HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
-                         char* s, int id, int exfl)
+static HWND createwidget(winptr win, wigtyp typ, long x1, long y1, long x2, long y2,
+                         char* s, long id, long exfl)
 
 {
 
@@ -12118,8 +12118,8 @@ static HWND createwidget(winptr win, wigtyp typ, int x1, int y1, int x2, int y2,
 
 }
 
-static void widget(winptr win, int x1, int y1, int x2, int y2, char* s, int id,
-                   wigtyp typ, int exfl, wigptr* wp)
+static void widget(winptr win, long x1, long y1, long x2, long y2, char* s, long id,
+                   wigtyp typ, long exfl, wigptr* wp)
 
 {
 
@@ -12144,7 +12144,7 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-static void ikillwidget(winptr win, int id)
+static void ikillwidget(winptr win, long id)
 
 {
 
@@ -12159,7 +12159,7 @@ static void ikillwidget(winptr win, int id)
 
 }
 
-void ami_killwidget(FILE* f, int id)
+void ami_killwidget(FILE* f, long id)
 
 {
 
@@ -12180,7 +12180,7 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-static void iselectwidget(winptr win, int id, int e)
+static void iselectwidget(winptr win, long id, long e)
 
 {
 
@@ -12198,7 +12198,7 @@ static void iselectwidget(winptr win, int id, int e)
 
 }
 
-void ami_selectwidget(FILE* f, int id, int e)
+void ami_selectwidget(FILE* f, long id, long e)
 
 {
 
@@ -12219,7 +12219,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-static void ienablewidget(winptr win, int id, int e)
+static void ienablewidget(winptr win, long id, long e)
 
 {
 
@@ -12243,7 +12243,7 @@ static void ienablewidget(winptr win, int id, int e)
 
 }
 
-void ami_enablewidget(FILE* f, int id, int e)
+void ami_enablewidget(FILE* f, long id, long e)
 
 {
 
@@ -12266,7 +12266,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-static void igetwidgettext(winptr win, int id, char* s, int sl)
+static void igetwidgettext(winptr win, long id, char* s, long sl)
 
 {
 
@@ -12291,7 +12291,7 @@ static void igetwidgettext(winptr win, int id, char* s, int sl)
 
 }
 
-void ami_getwidgettext(FILE* f, int id, char* s, int sl)
+void ami_getwidgettext(FILE* f, long id, char* s, long sl)
 
 {
 
@@ -12312,7 +12312,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-static void iputwidgettext(winptr win, int id, char* s)
+static void iputwidgettext(winptr win, long id, char* s)
 
 {
 
@@ -12331,7 +12331,7 @@ static void iputwidgettext(winptr win, int id, char* s)
 
 }
 
-void ami_putwidgettext(FILE* f, int id, char* s)
+void ami_putwidgettext(FILE* f, long id, char* s)
 
 {
 
@@ -12352,7 +12352,7 @@ Changes the size of a widget.
 
 *******************************************************************************/
 
-static void isizwidgetg(winptr win, int id,  int x, int y)
+static void isizwidgetg(winptr win, long id,  long x, long y)
 
 {
 
@@ -12376,7 +12376,7 @@ static void isizwidgetg(winptr win, int id,  int x, int y)
 
 }
 
-void ami_sizwidgetg(FILE* f, int id, int x, int y)
+void ami_sizwidgetg(FILE* f, long id, long x, long y)
 
 {
 
@@ -12397,7 +12397,7 @@ Changes the parent position of a widget.
 
 *******************************************************************************/
 
-static void iposwidgetg(winptr win, int id, int x, int y)
+static void iposwidgetg(winptr win, long id, long x, long y)
 
 {
 
@@ -12421,7 +12421,7 @@ static void iposwidgetg(winptr win, int id, int x, int y)
 
 }
 
-void ami_poswidgetg(FILE* f, int id, int x, int y)
+void ami_poswidgetg(FILE* f, long id, long x, long y)
 
 {
 
@@ -12440,7 +12440,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-static void ibackwidget(winptr win, int id)
+static void ibackwidget(winptr win, long id)
 
 {
 
@@ -12466,7 +12466,7 @@ static void ibackwidget(winptr win, int id)
 
 }
 
-void ami_backwidget(FILE* f, int id)
+void ami_backwidget(FILE* f, long id)
 
 {
 
@@ -12485,7 +12485,7 @@ Place widget to front of Z order
 
 *******************************************************************************/
 
-static void ifrontwidget(winptr win, int id)
+static void ifrontwidget(winptr win, long id)
 
 {
 
@@ -12512,7 +12512,7 @@ static void ifrontwidget(winptr win, int id)
 
 }
 
-void ami_frontwidget(FILE* f, int id)
+void ami_frontwidget(FILE* f, long id)
 
 {
 
@@ -12534,7 +12534,7 @@ a button is calculated and returned.
 
 *******************************************************************************/
 
-static void ibuttonsizg(winptr win, char* s, int* w, int* h)
+static void ibuttonsizg(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -12552,7 +12552,7 @@ static void ibuttonsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-static void ibuttonsiz(winptr win, char* s, int* w, int* h)
+static void ibuttonsiz(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -12563,7 +12563,7 @@ static void ibuttonsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -12576,7 +12576,7 @@ void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_buttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -12597,7 +12597,7 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-static void ibuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void ibuttong(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12608,7 +12608,7 @@ static void ibuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id
 
 }
 
-static void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void ibutton(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12621,7 +12621,7 @@ static void ibutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12634,7 +12634,7 @@ void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12656,7 +12656,7 @@ a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-static void icheckboxsizg(winptr win, char* s, int* w, int* h)
+static void icheckboxsizg(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -12675,7 +12675,7 @@ static void icheckboxsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-static void icheckboxsiz(winptr win, char* s, int* w, int* h)
+static void icheckboxsiz(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -12686,7 +12686,7 @@ static void icheckboxsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -12699,7 +12699,7 @@ void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_checkboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -12721,7 +12721,7 @@ window.
 
 *******************************************************************************/
 
-static void icheckboxg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void icheckboxg(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12732,7 +12732,7 @@ static void icheckboxg(winptr win, int x1, int y1, int x2, int y2, char* s, int 
 
 }
 
-static void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void icheckbox(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12745,7 +12745,7 @@ static void icheckbox(winptr win, int x1, int y1, int x2, int y2, char* s, int i
 
 }
 
-void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12758,7 +12758,7 @@ void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12780,7 +12780,7 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-static void iradiobuttonsizg(winptr win, char* s, int* w, int* h)
+static void iradiobuttonsizg(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -12799,7 +12799,7 @@ static void iradiobuttonsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-static void iradiobuttonsiz(winptr win, char* s, int* w, int* h)
+static void iradiobuttonsiz(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -12810,7 +12810,7 @@ static void iradiobuttonsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -12823,7 +12823,7 @@ void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -12845,7 +12845,7 @@ window.
 
 *******************************************************************************/
 
-static void iradiobuttong(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void iradiobuttong(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12856,7 +12856,7 @@ static void iradiobuttong(winptr win, int x1, int y1, int x2, int y2, char* s, i
 
 }
 
-static void iradiobutton(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void iradiobutton(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12869,7 +12869,7 @@ static void iradiobutton(winptr win, int x1, int y1, int x2, int y2, char* s, in
 
 }
 
-void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12882,7 +12882,7 @@ void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12904,8 +12904,8 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-static void igroupsizg(winptr win, char* s, int cw, int ch, int* w, int* h,
-                       int* ox, int* oy)
+static void igroupsizg(winptr win, char* s, long cw, long ch, long* w, long* h,
+                       long* ox, long* oy)
 
 {
 
@@ -12928,8 +12928,8 @@ static void igroupsizg(winptr win, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-static void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
-                      int* ox, int* oy)
+static void igroupsiz(winptr win, char* s, long cw, long ch, long* w, long* h,
+                      long* ox, long* oy)
 
 {
 
@@ -12945,8 +12945,8 @@ static void igroupsiz(winptr win, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
-                  int* ox, int* oy)
+void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h,
+                  long* ox, long* oy)
 
 {
 
@@ -12959,8 +12959,8 @@ void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void ami_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
-              int* ox, int* oy)
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
+              long* ox, long* oy)
 
 {
 
@@ -12982,7 +12982,7 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-static void igroupg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void igroupg(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -12993,7 +12993,7 @@ static void igroupg(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-static void igroup(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
+static void igroup(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -13006,7 +13006,7 @@ static void igroup(winptr win, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -13019,7 +13019,7 @@ void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -13041,7 +13041,7 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-static void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ibackgroundg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13052,7 +13052,7 @@ static void ibackgroundg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-static void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ibackground(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13065,7 +13065,7 @@ static void ibackground(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13078,7 +13078,7 @@ void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13100,7 +13100,7 @@ scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-static void iscrollvertsizg(winptr win, int* w, int* h)
+static void iscrollvertsizg(winptr win, long* w, long* h)
 
 {
 
@@ -13111,7 +13111,7 @@ static void iscrollvertsizg(winptr win, int* w, int* h)
 
 }
 
-static void iscrollvertsiz(winptr win, int* w, int* h)
+static void iscrollvertsiz(winptr win, long* w, long* h)
 
 {
 
@@ -13121,7 +13121,7 @@ static void iscrollvertsiz(winptr win, int* w, int* h)
 
 }
 
-void ami_scrollvertsizg(FILE* f, int* w, int* h)
+void ami_scrollvertsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -13134,7 +13134,7 @@ void ami_scrollvertsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_scrollvertsiz(FILE* f, int* w, int* h)
+void ami_scrollvertsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -13155,7 +13155,7 @@ Creates a vertical scrollbar.
 
 *******************************************************************************/
 
-static void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollvertg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13165,7 +13165,7 @@ static void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     widget(win, x1, y1, x2, y2, "", id, wtscrollvert, 0, &wp);
-    /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
+    /* The scroll set for windows is arbitrary. We expand that to 0..LONG_MAX on
        messages. */
     unlockmain(); /* end exclusive access */
     b = SetScrollRange(wp->han, SB_CTL, 0, 255, FALSE);
@@ -13182,7 +13182,7 @@ static void iscrollvertg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-static void iscrollvert(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollvert(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13195,7 +13195,7 @@ static void iscrollvert(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13208,7 +13208,7 @@ void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13230,7 +13230,7 @@ horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-static void iscrollhorizsizg(winptr win, int* w, int* h)
+static void iscrollhorizsizg(winptr win, long* w, long* h)
 
 {
 
@@ -13241,7 +13241,7 @@ static void iscrollhorizsizg(winptr win, int* w, int* h)
 
 }
 
-static void iscrollhorizsiz(winptr win, int* w, int* h)
+static void iscrollhorizsiz(winptr win, long* w, long* h)
 
 {
 
@@ -13251,7 +13251,7 @@ static void iscrollhorizsiz(winptr win, int* w, int* h)
 
 }
 
-void ami_scrollhorizsizg(FILE* f, int* w, int* h)
+void ami_scrollhorizsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -13264,7 +13264,7 @@ void ami_scrollhorizsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_scrollhorizsiz(FILE* f, int* w, int* h)
+void ami_scrollhorizsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -13285,7 +13285,7 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-static void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollhorizg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13295,7 +13295,7 @@ static void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     widget(win, x1, y1, x2, y2, "", id, wtscrollhoriz, 0, &wp);
-    /* The scroll set for windows is arbitrary. We expand that to 0..INT_MAX on
+    /* The scroll set for windows is arbitrary. We expand that to 0..LONG_MAX on
        messages. */
     unlockmain(); /* end exclusive access */
     b = SetScrollRange(wp->han, SB_CTL, 0, 255, FALSE);
@@ -13312,7 +13312,7 @@ static void iscrollhorizg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-static void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iscrollhoriz(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13325,7 +13325,7 @@ static void iscrollhoriz(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13338,7 +13338,7 @@ void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13359,7 +13359,7 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-static void iscrollpos(winptr win, int id, int r)
+static void iscrollpos(winptr win, long id, long r)
 
 {
 
@@ -13374,15 +13374,15 @@ static void iscrollpos(winptr win, int id, int r)
     if (!wp) error(ewignf); /* not found */
     f = r; /* place position in float */
     /* clamp to max */
-    if (f*(255-wp->siz)/INT_MAX > 255) p = 255;
-    else p = f*(255-wp->siz)/INT_MAX;
+    if (f*(255-wp->siz)/LONG_MAX > 255) p = 255;
+    else p = f*(255-wp->siz)/LONG_MAX;
     unlockmain(); /* end exclusive access */
     rv = SetScrollPos(wp->han, SB_CTL, p, TRUE);
     lockmain();/* start exclusive access */
 
 }
 
-void ami_scrollpos(FILE* f, int id, int r)
+void ami_scrollpos(FILE* f, long id, long r)
 
 {
 
@@ -13403,7 +13403,7 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-static void iscrollsiz(winptr win, int id, int r)
+static void iscrollsiz(winptr win, long id, long r)
 
 {
 
@@ -13429,7 +13429,7 @@ static void iscrollsiz(winptr win, int id, int r)
 
 }
 
-void ami_scrollsiz(FILE* f, int id, int r)
+void ami_scrollsiz(FILE* f, long id, long r)
 
 {
 
@@ -13528,7 +13528,7 @@ select box is calculated and returned.
 
 *******************************************************************************/
 
-static void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
+static void inumselboxsizg(winptr win, long l, long u,  long* w, long* h)
 
 {
 
@@ -13548,7 +13548,7 @@ static void inumselboxsizg(winptr win, int l, int u,  int* w, int* h)
 
 }
 
-static void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
+static void inumselboxsiz(winptr win, long l, long u, long* w, long* h)
 
 {
 
@@ -13559,7 +13559,7 @@ static void inumselboxsiz(winptr win, int l, int u, int* w, int* h)
 
 }
 
-void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
 
 {
 
@@ -13572,7 +13572,7 @@ void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 }
 
-void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
 
 {
 
@@ -13593,8 +13593,8 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-static void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u,
-                 int id)
+static void inumselboxg(winptr win, long x1, long y1, long x2, long y2, long l, long u,
+                 long id)
 
 {
 
@@ -13648,8 +13648,8 @@ static void inumselboxg(winptr win, int x1, int y1, int x2, int y2, int l, int u
 
 }
 
-static void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
-                int id)
+static void inumselbox(winptr win, long x1, long y1, long x2, long y2, long l, long u,
+                long id)
 
 {
 
@@ -13662,7 +13662,7 @@ static void inumselbox(winptr win, int x1, int y1, int x2, int y2, int l, int u,
 
 }
 
-void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
 
 {
 
@@ -13675,7 +13675,7 @@ void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int i
 
 }
 
-void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
 
 {
 
@@ -13744,7 +13744,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-static void ieditboxsizg(winptr win, char* s, int* w, int* h)
+static void ieditboxsizg(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -13762,7 +13762,7 @@ static void ieditboxsizg(winptr win, char* s, int* w, int* h)
 
 }
 
-static void ieditboxsiz(winptr win, char* s, int* w, int* h)
+static void ieditboxsiz(winptr win, char* s, long* w, long* h)
 
 {
 
@@ -13773,7 +13773,7 @@ static void ieditboxsiz(winptr win, char* s, int* w, int* h)
 
 }
 
-void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -13786,7 +13786,7 @@ void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_editboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -13807,7 +13807,7 @@ Creates single line edit box
 
 *******************************************************************************/
 
-static void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ieditboxg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13824,7 +13824,7 @@ static void ieditboxg(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-static void ieditbox(winptr win, int x1, int y1, int x2, int y2, int id)
+static void ieditbox(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13837,7 +13837,7 @@ static void ieditbox(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_editboxg(FILE* f,  int x1, int y1, int x2, int y2, int id)
+void ami_editboxg(FILE* f,  long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13850,7 +13850,7 @@ void ami_editboxg(FILE* f,  int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13872,7 +13872,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-static void iprogbarsizg(winptr win, int* w, int* h)
+static void iprogbarsizg(winptr win, long* w, long* h)
 
 {
 
@@ -13884,7 +13884,7 @@ static void iprogbarsizg(winptr win, int* w, int* h)
 
 }
 
-static void iprogbarsiz(winptr win, int* w, int* h)
+static void iprogbarsiz(winptr win, long* w, long* h)
 
 {
 
@@ -13895,7 +13895,7 @@ static void iprogbarsiz(winptr win, int* w, int* h)
 
 };
 
-void ami_progbarsizg(FILE* f, int* w, int* h)
+void ami_progbarsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -13908,7 +13908,7 @@ void ami_progbarsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_progbarsiz(FILE* f, int* w, int* h)
+void ami_progbarsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -13929,7 +13929,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-static void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iprogbarg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13939,14 +13939,14 @@ static void iprogbarg(winptr win, int x1, int y1, int x2, int y2, int id)
     if (!win->visible) winvis(win); /* make sure we are displayed */
     /* create the progress bar */
     widget(win, x1, y1, x2, y2, "", id, wtprogressbar, 0, &wp);
-    /* use 0..INT_MAX ratio */
+    /* use 0..LONG_MAX ratio */
     unlockmain(); /* end exclusive access */
-    r = SendMessage(wp->han, PBM_SETRANGE32, 0, INT_MAX);
+    r = SendMessage(wp->han, PBM_SETRANGE32, 0, LONG_MAX);
     lockmain(); /* start exclusive access */
 
 }
 
-static void iprogbar(winptr win, int x1, int y1, int x2, int y2, int id)
+static void iprogbar(winptr win, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13959,7 +13959,7 @@ static void iprogbar(winptr win, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13972,7 +13972,7 @@ void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -13989,11 +13989,11 @@ void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 Set progress bar position
 
-Sets the position of a progress bar, from 0 to INT_MAX.
+Sets the position of a progress bar, from 0 to LONG_MAX.
 
 *******************************************************************************/
 
-static void iprogbarpos(winptr win, int id, int pos)
+static void iprogbarpos(winptr win, long id, long pos)
 
 {
 
@@ -14011,7 +14011,7 @@ static void iprogbarpos(winptr win, int id, int pos)
 
 }
 
-void ami_progbarpos(FILE* f, int id, int pos)
+void ami_progbarpos(FILE* f, long id, long pos)
 
 {
 
@@ -14040,7 +14040,7 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-static void ilistboxsizg(winptr win, ami_strptr sp, int* w, int* h)
+static void ilistboxsizg(winptr win, ami_strptr sp, long* w, long* h)
 
 {
 
@@ -14067,7 +14067,7 @@ static void ilistboxsizg(winptr win, ami_strptr sp, int* w, int* h)
 
 }
 
-static void ilistboxsiz(winptr win, ami_strptr sp, int* w, int* h)
+static void ilistboxsiz(winptr win, ami_strptr sp, long* w, long* h)
 
 {
 
@@ -14078,7 +14078,7 @@ static void ilistboxsiz(winptr win, ami_strptr sp, int* w, int* h)
 
 }
 
-void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
 
 {
 
@@ -14091,7 +14091,7 @@ void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h)
 
 }
 
-void ami_listboxsiz(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
 
 {
 
@@ -14112,7 +14112,7 @@ Creates a list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-static void ilistboxg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void ilistboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14133,7 +14133,7 @@ static void ilistboxg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
 
 }
 
-static void ilistbox(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void ilistbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14146,7 +14146,7 @@ static void ilistbox(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp, 
 
 }
 
-void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14159,7 +14159,7 @@ void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id
 
 }
 
-void ami_listbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14206,8 +14206,8 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-static void idropboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
-                         int* ow, int* oh)
+static void idropboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
+                         long* ow, long* oh)
 
 {
 
@@ -14245,8 +14245,8 @@ static void idropboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
 
 }
 
-static void idropboxsiz(winptr win, ami_strptr sp, int* cw, int* ch,
-                        int* ow, int* oh)
+static void idropboxsiz(winptr win, ami_strptr sp, long* cw, long* ch,
+                        long* ow, long* oh)
 
 {
 
@@ -14259,7 +14259,7 @@ static void idropboxsiz(winptr win, ami_strptr sp, int* cw, int* ch,
 
 }
 
-void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -14272,7 +14272,7 @@ void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void ami_dropboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -14293,8 +14293,8 @@ Creates a dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-static void idropboxg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
-                      int id)
+static void idropboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
+                      long id)
 
 {
 
@@ -14321,8 +14321,8 @@ static void idropboxg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
 
 }
 
-static void idropbox(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
-                     int id)
+static void idropbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
+                     long id)
 
 {
 
@@ -14335,7 +14335,7 @@ static void idropbox(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
 
 }
 
-void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14348,7 +14348,7 @@ void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id
 
 }
 
-void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14375,8 +14375,8 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-static void idropeditboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
-                             int* ow, int* oh)
+static void idropeditboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
+                             long* ow, long* oh)
 
 {
 
@@ -14414,7 +14414,7 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, int* cw, int* ch,
 
 }
 
-static void idropeditboxsiz(winptr win, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void idropeditboxsiz(winptr win, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -14427,7 +14427,7 @@ static void idropeditboxsiz(winptr win, ami_strptr sp, int* cw, int* ch, int* ow
 
 }
 
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -14440,7 +14440,7 @@ void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int*
 
 }
 
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -14464,8 +14464,8 @@ box.
 
 *******************************************************************************/
 
-static void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
-                   int id)
+static void idropeditboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
+                   long id)
 
 {
 
@@ -14493,7 +14493,7 @@ static void idropeditboxg(winptr win, int x1, int y1, int x2, int y2, ami_strptr
 
 }
 
-static void idropeditbox(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void idropeditbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14506,7 +14506,7 @@ static void idropeditbox(winptr win, int x1, int y1, int x2, int y2, ami_strptr 
 
 }
 
-void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14519,7 +14519,7 @@ void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, in
 
 }
 
-void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -14541,7 +14541,7 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-static void islidehorizsizg(winptr win, int* w, int* h)
+static void islidehorizsizg(winptr win, long* w, long* h)
 
 {
 
@@ -14552,7 +14552,7 @@ static void islidehorizsizg(winptr win, int* w, int* h)
 
 }
 
-static void islidehorizsiz(winptr win, int* w, int* h)
+static void islidehorizsiz(winptr win, long* w, long* h)
 
 {
 
@@ -14563,7 +14563,7 @@ static void islidehorizsiz(winptr win, int* w, int* h)
 
 }
 
-void ami_slidehorizsizg(FILE* f, int* w, int* h)
+void ami_slidehorizsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -14576,7 +14576,7 @@ void ami_slidehorizsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_slidehorizsiz(FILE* f, int* w, int* h)
+void ami_slidehorizsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -14599,7 +14599,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-static void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidehorizg(winptr win, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14618,7 +14618,7 @@ static void islidehorizg(winptr win, int x1, int y1, int x2, int y2, int mark, i
 
 }
 
-static void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidehoriz(winptr win, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14631,7 +14631,7 @@ static void islidehoriz(winptr win, int x1, int y1, int x2, int y2, int mark, in
 
 }
 
-void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14644,7 +14644,7 @@ void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14666,7 +14666,7 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-static void islidevertsizg(winptr win, int* w, int* h)
+static void islidevertsizg(winptr win, long* w, long* h)
 
 {
 
@@ -14677,7 +14677,7 @@ static void islidevertsizg(winptr win, int* w, int* h)
 
 }
 
-static void islidevertsiz(winptr win, int* w, int* h)
+static void islidevertsiz(winptr win, long* w, long* h)
 
 {
 
@@ -14688,7 +14688,7 @@ static void islidevertsiz(winptr win, int* w, int* h)
 
 }
 
-void ami_slidevertsizg(FILE* f, int* w, int* h)
+void ami_slidevertsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -14701,7 +14701,7 @@ void ami_slidevertsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_slidevertsiz(FILE* f, int* w, int* h)
+void ami_slidevertsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -14724,8 +14724,8 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-static void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark,
-                        int id)
+static void islidevertg(winptr win, long x1, long y1, long x2, long y2, long mark,
+                        long id)
 
 {
 
@@ -14744,7 +14744,7 @@ static void islidevertg(winptr win, int x1, int y1, int x2, int y2, int mark,
 
 }
 
-static void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int id)
+static void islidevert(winptr win, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14757,7 +14757,7 @@ static void islidevert(winptr win, int x1, int y1, int x2, int y2, int mark, int
 
 }
 
-void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14770,7 +14770,7 @@ void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -14836,8 +14836,8 @@ calculated and returned.
 
 *******************************************************************************/
 
-static void itabbarsizg(winptr win, ami_tabori tor, int cw, int ch, int* w, int* h,
-                        int* ox, int* oy)
+static void itabbarsizg(winptr win, ami_tabori tor, long cw, long ch, long* w, long* h,
+                        long* ox, long* oy)
 
 {
 
@@ -14881,12 +14881,12 @@ static void itabbarsizg(winptr win, ami_tabori tor, int cw, int ch, int* w, int*
 
 }
 
-static void itabbarsiz(winptr win, ami_tabori tor, int cw, int ch, int* w, int* h,
-                       int* ox, int* oy)
+static void itabbarsiz(winptr win, ami_tabori tor, long cw, long ch, long* w, long* h,
+                       long* ox, long* oy)
 
 {
 
-    int gw, gh, gox, goy;
+    long gw, gh, gox, goy;
 
     /* convert client sizes to graphical */
     cw = cw*win->charspace;
@@ -14903,8 +14903,8 @@ static void itabbarsiz(winptr win, ami_tabori tor, int cw, int ch, int* w, int* 
 
 }
 
-void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-                int* ox, int* oy)
+void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                long* ox, long* oy)
 
 {
 
@@ -14917,8 +14917,8 @@ void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-               int* ox, int* oy)
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+               long* ox, long* oy)
 
 {
 
@@ -14941,8 +14941,8 @@ flexible.
 
 *******************************************************************************/
 
-static void itabbarclientg(winptr win, ami_tabori tor, int w, int h, int* cw, int* ch,
-                           int* ox, int* oy)
+static void itabbarclientg(winptr win, ami_tabori tor, long w, long h, long* cw, long* ch,
+                           long* ox, long* oy)
 
 {
 
@@ -14986,12 +14986,12 @@ static void itabbarclientg(winptr win, ami_tabori tor, int w, int h, int* cw, in
 
 }
 
-static void itabbarclient(winptr win, ami_tabori tor, int w, int h, int* cw, int* ch,
-                          int* ox, int* oy)
+static void itabbarclient(winptr win, ami_tabori tor, long w, long h, long* cw, long* ch,
+                          long* ox, long* oy)
 
 {
 
-    int gw, gh, gox, goy;
+    long gw, gh, gox, goy;
 
     /* convert sizes to graphical */
     w = w*win->charspace;
@@ -15008,8 +15008,8 @@ static void itabbarclient(winptr win, ami_tabori tor, int w, int h, int* cw, int
 
 }
 
-void ami_tabbarclientg(FILE* f, ami_tabori tor, int w, int h, int*  cw, int* ch,
-                   int* ox, int* oy)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long*  cw, long* ch,
+                   long* ox, long* oy)
 
 {
 
@@ -15022,8 +15022,8 @@ void ami_tabbarclientg(FILE* f, ami_tabori tor, int w, int h, int*  cw, int* ch,
 
 }
 
-void ami_tabbarclient(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                  int* ox, int* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                  long* ox, long* oy)
 
 {
 
@@ -15048,8 +15048,8 @@ creating and distroying another widget.
 
 *******************************************************************************/
 
-static void itabbarg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
-                     ami_tabori tor, int id)
+static void itabbarg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
+                     ami_tabori tor, long id)
 
 {
 
@@ -15090,8 +15090,8 @@ static void itabbarg(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
 
 }
 
-static void itabbar(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
-                    ami_tabori tor, int id)
+static void itabbar(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
+                    ami_tabori tor, long id)
 
 {
 
@@ -15104,8 +15104,8 @@ static void itabbar(winptr win, int x1, int y1, int x2, int y2, ami_strptr sp,
 
 }
 
-void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor,
-             int id)
+void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor,
+             long id)
 
 {
 
@@ -15118,8 +15118,8 @@ void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tab
 
 }
 
-void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor,
-            int id)
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor,
+            long id)
 
 {
 
@@ -15141,7 +15141,7 @@ of the tab.
 
 *******************************************************************************/
 
-static void itabsel(winptr win, int id, int tn)
+static void itabsel(winptr win, long id, long tn)
 
 {
 
@@ -15159,7 +15159,7 @@ static void itabsel(winptr win, int id, int tn)
 
 }
 
-void ami_tabsel(FILE* f, int id, int tn)
+void ami_tabsel(FILE* f, long id, long tn)
 
 {
 
@@ -15209,7 +15209,7 @@ Bug: does not take the input color as the default.
 
 *******************************************************************************/
 
-void ami_querycolor(int* r, int* g, int* b)
+void ami_querycolor(long* r, long* g, long* b)
 
 {
 
@@ -15251,7 +15251,7 @@ result.
 
 *******************************************************************************/
 
-void ami_queryopen(char* s, int sl)
+void ami_queryopen(char* s, long sl)
 
 {
 
@@ -15294,7 +15294,7 @@ result.
 
 *******************************************************************************/
 
-void ami_querysave(char* s, int sl)
+void ami_querysave(char* s, long sl)
 
 {
 
@@ -15341,7 +15341,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void ami_queryfind(char* s, int sl, int* opt)
+void ami_queryfind(char* s, long sl, long* opt)
 
 {
 
@@ -15382,7 +15382,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void ami_queryfindrep(char* s, int sl, char* r, int rl, int* opt)
+void ami_queryfindrep(char* s, long sl, char* r, long rl, long* opt)
 
 {
 
@@ -15427,7 +15427,7 @@ user as the defaults.
 
 /* find font number in fonts list */
 
-static int fndfntnum(winptr win, char* fns)
+static long fndfntnum(winptr win, char* fns)
 
 {
 
@@ -15452,8 +15452,8 @@ static int fndfntnum(winptr win, char* fns)
 
 }
 
-static void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb,
-                       int* br, int* bg, int* bb, int* effect)
+static void iqueryfont(winptr win, long* fc, long* s, long* fr, long* fg, long* fb,
+                       long* br, long* bg, long* bb, long* effect)
 
 {
 
@@ -15491,8 +15491,8 @@ static void iqueryfont(winptr win, int* fc, int* s, int* fr, int* fg, int* fb,
 
 }
 
-void ami_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-               int* br, int* bg, int* bb, int* effect)
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+               long* br, long* bg, long* bb, long* effect)
 
 {
 
