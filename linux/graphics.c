@@ -561,18 +561,27 @@ typedef struct winrec {
     int          bookfnt;           /* book font number */
     int          signfnt;           /* sign font number */
     int          techfnt;           /* technical font number */
-    int          mb1;               /* mouse assert status button 1 */
-    int          mb2;               /* mouse assert status button 2 */
-    int          mb3;               /* mouse assert status button 3 */
-    int          mb4;               /* mouse assert status button 4 */
-    int          mb5;               /* mouse assert status button 5 */
+    int          mb1;               /* button 1 asserted (delivered level) */
+    int          mb2;               /* button 2 asserted (delivered level) */
+    int          mb3;               /* button 3 asserted (delivered level) */
+    int          mb4;               /* button 4 asserted (delivered level) */
+    int          mb5;               /* button 5 asserted (delivered level) */
     long         mpx, mpy;          /* mouse current position */
     long         mpxg, mpyg;        /* mouse current position graphical */
-    int          nmb1;              /* new mouse assert status button 1 */
-    int          nmb2;              /* new mouse assert status button 2 */
-    int          nmb3;              /* new mouse assert status button 3 */
-    int          nmb4;              /* new mouse assert status button 4 */
-    int          nmb5;              /* new mouse assert status button 5 */
+    /* Pending button presses/releases are counted, not levelled, so a press
+       and its release that both arrive before either can be delivered (e.g.
+       behind pending motion) are not collapsed -- every edge is preserved and
+       delivered in order (see mouseevent/mouseupdate). */
+    int          nmb1;              /* pending presses button 1 */
+    int          nmb2;              /* pending presses button 2 */
+    int          nmb3;              /* pending presses button 3 */
+    int          nmb4;              /* pending presses button 4 */
+    int          nmb5;              /* pending presses button 5 */
+    int          rmb1;              /* pending releases button 1 */
+    int          rmb2;              /* pending releases button 2 */
+    int          rmb3;              /* pending releases button 3 */
+    int          rmb4;              /* pending releases button 4 */
+    int          rmb5;              /* pending releases button 5 */
     long         nmpx, nmpy;        /* new mouse current position */
     long         nmpxg, nmpyg;      /* new mouse current position graphical */
     int          linespace;         /* line spacing in pixels */
@@ -5665,11 +5674,16 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
     win->mpy = 1;
     win->mpxg = 1;
     win->mpyg = 1;
-    win->nmb1 = FALSE;
-    win->nmb2 = FALSE;
-    win->nmb3 = FALSE;
-    win->nmb4 = FALSE;
-    win->nmb5 = FALSE;
+    win->nmb1 = 0; /* no pending presses */
+    win->nmb2 = 0;
+    win->nmb3 = 0;
+    win->nmb4 = 0;
+    win->nmb5 = 0;
+    win->rmb1 = 0; /* no pending releases */
+    win->rmb2 = 0;
+    win->rmb3 = 0;
+    win->rmb4 = 0;
+    win->rmb5 = 0;
     win->nmpx = 1;
     win->nmpy = 1;
     win->nmpxg = 1;
@@ -12328,84 +12342,89 @@ static void mouseupdate(winptr win, ami_evtrec* er, int* keep)
         win->mpyg = win->nmpyg;
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb1 > win->mb1) {
+    /* Drain pending button edges after moves. A button is asserted only while
+       not already asserted, and deasserted only while asserted, so presses and
+       releases are delivered in strict alternation and in order -- a click that
+       queued behind pending motion still surfaces once the moves drain, and a
+       press is never cancelled by a following release. */
+    } else if (!win->mb1 && win->nmb1) {
 
        er->etype = ami_etmouba; /* button 1 assert */
        er->amoun = 1; /* mouse 1 */
        er->amoubn = 1; /* button 1 */
-       win->mb1 = win->nmb1; /* update status */
+       win->nmb1--; win->mb1 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb2 > win->mb2) {
+    } else if (!win->mb2 && win->nmb2) {
 
        er->etype = ami_etmouba; /* button 2 assert */
        er->amoun = 1; /* mouse 1 */
        er->amoubn = 2; /* button 2 */
-       win->mb2 = win->nmb2; /* update status */
+       win->nmb2--; win->mb2 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb3 > win->mb3) {
+    } else if (!win->mb3 && win->nmb3) {
 
        er->etype = ami_etmouba; /* button 3 assert */
        er->amoun = 1; /* mouse 1 */
        er->amoubn = 3; /* button 3 */
-       win->mb3 = win->nmb3; /* update status */
+       win->nmb3--; win->mb3 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb4 > win->mb4) {
+    } else if (!win->mb4 && win->nmb4) {
 
        er->etype = ami_etmouba; /* button 4 assert */
        er->amoun = 1; /* mouse 1 */
-       er->amoubn = 4; /* button 3 */
-       win->mb4 = win->nmb4; /* update status */
+       er->amoubn = 4; /* button 4 */
+       win->nmb4--; win->mb4 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb5 > win->mb5) {
+    } else if (!win->mb5 && win->nmb5) {
 
        er->etype = ami_etmouba; /* button 5 assert */
        er->amoun = 1; /* mouse 1 */
-       er->amoubn = 5; /* button 3 */
-       win->mb5 = win->nmb5; /* update status */
+       er->amoubn = 5; /* button 5 */
+       win->nmb5--; win->mb5 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb1 < win->mb1) {
+    } else if (win->mb1 && win->rmb1) {
 
        er->etype = ami_etmoubd; /* button 1 deassert */
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 1; /* button 1 */
-       win->mb1 = win->nmb1; /* update status */
+       win->rmb1--; win->mb1 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb2 < win->mb2) {
+    } else if (win->mb2 && win->rmb2) {
 
        er->etype = ami_etmoubd; /* button 2 deassert */
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 2; /* button 2 */
-       win->mb2 = win->nmb2; /* update status */
+       win->rmb2--; win->mb2 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb3 < win->mb3) {
+    } else if (win->mb3 && win->rmb3) {
 
        er->etype = ami_etmoubd; /* button 3 deassert */
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 3; /* button 3 */
-       win->mb3 = win->nmb3; /* update status */
+       win->rmb3--; win->mb3 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb4 < win->mb4) {
+    } else if (win->mb4 && win->rmb4) {
 
        er->etype = ami_etmoubd; /* button 4 deassert */
        er->dmoun = 1; /* mouse 1 */
-       er->dmoubn = 4; /* button 3 */
-       win->mb4 = win->nmb4; /* update status */
+       er->dmoubn = 4; /* button 4 */
+       win->rmb4--; win->mb4 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb5 < win->mb5) {
+    } else if (win->mb5 && win->rmb5) {
 
        er->etype = ami_etmoubd; /* button 5 deassert */
        er->dmoun = 1; /* mouse 1 */
-       er->dmoubn = 5; /* button 3 */
-       win->mb5 = win->nmb5; /* update status */
+       er->dmoubn = 5; /* button 5 */
+       win->rmb5--; win->mb5 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
     }
@@ -12428,19 +12447,21 @@ static void mouseevent(winptr win, XEvent* e)
 
     } else if (e->type == ButtonPress) {
 
-        if (e->xbutton.button == Button1) win->nmb1 = TRUE;
-        else if (e->xbutton.button == Button2) win->nmb2 = TRUE;
-        else if (e->xbutton.button == Button3) win->nmb3 = TRUE;
-        else if (e->xbutton.button == Button4) win->nmb4 = TRUE;
-        else if (e->xbutton.button == Button5) win->nmb5 = TRUE;
+        /* queue a press (counted, not levelled -- see mouseupdate) */
+        if (e->xbutton.button == Button1) win->nmb1++;
+        else if (e->xbutton.button == Button2) win->nmb2++;
+        else if (e->xbutton.button == Button3) win->nmb3++;
+        else if (e->xbutton.button == Button4) win->nmb4++;
+        else if (e->xbutton.button == Button5) win->nmb5++;
 
     } else if (e->type == ButtonRelease) {
 
-        if (e->xbutton.button == Button1) win->nmb1 = FALSE;
-        else if (e->xbutton.button == Button2) win->nmb2 = FALSE;
-        else if (e->xbutton.button == Button3) win->nmb3 = FALSE;
-        else if (e->xbutton.button == Button4) win->nmb4 = FALSE;
-        else if (e->xbutton.button == Button5) win->nmb5 = FALSE;
+        /* queue a release */
+        if (e->xbutton.button == Button1) win->rmb1++;
+        else if (e->xbutton.button == Button2) win->rmb2++;
+        else if (e->xbutton.button == Button3) win->rmb3++;
+        else if (e->xbutton.button == Button4) win->rmb4++;
+        else if (e->xbutton.button == Button5) win->rmb5++;
 
     }
 
@@ -13386,12 +13407,13 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
            window. */
         if (*keep && er->etype == ami_etmouba && er->amoubn == 1 && !win->focus) {
 
-            /* We will fake focus. We still need to process the mouse click, so
-               we will send the focus event on ahead. */
-            ff = remfocus(root(win), win); /* remove focus from whatever window has it */
-            if (!ff) error(esystem); /* couldn't find focus window */
-            er2.etype = ami_etfocus; /* set focus event */
-            isendevent(win, &er2); /* send it */
+            /* A button 1 click in an unfocused window fakes focus onto it. This
+               fires whenever the window is not marked focused -- a child window
+               the WM never focuses, and also any top-level window under a bare
+               X server with no window manager to assign input focus at all.
+               remfocus returning 0 (no window currently holds focus) is normal
+               in the bare-X case and not an error. */
+            remfocus(root(win), win); /* drop focus from whatever holds it */
             curoff(win); /* remove cursor */
             win->focus = TRUE; /* put focus */
             curon(win); /* replace cursor */
@@ -13399,6 +13421,14 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             XWLOCK();
             XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
             XWUNLOCK();
+            /* Deliver focus ahead of the click without dropping the click: the
+               click is requeued to follow, and this event becomes the focus
+               notification. (The previous code left the click in er and sent
+               the focus event on the queue, but the queued focus event then
+               displaced the click, and the click was lost.) */
+            enquepaevt(er); /* requeue the click (etmouba) to follow */
+            er->etype = ami_etfocus; /* deliver focus now */
+            er->winid = win->wid;
 
         }
 #endif
@@ -13499,6 +13529,37 @@ static void xwinprc(XEvent* e, ami_evtrec* er, int* keep)
 
 }
 
+/* Deliver a pending mouse state change without a fresh X event.
+
+   mouseupdate delivers at most one change per call and prioritizes moves over
+   button edges, so a click that arrived behind pending motion -- and the tail
+   assert/deassert once motion stops -- can be left queued in the window with no
+   further X event to trigger delivery (a bare X server with no motion after the
+   click never sends one). Scan the open windows and let mouseupdate emit one
+   such pending change before we block waiting for input. Cheap and a no-op when
+   nothing is pending (mouseupdate simply falls through). */
+static void mousedrain(ami_evtrec* er, int* keep)
+
+{
+
+    int    fi;   /* file index */
+    winptr win;  /* window record pointer */
+
+    for (fi = 0; fi < MAXFIL && !*keep; fi++)
+        if (opnfil[fi]) {
+
+            win = opnfil[fi]->win;
+            if (win) { /* it's a window file */
+
+                er->winid = win->wid; /* identify the window */
+                mouseupdate(win, er, keep); /* deliver one pending change */
+
+            }
+
+        }
+
+}
+
 /* get and process XWindow event */
 static void xwinget(ami_evtrec* er, int* keep)
 
@@ -13536,6 +13597,8 @@ static void xwinget(ami_evtrec* er, int* keep)
         }
 
     } while (rv && !*keep);
+    /* the X queue is drained; deliver any mouse state left pending behind it */
+    if (!*keep) mousedrain(er, keep);
 
 }
 

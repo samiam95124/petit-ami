@@ -8212,6 +8212,31 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
 
         }
 
+    } else if (msg->message == WM_EXITSIZEMOVE) { /* end of interactive move/size */
+
+        if (!win->bufmod) {
+
+            /* During the interactive sizing modal loop, sizing requests the
+               program issues in response to resize events (say, resizing
+               child windows to track the parent) can be applied out of order
+               against the drag, leaving stale final geometry. Deliver one
+               final resize with the settled client size so the program makes
+               an authoritative last pass. */
+            b = GetClientRect(win->winhan, &cr); /* get the settled size */
+            win->gmaxxg = cr.right; /* set x size */
+            win->gmaxyg = cr.bottom; /* set y size */
+            win->gmaxx = win->gmaxxg / win->charspace; /* find character size x */
+            win->gmaxy = win->gmaxyg / win->linespace; /* find character size y */
+            win->screens[win->curdsp-1]->maxx = win->gmaxx; /* copy to screen control */
+            win->screens[win->curdsp-1]->maxy = win->gmaxy;
+            win->screens[win->curdsp-1]->maxxg = win->gmaxxg;
+            win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
+            /* place the resize message */
+            er->etype = ami_etresize; /* set resize message */
+            *keep = TRUE; /* set keep event */
+
+        }
+
     } else if (msg->message == WM_CHAR) keyevent(er, msg, keep); /* process characters */
     else if (msg->message == WM_KEYDOWN) {
 
@@ -10099,6 +10124,51 @@ static void kilwin(HWND wh)
 
 /*******************************************************************************
 
+Find window rectangle for client at the window's DPI
+
+This process is set per monitor DPI aware at initialization, and in such a
+process AdjustWindowRectEx computes with 96 DPI frame metrics while the
+actual window frames scale with the monitor's DPI -- the calculated frame
+is too small on a scaled display (a window sized for a given client comes
+up short by the scaling difference). AdjustWindowRectExForDpi (windows 10
+1607 and later) computes with the window's real DPI. Resolved dynamically
+with a fallback to the plain call for older systems.
+
+*******************************************************************************/
+
+static BOOL adjwinrect(winptr win, RECT* cr, DWORD fl, BOOL menu)
+
+{
+
+    typedef BOOL (WINAPI *awrfd_t)(LPRECT, DWORD, BOOL, DWORD, UINT);
+    typedef UINT (WINAPI *gdfw_t)(HWND);
+
+    static awrfd_t awrfd = NULL; /* AdjustWindowRectExForDpi */
+    static gdfw_t  gdfw = NULL;  /* GetDpiForWindow */
+    static int     dpiinit = FALSE;
+
+    if (!dpiinit) {
+
+        HMODULE u32 = GetModuleHandle("user32.dll");
+
+        if (u32) {
+
+            awrfd = (awrfd_t)GetProcAddress(u32, "AdjustWindowRectExForDpi");
+            gdfw = (gdfw_t)GetProcAddress(u32, "GetDpiForWindow");
+
+        }
+        dpiinit = TRUE;
+
+    }
+    if (awrfd && gdfw && win->winhan)
+        return (awrfd(cr, fl, menu, 0, gdfw(win->winhan)));
+
+    return (AdjustWindowRectEx(cr, fl, menu, 0));
+
+}
+
+/*******************************************************************************
+
 Open and present window
 
 Given a windows record, opens and presents the window associated with it. All
@@ -10323,7 +10393,7 @@ static void opnwin(int fn, int pfn)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    b = adjwinrect(win, &cr, WS_OVERLAPPEDWINDOW, FALSE);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our character mode */
     unlockmain(); /* end exclusive access */
@@ -10649,7 +10719,7 @@ static void isizbufg(winptr win, long x, long y)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    b = adjwinrect(win, &cr, WS_OVERLAPPEDWINDOW, FALSE);
     if (!b) winerr(); /* process windows error */
     /* now, resize the window to just fit our new buffer size */
     unlockmain(); /* end exclusive access */
@@ -10746,7 +10816,7 @@ static void ibuffer(winptr win, long e)
         r.right = win->gmaxxg;
         r.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(&r, WS_OVERLAPPEDWINDOW, FALSE, 0);
+        b = adjwinrect(win, &r, WS_OVERLAPPEDWINDOW, FALSE);
         if (!b) winerr(); /* process windows error */
         /* resize the window to just fit our buffer size */
         unlockmain(); /* end exclusive access */
@@ -10888,6 +10958,32 @@ static void createmenu(winptr win, ami_menuptr m, HMENU* mh)
 
 }
 
+/* size of the sizing grip zones on frameless sizable windows */
+#define GRIPSIZ 6
+
+/* Reduce a constructed style for a caption-less top level window. Such a
+   window is based on WS_POPUP: WS_OVERLAPPED (value zero) implies a caption
+   and border on any top level window regardless of the absent style bits,
+   which shrinks the client below the calculated size (a strip of missing
+   pixels above the client). It also carries no sizing frame: the frame
+   would draw a strip of pixels over the top of the client where the
+   caption would have been; when the window is sizable, WM_NCHITTEST
+   provides the edge sizing grips instead. WS_CAPTION is
+   WS_BORDER|WS_DLGFRAME, so the test is for the full combination. */
+static int redstyle(int fl)
+{
+
+    if (!(fl & WS_CHILD) && (fl & WS_CAPTION) != WS_CAPTION) {
+
+        fl &= ~WS_THICKFRAME;
+        fl |= WS_POPUP;
+
+    }
+
+    return (fl);
+
+}
+
 static void imenu(winptr win, ami_menuptr m)
 
 {
@@ -10932,13 +11028,14 @@ static void imenu(winptr win, ami_menuptr m)
         fl1 |= WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
     /* add flags for child window */
     if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
+    fl1 = redstyle(fl1); /* reduce for caption-less window */
     /* change window size to match new mode */
     cr.left = 0; /* set up desired client rectangle */
     cr.top = 0;
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, fl1, TRUE, 0);
+    b = adjwinrect(win, &cr, fl1, TRUE);
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11517,8 +11614,9 @@ static void iwinclientg(winptr win, long cx, long cy, long* wx, long* wy,
                                          WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 
     }
+    fl = redstyle(fl); /* reduce for caption-less window */
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, fl, FALSE, 0);
+    b = adjwinrect(win, &cr, fl, FALSE);
     if (!b) winerr(); /* process windows error */
     *wx = cr.right-cr.left; /* return window size */
     *wy = cr.bottom-cr.top;
@@ -11621,6 +11719,7 @@ static void iframe(winptr win, long e)
                                WS_MAXIMIZEBOX;
 
     }
+    fl1 = redstyle(fl1); /* reduce for caption-less window */
     unlockmain(); /* end exclusive access */
     r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
     lockmain(); /* start exclusive access */
@@ -11640,7 +11739,7 @@ static void iframe(winptr win, long e)
     cr.right = win->gmaxxg;
     cr.bottom = win->gmaxyg;
     /* find window size from client size */
-    b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+    b = adjwinrect(win, &cr, fl1, FALSE);
     if (!b) winerr(); /* process windows error */
     unlockmain(); /* end exclusive access */
     b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11696,6 +11795,7 @@ static void isizable(winptr win, long e)
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
+        fl1 = redstyle(fl1); /* reduce for caption-less window */
         unlockmain(); /* end exclusive access */
         r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
@@ -11715,7 +11815,7 @@ static void isizable(winptr win, long e)
         cr.right = win->gmaxxg;
         cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+        b = adjwinrect(win, &cr, fl1, FALSE);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -11773,6 +11873,7 @@ static void isysbar(winptr win, long e)
         if (win->parhan) fl1 |= WS_CHILD | WS_CLIPSIBLINGS;
         /* if we are enabling frames, add the frame parts back */
         if (e) fl1 |= WS_THICKFRAME;
+        fl1 = redstyle(fl1); /* reduce for caption-less window */
         unlockmain(); /* end exclusive access */
         r = SetWindowLong(win->winhan, GWL_STYLE, fl1);
         lockmain(); /* start exclusive access */
@@ -11792,7 +11893,7 @@ static void isysbar(winptr win, long e)
         cr.right = win->gmaxxg;
         cr.bottom = win->gmaxyg;
         /* find window size from client size */
-        b = AdjustWindowRectEx(&cr, fl1, FALSE, 0);
+        b = adjwinrect(win, &cr, fl1, FALSE);
         if (!b) winerr(); /* process windows error */
         unlockmain(); /* end exclusive access */
         b = SetWindowPos(win->winhan, 0, 0, 0,
@@ -14211,37 +14312,43 @@ static void idropboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
 
 {
 
-    /* I can't find a reasonable system metrics version of the drop arrow
-       demensions, so they are hardcoded here. */
-    const int darrowx = 17;
-    const int darrowy = 20;
+    int darrowx; /* drop arrow width */
 
-    SIZE sz; /* size holder */
-    BOOL b;  /* return value */
-    HDC  dc; /* dc for screen */
+    SIZE sz;    /* size holder */
+    HWND mh;    /* measuring combo box */
+    RECT wr;    /* window rectangle */
+    int  itemh; /* drop list item height */
+    int  n;     /* string list entry count */
 
-    /* calculate first line */
-    getsizlin(sp->str, &sz); /* find sizing for line */
-    /* Find size of string x, drop arrow width, box edges, and add fudge factor
-      to space text out. */
-    *cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-    *ow = *cw; /* open is the same */
-    /* drop arrow height+shadow overhead+drop box bounding */
-    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
-    /* drop arrow height+shadow overhead */
-    *ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
-    /* add all lines to drop box section */
+    /* the drop arrow is a scroll bar width at the display's scaling */
+    darrowx = GetSystemMetrics(SM_CXVSCROLL);
+    /* The control chooses its own closed height, and trims the drop section
+       to a whole number of items, so measure a throwaway combo box instead
+       of predicting its metrics. */
+    mh = CreateWindowEx(0, "combobox", "", WS_POPUP | CBS_DROPDOWNLIST,
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    itemh = SendMessage(mh, CB_GETITEMHEIGHT, 0, 0); /* drop list item height */
+    if (!GetWindowRect(mh, &wr)) winerr(); /* the closed height it took */
+    DestroyWindow(mh);
+    *ch = wr.bottom-wr.top; /* closed height the control enforces */
+    *cw = 0; /* clear widths for maximum search */
+    n = 0; /* clear string count */
     while (sp) { /* traverse string list */
 
         getsizlin(sp->str, &sz); /* find sizing for this line */
-        /* find open width on this string only */
+        /* Find size of string x, drop arrow width, box edges, and add fudge
+           factor to space text out. */
         *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
-        *oh = *oh+sz.cy; /* add to open height */
+        if (*ow > *cw) *cw = *ow; /* larger than others, set new max */
+        n++; /* count list entries */
         sp = sp->next; /* next string */
 
     }
-    *ow = *cw; /* set maximum open width */
+    *ow = *cw; /* open width is the same as closed */
+    /* closed section, drop list border, and a whole item per entry */
+    *oh = *ch+GetSystemMetrics(SM_CYEDGE)*2+n*itemh;
 
 }
 
@@ -14380,37 +14487,43 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
 
 {
 
-    /* I can"t find a reasonable system metrics version of the drop arrow
-       demensions, so they are hardcoded here. */
-    const int darrowx = 17;
-    const int darrowy = 20;
+    int darrowx; /* drop arrow width */
 
-    SIZE sz; /* size holder */
-    BOOL b;  /* return value */
-    HDC  dc; /* dc for screen */
+    SIZE sz;    /* size holder */
+    HWND mh;    /* measuring combo box */
+    RECT wr;    /* window rectangle */
+    int  itemh; /* drop list item height */
+    int  n;     /* string list entry count */
 
-    /* calculate first line */
-    getsizlin(sp->str, &sz); /* find sizing for line */
-    /* Find size of string x, drop arrow width, box edges, and add fudge factor
-       to space text out. */
-//    cw = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-    *ow = *cw; /* open is the same */
-    /* drop arrow height+shadow overhead+drop box bounding */
-    *oh = darrowy+GetSystemMetrics(SM_CYEDGE)*2+2;
-    /* drop arrow height+shadow overhead */
-//    ch = darrowy+GetSystemMetrics(SM_CYEDGE)*2;
-    /* add all lines to drop box section */
+    /* the drop arrow is a scroll bar width at the display's scaling */
+    darrowx = GetSystemMetrics(SM_CXVSCROLL);
+    /* The control chooses its own closed height, and trims the drop section
+       to a whole number of items, so measure a throwaway combo box instead
+       of predicting its metrics. */
+    mh = CreateWindowEx(0, "combobox", "", WS_POPUP | CBS_DROPDOWN,
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    itemh = SendMessage(mh, CB_GETITEMHEIGHT, 0, 0); /* drop list item height */
+    if (!GetWindowRect(mh, &wr)) winerr(); /* the closed height it took */
+    DestroyWindow(mh);
+    *ch = wr.bottom-wr.top; /* closed height the control enforces */
+    *cw = 0; /* clear widths for maximum search */
+    n = 0; /* clear string count */
     while (sp) { /* traverse string list */
 
         getsizlin(sp->str, &sz); /* find sizing for this line */
-        /* find open width on this string only */
+        /* Find size of string x, drop arrow width, box edges, and add fudge
+           factor to space text out. */
         *ow = sz.cx+darrowx+GetSystemMetrics(SM_CXEDGE)*2+4;
-        if (*ow > *cw) *cw = *ow; /* larger than closed width, set new max */
-        *oh = *oh+sz.cy; /* add to open height */
+        if (*ow > *cw) *cw = *ow; /* larger than others, set new max */
+        n++; /* count list entries */
         sp = sp->next; /* next string */
 
     }
-    *ow = *cw; /* set maximum open width */
+    *ow = *cw; /* open width is the same as closed */
+    /* closed section, drop list border, and a whole item per entry */
+    *oh = *ch+GetSystemMetrics(SM_CYEDGE)*2+n*itemh;
 
 }
 
@@ -14541,14 +14654,43 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
+/* Find the thumb length a trackbar will really use. The metric depends on
+   which common controls version is live in the process (the classic 5.x
+   thumb is fixed, the 6.0 thumb scales with the DPI), so measure a
+   throwaway trackbar rather than predicting it. */
+static int slidethumb(int vert)
+
+{
+
+    HWND mh;   /* measuring trackbar */
+    int  len;  /* thumb length */
+
+    mh = CreateWindowEx(0, TRACKBAR_CLASS, "",
+                        WS_POPUP | TBS_AUTOTICKS | (vert? TBS_VERT: TBS_HORZ),
+                        0, 0, 100, 100, NULL, NULL,
+                        GetModuleHandle(NULL), NULL);
+    if (!mh) winerr(); /* process windows error */
+    len = SendMessage(mh, TBM_GETTHUMBLENGTH, 0, 0);
+    DestroyWindow(mh);
+
+    return (len);
+
+}
+
 static void islidehorizsizg(winptr win, long* w, long* h)
 
 {
 
-    /* The width is that of an average slider. The height is what is needed to
-       present the slider, tick marks, and 2 pixels of spacing around it. */
-    *w = 200;
-    *h = 32;
+    HDC dc; /* screen dc */
+
+    /* The width is that of an average slider, scaled to the display DPI. The
+       height is what is needed to present the thumb, tick marks, and edge
+       spacing around them. */
+    dc = GetWindowDC(NULL);
+    if (!dc) winerr(); /* process windows error */
+    *w = 200*GetDeviceCaps(dc, LOGPIXELSX)/96;
+    ReleaseDC(NULL, dc);
+    *h = slidethumb(FALSE)+GetSystemMetrics(SM_CYEDGE)*2+12;
 
 }
 
@@ -14670,10 +14812,16 @@ static void islidevertsizg(winptr win, long* w, long* h)
 
 {
 
-    /* The height is that of an average slider. The width is what is needed to
-       present the slider, tick marks, and 2 pixels of spacing around it. */
-    *w = 32;
-    *h = 200;
+    HDC dc; /* screen dc */
+
+    /* The height is that of an average slider, scaled to the display DPI. The
+       width is what is needed to present the thumb, tick marks, and edge
+       spacing around them. */
+    *w = slidethumb(TRUE)+GetSystemMetrics(SM_CXEDGE)*2+12;
+    dc = GetWindowDC(NULL);
+    if (!dc) winerr(); /* process windows error */
+    *h = 200*GetDeviceCaps(dc, LOGPIXELSY)/96;
+    ReleaseDC(NULL, dc);
 
 }
 
@@ -15556,6 +15704,52 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
            small setsiz/setsizg requests. */
         r = 0;
 
+    } else if (imsg == WM_NCHITTEST) {
+
+        /* A caption-less top level window is styled frameless (a sizing
+           frame would draw a strip of pixels over the top of the client
+           where the caption would have been), so when the window is
+           sizable the sizing grips are provided here: points near the
+           window edges hit-test as the sizing borders. */
+        LONG st = GetWindowLong(hwnd, GWL_STYLE);
+        r = DefWindowProc(hwnd, imsg, wparam, lparam);
+        if (!(st & WS_CHILD) && (st & WS_CAPTION) != WS_CAPTION &&
+            r == HTCLIENT) {
+
+            lockmain(); /* start exclusive access */
+            ofn = hwn2lfn(hwnd); /* get logical output file */
+            win = NULL;
+            if (ofn) win = lfn2win(ofn); /* index window */
+            unlockmain(); /* end exclusive access */
+            /* Map the edge grips only when the window carries a frame and is
+               sizable: with the frame off entirely the window has no bars of
+               any kind, including sizing. */
+            if (win && win->size && win->frame) {
+
+                RECT  wr;
+                POINT pt;
+                int lft, rgt, top, bot;
+
+                pt.x = (short)LOWORD(lparam); /* screen point of the test */
+                pt.y = (short)HIWORD(lparam);
+                GetWindowRect(hwnd, &wr);
+                lft = pt.x < wr.left+GRIPSIZ;
+                rgt = pt.x >= wr.right-GRIPSIZ;
+                top = pt.y < wr.top+GRIPSIZ;
+                bot = pt.y >= wr.bottom-GRIPSIZ;
+                if (top && lft) r = HTTOPLEFT;
+                else if (top && rgt) r = HTTOPRIGHT;
+                else if (bot && lft) r = HTBOTTOMLEFT;
+                else if (bot && rgt) r = HTBOTTOMRIGHT;
+                else if (top) r = HTTOP;
+                else if (bot) r = HTBOTTOM;
+                else if (lft) r = HTLEFT;
+                else if (rgt) r = HTRIGHT;
+
+            }
+
+        }
+
     } else if (imsg == WM_PAINT) {
 
         lockmain(); /* start exclusive access */
@@ -15743,6 +15937,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT imsg, WPARAM wparam,
             case WM_HSCROLL: case WM_NOTIFY: case MM_JOY1MOVE: case MM_JOY2MOVE:
             case MM_JOY1ZMOVE: case MM_JOY2ZMOVE: case MM_JOY1BUTTONDOWN:
             case MM_JOY2BUTTONDOWN: case MM_JOY1BUTTONUP: case MM_JOY2BUTTONUP:
+            case WM_EXITSIZEMOVE:
 
 /*
 fprintf(stderr, "wndproc: passed to main: msg: %d ", msgcnt);
@@ -16771,5 +16966,184 @@ static void ami_deinit_graph(void)
         error(esystem);
     /* release control handler */
     SetConsoleCtrlHandler(NULL, FALSE);
+
+}
+
+/** ****************************************************************************
+
+Graphics call set completions
+
+These complete the windows implementation of the graphics call set so the
+full API links. The widget related calls (the anonymous window/widget id
+allocators and the widget geometry calls) are part of the portable "build
+your own widgets and dialogs" support API: windows carries its own native
+widget set, and the portable widget package over these calls is not yet
+ported here, so they are placeholders pending that port. The remainder are
+graphics calls not yet implemented in this port; as with the other
+unimplemented calls in this file, they are no-ops or return neutral values
+until implemented.
+
+*******************************************************************************/
+
+/* write string with explicit length (not NUL terminated) */
+void ami_wrtstrn(FILE* f, char* s, long n)
+
+{
+
+    char* p;
+
+    p = (char*)imalloc(n+1); /* space for terminator */
+    memcpy(p, s, n);
+    p[n] = 0; /* terminate */
+    ami_wrtstr(f, p); /* write as a standard string */
+    free(p);
+
+}
+
+/* send event into the input queue: not implemented */
+void ami_sendevent(FILE* f, ami_evtrec* er)
+
+{
+
+   /* not implemented */
+
+}
+
+/* foreground/background raster op selections: not implemented */
+void ami_fand(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_band(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_for(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_bor(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+/* scale coordinates: no scaling in this port, identity */
+long ami_scalex(FILE* f, long x)
+
+{
+
+   return (x); /* identity */
+
+}
+
+long ami_scaley(FILE* f, long y)
+
+{
+
+   return (y); /* identity */
+
+}
+
+/* drag window: not implemented */
+void ami_dragwin(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+/* find screen center, character and graphical: not implemented */
+void ami_scncen(FILE* f, long* x, long* y)
+
+{
+
+   *x = 1; /* neutral (home) position */
+   *y = 1;
+
+}
+
+void ami_scnceng(FILE* f, long* x, long* y)
+
+{
+
+   *x = 1; /* neutral (home) position */
+   *y = 1;
+
+}
+
+/* set focus to window: not implemented */
+void ami_focus(FILE* f)
+
+{
+
+   /* not implemented */
+
+}
+
+/* Anonymous window and widget id allocators, for the portable widget and
+   dialog support. Anonymous window ids are negative (never 0), so they can
+   never collide with the client program's own ids. This allocator hands out
+   distinct ids; tracking them through the window equivalence table (which on
+   windows does not yet carry the negative id range linux does) comes with
+   the portable widget port. */
+long ami_getwinid(void)
+
+{
+
+   static long anonwid = 0; /* last anonymous window id given out */
+
+   if (anonwid <= -MAXFIL) error(ewinuse); /* out of anonymous ids */
+   anonwid--; /* next anonymous id */
+
+   return (anonwid);
+
+}
+
+long ami_getwigid(FILE* f)
+
+{
+
+   return (0); /* no widget id allocated: pending the portable widget port */
+
+}
+
+/* widget geometry management: not implemented */
+void ami_sizwidget(FILE* f, long id, long x, long y)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_poswidget(FILE* f, long id, long x, long y)
+
+{
+
+   /* not implemented */
+
+}
+
+void ami_focuswidget(FILE* f, long id)
+
+{
+
+   /* not implemented */
 
 }

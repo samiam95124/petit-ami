@@ -1371,14 +1371,18 @@ static void set_style_mask(PAWindow* pw, NSWindowStyleMask m)
     });
 }
 
-/* toggle a chrome flag on a child frame, preserving the client size */
+/* Toggle a chrome flag on a child frame. The OUTER rect is preserved
+   and the client re-insets within it (Windows semantics: turning the
+   frame off grows the client to fill the window rect, so adjacent
+   frameless children tile edge to edge). */
 static void child_chrome(PAChildFrame* cf, int* flag, int on)
 {
-    NSSize client = cf->client.frame.size;
     *flag = on;
-    [cf setClientSize:client];
+    [cf layoutClient];
+    [cf pushResize]; /* report the new client size to the program */
     [cf.window invalidateCursorRectsForView:cf];
     [cf setNeedsDisplay:YES];
+    [cf.superview setNeedsDisplay:YES];
 }
 
 void pa_cocoa_set_frame(pa_winhan win, int on)

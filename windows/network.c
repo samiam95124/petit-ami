@@ -89,6 +89,16 @@
 #include <openssl/hmac.h>
 #include <openssl/x509v3.h>
 
+/* OpenSSL 3.0 renamed SSL_get_peer_certificate to SSL_get1_peer_certificate.
+   The old name survives only as a deprecated alias, which mingw's OpenSSL 3.x
+   build compiles out, so map it to the current name. Both return a reference
+   the caller must X509_free. */
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#ifndef SSL_get_peer_certificate
+#define SSL_get_peer_certificate SSL_get1_peer_certificate
+#endif
+#endif
+
 /* Petit-Ami definitions */
 #include <localdefs.h>
 #include <network.h>
@@ -1554,9 +1564,17 @@ long ami_maxmsg(unsigned long addr)
     r = connect(sock, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r == SOCKET_ERROR) wskerr();
 
-    /* find mtu */
+    /* Find the mtu. Unix reads the connected socket's path mtu with
+       getsockopt(IP_MTU); Windows has no such option, so fall back to the
+       standard ethernet mtu (clampmtu bounds it to the udp payload). A later
+       refinement can read the real interface mtu through the IP helper API
+       (GetBestInterfaceEx + GetIpInterfaceEntry). */
+#ifdef IP_MTU
     r = getsockopt(sock, IPPROTO_IP, IP_MTU, (char*)&mtu, &mtulen);
     if (r == SOCKET_ERROR) wskerr();
+#else
+    (void)mtulen; mtu = 1500;
+#endif
 
     closesocket(sock);
 
@@ -1603,9 +1621,13 @@ long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     r = connect(sock, (struct sockaddr *)&saddr, sizeof(saddr));
     if (r == SOCKET_ERROR) wskerr();
 
-    /* find mtu */
+    /* find the mtu; see ami_maxmsg for why Windows uses the default */
+#ifdef IPV6_MTU
     r = getsockopt(sock, IPPROTO_IPV6, IPV6_MTU, (char*)&mtu, &mtulen);
     if (r == SOCKET_ERROR) wskerr();
+#else
+    (void)mtulen; mtu = 1500;
+#endif
 
     closesocket(sock);
 

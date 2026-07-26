@@ -59,6 +59,8 @@
 
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 #include <windows.h>
 #include <terminal.h>
@@ -108,6 +110,9 @@ static enum { /* debug levels */
 #define UIV_JOY1BUTTONUP   0x8007 /* joystick 1 button up */
 #define UIV_JOY2BUTTONUP   0x8008 /* joystick 2 button up */
 #define UIV_TERM           0x8009 /* terminate program */
+#define UIV_HOVER          0x800a /* hover timer matures */
+
+#define HOVERTIME 1000 /* hover timeout, milliseconds */
 
 /* types of system vectors for override calls */
 
@@ -203,6 +208,9 @@ static int     nmb2;            /* new mouse assert status button 2 */
 static int     nmb3;            /* new mouse assert status button 3 */
 static int     nmb4;            /* new mouse assert status button 4 */
 static long    nmpx, nmpy;      /* new mouse current position */
+static int     hover;           /* mouse is hovering in window */
+static int     hovpend;         /* hover event pending delivery */
+static int     hovtim;          /* hover timeout timer handle */
 static char    inpbuf[MAXLIN];  /* input line buffer */
 static int     inpptr;          /* input line index */
 static scnptr  screens[MAXCON]; /* screen contexts array */
@@ -379,6 +387,10 @@ void prtevt(ami_evtcod e)
         case ami_etjoybd:   fprintf(stderr, "etjoybd"); break;
         case ami_etjoymov:  fprintf(stderr, "etjoymov"); break;
         case ami_etresize:  fprintf(stderr, "etresize"); break;
+        case ami_etfocus:   fprintf(stderr, "etfocus"); break;
+        case ami_etnofocus: fprintf(stderr, "etnofocus"); break;
+        case ami_ethover:   fprintf(stderr, "ethover"); break;
+        case ami_etnohover: fprintf(stderr, "etnohover"); break;
         case ami_etterm:    fprintf(stderr, "etterm"); break;
         case ami_etframe:   fprintf(stderr, "etframe"); break;
 
@@ -1892,14 +1904,51 @@ contempt for the whole double click concept.
 
 */
 
+/* Hover timeout matured: the mouse stopped moving. Sent up through the
+   console queue as a custom event, the same way the timers do. */
+
+static void CALLBACK hovtimeout(UINT id, UINT msg, DWORD_PTR usr,
+                                DWORD_PTR dw1, DWORD_PTR dw2)
+
+{
+
+    INPUT_RECORD inpevt; /* windows event record */
+    DWORD ne;  /* number of events written */
+
+    inpevt.EventType = KEY_EVENT; /* set key event type */
+    inpevt.Event.KeyEvent.dwControlKeyState = UIV_HOVER; /* set hover code */
+    inpevt.Event.KeyEvent.wVirtualKeyCode = 0;
+    WriteConsoleInput(inphdl, &inpevt, 1, &ne); /* send */
+
+}
+
+/* (re)arm the hover timeout, one shot */
+
+static void sethover(void)
+
+{
+
+    if (hovtim) timeKillEvent(hovtim); /* drop any timer in flight */
+    hovtim = timeSetEvent(HOVERTIME, 0, hovtimeout, 0,
+                          TIME_CALLBACK_FUNCTION | TIME_KILL_SYNCHRONOUS |
+                          TIME_ONESHOT);
+
+}
+
 /* update mouse parameters */
 
 static void mouseupdate(ami_evtptr er, int* keep)
 
 {
 
-    /* we prioritize events by: movements 1st, button clicks 2nd */
-    if (nmpx != mpx || nmpy != mpy) { /* create movement event */
+    /* we prioritize events by: hover activation, movements, button clicks */
+    if (hovpend) { /* hover event pending, deliver it */
+
+        er->etype = ami_ethover; /* set hover event */
+        hovpend = 0; /* no longer pending */
+        *keep = 1; /* set to keep */
+
+    } else if (nmpx != mpx || nmpy != mpy) { /* create movement event */
 
         er->etype = ami_etmoumov; /* set movement event */
         er->mmoun = 1; /* mouse 1 */
@@ -1908,6 +1957,15 @@ static void mouseupdate(ami_evtptr er, int* keep)
         mpx = nmpx; /* save new position */
         mpy = nmpy;
         *keep = 1; /* set to keep */
+        /* mouse moved, that means we are within the window. Check if hover
+           is activated, and (re)start the hover timeout */
+        if (!hover) {
+
+            hover = 1; /* activate hover */
+            hovpend = 1; /* deliver the hover event next */
+
+        }
+        sethover(); /* restart the hover timeout */
 
     } else if (nmb1 > mb1) {
 
@@ -1986,6 +2044,12 @@ static void mouseevent(INPUT_RECORD* inpevt)
     /* gather a new mouse status */
     nmpx = inpevt->Event.MouseEvent.dwMousePosition.X+1; /* get mouse position */
     nmpy = inpevt->Event.MouseEvent.dwMousePosition.Y+1;
+    /* the console reports transient out of range positions during window
+       resizes; clamp to the screen dimensions */
+    if (nmpx < 1) nmpx = 1;
+    if (nmpy < 1) nmpy = 1;
+    if (nmpx > screens[curupd-1]->maxx) nmpx = screens[curupd-1]->maxx;
+    if (nmpy > screens[curupd-1]->maxy) nmpy = screens[curupd-1]->maxy;
     nmb1 = !!(inpevt->Event.MouseEvent.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED);
     nmb2 = !!(inpevt->Event.MouseEvent.dwButtonState & RIGHTMOST_BUTTON_PRESSED);
     nmb3 = !!(inpevt->Event.MouseEvent.dwButtonState & FROM_LEFT_2ND_BUTTON_PRESSED);
@@ -2144,6 +2208,16 @@ static void custevent(ami_evtptr er, INPUT_RECORD* inpevt, int* keep)
         er->etype = ami_etterm; /* set end program */
         *keep = 1; /* set keep event */
 
+    } else if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_HOVER) {
+
+        if (hover) { /* hover is active, end it */
+
+            er->etype = ami_etnohover; /* set no hover event occurred */
+            hover = 0; /* remove hover status */
+            *keep = 1; /* set keep event */
+
+        }
+
     }
 
 }
@@ -2179,7 +2253,15 @@ static void ievent(ami_evtptr er)
 
                 } else if (inpevt.EventType == MOUSE_EVENT)
                     mouseevent(&inpevt); /* mouse event */
-                else if (inpevt.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+                else if (inpevt.EventType == FOCUS_EVENT) {
+
+                    /* set focus gained or lost event */
+                    if (inpevt.Event.FocusEvent.bSetFocus)
+                        er->etype = ami_etfocus;
+                    else er->etype = ami_etnofocus;
+                    keep = TRUE; /* set keep event */
+
+                } else if (inpevt.EventType == WINDOW_BUFFER_SIZE_EVENT) {
 
                     er->etype = ami_etresize; /* set resize */
                     keep = TRUE; /* set keep event */
@@ -2197,6 +2279,8 @@ static void ievent(ami_evtptr er)
                         screens[curupd-1]->maxx = x; /* place maximum sizes */
                         screens[curupd-1]->maxy = y; /* set y is displayed only */
                         screens[curupd-1]->offy = oy; /* then set offset to area */
+                        er->rszx = x; /* send the new size in the event */
+                        er->rszy = y;
 
                     } else keep = FALSE; /* otherwise no event */
 
@@ -2716,14 +2800,38 @@ Sets the title of the current window.
 *******************************************************************************/
 
 void ami_title(FILE* f, char* ts)
-    
-{ 
+
+{
 
     int r;
 
     r = SetConsoleTitle(ts);
     if (!r) winerr();
-    
+
+}
+
+/** ****************************************************************************
+
+Set window title, with length
+
+Sets the title of the current window. The string carries an explicit length
+and is not NUL terminated.
+
+*******************************************************************************/
+
+void ami_titlen(FILE* f, char* ts, long n)
+
+{
+
+    char* p;
+
+    p = (char*)malloc(n+1); /* space for terminator */
+    if (!p) error(enomem);
+    memcpy(p, ts, n);
+    p[n] = 0; /* terminate */
+    ami_title(f, p); /* set as a standard title string */
+    free(p);
+
 }
 
 /*******************************************************************************
@@ -3473,7 +3581,9 @@ dbg_printf(dlinfo, "Display area: left: %d top: %d bottom: %d right: %d cursor: 
     /* turn on mouse events */
     GetConsoleMode(inphdl, &mode);
     mode &= ~ENABLE_QUICK_EDIT_MODE; /* enable the mouse */
-    SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS );
+    /* window input delivers buffer resize events */
+    SetConsoleMode(inphdl, mode | ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT |
+                           ENABLE_EXTENDED_FLAGS );
     /* save previous output mode and stop wrap modes */
     GetConsoleMode(screens[curupd-1]->han, &cmodes);
     mode = cmodes;
