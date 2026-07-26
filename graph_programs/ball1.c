@@ -10,13 +10,13 @@ Program to bounce animated ball around screen
 
 #define BALLACCEL 5   /* ball acceleration */
 
-int       x, y;
-int       nx, ny;
-int       xd, yd;
+long      x, y;
+long      nx, ny;
+long      xd, yd;
 ami_evtrec er;
-int       tc;
-int       ballsize;
-int       halfball;
+long      tc;
+long      ballsize;
+long      halfball;
 
 int chkbrk(void)
 

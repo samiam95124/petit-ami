@@ -183,20 +183,20 @@ static void show_frame(const char *src_name, int i) {
     if (cur_frame >= 0) ami_delpict(stdout, PIC_SLOT);
 
     ami_loadpict(stdout, PIC_SLOT, TEMP_NAME_NOEXT);
-    int px = ami_pictsizx(stdout, PIC_SLOT);
-    int py = ami_pictsizy(stdout, PIC_SLOT);
+    long px = ami_pictsizx(stdout, PIC_SLOT);
+    long py = ami_pictsizy(stdout, PIC_SLOT);
 
-    int win_x = ami_maxxg(stdout);
-    int win_y = ami_maxyg(stdout);
+    long win_x = ami_maxxg(stdout);
+    long win_y = ami_maxyg(stdout);
 
     /* scale to fit, preserving aspect ratio */
     double sx = (double)win_x / (double)px;
     double sy = (double)win_y / (double)py;
     double s  = sx < sy ? sx : sy;
-    int dw = (int)(px * s);
-    int dh = (int)(py * s);
-    int ox = (win_x - dw) / 2 + 1;
-    int oy = (win_y - dh) / 2 + 1;
+    long dw = (long)(px * s);
+    long dh = (long)(py * s);
+    long ox = (win_x - dw) / 2 + 1;
+    long oy = (win_y - dh) / 2 + 1;
 
     /* clear background */
     ami_fcolor(stdout, ami_white);

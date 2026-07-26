@@ -234,7 +234,7 @@ static enum { /* debug levels */
 #define COLSQR 20 /* size of color square */
 #define OFF    FALSE
 #define ON     TRUE
-#define DEGREE (INT_MAX/360)
+#define DEGREE (LONG_MAX/360)
 #define SECOND 10000 /* one second elapsed time */
 
 typedef enum {
@@ -273,8 +273,8 @@ static int       ln;
 static int       term;
 static int       w;
 static int       l;
-static int       a;
-static int       r, g, b;
+static long      a;
+static long      r, g, b;
 static ami_color  c, c1, c2;
 static int       lx, ly;
 static int       tx1, ty1, tx2, ty2, tx3, ty3;
@@ -282,29 +282,29 @@ static int       h;
 static int       cnt;
 static ami_evtrec er;
 static int       fsiz;
-static int       aa, ab;
-static int       s;
+static long      aa, ab;
+static long      s;
 static struct { /* benchmark stats records */
 
-    int iter; /* number of iterations performed */
-    int time; /* time in 100us for test */
+    int  iter; /* number of iterations performed */
+    long time; /* time in 100us for test */
 
 } benchtab[bnpictns+1];
 static bench bi;
 
 /* Find random number between 0 and N. */
 
-static int randn(int limit)
+static long randn(long limit)
 
 {
 
-    return (long)limit*rand()/RAND_MAX;
+    return (double)limit*rand()/RAND_MAX;
 
 }
 
 /* Find random number in given range */
 
-static int randr(int s, int e)
+static long randr(long s, long e)
 
 {
 
@@ -726,10 +726,10 @@ static void graphtest(int lw) /* line width */
     ami_rrect(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 20, 20);
     ami_fcolor(stdout, ami_magenta);
     x = x+xfigsiz+xspace;
-    ami_arc(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 0, INT_MAX/4);
+    ami_arc(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 0, LONG_MAX/4);
     ami_fcolor(stdout, ami_green);
     ami_farc(stdout, x, y, x+xfigsiz-1, y+xfigsiz-1,
-                          INT_MAX/2, INT_MAX/2+INT_MAX/4);
+                          LONG_MAX/2, LONG_MAX/2+LONG_MAX/4);
     y = y+yfigsiz+yspace;
     x = xspace/2;
 
@@ -747,7 +747,7 @@ static void graphtest(int lw) /* line width */
     ami_fellipse(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1);
     x = x+xfigsiz+xspace;
     ami_fcolor(stdout, ami_blue);
-    ami_fchord(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 0, INT_MAX/2);
+    ami_fchord(stdout, x, y, x+xfigsiz-1, y+yfigsiz-1, 0, LONG_MAX/2);
     y = y+xfigsiz+xspace;
 
     /* third row of figures (lines) */
@@ -827,7 +827,7 @@ static void linespeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -853,7 +853,7 @@ static void rectspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -879,7 +879,7 @@ static void rrectspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -906,7 +906,7 @@ static void frectspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -931,7 +931,7 @@ static void frrectspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -957,7 +957,7 @@ static void ellipsespeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -983,7 +983,7 @@ static void fellipsespeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -1008,8 +1008,8 @@ static void arcspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
-    int sa, ea;
+    long c;
+    long sa, ea;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -1020,8 +1020,8 @@ static void arcspeed(int w, int t, long* s)
 
         do {
 
-            sa = randn(INT_MAX);
-            ea = randn(INT_MAX);
+            sa = randn(LONG_MAX);
+            ea = randn(LONG_MAX);
 
         } while (ea <= sa);
         ami_fcolor(stdout, randr(ami_red, ami_magenta));
@@ -1042,8 +1042,8 @@ static void farcspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
-    int sa, ea;
+    long c;
+    long sa, ea;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -1053,8 +1053,8 @@ static void farcspeed(int w, int t, long* s)
 
         do {
 
-            sa = randn(INT_MAX);
-            ea = randn(INT_MAX);
+            sa = randn(LONG_MAX);
+            ea = randn(LONG_MAX);
 
         } while (ea <= sa);
         ami_fcolor(stdout, randr(ami_red, ami_magenta));
@@ -1075,8 +1075,8 @@ static void fchordspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
-    int sa, ea;
+    long c;
+    long sa, ea;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -1086,8 +1086,8 @@ static void fchordspeed(int w, int t, long* s)
 
         do {
 
-            sa = randn(INT_MAX);
-            ea = randn(INT_MAX);
+            sa = randn(LONG_MAX);
+            ea = randn(LONG_MAX);
 
         } while (ea <= sa);
         ami_fcolor(stdout, randr(ami_red, ami_magenta));
@@ -1108,7 +1108,7 @@ static void ftrianglespeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -1134,7 +1134,7 @@ static void ftextspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
 
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -1161,7 +1161,7 @@ static void fpictspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
     int x1, y1, x2, y2;
 
     ami_auto(stdout, FALSE);
@@ -1192,7 +1192,7 @@ static void fpictnsspeed(int w, int t, long* s)
 {
 
     int i;
-    int c;
+    long c;
     int x, y;
     int xs, ys;
 
@@ -1225,7 +1225,7 @@ int main(void)
     int ysize;
     int x1, y1, x2, y2;
     char fn[100];
-    int x, y;
+    long x, y;
     long t, et;
     float f;
 
@@ -1235,13 +1235,13 @@ int main(void)
     ami_binvis(stdout);
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
-    printf("Screen size in characters: x -> %d y -> %d\n", ami_maxx(stdout),
+    printf("Screen size in characters: x -> %ld y -> %ld\n", ami_maxx(stdout),
                                                            ami_maxy(stdout));
-    printf("            in pixels:     x -> %d y -> %d\n",
+    printf("            in pixels:     x -> %ld y -> %ld\n",
            ami_maxxg(stdout), ami_maxyg(stdout));
-    printf("Size of character in default font: x -> %d y -> %d\n",
+    printf("Size of character in default font: x -> %ld y -> %ld\n",
            ami_chrsizx(stdout), ami_chrsizy(stdout));
-    printf("Dots per meter: dpmx: %d dpmy: %d\n", ami_dpmx(stdout), ami_dpmy(stdout));
+    printf("Dots per meter: dpmx: %ld dpmy: %ld\n", ami_dpmx(stdout), ami_dpmy(stdout));
     printf("Aspect ratio: %f\n", (double)ami_dpmx(stdout)/ami_dpmy(stdout));
     prtcen(ami_maxy(stdout),
            "Press return to start test (and to pass each pattern)");
@@ -1300,7 +1300,7 @@ int main(void)
 
         ami_font(stdout, AMI_FONT_TERM);
         printf("This is the terminal font: System name: \"%s\"\n", fns);
-        printf("Size x -> %d y -> %d\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
+        printf("Size x -> %ld y -> %ld\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1315,7 +1315,7 @@ int main(void)
 
         ami_font(stdout, AMI_FONT_BOOK);
         printf("This is the book font: System name: \"%s\"\n", fns);
-        printf("Size x -> %d y -> %d\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
+        printf("Size x -> %ld y -> %ld\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1330,7 +1330,7 @@ int main(void)
 
         ami_font(stdout, AMI_FONT_SIGN);
         printf("This is the sign font: System name: \"%s\"\n", fns);
-        printf("Size x -> %d y -> %d\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
+        printf("Size x -> %ld y -> %ld\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1345,7 +1345,7 @@ int main(void)
 
         ami_font(stdout, AMI_FONT_TECH);
         printf("This is the technical font: System name: \"%s\"\n", fns);
-        printf("Size x -> %d y -> %d\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
+        printf("Size x -> %ld y -> %ld\n", ami_chrsizx(stdout), ami_chrsizy(stdout));
         prtall();
         printf("\n");
 
@@ -1656,15 +1656,15 @@ int main(void)
             ami_fcolorg(stdout, r, g, b);
             ami_frect(stdout, x, y, x+COLSQR-1, y+COLSQR-1);
             x = x+COLSQR;
-            if (r <= INT_MAX-INT_MAX/COLDIV) r = r+INT_MAX/COLDIV;
+            if (r <= LONG_MAX-LONG_MAX/COLDIV) r = r+LONG_MAX/COLDIV;
             else {
 
                 r = 0;
-                if (g <= INT_MAX-INT_MAX/COLDIV) g = g+INT_MAX/COLDIV;
+                if (g <= LONG_MAX-LONG_MAX/COLDIV) g = g+LONG_MAX/COLDIV;
                 else {
 
                     g = 0;
-                    if (b <= INT_MAX-INT_MAX/COLDIV) b = b+INT_MAX/COLDIV;
+                    if (b <= LONG_MAX-LONG_MAX/COLDIV) b = b+LONG_MAX/COLDIV;
                     else b = 0;
 
                 }
@@ -1688,7 +1688,7 @@ int main(void)
     x = 1; /* set 2st collumn */
     while (x < ami_maxxg(stdout)) {
 
-        ami_fcolorg(stdout, INT_MAX/ami_maxxg(stdout)*x, 0, 0);
+        ami_fcolorg(stdout, LONG_MAX/ami_maxxg(stdout)*x, 0, 0);
         ami_line(stdout, x, 1, x, ami_maxyg(stdout));
         x = x+1;
 
@@ -1707,7 +1707,7 @@ int main(void)
     x = 1; /* set 2st collumn */
     while (x < ami_maxxg(stdout)) {
 
-        ami_fcolorg(stdout, 0, INT_MAX/ami_maxxg(stdout)*x, 0);
+        ami_fcolorg(stdout, 0, LONG_MAX/ami_maxxg(stdout)*x, 0);
         ami_line(stdout, x, 1, x, ami_maxyg(stdout));
         x = x+1;
 
@@ -1726,7 +1726,7 @@ int main(void)
     x = 1; /* set 2st collumn */
     while (x < ami_maxxg(stdout)) {
 
-        ami_fcolorg(stdout, 0, 0, INT_MAX/ami_maxxg(stdout)*x);
+        ami_fcolorg(stdout, 0, 0, LONG_MAX/ami_maxxg(stdout)*x);
         ami_line(stdout, x, 1, x, ami_maxyg(stdout));
         x = x+1;
 
@@ -1832,7 +1832,7 @@ int main(void)
         y = ami_maxyg(stdout)/2;
         w = 1;
         c = ami_black;
-        printf("r: %d\n", r);
+        printf("r: %ld\n", r);
         while (l+w/2 < ami_maxxg(stdout)/2 && l < ami_maxyg(stdout)/2-ami_chrsizy(stdout)) {
 
             ami_fcolor(stdout, c);
@@ -1930,7 +1930,7 @@ int main(void)
         x = ami_maxxg(stdout)/2; /* find center */
         y = ami_maxyg(stdout)/2;
         c = ami_black;
-        printf("r: %d\n", r);
+        printf("r: %ld\n", r);
         while (l >= 10) {
 
             ami_fcolor(stdout, c);
@@ -1955,7 +1955,7 @@ int main(void)
 
         putchar('\f');
         grid();
-        printf("r: %d\n", r);
+        printf("r: %ld\n", r);
         l = 10;
         x = 20;
         y = ami_curyg(stdout);
@@ -2158,13 +2158,13 @@ int main(void)
         while (i < ami_maxxg(stdout)/2 && i < (ami_maxyg(stdout)-ami_chrsizy(stdout))/2) {
 
             a = 0;
-            while (a <= INT_MAX-INT_MAX/10) {
+            while (a <= LONG_MAX-LONG_MAX/10) {
 
                 ami_fcolor(stdout, c);
                 ami_linewidth(stdout, w);
                 ami_arc(stdout, i, i, ami_maxxg(stdout)-i,
-                       ami_maxyg(stdout)-ami_chrsizy(stdout)-i, a, a+INT_MAX/10);
-                a = a+INT_MAX/5;
+                       ami_maxyg(stdout)-ami_chrsizy(stdout)-i, a, a+LONG_MAX/10);
+                a = a+LONG_MAX/5;
                 if (c < ami_magenta) c++; else c = ami_black;
                 if (c == ami_white) c++;
 
@@ -2195,7 +2195,7 @@ int main(void)
         y = ami_curyg(stdout);
         c = ami_black;
         aa = 0;
-        ab = INT_MAX / 360*90;
+        ab = LONG_MAX / 360*90;
         while (y+l*2 < ami_maxyg(stdout)-yspace) {
 
             while (x+l*2 < ami_maxxg(stdout)-xspace) {
@@ -2316,11 +2316,11 @@ int main(void)
     x = x-x % 10;
     y = ami_maxyg(stdout)-ami_chrsizy(stdout)-10;
     y = y-y % 10;
-    while (a <= INT_MAX-INT_MAX/10) {
+    while (a <= LONG_MAX-LONG_MAX/10) {
 
         ami_fcolor(stdout, c);
-        ami_farc(stdout, 10, 10, x, y, a, a+INT_MAX/10);
-        a = a+INT_MAX / 5;
+        ami_farc(stdout, 10, 10, x, y, a, a+LONG_MAX/10);
+        a = a+LONG_MAX / 5;
         if (c < ami_magenta) c++; else c = ami_black;
         if (c == ami_white) c++;
 
@@ -2341,7 +2341,7 @@ int main(void)
     y = yspace;
     c = ami_black;
     aa = 0;
-    ab = INT_MAX / 360*90;
+    ab = LONG_MAX / 360*90;
     while (y+l*2 < ami_maxyg(stdout)-yspace) {
 
         while (x+l*2 < ami_maxxg(stdout)-xspace) {
@@ -2444,11 +2444,11 @@ int main(void)
     x = x-x%10;
     y = ami_maxyg(stdout)-ami_chrsizy(stdout)-10;
     y = y-y%10;
-    while (a <= INT_MAX-INT_MAX/i) {
+    while (a <= LONG_MAX-LONG_MAX/i) {
 
         ami_fcolor(stdout, c);
-        ami_fchord(stdout, 10, 10, x, y, a, a+INT_MAX/i);
-        a = a+INT_MAX/(i/2);
+        ami_fchord(stdout, 10, 10, x, y, a, a+LONG_MAX/i);
+        a = a+LONG_MAX/(i/2);
         if (c < ami_magenta) c++; else c = ami_black;
         if (c == ami_white) c++;
 
@@ -2468,7 +2468,7 @@ int main(void)
     y = yspace;
     c = ami_black;
     aa = 0;
-    ab = INT_MAX/360*90;
+    ab = LONG_MAX/360*90;
     while (y+l*2 < ami_maxyg(stdout)-yspace) {
 
         while (x+l*2 < ami_maxxg(stdout)-xspace) {
@@ -2785,7 +2785,7 @@ int main(void)
         ami_fcolor(stdout, c1);
         ami_bcolor(stdout, c2);
         ami_fontsiz(stdout, h);
-        printf("%d:%.1f: %s\n", ami_chrsizy(stdout), ami_points(stdout), S2);
+        printf("%ld:%.1f: %s\n", ami_chrsizy(stdout), ami_points(stdout), S2);
         h = h+5;
         if (c1 < ami_magenta) c1++; else c1 = ami_black;
         if (c1 == ami_white) c1++;
@@ -2818,7 +2818,7 @@ int main(void)
             ami_fcolor(stdout, c1);
             ami_bcolor(stdout, c2);
             ami_setpoints(stdout, ps);
-            printf("%d:%.1f: %s\n", ami_chrsizy(stdout), ami_points(stdout), S2);
+            printf("%ld:%.1f: %s\n", ami_chrsizy(stdout), ami_points(stdout), S2);
             ps = ps+3.0f;
             if (c1 < ami_magenta) c1++; else c1 = ami_black;
             if (c1 == ami_white) c1++;
@@ -2839,7 +2839,7 @@ int main(void)
 
     putchar('\f');
     grid();
-    printf("Number of fonts: %d\n", ami_fonts(stdout));
+    printf("Number of fonts: %ld\n", ami_fonts(stdout));
     printf("\n");
     cnt = ami_fonts(stdout);
     for (i = 1; i <= cnt; i++) { /* visit each font code */
@@ -2932,7 +2932,7 @@ int main(void)
     fsiz = ami_chrsizy(stdout); /* save character size to restore */
     ami_font(stdout, AMI_FONT_SIGN);
     ami_fontsiz(stdout, ami_maxyg(stdout)/12);
-    printf("Size of test string: %d\n", ami_strsiz(stdout, S3));
+    printf("Size of test string: %ld\n", ami_strsiz(stdout, S3));
     printf("\n");
     x = (ami_maxxg(stdout)/2)-(ami_strsiz(stdout, S3)/2);
     ami_cursorg(stdout, x, ami_curyg(stdout)); /* go to centered */
@@ -2980,7 +2980,7 @@ int main(void)
         rectcord(a, l, &tx1, &ty1);
         /* Rotate text so it reads OUTWARD along the radial. ami_path uses
            the same compass convention as rectcord (0 = north, 90 = east),
-           ratioed to INT_MAX = 360°. */
+           ratioed to LONG_MAX = 360°. */
         ami_path(stdout, a*DEGREE);
         /* Shift origin perpendicular to the drawing direction by half the
            character height, so the radial passes through the vertical
@@ -2995,7 +2995,7 @@ int main(void)
         a = a+10;
 
     }
-    ami_path(stdout, INT_MAX/4); /* restore default (90° / east-reading) */
+    ami_path(stdout, LONG_MAX/4); /* restore default (90° / east-reading) */
     ami_binvis(stdout);
     prtcen(ami_maxy(stdout), "Polar text lines");
     waitnext();
@@ -3041,11 +3041,11 @@ int main(void)
     grid();
     ami_maknam(fn, 100, "tests", "mypic", "");
     ami_loadpict(stdout, 1, fn);
-    printf("Picture size for 1: x: %d y: %d\n", ami_pictsizx(stdout, 1),
+    printf("Picture size for 1: x: %ld y: %ld\n", ami_pictsizx(stdout, 1),
            ami_pictsizy(stdout, 1));
     ami_maknam(fn, 100, "tests", "mypic1", "bmp");
     ami_loadpict(stdout, 2, fn);
-    printf("Picture size for 2: x: %d y: %d\n", ami_pictsizx(stdout, 2),
+    printf("Picture size for 2: x: %ld y: %ld\n", ami_pictsizx(stdout, 2),
            ami_pictsizy(stdout, 2));
     printf("\n");
     y = ami_curyg(stdout);

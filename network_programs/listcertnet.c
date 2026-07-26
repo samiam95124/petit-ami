@@ -88,7 +88,7 @@ int main(
     /* server IPv4 address */ unsigned long addr;
     /* server SSL file */     FILE*         fp;
     /* certificate tree */    ami_certptr    list;
-    /* port number */         int           port;
+    /* port number */         long          port;
     int num;
 
     if (argc != 4) {

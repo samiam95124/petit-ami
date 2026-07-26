@@ -22,7 +22,7 @@ implementation.
 #define SECOND 10000 /* one second */
 
 
-int dport = AMI_SYNTH_OUT; /* set default synth out */
+long dport = AMI_SYNTH_OUT; /* set default synth out */
 
 ami_optrec opttbl[] = {
 
@@ -43,7 +43,7 @@ wait time in 100 microseconds.
 
 *******************************************************************************/
 
-static void waittime(int t)
+static void waittime(long t)
 
 {
 
@@ -102,12 +102,12 @@ the given port.
 
 *******************************************************************************/
 
-void playrand(int port, int notes)
+void playrand(long port, long notes)
 
 {
 
-    int key;
-    int i;
+    long key;
+    long i;
 
     srand(42);
     for( i = 0; i < notes; i++) {
@@ -115,7 +115,7 @@ void playrand(int port, int notes)
         /* Generate a random key */
         key = 60 + (int)(12.0f * rand() / (float) RAND_MAX)-1;
         /* Play a note */
-        ami_noteon(port, 0, 1, key, INT_MAX);
+        ami_noteon(port, 0, 1, key, LONG_MAX);
         /* Sleep for 1/10 second */
         waittime(SECOND/20);
         /* Stop the note */
@@ -135,11 +135,11 @@ Just plays a test note, with 1/4 on and off times. Plays middle C.
 
 *******************************************************************************/
 
-void playnote(int port, ami_note n)
+void playnote(long port, ami_note n)
 
 {
 
-    ami_noteon(port, 0, 1, n, INT_MAX); /* play middle C */
+    ami_noteon(port, 0, 1, n, LONG_MAX); /* play middle C */
     waittime(SECOND/4);
     ami_noteoff(port, 0, 1, n, 0);
     waittime(SECOND/4);
@@ -155,35 +155,35 @@ Plays a simple scale with on time.
 
 *******************************************************************************/
 
-void playscale(int port, int t)
+void playscale(long port, long t)
 
 {
 
-    ami_noteon(port, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
-    ami_noteon(port, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
-    ami_noteon(port, 0, 1, AMI_NOTE_E+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_E+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_E+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
-    ami_noteon(port, 0, 1, AMI_NOTE_F+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_F+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_F+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
-    ami_noteon(port, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
-    ami_noteon(port, 0, 1, AMI_NOTE_A+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_A+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_A+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
-    ami_noteon(port, 0, 1, AMI_NOTE_B+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(port, 0, 1, AMI_NOTE_B+AMI_OCTAVE_6, LONG_MAX);
     waittime(t);
     ami_noteoff(port, 0, 1, AMI_NOTE_B+AMI_OCTAVE_6, 0);
     waittime(SECOND/4);
@@ -199,12 +199,14 @@ int main(int argc, char *argv[])
     int           o; /* octave */
     ami_instrument ins; /* instrument */
     int           i, x, j;
-    int           argi = 1;
+    long          argi = 1;
+    long          argcl;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    argcl = argc;
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 1) {
+    if (argcl != 1) {
 
         fprintf(stderr, "Usage: sndtst [--port=<port>|--p=<port>]\n");
         exit(1);
@@ -235,8 +237,8 @@ int main(int argc, char *argv[])
     printf("Run through the entire scale of notes available\n");
     for (n = AMI_NOTE_C+AMI_OCTAVE_1; n <= AMI_NOTE_G+AMI_OCTAVE_11; n++) {
 
-        printf("%d ", n);
-        ami_noteon(dport, 0, 1, n, INT_MAX);
+        printf("%ld ", n);
+        ami_noteon(dport, 0, 1, n, LONG_MAX);
         waittime(SECOND/10);
         ami_noteoff(dport, 0, 1, n, 0);
 
@@ -250,9 +252,9 @@ int main(int argc, char *argv[])
     printf("Instruments: ");
     for (ins = AMI_INST_ACOUSTIC_GRAND; ins <= AMI_INST_GUNSHOT; ins++) {
 
-        printf("%d ", ins);
+        printf("%ld ", ins);
         ami_instchange(dport, 0, 1, ins);
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/10);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/10);
@@ -268,8 +270,8 @@ int main(int argc, char *argv[])
     printf("Instruments: ");
     for (n = AMI_NOTE_ACOUSTIC_BASS_DRUM; n <= AMI_NOTE_OPEN_TRIANGLE; n++) {
 
-        printf("%d ", n);
-        ami_noteon(dport, 0, 10, n, INT_MAX);
+        printf("%ld ", n);
+        ami_noteon(dport, 0, 10, n, LONG_MAX);
         waittime(SECOND/10);
         ami_noteoff(dport, 0, 10, n, 0);
         waittime(SECOND/10);
@@ -294,7 +296,7 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     for (i = 0; i < 20; i++) {
 
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, i*(INT_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, i*(LONG_MAX/20));
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -345,12 +347,12 @@ int main(int argc, char *argv[])
     waitret();
     for (i = 0; i <= 10; i++) {
 
-        printf("Attack: %d\n", i*(INT_MAX/10));
-        ami_attack(dport, 0, 1, i*(INT_MAX/10));
+        printf("Attack: %ld\n", i*(LONG_MAX/10));
+        ami_attack(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
     }
-    ami_attack(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
+    ami_attack(dport, 0, 1, LONG_MAX/2); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -359,12 +361,12 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     for (i = 0; i <= 10; i++) {
 
-        printf("Attack: %d\n", i*(INT_MAX/10));
-        ami_attack(dport, 0, 1, i*(INT_MAX/10));
+        printf("Attack: %ld\n", i*(LONG_MAX/10));
+        ami_attack(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
     }
-    ami_attack(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
+    ami_attack(dport, 0, 1, LONG_MAX/2); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -374,12 +376,12 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     for (i = 0; i <= 10; i++) {
 
-        printf("Release: %d\n", i*(INT_MAX/10));
-        ami_release(dport, 0, 1, i*(INT_MAX/10));
+        printf("Release: %ld\n", i*(LONG_MAX/10));
+        ami_release(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
     }
-    ami_release(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
+    ami_release(dport, 0, 1, LONG_MAX/2); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -388,12 +390,12 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     for (i = 0; i <= 10; i++) {
 
-        printf("Release: %d\n", i*(INT_MAX/10));
-        ami_release(dport, 0, 1, i*(INT_MAX/10));
+        printf("Release: %ld\n", i*(LONG_MAX/10));
+        ami_release(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
     }
-    ami_release(dport, 0, 1, i*(INT_MAX/2)); /* reset normal */
+    ami_release(dport, 0, 1, LONG_MAX/2); /* reset normal */
     printf("Complete\n");
     waitret();
 
@@ -402,22 +404,22 @@ int main(int argc, char *argv[])
     waitret();
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     ami_legato(dport, 0, 1, FALSE);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
     waittime(SECOND/4);
-    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
     waittime(SECOND/4);
     /* turn off both */
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
     /* now repeat with legato on */
     ami_legato(dport, 0, 1, TRUE);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
     waittime(SECOND/4);
-    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
     waittime(SECOND/4);
     /* turn off both */
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
     ami_legato(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
@@ -426,22 +428,22 @@ int main(int argc, char *argv[])
     waitret();
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     ami_legato(dport, 0, 1, FALSE);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
     waittime(SECOND/4);
-    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
     waittime(SECOND/4);
     /* turn off both */
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
     /* now repeat with legato on */
     ami_legato(dport, 0, 1, TRUE);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
     waittime(SECOND/4);
-    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+    ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
     waittime(SECOND/4);
     /* turn off both */
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
     ami_legato(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
@@ -453,25 +455,25 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     for (i = 0; i < 10; i++) {
 
-        printf("Portamento time: %d\n", i*(INT_MAX/10));
-        ami_porttime(dport, 0, 1, i*(INT_MAX/10));
+        printf("Portamento time: %ld\n", i*(LONG_MAX/10));
+        ami_porttime(dport, 0, 1, i*(LONG_MAX/10));
         ami_portamento(dport, 0, 1, FALSE);
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
         waittime(SECOND/4);
-        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
         waittime(SECOND/4);
         /* turn off both */
-        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
         /* now repeat with portamento on */
         ami_portamento(dport, 0, 1, TRUE);
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
         waittime(SECOND/4);
-        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
         waittime(SECOND/4);
         /* turn off both */
-        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
 
     }
     ami_portamento(dport, 0, 1, FALSE); /* reset normal */
@@ -483,24 +485,24 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     for (i = 0; i < 10; i++) {
 
-        printf("Portamento time: %d\n", i*(INT_MAX/10));
+        printf("Portamento time: %ld\n", i*(LONG_MAX/10));
         ami_portamento(dport, 0, 1, FALSE);
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
         waittime(SECOND/4);
-        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
         waittime(SECOND/4);
         /* turn off both */
-        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
         /* now repeat with portamento on */
         ami_portamento(dport, 0, 1, TRUE);
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX); /* play middle C */
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
         waittime(SECOND/4);
-        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX); /* play D */
+        ami_noteon(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX); /* play D */
         waittime(SECOND/4);
         /* turn off both */
-        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
-        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, INT_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+        ami_noteoff(dport, 0, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
 
     }
     ami_portamento(dport, 0, 1, FALSE); /* reset normal */
@@ -509,34 +511,34 @@ int main(int argc, char *argv[])
 
     printf("Channel volume test. Play note continuously while advancing volume\n");
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* advance volume sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Volume: %d\n", i*(INT_MAX/20));
-        ami_volsynthchan(dport, 0, 1, i*(INT_MAX/20));
+        printf("Volume: %ld\n", i*(LONG_MAX/20));
+        ami_volsynthchan(dport, 0, 1, i*(LONG_MAX/20));
         waittime(SECOND/4);
 
     }
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* reset channel vol to midline */
-    ami_volsynthchan(dport, 0, 1, INT_MAX/2);
+    ami_volsynthchan(dport, 0, 1, LONG_MAX/2);
     printf("Complete\n");
     waitret();
 
     printf("Channel balance test. Play note continuously while changing\n");
     printf("from to right\n");
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* advance volume sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Balance: %d\n", -INT_MAX+(i*(INT_MAX/20*2)));
-        ami_balance(dport, 0, 1, -INT_MAX+(i*(INT_MAX/20*2)));
+        printf("Balance: %ld\n", (i-10)*(LONG_MAX/10));
+        ami_balance(dport, 0, 1, (i-10)*(LONG_MAX/10));
         waittime(SECOND/4);
 
     }
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* reset channel balance to midline */
     ami_balance(dport, 0, 1, 0);
     printf("Complete\n");
@@ -544,16 +546,16 @@ int main(int argc, char *argv[])
 
     printf("Channel vibrato test. Play note continuously while advancing vibrato\n");
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* advance vibrato sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Vibrato: %d\n", i*(INT_MAX/20));
-        ami_vibrato(dport, 0, 1, i*(INT_MAX/20));
+        printf("Vibrato: %ld\n", i*(LONG_MAX/20));
+        ami_vibrato(dport, 0, 1, i*(LONG_MAX/20));
         waittime(SECOND);
 
     }
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* reset channel vibrato to midline */
     ami_vibrato(dport, 0, 1, 0);
     printf("Complete\n");
@@ -562,16 +564,16 @@ int main(int argc, char *argv[])
     printf("Channel pan test. Play note continuously while changing\n");
     printf("pan from to right\n");
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* advance pan sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Pan: %d\n", -INT_MAX+(i*(INT_MAX/20*2)));
-        ami_pan(dport, 0, 1, -INT_MAX+(i*(INT_MAX/20*2)));
+        printf("Pan: %ld\n", (i-10)*(LONG_MAX/10));
+        ami_pan(dport, 0, 1, (i-10)*(LONG_MAX/10));
         waittime(SECOND/4);
 
     }
-    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     /* reset channel pan to midline */
     ami_pan(dport, 0, 1, 0);
     printf("Complete\n");
@@ -582,9 +584,9 @@ int main(int argc, char *argv[])
     /* advance timbre sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Timbre: %d\n", i*(INT_MAX/20));
-        ami_timbre(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Timbre: %ld\n", i*(LONG_MAX/20));
+        ami_timbre(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -600,9 +602,9 @@ int main(int argc, char *argv[])
     /* advance brightness sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Brightness: %d\n", i*(INT_MAX/20));
-        ami_brightness(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Brightness: %ld\n", i*(LONG_MAX/20));
+        ami_brightness(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -618,9 +620,9 @@ int main(int argc, char *argv[])
     /* advance reverb sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Reverb: %d\n", i*(INT_MAX/20));
-        ami_reverb(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Reverb: %ld\n", i*(LONG_MAX/20));
+        ami_reverb(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -637,9 +639,9 @@ int main(int argc, char *argv[])
     /* advance tremulo sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Tremulo: %d\n", i*(INT_MAX/20));
-        ami_tremulo(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Tremulo: %ld\n", i*(LONG_MAX/20));
+        ami_tremulo(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -656,9 +658,9 @@ int main(int argc, char *argv[])
     /* advance chorus sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Chorus: %d\n", i*(INT_MAX/20));
-        ami_chorus(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Chorus: %ld\n", i*(LONG_MAX/20));
+        ami_chorus(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -674,9 +676,9 @@ int main(int argc, char *argv[])
     /* advance celeste sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Celeste: %d\n", i*(INT_MAX/20));
-        ami_celeste(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Celeste: %ld\n", i*(LONG_MAX/20));
+        ami_celeste(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -692,9 +694,9 @@ int main(int argc, char *argv[])
     /* advance phaser sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Phaser: %d\n", i*(INT_MAX/20));
-        ami_phaser(dport, 0, 1, i*(INT_MAX/20));
-        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+        printf("Phaser: %ld\n", i*(LONG_MAX/20));
+        ami_phaser(dport, 0, 1, i*(LONG_MAX/20));
+        ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
         ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
         waittime(SECOND/4);
@@ -709,16 +711,16 @@ int main(int argc, char *argv[])
        which is not right */
     printf("pitch wheel. Vary pitch wheel while playing continuously\n");
     ami_instchange(dport, 0, 1, AMI_INST_LEAD_1_SQUARE);
-    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, INT_MAX);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     for (j = 0; j < 10; j++) {
 
-        printf("Pitchrange: %d\n", j*(INT_MAX/10));
-        ami_pitchrange(dport, 0, 1, j*(INT_MAX/10));
+        printf("Pitchrange: %ld\n", j*(LONG_MAX/10));
+        ami_pitchrange(dport, 0, 1, j*(LONG_MAX/10));
         for (x = 0; x < 10; x++)
             for (i = 0; i < 10; i++) {
 
-            printf("Pitch: %d\n", -INT_MAX+(i*(INT_MAX/10*2)));
-            ami_pitch(dport, 0, 1, -INT_MAX+(i*(INT_MAX/10*2)));
+            printf("Pitch: %ld\n", (i-5)*(LONG_MAX/5));
+            ami_pitch(dport, 0, 1, (i-5)*(LONG_MAX/5));
             waittime(SECOND/100);
 
         }

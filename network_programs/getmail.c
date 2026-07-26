@@ -32,10 +32,10 @@ static char pass[BUFLEN];
 static int  msgnum;
 static int  msgsiz;
 static int  msgarr[NUMMSG];
-static int  port = 110; /* unsecured port */
-static int  sport = 995; /* secured port */
+static long port = 110; /* unsecured port */
+static long sport = 995; /* secured port */
 
-int secure = FALSE;
+long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -70,16 +70,17 @@ int main(int argc, char **argv)
 {
 
     int i, top;
-    int argi = 1;
+    long argi = 1;
+    long argcl = argc;
     int pt;
 
     printf("Mail server access test program\n");
     printf("\n");
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc < 4) {
+    if (argcl < 4) {
 
         fprintf(stderr, "Usage: getmail [--secure|-s] [--port|p=<port>] "
                         "[--sport|sp=<port>] <server> <user> <pass>\n");

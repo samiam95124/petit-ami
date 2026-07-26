@@ -113,15 +113,15 @@ long mode options:
 
 *******************************************************************************/
 
-int ami_option(
+long ami_option(
     /* string to parse */                string    s,
     /* option table */                   ami_optrec opts[],
-    /* allow single character options */ int       single
+    /* allow single character options */ long      single
 )
 
 {
 
-    int       r;         /* return value */
+    long      r;         /* return value */
     int       longopt;   /* option is long ("--") */
     char      buff[100]; /* buffer for character strings */
     ami_optptr fp;        /* found option entry pointer */
@@ -256,17 +256,17 @@ Returns 0 on success, 1 on failure.
 
 *******************************************************************************/
 
-int ami_options(
-    /* argument index */                 int*      argi,
-    /* argument count */                 int*      argc,
+long ami_options(
+    /* argument index */                 long*     argi,
+    /* argument count */                 long*     argc,
     /* arguments array */                char      **argv,
     /* option table */                   ami_optrec opts[],
-    /* allow single character options */ int       single
+    /* allow single character options */ long      single
 )
 
 {
 
-    int r;
+    long r;
 
     r = 0; /* set no error */
     while (*argc > 1 && argv[*argi][0] == ami_optchr() && !r) {

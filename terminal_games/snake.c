@@ -399,10 +399,10 @@ void getevt(int tim) /* accept timer events */
         if (er.etype == ami_etjoymov) { /* handle joystick */
 
             /* change joystick to default move directions */
-            if (er.joypx > INT_MAX/10) lstmov = ami_etright;
-            else if (er.joypx < -INT_MAX/10) lstmov = ami_etleft;
-            else if (er.joypy > INT_MAX/10) lstmov = ami_etdown;
-            else if (er.joypy < -INT_MAX/10) lstmov = ami_etup;
+            if (er.joypx > LONG_MAX/10) lstmov = ami_etright;
+            else if (er.joypx < -(LONG_MAX/10)) lstmov = ami_etleft;
+            else if (er.joypy > LONG_MAX/10) lstmov = ami_etdown;
+            else if (er.joypy < -(LONG_MAX/10)) lstmov = ami_etup;
             accept = FALSE; /* these events don't exit */
 
         } else if (er.etype == ami_ettim) { /* timer */

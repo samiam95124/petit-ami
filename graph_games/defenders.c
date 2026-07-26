@@ -59,8 +59,8 @@ Defines
 #define EXPLODE_DUR  500
 #define UFO_DUR      200
 
-/* color helpers: scale 0-255 to 0-INT_MAX */
-#define CLR(v) ((v) * (INT_MAX / 255))
+/* color helpers: scale 0-255 to 0-LONG_MAX */
+#define CLR(v) ((v) * (LONG_MAX / 255))
 
 /* directions */
 #define DIR_RIGHT  1
@@ -133,9 +133,9 @@ int mouse_x;                       /* current mouse x */
 #define CTL_MOUSE    0
 #define CTL_KEYBOARD 1
 #define CTL_JOYSTICK 2
-#define JOY_THRESHOLD (INT_MAX / 20) /* joystick must move this much to take over */
+#define JOY_THRESHOLD (LONG_MAX / 20) /* joystick must move this much to take over */
 int active_ctl;                    /* which device is controlling */
-int last_joyx;                     /* last joystick x for change detection */
+long last_joyx;                    /* last joystick x for change detection */
 
 bullet_t pbullets[MAX_PBULLETS];   /* player bullets */
 bullet_t abullets[MAX_ABULLETS];   /* alien bullets */
@@ -682,9 +682,9 @@ void player_fire(void)
             pbullets[i].x = player_x;
             pbullets[i].y = player_y - player_h / 3;
             /* shoot sound */
-            ami_noteon(AMI_SYNTH_OUT, 0, 1, SHOOT_NOTE, INT_MAX);
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, SHOOT_NOTE, LONG_MAX);
             ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + SHOOT_DUR,
-                        1, SHOOT_NOTE, INT_MAX);
+                        1, SHOOT_NOTE, LONG_MAX);
             return;
         }
     }
@@ -809,9 +809,9 @@ void update_pbullets(void)
                 ufo.active = FALSE;
                 pbullets[i].active = FALSE;
                 score += 100;
-                ami_noteon(AMI_SYNTH_OUT, 0, 1, UFO_NOTE, INT_MAX);
+                ami_noteon(AMI_SYNTH_OUT, 0, 1, UFO_NOTE, LONG_MAX);
                 ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + UFO_DUR,
-                            1, UFO_NOTE, INT_MAX);
+                            1, UFO_NOTE, LONG_MAX);
                 continue;
             }
         }
@@ -838,9 +838,9 @@ void update_pbullets(void)
                         if (alien_move_rate < 1) alien_move_rate = 1;
                     }
 
-                    ami_noteon(AMI_SYNTH_OUT, 0, 1, HIT_NOTE, INT_MAX);
+                    ami_noteon(AMI_SYNTH_OUT, 0, 1, HIT_NOTE, LONG_MAX);
                     ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + HIT_DUR,
-                                1, HIT_NOTE, INT_MAX);
+                                1, HIT_NOTE, LONG_MAX);
                     goto next_pbullet;
                 }
             }
@@ -887,9 +887,9 @@ void update_abullets(void)
             abullets[i].y <= player_y + player_h) {
             abullets[i].active = FALSE;
             lives--;
-            ami_noteon(AMI_SYNTH_OUT, 0, 1, EXPLODE_NOTE, INT_MAX);
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, EXPLODE_NOTE, LONG_MAX);
             ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + EXPLODE_DUR,
-                        1, EXPLODE_NOTE, INT_MAX);
+                        1, EXPLODE_NOTE, LONG_MAX);
             if (lives <= 0) {
                 game_over = TRUE;
             }
@@ -1127,13 +1127,15 @@ int main(void)
         }
 
         else if (er.etype == ami_etjoymov) {
-            /* only take over if joystick moved significantly */
-            int jdelta = er.joypx - last_joyx;
+            /* only take over if joystick moved significantly. Note the
+               difference is taken on halved values, since the full scale
+               difference of two long axis readings can overflow a long */
+            long jdelta = er.joypx/2 - last_joyx/2;
             if (jdelta < 0) jdelta = -jdelta;
-            if (jdelta > JOY_THRESHOLD) active_ctl = CTL_JOYSTICK;
+            if (jdelta > JOY_THRESHOLD/2) active_ctl = CTL_JOYSTICK;
             last_joyx = er.joypx;
             if (active_ctl == CTL_JOYSTICK && game_started && !game_over) {
-                int jchr = INT_MAX / ((scr_w - 2) / 2);
+                long jchr = LONG_MAX / ((scr_w - 2) / 2);
                 player_x = scr_w / 2 + er.joypx / jchr;
                 if (player_x < player_w / 2) player_x = player_w / 2;
                 if (player_x > scr_w - player_w / 2)

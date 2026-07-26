@@ -19,8 +19,8 @@ int main(int argc, char **argv)
     FILE* fp;
     unsigned long addr;
     char cbuff[4096];
-    int len;
-    int port;
+    long len;
+    long port;
     int i;
 
     if (argc < 3) {
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
        if (len) {
 
            printf("Certificate %d:\n", i);
-           printf("%.*s\n", len, cbuff);
+           printf("%.*s\n", (int)len, cbuff);
            i++; /* next certificate */
 
        }

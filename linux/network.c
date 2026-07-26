@@ -1025,7 +1025,7 @@ are used.
 *******************************************************************************/
 
 static FILE* opennet(
-    /* link is secured */     int secure,
+    /* link is secured */     long secure,
     /* file open as socket */ int fn
 )
 
@@ -1095,8 +1095,8 @@ static FILE* opennet(
 }
 
 FILE* ami_opennet(/* IP address */      unsigned long addr,
-                 /* port */            int port,
-                 /* link is secured */ int secure
+                 /* port */            long port,
+                 /* link is secured */ long secure
 )
 
 {
@@ -1126,8 +1126,8 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
 FILE* ami_opennetv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -1165,10 +1165,10 @@ DTLS, with fixed length messages.
 
 *******************************************************************************/
 
-int ami_openmsg(
+long ami_openmsg(
     /* ip address */      unsigned long addr,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -1255,11 +1255,11 @@ int ami_openmsg(
 
 }
 
-int ami_openmsgv6(
+long ami_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -1358,9 +1358,9 @@ another program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-int ami_waitmsg(/* port number to wait on */ int port,
-               /* secure mode */            int secure
-               )
+long ami_waitmsg(/* port number to wait on */ long port,
+                /* secure mode */            long secure
+                )
 
 {
 
@@ -1532,7 +1532,7 @@ static int sockmtu(int fn, int family)
 }
 #endif
 
-int ami_maxmsg(unsigned long addr)
+long ami_maxmsg(unsigned long addr)
 
 {
 
@@ -1588,7 +1588,7 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -1638,7 +1638,7 @@ size (including 0) up to ami_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void ami_wrmsg(int fn, void* msg, unsigned long len)
+void ami_wrmsg(long fn, void* msg, unsigned long len)
 
 {
 
@@ -1660,11 +1660,11 @@ void ami_wrmsg(int fn, void* msg, unsigned long len)
         /* write the message to socket, "non-blocking" (really just means
            no message confirmation) */
         if (opnfil[fn]->v6addr)
-            r = sendto(fn, msg, len, MSG_DONTWAIT,
+            r = sendto((int)fn, msg, len, MSG_DONTWAIT,
                        (const struct sockaddr *) &opnfil[fn]->saddr.s6,
                        sizeof(struct sockaddr_in6));
         else
-            r = sendto(fn, msg, len, MSG_DONTWAIT,
+            r = sendto((int)fn, msg, len, MSG_DONTWAIT,
                        (const struct sockaddr *) &opnfil[fn]->saddr.s4,
                        sizeof(struct sockaddr_in));
         if (r < 0) linuxerror();
@@ -1684,7 +1684,7 @@ is known that a given message size will never be exceeded.
 
 *******************************************************************************/
 
-int ami_rdmsg(int fn, void* msg, unsigned long len)
+long ami_rdmsg(long fn, void* msg, unsigned long len)
 
 {
 
@@ -1709,13 +1709,13 @@ int ami_rdmsg(int fn, void* msg, unsigned long len)
         if (opnfil[fn]->v6addr) {
 
             al = sizeof(struct sockaddr_in6);
-            r = recvfrom(fn, msg, len, MSG_WAITALL,
+            r = recvfrom((int)fn, msg, len, MSG_WAITALL,
                          (struct sockaddr *) &opnfil[fn]->saddr.s6, &al);
 
         } else {
 
             al = sizeof(struct sockaddr_in);
-            r = recvfrom(fn, msg, len, MSG_WAITALL,
+            r = recvfrom((int)fn, msg, len, MSG_WAITALL,
                          (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
 
         }
@@ -1735,7 +1735,7 @@ Closes the given message file.
 
 *******************************************************************************/
 
-void ami_clsmsg(int fn)
+void ami_clsmsg(long fn)
 
 {
 
@@ -1744,7 +1744,7 @@ void ami_clsmsg(int fn)
     /* check is a message file */
     if (!opnfil[fn]->msg) error(enotmsg);
 
-    close(fn); /* close the socket */
+    close((int)fn); /* close the socket */
 
     /* If DTLS, free the ssl struct. Clear the entry so the exit-time
        cleanup in ami_deinit_network does not free it a second time. */
@@ -1771,8 +1771,8 @@ program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* ami_waitnet(/* port number to wait on */ int port,
-                 /* secure mode */            int secure
+FILE* ami_waitnet(/* port number to wait on */ long port,
+                 /* secure mode */            long secure
                 )
 
 {
@@ -1885,7 +1885,7 @@ carried on the wire. Thus it is reliable by definition.
 
 *******************************************************************************/
 
-int ami_relymsg(unsigned long addr)
+long ami_relymsg(unsigned long addr)
 
 {
 
@@ -1893,7 +1893,7 @@ int ami_relymsg(unsigned long addr)
 
 }
 
-int ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -1929,7 +1929,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int ami_certmsg(int fn, int which, string buff, int len)
+long ami_certmsg(long fn, long which, string buff, long len)
 
 {
 
@@ -1964,7 +1964,7 @@ int ami_certmsg(int fn, int which, string buff, int len)
         }
         /* if the certificate number is out of range, return nothing */
         if (which > sk_X509_num(certstk)) cert = NULL;
-        else cert = sk_X509_value(certstk, which-1);
+        else cert = sk_X509_value(certstk, (int)(which-1));
 
     }
 
@@ -1980,7 +1980,7 @@ int ami_certmsg(int fn, int which, string buff, int len)
         if (!r) error(ewrbio);
 
         /* read certificate back to memory */
-        r = BIO_read(cb, buff, len);
+        r = BIO_read(cb, buff, (int)len);
         if (r < 0) error(erdbio);
         if (!BIO_eof(cb)) error(ecerttl);
 
@@ -2017,7 +2017,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int ami_certnet(FILE* f, int which, string buff, int len)
+long ami_certnet(FILE* f, long which, string buff, long len)
 
 {
 
@@ -2293,7 +2293,7 @@ dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
 
 }
 
-void ami_certlistnet(FILE *f, int which, ami_certptr* list)
+void ami_certlistnet(FILE *f, long which, ami_certptr* list)
 
 {
 
@@ -2357,7 +2357,7 @@ void ami_certlistnet(FILE *f, int which, ami_certptr* list)
         }
         /* if the certificate number is out of range, return nothing */
         if (which > sk_X509_num(certstk)) cert = NULL;
-        else cert = sk_X509_value(certstk, which-1);
+        else cert = sk_X509_value(certstk, (int)(which-1));
 
     }
 
@@ -2510,7 +2510,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-void ami_certlistmsg(int fn, int which, ami_certptr* list)
+void ami_certlistmsg(long fn, long which, ami_certptr* list)
 
 {
 

@@ -31,7 +31,7 @@ typedef struct sysevt {
 
 int system_event_addseinp(int fid);
 int system_event_addsesig(int sig);
-int system_event_addsetim(int sid, int t, int r);
+int system_event_addsetim(int sid, long t, long r);
 void system_event_deasetim(int sid);
 void system_event_getsevt(sevptr ev);
 

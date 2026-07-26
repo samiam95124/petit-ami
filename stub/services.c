@@ -105,8 +105,8 @@ Converts the given time into a string.
 
 void ami_times(
     /** result string */           char *s,
-    /** result string length */    int sl,
-    /** time to convert */         int t
+    /** result string length */    long sl,
+    /** time to convert */         long t
 )
 
 {
@@ -125,8 +125,8 @@ Converts the given date into a string.
 
 void ami_dates(
     /** string to place date into */   char *s,
-    /** string to place date length */ int sl,
-    /** time record to write from */   int t
+    /** string to place date length */ long sl,
+    /** time record to write from */   long t
 )
 
 {
@@ -145,7 +145,7 @@ Writes the time to a given file, from a time record.
 
 void ami_writetime(
         /** file to write to */ FILE *f,
-        /** time record to write from */ int t
+        /** time record to write from */ long t
 )
 
 {
@@ -166,7 +166,7 @@ used by windows.
 
 void ami_writedate(
         /* file to write to */ FILE *f,
-        /* time record to write from */ int t
+        /* time record to write from */ long t
 )
 
 {
@@ -274,7 +274,7 @@ is null or all blanks
 
 ********************************************************************************/
 
-int ami_validfile(
+long ami_validfile(
     /* string to validate */ char *s
 )
 
@@ -297,7 +297,7 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
-int ami_validpath(
+long ami_validpath(
     /* string to validate */ char *s
 )
 
@@ -319,7 +319,7 @@ on that directory.
 
 ********************************************************************************/
 
-int ami_wild(
+long ami_wild(
     /* filename */ char *s
 )
 
@@ -342,7 +342,7 @@ Returns an environment string by name.
 void ami_getenv(
     /** string name */        char* esn,
     /** string data */        char* esd,
-    /** string data length */ int esdl
+    /** string data length */ long esdl
 )
 
 {
@@ -434,7 +434,7 @@ Executes a program by name. Waits for the program to complete.
 
 void ami_execw(
     /* program name to execute */ char *cmd,
-    /* return error */            int *err
+    /* return error */            long *err
 )
 
 {
@@ -475,7 +475,7 @@ program environment.
 void ami_execew(
         /* program name to execute */ char*      cmd,
         /* environment */             ami_envrec* el,
-        /* return error */            int*       err
+        /* return error */            long*       err
 )
 
 {
@@ -494,7 +494,7 @@ Returns the current path in the given padded string.
 
 void ami_getcur(
         /** buffer to get path */ char *pn,
-        /** length of buffer */   int l
+        /** length of buffer */   long l
 )
 
 {
@@ -546,9 +546,9 @@ were a normal character.
 
 void ami_brknam(
         /* file specification */ char *fn,
-        /* path */               char *p, int pl,
-        /* name */               char *n, int nl,
-        /* extention */          char *e, int el
+        /* path */               char *p, long pl,
+        /* name */               char *n, long nl,
+        /* extention */          char *e, long el
 )
 
 {
@@ -569,7 +569,7 @@ concatenating.
 
 void ami_maknam(
     /** file specification to build */ char *fn,
-    /** file specification length */   int fnl,
+    /** file specification length */   long fnl,
     /** path */                        char *p,
     /** filename */                    char *n,
     /** extension */                   char *e
@@ -593,7 +593,7 @@ No validity check is done. Garbage in, garbage out.
 
 void ami_fulnam(
     /** filename */        char *fn,
-    /** filename length */ int fnl
+    /** filename length */ long fnl
 )
 {
 
@@ -612,7 +612,7 @@ extract the program path from that.
 
 void ami_getpgm(
     /** program path */        char* p,
-    /** program path length */ int   pl
+    /** program path length */ long   pl
 )
 {
 
@@ -645,7 +645,7 @@ directory.
 
 void ami_getusr(
     /** pathname */        char *fn,
-    /** pathname length */ int fnl
+    /** pathname length */ long fnl
 )
 
 {
@@ -910,8 +910,8 @@ Find latitude
 Finds the latitude of the host. Returns the latitude as a ratioed integer:
 
 0           Equator
-INT_MAX     North pole
--INT_MAX    South pole
+LONG_MAX     North pole
+-LONG_MAX    South pole
 
 This means each increment equals 0.0000000419 degrees or about 0.00465 meters
 (approximate because it is an angular measurement on an elipsiod).
@@ -926,7 +926,7 @@ host location.
 
 *******************************************************************************/
 
-int ami_latitude(void)
+long ami_latitude(void)
 
 {
 
@@ -943,8 +943,8 @@ Find longitude
 Finds the longitude of the host. Returns the longitude as a ratioed integer:
 
 0           The prime meridian (Greenwitch)
-INT_MAX     The prime meridian eastward around the world
--INT_MAX    The prime meridian westward around the world
+LONG_MAX     The prime meridian eastward around the world
+-LONG_MAX    The prime meridian westward around the world
 
 This means that each increment equals 0.0000000838 degrees or about 0.00933
 meters (approximate because it is an angular measurement on an elipsoid).
@@ -955,7 +955,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int ami_longitude(void)
+long ami_longitude(void)
 
 {
 
@@ -972,8 +972,8 @@ Find altitude
 Finds the altitude of the host. Returns the altitude as a ratioed integer:
 
 0           MSL
-INT_MAX     100km high
--INT_MAX    100km depth
+LONG_MAX     100km high
+-LONG_MAX    100km depth
 
 This means that each increment is 0.0000465 meters. MSL is determined by WGS84
 (World Geodetic System of 1984), which estalishes an ideal elipsoid as an
@@ -992,7 +992,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-int ami_altitude(void)
+long ami_altitude(void)
 
 {
 
@@ -1012,7 +1012,7 @@ determined by latitude/longitude.
 
 *******************************************************************************/
 
-int ami_country(void)
+long ami_country(void)
 
 {
 
@@ -1039,8 +1039,8 @@ Note that the 2 letter codes happen to also be the Internet location codes
 
 void ami_countrys(
     /** string buffer */           char* s,
-    /** length of buffer */        int len,
-    /** ISO 3166-1 country code */ int c)
+    /** length of buffer */        long len,
+    /** ISO 3166-1 country code */ long c)
 
 {
 
@@ -1057,7 +1057,7 @@ negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
-int ami_timezone(void)
+long ami_timezone(void)
 
 {
 
@@ -1083,7 +1083,7 @@ Note that local() already takes daylight savings into account.
 
 *******************************************************************************/
 
-int ami_daysave(void)
+long ami_daysave(void)
 
 
 {
@@ -1102,7 +1102,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-int ami_time24hour(void)
+long ami_time24hour(void)
 
 {
 
@@ -1124,7 +1124,7 @@ necessarily be added at the end, and thus out of order.
 
 *******************************************************************************/
 
-int ami_language(void)
+long ami_language(void)
 
 {
 
@@ -1151,7 +1151,7 @@ additions. Once a language is assigned a number it keeps it.
 
 *******************************************************************************/
 
-void ami_languages(char* s, int len, int l)
+void ami_languages(char* s, long len, long l)
 
 {
 
@@ -1217,7 +1217,7 @@ Note that times() compensates for this.
 
 *******************************************************************************/
 
-int ami_timeorder(void)
+long ami_timeorder(void)
 
 {
 
@@ -1251,7 +1251,7 @@ Note that dates() compensates for this.
 
 *******************************************************************************/
 
-int ami_dateorder(void)
+long ami_dateorder(void)
 
 {
 

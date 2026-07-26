@@ -23,20 +23,20 @@ Program to bounce animated balls around screen
 
 typedef struct balrec { /* ball data record */
 
-    int      x, y;   /* current position */
-    int      lx, ly; /* last position */
-    int      xd, yd; /* deltas */
+    long     x, y;   /* current position */
+    long     lx, ly; /* last position */
+    long     xd, yd; /* deltas */
     ami_color c;      /* ami_color */
 
 } balrec;
 
-int      cd;              /* current display flip select */
+long     cd;              /* current display flip select */
 balrec   baltbl[MAXBALL]; /* ball data table */
 int      i;               /* index for table */
-int      nx, ny;          /* temp coordinates holders */
+long     nx, ny;          /* temp coordinates holders */
 int      rc;              /* repetition counter */
-int      ballsize;        /* size of ball onscreen */
-int      halfball;        /* half size of ball */
+long     ballsize;        /* size of ball onscreen */
+long     halfball;        /* half size of ball */
 ami_color cc;              /* ami_color assignment counter */
 ami_note  n;               /* note variable */
 int      bounce;          /* a bounce took place */
@@ -60,11 +60,11 @@ int chkbrk(void)
 
 /* Find random number between 0 and N. */
 
-static int randn(int limit)
+static long randn(long limit)
 
 {
 
-    return ((long)limit+1)*rand()/RAND_MAX;
+    return (limit+1)*rand()/RAND_MAX;
 
 }
 
@@ -77,11 +77,11 @@ rounded up a pixel.
 
 ********************************************************************************/
 
-void drawball(int x, int y, int s)
+void drawball(long x, long y, long s)
 
 {
 
-    int hs;
+    long hs;
 
     hs = s / 2;
     ami_fellipse(stdout, x-hs, y-hs, x+hs, y+hs);
@@ -104,7 +104,7 @@ as needed should be used. Steps will be more apparent on larger balls.
 
 /* subtract from level without allowing negative */
 
-int level(int c, int steps, int shad, int i)
+long level(long c, long steps, long shad, long i)
 
 {
 
@@ -115,17 +115,17 @@ int level(int c, int steps, int shad, int i)
 
 }
 
-void drawsball(int x, int y, int size, int o, int steps, int r, int g, int b)
+void drawsball(long x, long y, long size, long o, long steps, long r, long g, long b)
 
 {
 
-    int   i;
-    int   k, q;
+    long  i;
+    long  k, q;
     float offs;
-    int   shad;
+    long  shad;
 
     offs = o*(size/2)/100; /* find offset from percentage */
-    shad = INT_MAX/2/steps; /* find shading steps */
+    shad = LONG_MAX/2/steps; /* find shading steps */
     for (i = 1; i <= steps; i++) {
 
         ami_fcolorg(stdout, level(r, steps, shad, i), level(g, steps, shad, i),
@@ -138,39 +138,39 @@ void drawsball(int x, int y, int size, int o, int steps, int r, int g, int b)
 
 }
 
-int redv(ami_color c)
+long redv(ami_color c)
 
 {
 
-    int cv;
+    long cv;
 
-    if (c == ami_red || c == ami_magenta || c == ami_yellow) cv = INT_MAX;
+    if (c == ami_red || c == ami_magenta || c == ami_yellow) cv = LONG_MAX;
     else cv = 0;
 
     return (cv);
 
 }
 
-int greenv(ami_color c)
+long greenv(ami_color c)
 
 {
 
-    int cv;
+    long cv;
 
-    if (c == ami_green || c == ami_yellow || c == ami_cyan) cv = INT_MAX;
+    if (c == ami_green || c == ami_yellow || c == ami_cyan) cv = LONG_MAX;
     else cv = 0;
 
     return (cv);
 
 }
 
-int bluev(ami_color c)
+long bluev(ami_color c)
 
 {
 
-    int cv;
+    long cv;
 
-    if (c == ami_blue || c == ami_cyan || c == ami_magenta) cv = INT_MAX;
+    if (c == ami_blue || c == ami_cyan || c == ami_magenta) cv = LONG_MAX;
     else cv = 0;
 
     return (cv);
@@ -181,7 +181,7 @@ void movbal(int b)
 
 {
 
-    int nx, ny; /* temp coordinates holders */
+    long nx, ny; /* temp coordinates holders */
 
     nx = baltbl[b].x+baltbl[b].xd; /* trial move ball */
     ny = baltbl[b].y+baltbl[b].yd;

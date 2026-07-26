@@ -87,7 +87,7 @@ to the window.
 
 *******************************************************************************/
 
-void ami_scrollg(FILE* f, int x, int y)
+void ami_scrollg(FILE* f, long x, long y)
 
 {
 
@@ -95,7 +95,7 @@ void ami_scrollg(FILE* f, int x, int y)
 
 }
 
-void ami_scroll(FILE* f, int x, int y)
+void ami_scroll(FILE* f, long x, long y)
 
 {
 
@@ -111,7 +111,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-void ami_cursor(FILE* f, int x, int y)
+void ami_cursor(FILE* f, long x, long y)
 
 {
 
@@ -127,7 +127,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-void ami_cursorg(FILE* f, int x, int y)
+void ami_cursorg(FILE* f, long x, long y)
 
 {
 
@@ -144,7 +144,7 @@ to the font baseline. The baseline is the line all characters rest on.
 
 *******************************************************************************/
 
-int ami_baseline(FILE* f)
+long ami_baseline(FILE* f)
 
 {
 
@@ -163,7 +163,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int ami_maxx(FILE* f)
+long ami_maxx(FILE* f)
 
 {
 
@@ -182,7 +182,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int ami_maxy(FILE* f)
+long ami_maxy(FILE* f)
 
 {
 
@@ -201,7 +201,7 @@ pixels.
 
 *******************************************************************************/
 
-int ami_maxxg(FILE* f)
+long ami_maxxg(FILE* f)
 
 {
 
@@ -220,7 +220,7 @@ pixels.
 
 *******************************************************************************/
 
-int ami_maxyg(FILE* f)
+long ami_maxyg(FILE* f)
 
 {
 
@@ -324,7 +324,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-void ami_blink(FILE* f, int e)
+void ami_blink(FILE* f, long e)
 
 {
 
@@ -341,7 +341,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-void ami_reverse(FILE* f, int e)
+void ami_reverse(FILE* f, long e)
 
 {
 
@@ -360,7 +360,7 @@ character drawn.
 
 *******************************************************************************/
 
-void ami_underline(FILE* f, int e)
+void ami_underline(FILE* f, long e)
 
 {
 
@@ -377,7 +377,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_superscript(FILE* f, int e)
+void ami_superscript(FILE* f, long e)
 
 {
 
@@ -394,7 +394,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_subscript(FILE* f, int e)
+void ami_subscript(FILE* f, long e)
 
 {
 
@@ -416,7 +416,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-void ami_italic(FILE* f, int e)
+void ami_italic(FILE* f, long e)
 
 {
 
@@ -436,7 +436,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_bold(FILE* f, int e)
+void ami_bold(FILE* f, long e)
 
 {
 
@@ -454,7 +454,7 @@ just placed.
 
 *******************************************************************************/
 
-void ami_strikeout(FILE* f, int e)
+void ami_strikeout(FILE* f, long e)
 
 {
 
@@ -471,7 +471,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_standout(FILE* f, int e)
+void ami_standout(FILE* f, long e)
 
 {
 
@@ -495,7 +495,7 @@ void ami_fcolor(FILE* f, ami_color c)
 
 }
 
-void ami_fcolorc(FILE* f, int r, int g, int b)
+void ami_fcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -516,7 +516,7 @@ fcolorg for backward compatiblity to the days before overloads.
 
 *******************************************************************************/
 
-void ami_fcolorg(FILE* f, int r, int g, int b)
+void ami_fcolorg(FILE* f, long r, long g, long b)
 
 {
 
@@ -540,7 +540,7 @@ void ami_bcolor(FILE* f, ami_color c)
 
 }
 
-void ami_bcolorc(FILE* f, int r, int g, int b)
+void ami_bcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -558,7 +558,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-void ami_bcolorg(FILE* f, int r, int g, int b)
+void ami_bcolorg(FILE* f, long r, long g, long b)
 
 {
 
@@ -591,7 +591,7 @@ anywhere.
 
 *******************************************************************************/
 
-void ami_auto(FILE* f, int e)
+void ami_auto(FILE* f, long e)
 
 {
 
@@ -607,7 +607,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void ami_curvis(FILE* f, int e)
+void ami_curvis(FILE* f, long e)
 
 {
 
@@ -623,7 +623,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int ami_curx(FILE* f)
+long ami_curx(FILE* f)
 
 {
 
@@ -641,7 +641,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int ami_cury(FILE* f)
+long ami_cury(FILE* f)
 
 {
 
@@ -659,7 +659,7 @@ Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
-int ami_curxg(FILE* f)
+long ami_curxg(FILE* f)
 
 {
 
@@ -677,7 +677,7 @@ Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
-int ami_curyg(FILE* f)
+long ami_curyg(FILE* f)
 
 {
 
@@ -701,7 +701,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-void ami_select(FILE* f, int u, int d)
+void ami_select(FILE* f, long u, long d)
 
 {
 
@@ -759,7 +759,7 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-void ami_line(FILE* f, int x1, int y1, int x2, int y2)
+void ami_line(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -775,7 +775,7 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
-void ami_rect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -791,7 +791,7 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
-void ami_frect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -807,7 +807,7 @@ Draws a rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-void ami_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
@@ -823,7 +823,7 @@ Draws a filled rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-void ami_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
@@ -839,7 +839,7 @@ Draws an ellipse with the current foreground color and line width.
 
 *******************************************************************************/
 
-void ami_ellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -855,7 +855,7 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
-void ami_fellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
@@ -891,7 +891,7 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-void ami_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -908,7 +908,7 @@ as for the arc function above.
 
 *******************************************************************************/
 
-void ami_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -925,7 +925,7 @@ as for the arc function above.
 
 *******************************************************************************/
 
-void ami_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
@@ -941,7 +941,7 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-void ami_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
 
 {
 
@@ -957,7 +957,7 @@ Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
-void ami_setpixel(FILE* f, int x, int y)
+void ami_setpixel(FILE* f, long x, long y)
 
 {
 
@@ -1069,7 +1069,7 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
-void ami_linewidth(FILE* f, int w)
+void ami_linewidth(FILE* f, long w)
 
 {
 
@@ -1085,7 +1085,7 @@ Returns the character width.
 
 *******************************************************************************/
 
-int ami_chrsizx(FILE* f)
+long ami_chrsizx(FILE* f)
 
 {
 
@@ -1103,7 +1103,7 @@ Returns the character height.
 
 *******************************************************************************/
 
-int ami_chrsizy(FILE* f)
+long ami_chrsizy(FILE* f)
 
 {
 
@@ -1121,7 +1121,7 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-int ami_fonts(FILE* f)
+long ami_fonts(FILE* f)
 
 {
 
@@ -1139,7 +1139,7 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-void ami_font(FILE* f, int fc)
+void ami_font(FILE* f, long fc)
 
 {
 
@@ -1155,7 +1155,7 @@ Returns the name of a font by number.
 
 *******************************************************************************/
 
-void ami_fontnam(FILE* f, int fc, char* fns, int fnsl)
+void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
 
 {
 
@@ -1172,7 +1172,7 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-void ami_fontsiz(FILE* f, int s)
+void ami_fontsiz(FILE* f, long s)
 
 {
 
@@ -1191,7 +1191,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_chrspcy(FILE* f, int s)
+void ami_chrspcy(FILE* f, long s)
 
 {
 
@@ -1210,7 +1210,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_chrspcx(FILE* f, int s)
+void ami_chrspcx(FILE* f, long s)
 
 {
 
@@ -1226,7 +1226,7 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-int ami_dpmx(FILE* f)
+long ami_dpmx(FILE* f)
 
 {
 
@@ -1244,7 +1244,7 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-int ami_dpmy(FILE* f)
+long ami_dpmy(FILE* f)
 
 {
 
@@ -1263,7 +1263,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-int ami_strsiz(FILE* f, const char* s)
+long ami_strsiz(FILE* f, const char* s)
 
 {
 
@@ -1281,7 +1281,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-int ami_chrpos(FILE* f, const char* s, int p)
+long ami_chrpos(FILE* f, const char* s, long p)
 
 {
 
@@ -1301,7 +1301,7 @@ the system font.
 
 *******************************************************************************/
 
-void ami_writejust(FILE* f, const char* s, int n)
+void ami_writejust(FILE* f, const char* s, long n)
 
 {
 
@@ -1321,7 +1321,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-int ami_justpos(FILE* f, const char* s, int p, int n)
+long ami_justpos(FILE* f, const char* s, long p, long n)
 
 {
 
@@ -1344,7 +1344,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_condensed(FILE* f, int e)
+void ami_condensed(FILE* f, long e)
 
 {
 
@@ -1365,7 +1365,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_extended(FILE* f, int e)
+void ami_extended(FILE* f, long e)
 
 {
 
@@ -1386,7 +1386,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_xlight(FILE* f, int e)
+void ami_xlight(FILE* f, long e)
 
 {
 
@@ -1407,7 +1407,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_light(FILE* f, int e)
+void ami_light(FILE* f, long e)
 
 {
 
@@ -1428,7 +1428,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_xbold(FILE* f, int e)
+void ami_xbold(FILE* f, long e)
 
 {
 
@@ -1449,7 +1449,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_hollow(FILE* f, int e)
+void ami_hollow(FILE* f, long e)
 
 {
 
@@ -1470,7 +1470,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_raised(FILE* f, int e)
+void ami_raised(FILE* f, long e)
 
 {
 
@@ -1486,7 +1486,7 @@ Deletes a loaded picture.
 
 *******************************************************************************/
 
-void ami_delpict(FILE* f, int p)
+void ami_delpict(FILE* f, long p)
 
 {
 
@@ -1502,7 +1502,7 @@ Loads a picture into a slot of the loadable pictures array.
 
 *******************************************************************************/
 
-void ami_loadpict(FILE* f, int p, char* fn)
+void ami_loadpict(FILE* f, long p, char* fn)
 
 {
 
@@ -1518,7 +1518,7 @@ Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-int ami_pictsizx(FILE* f, int p)
+long ami_pictsizx(FILE* f, long p)
 
 {
 
@@ -1536,7 +1536,7 @@ Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-int ami_pictsizy(FILE* f, int p)
+long ami_pictsizy(FILE* f, long p)
 
 {
 
@@ -1557,7 +1557,7 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
+void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
 
 {
 
@@ -1574,7 +1574,7 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 *******************************************************************************/
 
-void ami_viewoffg(FILE* f, int x, int y)
+void ami_viewoffg(FILE* f, long x, long y)
 
 {
 
@@ -1647,9 +1647,9 @@ the associated input file.
 *******************************************************************************/
 
 void ami_timer(FILE* f, /* file to send event to */
-              int   i, /* timer handle */
+              long   i, /* timer handle */
               long  t, /* number of tenth-milliseconds to run */
-              int   r) /* timer is to rerun after completion */
+              long   r) /* timer is to rerun after completion */
 
 {
 
@@ -1666,7 +1666,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 *******************************************************************************/
 
 void ami_killtimer(FILE*  f, /* file to kill timer on */
-                  int    i) /* handle of timer */
+                  long    i) /* handle of timer */
 
 {
 
@@ -1685,7 +1685,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-void ami_frametimer(FILE* f, int e)
+void ami_frametimer(FILE* f, long e)
 
 {
 
@@ -1708,7 +1708,7 @@ holding gralib unaware programs.
 
 *******************************************************************************/
 
-void ami_autohold(int e)
+void ami_autohold(long e)
 
 {
 
@@ -1724,7 +1724,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-int ami_mouse(FILE* f)
+long ami_mouse(FILE* f)
 
 {
 
@@ -1743,7 +1743,7 @@ version.
 
 *******************************************************************************/
 
-int ami_mousebutton(FILE* f, int m)
+long ami_mousebutton(FILE* f, long m)
 
 {
 
@@ -1761,7 +1761,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int ami_joystick(FILE* f)
+long ami_joystick(FILE* f)
 
 {
 
@@ -1779,7 +1779,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-int ami_joybutton(FILE* f, int j)
+long ami_joybutton(FILE* f, long j)
 
 {
 
@@ -1799,7 +1799,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int ami_joyaxis(FILE* f, int j)
+long ami_joyaxis(FILE* f, long j)
 
 {
 
@@ -1817,7 +1817,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void ami_settabg(FILE* f, int t)
+void ami_settabg(FILE* f, long t)
 
 {
 
@@ -1833,7 +1833,7 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void ami_settab(FILE* f, int t)
+void ami_settab(FILE* f, long t)
 
 {
 
@@ -1849,7 +1849,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-void ami_restabg(FILE* f, int t)
+void ami_restabg(FILE* f, long t)
 
 {
 
@@ -1865,7 +1865,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void ami_restab(FILE* f, int t)
+void ami_restab(FILE* f, long t)
 
 {
 
@@ -1900,7 +1900,7 @@ function keys as well.
 
 *******************************************************************************/
 
-int ami_funkey(FILE* f)
+long ami_funkey(FILE* f)
 
 {
 
@@ -1939,7 +1939,7 @@ directly. These ids will be be opened as a pair anytime the "_input" or
 
 *******************************************************************************/
 
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
@@ -1955,7 +1955,7 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-void ami_sizbufg(FILE* f, int x, int y)
+void ami_sizbufg(FILE* f, long x, long y)
 
 {
 
@@ -1971,7 +1971,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void ami_sizbuf(FILE* f, int x, int y)
+void ami_sizbuf(FILE* f, long x, long y)
 
 {
 
@@ -1988,7 +1988,7 @@ freed.
 
 *******************************************************************************/
 
-void ami_buffer(FILE* f, int e)
+void ami_buffer(FILE* f, long e)
 
 {
 
@@ -2023,7 +2023,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-void ami_menuena(FILE* f, int id, int onoff)
+void ami_menuena(FILE* f, long id, long onoff)
 
 {
 
@@ -2040,7 +2040,7 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-void ami_menusel(FILE* f, int id, int select)
+void ami_menusel(FILE* f, long id, long select)
 
 {
 
@@ -2088,7 +2088,7 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-void ami_getsizg(FILE* f, int* x, int* y)
+void ami_getsizg(FILE* f, long* x, long* y)
 
 {
 
@@ -2109,7 +2109,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_getsiz(FILE* f, int* x, int* y)
+void ami_getsiz(FILE* f, long* x, long* y)
 
 {
 
@@ -2125,7 +2125,7 @@ Sets the onscreen window to the given size.
 
 *******************************************************************************/
 
-void ami_setsizg(FILE* f, int x, int y)
+void ami_setsizg(FILE* f, long x, long y)
 
 {
 
@@ -2146,7 +2146,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_setsiz(FILE* f, int x, int y)
+void ami_setsiz(FILE* f, long x, long y)
 
 {
 
@@ -2162,7 +2162,7 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-void ami_setposg(FILE* f, int x, int y)
+void ami_setposg(FILE* f, long x, long y)
 
 {
 
@@ -2183,7 +2183,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_setpos(FILE* f, int x, int y)
+void ami_setpos(FILE* f, long x, long y)
 
 {
 
@@ -2199,7 +2199,7 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-void ami_scnsizg(FILE* f, int* x, int* y)
+void ami_scnsizg(FILE* f, long* x, long* y)
 
 {
 
@@ -2222,7 +2222,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy,
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy,
                ami_winmodset msset)
 
 {
@@ -2231,7 +2231,7 @@ void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy,
 
 }
 
-void ami_winclientg(FILE* f, int cx, int cy, int* wx, int* wy,
+void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy,
                 ami_winmodset ms)
 
 {
@@ -2251,7 +2251,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void ami_scnsiz(FILE* f, int* x, int* y)
+void ami_scnsiz(FILE* f, long* x, long* y)
 
 {
 
@@ -2267,7 +2267,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-void ami_frame(FILE* f, int e)
+void ami_frame(FILE* f, long e)
 
 {
 
@@ -2283,7 +2283,7 @@ Turns the window sizing on and off.
 
 *******************************************************************************/
 
-void ami_sizable(FILE* f, int e)
+void ami_sizable(FILE* f, long e)
 
 {
 
@@ -2299,7 +2299,7 @@ Turns the system bar on and off.
 
 *******************************************************************************/
 
-void ami_sysbar(FILE* f, int e)
+void ami_sysbar(FILE* f, long e)
 
 {
 
@@ -2339,7 +2339,7 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-void ami_killwidget(FILE* f, int id)
+void ami_killwidget(FILE* f, long id)
 
 {
 
@@ -2355,7 +2355,7 @@ Selects or deselects a widget.
 
 *******************************************************************************/
 
-void ami_selectwidget(FILE* f, int id, int e)
+void ami_selectwidget(FILE* f, long id, long e)
 
 {
 
@@ -2371,7 +2371,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-void ami_enablewidget(FILE* f, int id, int e)
+void ami_enablewidget(FILE* f, long id, long e)
 
 {
 
@@ -2389,7 +2389,7 @@ This error is currently unchecked.
 
 *******************************************************************************/
 
-void ami_getwidgettext(FILE* f, int id, char* s, int sl)
+void ami_getwidgettext(FILE* f, long id, char* s, long sl)
 
 {
 
@@ -2405,7 +2405,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-void ami_putwidgettext(FILE* f, int id, char* s)
+void ami_putwidgettext(FILE* f, long id, char* s)
 
 {
 
@@ -2421,7 +2421,7 @@ Changes the size of a widget.
 
 *******************************************************************************/
 
-void ami_sizwidgetg(FILE* f, int id, int x, int y)
+void ami_sizwidgetg(FILE* f, long id, long x, long y)
 
 {
 
@@ -2437,7 +2437,7 @@ Changes the parent position of a widget.
 
 *******************************************************************************/
 
-void ami_poswidgetg(FILE* f, int id, int x, int y)
+void ami_poswidgetg(FILE* f, long id, long x, long y)
 
 {
 
@@ -2451,7 +2451,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void ami_backwidget(FILE* f, int id)
+void ami_backwidget(FILE* f, long id)
 
 {
 
@@ -2465,7 +2465,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-void ami_frontwidget(FILE* f, int id)
+void ami_frontwidget(FILE* f, long id)
 
 {
 
@@ -2482,7 +2482,7 @@ a button is calculated and returned.
 
 *******************************************************************************/
 
-void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2490,7 +2490,7 @@ void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_buttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2506,7 +2506,7 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2514,7 +2514,7 @@ void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2531,7 +2531,7 @@ a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2539,7 +2539,7 @@ void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_checkboxsiz(FILE* f, char* s,  int* w, int* h)
+void ami_checkboxsiz(FILE* f, char* s,  long* w, long* h)
 
 {
 
@@ -2556,7 +2556,7 @@ window.
 
 *******************************************************************************/
 
-void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2564,7 +2564,7 @@ void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2581,7 +2581,7 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2589,7 +2589,7 @@ void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2606,7 +2606,7 @@ window.
 
 *******************************************************************************/
 
-void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2614,7 +2614,7 @@ void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2631,8 +2631,8 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
-               int* ox, int* oy)
+void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h,
+               long* ox, long* oy)
 
 {
 
@@ -2640,8 +2640,8 @@ void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h,
 
 }
 
-void ami_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h,
-              int* ox, int* oy)
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
+              long* ox, long* oy)
 
 {
 
@@ -2658,7 +2658,7 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2666,7 +2666,7 @@ void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
 
 }
 
-void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 {
 
@@ -2683,7 +2683,7 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2691,7 +2691,7 @@ void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2708,7 +2708,7 @@ scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void ami_scrollvertsizg(FILE* f, int* w, int* h)
+void ami_scrollvertsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -2716,7 +2716,7 @@ void ami_scrollvertsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_scrollvertsiz(FILE* f, int* w, int* h)
+void ami_scrollvertsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -2732,7 +2732,7 @@ Creates a vertical scrollbar.
 
 *******************************************************************************/
 
-void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2740,7 +2740,7 @@ void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2757,7 +2757,7 @@ horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-void ami_scrollhorizsizg(FILE* f, int* w, int* h)
+void ami_scrollhorizsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -2765,7 +2765,7 @@ void ami_scrollhorizsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_scrollhorizsiz(FILE* f, int* w, int* h)
+void ami_scrollhorizsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -2781,7 +2781,7 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2789,7 +2789,7 @@ void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2805,7 +2805,7 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-void ami_scrollpos(FILE* f, int id, int r)
+void ami_scrollpos(FILE* f, long id, long r)
 
 {
 
@@ -2821,7 +2821,7 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-void ami_scrollsiz(FILE* f, int id, int r)
+void ami_scrollsiz(FILE* f, long id, long r)
 
 {
 
@@ -2838,7 +2838,7 @@ select box is calculated and returned.
 
 *******************************************************************************/
 
-void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
 
 {
 
@@ -2846,7 +2846,7 @@ void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
 
 }
 
-void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
 
 {
 
@@ -2862,7 +2862,7 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
 
 {
 
@@ -2870,7 +2870,7 @@ void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int i
 
 }
 
-void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
 
 {
 
@@ -2887,7 +2887,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2895,7 +2895,7 @@ void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
 
 }
 
-void ami_editboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
 
 {
 
@@ -2911,7 +2911,7 @@ Creates single line edit box
 
 *******************************************************************************/
 
-void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2919,7 +2919,7 @@ void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2936,7 +2936,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-void ami_progbarsizg(FILE* f, int* w, int* h)
+void ami_progbarsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -2944,7 +2944,7 @@ void ami_progbarsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_progbarsiz(FILE* f, int* w, int* h)
+void ami_progbarsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -2960,7 +2960,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2968,7 +2968,7 @@ void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
 
 }
 
-void progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 {
 
@@ -2984,7 +2984,7 @@ Sets the position of a progress bar, from 0 to maxint.
 
 *******************************************************************************/
 
-void ami_progbarpos(FILE* f, int id, int pos)
+void ami_progbarpos(FILE* f, long id, long pos)
 
 {
 
@@ -3008,19 +3008,19 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-void ami_boxsizg(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
 
 {
 
-    error("ami_boxsizg: Is not implemented");
+    error("ami_listboxsizg: Is not implemented");
 
 }
 
-void ami_boxsiz(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
 
 {
 
-    error("ami_boxsiz: Is not implemented");
+    error("ami_listboxsiz: Is not implemented");
 
 }
 
@@ -3032,19 +3032,19 @@ Creates a list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void ami_boxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
-    error("ami_boxg: Is not implemented");
+    error("ami_listboxg: Is not implemented");
 
 }
 
-void ami_box(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
-    error("ami_box: Is not implemented");
+    error("ami_listbox: Is not implemented");
 
 }
 
@@ -3061,7 +3061,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -3069,7 +3069,7 @@ void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
 
 }
 
-void ami_dropboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -3085,7 +3085,7 @@ Creates a dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -3093,7 +3093,7 @@ void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id
 
 }
 
-void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -3115,7 +3115,7 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -3123,7 +3123,7 @@ void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int*
 
 }
 
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
 
 {
 
@@ -3142,7 +3142,7 @@ box.
 
 *******************************************************************************/
 
-void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -3150,7 +3150,7 @@ void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, in
 
 }
 
-void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
 
 {
 
@@ -3167,7 +3167,7 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-void ami_slidehorizsizg(FILE* f, int * w, int* h)
+void ami_slidehorizsizg(FILE* f, long * w, long* h)
 
 {
 
@@ -3175,7 +3175,7 @@ void ami_slidehorizsizg(FILE* f, int * w, int* h)
 
 }
 
-void ami_slidehorizsiz(FILE* f, int* w, int* h)
+void ami_slidehorizsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -3193,7 +3193,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -3201,7 +3201,7 @@ void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -3218,7 +3218,7 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-void ami_slidevertsizg(FILE* f, int* w, int* h)
+void ami_slidevertsizg(FILE* f, long* w, long* h)
 
 {
 
@@ -3226,7 +3226,7 @@ void ami_slidevertsizg(FILE* f, int* w, int* h)
 
 }
 
-void ami_slidevertsiz(FILE* f, int* w, int* h)
+void ami_slidevertsiz(FILE* f, long* w, long* h)
 
 {
 
@@ -3244,7 +3244,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -3252,7 +3252,7 @@ void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
 
 }
 
-void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
 
 {
 
@@ -3269,8 +3269,8 @@ calculated and returned.
 
 *******************************************************************************/
 
-void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-                int* ox, int* oy)
+void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                long* ox, long* oy)
 
 {
 
@@ -3278,8 +3278,8 @@ void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_tabori tor, int cw, int ch, int * w, int* h,
-               int* ox, int* oy)
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long * w, long* h,
+               long* ox, long* oy)
 
 {
 
@@ -3297,8 +3297,8 @@ flexible.
 
 *******************************************************************************/
 
-void ami_tabbarclientg(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                   int* ox, int* oy)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                   long* ox, long* oy)
 
 {
 
@@ -3306,8 +3306,8 @@ void ami_tabbarclientg(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
 
 }
 
-void ami_tabbarclient(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                  int* ox, int* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                  long* ox, long* oy)
 
 {
 
@@ -3327,8 +3327,8 @@ creating and distroying another widget.
 
 *******************************************************************************/
 
-void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-             ami_tabori tor, int id)
+void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+             ami_tabori tor, long id)
 
 {
 
@@ -3336,8 +3336,8 @@ void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
 
 }
 
-void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-            ami_tabori tor, int id)
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+            ami_tabori tor, long id)
 
 {
 
@@ -3354,7 +3354,7 @@ of the tab.
 
 *******************************************************************************/
 
-void ami_tabsel(FILE* f, int id, int tn)
+void ami_tabsel(FILE* f, long id, long tn)
 
 {
 
@@ -3388,7 +3388,7 @@ Bug: does not take the input color as the default.
 
 *******************************************************************************/
 
-void ami_querycolor(int* r, int* g, int* b)
+void ami_querycolor(long* r, long* g, long* b)
 
 {
 
@@ -3412,7 +3412,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void ami_queryopen(char* s, int sl)
+void ami_queryopen(char* s, long sl)
 
 {
 
@@ -3436,7 +3436,7 @@ If the operation is cancelled, then a null string will be returned.
 
 *******************************************************************************/
 
-void ami_querysave(char* s, int sl)
+void ami_querysave(char* s, long sl)
 
 {
 
@@ -3469,7 +3469,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void ami_queryfind(char* s, int sl, ami_qfnopts* opt)
+void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
 
 {
 
@@ -3494,7 +3494,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void ami_queryfindrep(char* s, int sl, char* r, int rl, ami_qfropts* opt)
+void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
 
 {
 
@@ -3517,8 +3517,8 @@ user as the defaults.
 
 *******************************************************************************/
 
-void ami_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-               int* br, int* bg, int* bb, ami_qfteffects* effect)
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+               long* br, long* bg, long* bb, ami_qfteffects* effect)
 
 {
 

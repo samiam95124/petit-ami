@@ -322,14 +322,6 @@ typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
 typedef off_t (*plseek_t)(int, off_t, int);
 
-/* types of override calls not already declared in graphics.h.
- * This is because these are unpublished as yet.
- */
-typedef void (*ami_viewoffg_t)(FILE* f, int x, int y);
-typedef void (*ami_viewscale_t)(FILE* f, float x, float y);
-typedef int  (*ami_scalex_t)(FILE* f, int x);
-typedef int  (*ami_scaley_t)(FILE* f, int y);
-
 /* system override calls */
 
 extern void ovr_read(pread_t nfp, pread_t* ofp);
@@ -438,13 +430,13 @@ typedef struct metrec {
     metptr head;               /* head of menu pointer */
     int    menubar;            /* is the menu bar */
     int    frm;                /* is a frame */
-    int    onoff;              /* the item is on-off highlighted */
-    int    select;             /* the current on/off state of the highlight */
+    long   onoff;              /* the item is on-off highlighted */
+    long   select;             /* the current on/off state of the highlight */
     metptr oneof;              /* "one of" chain pointer */
     metptr chnhd;              /* head of "one of" chain */
-    int    ena;                /* enabled/disabled */
-    int    bar;                /* has bar under */
-    int    id;                 /* user id of item */
+    long   ena;                /* enabled/disabled */
+    long   bar;                /* has bar under */
+    long   id;                 /* user id of item */
     int    fx1, fy1, fx2, fy2; /* subclient position of window */
     int    prime;              /* is a prime (onscreen) entry */
     int    pressed;            /* in the pressed state */
@@ -452,7 +444,7 @@ typedef struct metrec {
     char*  title;              /* title text */
     FILE*  parent;             /* parent window */
     FILE*  evtfil;             /* file to post menu events to */
-    int    wid;                /* menu window id */
+    long   wid;                /* menu window id */
 
 } metrec;
 
@@ -460,37 +452,37 @@ typedef struct scncon* scnptr;
 typedef struct scncon { /* screen context */
 
     /* fields used by graph module */
-    int     lwidth;      /* width of lines */
+    long    lwidth;      /* width of lines */
     ami_lstyle lstyle;   /* style of lines */
     /* note that the pixel and character dimensions and positions are kept
       in parallel for both characters and pixels */
-    int     maxx;        /* maximum characters in x */
-    int     maxy;        /* maximum characters in y */
-    int     maxxg;       /* maximum pixels in x */
-    int     maxyg;       /* maximum pixels in y */
-    int     curx;        /* current cursor location x */
-    int     cury;        /* current cursor location y */
-    int     curxg;       /* current cursor location in pixels x */
-    int     curyg;       /* current cursor location in pixels y */
-    int     angle;       /* character drawing angle */
-    int     fcrgb;       /* current writing foreground color in rgb */
-    int     bcrgb;       /* current writing background color in rgb */
+    long    maxx;        /* maximum characters in x */
+    long    maxy;        /* maximum characters in y */
+    long    maxxg;       /* maximum pixels in x */
+    long    maxyg;       /* maximum pixels in y */
+    long    curx;        /* current cursor location x */
+    long    cury;        /* current cursor location y */
+    long    curxg;       /* current cursor location in pixels x */
+    long    curyg;       /* current cursor location in pixels y */
+    long    angle;       /* character drawing angle */
+    long    fcrgb;       /* current writing foreground color in rgb */
+    long    bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
     mode    bmod;        /* background mix mode */
     fontptr cfont;       /* active font entry */
-    int     cspc;        /* character spacing */
-    int     lspc;        /* line spacing */
+    long    cspc;        /* character spacing */
+    long    lspc;        /* line spacing */
     int     attr;        /* set of active attributes */
-    int     autof;       /* current status of scroll and wrap */
-    int     tab[MAXTAB]; /* tabbing array */
-    int     curv;        /* cursor visible */
+    long    autof;       /* current status of scroll and wrap */
+    long    tab[MAXTAB]; /* tabbing array */
+    long    curv;        /* cursor visible */
     /* note that view offsets and scaling are experimental features */
-    int     offx;        /* viewport offset x */
-    int     offy;        /* viewport offset y */
-    int     wextx;       /* window extent x */
-    int     wexty;       /* window extent y */
-    int     vextx;       /* viewpor extent x */
-    int     vexty;       /* viewport extent y */
+    long    offx;        /* viewport offset x */
+    long    offy;        /* viewport offset y */
+    long    wextx;       /* window extent x */
+    long    wexty;       /* window extent y */
+    long    vextx;       /* viewpor extent x */
+    long    vexty;       /* viewport extent y */
 
     /* fields used by graphics subsystem */
     GC      xcxt;        /* graphics context */
@@ -524,7 +516,7 @@ typedef struct winrec {
     /* fields used by graph module */
     int          parlfn;            /* logical parent */
     winptr       parwin;            /* link to parent (or NULL for parentless) */
-    int          wid;               /* this window logical id */
+    long         wid;               /* this window logical id */
     winptr       childwin;          /* list of child windows */
     winptr       childlst;          /* list pointer if this is a child */
     scnptr       screens[MAXCON];   /* screen contexts array */
@@ -532,19 +524,19 @@ typedef struct winrec {
     int          curupd;            /* index for current update screen */
     /* global sets. these are the global set parameters that apply to any new
       created screen buffer */
-    int          gmaxx;             /* maximum x size */
-    int          gmaxy;             /* maximum y size */
-    int          gmaxxg;            /* size of client area in x */
-    int          gmaxyg;            /* size of client area in y */
-    int          bufx;              /* buffer size x characters */
-    int          bufy;              /* buffer size y characters */
-    int          bufxg;             /* buffer size x pixels */
-    int          bufyg;             /* buffer size y pixels */
+    long         gmaxx;             /* maximum x size */
+    long         gmaxy;             /* maximum y size */
+    long         gmaxxg;            /* size of client area in x */
+    long         gmaxyg;            /* size of client area in y */
+    long         bufx;              /* buffer size x characters */
+    long         bufy;              /* buffer size y characters */
+    long         bufxg;             /* buffer size x pixels */
+    long         bufyg;             /* buffer size y pixels */
     int          gattr;             /* current attributes */
-    int          gauto;             /* state of auto */
-    int          gfcrgb;            /* foreground color in rgb */
-    int          gbcrgb;            /* background color in rgb */
-    int          gcurv;             /* state of cursor visible */
+    long         gauto;             /* state of auto */
+    long         gfcrgb;            /* foreground color in rgb */
+    long         gbcrgb;            /* background color in rgb */
+    long         gcurv;             /* state of cursor visible */
     fontptr      gcfont;            /* current font select */
     int          gfhigh;            /* physical em-square pixel size y (FreeType) */
     int          gfhighx;           /* physical em-square pixel size x (asymmetric) */
@@ -557,14 +549,14 @@ typedef struct winrec {
     int          misoffy;           /* missing font offset y */
     mode         gfmod;             /* foreground mix mode */
     mode         gbmod;             /* background mix mode */
-    int          goffx;             /* viewport offset x (physical pixels) */
-    int          goffy;             /* viewport offset y (physical pixels) */
+    long         goffx;             /* viewport offset x (physical pixels) */
+    long         goffy;             /* viewport offset y (physical pixels) */
     float        vsx;                /* viewport scale x (default 1.0) */
     float        vsy;                /* viewport scale y (default 1.0) */
-    int          gwextx;            /* window extent x */
-    int          gwexty;            /* window extent y */
-    int          gvextx;            /* viewpor extent x */
-    int          gvexty;            /* viewport extent y */
+    long         gwextx;            /* window extent x */
+    long         gwexty;            /* window extent y */
+    long         gvextx;            /* viewpor extent x */
+    long         gvexty;            /* viewport extent y */
     int          termfnt;           /* terminal font number */
     int          bookfnt;           /* book font number */
     int          signfnt;           /* sign font number */
@@ -574,8 +566,8 @@ typedef struct winrec {
     int          mb3;               /* button 3 asserted (delivered level) */
     int          mb4;               /* button 4 asserted (delivered level) */
     int          mb5;               /* button 5 asserted (delivered level) */
-    int          mpx, mpy;          /* mouse current position */
-    int          mpxg, mpyg;        /* mouse current position graphical */
+    long         mpx, mpy;          /* mouse current position */
+    long         mpxg, mpyg;        /* mouse current position graphical */
     /* Pending button presses/releases are counted, not levelled, so a press
        and its release that both arrive before either can be delivered (e.g.
        behind pending motion) are not collapsed -- every edge is preserved and
@@ -590,12 +582,12 @@ typedef struct winrec {
     int          rmb3;              /* pending releases button 3 */
     int          rmb4;              /* pending releases button 4 */
     int          rmb5;              /* pending releases button 5 */
-    int          nmpx, nmpy;        /* new mouse current position */
-    int          nmpxg, nmpyg;      /* new mouse current position graphical */
+    long         nmpx, nmpy;        /* new mouse current position */
+    long         nmpxg, nmpyg;      /* new mouse current position graphical */
     int          linespace;         /* line spacing in pixels */
     int          charspace;         /* character spacing in pixels */
-    int          chrspcx;           /* extra space between characters */
-    int          chrspcy;           /* extra space between lines */
+    long         chrspcx;           /* extra space between characters */
+    long         chrspcy;           /* extra space between lines */
     int          curspace;          /* size of cursor, in pixels */
     int          baseoff;           /* font baseline offset from top */
     int          menuspcy;          /* amount of space for menu in y (if exists) */
@@ -604,12 +596,12 @@ typedef struct winrec {
     int          fcurdwn;           /* cursor on screen flag */
     int          joy1cap;           /* joystick 1 is captured */
     int          joy2cap;           /* joystick 2 is captured */
-    int          joy1xs;            /* last joystick position 1x */
-    int          joy1ys;            /* last joystick position 1y */
-    int          joy1zs;            /* last joystick position 1z */
-    int          joy2xs;            /* last joystick position 2x */
-    int          joy2ys;            /* last joystick position 2y */
-    int          joy2zs;            /* last joystick position 2z */
+    long         joy1xs;            /* last joystick position 1x */
+    long         joy1ys;            /* last joystick position 1y */
+    long         joy1zs;            /* last joystick position 1z */
+    long         joy2xs;            /* last joystick position 2x */
+    long         joy2ys;            /* last joystick position 2y */
+    long         joy2zs;            /* last joystick position 2z */
     int          shsize;            /* display screen size x in millimeters */
     int          svsize;            /* display screen size y in millimeters */
     int          shres;             /* display screen pixels in x */
@@ -654,8 +646,8 @@ typedef struct winrec {
     int          minimized;         /* TRUE if child frame is minimized */
     int          minslot;           /* slot index when minimized (for x pos) */
     xrect        savxmwr;           /* xmwr before minimize, for restore */
-    int          savgmaxxg;         /* gmaxxg before minimize */
-    int          savgmaxyg;         /* gmaxyg before minimize */
+    long         savgmaxxg;         /* gmaxxg before minimize */
+    long         savgmaxyg;         /* gmaxyg before minimize */
 
 } winrec;
 
@@ -889,12 +881,12 @@ typedef struct joyrec {
     int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
-    int ax;     /* joystick x axis save */
-    int ay;     /* joystick y axis save */
-    int az;     /* joystick z axis save */
-    int a4;     /* joystick axis 4 save */
-    int a5;     /* joystick axis 5 save */
-    int a6;     /* joystick axis 6 save */
+    long ax;    /* joystick x axis save */
+    long ay;    /* joystick y axis save */
+    long az;    /* joystick z axis save */
+    long a4;    /* joystick axis 4 save */
+    long a5;    /* joystick axis 5 save */
+    long a6;    /* joystick axis 6 save */
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
@@ -1190,7 +1182,7 @@ static ami_queryfont_t       queryfont_vect;
 /* X Windows globals */
 
 static int fend;      /* end of program ordered flag */
-static int fautohold; /* automatic hold on exit flag */
+static long fautohold; /* automatic hold on exit flag */
 static pthread_mutex_t xwlock; /* XWindow call lock */
 
 /* X windows display characteristics.
@@ -1218,7 +1210,7 @@ static filptr     opnfil[MAXFIL]; /* open files table */
 static int        xltwin[MAXFIL*2+1]; /* window equivalence table, includes
                                          negatives and 0 */
 static metptr     xltmnu[MAXFIL*2+1]; /* menu entry equivalence table */
-static int        filwin[MAXFIL]; /* file to window equivalence table */
+static long       filwin[MAXFIL]; /* file to window equivalence table */
 static int        esck;           /* previous key was escape */
 static fontptr    fntlst;         /* list of fonts */
 static int        fntcnt;         /* number of fonts */
@@ -1287,8 +1279,8 @@ static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
 static int conpnt;    /* size of console font in points */
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
-                     int subclient);
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
+                     long subclient);
 
 /** ****************************************************************************
 
@@ -1873,55 +1865,55 @@ void prtevt(ami_evtptr er)
 
     if (dmpevt) {
 
-        fprintf(stderr, "PA Event: %5d Window: %d ", evtcnt++, er->winid);
+        fprintf(stderr, "PA Event: %5d Window: %ld ", evtcnt++, er->winid);
         prtevtt(er->etype);
         switch (er->etype) {
 
             case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-            case ami_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
-            case ami_etmoumov: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+            case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
+            case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
                                       er->mmoun, er->moupx, er->moupy); break;
-            case ami_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+            case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
                                      er->amoun, er->amoubn); break;
-            case ami_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+            case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
                                      er->dmoun, er->dmoubn); break;
-            case ami_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+            case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
                                      er->ajoyn, er->ajoybn); break;
-            case ami_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+            case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
                                      er->djoyn, er->djoybn); break;
-            case ami_etjoymov: fprintf(stderr, ": joystick: %d x: %4d y: %4d z: %4d "
-                                      "a4: %4d a5: %4d a6: %4d", er->mjoyn,
+            case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
+                                      "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
                                       er->joypx, er->joypy, er->joypz,
                                       er->joyp4, er->joyp5, er->joyp6); break;
-            case ami_etresize: fprintf(stderr, ": x: %d y: %d xg: %d yg: %d",
+            case ami_etresize: fprintf(stderr, ": x: %ld y: %ld xg: %ld yg: %ld",
                                       er->rszx, er->rszy,
                                       er->rszxg, er->rszyg); break;
-            case ami_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
-            case ami_etmoumovg: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+            case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
+            case ami_etmoumovg: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
                                        er->mmoung, er->moupxg, er->moupyg); break;
-            case ami_etredraw: fprintf(stderr, ": sx: %4d sy: %4d ex: %4d ey: %4d",
+            case ami_etredraw: fprintf(stderr, ": sx: %4ld sy: %4ld ex: %4ld ey: %4ld",
                                       er->rsx, er->rsy, er->rex, er->rey); break;
-            case ami_etmenus: fprintf(stderr, ": id: %d", er->menuid); break;
-            case ami_etbutton: fprintf(stderr, ": id: %d", er->butid); break;
-            case ami_etchkbox: fprintf(stderr, ": id: %d", er->ckbxid); break;
-            case ami_etradbut: fprintf(stderr, ": id: %d", er->radbid); break;
-            case ami_etsclull: fprintf(stderr, ": id: %d", er->sclulid); break;
-            case ami_etscldrl: fprintf(stderr, ": id: %d", er->scldrid); break;
-            case ami_etsclulp: fprintf(stderr, ": id: %d", er->sclupid); break;
-            case ami_etscldrp: fprintf(stderr, ": id: %d", er->scldpid); break;
-            case ami_etsclpos: fprintf(stderr, ": id: %d position: %d",
+            case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
+            case ami_etbutton: fprintf(stderr, ": id: %ld", er->butid); break;
+            case ami_etchkbox: fprintf(stderr, ": id: %ld", er->ckbxid); break;
+            case ami_etradbut: fprintf(stderr, ": id: %ld", er->radbid); break;
+            case ami_etsclull: fprintf(stderr, ": id: %ld", er->sclulid); break;
+            case ami_etscldrl: fprintf(stderr, ": id: %ld", er->scldrid); break;
+            case ami_etsclulp: fprintf(stderr, ": id: %ld", er->sclupid); break;
+            case ami_etscldrp: fprintf(stderr, ": id: %ld", er->scldpid); break;
+            case ami_etsclpos: fprintf(stderr, ": id: %ld position: %ld",
                                       er->sclpid, er->sclpos); break;
-            case ami_etedtbox: fprintf(stderr, ": id: %d", er->edtbid); break;
-            case ami_etnumbox: fprintf(stderr, ": id: %d number: %d",
+            case ami_etedtbox: fprintf(stderr, ": id: %ld", er->edtbid); break;
+            case ami_etnumbox: fprintf(stderr, ": id: %ld number: %ld",
                                       er->numbid, er->numbsl); break;
-            case ami_etlstbox: fprintf(stderr, ": id: %d select: %d",
+            case ami_etlstbox: fprintf(stderr, ": id: %ld select: %ld",
                                       er->lstbid, er->lstbsl); break;
-            case ami_etdrpbox: fprintf(stderr, ": id: %d select: %d",
+            case ami_etdrpbox: fprintf(stderr, ": id: %ld select: %ld",
                                       er->drpbid, er->drpbsl); break;
-            case ami_etdrebox: fprintf(stderr, ": id: %d", er->drebid); break;
-            case ami_etsldpos: fprintf(stderr, ": id: %d postion: %d",
+            case ami_etdrebox: fprintf(stderr, ": id: %ld", er->drebid); break;
+            case ami_etsldpos: fprintf(stderr, ": id: %ld postion: %ld",
                                       er->sldpid, er->sldpos); break;
-            case ami_ettabbar: fprintf(stderr, ": id: %d select: %d",
+            case ami_ettabbar: fprintf(stderr, ": id: %ld select: %ld",
                                       er->tabid, er->tabsel); break;
             default: ;
 
@@ -2216,7 +2208,7 @@ flag. Note that decoration properties can only be set/reset one at a time.
 
 *******************************************************************************/
 
-void enbxfrm(Window xwh, int e)
+void enbxfrm(Window xwh, long e)
 
 {
 
@@ -2251,7 +2243,7 @@ managers.
 
 *******************************************************************************/
 
-void enbxsiz(Window xwh, int e)
+void enbxsiz(Window xwh, long e)
 
 {
 
@@ -2320,7 +2312,7 @@ flag. Note that decoration properties can only be set/reset one at a time.
 
 *******************************************************************************/
 
-void enbxsys(Window xwh, int e)
+void enbxsys(Window xwh, long e)
 
 {
 
@@ -2537,16 +2529,17 @@ int colnum(ami_color c)
 
 Translate rgb to XWindow color
 
-Translates a ratioed INT_MAX graph color to the XWindow form, which is a 32
+Translates a ratioed LONG_MAX graph color to the XWindow form, which is a 32
 bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static int rgb2xwin(int r, int g, int b)
+static int rgb2xwin(long r, long g, long b)
 
 {
 
-   return ((r/8388608)*65536+(g/8388608)*256+(b/8388608));
+   return ((int)((r/(LONG_MAX/256+1))*65536+(g/(LONG_MAX/256+1))*256+
+                 (b/(LONG_MAX/256+1))));
 
 }
 
@@ -3930,7 +3923,7 @@ done.
 
 *******************************************************************************/
 
-static void delpic(winptr win, int p)
+static void delpic(winptr win, long p)
 
 {
 
@@ -4011,7 +4004,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(int wid)
+static winptr lwn2win(long wid)
 
 {
 
@@ -4138,22 +4131,22 @@ void rescale(XImage* dp, XImage* sp)
 
 Convert Petit-Ami ratioed angles to XWindow 64ths angles
 
-PA uses 0 to INT_MAX clockwise angular measurements. Xwindows uses 64 degree
+PA uses 0 to LONG_MAX clockwise angular measurements. Xwindows uses 64 degree
 measurements, with 0 degress at the 3'oclock position, and counterclockwise
 drawing direction. Converts PA angles to XWindow angles.
 
 *******************************************************************************/
 
-#define DEGREE (INT_MAX/360)
+#define DEGREE (LONG_MAX/360)
 
-int rat2a64(int a)
+int rat2a64(long a)
 
 {
 
     /* normalize for 90 degrees origin */
-    a -= INT_MAX/4; /* normalize for 90 degrees */
-    if (a < 0) a += INT_MAX;
-    a /= INT_MAX/(360*64); /* convert to 64ths degrees */
+    a -= LONG_MAX/4; /* normalize for 90 degrees */
+    if (a < 0) a += LONG_MAX;
+    a /= LONG_MAX/(360*64); /* convert to 64ths degrees */
     if (a) a = 360*64-a;
 
     return (a); /* return counterclockwise */
@@ -4633,7 +4626,7 @@ Remove all matching window PA events from input queue
 
 *******************************************************************************/
 
-static void remquepawin(int winid)
+static void remquepawin(long winid)
 
 {
 
@@ -5521,7 +5514,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
-    sc->angle = INT_MAX/4; /* set character draw at 90 degrees */
+    sc->angle = LONG_MAX/4; /* set character draw at 90 degrees */
     sc->fcrgb = win->gfcrgb; /* set colors and attributes */
     sc->bcrgb = win->gbcrgb;
     sc->attr = win->gattr;
@@ -5637,7 +5630,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn, int wid, int subclient)
+static void opnwin(int fn, int pfn, long wid, int subclient)
 
 {
 
@@ -6026,7 +6019,7 @@ static void closewin(int ofn)
 {
 
     int       ifn;  /* input file id */
-    int       wid;  /* window id */
+    long      wid;  /* window id */
     winptr    win;  /* window data structure */
     winptr    pwin; /* parent window */
     ami_evtrec er;   /* PA event record */
@@ -6070,7 +6063,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   int wid, int subclient)
+                   long wid, int subclient)
 
 {
 
@@ -6159,7 +6152,7 @@ If the entry exists more than once, it generates an error.
 *******************************************************************************/
 
 /* search subtree for meny entry */
-static metptr fndmenu_tree(metptr mp, int id)
+static metptr fndmenu_tree(metptr mp, long id)
 
 {
 
@@ -6189,7 +6182,7 @@ static metptr fndmenu_tree(metptr mp, int id)
 
 }
 
-static metptr fndmenu(winptr win, int id)
+static metptr fndmenu(winptr win, long id)
 
 {
 
@@ -6340,8 +6333,8 @@ static void menu_draw(metptr mp)
     if (mp->title) { /* there is a title */
 
         if (mp->ena) ami_fcolor(mp->wf, ami_black);
-        else ami_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
-                               INT_MAX/256*150);
+        else ami_fcolorg(mp->wf, LONG_MAX/256*150, LONG_MAX/256*150,
+                               LONG_MAX/256*150);
         if (mp->prime)
             ami_cursorg(mp->wf, 1,
                        ami_maxyg(mp->wf)/2-ami_chrsizy(mp->wf)/2);
@@ -6378,11 +6371,11 @@ static void menu_press(metptr mp)
     if (mp->parent) par = txt2win(mp->parent); /* index parent window */
     /* process button press */
     mp->pressed = TRUE;
-    ami_fcolorg(mp->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
+    ami_fcolorg(mp->wf, LONG_MAX-LONG_MAX/4, LONG_MAX-LONG_MAX/4, LONG_MAX-LONG_MAX/4);
     ami_frect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
     menu_draw(mp); /* draw menu title */
     /* draw underbar */
-    ami_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
+    ami_fcolorg(mp->wf, LONG_MAX/256*233, LONG_MAX/256*84, LONG_MAX/256*32);
     ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-4, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
     /* if it is a branch, present floating menu */
     if (mp->branch) {
@@ -6417,7 +6410,7 @@ static void menu_release(metptr mp)
     ami_frect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
     menu_draw(mp); /* draw menu title */
     ami_fcolorg(mp->wf,
-               INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
+               LONG_MAX/256*223, LONG_MAX/256*223, LONG_MAX/256*223);
     ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-1,
                         ami_maxxg(mp->wf), ami_maxyg(mp->wf));
 
@@ -6463,13 +6456,13 @@ static void menu_event(ami_evtrec* ev)
             if (mp->pressed) {
 
                 /* draw underbar */
-                ami_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
+                ami_fcolorg(mp->wf, LONG_MAX/256*233, LONG_MAX/256*84, LONG_MAX/256*32);
                 ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-4, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
 
             } else if (mp->prime) { /* draw divider line */
 
                 ami_fcolorg(mp->wf,
-                           INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
+                           LONG_MAX/256*223, LONG_MAX/256*223, LONG_MAX/256*223);
                 ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-1,
                                     ami_maxxg(mp->wf), ami_maxyg(mp->wf));
 
@@ -6477,7 +6470,7 @@ static void menu_event(ami_evtrec* ev)
             if (mp->frm) { /* box the frame */
 
                 ami_fcolorg(mp->wf,
-                           INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
+                           LONG_MAX/256*150, LONG_MAX/256*150, LONG_MAX/256*150);
                 ami_rect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
                 ami_rect(mp->wf, 2, 2, ami_maxxg(mp->wf)-1, ami_maxyg(mp->wf)-1);
 
@@ -6485,7 +6478,7 @@ static void menu_event(ami_evtrec* ev)
             if (mp->bar && !mp->prime) { /* draw bar under */
 
                 ami_fcolorg(mp->wf,
-                           INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
+                           LONG_MAX/256*150, LONG_MAX/256*150, LONG_MAX/256*150);
                 ami_line(mp->wf, 1, ami_maxyg(mp->wf), ami_maxxg(mp->wf),
                         ami_maxyg(mp->wf));
 
@@ -6652,7 +6645,7 @@ to the window.
 
 *******************************************************************************/
 
-static void iscrollg(winptr win, int x, int y)
+static void iscrollg(winptr win, long x, long y)
 
 {
 
@@ -6771,7 +6764,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(winptr win, int x, int y)
+static void icursor(winptr win, long x, long y)
 
 {
 
@@ -6795,7 +6788,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-static void icursorg(winptr win, int x, int y)
+static void icursorg(winptr win, long x, long y)
 
 {
 
@@ -6843,7 +6836,7 @@ Move cursor up internal
 Moves the cursor position up one line. If the cursor is at screen top, and auto
 is on, the screen is scrolled up, meaning that the screen contents are moved
 down a line of text. If auto is off, the cursor can simply continue into
-negative space as long as it stays within the bounds -INT_MAX to INT_MAX.
+negative space as long as it stays within the bounds -LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
@@ -6865,7 +6858,7 @@ static void iup(winptr win)
     } else if (sc->autof)
         iscrollg(win, 0*win->charspace, -1*win->linespace); /* scroll up */
     /* check won't overflow */
-    else if (sc->cury > -INT_MAX) {
+    else if (sc->cury > -LONG_MAX) {
 
         curoff(win); /* hide the cursor */
         sc->cury--; /* set new position */
@@ -6883,7 +6876,7 @@ Move cursor down internal
 Moves the cursor position down one line. If the cursor is at screen bottom, and
 auto is on, the screen is scrolled down, meaning that the screen contents are
 moved up a line of text. If auto is off, the cursor can simply continue into
-undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
+undrawn space as long as it stays within the bounds of -LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
@@ -6904,7 +6897,7 @@ static void idown(winptr win)
 
     } else if (sc->autof)
         iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
-    else if (sc->cury < INT_MAX) {
+    else if (sc->cury < LONG_MAX) {
 
         curoff(win); /* hide the cursor */
         sc->cury++; /* set new position */
@@ -6953,7 +6946,7 @@ static void ileft(winptr win)
         } else {
 
             /* check won't overflow */
-            if (sc->curx > -INT_MAX) {
+            if (sc->curx > -LONG_MAX) {
 
                 curoff(win); /* hide the cursor */
                 sc->curx--; /* update position */
@@ -7004,7 +6997,7 @@ static void iright(winptr win)
         /* check won't overflow */
         } else {
 
-            if (sc->curx < INT_MAX) {
+            if (sc->curx < LONG_MAX) {
 
                 curoff(win); /* hide the cursor */
                 sc->curx++; /* update position */
@@ -7034,7 +7027,7 @@ static void itab(winptr win)
 {
 
     int i;
-    int x;
+    long x;
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
@@ -7063,7 +7056,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void isettabg(winptr win, int t)
+static void isettabg(winptr win, long t)
 
 {
 
@@ -7097,7 +7090,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void irestabg(winptr win, int t)
+static void irestabg(winptr win, long t)
 
 {
 
@@ -7145,7 +7138,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(winptr win, int e)
+static void iauto(winptr win, long e)
 
 {
 
@@ -7160,7 +7153,7 @@ static void iauto(winptr win, int e)
            position must land on a character cell boundary for x and y. */
         if ((sc->curxg-1) % win->charspace) error(eatoofg);
         if ((sc->curyg-1) % win->linespace) error(eatoofg);
-        if (sc->angle != INT_MAX/4) error(eatoang);
+        if (sc->angle != LONG_MAX/4) error(eatoang);
         if (!icurbnd(sc)) error(eatoecb);
 
     }
@@ -7276,11 +7269,11 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 Add vector to position
 
 Adds a vector specified by angle and length to an x-y position and returns that.
-The angle for the vector is using PA 12'oclock INT_MAX ratioed angles clockwise.
+The angle for the vector is using PA 12'oclock LONG_MAX ratioed angles clockwise.
 
 *******************************************************************************/
 
-static void addvect(int* x, int* y, float a, int l)
+static void addvect(long* x, long* y, float a, long l)
 
 {
 
@@ -7297,16 +7290,16 @@ Draws a rectangle rotated by an angle.
 
 *******************************************************************************/
 
-/* convert PA INT_MAX ratio angle to RADIAN measure */
-#define RADIAN(a) ((double)2*M_PI/INT_MAX*a)
+/* convert PA LONG_MAX ratio angle to RADIAN measure */
+#define RADIAN(a) ((double)2*M_PI/LONG_MAX*a)
 
-static void drwrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
+static void drwrecta(Drawable d, scnptr sc, long a, int x, int y, int w, int h)
 
 {
 
-    int x1, x2, x3, x4;
-    int y1, y2, y3, y4;
-    int c;
+    long x1, x2, x3, x4;
+    long y1, y2, y3, y4;
+    long c;
     double ac;
 
     x1 = x2 = x3 = x4= x;
@@ -7331,13 +7324,13 @@ Draws a filled rectangle rotated by an angle.
 
 *******************************************************************************/
 
-static void drwfrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
+static void drwfrecta(Drawable d, scnptr sc, long a, int x, int y, int w, int h)
 
 {
 
-    int x1, x2, x3, x4;
-    int y1, y2, y3, y4;
-    int c;
+    long x1, x2, x3, x4;
+    long y1, y2, y3, y4;
+    long c;
     double ac;
     XPoint xp[4];
 
@@ -7373,16 +7366,16 @@ This routine handles drawing at any angle.
 *******************************************************************************/
 
 /* Convert PA angle notation to XRot notation, 360 degrees 0 at right */
-#define ROTANGLE(a) (360-(double)a*360/INT_MAX+90)
+#define ROTANGLE(a) (360-(double)a*360/LONG_MAX+90)
 
 static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
 {
 
     char cb[2];      /* character buffer */
-    int  xb, yb;     /* rotated baseline */
-    int  xull, yull, xulr, yulr; /* underline 1 */
-    int  xsol, ysol, xsor, ysor; /* underline 1 */
+    long xb, yb;     /* rotated baseline */
+    long xull, yull, xulr, yulr; /* underline 1 */
+    long xsol, ysol, xsor, ysor; /* underline 1 */
 
     /* transform starting position and sizes for viewport scaling */
     int px  = L2PX(win, sc->curxg-1);
@@ -7551,7 +7544,7 @@ static void plcchr(winptr win, char c)
         if (win->bufmod) { /* buffer is active */
 
             /* draw character to buffer */
-            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
+            if (sc->angle == LONG_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
             else drwchr(win, sc, cs, ce, sc->xbuf, c);
 
         }
@@ -7559,13 +7552,13 @@ static void plcchr(winptr win, char c)
 
             curoff(win); /* hide the cursor */
             /* draw character to active screen */
-            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
+            if (sc->angle == LONG_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
             else drwchr(win, sc, cs, ce, win->xwhan, c);
             curon(win); /* show the cursor */
 
         }
         /* advance to next character */
-        if (sc->angle == INT_MAX/4) {
+        if (sc->angle == LONG_MAX/4) {
 
             if (sc->cfont->fix) iright(win); /* move cursor right character */
             else { /* perform proportional version */
@@ -8142,9 +8135,9 @@ to the window.
 
 void _pa_scrollg_ovr(ami_scrollg_t nfp, ami_scrollg_t* ofp)
     { *ofp = scrollg_vect; scrollg_vect = nfp; }
-void ami_scrollg(FILE* f, int x, int y) { (*scrollg_vect)(f, x, y); }
+void ami_scrollg(FILE* f, long x, long y) { (*scrollg_vect)(f, x, y); }
 
-static void scrollg_ivf(FILE* f, int x, int y)
+static void scrollg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8157,9 +8150,9 @@ static void scrollg_ivf(FILE* f, int x, int y)
 
 void _pa_scroll_ovr(ami_scroll_t nfp, ami_scroll_t* ofp)
     { *ofp = scroll_vect; scroll_vect = nfp; }
-void ami_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
+void ami_scroll(FILE* f, long x, long y) { (*scroll_vect)(f, x, y); }
 
-static void scroll_ivf(FILE* f, int x, int y)
+static void scroll_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8181,9 +8174,9 @@ Moves the cursor to the specified x and y location.
 
 void _pa_cursor_ovr(ami_cursor_t nfp, ami_cursor_t* ofp)
     { *ofp = cursor_vect; cursor_vect = nfp; }
-void ami_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
+void ami_cursor(FILE* f, long x, long y) { (*cursor_vect)(f, x, y); }
 
-static void cursor_ivf(FILE* f, int x, int y)
+static void cursor_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8204,9 +8197,9 @@ Moves the cursor to the specified x and y location in pixels.
 
 void _pa_cursorg_ovr(ami_cursorg_t nfp, ami_cursorg_t* ofp)
     { *ofp = cursorg_vect; cursorg_vect = nfp; }
-void ami_cursorg(FILE* f, int x, int y) { (*cursorg_vect)(f, x, y); }
+void ami_cursorg(FILE* f, long x, long y) { (*cursorg_vect)(f, x, y); }
 
-static void cursorg_ivf(FILE* f, int x, int y)
+static void cursorg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8228,9 +8221,9 @@ to the font baseline. The baseline is the line all characters rest on.
 
 void _pa_baseline_ovr(ami_baseline_t nfp, ami_baseline_t* ofp)
     { *ofp = baseline_vect; baseline_vect = nfp; }
-int ami_baseline(FILE* f) { return ((*baseline_vect)(f)); }
+long ami_baseline(FILE* f) { return ((*baseline_vect)(f)); }
 
-static int baseline_ivf(FILE* f)
+static long baseline_ivf(FILE* f)
 
 {
 
@@ -8255,9 +8248,9 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxx_ovr(ami_maxx_t nfp, ami_maxx_t* ofp)
     { *ofp = maxx_vect; maxx_vect = nfp; }
-int ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
+long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
 
-static int maxx_ivf(FILE* f)
+static long maxx_ivf(FILE* f)
 
 {
 
@@ -8280,9 +8273,9 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxy_ovr(ami_maxy_t nfp, ami_maxy_t* ofp)
     { *ofp = maxy_vect; maxy_vect = nfp; }
-int ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
+long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
 
-static int maxy_ivf(FILE* f)
+static long maxy_ivf(FILE* f)
 
 {
 
@@ -8305,9 +8298,9 @@ pixels.
 
 void _pa_maxxg_ovr(ami_maxxg_t nfp, ami_maxxg_t* ofp)
     { *ofp = maxxg_vect; maxxg_vect = nfp; }
-int ami_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
+long ami_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
 
-static int maxxg_ivf(FILE* f)
+static long maxxg_ivf(FILE* f)
 
 {
 
@@ -8330,9 +8323,9 @@ pixels.
 
 void _pa_maxyg_ovr(ami_maxyg_t nfp, ami_maxyg_t* ofp)
     { *ofp = maxyg_vect; maxyg_vect = nfp; }
-int ami_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
+long ami_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
 
-static int maxyg_ivf(FILE* f)
+static long maxyg_ivf(FILE* f)
 
 {
 
@@ -8475,9 +8468,9 @@ Graphical mode does not implement blink mode.
 
 void _pa_blink_ovr(ami_blink_t nfp, ami_blink_t* ofp)
     { *ofp = blink_vect; blink_vect = nfp; }
-void ami_blink(FILE* f, int e) { (*blink_vect)(f, e); }
+void ami_blink(FILE* f, long e) { (*blink_vect)(f, e); }
 
-static void blink_ivf(FILE* f, int e)
+static void blink_ivf(FILE* f, long e)
 
 {
 
@@ -8496,9 +8489,9 @@ and foreground writing colors.
 
 void _pa_reverse_ovr(ami_reverse_t nfp, ami_reverse_t* ofp)
     { *ofp = reverse_vect; reverse_vect = nfp; }
-void ami_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
+void ami_reverse(FILE* f, long e) { (*reverse_vect)(f, e); }
 
-static void reverse_ivf(FILE* f, int e)
+static void reverse_ivf(FILE* f, long e)
 
 {
 
@@ -8536,9 +8529,9 @@ Note that the attributes can only be set singly.
 
 void _pa_underline_ovr(ami_underline_t nfp, ami_underline_t* ofp)
     { *ofp = underline_vect; underline_vect = nfp; }
-void ami_underline(FILE* f, int e) { (*underline_vect)(f, e); }
+void ami_underline(FILE* f, long e) { (*underline_vect)(f, e); }
 
-static void underline_ivf(FILE* f, int e)
+static void underline_ivf(FILE* f, long e)
 
 {
 
@@ -8574,9 +8567,9 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 void _pa_superscript_ovr(ami_superscript_t nfp, ami_superscript_t* ofp)
     { *ofp = superscript_vect; superscript_vect = nfp; }
-void ami_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
+void ami_superscript(FILE* f, long e) { (*superscript_vect)(f, e); }
 
-static void superscript_ivf(FILE* f, int e)
+static void superscript_ivf(FILE* f, long e)
 
 {
 
@@ -8612,9 +8605,9 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 void _pa_subscript_ovr(ami_subscript_t nfp, ami_subscript_t* ofp)
     { *ofp = subscript_vect; subscript_vect = nfp; }
-void ami_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
+void ami_subscript(FILE* f, long e) { (*subscript_vect)(f, e); }
 
-static void subscript_ivf(FILE* f, int e)
+static void subscript_ivf(FILE* f, long e)
 
 {
 
@@ -8648,9 +8641,9 @@ Note that the attributes can only be set singly.
 
 void _pa_italic_ovr(ami_italic_t nfp, ami_italic_t* ofp)
     { *ofp = italic_vect; italic_vect = nfp; }
-void ami_italic(FILE* f, int e) { (*italic_vect)(f, e); }
+void ami_italic(FILE* f, long e) { (*italic_vect)(f, e); }
 
-static void italic_ivf(FILE* f, int e)
+static void italic_ivf(FILE* f, long e)
 
 {
 
@@ -8689,9 +8682,9 @@ Note that the attributes can only be set singly.
 
 void _pa_bold_ovr(ami_bold_t nfp, ami_bold_t* ofp)
     { *ofp = bold_vect; bold_vect = nfp; }
-void ami_bold(FILE* f, int e) { (*bold_vect)(f, e); }
+void ami_bold(FILE* f, long e) { (*bold_vect)(f, e); }
 
-static void bold_ivf(FILE* f, int e)
+static void bold_ivf(FILE* f, long e)
 
 {
 
@@ -8732,9 +8725,9 @@ just placed.
 
 void _pa_strikeout_ovr(ami_strikeout_t nfp, ami_strikeout_t* ofp)
     { *ofp = strikeout_vect; strikeout_vect = nfp; }
-void ami_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
+void ami_strikeout(FILE* f, long e) { (*strikeout_vect)(f, e); }
 
-static void strikeout_ivf(FILE* f, int e)
+static void strikeout_ivf(FILE* f, long e)
 
 {
 
@@ -8768,9 +8761,9 @@ Note that the attributes can only be set singly.
 
 void _pa_standout_ovr(ami_standout_t nfp, ami_standout_t* ofp)
     { *ofp = standout_vect; standout_vect = nfp; }
-void ami_standout(FILE* f, int e) { (*standout_vect)(f, e); }
+void ami_standout(FILE* f, long e) { (*standout_vect)(f, e); }
 
-static void standout_ivf(FILE* f, int e)
+static void standout_ivf(FILE* f, long e)
 
 {
 
@@ -8819,9 +8812,9 @@ Sets the foreground color from individual r, g, b values.
 
 void _pa_fcolorc_ovr(ami_fcolorc_t nfp, ami_fcolorc_t* ofp)
     { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
-void ami_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
+void ami_fcolorc(FILE* f, long r, long g, long b) { (*fcolorc_vect)(f, r, g, b); }
 
-static void fcolorc_ivf(FILE* f, int r, int g, int b)
+static void fcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8855,9 +8848,9 @@ fcolorg for backward compatiblity to the days before overloads.
 
 void _pa_fcolorg_ovr(ami_fcolorg_t nfp, ami_fcolorg_t* ofp)
     { *ofp = fcolorg_vect; fcolorg_vect = nfp; }
-void ami_fcolorg(FILE* f, int r, int g, int b) { (*fcolorg_vect)(f, r, g, b); }
+void ami_fcolorg(FILE* f, long r, long g, long b) { (*fcolorg_vect)(f, r, g, b); }
 
-static void fcolorg_ivf(FILE* f, int r, int g, int b)
+static void fcolorg_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8917,9 +8910,9 @@ Sets the background color from individual r, g, b values.
 
 void _pa_bcolorc_ovr(ami_bcolorc_t nfp, ami_bcolorc_t* ofp)
     { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
-void ami_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
+void ami_bcolorc(FILE* f, long r, long g, long b) { (*bcolorc_vect)(f, r, g, b); }
 
-static void bcolorc_ivf(FILE* f, int r, int g, int b)
+static void bcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8950,9 +8943,9 @@ up, we will be ready.
 
 void _pa_bcolorg_ovr(ami_bcolorg_t nfp, ami_bcolorg_t* ofp)
     { *ofp = bcolorg_vect; bcolorg_vect = nfp; }
-void ami_bcolorg(FILE* f, int r, int g, int b) { (*bcolorg_vect)(f, r, g, b); }
+void ami_bcolorg(FILE* f, long r, long g, long b) { (*bcolorg_vect)(f, r, g, b); }
 
-static void bcolorg_ivf(FILE* f, int r, int g, int b)
+static void bcolorg_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8981,9 +8974,9 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 void _pa_curbnd_ovr(ami_curbnd_t nfp, ami_curbnd_t* ofp)
     { *ofp = curbnd_vect; curbnd_vect = nfp; }
-int ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
+long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
 
-static int curbnd_ivf(FILE* f)
+static long curbnd_ivf(FILE* f)
 
 {
 
@@ -9022,9 +9015,9 @@ anywhere.
 
 void _pa_auto_ovr(ami_auto_t nfp, ami_auto_t* ofp)
     { *ofp = auto_vect; auto_vect = nfp; }
-void ami_auto(FILE* f, int e) { (*auto_vect)(f, e); }
+void ami_auto(FILE* f, long e) { (*auto_vect)(f, e); }
 
-static void auto_ivf(FILE* f, int e)
+static void auto_ivf(FILE* f, long e)
 
 {
 
@@ -9045,9 +9038,9 @@ Enable or disable cursor visibility.
 
 void _pa_curvis_ovr(ami_curvis_t nfp, ami_curvis_t* ofp)
     { *ofp = curvis_vect; curvis_vect = nfp; }
-void ami_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
+void ami_curvis(FILE* f, long e) { (*curvis_vect)(f, e); }
 
-static void curvis_ivf(FILE* f, int e)
+static void curvis_ivf(FILE* f, long e)
 
 {
 
@@ -9070,9 +9063,9 @@ Returns the current location of the cursor in x.
 
 void _pa_curx_ovr(ami_curx_t nfp, ami_curx_t* ofp)
     { *ofp = curx_vect; curx_vect = nfp; }
-int ami_curx(FILE* f) { return ((*curx_vect)(f)); }
+long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
 
-static int curx_ivf(FILE* f)
+static long curx_ivf(FILE* f)
 
 {
 
@@ -9094,9 +9087,9 @@ Returns the current location of the cursor in y.
 
 void _pa_cury_ovr(ami_cury_t nfp, ami_cury_t* ofp)
     { *ofp = cury_vect; cury_vect = nfp; }
-int ami_cury(FILE* f) { return ((*cury_vect)(f)); }
+long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
 
-static int cury_ivf(FILE* f)
+static long cury_ivf(FILE* f)
 
 {
 
@@ -9118,9 +9111,9 @@ Returns the current location of the cursor in x, in pixels.
 
 void _pa_curxg_ovr(ami_curxg_t nfp, ami_curxg_t* ofp)
     { *ofp = curxg_vect; curxg_vect = nfp; }
-int ami_curxg(FILE* f) { return ((*curxg_vect)(f)); }
+long ami_curxg(FILE* f) { return ((*curxg_vect)(f)); }
 
-static int curxg_ivf(FILE* f)
+static long curxg_ivf(FILE* f)
 
 {
 
@@ -9142,9 +9135,9 @@ Returns the current location of the cursor in y, in pixels.
 
 void _pa_curyg_ovr(ami_curyg_t nfp, ami_curyg_t* ofp)
     { *ofp = curyg_vect; curyg_vect = nfp; }
-int ami_curyg(FILE* f) { return ((*curyg_vect)(f)); }
+long ami_curyg(FILE* f) { return ((*curyg_vect)(f)); }
 
-static int curyg_ivf(FILE* f)
+static long curyg_ivf(FILE* f)
 
 {
 
@@ -9172,9 +9165,9 @@ forces a screen refresh, which can be important when working on terminals.
 
 void _pa_select_ovr(ami_select_t nfp, ami_select_t* ofp)
     { *ofp = select_vect; select_vect = nfp; }
-void ami_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
+void ami_select(FILE* f, long u, long d) { (*select_vect)(f, u, d); }
 
-static void select_ivf(FILE* f, int u, int d)
+static void select_ivf(FILE* f, long u, long d)
 
 {
 
@@ -9335,9 +9328,9 @@ advantage.
 
 void _pa_wrtstrn_ovr(ami_wrtstrn_t nfp, ami_wrtstrn_t* ofp)
     { *ofp = wrtstrn_vect; wrtstrn_vect = nfp; }
-void ami_wrtstrn(FILE* f, char* s, int l) { (*wrtstrn_vect)(f, s, l); }
+void ami_wrtstrn(FILE* f, char* s, long l) { (*wrtstrn_vect)(f, s, l); }
 
-static void wrtstrn_ivf(FILE* f, char* s, int l)
+static void wrtstrn_ivf(FILE* f, char* s, long l)
 
 {
 
@@ -9350,7 +9343,7 @@ static void wrtstrn_ivf(FILE* f, char* s, int l)
     sc = win->screens[win->curupd-1];
     if (sc->autof) error(estrato); /* autowrap is on */
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    if (sc->angle == INT_MAX/4) { /* text is normal (90 degrees) */
+    if (sc->angle == LONG_MAX/4) { /* text is normal (90 degrees) */
 
         tw = ft_text_width(win->ftface, s, l); /* find text width in pixels */
         if (win->bufmod) { /* buffer is active */
@@ -9452,16 +9445,16 @@ Draws a single line in the foreground color.
 
 void _pa_line_ovr(ami_line_t nfp, ami_line_t* ofp)
     { *ofp = line_vect; line_vect = nfp; }
-void ami_line(FILE* f, int x1, int y1, int x2, int y2)
+void ami_line(FILE* f, long x1, long y1, long x2, long y2)
     { (*line_vect)(f, x1, y1, x2, y2); }
 
-static void line_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void line_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9520,16 +9513,16 @@ Draws a rectangle in foreground color.
 
 void _pa_rect_ovr(ami_rect_t nfp, ami_rect_t* ofp)
     { *ofp = rect_vect; rect_vect = nfp; }
-void ami_rect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
     { (*rect_vect)(f, x1, y1, x2, y2); }
 
-static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void rect_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9588,16 +9581,16 @@ Draws a filled rectangle in foreground color.
 
 void _pa_frect_ovr(ami_frect_t nfp, ami_frect_t* ofp)
     { *ofp = frect_vect; frect_vect = nfp; }
-void ami_frect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
     { (*frect_vect)(f, x1, y1, x2, y2); }
 
-static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void frect_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9658,16 +9651,16 @@ In XWindow, this has to be constructed, since there is no equivalent function.
 
 void _pa_rrect_ovr(ami_rrect_t nfp, ami_rrect_t* ofp)
     { *ofp = rrect_vect; rrect_vect = nfp; }
-void ami_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
     { (*rrect_vect)(f, x1, y1, x2, y2, xs, ys); }
 
-static void rrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+static void rrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9762,16 +9755,16 @@ x or y sizes.
 
 void _pa_frrect_ovr(ami_frrect_t nfp, ami_frrect_t* ofp)
     { *ofp = frrect_vect; frrect_vect = nfp; }
-void ami_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
     { (*frrect_vect)(f, x1, y1, x2, y2, xs, ys); }
 
-static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int wm;     /* width of middle rectangle */
     int hm;     /* height of middle rectangle */
     int wtb;    /* width of top/bottom rectangle */
@@ -9954,16 +9947,16 @@ Draws an ellipse with the current foreground color and line width.
 
 void _pa_ellipse_ovr(ami_ellipse_t nfp, ami_ellipse_t* ofp)
     { *ofp = ellipse_vect; ellipse_vect = nfp; }
-void ami_ellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
     { (*ellipse_vect)(f, x1, y1, x2, y2); }
 
-static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void ellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -10024,16 +10017,16 @@ Draws a filled ellipse with the current foreground color.
 
 void _pa_fellipse_ovr(ami_fellipse_t nfp, ami_fellipse_t* ofp)
     { *ofp = fellipse_vect; fellipse_vect = nfp; }
-void ami_fellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
     { (*fellipse_vect)(f, x1, y1, x2, y2); }
 
-static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void fellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -10114,16 +10107,16 @@ Negative angles are allowed.
 
 void _pa_arc_ovr(ami_arc_t nfp, ami_arc_t* ofp)
     { *ofp = arc_vect; arc_vect = nfp; }
-void ami_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     { (*arc_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+static void arc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -10199,16 +10192,16 @@ this.
 
 void _pa_farc_ovr(ami_farc_t nfp, ami_farc_t* ofp)
     { *ofp = farc_vect; farc_vect = nfp; }
-void ami_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     { (*farc_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+static void farc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -10281,16 +10274,16 @@ as for the arc function above.
 
 void _pa_fchord_ovr(ami_fchord_t nfp, ami_fchord_t* ofp)
     { *ofp = fchord_vect; fchord_vect = nfp; }
-void ami_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     { (*fchord_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+static void fchord_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -10360,10 +10353,10 @@ Draws a filled triangle in the current foreground color.
 
 void _pa_ftriangle_ovr(ami_ftriangle_t nfp, ami_ftriangle_t* ofp)
     { *ofp = ftriangle_vect; ftriangle_vect = nfp; }
-void ami_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
     { (*ftriangle_vect)(f, x1, y1, x2, y2, x3, y3); }
 
-static void ftriangle_ivf(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+static void ftriangle_ivf(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
 
 {
 
@@ -10420,9 +10413,9 @@ Sets a single logical pixel to the foreground color.
 
 void _pa_setpixel_ovr(ami_setpixel_t nfp, ami_setpixel_t* ofp)
     { *ofp = setpixel_vect; setpixel_vect = nfp; }
-void ami_setpixel(FILE* f, int x, int y) { (*setpixel_vect)(f, x, y); }
+void ami_setpixel(FILE* f, long x, long y) { (*setpixel_vect)(f, x, y); }
 
-static void setpixel_ivf(FILE* f, int x, int y)
+static void setpixel_ivf(FILE* f, long x, long y)
 
 {
 
@@ -10782,9 +10775,9 @@ static void applylineattrs(scnptr sc)
 
 void _pa_linewidth_ovr(ami_linewidth_t nfp, ami_linewidth_t* ofp)
     { *ofp = linewidth_vect; linewidth_vect = nfp; }
-void ami_linewidth(FILE* f, int w) { (*linewidth_vect)(f, w); }
+void ami_linewidth(FILE* f, long w) { (*linewidth_vect)(f, w); }
 
-static void linewidth_ivf(FILE* f, int w)
+static void linewidth_ivf(FILE* f, long w)
 
 {
 
@@ -10843,9 +10836,9 @@ character in the character set.
 
 void _pa_chrsizx_ovr(ami_chrsizx_t nfp, ami_chrsizx_t* ofp)
     { *ofp = chrsizx_vect; chrsizx_vect = nfp; }
-int ami_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
+long ami_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
 
-static int chrsizx_ivf(FILE* f)
+static long chrsizx_ivf(FILE* f)
 
 {
 
@@ -10869,9 +10862,9 @@ Returns the character height.
 
 void _pa_chrsizy_ovr(ami_chrsizy_t nfp, ami_chrsizy_t* ofp)
     { *ofp = chrsizy_vect; chrsizy_vect = nfp; }
-int ami_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
+long ami_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
 
-static int chrsizy_ivf(FILE* f)
+static long chrsizy_ivf(FILE* f)
 
 {
 
@@ -10895,9 +10888,9 @@ Finds the total number of installed fonts.
 
 void _pa_fonts_ovr(ami_fonts_t nfp, ami_fonts_t* ofp)
     { *ofp = fonts_vect; fonts_vect = nfp; }
-int ami_fonts(FILE* f) { return ((*fonts_vect)(f)); }
+long ami_fonts(FILE* f) { return ((*fonts_vect)(f)); }
 
-static int fonts_ivf(FILE* f)
+static long fonts_ivf(FILE* f)
 
 {
 
@@ -10915,9 +10908,9 @@ Changes the current font to the indicated logical font number.
 
 void _pa_font_ovr(ami_font_t nfp, ami_font_t* ofp)
     { *ofp = font_vect; font_vect = nfp; }
-void ami_font(FILE* f, int fc) { (*font_vect)(f, fc); }
+void ami_font(FILE* f, long fc) { (*font_vect)(f, fc); }
 
-static void font_ivf(FILE* f, int fc)
+static void font_ivf(FILE* f, long fc)
 
 {
 
@@ -10958,10 +10951,10 @@ Returns the name of a font by number.
 
 void _pa_fontnam_ovr(ami_fontnam_t nfp, ami_fontnam_t* ofp)
     { *ofp = fontnam_vect; fontnam_vect = nfp; }
-void ami_fontnam(FILE* f, int fc, char* fns, int fnsl)
+void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
     { (*fontnam_vect)(f, fc, fns, fnsl); }
 
-static void fontnam_ivf(FILE* f, int fc, char* fns, int fnsl)
+static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
 
 {
 
@@ -10993,9 +10986,9 @@ and line spacing are changed, as well as the baseline.
 
 void _pa_fontsiz_ovr(ami_fontsiz_t nfp, ami_fontsiz_t* ofp)
     { *ofp = fontsiz_vect; fontsiz_vect = nfp; }
-void ami_fontsiz(FILE* f, int s) { (*fontsiz_vect)(f, s); }
+void ami_fontsiz(FILE* f, long s) { (*fontsiz_vect)(f, s); }
 
-static void fontsiz_ivf(FILE* f, int s)
+static void fontsiz_ivf(FILE* f, long s)
 
 {
 
@@ -11091,9 +11084,9 @@ as "leading".
 
 void _pa_chrspcy_ovr(ami_chrspcy_t nfp, ami_chrspcy_t* ofp)
     { *ofp = chrspcy_vect; chrspcy_vect = nfp; }
-void ami_chrspcy(FILE* f, int s) { (*chrspcy_vect)(f, s); }
+void ami_chrspcy(FILE* f, long s) { (*chrspcy_vect)(f, s); }
 
-static void chrspcy_ivf(FILE* f, int s)
+static void chrspcy_ivf(FILE* f, long s)
 
 {
 
@@ -11115,9 +11108,9 @@ as "spacing".
 
 void _pa_chrspcx_ovr(ami_chrspcx_t nfp, ami_chrspcx_t* ofp)
     { *ofp = chrspcx_vect; chrspcx_vect = nfp; }
-void ami_chrspcx(FILE* f, int s) { (*chrspcx_vect)(f, s); }
+void ami_chrspcx(FILE* f, long s) { (*chrspcx_vect)(f, s); }
 
-static void chrspcx_ivf(FILE* f, int s)
+static void chrspcx_ivf(FILE* f, long s)
 
 {
 
@@ -11138,9 +11131,9 @@ Returns the number of dots per meter resolution in x.
 
 void _pa_dpmx_ovr(ami_dpmx_t nfp, ami_dpmx_t* ofp)
     { *ofp = dpmx_vect; dpmx_vect = nfp; }
-int ami_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
+long ami_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
 
-static int dpmx_ivf(FILE* f)
+static long dpmx_ivf(FILE* f)
 
 {
 
@@ -11162,9 +11155,9 @@ Returns the number of dots per meter resolution in y.
 
 void _pa_dpmy_ovr(ami_dpmy_t nfp, ami_dpmy_t* ofp)
     { *ofp = dpmy_vect; dpmy_vect = nfp; }
-int ami_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
+long ami_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
 
-static int dpmy_ivf(FILE* f)
+static long dpmy_ivf(FILE* f)
 
 {
 
@@ -11187,9 +11180,9 @@ character spacing and kerning.
 
 void _pa_strsiz_ovr(ami_strsiz_t nfp, ami_strsiz_t* ofp)
     { *ofp = strsiz_vect; strsiz_vect = nfp; }
-int ami_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
+long ami_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
 
-static int strsiz_ivf(FILE* f, const char* s)
+static long strsiz_ivf(FILE* f, const char* s)
 
 {
 
@@ -11213,10 +11206,10 @@ Finds the pixel offset to the given character in the string.
 
 void _pa_chrpos_ovr(ami_chrpos_t nfp, ami_chrpos_t* ofp)
     { *ofp = chrpos_vect; chrpos_vect = nfp; }
-int ami_chrpos(FILE* f, const char* s, int p) 
+long ami_chrpos(FILE* f, const char* s, long p) 
     { return ((*chrpos_vect)(f, s, p)); }
 
-static int chrpos_ivf(FILE* f, const char* s, int p)
+static long chrpos_ivf(FILE* f, const char* s, long p)
 
 {
 
@@ -11245,9 +11238,9 @@ distributes the space amoung the spaces present in the string.
 
 void _pa_writejust_ovr(ami_writejust_t nfp, ami_writejust_t* ofp)
     { *ofp = writejust_vect; writejust_vect = nfp; }
-void ami_writejust(FILE* f, const char* s, int n) { (*writejust_vect)(f, s, n); }
+void ami_writejust(FILE* f, const char* s, long n) { (*writejust_vect)(f, s, n); }
 
-static void writejust_ivf(FILE* f, const char* s, int n)
+static void writejust_ivf(FILE* f, const char* s, long n)
 
 {
 
@@ -11373,10 +11366,10 @@ spaces, with the fractional part lost.
 
 void _pa_justpos_ovr(ami_justpos_t nfp, ami_justpos_t* ofp)
     { *ofp = justpos_vect; justpos_vect = nfp; }
-int ami_justpos(FILE* f, const char* s, int p, int n)
+long ami_justpos(FILE* f, const char* s, long p, long n)
     { return ((*justpos_vect)(f, s, p, n)); }
 
-static int justpos_ivf(FILE* f, const char* s, int p, int n)
+static long justpos_ivf(FILE* f, const char* s, long p, long n)
 
 {
 
@@ -11453,9 +11446,9 @@ Not implemented yet.
 
 void _pa_condensed_ovr(ami_condensed_t nfp, ami_condensed_t* ofp)
     { *ofp = condensed_vect; condensed_vect = nfp; }
-void ami_condensed(FILE* f, int e) { (*condensed_vect)(f, e); }
+void ami_condensed(FILE* f, long e) { (*condensed_vect)(f, e); }
 
-static void condensed_ivf(FILE* f, int e)
+static void condensed_ivf(FILE* f, long e)
 
 {
 
@@ -11498,9 +11491,9 @@ Not implemented yet.
 
 void _pa_extended_ovr(ami_extended_t nfp, ami_extended_t* ofp)
     { *ofp = extended_vect; extended_vect = nfp; }
-void ami_extended(FILE* f, int e) { (*extended_vect)(f, e); }
+void ami_extended(FILE* f, long e) { (*extended_vect)(f, e); }
 
-static void extended_ivf(FILE* f, int e)
+static void extended_ivf(FILE* f, long e)
 
 {
 
@@ -11543,9 +11536,9 @@ Not implemented yet.
 
 void _pa_xlight_ovr(ami_xlight_t nfp, ami_xlight_t* ofp)
     { *ofp = xlight_vect; xlight_vect = nfp; }
-void ami_xlight(FILE* f, int e) { (*xlight_vect)(f, e); }
+void ami_xlight(FILE* f, long e) { (*xlight_vect)(f, e); }
 
-static void xlight_ivf(FILE* f, int e)
+static void xlight_ivf(FILE* f, long e)
 
 {
 
@@ -11588,9 +11581,9 @@ Not implemented yet.
 
 void _pa_light_ovr(ami_light_t nfp, ami_light_t* ofp)
     { *ofp = light_vect; light_vect = nfp; }
-void ami_light(FILE* f, int e) { (*light_vect)(f, e); }
+void ami_light(FILE* f, long e) { (*light_vect)(f, e); }
 
-static void light_ivf(FILE* f, int e)
+static void light_ivf(FILE* f, long e)
 
 {
 
@@ -11633,9 +11626,9 @@ Not implemented yet.
 
 void _pa_xbold_ovr(ami_xbold_t nfp, ami_xbold_t* ofp)
     { *ofp = xbold_vect; xbold_vect = nfp; }
-void ami_xbold(FILE* f, int e) { (*xbold_vect)(f, e); }
+void ami_xbold(FILE* f, long e) { (*xbold_vect)(f, e); }
 
-static void xbold_ivf(FILE* f, int e)
+static void xbold_ivf(FILE* f, long e)
 
 {
 
@@ -11678,9 +11671,9 @@ Not implemented yet.
 
 void _pa_hollow_ovr(ami_hollow_t nfp, ami_hollow_t* ofp)
     { *ofp = hollow_vect; hollow_vect = nfp; }
-void ami_hollow(FILE* f, int e) { (*hollow_vect)(f, e); }
+void ami_hollow(FILE* f, long e) { (*hollow_vect)(f, e); }
 
-static void hollow_ivf(FILE* f, int e)
+static void hollow_ivf(FILE* f, long e)
 
 {
 
@@ -11723,9 +11716,9 @@ Not implemented yet.
 
 void _pa_raised_ovr(ami_raised_t nfp, ami_raised_t* ofp)
     { *ofp = raised_vect; raised_vect = nfp; }
-void ami_raised(FILE* f, int e) { (*raised_vect)(f, e); }
+void ami_raised(FILE* f, long e) { (*raised_vect)(f, e); }
 
-static void raised_ivf(FILE* f, int e)
+static void raised_ivf(FILE* f, long e)
 
 {
 
@@ -11763,9 +11756,9 @@ Deletes a loaded picture.
 
 void _pa_delpict_ovr(ami_delpict_t nfp, ami_delpict_t* ofp)
     { *ofp = delpict_vect; delpict_vect = nfp; }
-void ami_delpict(FILE* f, int p) { (*delpict_vect)(f, p); }
+void ami_delpict(FILE* f, long p) { (*delpict_vect)(f, p); }
 
-static void delpict_ivf(FILE* f, int p)
+static void delpict_ivf(FILE* f, long p)
 
 {
 
@@ -11865,9 +11858,9 @@ static unsigned int read16(FILE* f)
 
 void _pa_loadpict_ovr(ami_loadpict_t nfp, ami_loadpict_t* ofp)
     { *ofp = loadpict_vect; loadpict_vect = nfp; }
-void ami_loadpict(FILE* f, int p, char* fn) { (*loadpict_vect)(f, p, fn); }
+void ami_loadpict(FILE* f, long p, char* fn) { (*loadpict_vect)(f, p, fn); }
 
-static void loadpict_ivf(FILE* f, int p, char* fn)
+static void loadpict_ivf(FILE* f, long p, char* fn)
 
 {
 
@@ -11977,9 +11970,9 @@ Returns the size in x of the logical picture.
 
 void _pa_pictsizx_ovr(ami_pictsizx_t nfp, ami_pictsizx_t* ofp)
     { *ofp = pictsizx_vect; pictsizx_vect = nfp; }
-int ami_pictsizx(FILE* f, int p) { return ((*pictsizx_vect)(f, p)); }
+long ami_pictsizx(FILE* f, long p) { return ((*pictsizx_vect)(f, p)); }
 
-static int pictsizx_ivf(FILE* f, int p)
+static long pictsizx_ivf(FILE* f, long p)
 
 {
 
@@ -12003,9 +11996,9 @@ Returns the size in y of the logical picture.
 
 void _pa_pictsizy_ovr(ami_pictsizy_t nfp, ami_pictsizy_t* ofp)
     { *ofp = pictsizy_vect; pictsizy_vect = nfp; }
-int ami_pictsizy(FILE* f, int p) { return ((*pictsizy_vect)(f, p)); }
+long ami_pictsizy(FILE* f, long p) { return ((*pictsizy_vect)(f, p)); }
 
-static int pictsizy_ivf(FILE* f, int p)
+static long pictsizy_ivf(FILE* f, long p)
 
 {
 
@@ -12032,16 +12025,16 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 void _pa_picture_ovr(ami_picture_t nfp, ami_picture_t* ofp)
     { *ofp = picture_vect; picture_vect = nfp; }
-void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
+void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
     { (*picture_vect)(f, p, x1, y1, x2, y2); }
 
-static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
+static void picture_ivf(FILE* f, long p, long x1, long y1, long x2, long y2)
 
 {
 
     winptr  win; /* window record pointer */
     scnptr  sc;  /* screen buffer */
-    int     tx, ty; /* temps */
+    long    tx, ty; /* temps */
     int     pw, ph; /* picture width and height */
     picptr  pp, fp; /* picture entry pointers */
     byte*   frmdat;
@@ -12143,9 +12136,9 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 void _pa_viewoffg_ovr(ami_viewoffg_t nfp, ami_viewoffg_t* ofp)
     { *ofp = viewoffg_vect; viewoffg_vect = nfp; }
-void ami_viewoffg(FILE* f, int x, int y) { (*viewoffg_vect)(f, x, y); }
+void ami_viewoffg(FILE* f, long x, long y) { (*viewoffg_vect)(f, x, y); }
 
-static void viewoffg_ivf(FILE* f, int x, int y)
+static void viewoffg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -12210,9 +12203,9 @@ scaled drawing.
 
 void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp)
     { *ofp = scalex_vect; scalex_vect = nfp; }
-int ami_scalex(FILE* f, int x) { return ((*scalex_vect)(f, x)); }
+long ami_scalex(FILE* f, long x) { return ((*scalex_vect)(f, x)); }
 
-static int scalex_ivf(FILE* f, int x)
+static long scalex_ivf(FILE* f, long x)
 
 {
 
@@ -12226,9 +12219,9 @@ static int scalex_ivf(FILE* f, int x)
 
 void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp)
     { *ofp = scaley_vect; scaley_vect = nfp; }
-int ami_scaley(FILE* f, int y) { return ((*scaley_vect)(f, y)); }
+long ami_scaley(FILE* f, long y) { return ((*scaley_vect)(f, y)); }
 
-static int scaley_ivf(FILE* f, int y)
+static long scaley_ivf(FILE* f, long y)
 
 {
 
@@ -12288,12 +12281,12 @@ static void joyevt(ami_evtrec* er, int* keep, joyptr jp)
         if (ev.type & JS_EVENT_AXIS) {
 
             /* update the axies */
-            if (ev.number == 0) jp->ax = ev.value*(INT_MAX/32768);
-            else if (ev.number == 1) jp->ay = ev.value*(INT_MAX/32768);
-            else if (ev.number == 2) jp->az = ev.value*(INT_MAX/32768);
-            else if (ev.number == 3) jp->a4 = ev.value*(INT_MAX/32768);
-            else if (ev.number == 4) jp->a5 = ev.value*(INT_MAX/32768);
-            else if (ev.number == 5) jp->a6 = ev.value*(INT_MAX/32768);
+            if (ev.number == 0) jp->ax = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 1) jp->ay = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 2) jp->az = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 3) jp->a4 = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 4) jp->a5 = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 5) jp->a6 = ev.value*(LONG_MAX/32768);
 
             /* we support up to 6 axes on a joystick. After 6, they get thrown
                out, leaving just the buttons to respond */
@@ -12562,7 +12555,7 @@ static void prtfocus(int level, winptr win)
 
     while (win) {
 
-        dbg_printf(dlinfo, "%*cWindow: %d focus: %d\n", level, ' ', win->wid, win->focus);
+        dbg_printf(dlinfo, "%*cWindow: %ld focus: %d\n", level, ' ', win->wid, win->focus);
         /* find focus in children of this window */
         prtfocus(level+4, win->childwin);
         win = win->childlst; /* link next child */
@@ -13811,12 +13804,12 @@ the associated input file.
 
 void _pa_timer_ovr(ami_timer_t nfp, ami_timer_t* ofp)
     { *ofp = timer_vect; timer_vect = nfp; }
-void ami_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
+void ami_timer(FILE* f, long i, long t, long r) { (*timer_vect)(f, i, t, r); }
 
 static void timer_ivf(FILE* f, /* file to send event to */
-                      int   i, /* timer handle */
+                      long   i, /* timer handle */
                       long  t, /* number of tenth-milliseconds to run */
-                      int   r) /* timer is to rerun after completion */
+                      long   r) /* timer is to rerun after completion */
 
 {
 
@@ -13845,10 +13838,10 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 void _pa_killtimer_ovr(ami_killtimer_t nfp, ami_killtimer_t* ofp)
     { *ofp = killtimer_vect; killtimer_vect = nfp; }
-void ami_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
+void ami_killtimer(FILE* f, long   i ) { (*killtimer_vect)(f, i ); }
 
 static void killtimer_ivf(FILE* f, /* file to kill timer on */
-                          int   i  /* handle of timer */
+                          long   i  /* handle of timer */
                          )
 
 {
@@ -13875,9 +13868,9 @@ of the blanking interval.
 
 void _pa_frametimer_ovr(ami_frametimer_t nfp, ami_frametimer_t* ofp)
     { *ofp = frametimer_vect; frametimer_vect = nfp; }
-void ami_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
+void ami_frametimer(FILE* f, long e) { (*frametimer_vect)(f, e); }
 
-static void frametimer_ivf(FILE* f, int e)
+static void frametimer_ivf(FILE* f, long e)
 
 {
 
@@ -13919,9 +13912,9 @@ holding gralib unaware programs.
 
 void _pa_autohold_ovr(ami_autohold_t nfp, ami_autohold_t* ofp)
     { *ofp = autohold_vect; autohold_vect = nfp; }
-void ami_autohold(int e) { (*autohold_vect)(e); }
+void ami_autohold(long e) { (*autohold_vect)(e); }
 
-static void autohold_ivf(int e)
+static void autohold_ivf(long e)
 
 {
 
@@ -13939,9 +13932,9 @@ Returns the number of mice implemented. XWindow supports only one mouse.
 
 void _pa_mouse_ovr(ami_mouse_t nfp, ami_mouse_t* ofp)
     { *ofp = mouse_vect; mouse_vect = nfp; }
-int ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
+long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
 
-static int mouse_ivf(FILE* f)
+static long mouse_ivf(FILE* f)
 
 {
 
@@ -13960,9 +13953,9 @@ version. XWindow supports from 1 to 5 buttons.
 
 void _pa_mousebutton_ovr(ami_mousebutton_t nfp, ami_mousebutton_t* ofp)
     { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
-int ami_mousebutton(FILE* f, int m) { return ((*mousebutton_vect)(f, m)); }
+long ami_mousebutton(FILE* f, long m) { return ((*mousebutton_vect)(f, m)); }
 
-static int mousebutton_ivf(FILE* f, int m)
+static long mousebutton_ivf(FILE* f, long m)
 
 {
 
@@ -13980,9 +13973,9 @@ Return number of joysticks attached.
 
 void _pa_joystick_ovr(ami_joystick_t nfp, ami_joystick_t* ofp)
     { *ofp = joystick_vect; joystick_vect = nfp; }
-int ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
+long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
 
-static int joystick_ivf(FILE* f)
+static long joystick_ivf(FILE* f)
 
 {
 
@@ -14000,9 +13993,9 @@ Returns the number of buttons on a given joystick.
 
 void _pa_joybutton_ovr(ami_joybutton_t nfp, ami_joybutton_t* ofp)
     { *ofp = joybutton_vect; joybutton_vect = nfp; }
-int ami_joybutton(FILE* f, int j) { return ((*joybutton_vect)(f, j)); }
+long ami_joybutton(FILE* f, long j) { return ((*joybutton_vect)(f, j)); }
 
-static int joybutton_ivf(FILE* f, int j)
+static long joybutton_ivf(FILE* f, long j)
 
 {
 
@@ -14025,9 +14018,9 @@ joystick can be considered a slider without positional meaning.
 
 void _pa_joyaxis_ovr(ami_joyaxis_t nfp, ami_joyaxis_t* ofp)
     { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
-int ami_joyaxis(FILE* f, int j) { return ((*joyaxis_vect)(f, j)); }
+long ami_joyaxis(FILE* f, long j) { return ((*joyaxis_vect)(f, j)); }
 
-static int joyaxis_ivf(FILE* f, int j)
+static long joyaxis_ivf(FILE* f, long j)
 
 {
 
@@ -14053,9 +14046,9 @@ Sets a tab at the indicated pixel number.
 
 void _pa_settabg_ovr(ami_settabg_t nfp, ami_settabg_t* ofp)
     { *ofp = settabg_vect; settabg_vect = nfp; }
-void ami_settabg(FILE* f, int t) { (*settabg_vect)(f, t); }
+void ami_settabg(FILE* f, long t) { (*settabg_vect)(f, t); }
 
-static void settabg_ivf(FILE* f, int t)
+static void settabg_ivf(FILE* f, long t)
 
 {
 
@@ -14076,9 +14069,9 @@ Sets a tab at the indicated collumn number.
 
 void _pa_settab_ovr(ami_settab_t nfp, ami_settab_t* ofp)
     { *ofp = settab_vect; settab_vect = nfp; }
-void ami_settab(FILE* f, int t) { (*settab_vect)(f, t); }
+void ami_settab(FILE* f, long t) { (*settab_vect)(f, t); }
 
-static void settab_ivf(FILE* f, int t)
+static void settab_ivf(FILE* f, long t)
 
 {
 
@@ -14099,9 +14092,9 @@ Resets the tab at the indicated pixel number.
 
 void _pa_restabg_ovr(ami_restabg_t nfp, ami_restabg_t* ofp)
     { *ofp = restabg_vect; restabg_vect = nfp; }
-void ami_restabg(FILE* f, int t) { (*restabg_vect)(f, t); }
+void ami_restabg(FILE* f, long t) { (*restabg_vect)(f, t); }
 
-static void restabg_ivf(FILE* f, int t)
+static void restabg_ivf(FILE* f, long t)
 
 {
 
@@ -14122,9 +14115,9 @@ Resets the tab at the indicated collumn number.
 
 void _pa_restab_ovr(ami_restab_t nfp, ami_restab_t* ofp)
     { *ofp = restab_vect; restab_vect = nfp; }
-void ami_restab(FILE* f, int t) { (*restab_vect)(f, t); }
+void ami_restab(FILE* f, long t) { (*restab_vect)(f, t); }
 
-static void restab_ivf(FILE* f, int t)
+static void restab_ivf(FILE* f, long t)
 
 {
 
@@ -14172,9 +14165,9 @@ function keys as well.
 
 void _pa_funkey_ovr(ami_funkey_t nfp, ami_funkey_t* ofp)
     { *ofp = funkey_vect; funkey_vect = nfp; }
-int ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
+long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
 
-static int funkey_ivf(FILE* f)
+static long funkey_ivf(FILE* f)
 
 {
 
@@ -14242,13 +14235,13 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 void _pa_getwinid_ovr(ami_getwinid_t nfp, ami_getwinid_t* ofp)
     { *ofp = getwinid_vect; getwinid_vect = nfp; }
-int ami_getwinid(void) { return ((*getwinid_vect)()); }
+long ami_getwinid(void) { return ((*getwinid_vect)()); }
 
-static int getwinid_ivf(void)
+static long getwinid_ivf(void)
 
 {
 
-    int wid; /* window id */
+    long wid; /* window id */
 
     wid = -1; /* start at -1 */
     /* find any open entry */
@@ -14287,8 +14280,8 @@ static int fndfil(FILE* fp)
 
 }
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
-                     int subclient)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
+                     long subclient)
 
 {
 
@@ -14337,10 +14330,10 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
 
 void _pa_openwin_ovr(ami_openwin_t nfp, ami_openwin_t* ofp)
     { *ofp = openwin_vect; openwin_vect = nfp; }
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
 
-static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
@@ -14359,17 +14352,17 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 void _pa_sizbufg_ovr(ami_sizbufg_t nfp, ami_sizbufg_t* ofp)
     { *ofp = sizbufg_vect; sizbufg_vect = nfp; }
-void ami_sizbufg(FILE* f, int x, int y) { (*sizbufg_vect)(f, x, y); }
+void ami_sizbufg(FILE* f, long x, long y) { (*sizbufg_vect)(f, x, y); }
 
-static void sizbufg_ivf(FILE* f, int x, int y)
+static void sizbufg_ivf(FILE* f, long x, long y)
 
 {
 
     int            si;     /* index for current display screen */
     winptr         win;    /* pointer to windows context */
     Pixmap         oldbuf; /* saved old buffer pixmap */
-    int            oldw, oldh; /* old buffer dimensions */
-    int            copyw, copyh; /* intersection to copy */
+    long           oldw, oldh; /* old buffer dimensions */
+    long           copyw, copyh; /* intersection to copy */
     scnptr         sc;     /* screen pointer */
     ami_evtrec     er;     /* event record for redraws */
     int            depth;
@@ -14474,9 +14467,9 @@ Sets or resets the size of the buffer surface, in character counts.
 
 void _pa_sizbuf_ovr(ami_sizbuf_t nfp, ami_sizbuf_t* ofp)
     { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
-void ami_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
+void ami_sizbuf(FILE* f, long x, long y) { (*sizbuf_vect)(f, x, y); }
 
-static void sizbuf_ivf(FILE* f, int x, int y)
+static void sizbuf_ivf(FILE* f, long x, long y)
 
 {
 
@@ -14499,9 +14492,9 @@ freed.
 
 void _pa_buffer_ovr(ami_buffer_t nfp, ami_buffer_t* ofp)
     { *ofp = buffer_vect; buffer_vect = nfp; }
-void ami_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
+void ami_buffer(FILE* f, long e) { (*buffer_vect)(f, e); }
 
-static void buffer_ivf(FILE* f, int e)
+static void buffer_ivf(FILE* f, long e)
 
 {
 
@@ -14724,7 +14717,7 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 {
 
     XEvent e;   /* XWindow event */
-    int wx, wy; /* window sizes */
+    long wx, wy; /* window sizes */
     int yes;    /* y extra size */
 
     yes = 0; /* set no menu extra size */
@@ -14812,9 +14805,9 @@ and will no longer send messages.
 
 void _pa_menuena_ovr(ami_menuena_t nfp, ami_menuena_t* ofp)
     { *ofp = menuena_vect; menuena_vect = nfp; }
-void ami_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
+void ami_menuena(FILE* f, long id, long onoff) { (*menuena_vect)(f, id, onoff); }
 
-static void menuena_ivf(FILE* f, int id, int onoff)
+static void menuena_ivf(FILE* f, long id, long onoff)
 
 {
 
@@ -14892,9 +14885,9 @@ static void clrlst(metptr mp)
 
 void _pa_menusel_ovr(ami_menusel_t nfp, ami_menusel_t* ofp)
     { *ofp = menusel_vect; menusel_vect = nfp; }
-void ami_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
+void ami_menusel(FILE* f, long id, long select) { (*menusel_vect)(f, id, select); }
 
-static void menusel_ivf(FILE* f, int id, int select)
+static void menusel_ivf(FILE* f, long id, long select)
 
 {
 
@@ -15113,9 +15106,9 @@ Gets the onscreen window size.
 
 void _pa_getsizg_ovr(ami_getsizg_t nfp, ami_getsizg_t* ofp)
     { *ofp = getsizg_vect; getsizg_vect = nfp; }
-void ami_getsizg(FILE* f, int* x, int* y) { (*getsizg_vect)(f, x, y); }
+void ami_getsizg(FILE* f, long* x, long* y) { (*getsizg_vect)(f, x, y); }
 
-static void getsizg_ivf(FILE* f, int* x, int* y)
+static void getsizg_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15159,15 +15152,15 @@ relative measurement.
 
 void _pa_getsiz_ovr(ami_getsiz_t nfp, ami_getsiz_t* ofp)
     { *ofp = getsiz_vect; getsiz_vect = nfp; }
-void ami_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
+void ami_getsiz(FILE* f, long* x, long* y) { (*getsiz_vect)(f, x, y); }
 
-static void getsiz_ivf(FILE* f, int* x, int* y)
+static void getsiz_ivf(FILE* f, long* x, long* y)
 
 {
 
     winptr win; /* pointer to windows context */
     winptr par; /* pointer to parent windows context */
-    int    gx, gy;
+    long   gx, gy;
 
     win = txt2win(f); /* get window context */
     ami_getsizg(f, &gx, &gy); /* get graphics size */
@@ -15201,9 +15194,9 @@ and height of 1 as the minimum size window.
 
 void _pa_setsizg_ovr(ami_setsizg_t nfp, ami_setsizg_t* ofp)
     { *ofp = setsizg_vect; setsizg_vect = nfp; }
-void ami_setsizg(FILE* f, int x, int y) { (*setsizg_vect)(f, x, y); }
+void ami_setsizg(FILE* f, long x, long y) { (*setsizg_vect)(f, x, y); }
 
-static void setsizg_ivf(FILE* f, int x, int y)
+static void setsizg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -15308,9 +15301,9 @@ relative measurement.
 
 void _pa_setsiz_ovr(ami_setsiz_t nfp, ami_setsiz_t* ofp)
     { *ofp = setsiz_vect; setsiz_vect = nfp; }
-void ami_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
+void ami_setsiz(FILE* f, long x, long y) { (*setsiz_vect)(f, x, y); }
 
-static void setsiz_ivf(FILE* f, int x, int y)
+static void setsiz_ivf(FILE* f, long x, long y)
 
 {
 
@@ -15346,9 +15339,9 @@ Sets the onscreen window to the given position in its parent.
 
 void _pa_setposg_ovr(ami_setposg_t nfp, ami_setposg_t* ofp)
     { *ofp = setposg_vect; setposg_vect = nfp; }
-void ami_setposg(FILE* f, int x, int y) { (*setposg_vect)(f, x, y); }
+void ami_setposg(FILE* f, long x, long y) { (*setposg_vect)(f, x, y); }
 
-static void setposg_ivf(FILE* f, int x, int y)
+static void setposg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -15524,9 +15517,9 @@ relative measurement.
 
 void _pa_setpos_ovr(ami_setpos_t nfp, ami_setpos_t* ofp)
     { *ofp = setpos_vect; setpos_vect = nfp; }
-void ami_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
+void ami_setpos(FILE* f, long x, long y) { (*setpos_vect)(f, x, y); }
 
-static void setpos_ivf(FILE* f, int x, int y)
+static void setpos_ivf(FILE* f, long x, long y)
 
 {
 
@@ -15561,9 +15554,9 @@ Gets the total screen size.
 
 void _pa_scnsizg_ovr(ami_scnsizg_t nfp, ami_scnsizg_t* ofp)
     { *ofp = scnsizg_vect; scnsizg_vect = nfp; }
-void ami_scnsizg(FILE* f, int* x, int* y) { (*scnsizg_vect)(f, x, y); }
+void ami_scnsizg(FILE* f, long* x, long* y) { (*scnsizg_vect)(f, x, y); }
 
-static void scnsizg_ivf(FILE* f, int* x, int* y)
+static void scnsizg_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15598,9 +15591,9 @@ because it can only be used as a relative measurement.
 
 void _pa_scnsiz_ovr(ami_scnsiz_t nfp, ami_scnsiz_t* ofp)
     { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
-void ami_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
+void ami_scnsiz(FILE* f, long* x, long* y) { (*scnsiz_vect)(f, x, y); }
 
-static void scnsiz_ivf(FILE* f, int* x, int* y)
+static void scnsiz_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15626,9 +15619,9 @@ screens that are joined at one or more sides.
 
 void _pa_scnceng_ovr(ami_scnceng_t nfp, ami_scnceng_t* ofp)
     { *ofp = scnceng_vect; scnceng_vect = nfp; }
-void ami_scnceng(FILE* f, int* x, int* y) { (*scnceng_vect)(f, x, y); }
+void ami_scnceng(FILE* f, long* x, long* y) { (*scnceng_vect)(f, x, y); }
 
-static void scnceng_ivf(FILE* f, int* x, int* y)
+static void scnceng_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15654,9 +15647,9 @@ screens that are joined at one or more sides.
 
 void _pa_scncen_ovr(ami_scncen_t nfp, ami_scncen_t* ofp)
     { *ofp = scncen_vect; scncen_vect = nfp; }
-void ami_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
+void ami_scncen(FILE* f, long* x, long* y) { (*scncen_vect)(f, x, y); }
 
-static void scncen_ivf(FILE* f, int* x, int* y)
+static void scncen_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15683,10 +15676,10 @@ Do we also need a menu style type ?
 
 void _pa_winclientg_ovr(ami_winclientg_t nfp, ami_winclientg_t* ofp)
     { *ofp = winclientg_vect; winclientg_vect = nfp; }
-void ami_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
     { (*winclientg_vect)(f, cx, cy, wx, wy, ms); }
 
-static void winclientg_ivf(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
@@ -15718,10 +15711,10 @@ static void winclientg_ivf(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmod
 
 void _pa_winclient_ovr(ami_winclient_t nfp, ami_winclient_t* ofp)
     { *ofp = winclient_vect; winclient_vect = nfp; }
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
 
-static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
@@ -15758,9 +15751,9 @@ Turns the window frame on and off.
 
 void _pa_frame_ovr(ami_frame_t nfp, ami_frame_t* ofp)
     { *ofp = frame_vect; frame_vect = nfp; }
-void ami_frame(FILE* f, int e) { (*frame_vect)(f, e); }
+void ami_frame(FILE* f, long e) { (*frame_vect)(f, e); }
 
-static void frame_ivf(FILE* f, int e)
+static void frame_ivf(FILE* f, long e)
 
 {
 
@@ -15870,9 +15863,9 @@ managers.
 
 void _pa_sizable_ovr(ami_sizable_t nfp, ami_sizable_t* ofp)
     { *ofp = sizable_vect; sizable_vect = nfp; }
-void ami_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
+void ami_sizable(FILE* f, long e) { (*sizable_vect)(f, e); }
 
-static void sizable_ivf(FILE* f, int e)
+static void sizable_ivf(FILE* f, long e)
 
 {
 
@@ -15941,9 +15934,9 @@ used to create component windows.
 
 void _pa_sysbar_ovr(ami_sysbar_t nfp, ami_sysbar_t* ofp)
     { *ofp = sysbar_vect; sysbar_vect = nfp; }
-void ami_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
+void ami_sysbar(FILE* f, long e) { (*sysbar_vect)(f, e); }
 
-static void sysbar_ivf(FILE* f, int e)
+static void sysbar_ivf(FILE* f, long e)
 
 {
 
@@ -16029,7 +16022,7 @@ static void focus_ivf(FILE* f)
 Set character drawing angle
 
 Sets the angle or path at which characters are drawn. The angle is 0 up,
-clockwise to 360, in INT_MAX ratio. The normal setting is INT_MAX/4 or 90
+clockwise to 360, in LONG_MAX ratio. The normal setting is LONG_MAX/4 or 90
 degrees.
 
 This cannot be set with auto on (even to 90 degrees), nor can auto be enabled if
@@ -16046,9 +16039,9 @@ increments.
 
 void _pa_path_ovr(ami_path_t nfp, ami_path_t* ofp)
     { *ofp = path_vect; path_vect = nfp; }
-void ami_path(FILE* f, int a) { (*path_vect)(f, a); }
+void ami_path(FILE* f, long a) { (*path_vect)(f, a); }
 
-static void path_ivf(FILE* f, int a)
+static void path_ivf(FILE* f, long a)
 
 {
 
@@ -16074,640 +16067,640 @@ The widget package for XWindows will be supplied by an add-on package.
 
 void _pa_getwigid_ovr(ami_getwigid_t nfp, ami_getwigid_t* ofp)
     { *ofp = getwigid_vect; getwigid_vect = nfp; }
-int ami_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
+long ami_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
 
-static int getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
+static long getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
 
 void _pa_killwidget_ovr(ami_killwidget_t nfp, ami_killwidget_t* ofp)
     { *ofp = killwidget_vect; killwidget_vect = nfp; }
-void ami_killwidget(FILE* f, int id) { (*killwidget_vect)(f, id); }
+void ami_killwidget(FILE* f, long id) { (*killwidget_vect)(f, id); }
 
-static void killwidget_ivf(FILE* f, int id) { error(ekillwidget_unimp); }
+static void killwidget_ivf(FILE* f, long id) { error(ekillwidget_unimp); }
 
 void _pa_selectwidget_ovr(ami_selectwidget_t nfp, ami_selectwidget_t* ofp)
     { *ofp = selectwidget_vect; selectwidget_vect = nfp; }
-void ami_selectwidget(FILE* f, int id, int e)
+void ami_selectwidget(FILE* f, long id, long e)
     { (*selectwidget_vect)(f, id, e); }
 
-static void selectwidget_ivf(FILE* f, int id, int e)
+static void selectwidget_ivf(FILE* f, long id, long e)
     { error(eselectwidget_unimp); }
 
 void _pa_enablewidget_ovr(ami_enablewidget_t nfp, ami_enablewidget_t* ofp)
     { *ofp = enablewidget_vect; enablewidget_vect = nfp; }
-void ami_enablewidget(FILE* f, int id, int e)
+void ami_enablewidget(FILE* f, long id, long e)
     { (*enablewidget_vect)(f, id, e); }
 
-static void enablewidget_ivf(FILE* f, int id, int e)
+static void enablewidget_ivf(FILE* f, long id, long e)
     { error(eenablewidget_unimp); }
 
 void _pa_getwidgettext_ovr(ami_getwidgettext_t nfp, ami_getwidgettext_t* ofp)
     { *ofp = getwidgettext_vect; getwidgettext_vect = nfp; }
-void ami_getwidgettext(FILE* f, int id, char* s, int sl)
+void ami_getwidgettext(FILE* f, long id, char* s, long sl)
     { (*getwidgettext_vect)(f, id, s, sl); }
 
-static void getwidgettext_ivf(FILE* f, int id, char* s, int sl)
+static void getwidgettext_ivf(FILE* f, long id, char* s, long sl)
     { error(egetwidgettext_unimp); }
 
 void _pa_putwidgettext_ovr(ami_putwidgettext_t nfp, ami_putwidgettext_t* ofp)
     { *ofp = putwidgettext_vect; putwidgettext_vect = nfp; }
-void ami_putwidgettext(FILE* f, int id, char* s)
+void ami_putwidgettext(FILE* f, long id, char* s)
     { (*putwidgettext_vect)(f, id, s); }
 
-static void putwidgettext_ivf(FILE* f, int id, char* s)
+static void putwidgettext_ivf(FILE* f, long id, char* s)
     { error(eputwidgettext_unimp); }
 
 void _pa_sizwidget_ovr(ami_sizwidget_t nfp, ami_sizwidget_t* ofp)
     { *ofp = sizwidget_vect; sizwidget_vect = nfp; }
-void ami_sizwidget(FILE* f, int id, int x, int y)
+void ami_sizwidget(FILE* f, long id, long x, long y)
     { (*sizwidget_vect)(f, id, x, y); }
 
-static void sizwidget_ivf(FILE* f, int id, int x, int y)
+static void sizwidget_ivf(FILE* f, long id, long x, long y)
     { error(esizwidget_unimp); }
 
 void _pa_sizwidgetg_ovr(ami_sizwidgetg_t nfp, ami_sizwidgetg_t* ofp)
     { *ofp = sizwidgetg_vect; sizwidgetg_vect = nfp; }
-void ami_sizwidgetg(FILE* f, int id, int x, int y)
+void ami_sizwidgetg(FILE* f, long id, long x, long y)
     { (*sizwidgetg_vect)(f, id, x, y); }
 
-static void sizwidgetg_ivf(FILE* f, int id, int x, int y)
+static void sizwidgetg_ivf(FILE* f, long id, long x, long y)
     { error(esizwidgetg_unimp); }
 
 void _pa_poswidget_ovr(ami_poswidget_t nfp, ami_poswidget_t* ofp)
     { *ofp = poswidget_vect; poswidget_vect = nfp; }
-void ami_poswidget(FILE* f, int id, int x, int y)
+void ami_poswidget(FILE* f, long id, long x, long y)
     { (*poswidget_vect)(f, id, x, y); }
 
-static void poswidget_ivf(FILE* f, int id, int x, int y)
+static void poswidget_ivf(FILE* f, long id, long x, long y)
     { error(eposwidget_unimp); }
 
 void _pa_poswidgetg_ovr(ami_poswidgetg_t nfp, ami_poswidgetg_t* ofp)
     { *ofp = poswidgetg_vect; poswidgetg_vect = nfp; }
-void ami_poswidgetg(FILE* f, int id, int x, int y)
+void ami_poswidgetg(FILE* f, long id, long x, long y)
     { (*poswidgetg_vect)(f, id, x, y); }
 
-static void poswidgetg_ivf(FILE* f, int id, int x, int y)
+static void poswidgetg_ivf(FILE* f, long id, long x, long y)
     { error(eposwidgetg_unimp); }
 
 void _pa_backwidget_ovr(ami_backwidget_t nfp, ami_backwidget_t* ofp)
     { *ofp = backwidget_vect; backwidget_vect = nfp; }
-void ami_backwidget(FILE* f, int id) { (*backwidget_vect)(f, id); }
+void ami_backwidget(FILE* f, long id) { (*backwidget_vect)(f, id); }
 
-static void backwidget_ivf(FILE* f, int id) { error(ebackwidget_unimp); }
+static void backwidget_ivf(FILE* f, long id) { error(ebackwidget_unimp); }
 
 void _pa_frontwidget_ovr(ami_frontwidget_t nfp, ami_frontwidget_t* ofp)
     { *ofp = frontwidget_vect; frontwidget_vect = nfp; }
-void ami_frontwidget(FILE* f, int id) { (*frontwidget_vect)(f, id); }
+void ami_frontwidget(FILE* f, long id) { (*frontwidget_vect)(f, id); }
 
-static void frontwidget_ivf(FILE* f, int id) { error(efrontwidget_unimp); }
+static void frontwidget_ivf(FILE* f, long id) { error(efrontwidget_unimp); }
 
 void _pa_focuswidget_ovr(ami_focuswidget_t nfp, ami_focuswidget_t* ofp)
     { *ofp = focuswidget_vect; focuswidget_vect = nfp; }
-void ami_focuswidget(FILE* f, int id) { (*focuswidget_vect)(f, id); }
+void ami_focuswidget(FILE* f, long id) { (*focuswidget_vect)(f, id); }
 
-static void focuswidget_ivf(FILE* f, int id) { error(efocuswidget_unimp); }
+static void focuswidget_ivf(FILE* f, long id) { error(efocuswidget_unimp); }
 
 void _pa_buttonsiz_ovr(ami_buttonsiz_t nfp, ami_buttonsiz_t* ofp)
     { *ofp = buttonsiz_vect; buttonsiz_vect = nfp; }
-void ami_buttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
     { (*buttonsiz_vect)(f, s, w, h); }
 
-static void buttonsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void buttonsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(ebuttonsiz_unimp); }
 
 void _pa_buttonsizg_ovr(ami_buttonsizg_t nfp, ami_buttonsizg_t* ofp)
     { *ofp = buttonsizg_vect; buttonsizg_vect = nfp; }
-void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
     { (*buttonsizg_vect)(f, s, w, h); }
 
-static void buttonsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void buttonsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(ebuttonsizg_unimp); }
 
 void _pa_button_ovr(ami_button_t nfp, ami_button_t* ofp)
     { *ofp = button_vect; button_vect = nfp; }
-void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*button_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void button_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void button_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(ebutton_unimp); }
 
 void _pa_buttong_ovr(ami_buttong_t nfp, ami_buttong_t* ofp)
     { *ofp = buttong_vect; buttong_vect = nfp; }
-void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*buttong_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void buttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void buttong_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(ebuttong_unimp); }
 
 void _pa_checkboxsiz_ovr(ami_checkboxsiz_t nfp, ami_checkboxsiz_t* ofp)
     { *ofp = checkboxsiz_vect; checkboxsiz_vect = nfp; }
-void ami_checkboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
     { (*checkboxsiz_vect)(f, s, w, h); }
 
-static void checkboxsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void checkboxsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(echeckboxsiz_unimp); }
 
 void _pa_checkboxsizg_ovr(ami_checkboxsizg_t nfp, ami_checkboxsizg_t* ofp)
     { *ofp = checkboxsizg_vect; checkboxsizg_vect = nfp; }
-void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
     { (*checkboxsizg_vect)(f, s, w, h); }
 
-static void checkboxsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void checkboxsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(echeckboxsizg_unimp); }
 
 void _pa_checkbox_ovr(ami_checkbox_t nfp, ami_checkbox_t* ofp)
     { *ofp = checkbox_vect; checkbox_vect = nfp; }
-void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*checkbox_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void checkbox_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void checkbox_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(echeckbox_unimp); }
 
 void _pa_checkboxg_ovr(ami_checkboxg_t nfp, ami_checkboxg_t* ofp)
     { *ofp = checkboxg_vect; checkboxg_vect = nfp; }
-void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*checkboxg_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void checkboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void checkboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(echeckboxg_unimp); }
 
 void _pa_radiobuttonsiz_ovr(ami_radiobuttonsiz_t nfp, ami_radiobuttonsiz_t* ofp)
     { *ofp = radiobuttonsiz_vect; radiobuttonsiz_vect = nfp; }
-void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
     { (*radiobuttonsiz_vect)(f, s, w, h); }
 
-static void radiobuttonsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void radiobuttonsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(eradiobuttonsiz_unimp); }
 
 void _pa_radiobuttonsizg_ovr(ami_radiobuttonsizg_t nfp, ami_radiobuttonsizg_t* ofp)
     { *ofp = radiobuttonsizg_vect; radiobuttonsizg_vect = nfp; }
-void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
     { (*radiobuttonsizg_vect)(f, s, w, h); }
 
-static void radiobuttonsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void radiobuttonsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(eradiobuttonsizg_unimp); }
 
 void _pa_radiobutton_ovr(ami_radiobutton_t nfp, ami_radiobutton_t* ofp)
     { *ofp = radiobutton_vect; radiobutton_vect = nfp; }
-void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*radiobutton_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void radiobutton_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void radiobutton_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(eradiobutton_unimp); }
 
 void _pa_radiobuttong_ovr(ami_radiobuttong_t nfp, ami_radiobuttong_t* ofp)
     { *ofp = radiobuttong_vect; radiobuttong_vect = nfp; }
-void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*radiobuttong_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void radiobuttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void radiobuttong_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(eradiobuttong_unimp); }
 
 void _pa_groupsizg_ovr(ami_groupsizg_t nfp, ami_groupsizg_t* ofp)
     { *ofp = groupsizg_vect; groupsizg_vect = nfp; }
-void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*groupsizg_vect)(f, s, cw, ch, w, h, ox, oy); }
 
-static void groupsizg_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h,
-                          int* ox, int* oy)
+static void groupsizg_ivf(FILE* f, char* s, long cw, long ch, long* w, long* h,
+                          long* ox, long* oy)
     { error(egroupsizg_unimp); }
 
 void _pa_groupsiz_ovr(ami_groupsiz_t nfp, ami_groupsiz_t* ofp)
     { *ofp = groupsiz_vect; groupsiz_vect = nfp; }
-void ami_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*groupsiz_vect)(f, s, cw, ch, w, h, ox, oy); }
 
-static void groupsiz_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                 int* oy) { error(egroupsiz_unimp); }
+static void groupsiz_ivf(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                 long* oy) { error(egroupsiz_unimp); }
 
 void _pa_group_ovr(ami_group_t nfp, ami_group_t* ofp)
     { *ofp = group_vect; group_vect = nfp; }
-void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*group_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void group_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void group_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(egroup_unimp); }
 
 void _pa_groupg_ovr(ami_groupg_t nfp, ami_groupg_t* ofp)
     { *ofp = groupg_vect; groupg_vect = nfp; }
-void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*groupg_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void groupg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void groupg_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(egroupg_unimp); }
 
 void _pa_background_ovr(ami_background_t nfp, ami_background_t* ofp)
     { *ofp = background_vect; background_vect = nfp; }
-void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*background_vect)(f, x1, y1, x2, y2, id); }
 
-static void background_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void background_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(ebackground_unimp); }
 
 void _pa_backgroundg_ovr(ami_backgroundg_t nfp, ami_backgroundg_t* ofp)
     { *ofp = backgroundg_vect; backgroundg_vect = nfp; }
-void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*backgroundg_vect)(f, x1, y1, x2, y2, id); }
 
-static void backgroundg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void backgroundg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(ebackgroundg_unimp); }
 
 void _pa_scrollvertsizg_ovr(ami_scrollvertsizg_t nfp, ami_scrollvertsizg_t* ofp)
     { *ofp = scrollvertsizg_vect; scrollvertsizg_vect = nfp; }
-void ami_scrollvertsizg(FILE* f, int* w, int* h)
+void ami_scrollvertsizg(FILE* f, long* w, long* h)
     { (*scrollvertsizg_vect)(f, w, h); }
 
-static void scrollvertsizg_ivf(FILE* f, int* w, int* h)
+static void scrollvertsizg_ivf(FILE* f, long* w, long* h)
     { error(escrollvertsizg_unimp); }
 
 void _pa_scrollvertsiz_ovr(ami_scrollvertsiz_t nfp, ami_scrollvertsiz_t* ofp)
     { *ofp = scrollvertsiz_vect; scrollvertsiz_vect = nfp; }
-void ami_scrollvertsiz(FILE* f, int* w, int* h)
+void ami_scrollvertsiz(FILE* f, long* w, long* h)
     { (*scrollvertsiz_vect)(f, w, h); }
 
-static void scrollvertsiz_ivf(FILE* f, int* w, int* h)
+static void scrollvertsiz_ivf(FILE* f, long* w, long* h)
     { error(escrollvertsiz_unimp); }
 
 void _pa_scrollvert_ovr(ami_scrollvert_t nfp, ami_scrollvert_t* ofp)
     { *ofp = scrollvert_vect; scrollvert_vect = nfp; }
-void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollvert_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollvert_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollvert_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollvert_unimp); }
 
 void _pa_scrollvertg_ovr(ami_scrollvertg_t nfp, ami_scrollvertg_t* ofp)
     { *ofp = scrollvertg_vect; scrollvertg_vect = nfp; }
-void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollvertg_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollvertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollvertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollvertg_unimp); }
 
 void _pa_scrollhorizsizg_ovr(ami_scrollhorizsizg_t nfp, ami_scrollhorizsizg_t* ofp)
     { *ofp = scrollhorizsizg_vect; scrollhorizsizg_vect = nfp; }
-void ami_scrollhorizsizg(FILE* f, int* w, int* h)
+void ami_scrollhorizsizg(FILE* f, long* w, long* h)
     { (*scrollhorizsizg_vect)(f, w, h); }
 
-static void scrollhorizsizg_ivf(FILE* f, int* w, int* h)
+static void scrollhorizsizg_ivf(FILE* f, long* w, long* h)
     { error(escrollhorizsizg_unimp); }
 
 void _pa_scrollhorizsiz_ovr(ami_scrollhorizsiz_t nfp, ami_scrollhorizsiz_t* ofp)
     { *ofp = scrollhorizsiz_vect; scrollhorizsiz_vect = nfp; }
-void ami_scrollhorizsiz(FILE* f, int* w, int* h)
+void ami_scrollhorizsiz(FILE* f, long* w, long* h)
     { (*scrollhorizsiz_vect)(f, w, h); }
 
-static void scrollhorizsiz_ivf(FILE* f, int* w, int* h)
+static void scrollhorizsiz_ivf(FILE* f, long* w, long* h)
     { error(escrollhorizsiz_unimp); }
 
 void _pa_scrollhoriz_ovr(ami_scrollhoriz_t nfp, ami_scrollhoriz_t* ofp)
     { *ofp = scrollhoriz_vect; scrollhoriz_vect = nfp; }
-void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollhoriz_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollhoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollhoriz_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollhoriz_unimp); }
 
 void _pa_scrollhorizg_ovr(ami_scrollhorizg_t nfp, ami_scrollhorizg_t* ofp)
     { *ofp = scrollhorizg_vect; scrollhorizg_vect = nfp; }
-void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollhorizg_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollhorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollhorizg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollhorizg_unimp); }
 
 void _pa_scrollpos_ovr(ami_scrollpos_t nfp, ami_scrollpos_t* ofp)
     { *ofp = scrollpos_vect; scrollpos_vect = nfp; }
-void ami_scrollpos(FILE* f, int id, int r)
+void ami_scrollpos(FILE* f, long id, long r)
     { (*scrollpos_vect)(f, id, r); }
 
-static void scrollpos_ivf(FILE* f, int id, int r) { error(escrollpos_unimp); }
+static void scrollpos_ivf(FILE* f, long id, long r) { error(escrollpos_unimp); }
 
 void _pa_scrollsiz_ovr(ami_scrollsiz_t nfp, ami_scrollsiz_t* ofp)
     { *ofp = scrollsiz_vect; scrollsiz_vect = nfp; }
-void ami_scrollsiz(FILE* f, int id, int r)
+void ami_scrollsiz(FILE* f, long id, long r)
     { (*scrollsiz_vect)(f, id, r); }
 
-static void scrollsiz_ivf(FILE* f, int id, int r) { error(escrollsiz_unimp); }
+static void scrollsiz_ivf(FILE* f, long id, long r) { error(escrollsiz_unimp); }
 
 void _pa_numselboxsizg_ovr(ami_numselboxsizg_t nfp, ami_numselboxsizg_t* ofp)
     { *ofp = numselboxsizg_vect; numselboxsizg_vect = nfp; }
-void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
     { (*numselboxsizg_vect)(f, l, u, w, h); }
 
-static void numselboxsizg_ivf(FILE* f, int l, int u, int* w, int* h)
+static void numselboxsizg_ivf(FILE* f, long l, long u, long* w, long* h)
     { error(enumselboxsizg_unimp); }
 
 void _pa_numselboxsiz_ovr(ami_numselboxsiz_t nfp, ami_numselboxsiz_t* ofp)
     { *ofp = numselboxsiz_vect; numselboxsiz_vect = nfp; }
-void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
     { (*numselboxsiz_vect)(f, l, u, w, h); }
 
-static void numselboxsiz_ivf(FILE* f, int l, int u, int* w, int* h)
+static void numselboxsiz_ivf(FILE* f, long l, long u, long* w, long* h)
     { error(enumselboxsiz_unimp); }
 
 void _pa_numselbox_ovr(ami_numselbox_t nfp, ami_numselbox_t* ofp)
     { *ofp = numselbox_vect; numselbox_vect = nfp; }
-void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
     { (*numselbox_vect)(f, x1, y1, x2, y2, l, u, id); }
 
-static void numselbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                  int id) { error(enumselbox_unimp); }
+static void numselbox_ivf(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                  long id) { error(enumselbox_unimp); }
 
 void _pa_numselboxg_ovr(ami_numselboxg_t nfp, ami_numselboxg_t* ofp)
     { *ofp = numselboxg_vect; numselboxg_vect = nfp; }
-void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
     { (*numselboxg_vect)(f, x1, y1, x2, y2, l, u, id); }
 
-static void numselboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                   int id) { error(enumselboxg_unimp); }
+static void numselboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                   long id) { error(enumselboxg_unimp); }
 
 void _pa_editboxsizg_ovr(ami_editboxsizg_t nfp, ami_editboxsizg_t* ofp)
     { *ofp = editboxsizg_vect; editboxsizg_vect = nfp; }
-void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
     { (*editboxsizg_vect)(f, s, w, h); }
 
-static void editboxsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void editboxsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(eeditboxsizg_unimp); }
 
 void _pa_editboxsiz_ovr(ami_editboxsiz_t nfp, ami_editboxsiz_t* ofp)
     { *ofp = editboxsiz_vect; editboxsiz_vect = nfp; }
-void ami_editboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
     { (*editboxsiz_vect)(f, s, w, h); }
 
-static void editboxsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void editboxsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(eeditboxsiz_unimp); }
 
 void _pa_editbox_ovr(ami_editbox_t nfp, ami_editbox_t* ofp)
     { *ofp = editbox_vect; editbox_vect = nfp; }
-void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*editbox_vect)(f, x1, y1, x2, y2, id); }
 
-static void editbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void editbox_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eeditbox_unimp); }
 
 void _pa_editboxg_ovr(ami_editboxg_t nfp, ami_editboxg_t* ofp)
     { *ofp = editboxg_vect; editboxg_vect = nfp; }
-void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*editboxg_vect)(f, x1, y1, x2, y2, id); }
 
-static void editboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void editboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eeditboxg_unimp); }
 
 void _pa_progbarsizg_ovr(ami_progbarsizg_t nfp, ami_progbarsizg_t* ofp)
     { *ofp = progbarsizg_vect; progbarsizg_vect = nfp; }
-void ami_progbarsizg(FILE* f, int* w, int* h) { (*progbarsizg_vect)(f, w, h); }
+void ami_progbarsizg(FILE* f, long* w, long* h) { (*progbarsizg_vect)(f, w, h); }
 
-static void progbarsizg_ivf(FILE* f, int* w, int* h)
+static void progbarsizg_ivf(FILE* f, long* w, long* h)
     { error(eprogbarsizg_unimp); }
 
 void _pa_progbarsiz_ovr(ami_progbarsiz_t nfp, ami_progbarsiz_t* ofp)
     { *ofp = progbarsiz_vect; progbarsiz_vect = nfp; }
-void ami_progbarsiz(FILE* f, int* w, int* h) { (*progbarsiz_vect)(f, w, h); }
+void ami_progbarsiz(FILE* f, long* w, long* h) { (*progbarsiz_vect)(f, w, h); }
 
-static void progbarsiz_ivf(FILE* f, int* w, int* h)
+static void progbarsiz_ivf(FILE* f, long* w, long* h)
     { error(eprogbarsiz_unimp); }
 
 void _pa_progbar_ovr(ami_progbar_t nfp, ami_progbar_t* ofp)
     { *ofp = progbar_vect; progbar_vect = nfp; }
-void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*progbar_vect)(f, x1, y1, x2, y2, id); }
 
-static void progbar_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void progbar_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eprogbar_unimp); }
 
 void _pa_progbarg_ovr(ami_progbarg_t nfp, ami_progbarg_t* ofp)
     { *ofp = progbarg_vect; progbarg_vect = nfp; }
-void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*progbarg_vect)(f, x1, y1, x2, y2, id); }
 
-static void progbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void progbarg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eprogbarg_unimp); }
 
 void _pa_progbarpos_ovr(ami_progbarpos_t nfp, ami_progbarpos_t* ofp)
     { *ofp = progbarpos_vect; progbarpos_vect = nfp; }
-void ami_progbarpos(FILE* f, int id, int pos) { (*progbarpos_vect)(f, id, pos); }
+void ami_progbarpos(FILE* f, long id, long pos) { (*progbarpos_vect)(f, id, pos); }
 
-static void progbarpos_ivf(FILE* f, int id, int pos)
+static void progbarpos_ivf(FILE* f, long id, long pos)
     { error(eprogbarpos_unimp); }
 
 void _pa_listboxsizg_ovr(ami_listboxsizg_t nfp, ami_listboxsizg_t* ofp)
     { *ofp = listboxsizg_vect; listboxsizg_vect = nfp; }
-void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
     { (*listboxsizg_vect)(f, sp, w, h); }
 
-static void listboxsizg_ivf(FILE* f, ami_strptr sp, int* w, int* h)
+static void listboxsizg_ivf(FILE* f, ami_strptr sp, long* w, long* h)
     { error(elistboxsizg_unimp); }
 
 void _pa_listboxsiz_ovr(ami_listboxsiz_t nfp, ami_listboxsiz_t* ofp)
     { *ofp = listboxsiz_vect; listboxsiz_vect = nfp; }
-void ami_listboxsiz(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
     { (*listboxsiz_vect)(f, sp, w, h); }
 
-static void listboxsiz_ivf(FILE* f, ami_strptr sp, int* w, int* h)
+static void listboxsiz_ivf(FILE* f, ami_strptr sp, long* w, long* h)
     { error(elistboxsiz_unimp); }
 
 void _pa_listbox_ovr(ami_listbox_t nfp, ami_listbox_t* ofp)
     { *ofp = listbox_vect; listbox_vect = nfp; }
-void ami_listbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*listbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void listbox_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void listbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(elistbox_unimp); }
 
 void _pa_listboxg_ovr(ami_listboxg_t nfp, ami_listboxg_t* ofp)
     { *ofp = listboxg_vect; listboxg_vect = nfp; }
-void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*listboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void listboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void listboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(elistboxg_unimp); }
 
 void _pa_dropboxsizg_ovr(ami_dropboxsizg_t nfp, ami_dropboxsizg_t* ofp)
     { *ofp = dropboxsizg_vect; dropboxsizg_vect = nfp; }
-void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropboxsizg_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropboxsizg_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropboxsizg_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropboxsizg_unimp); }
 
 void _pa_dropboxsiz_ovr(ami_dropboxsiz_t nfp, ami_dropboxsiz_t* ofp)
     { *ofp = dropboxsiz_vect; dropboxsiz_vect = nfp; }
-void ami_dropboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropboxsiz_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropboxsiz_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropboxsiz_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropboxsiz_unimp); }
 
 void _pa_dropbox_ovr(ami_dropbox_t nfp, ami_dropbox_t* ofp)
     { *ofp = dropbox_vect; dropbox_vect = nfp; }
-void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropbox_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void dropbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(edropbox_unimp); }
 
 void _pa_dropboxg_ovr(ami_dropboxg_t nfp, ami_dropboxg_t* ofp)
     { *ofp = dropboxg_vect; dropboxg_vect = nfp; }
-void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void dropboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(edropboxg_unimp); }
 
 void _pa_dropeditboxsizg_ovr(ami_dropeditboxsizg_t nfp, ami_dropeditboxsizg_t* ofp)
     { *ofp = dropeditboxsizg_vect; dropeditboxsizg_vect = nfp; }
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropeditboxsizg_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropeditboxsizg_unimp); }
 
 void _pa_dropeditboxsiz_ovr(ami_dropeditboxsiz_t nfp, ami_dropeditboxsiz_t* ofp)
     { *ofp = dropeditboxsiz_vect; dropeditboxsiz_vect = nfp; }
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropeditboxsiz_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropeditboxsiz_unimp); }
 
 void _pa_dropeditbox_ovr(ami_dropeditbox_t nfp, ami_dropeditbox_t* ofp)
     { *ofp = dropeditbox_vect; dropeditbox_vect = nfp; }
-void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropeditbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropeditbox_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void dropeditbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(edropeditbox_unimp); }
 
 void _pa_dropeditboxg_ovr(ami_dropeditboxg_t nfp, ami_dropeditboxg_t* ofp)
     { *ofp = dropeditboxg_vect; dropeditboxg_vect = nfp; }
-void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropeditboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropeditboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                             int id)
+static void dropeditboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                             long id)
     { error(edropeditboxg_unimp); }
 
 void _pa_slidehorizsizg_ovr(ami_slidehorizsizg_t nfp, ami_slidehorizsizg_t* ofp)
     { *ofp = slidehorizsizg_vect; slidehorizsizg_vect = nfp; }
-void ami_slidehorizsizg(FILE* f, int* w, int* h) { (*slidehorizsizg_vect)(f, w, h); }
+void ami_slidehorizsizg(FILE* f, long* w, long* h) { (*slidehorizsizg_vect)(f, w, h); }
 
-static void slidehorizsizg_ivf(FILE* f, int* w, int* h)
+static void slidehorizsizg_ivf(FILE* f, long* w, long* h)
     { error(eslidehorizsizg_unimp); }
 
 void _pa_slidehorizsiz_ovr(ami_slidehorizsiz_t nfp, ami_slidehorizsiz_t* ofp)
     { *ofp = slidehorizsiz_vect; slidehorizsiz_vect = nfp; }
-void ami_slidehorizsiz(FILE* f, int* w, int* h)
+void ami_slidehorizsiz(FILE* f, long* w, long* h)
     { (*slidehorizsiz_vect)(f, w, h); }
 
-static void slidehorizsiz_ivf(FILE* f, int* w, int* h)
+static void slidehorizsiz_ivf(FILE* f, long* w, long* h)
     { error(eslidehorizsiz_unimp); }
 
 void _pa_slidehoriz_ovr(ami_slidehoriz_t nfp, ami_slidehoriz_t* ofp)
     { *ofp = slidehoriz_vect; slidehoriz_vect = nfp; }
-void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidehoriz_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidehoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidehoriz_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidehoriz_unimp); }
 
 void _pa_slidehorizg_ovr(ami_slidehorizg_t nfp, ami_slidehorizg_t* ofp)
     { *ofp = slidehorizg_vect; slidehorizg_vect = nfp; }
-void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidehorizg_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidehorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidehorizg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidehorizg_unimp); }
 
 void _pa_slidevertsizg_ovr(ami_slidevertsizg_t nfp, ami_slidevertsizg_t* ofp)
     { *ofp = slidevertsizg_vect; slidevertsizg_vect = nfp; }
-void ami_slidevertsizg(FILE* f, int* w, int* h)
+void ami_slidevertsizg(FILE* f, long* w, long* h)
     { (*slidevertsizg_vect)(f, w, h); }
 
-static void slidevertsizg_ivf(FILE* f, int* w, int* h)
+static void slidevertsizg_ivf(FILE* f, long* w, long* h)
     { error(eslidevertsizg_unimp); }
 
 void _pa_slidevertsiz_ovr(ami_slidevertsiz_t nfp, ami_slidevertsiz_t* ofp)
     { *ofp = slidevertsiz_vect; slidevertsiz_vect = nfp; }
-void ami_slidevertsiz(FILE* f, int* w, int* h) { (*slidevertsiz_vect)(f, w, h); }
+void ami_slidevertsiz(FILE* f, long* w, long* h) { (*slidevertsiz_vect)(f, w, h); }
 
-static void slidevertsiz_ivf(FILE* f, int* w, int* h)
+static void slidevertsiz_ivf(FILE* f, long* w, long* h)
     { error(eslidevertsiz_unimp); }
 
 void _pa_slidevert_ovr(ami_slidevert_t nfp, ami_slidevert_t* ofp)
     { *ofp = slidevert_vect; slidevert_vect = nfp; }
-void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidevert_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidevert_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidevert_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidevert_unimp); }
 
 void _pa_slidevertg_ovr(ami_slidevertg_t nfp, ami_slidevertg_t* ofp)
     { *ofp = slidevertg_vect; slidevertg_vect = nfp; }
-void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidevertg_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidevertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidevertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidevertg_unimp); }
 
 void _pa_tabbarsizg_ovr(ami_tabbarsizg_t nfp, ami_tabbarsizg_t* ofp)
     { *ofp = tabbarsizg_vect; tabbarsizg_vect = nfp; }
-void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarsizg_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsizg_ivf(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-                           int* ox, int* oy)
+static void tabbarsizg_ivf(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                           long* ox, long* oy)
     { error(etabbarsizg_unimp); }
 
 void _pa_tabbarsiz_ovr(ami_tabbarsiz_t nfp, ami_tabbarsiz_t* ofp)
     { *ofp = tabbarsiz_vect; tabbarsiz_vect = nfp; }
-void ami_tabbarsiz(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarsiz_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsiz_ivf(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy)
+static void tabbarsiz_ivf(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy)
     { error(etabbarsiz_unimp); }
 
 void _pa_tabbarclientg_ovr(ami_tabbarclientg_t nfp, ami_tabbarclientg_t* ofp)
     { *ofp = tabbarclientg_vect; tabbarclientg_vect = nfp; }
-void ami_tabbarclientg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarclientg_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarclientg_ivf(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                              int* ox, int* oy)
+static void tabbarclientg_ivf(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                              long* ox, long* oy)
     { error(etabbarclientg_unimp); }
 
 void _pa_tabbarclient_ovr(ami_tabbarclient_t nfp, ami_tabbarclient_t* ofp)
     { *ofp = tabbarclient_vect; tabbarclient_vect = nfp; }
-void ami_tabbarclient(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarclient_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarclient_ivf(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                     int* ox, int* oy)
+static void tabbarclient_ivf(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                     long* ox, long* oy)
     { error(etabbarclient_unimp); }
 
 void _pa_tabbar_ovr(ami_tabbar_t nfp, ami_tabbar_t* ofp)
     { *ofp = tabbar_vect; tabbar_vect = nfp; }
-void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
     { (*tabbar_vect)(f, x1, y1, x2, y2, sp, tor, id); }
 
-static void tabbar_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-               ami_tabori tor, int id)
+static void tabbar_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+               ami_tabori tor, long id)
     { error(etabbar_unimp); }
 
 void _pa_tabbarg_ovr(ami_tabbarg_t nfp, ami_tabbarg_t* ofp)
     { *ofp = tabbarg_vect; tabbarg_vect = nfp; }
-void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)
+void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
     { (*tabbarg_vect)(f, x1, y1, x2, y2, sp, tor, id); }
 
-static void tabbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                ami_tabori tor, int id)
+static void tabbarg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                ami_tabori tor, long id)
     { error(etabbarg_unimp); }
 
 void _pa_tabsel_ovr(ami_tabsel_t nfp, ami_tabsel_t* ofp)
     { *ofp = tabsel_vect; tabsel_vect = nfp; }
-void ami_tabsel(FILE* f, int id, int tn) { (*tabsel_vect)(f, id, tn); }
+void ami_tabsel(FILE* f, long id, long tn) { (*tabsel_vect)(f, id, tn); }
 
-static void tabsel_ivf(FILE* f, int id, int tn)
+static void tabsel_ivf(FILE* f, long id, long tn)
     { error(etabsel_unimp); }
 
 void _pa_alert_ovr(ami_alert_t nfp, ami_alert_t* ofp)
@@ -16718,46 +16711,46 @@ static void alert_ivf(char* title, char* message) { error(ealert_unimp); }
 
 void _pa_querycolor_ovr(ami_querycolor_t nfp, ami_querycolor_t* ofp)
     { *ofp = querycolor_vect; querycolor_vect = nfp; }
-void ami_querycolor(int* r, int* g, int* b) { (*querycolor_vect)(r, g, b); }
+void ami_querycolor(long* r, long* g, long* b) { (*querycolor_vect)(r, g, b); }
 
-static void querycolor_ivf(int* r, int* g, int* b) { error(equerycolor_unimp); }
+static void querycolor_ivf(long* r, long* g, long* b) { error(equerycolor_unimp); }
 
 void _pa_queryopen_ovr(ami_queryopen_t nfp, ami_queryopen_t* ofp)
     { *ofp = queryopen_vect; queryopen_vect = nfp; }
-void ami_queryopen(char* s, int sl) { (*queryopen_vect)(s, sl); }
+void ami_queryopen(char* s, long sl) { (*queryopen_vect)(s, sl); }
 
-static void queryopen_ivf(char* s, int sl) { error(equeryopen_unimp); }
+static void queryopen_ivf(char* s, long sl) { error(equeryopen_unimp); }
 
 void _pa_querysave_ovr(ami_querysave_t nfp, ami_querysave_t* ofp)
     { *ofp = querysave_vect; querysave_vect = nfp; }
-void ami_querysave(char* s, int sl) { (*querysave_vect)(s, sl); }
+void ami_querysave(char* s, long sl) { (*querysave_vect)(s, sl); }
 
-static void querysave_ivf(char* s, int sl) { error(equerysave_unimp); }
+static void querysave_ivf(char* s, long sl) { error(equerysave_unimp); }
 
 void _pa_queryfind_ovr(ami_queryfind_t nfp, ami_queryfind_t* ofp)
     { *ofp = queryfind_vect; queryfind_vect = nfp; }
-void ami_queryfind(char* s, int sl, ami_qfnopts* opt)
+void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
     { (*queryfind_vect)(s, sl, opt); }
 
-static void queryfind_ivf(char* s, int sl, ami_qfnopts* opt)
+static void queryfind_ivf(char* s, long sl, ami_qfnopts* opt)
     { error(equeryfind_unimp); }
 
 void _pa_queryfindrep_ovr(ami_queryfindrep_t nfp, ami_queryfindrep_t* ofp)
     { *ofp = queryfindrep_vect; queryfindrep_vect = nfp; }
-void ami_queryfindrep(char* s, int sl, char* r, int rl, ami_qfropts* opt)
+void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     { (*queryfindrep_vect)(s, sl, r, rl, opt); }
 
-static void queryfindrep_ivf(char* s, int sl, char* r, int rl, ami_qfropts* opt)
+static void queryfindrep_ivf(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     { error(equeryfindrep_unimp); }
 
 void _pa_queryfont_ovr(ami_queryfont_t nfp, ami_queryfont_t* ofp)
     { *ofp = queryfont_vect; queryfont_vect = nfp; }
-void ami_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-                  int* br, int* bg, int* bb, ami_qfteffects* effect)
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+                  long* br, long* bg, long* bb, ami_qfteffects* effect)
     { (*queryfont_vect)(f, fc, s, fr, fg, fb, br, bg, bb, effect); }
 
-static void queryfont_ivf(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-                          int* br, int* bg, int* bb, ami_qfteffects* effect)
+static void queryfont_ivf(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+                          long* br, long* bg, long* bb, ami_qfteffects* effect)
     { error(equeryfont_unimp); }
 
 /** ****************************************************************************

@@ -24,7 +24,7 @@ https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm
 
 #define SECOND 10000
 
-int dport = AMI_SYNTH_OUT; /* set default synth out */
+long dport = AMI_SYNTH_OUT; /* set default synth out */
 
 ami_optrec opttbl[] = {
 
@@ -56,9 +56,9 @@ static void playnote(ami_note n, int nt)
 {
 
 /*printf("Note: %d Time: %d\n", n, nt);*/
-   ami_noteon(dport, 0, 1, n, INT_MAX); /* turn on the note */
+   ami_noteon(dport, 0, 1, n, LONG_MAX); /* turn on the note */
    waittime(nt); /* wait time */
-   ami_noteoff(dport, 0, 1, n, INT_MAX); /* turn off the note */
+   ami_noteoff(dport, 0, 1, n, LONG_MAX); /* turn off the note */
 
 }
 
@@ -236,13 +236,14 @@ int main(int argc, char **argv)
 {
 
     int song;
-    int argi = 1;
+    long argi = 1;
+    long argcl = argc;
     char buff[20];
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 1) {
+    if (argcl != 1) {
 
         fprintf(stderr, "Usage: play [--port=<port>|-p=<port>]\n");
         exit(1);
@@ -254,7 +255,7 @@ int main(int argc, char **argv)
     octave = AMI_OCTAVE_5; /* start in middle octave */
     deftim = ntime; /* set whole notes default */
 
-    printf("Synthesisers: %d\n", ami_synthout());
+    printf("Synthesisers: %ld\n", ami_synthout());
     ami_opensynthout(dport); /* open main synthesiser */
 
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);

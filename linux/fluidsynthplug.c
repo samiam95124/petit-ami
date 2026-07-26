@@ -12,6 +12,7 @@ Petit_ami sound system.
 
 #include <fluidsynth.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <localdefs.h>
 #include <sound.h>
 
@@ -63,7 +64,7 @@ one MIDI out device at init time.
 
 *******************************************************************************/
 
-static void openfluid(int p)
+static void openfluid(long p)
 
 {
 
@@ -94,7 +95,7 @@ Closes a Liquidsynth MIDI output device for use.
 
 *******************************************************************************/
 
-static void closefluid(int p)
+static void closefluid(long p)
 
 {
 
@@ -124,9 +125,16 @@ found that many of these functions do nothing on most synthesizers.
 Some of the questionable codes should be compared against what happens when the
 midi codes are fed directly to Fluidsynth (source code analysis?).
 
+Note on scaling: API full scale values are 0..LONG_MAX (signed controls
+-LONG_MAX..LONG_MAX). Dividing by LONG_MAX/128+1 maps full scale to the MIDI
+0..127 range, LONG_MAX/8192+1 to a signed 13 bit value (+0x2000 gives 14 bit
+positive), and LONG_MAX/16384+1 to 14 bits. The divisors are relative to
+LONG_MAX so they are correct for 32 or 64 bit longs; dividing first avoids
+any overflow.
+
 *******************************************************************************/
 
-static void writefluid(int p, ami_seqptr sp)
+static void writefluid(long p, ami_seqptr sp)
 
 {
 
@@ -139,7 +147,7 @@ static void writefluid(int p, ami_seqptr sp)
     switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
-            fluid_synth_noteon(fp->synth, sp->ntc-1, sp->ntn-1, sp->ntv/0x01000000);
+            fluid_synth_noteon(fp->synth, sp->ntc-1, sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_noteoff:
             /* Note fluidsynth has no velocity parameter */
@@ -177,14 +185,14 @@ static void writefluid(int p, ami_seqptr sp)
         case st_phaser:       break; /* no equivalent function */
         case st_aftertouch:   break; /* no equivalent function */
         case st_pressure:
-            fluid_synth_channel_pressure(fp->synth, sp->ntc-1, sp->ntv/0x01000000);
+            fluid_synth_channel_pressure(fp->synth, sp->ntc-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_pitch:
-            fluid_synth_pitch_bend(fp->synth, sp->vsc-1, sp->vsv/0x00040000+0x2000);
+            fluid_synth_pitch_bend(fp->synth, sp->vsc-1, sp->vsv/(LONG_MAX/8192+1)+0x2000);
             break;
         case st_pitchrange:
             /* this one is open for interpretation: what is a "semitone"? */
-            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1, sp->vsv/0x00020000);
+            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1, sp->vsv/(LONG_MAX/16384+1));
             break;
         case st_mono:         break; /* no equivalent function */
         case st_poly:         break; /* no equivalent function */
@@ -208,7 +216,7 @@ Always returns error.
 
 *******************************************************************************/
 
-int setparamfluid(int p, string name, string value)
+long setparamfluid(long p, string name, string value)
 
 {
 
@@ -225,7 +233,7 @@ Always returns empty string.
 
 *******************************************************************************/
 
-void getparamfluid(int p, string name, string value, int len)
+void getparamfluid(long p, string name, string value, long len)
 
 {
 

@@ -53,7 +53,7 @@ typedef struct crdrec* crdptr; /* pointer to coordinate store */
 typedef struct crdrec { /* cursor coordinate save */
 
     crdptr next; /* next entry */
-    int    x, y; /* cursor coordinates */
+    long   x, y; /* cursor coordinates */
 
 } crdrec;
 
@@ -68,8 +68,8 @@ int       poschr;        /* current character on line */
 filbuf    curfil;        /* current file to edit */
 ami_evtrec er;            /* next event record */
 crdptr    curstk;        /* cursor coordinate stack */
-int       mpx;           /* mouse coordinates x */
-int       mpy;           /* mouse coordinates y */
+long      mpx;           /* mouse coordinates x */
+long      mpy;           /* mouse coordinates y */
 int   insertc;       /* insert/overwrite toggle */
 linbuf    cmdlin;        /* command line */
 lininx    cmdptr;        /* command line pointer */
@@ -1416,7 +1416,7 @@ Accepts a function key number, 1-n, and executes the associated function.
 
 *******************************************************************************/
 
-void func(int fn)
+void func(long fn)
 
 {
 

@@ -69,8 +69,8 @@ Defines
 #define LOSE_DUR     800
 #define WIN_DUR      1000
 
-/* color helper: scale 0-255 to 0-INT_MAX */
-#define CLR(v) ((v) * (INT_MAX / 255))
+/* color helper: scale 0-255 to 0-LONG_MAX */
+#define CLR(v) ((v) * (LONG_MAX / 255))
 
 /* territory count */
 #define NUM_TERR     44
@@ -947,9 +947,9 @@ void handle_deploy_click(int ti)
     territories[ti].armies++;
     deploy_remaining--;
 
-    ami_noteon(AMI_SYNTH_OUT, 0, 1, DEPLOY_NOTE, INT_MAX);
+    ami_noteon(AMI_SYNTH_OUT, 0, 1, DEPLOY_NOTE, LONG_MAX);
     ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + DEPLOY_DUR,
-                1, DEPLOY_NOTE, INT_MAX);
+                1, DEPLOY_NOTE, LONG_MAX);
 
     if (deploy_remaining <= 0) {
         sprintf(msg_text, "Player %d: Deploy done. Press Done to attack.",
@@ -992,9 +992,9 @@ void handle_attack_click(int ti)
         sel_target = ti;
 
         /* play dice sound */
-        ami_noteon(AMI_SYNTH_OUT, 0, 1, DICE_NOTE, INT_MAX);
+        ami_noteon(AMI_SYNTH_OUT, 0, 1, DICE_NOTE, LONG_MAX);
         ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + DICE_DUR,
-                    1, DICE_NOTE, INT_MAX);
+                    1, DICE_NOTE, LONG_MAX);
 
         /* resolve combat */
         old_owner = territories[ti].owner;
@@ -1011,9 +1011,9 @@ void handle_attack_click(int ti)
             territories[sel_source].armies = 1;
             conquered_this_turn = TRUE;
 
-            ami_noteon(AMI_SYNTH_OUT, 0, 1, CONQUER_NOTE, INT_MAX);
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, CONQUER_NOTE, LONG_MAX);
             ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout() + CONQUER_DUR,
-                        1, CONQUER_NOTE, INT_MAX);
+                        1, CONQUER_NOTE, LONG_MAX);
 
             sprintf(msg_text, "Player %d conquered %s!",
                     cur_player + 1, territories[ti].name);

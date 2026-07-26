@@ -45,7 +45,7 @@ string gettys[] = {
 
 };
 
-int secure = FALSE;
+long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -61,21 +61,22 @@ int main(int argc, char **argv)
     FILE* fp;
     char buff[BUFLEN];
     unsigned long addr;
-    int port = 4433;
+    long port = 4433;
     int s;
-    int argi = 1;
+    long argi = 1;
+    long argcl = argc;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 1 && argc != 2) {
+    if (argcl != 1 && argcl != 2) {
 
         fprintf(stderr, "Usage: gettys [--secure|-s] [<port>]\n");
         exit(1);
     }
 
     /* if user supplied a port, get that */
-    if (argc == 2) port = atoi(argv[argi]);
+    if (argcl == 2) port = atoi(argv[argi]);
 
     while (1) { /* serve this port until cancelled */
 

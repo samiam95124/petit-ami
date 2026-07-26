@@ -48,16 +48,16 @@ including the html page statistics.
 #define BUFLEN 250
 
 /* do/do not secure connection */
-int secure = FALSE;
+long secure = FALSE;
 
 /* use IPv6 or IPv4 */
-int ipv6 = FALSE;
+long ipv6 = FALSE;
 
 /* do not check html end of file */
-int ncend = FALSE;
+long ncend = FALSE;
 
 /* only print html content */
-int htmlonly = FALSE;
+long htmlonly = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -77,15 +77,16 @@ int main(int argc, char **argv)
     char buff[BUFLEN];
     unsigned long addr;
     unsigned long long addrh, addrl;
-    int port;
-    int argi = 1;
+    long port;
+    long argi = 1;
+    long argcl = argc;
     int end;
     int inhtml;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc < 3) {
+    if (argcl < 3) {
 
         fprintf(stderr, "Usage: getpage [--secure|-s] [--v6] [--ne] [--html] <website> <page> [<port>]\n");
         exit(1);
@@ -97,7 +98,7 @@ int main(int argc, char **argv)
     else port = 80; /* http standard port */
 
     /* get user specified port */
-    if (argc == 4) port = atoi(argv[argi+2]);
+    if (argcl == 4) port = atoi(argv[argi+2]);
 
     /* open the server file */
     if (ipv6) {

@@ -150,11 +150,11 @@ typedef enum {
 typedef struct { /* screen context */
 
     HANDLE   han;         /* screen buffer handle */
-    int      maxx;        /* maximum x */
-    int      maxy;        /* maximum y */
-    int      offy;        /* offset within buffer to display area */
-    int      curx;        /* current cursor location x */
-    int      cury;        /* current cursor location y */
+    long     maxx;        /* maximum x */
+    long     maxy;        /* maximum y */
+    long     offy;        /* offset within buffer to display area */
+    long     curx;        /* current cursor location x */
+    long     cury;        /* current cursor location y */
     int      curv;        /* cursor visible */
     ami_color forec;       /* current writing foreground color */
     ami_color backc;       /* current writing background color */
@@ -202,12 +202,12 @@ static int     mb1;             /* mouse assert status button 1 */
 static int     mb2;             /* mouse assert status button 2 */
 static int     mb3;             /* mouse assert status button 3 */
 static int     mb4;             /* mouse assert status button 4 */
-static int     mpx, mpy;        /* mouse current position */
+static long    mpx, mpy;        /* mouse current position */
 static int     nmb1;            /* new mouse assert status button 1 */
 static int     nmb2;            /* new mouse assert status button 2 */
 static int     nmb3;            /* new mouse assert status button 3 */
 static int     nmb4;            /* new mouse assert status button 4 */
-static int     nmpx, nmpy;      /* new mouse current position */
+static long    nmpx, nmpy;      /* new mouse current position */
 static int     hover;           /* mouse is hovering in window */
 static int     hovpend;         /* hover event pending delivery */
 static int     hovtim;          /* hover timeout timer handle */
@@ -232,17 +232,17 @@ static int      i;           /* tab index */
 static HWND     winhan;      /* main window id */
 static DWORD    threadid;    /* dummy thread id (unused) */
 static int      threadstart; /* thread starts */
-static int      joy1xs;      /* last joystick position 1x */
-static int      joy1ys;      /* last joystick position 1y */
-static int      joy1zs;      /* last joystick position 1z */
-static int      joy2xs;      /* last joystick position 2x */
-static int      joy2ys;      /* last joystick position 2y */
-static int      joy2zs;      /* last joystick position 2z */
+static long     joy1xs;      /* last joystick position 1x */
+static long     joy1ys;      /* last joystick position 1y */
+static long     joy1zs;      /* last joystick position 1z */
+static long     joy2xs;      /* last joystick position 2x */
+static long     joy2ys;      /* last joystick position 2y */
+static long     joy2zs;      /* last joystick position 2z */
 static int      numjoy;      /* number of joysticks found */
 /* global sets. these are the global set parameters that apply to any new
    created screen buffer */
-static int      gmaxx;       /* maximum x size */
-static int      gmaxy;       /* maximum y size */
+static long     gmaxx;       /* maximum x size */
+static long     gmaxy;       /* maximum y size */
 static scnatt   gattr;       /* current attribute */
 static int      gautof;      /* state of auto */
 static ami_color gforec;      /* forground color */
@@ -507,13 +507,13 @@ nearest primary color to the given RGB color.
 
 ******************************************************************************/
 
-static ami_color colrgbnum(int r, int g, int b)
+static ami_color colrgbnum(long r, long g, long b)
 
 {
 
     ami_color c;
 
-    switch ((r > INT_MAX/2) << 2 | (g > INT_MAX/2) << 1 | (b > INT_MAX/2)) {
+    switch ((r > LONG_MAX/2) << 2 | (g > LONG_MAX/2) << 1 | (b > LONG_MAX/2)) {
 
         /* rgb */
         /* 000 */ case 0: c = ami_black;   break;
@@ -624,7 +624,7 @@ static void iclear(scnptr sc)
 
 {
 
-    int   x, y;
+    long  x, y;
     char  cb; /* character output buffer */
     WORD  ab; /* attribute output buffer */
     int   b;
@@ -663,7 +663,7 @@ static void iniscn(scnptr sc)
 
 {
 
-    int i;
+    long i;
     COORD xy;
 
     sc->maxx = gmaxx; /* set size */
@@ -722,7 +722,7 @@ simpler, and lets Windows perform the fills for us.
 
 *******************************************************************************/
 
-static void iscroll(int x, int y)
+static void iscroll(long x, long y)
 
 {
 
@@ -789,7 +789,7 @@ static void iscroll(int x, int y)
 
 }
 
-void ami_scroll(FILE* f, int x, int y)
+void ami_scroll(FILE* f, long x, long y)
 
 {
 
@@ -805,7 +805,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(int x, int y)
+static void icursor(long x, long y)
 
 {
 
@@ -815,7 +815,7 @@ static void icursor(int x, int y)
 
 }
 
-void ami_cursor(FILE* f, int x, int y)
+void ami_cursor(FILE* f, long x, long y)
 
 {
 
@@ -831,7 +831,7 @@ This is the external interface to curbnd.
 
 *******************************************************************************/
 
-int ami_curbnd(FILE* f)
+long ami_curbnd(FILE* f)
 
 {
 
@@ -848,7 +848,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int ami_maxx(FILE* f)
+long ami_maxx(FILE* f)
 
 {
 
@@ -865,7 +865,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-int ami_maxy(FILE* f)
+long ami_maxy(FILE* f)
 
 {
 
@@ -914,7 +914,7 @@ static void iup(void)
 
        } else /* auto mode is off */
         /* check won't overflow */
-        if (sc->cury > -INT_MAX) sc->cury--; /* set new position */
+        if (sc->cury > -LONG_MAX) sc->cury--; /* set new position */
     setcur(sc); /* set cursor on screen */
 
 }
@@ -979,7 +979,7 @@ static void idown(void)
 
     } else /* auto mode is off */
         /* prevent overflow, but otherwise increment unlimited */
-        if (sc->cury < INT_MAX) sc->cury++;
+        if (sc->cury < LONG_MAX) sc->cury++;
     setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
@@ -1022,7 +1022,7 @@ static void ileft(void)
 
       } else /* auto mode is off */
         /* check won't overflow, but otherwise its unlimited */
-        if (sc->curx > -INT_MAX) sc->curx--; /* update position */
+        if (sc->curx > -LONG_MAX) sc->curx--; /* update position */
     setcur(screens[curupd-1]); /* set cursor on screen */
 
 }
@@ -1062,7 +1062,7 @@ static void iright(void)
 
     } else /* auto mode is off */
         /* check won't overflow, but otherwise its unlimited */
-        if (sc->curx < INT_MAX) sc->curx++; /* update position */
+        if (sc->curx < LONG_MAX) sc->curx++; /* update position */
     setcur(sc); /* set cursor on screen */
 
 }
@@ -1089,7 +1089,7 @@ static void itab(void)
 
 {
 
-    int i;
+    long i;
 
     /* first, find if next tab even exists */
     i = screens[curupd-1]->curx+1; /* get the current x position +1 */
@@ -1111,7 +1111,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_blink(FILE* f, int e)
+void ami_blink(FILE* f, long e)
 
 {
 
@@ -1131,7 +1131,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_reverse(FILE* f, int e)
+void ami_reverse(FILE* f, long e)
 
 {
 
@@ -1150,7 +1150,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_underline(FILE* f, int e)
+void ami_underline(FILE* f, long e)
 
 {
 
@@ -1170,7 +1170,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_superscript(FILE* f, int e)
+void ami_superscript(FILE* f, long e)
 
 {
 
@@ -1189,7 +1189,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_subscript(FILE* f, int e)
+void ami_subscript(FILE* f, long e)
 
 {
 
@@ -1208,7 +1208,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_italic(FILE* f, int e)
+void ami_italic(FILE* f, long e)
 
 {
 
@@ -1231,7 +1231,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_bold(FILE* f, int e)
+void ami_bold(FILE* f, long e)
 
 {
 
@@ -1253,7 +1253,7 @@ just placed.
 
 *******************************************************************************/
 
-void ami_strikeout(FILE* f, int e)
+void ami_strikeout(FILE* f, long e)
 
 {
 
@@ -1272,7 +1272,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_standout(FILE* f, int e)
+void ami_standout(FILE* f, long e)
 
 {
 
@@ -1306,7 +1306,7 @@ Sets the foreground color from individual r, g, b values.
 
 *******************************************************************************/
 
-void ami_fcolorc(FILE* f, int r, int g, int b)
+void ami_fcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -1340,7 +1340,7 @@ Sets the background color from individual r, g, b values.
 
 *******************************************************************************/
 
-void ami_bcolorc(FILE* f, int r, int g, int b)
+void ami_bcolorc(FILE* f, long r, long g, long b)
 
 {
 
@@ -1373,7 +1373,7 @@ anywhere.
 
 *******************************************************************************/
 
-void ami_auto(FILE* f, int e)
+void ami_auto(FILE* f, long e)
 
 {
 
@@ -1390,7 +1390,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void ami_curvis(FILE* f, int e)
+void ami_curvis(FILE* f, long e)
 
 {
 
@@ -1408,7 +1408,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-int ami_curx(FILE* f)
+long ami_curx(FILE* f)
 
 {
 
@@ -1424,7 +1424,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-int ami_cury(FILE* f)
+long ami_cury(FILE* f)
 
 {
 
@@ -1446,7 +1446,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-static void iselect(int u, int d)
+static void iselect(long u, long d)
 
 {
 
@@ -1488,7 +1488,7 @@ static void iselect(int u, int d)
 
 }
 
-void ami_select(FILE* f, int u, int d)
+void ami_select(FILE* f, long u, long d)
 
 {
 
@@ -2110,8 +2110,8 @@ static void custevent(ami_evtptr er, INPUT_RECORD* inpevt, int* keep)
 
 {
 
-    int x, y, z;    /* joystick readback */
-    int dx, dy, dz; /* joystick readback differences */
+    long x, y, z;    /* joystick readback */
+    long dx, dy, dz; /* joystick readback differences */
 
     if (inpevt->Event.KeyEvent.dwControlKeyState == UIV_TIM) { /* timer event */
 
@@ -2190,10 +2190,10 @@ static void custevent(ami_evtptr er, INPUT_RECORD* inpevt, int* keep)
         if (dx > 65535 / 255 || dy > 65535 / 255 ||
             dz > 65535 / 255) {
 
-            /* scale axies between -INT_MAX..INT_MAX and place */
-            er->joypx = (x - 32767)*(INT_MAX / 32768);
-            er->joypy = (y - 32767)*(INT_MAX / 32768);
-            er->joypz = (z - 32767)*(INT_MAX / 32768);
+            /* scale axies between -LONG_MAX..LONG_MAX and place */
+            er->joypx = (x - 32767)*(LONG_MAX / 32768);
+            er->joypy = (y - 32767)*(LONG_MAX / 32768);
+            er->joypz = (z - 32767)*(LONG_MAX / 32768);
             *keep = 1; /* set keep event */
 
         }
@@ -2397,9 +2397,9 @@ the associated input file.
 
 *******************************************************************************/
 
-static void itimer(int i, /* timer handle */
+static void itimer(long i, /* timer handle */
             long t, /* number of tenth-milliseconds to run */
-            int r) /* timer is to rerun after completion */
+            long r) /* timer is to rerun after completion */
 
 {
 
@@ -2419,7 +2419,7 @@ static void itimer(int i, /* timer handle */
 
 }
 
-void ami_timer(FILE* f, int i, long t, int r)
+void ami_timer(FILE* f, long i, long t, long r)
 
 {
 
@@ -2436,7 +2436,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 *******************************************************************************/
 
 void ami_killtimer(FILE* f, /* file to kill timer on */
-               int   i) /* handle of timer */
+               long   i) /* handle of timer */
 
 {
 
@@ -2458,7 +2458,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-static void iframetimer(int e)
+static void iframetimer(long e)
 
 {
 
@@ -2492,7 +2492,7 @@ static void iframetimer(int e)
 
 }
 
-void ami_frametimer(FILE* f, int e)
+void ami_frametimer(FILE* f, long e)
 
 {
 
@@ -2509,7 +2509,7 @@ I suspect they will eventually have to remove this limit.
 
 *******************************************************************************/
 
-int ami_mouse(FILE* f)
+long ami_mouse(FILE* f)
 
 {
 
@@ -2526,7 +2526,7 @@ version.
 
 *******************************************************************************/
 
-int ami_mousebutton(FILE* f, int m)
+long ami_mousebutton(FILE* f, long m)
 
 {
 
@@ -2544,7 +2544,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-int ami_joystick(FILE* f)
+long ami_joystick(FILE* f)
 
 {
 
@@ -2560,7 +2560,7 @@ Returns the number of buttons on a given joystick.
 
 *******************************************************************************/
 
-static int ijoybutton(int j)
+static long ijoybutton(long j)
 
 {
 
@@ -2579,7 +2579,7 @@ static int ijoybutton(int j)
 
 }
 
-int ami_joybutton(FILE* f, int j)
+long ami_joybutton(FILE* f, long j)
 
 {
 
@@ -2597,7 +2597,7 @@ joystick can be considered a slider without positional meaning.
 
 *******************************************************************************/
 
-int ami_joyaxis(FILE* f, int j)
+long ami_joyaxis(FILE* f, long j)
 
 {
 
@@ -2626,7 +2626,7 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
-void ami_settab(FILE* f, int t)
+void ami_settab(FILE* f, long t)
 
 {
 
@@ -2644,7 +2644,7 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
-void ami_restab(FILE* f, int t)
+void ami_restab(FILE* f, long t)
 
 {
 
@@ -2667,7 +2667,7 @@ void ami_clrtab(FILE* f)
 
 {
 
-    int i;
+    long i;
 
     for (i = 0; i < screens[curupd-1]->maxx; i++) screens[curupd-1]->tab[i] = 0;
 
@@ -2683,7 +2683,7 @@ int keys as well.
 
 *******************************************************************************/
 
-int ami_funkey(FILE* f)
+long ami_funkey(FILE* f)
 
 {
 
@@ -2714,7 +2714,7 @@ specifically disallowed there.
 
 *******************************************************************************/
 
-void ami_autohold(int e)
+void ami_autohold(long e)
 
 {
 
@@ -2731,7 +2731,7 @@ handling.
 
 *******************************************************************************/
 
-void ami_wrtstrn(FILE* f, char *s, int n)
+void ami_wrtstrn(FILE* f, char *s, long n)
 
 {
 
@@ -2785,7 +2785,7 @@ Sets or resets the size of the buffer surface.
 
 *******************************************************************************/
 
-void ami_sizbuf(FILE* f, int x, int y)
+void ami_sizbuf(FILE* f, long x, long y)
 
 {
 
@@ -2819,7 +2819,7 @@ and is not NUL terminated.
 
 *******************************************************************************/
 
-void ami_titlen(FILE* f, char* ts, int n)
+void ami_titlen(FILE* f, char* ts, long n)
 
 {
 
@@ -2850,7 +2850,7 @@ static void readline(void)
     ami_evtrec er;   /* event record */
     scnptr    sc;   /* pointer to current screen */
     int       ins;  /* insert/overwrite mode */
-    int       xoff; /* x starting line offset */
+    long      xoff; /* x starting line offset */
     int       l;    /* buffer length */
     int       i;
 
