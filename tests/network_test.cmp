@@ -27,5 +27,7 @@ certlistnet chain CA decodes             pass
 certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
+addrnet live DNS (google.com)            pass
+addrnetv6 live DNS (google.com)          pass
 
-Network test complete: 27 passes, 0 fails
+Network test complete: 29 passes, 0 fails

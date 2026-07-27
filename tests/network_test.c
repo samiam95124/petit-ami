@@ -256,6 +256,30 @@ static void taddrnetv6(void)
 
 }
 
+/* Live DNS resolution, v4 and v6, against google.com (chosen as reliable).
+   Run last: on a machine with no name service this errors out, which stops
+   the program per the error model, so everything else has already run. The
+   addresses themselves rotate; some non-zero, non-loopback answer is the
+   check. */
+static void taddrdns(void)
+
+{
+
+    unsigned long addr;
+    unsigned long long addrh, addrl;
+
+    addr = 0;
+    ami_addrnet("google.com", &addr);
+    result("addrnet live DNS (google.com)",
+           addr != 0 && addr != 0x7f000001ul);
+    addrh = 0;
+    addrl = 0;
+    ami_addrnetv6("google.com", &addrh, &addrl);
+    result("addrnetv6 live DNS (google.com)",
+           (addrh != 0 || addrl != 0) && !(addrh == 0 && addrl == 1));
+
+}
+
 /* tests 2 and 3: TCP line exchange, clear or secured */
 static void ttcp(const char* name, int port, int secure)
 
@@ -513,6 +537,7 @@ int main(int argc, char **argv)
     tmsglim();
     tmsglimv6();
     tcert();
+    taddrdns(); /* last: needs live name service */
 
     printf("\n");
     printf("Network test complete: %d passes, %d fails\n", passes, fails);
