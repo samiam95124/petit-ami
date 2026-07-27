@@ -1,7 +1,7 @@
 Network test vs. 0.1
 
 
------ Name resolution: addrnet (IPv4), addrnetv6 (IPv6) -----
+----- Name resolution: addrnet (IPv4), addrnetv6 (IPv6); the live DNS checks need name service, no service stops the test here -----
 
 addrnet localhost (hosts file)           pass
     localhost -> 127.0.0.1
@@ -9,6 +9,10 @@ addrnet numeric literal                  pass
     "127.0.0.1" -> 127.0.0.1
 addrnetv6 numeric loopback               pass
     "::1" -> 0:1 (high:low 64 bit halves)
+addrnet live DNS (google.com)            pass
+    google.com A    -> *
+addrnetv6 live DNS (google.com)          pass
+    google.com AAAA -> *
 
 ----- Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), clear and TLS -----
 
@@ -65,12 +69,5 @@ certlistnet chain CA decodes             pass
 certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
-
------ Live DNS: addrnet/addrnetv6 against google.com -----
-
-addrnet live DNS (google.com)            pass
-    google.com A    -> *
-addrnetv6 live DNS (google.com)          pass
-    google.com AAAA -> *
 
 Network test complete: 30 passes, 0 fails

@@ -274,10 +274,9 @@ static void taddrnetv6(void)
 }
 
 /* Live DNS resolution, v4 and v6, against google.com (chosen as reliable).
-   Run last: on a machine with no name service this errors out, which stops
-   the program per the error model, so everything else has already run. The
-   addresses themselves rotate; some non-zero, non-loopback answer is the
-   check. */
+   Note on a machine with no name service this errors out, which stops the
+   program per the error model. The addresses themselves rotate; some
+   non-zero, non-loopback answer is the check. */
 static void taddrdns(void)
 
 {
@@ -572,9 +571,11 @@ int main(int argc, char **argv)
     lockid = ami_initlock();
     sigid = ami_initsig();
 
-    section("Name resolution: addrnet (IPv4), addrnetv6 (IPv6)");
+    section("Name resolution: addrnet (IPv4), addrnetv6 (IPv6); the live "
+            "DNS checks need name service, no service stops the test here");
     taddrnet();
     taddrnetv6();
+    taddrdns();
     section("Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), "
             "clear and TLS");
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);
@@ -592,8 +593,6 @@ int main(int argc, char **argv)
     tmsglimv6();
     section("Certificates: certnet/certlistnet/certlistfree, two deep chain");
     tcert();
-    section("Live DNS: addrnet/addrnetv6 against google.com");
-    taddrdns(); /* last: needs live name service */
 
     printf("\n");
     printf("Network test complete: %d passes, %d fails\n", passes, fails);
