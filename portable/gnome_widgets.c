@@ -8069,7 +8069,10 @@ static int themval(
     char* ep;
 
     while (*s == ' ') s++; /* skip leading spaces */
-    if (*s == '#' || strlen(s) == 6) { /* hex triplet */
+    /* a hex triplet is six hex digits and nothing else, so a decimal triple
+       that happens to be six characters long is not taken for one */
+    if (*s == '#' ||
+        (strlen(s) == 6 && strspn(s, "0123456789abcdefABCDEF") == 6)) {
 
         if (*s == '#') s++;
         *v = strtoul(s, &ep, 16);
