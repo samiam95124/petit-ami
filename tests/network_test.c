@@ -63,6 +63,8 @@
 #define PORT_TLS6  42427
 #define PORT_MSG6  42428
 #define PORT_DTLS6 42429
+#define PORT_MAXM  42430
+#define PORT_MAXM6 42431
 
 static int passes = 0;
 static int fails  = 0;
@@ -205,6 +207,28 @@ static void msgserver(void)
     fn = ami_waitmsg(srvport, srvsecure);
     len = ami_rdmsg(fn, buff, BUFLEN);
     ami_wrmsg(fn, "Hello, client", 13);
+    ami_clsmsg(fn);
+    serverdone();
+
+}
+
+/* message server: receive one large message, reply with its length. The
+   buffers are static: maximum size messages are too large for a thread
+   stack */
+static char maxrecv[70000];
+
+static void msgmaxserver(void)
+
+{
+
+    long fn;
+    long len;
+    char reply[BUFLEN];
+
+    fn = ami_waitmsg(srvport, srvsecure);
+    len = ami_rdmsg(fn, maxrecv, sizeof(maxrecv));
+    sprintf(reply, "%ld", len);
+    ami_wrmsg(fn, reply, strlen(reply));
     ami_clsmsg(fn);
     serverdone();
 
@@ -457,6 +481,57 @@ static void tmsglim(void)
 
 }
 
+/* A message of exactly maxmsg bytes is deliverable: send one through the
+   loopback and have the server echo the received length. In the clear only:
+   secured messages carry DTLS record overhead the limit does not account
+   for. The send buffer is static, like the server receive buffer */
+static char maxsend[70000];
+
+static void tmsgmax(const char* name, int port, int v6)
+
+{
+
+    unsigned long addr;
+    unsigned long long addrh, addrl;
+    long max;
+    long fn;
+    long len;
+    char reply[BUFLEN];
+    int  pass;
+
+    pass = FALSE;
+    startsrv(msgmaxserver, port, FALSE);
+    waitsrv(); /* messages have no connect retry, let the server come up */
+    if (v6) {
+
+        ami_addrnetv6("::1", &addrh, &addrl);
+        max = ami_maxmsgv6(addrh, addrl);
+        fn = ami_openmsgv6(addrh, addrl, port, FALSE);
+
+    } else {
+
+        ami_addrnet("localhost", &addr);
+        max = ami_maxmsg(addr);
+        fn = ami_openmsg(addr, port, FALSE);
+
+    }
+    if (max > (long)sizeof(maxsend)) max = sizeof(maxsend);
+    ami_wrmsg(fn, maxsend, max);
+    len = ami_rdmsg(fn, reply, BUFLEN-1);
+    if (len >= 0) {
+
+        reply[len] = 0;
+        pass = atol(reply) == max;
+
+    }
+    ami_clsmsg(fn);
+    finish();
+    result(name, pass);
+    printf("    sent %ld bytes (the maxmsg%s limit), server received %s\n",
+           max, v6 ? "v6" : "", len >= 0 ? reply : "<none>");
+
+}
+
 /* IPv6 variant of the message limit tests */
 static void tmsglimv6(void)
 
@@ -592,9 +667,12 @@ int main(int argc, char **argv)
     tmsg("message exchange secured (DTLS)", PORT_DTLS, TRUE);
     tmsgv6("message exchange in the clear (IPv6)", PORT_MSG6, FALSE);
     tmsgv6("message exchange secured (DTLS, IPv6)", PORT_DTLS6, TRUE);
-    section("Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6)");
+    section("Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 "
+            "(IPv6); a maxmsg sized message is deliverable");
     tmsglim();
     tmsglimv6();
+    tmsgmax("maxmsg sized message deliverable", PORT_MAXM, FALSE);
+    tmsgmax("maxmsgv6 sized message deliverable", PORT_MAXM6, TRUE);
     section("Certificates: certnet/certlistnet/certlistfree, two deep chain");
     tcert();
 

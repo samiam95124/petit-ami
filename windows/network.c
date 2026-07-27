@@ -1644,17 +1644,6 @@ the result is clamped to the maximum UDP payload.
 
 *******************************************************************************/
 
-static int clampmtu(int mtu)
-
-{
-
-    /* the UDP payload limit is the practical message maximum */
-    if (mtu <= 0 || mtu > 65507) mtu = 65507;
-
-    return (mtu);
-
-}
-
 long ami_maxmsg(unsigned long addr)
 
 {
@@ -1682,7 +1671,7 @@ long ami_maxmsg(unsigned long addr)
 
     /* Find the mtu. Unix reads the connected socket's path mtu with
        getsockopt(IP_MTU); Windows has no such option, so fall back to the
-       standard ethernet mtu (clampmtu bounds it to the udp payload). A later
+       standard ethernet mtu (the payload clamp below bounds it). A later
        refinement can read the real interface mtu through the IP helper API
        (GetBestInterfaceEx + GetIpInterfaceEntry). */
 #ifdef IP_MTU
@@ -1694,7 +1683,15 @@ long ami_maxmsg(unsigned long addr)
 
     closesocket(sock);
 
-    return (clampmtu(mtu)); /* return mtu */
+    /* The mtu includes the IP and UDP headers; the caller wants the largest
+       message wrmsg can send. Also clamp to the largest possible UDP
+       payload. Note a secured (DTLS) connection carries additional record
+       overhead not accounted for here */
+    mtu -= 28; /* IPv4 header 20 plus UDP header 8 */
+    if (mtu > 65507) mtu = 65507;
+    if (mtu < 1) mtu = 1;
+
+    return (mtu); /* return maximum message */
 
 }
 
@@ -1747,7 +1744,15 @@ long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 
     closesocket(sock);
 
-    return (clampmtu(mtu)); /* return mtu */
+    /* The mtu includes the IP and UDP headers; the caller wants the largest
+       message wrmsg can send. Also clamp to the largest possible UDP
+       payload. Note a secured (DTLS) connection carries additional record
+       overhead not accounted for here */
+    mtu -= 48; /* IPv6 header 40 plus UDP header 8 */
+    if (mtu > 65527) mtu = 65527;
+    if (mtu < 1) mtu = 1;
+
+    return (mtu); /* return maximum message */
 
 }
 

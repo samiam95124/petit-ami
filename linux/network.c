@@ -1588,7 +1588,14 @@ long ami_maxmsg(unsigned long addr)
 
     close(fn);
 
-    return (mtu); /* return mtu */
+    /* The mtu includes the IP and UDP headers; the caller wants the largest
+       message wrmsg can send. Also clamp to the largest possible UDP
+       payload. Note a secured (DTLS) connection carries additional record
+       overhead not accounted for here */
+    mtu -= 28; /* IPv4 header 20 plus UDP header 8 */
+    if (mtu > 65507) mtu = 65507;
+
+    return (mtu); /* return maximum message */
 
 }
 
@@ -1637,13 +1644,20 @@ long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     mtu = sockmtu(fn, AF_INET6);
     (void)mtulen;
 #else
-    r = getsockopt(fn, IPPROTO_IP, IP_MTU, &mtu, (socklen_t*)&mtulen);
+    r = getsockopt(fn, IPPROTO_IPV6, IPV6_MTU, &mtu, (socklen_t*)&mtulen);
     if (r < 0) linuxerror();
 #endif
 
     close(fn);
 
-    return (mtu); /* return mtu */
+    /* The mtu includes the IP and UDP headers; the caller wants the largest
+       message wrmsg can send. Also clamp to the largest possible UDP
+       payload. Note a secured (DTLS) connection carries additional record
+       overhead not accounted for here */
+    mtu -= 48; /* IPv6 header 40 plus UDP header 8 */
+    if (mtu > 65527) mtu = 65527;
+
+    return (mtu); /* return maximum message */
 
 }
 

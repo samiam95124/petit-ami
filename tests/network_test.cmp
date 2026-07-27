@@ -41,16 +41,20 @@ message exchange in the clear (IPv6)     pass
 message exchange secured (DTLS, IPv6)    pass
     sent 13 byte message, received 13 byte reply over DTLS on IPv6
 
------ Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6) -----
+----- Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6); a maxmsg sized message is deliverable -----
 
 maxmsg sane                              pass
-    maximum message for loopback: 65535 bytes
+    maximum message for loopback: 65507 bytes
 relymsg sane                             pass
     loopback delivery reliable: yes
 maxmsgv6 sane                            pass
-    maximum message for v6 loopback: 65536 bytes
+    maximum message for v6 loopback: 65488 bytes
 relymsgv6 sane                           pass
     v6 loopback delivery reliable: yes
+maxmsg sized message deliverable         pass
+    sent 65507 bytes (the maxmsg limit), server received 65507
+maxmsgv6 sized message deliverable       pass
+    sent 65488 bytes (the maxmsgv6 limit), server received 65488
 
 ----- Certificates: certnet/certlistnet/certlistfree, two deep chain -----
 
@@ -70,4 +74,4 @@ certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
 
-Network test complete: 30 passes, 0 fails
+Network test complete: 32 passes, 0 fails
