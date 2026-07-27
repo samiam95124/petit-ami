@@ -131,6 +131,10 @@ static enum { /* debug levels */
 #define MAXFIL 1000 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
+#define CONRETRY 50  /* connect retries on refused connections */
+#define CONDELAY 100 /* delay between connect retries, in milliseconds
+                        (0.1 second, under human perception; with CONRETRY
+                        gives a 5 second budget before the error stands) */
 
 /* socket structures */
 typedef union {
@@ -1228,11 +1232,22 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
     saddr.sin_port = htons(port);
     saddr.sin_addr.s_addr = htonl(addr);
 
-    /* open socket as internet, stream */
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
-    r = connect(sock, (struct sockaddr*)&saddr, sizeof(struct sockaddr_in));
-    if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
+    /* Open socket as internet, stream, and connect. A refused connection is
+       retried on a short backoff: servers are routinely reached just as they
+       come up, and the retry heals that transparently. A server that stays
+       down still errors after the retry budget */
+    for (r = 0; r < CONRETRY; r++) {
+
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
+        if (connect(sock, (struct sockaddr*)&saddr,
+                    sizeof(struct sockaddr_in)) != SOCKET_ERROR) break;
+        if (WSAGetLastError() != WSAECONNREFUSED || r == CONRETRY-1)
+            wskerr(); /* process Winsock error */
+        closesocket(sock); /* a failed connect leaves the socket unusable */
+        Sleep(CONDELAY); /* let the server come up */
+
+    }
 
     /* finish with general routine */
     return (sockfil(sock, secure, FALSE));
@@ -1259,10 +1274,20 @@ FILE* ami_opennetv6(
     saddr.sin6_port = htons(port);
 
     /* open socket as internet, stream */
-    sock = socket(AF_INET6, SOCK_STREAM, 0);
-    if (sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
-    r = connect(sock, (struct sockaddr*)&saddr, sizeof(struct sockaddr_in6));
-    if (r == SOCKET_ERROR) wskerr(); /* process Winsock error */
+    /* connect the socket, with the same refused connection retry as
+       ami_opennet */
+    for (r = 0; r < CONRETRY; r++) {
+
+        sock = socket(AF_INET6, SOCK_STREAM, 0);
+        if (sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
+        if (connect(sock, (struct sockaddr*)&saddr,
+                    sizeof(struct sockaddr_in6)) != SOCKET_ERROR) break;
+        if (WSAGetLastError() != WSAECONNREFUSED || r == CONRETRY-1)
+            wskerr(); /* process Winsock error */
+        closesocket(sock); /* a failed connect leaves the socket unusable */
+        Sleep(CONDELAY); /* let the server come up */
+
+    }
 
     /* finish with general routine */
     return (sockfil(sock, secure, FALSE));

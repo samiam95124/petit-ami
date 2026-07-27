@@ -102,6 +102,10 @@
 #define MAXFIL 1000 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
+#define CONRETRY 50     /* connect retries on refused connections */
+#define CONDELAY 100000 /* delay between connect retries, in microseconds
+                           (0.1 second, under human perception; with CONRETRY
+                           gives a 5 second budget before the error stands) */
 
 /* Mac OS X has no IP_MTU socket option; the MTU is found from the
    interface the connected socket routes through instead */
@@ -1110,13 +1114,21 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
     saddr.sin_addr.s_addr = htonl(addr);
     saddr.sin_port = htons(port);
 
-    /* connect the socket */
-    fn = socket(AF_INET, SOCK_STREAM, 0);
-    if (fn < 0) linuxerror();
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    /* Connect the socket. A refused connection is retried on a short
+       backoff: servers are routinely reached just as they come up, and the
+       retry heals that transparently. A server that stays down still errors
+       after the retry budget */
+    for (r = 0; r < CONRETRY; r++) {
 
-    r = connect(fn, (struct sockaddr*)&saddr, sizeof(saddr));
-    if (r < 0) linuxerror();
+        fn = socket(AF_INET, SOCK_STREAM, 0);
+        if (fn < 0) linuxerror();
+        if (fn >= MAXFIL) error(einvhan); /* invalid file handle */
+        if (!connect(fn, (struct sockaddr*)&saddr, sizeof(saddr))) break;
+        if (errno != ECONNREFUSED || r == CONRETRY-1) linuxerror();
+        close(fn); /* a failed connect leaves the socket unusable */
+        usleep(CONDELAY); /* let the server come up */
+
+    }
 
     /* finish with general routine */
     return (opennet(secure, fn));
@@ -1142,13 +1154,19 @@ FILE* ami_opennetv6(
     get64t128(addrh, addrl, &saddr);
     saddr.sin6_port = htons(port);
 
-    /* connect the socket */
-    fn = socket(AF_INET6, SOCK_STREAM, 0);
-    if (fn < 0) linuxerror();
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    /* connect the socket, with the same refused connection retry as
+       ami_opennet */
+    for (r = 0; r < CONRETRY; r++) {
 
-    r = connect(fn, (struct sockaddr*)&saddr, sizeof(saddr));
-    if (r < 0) linuxerror();
+        fn = socket(AF_INET6, SOCK_STREAM, 0);
+        if (fn < 0) linuxerror();
+        if (fn >= MAXFIL) error(einvhan); /* invalid file handle */
+        if (!connect(fn, (struct sockaddr*)&saddr, sizeof(saddr))) break;
+        if (errno != ECONNREFUSED || r == CONRETRY-1) linuxerror();
+        close(fn); /* a failed connect leaves the socket unusable */
+        usleep(CONDELAY); /* let the server come up */
+
+    }
 
     /* finish with general routine */
     return (opennet(secure, fn));

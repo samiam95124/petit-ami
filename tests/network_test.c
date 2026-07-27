@@ -104,9 +104,12 @@ static int srvsecure; /* serve secured */
 static int clidone;   /* client is finished with the connection */
 static int srvdone;   /* server has finished */
 
-/* Let the server come up before connecting to it. waitnet/waitmsg bind,
-   listen and accept in a single call, so there is no ready event the server
-   could flag before it blocks; a delay is the only handshake available. */
+/* Let a message server come up before sending to it. waitmsg binds and
+   reads in a single call, so there is no ready event the server could flag
+   before it blocks, and a datagram sent before the bind is silently lost -
+   that is UDP, not a race the client can heal. The TCP tests need no such
+   delay: opennet retries refused connections on a short backoff, which is
+   part of what these tests exercise. */
 static void waitsrv(void)
 
 {
@@ -129,7 +132,6 @@ static void startsrv(void (*srv)(void), int port, int secure)
     clidone = FALSE;
     srvdone = FALSE;
     ami_newthread(srv);
-    waitsrv(); /* let the server come up */
 
 }
 
@@ -373,6 +375,7 @@ static void tmsg(const char* name, int port, int secure)
 
     pass = FALSE;
     startsrv(msgserver, port, secure);
+    waitsrv(); /* messages have no connect retry, let the server come up */
     ami_addrnet("localhost", &addr);
     fn = ami_openmsg(addr, port, secure);
     ami_wrmsg(fn, "Hello, server", 13);
@@ -421,6 +424,7 @@ static void tmsgv6(const char* name, int port, int secure)
 
     pass = FALSE;
     startsrv(msgserver, port, secure);
+    waitsrv(); /* messages have no connect retry, let the server come up */
     ami_addrnetv6("::1", &addrh, &addrl);
     fn = ami_openmsgv6(addrh, addrl, port, secure);
     ami_wrmsg(fn, "Hello, server", 13);
