@@ -9120,7 +9120,8 @@ long ami_joystick(FILE* f)
 
 Return number of buttons on a joystick
 
-Returns the number of buttons on a given joystick.
+Returns the number of buttons on a given joystick. Returns 0 if the joystick
+cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
@@ -9137,7 +9138,15 @@ long ami_joybutton(FILE* f, long j)
     win = txt2win(f); /* get window pointer from text file */
     if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
     r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
-    if (r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
+    if (r != JOYERR_NOERROR) {
+
+        /* a registered joystick that cannot be accessed was disconnected;
+           report no buttons rather than stopping the program */
+        unlockmain(); /* end exclusive access */
+
+        return (0);
+
+    }
     nb = jc.wNumButtons; /* set number of buttons */
     /* We don't support more than 4 buttons. */
     if (nb > 4) nb = 4;
@@ -9153,7 +9162,8 @@ Return number of axies on a joystick
 
 Returns the number of axies implemented on a joystick, which can be 1 to 3.
 The axies order of implementation is x, y,  z. Typically, a monodimensional
-joystick can be considered a slider without positional meaning.
+joystick can be considered a slider without positional meaning. Returns 0 if the
+joystick cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
@@ -9167,7 +9177,9 @@ static long ijoyaxis(winptr win, long j)
 
     if (j < 1 || j > win->numjoy) error(einvjoy); /* bad joystick id */
     r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
-    if (r != JOYERR_NOERROR) error(ejoyqry); /* could not access joystick */
+    /* a registered joystick that cannot be accessed was disconnected;
+       report no axes rather than stopping the program */
+    if (r != JOYERR_NOERROR) return (0);
     na = jc.wNumAxes; /* set number of axes */
     /* We don"t support more than 3 axes. */
     if (na > 3) na = 3;
@@ -10492,19 +10504,11 @@ static void clswin(int fn)
     win = lfn2win(fn); /* get a pointer to the window */
     b = ReleaseDC(win->winhan, win->devcon); /* release device context */
     if (!b) winerr(); /* process error */
-    /* release the joysticks */
-    if (win->joy1cap) {
-
-        r = joyReleaseCapture(JOYSTICKID1);
-        if (r) error(ejoyacc); /* error */
-
-    }
-    if (win->joy2cap) {
-
-        r = joyReleaseCapture(JOYSTICKID2);
-        if (r) error(ejoyacc); /* error */
-
-    }
+    /* release the joysticks; a release can fail if the joystick was
+       disconnected while captured, which is not an error worth stopping
+       the program at window close */
+    if (win->joy1cap) r = joyReleaseCapture(JOYSTICKID1);
+    if (win->joy2cap) r = joyReleaseCapture(JOYSTICKID2);
     kilwin(win->winhan); /* kill window */
 
 }

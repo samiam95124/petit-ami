@@ -26,6 +26,13 @@
 * Registers an input file to be monitored for input ready, or one or more      *
 * bytes ready to read. The logical system event number is returned.            *
 *                                                                              *
+* void system_event_deaseinp(int sid);                                         *
+*                                                                              *
+* Deactivates the input monitor with the given system event number. Used when  *
+* the underlying device goes away, such as a joystick disconnect, since an     *
+* end of file input is otherwise permanently ready and would spin the event    *
+* loop.                                                                        *
+*                                                                              *
 * int system_event_addsesig(int sig);                                          *
 *                                                                              *
 * Registers a signal to be monitored. A handler is also registered, and sends  *
@@ -227,6 +234,41 @@ int system_event_addseinp(int fid)
     kill(pid, SIGUSR1);
 
     return (sid); /* exit with logical event id */
+
+}
+
+/** *****************************************************************************
+
+Deactivate input event
+
+Deactivates the input monitor with the given system event number. Used when
+the underlying device goes away, such as a joystick disconnect: an end of
+file input is permanently ready, so leaving it registered would spin the
+event loop. The entry keeps its logical number but never fires again.
+
+*******************************************************************************/
+
+void system_event_deaseinp(int sid)
+
+{
+
+    pthread_mutex_lock(&evtlock); /* take the event lock */
+    if (sid <= 0 || !systab[sid-1] || systab[sid-1]->typ != se_inp) {
+
+        pthread_mutex_unlock(&evtlock); /* release the event lock */
+        fprintf(stderr, "*** System event: Invalid system event id\n");
+        fflush(stderr);
+        exit(1);
+
+    }
+    if (systab[sid-1]->fid >= 0) {
+
+        FD_CLR(systab[sid-1]->fid, &ifdseta); /* remove from active set */
+        FD_CLR(systab[sid-1]->fid, &ifdsets); /* and any pending set */
+        systab[sid-1]->fid = -1; /* mark input dead */
+
+    }
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
 
 }
 
