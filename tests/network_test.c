@@ -21,12 +21,19 @@
 * 7. certnet: the raw certificate of the secure server is retrievable and     *
 *    non-empty (the prtcertnet test automated against our own server), the    *
 *    decoded certificate list (certlistnet) parses with the certificate       *
-*    level signature value present, and certlistfree clears the list.         *
+*    level signature value present, and certlistfree clears the list. The     *
+*    server presents a two deep chain (localhost leaf signed by the           *
+*    committed "Petit Ami Test CA"), so chain traversal is covered:           *
+*    certificate 2 is the CA, with its critical basic constraints flag        *
+*    propagated, and past the end of the chain gives empty/NULL results       *
+*    without error. The DTLS run covers the message side queries             *
+*    (certmsg, certlistmsg) directly.                                         *
+* 8. The IPv6 forms of all of the above: addrnetv6, opennetv6, openmsgv6,     *
+*    maxmsgv6 and relymsgv6, against the same loopback servers, which bind    *
+*    dual stack.                                                              *
 *                                                                              *
 * Run from the petit-ami/amitk root so the TLS test certificates              *
 * (client_tls_cert.pem and friends) are found in the current directory.      *
-*                                                                              *
-* The IPV6 forms are not yet covered, matching the note in network_test.txt. *
 *                                                                              *
 *******************************************************************************/
 
@@ -52,6 +59,10 @@
 #define PORT_MSG   42423
 #define PORT_DTLS  42424
 #define PORT_CERT  42425
+#define PORT_TCP6  42426
+#define PORT_TLS6  42427
+#define PORT_MSG6  42428
+#define PORT_DTLS6 42429
 
 static int passes = 0;
 static int fails  = 0;
@@ -194,6 +205,30 @@ Tests
 
 *******************************************************************************/
 
+/* find a named entry in a certificate list tree, all levels */
+static ami_certptr fndnode(ami_certptr list, const char* name)
+
+{
+
+    ami_certptr cp;
+    ami_certptr fp;
+
+    for (cp = list; cp; cp = cp->next) {
+
+        if (cp->name && !strcmp(cp->name, name)) return (cp);
+        if (cp->fork) {
+
+            fp = fndnode(cp->fork, name);
+            if (fp) return (fp);
+
+        }
+
+    }
+
+    return (NULL);
+
+}
+
 /* test 1: name lookup */
 static void taddrnet(void)
 
@@ -204,6 +239,20 @@ static void taddrnet(void)
     addr = 0;
     ami_addrnet("localhost", &addr);
     result("addrnet localhost", addr == 0x7f000001ul);
+
+}
+
+/* test 1a: name lookup, IPv6 */
+static void taddrnetv6(void)
+
+{
+
+    unsigned long long addrh, addrl;
+
+    addrh = 1;
+    addrl = 0;
+    ami_addrnetv6("::1", &addrh, &addrl);
+    result("addrnetv6 loopback", addrh == 0 && addrl == 1);
 
 }
 
@@ -232,7 +281,34 @@ static void ttcp(const char* name, int port, int secure)
 
 }
 
-/* tests 4 and 5: message exchange, clear or secured */
+/* IPv6 variant of the TCP line exchange, clear or secured */
+static void ttcpv6(const char* name, int port, int secure)
+
+{
+
+    unsigned long long addrh, addrl;
+    FILE* f;
+    char  buff[BUFLEN];
+    int   pass;
+
+    pass = FALSE;
+    startsrv(tcpserver, port, secure);
+    ami_addrnetv6("::1", &addrh, &addrl);
+    f = ami_opennetv6(addrh, addrl, port, secure);
+    fputs("Hello, server\n", f);
+    fflush(f);
+    if (fgets(buff, BUFLEN, f))
+        pass = !strcmp(buff, "Hello, client\n");
+    fclose(f);
+    clientdone();
+    finish();
+    result(name, pass);
+
+}
+
+/* tests 4 and 5: message exchange, clear or secured. The secured (DTLS) run
+   also covers the message side certificate queries: the raw certificate,
+   the decoded list, and the list free, against our own DTLS server */
 static void tmsg(const char* name, int port, int secure)
 
 {
@@ -242,11 +318,57 @@ static void tmsg(const char* name, int port, int secure)
     long len;
     char buff[BUFLEN];
     int  pass;
+    char cert[10000];
+    long r;
+    ami_certptr list;
+    ami_certptr cp;
 
     pass = FALSE;
     startsrv(msgserver, port, secure);
     ami_addrnet("localhost", &addr);
     fn = ami_openmsg(addr, port, secure);
+    ami_wrmsg(fn, "Hello, server", 13);
+    len = ami_rdmsg(fn, buff, BUFLEN);
+    if (secure) {
+
+        /* certificate queries on the message connection; the peer
+           certificate is cached with the handshake, so these are valid on
+           the open message file */
+        memset(cert, 0, sizeof(cert));
+        r = ami_certmsg(fn, 1, cert, sizeof(cert));
+        result("certmsg raw certificate (DTLS)", strlen(cert) > 0);
+        list = NULL;
+        ami_certlistmsg(fn, 1, &list);
+        cp = fndnode(list, "Signature Value");
+        result("certlistmsg decodes (DTLS)", list && list->name &&
+               !strcmp(list->name, "Certificate") &&
+               cp && cp->data && cp->data[0]);
+        ami_certlistfree(&list);
+        result("certlistfree clears list (DTLS)", list == NULL);
+
+    }
+    if (len == 13) pass = !strncmp(buff, "Hello, client", 13);
+    ami_clsmsg(fn);
+    finish();
+    result(name, pass);
+
+}
+
+/* IPv6 variant of the message exchange, clear or secured */
+static void tmsgv6(const char* name, int port, int secure)
+
+{
+
+    unsigned long long addrh, addrl;
+    long fn;
+    long len;
+    char buff[BUFLEN];
+    int  pass;
+
+    pass = FALSE;
+    startsrv(msgserver, port, secure);
+    ami_addrnetv6("::1", &addrh, &addrl);
+    fn = ami_openmsgv6(addrh, addrl, port, secure);
     ami_wrmsg(fn, "Hello, server", 13);
     len = ami_rdmsg(fn, buff, BUFLEN);
     if (len == 13) pass = !strncmp(buff, "Hello, client", 13);
@@ -270,6 +392,23 @@ static void tmsglim(void)
     result("maxmsg sane", max > 0);
     rely = ami_relymsg(addr);
     result("relymsg sane", rely == 0 || rely == 1);
+
+}
+
+/* IPv6 variant of the message limit tests */
+static void tmsglimv6(void)
+
+{
+
+    unsigned long long addrh, addrl;
+    long max;
+    long rely;
+
+    ami_addrnetv6("::1", &addrh, &addrl);
+    max = ami_maxmsgv6(addrh, addrl);
+    result("maxmsgv6 sane", max > 0);
+    rely = ami_relymsgv6(addrh, addrl);
+    result("relymsgv6 sane", rely == 0 || rely == 1);
 
 }
 
@@ -308,8 +447,37 @@ static void tcert(void)
             if (cp->name && !strcmp(cp->name, "Signature Value") &&
                 cp->data && cp->data[0]) found = 1;
     result("certlist signature value", found);
+    /* the leaf is issued by our test CA */
+    cp = fndnode(list, "Issuer");
+    result("certlist leaf issuer is test CA",
+           cp && cp->data && strstr(cp->data, "Petit Ami Test CA") != NULL);
     ami_certlistfree(&list);
     result("certlistfree clears list", list == NULL);
+
+    /* the server presents the chain: certificate 2 is the test CA */
+    memset(cert, 0, sizeof(cert));
+    r = ami_certnet(f, 2, cert, sizeof(cert));
+    result("certnet chain CA raw", strlen(cert) > 0);
+    list = NULL;
+    ami_certlistnet(f, 2, &list);
+    cp = fndnode(list, "Subject");
+    result("certlistnet chain CA decodes",
+           cp && cp->data && strstr(cp->data, "Petit Ami Test CA") != NULL);
+    /* the CA carries a critical basic constraints CA:TRUE; checks the
+       critical flag propagates through the decode */
+    cp = fndnode(list, "X509v3 Basic Constraints");
+    result("certlist CA basic constraints critical",
+           cp && cp->critical && cp->data && strstr(cp->data, "CA:TRUE") != NULL);
+    ami_certlistfree(&list);
+
+    /* past the end of the chain: raw form returns zero length, decoded form
+       returns an empty list, neither errors */
+    memset(cert, 0, sizeof(cert));
+    r = ami_certnet(f, 3, cert, sizeof(cert));
+    result("certnet past chain end is empty", r == 0 && cert[0] == 0);
+    list = NULL;
+    ami_certlistnet(f, 3, &list);
+    result("certlistnet past chain end is NULL", list == NULL);
 
     /* complete the exchange so the server exits; the response content is
        not checked here, only consumed */
@@ -333,11 +501,17 @@ int main(int argc, char **argv)
     sigid = ami_initsig();
 
     taddrnet();
+    taddrnetv6();
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);
     ttcp("TCP exchange secured (TLS)", PORT_TLS, TRUE);
+    ttcpv6("TCP exchange in the clear (IPv6)", PORT_TCP6, FALSE);
+    ttcpv6("TCP exchange secured (TLS, IPv6)", PORT_TLS6, TRUE);
     tmsg("message exchange in the clear", PORT_MSG, FALSE);
     tmsg("message exchange secured (DTLS)", PORT_DTLS, TRUE);
+    tmsgv6("message exchange in the clear (IPv6)", PORT_MSG6, FALSE);
+    tmsgv6("message exchange secured (DTLS, IPv6)", PORT_DTLS6, TRUE);
     tmsglim();
+    tmsglimv6();
     tcert();
 
     printf("\n");

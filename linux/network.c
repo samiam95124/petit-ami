@@ -2883,8 +2883,10 @@ void initctx(
     *ctx = SSL_CTX_new(method);
     if (!*ctx) error(esslctx);
 
-    /* Set the client key and cert */
-    r = SSL_CTX_use_certificate_file(*ctx, cert, SSL_FILETYPE_PEM);
+    /* Set the client key and cert. The chain form loads a single certificate
+       exactly as before, but a file carrying leaf followed by intermediates
+       presents the whole chain to the peer */
+    r = SSL_CTX_use_certificate_chain_file(*ctx, cert);
     if (r <= 0) sslerrorqueue();
 
     r = SSL_CTX_use_PrivateKey_file(*ctx, key, SSL_FILETYPE_PEM);

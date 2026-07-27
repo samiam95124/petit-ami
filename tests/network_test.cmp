@@ -1,15 +1,31 @@
 Network test vs. 0.1
 
 addrnet localhost                        pass
+addrnetv6 loopback                       pass
 TCP exchange in the clear                pass
 TCP exchange secured (TLS)               pass
+TCP exchange in the clear (IPv6)         pass
+TCP exchange secured (TLS, IPv6)         pass
 message exchange in the clear            pass
+certmsg raw certificate (DTLS)           pass
+certlistmsg decodes (DTLS)               pass
+certlistfree clears list (DTLS)          pass
 message exchange secured (DTLS)          pass
+message exchange in the clear (IPv6)     pass
+message exchange secured (DTLS, IPv6)    pass
 maxmsg sane                              pass
 relymsg sane                             pass
+maxmsgv6 sane                            pass
+relymsgv6 sane                           pass
 certnet raw certificate                  pass
 certlistnet decodes                      pass
 certlist signature value                 pass
+certlist leaf issuer is test CA          pass
 certlistfree clears list                 pass
+certnet chain CA raw                     pass
+certlistnet chain CA decodes             pass
+certlist CA basic constraints critical   pass
+certnet past chain end is empty          pass
+certlistnet past chain end is NULL       pass
 
-Network test complete: 11 passes, 0 fails
+Network test complete: 27 passes, 0 fails

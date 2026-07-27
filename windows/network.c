@@ -870,14 +870,28 @@ static void initctx(
     *ctx = SSL_CTX_new(method);
     if (!*ctx) error(esslctx);
 
-    /* Set the key and cert */
+    /* Set the key and cert. The first certificate in the file is the entity
+       certificate; any following certificates form the chain presented to
+       the peer (leaf, then intermediates), matching the chain file form the
+       other platforms load */
     bp = filebio(cert);
     certx = PEM_read_bio_X509(bp, NULL, NULL, NULL);
     if (!certx) sslerrorqueue();
-    BIO_free(bp);
     r = SSL_CTX_use_certificate(*ctx, certx);
     X509_free(certx); /* the context holds its own reference */
     if (r <= 0) sslerrorqueue();
+    /* add any remaining certificates as the presented chain */
+    certx = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+    while (certx) {
+
+        /* the context takes ownership of extra chain certificates */
+        r = SSL_CTX_add_extra_chain_cert(*ctx, certx);
+        if (r <= 0) sslerrorqueue();
+        certx = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+
+    }
+    ERR_clear_error(); /* clear the end of file "error" from the reads */
+    BIO_free(bp);
 
     bp = filebio(key);
     pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
