@@ -136,6 +136,7 @@ static struct { /* benchmark stats records */
 static bench bi;
 
 static long x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
+static long winx, winy; /* last known window size, from resize events */
 static int c;
 static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writing direction */
@@ -207,7 +208,13 @@ static void waitnext(void)
 
     screen_capture();
 
-    do { ami_event(stdin, &er);
+    do {
+
+        ami_event(stdin, &er);
+        /* the window can be resized while we wait; track the size reported
+           so later tests can match the buffer to the window */
+        if (er.etype == ami_etresize) { winx = er.rszx; winy = er.rszy; }
+
     } while (er.etype != ami_etenter);
 
 }
@@ -501,6 +508,10 @@ int main(int argc, char *argv[])
     ami_eventover(ami_etterm, termevent, &oldtermevent); 
 
     ami_select(stdout, 2, 2);   /* move off the display buffer */
+    /* the window and the buffer start out the same size; resize events seen
+       while waiting keep this current */
+    winx = ami_maxx(stdout);
+    winy = ami_maxy(stdout);
     /* set black on white text */
     ami_fcolor(stdout, ami_black);
     ami_bcolor(stdout, ami_white);
@@ -1316,23 +1327,31 @@ int main(int argc, char *argv[])
     printf("\f");
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
+    /* start with the frame matching the window, so the hold at original
+       size below is visible against a known starting state */
+    ami_sizbuf(stdout, winx, winy);
     box(1, 1, ami_maxx(stdout), ami_maxy(stdout), '*');
     prtcen(ami_maxy(stdout), " Buffer follow test ");
     ami_cursor(stdout, 3, 3);
     printf("Resize the window, the frame should stay at the original size\n");
     waitnext();
     printf("\f");
+    /* the window may have been resized above while the buffer held its
+       size; start with the frame matching the window */
+    ami_sizbuf(stdout, winx, winy);
     box(1, 1, ami_maxx(stdout), ami_maxy(stdout), '*');
     prtcen(ami_maxy(stdout), " Buffer follow test ");
     ami_cursor(stdout, 3, 3);
     printf("Resize the window, the frame should follow the window\n");
     x = ami_maxx(stdout);
     y = ami_maxy(stdout);
-    do { 
+    do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etresize) {
 
+            winx = er.rszx;
+            winy = er.rszy;
             box(1, 1, x, y, ' ');
             ami_sizbuf(stdout, er.rszx, er.rszy);
             box(1, 1, ami_maxx(stdout), ami_maxy(stdout), '*');
