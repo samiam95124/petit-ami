@@ -75,7 +75,9 @@ mask()
         -e 's|^(test 11: )[0-9]+|\1*|' \
         -e 's|/tmp/tmp\.[0-9]+\.|/tmp/tmp.*.|g' \
         -e 's|^(test 58: Timezone: )-?[0-9]+|\1*|' \
-        -e 's|^(test 59: Daysave: )[0-9]+|\1*|'
+        -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
+        -e 's|^(    google.com A    -> ).*|\1*|' \
+        -e 's|^(    google.com AAAA -> ).*|\1*|'
 
 }
 

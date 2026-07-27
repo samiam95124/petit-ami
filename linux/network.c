@@ -102,6 +102,10 @@
 #define MAXFIL 1000 /* maximum number of open files */
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
+#define CONRETRY 50     /* connect retries on refused connections */
+#define CONDELAY 100000 /* delay between connect retries, in microseconds
+                           (0.1 second, under human perception; with CONRETRY
+                           gives a 5 second budget before the error stands) */
 
 /* Mac OS X has no IP_MTU socket option; the MTU is found from the
    interface the connected socket routes through instead */
@@ -882,14 +886,14 @@ void ami_addrnet(string name, unsigned long* addr)
 
 {
 
-    struct addrinfo *p;
+    struct addrinfo *pl, *p;
     int r;
     int af;
 
     af = FALSE; /* set address not found */
-    r = getaddrinfo(name, NULL, NULL, &p);
+    r = getaddrinfo(name, NULL, NULL, &pl);
     if (r) netwrterr(gai_strerror(r));
-    while (p) {
+    for (p = pl; p; p = p->ai_next) {
 
         /* traverse the available addresses */
         if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
@@ -900,9 +904,9 @@ void ami_addrnet(string name, unsigned long* addr)
             af = TRUE; /* set an address found */
 
         }
-        p = p->ai_next;
 
     }
+    freeaddrinfo(pl); /* release the address list */
     if (!af) error(enetadr); /* no address found */
 
 }
@@ -985,15 +989,15 @@ void ami_addrnetv6(string name, unsigned long long* addrh,
 
 {
 
-    struct addrinfo *p;
+    struct addrinfo *pl, *p;
     int r;
     int af;
     struct sockaddr_in6* sap;
 
     af = FALSE; /* set address not found */
-    r = getaddrinfo(name, NULL, NULL, &p);
+    r = getaddrinfo(name, NULL, NULL, &pl);
     if (r) netwrterr(gai_strerror(r));
-    while (p) {
+    for (p = pl; p; p = p->ai_next) {
 
         /* traverse the available addresses */
         if (p->ai_family == AF_INET6 && p->ai_socktype == SOCK_STREAM) {
@@ -1004,9 +1008,9 @@ void ami_addrnetv6(string name, unsigned long long* addrh,
             af = TRUE; /* set an address found */
 
         }
-        p = p->ai_next;
 
     }
+    freeaddrinfo(pl); /* release the address list */
     if (!af) error(enetadr); /* no address found */
 
 }
@@ -1110,13 +1114,21 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
     saddr.sin_addr.s_addr = htonl(addr);
     saddr.sin_port = htons(port);
 
-    /* connect the socket */
-    fn = socket(AF_INET, SOCK_STREAM, 0);
-    if (fn < 0) linuxerror();
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    /* Connect the socket. A refused connection is retried on a short
+       backoff: servers are routinely reached just as they come up, and the
+       retry heals that transparently. A server that stays down still errors
+       after the retry budget */
+    for (r = 0; r < CONRETRY; r++) {
 
-    r = connect(fn, (struct sockaddr*)&saddr, sizeof(saddr));
-    if (r < 0) linuxerror();
+        fn = socket(AF_INET, SOCK_STREAM, 0);
+        if (fn < 0) linuxerror();
+        if (fn >= MAXFIL) error(einvhan); /* invalid file handle */
+        if (!connect(fn, (struct sockaddr*)&saddr, sizeof(saddr))) break;
+        if (errno != ECONNREFUSED || r == CONRETRY-1) linuxerror();
+        close(fn); /* a failed connect leaves the socket unusable */
+        usleep(CONDELAY); /* let the server come up */
+
+    }
 
     /* finish with general routine */
     return (opennet(secure, fn));
@@ -1142,13 +1154,19 @@ FILE* ami_opennetv6(
     get64t128(addrh, addrl, &saddr);
     saddr.sin6_port = htons(port);
 
-    /* connect the socket */
-    fn = socket(AF_INET6, SOCK_STREAM, 0);
-    if (fn < 0) linuxerror();
-    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    /* connect the socket, with the same refused connection retry as
+       ami_opennet */
+    for (r = 0; r < CONRETRY; r++) {
 
-    r = connect(fn, (struct sockaddr*)&saddr, sizeof(saddr));
-    if (r < 0) linuxerror();
+        fn = socket(AF_INET6, SOCK_STREAM, 0);
+        if (fn < 0) linuxerror();
+        if (fn >= MAXFIL) error(einvhan); /* invalid file handle */
+        if (!connect(fn, (struct sockaddr*)&saddr, sizeof(saddr))) break;
+        if (errno != ECONNREFUSED || r == CONRETRY-1) linuxerror();
+        close(fn); /* a failed connect leaves the socket unusable */
+        usleep(CONDELAY); /* let the server come up */
+
+    }
 
     /* finish with general routine */
     return (opennet(secure, fn));
@@ -1221,7 +1239,9 @@ long ami_openmsg(
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
         /* Create BIO, connect and set to already connected */
-        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
+        /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
+           close the fd a second time when SSL_free releases the BIO */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
         if (r) linuxerror();
 
@@ -1312,7 +1332,9 @@ long ami_openmsgv6(
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
         /* Create BIO, connect and set to already connected */
-        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
+        /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
+           close the fd a second time when SSL_free releases the BIO */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
@@ -1570,7 +1592,14 @@ long ami_maxmsg(unsigned long addr)
 
     close(fn);
 
-    return (mtu); /* return mtu */
+    /* The mtu includes the IP and UDP headers; the caller wants the largest
+       message wrmsg can send. Also clamp to the largest possible UDP
+       payload. Note a secured (DTLS) connection carries additional record
+       overhead not accounted for here */
+    mtu -= 28; /* IPv4 header 20 plus UDP header 8 */
+    if (mtu > 65507) mtu = 65507;
+
+    return (mtu); /* return maximum message */
 
 }
 
@@ -1619,13 +1648,20 @@ long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
     mtu = sockmtu(fn, AF_INET6);
     (void)mtulen;
 #else
-    r = getsockopt(fn, IPPROTO_IP, IP_MTU, &mtu, (socklen_t*)&mtulen);
+    r = getsockopt(fn, IPPROTO_IPV6, IPV6_MTU, &mtu, (socklen_t*)&mtulen);
     if (r < 0) linuxerror();
 #endif
 
     close(fn);
 
-    return (mtu); /* return mtu */
+    /* The mtu includes the IP and UDP headers; the caller wants the largest
+       message wrmsg can send. Also clamp to the largest possible UDP
+       payload. Note a secured (DTLS) connection carries additional record
+       overhead not accounted for here */
+    mtu -= 48; /* IPv6 header 40 plus UDP header 8 */
+    if (mtu > 65527) mtu = 65527;
+
+    return (mtu); /* return maximum message */
 
 }
 
@@ -1743,6 +1779,9 @@ void ami_clsmsg(long fn)
 
     /* check is a message file */
     if (!opnfil[fn]->msg) error(enotmsg);
+
+    /* if DTLS, send the close notify while the socket is still open */
+    if (opnfil[fn]->sudp) SSL_shutdown(opnfil[fn]->ssl);
 
     close((int)fn); /* close the socket */
 
@@ -1938,7 +1977,9 @@ long ami_certmsg(long fn, long which, string buff, long len)
 {
 
     X509* cert;
+    X509* peer;
     STACK_OF(X509)* certstk;
+    int ownstk;
     BIO* cb;
     int r;
 
@@ -1949,8 +1990,11 @@ long ami_certmsg(long fn, long which, string buff, long len)
     if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
 
     /* get the certificate */
-    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
-    if (!cert) error(enocert);
+    peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!peer) error(enocert);
+    cert = peer;
+    certstk = NULL;
+    ownstk = FALSE;
 
     /* see if we need to get the chain */
     if (which > 1) {
@@ -1964,6 +2008,7 @@ long ami_certmsg(long fn, long which, string buff, long len)
                and stuff the first certificate in it */
             certstk = sk_X509_new_null();
             sk_X509_push(certstk, cert);
+            ownstk = TRUE; /* we own this stack shell */
 
         }
         /* if the certificate number is out of range, return nothing */
@@ -1988,7 +2033,13 @@ long ami_certmsg(long fn, long which, string buff, long len)
         if (r < 0) error(erdbio);
         if (!BIO_eof(cb)) error(ecerttl);
 
+        BIO_free(cb); /* release the conversion BIO */
+
     }
+    /* release the chain shell if we made it, and our reference to the peer
+       certificate (chain members are internal references, not freed) */
+    if (ownstk) sk_X509_free(certstk);
+    X509_free(peer);
 
     /* the certificate buffer is a critical buffer: terminate the result
        only if it does not fill the entire buffer */
@@ -2256,9 +2307,15 @@ multiple lines. In that case, each subsequent line is indented by one or more
 spaces. For these values, the indentation is removed, and the entire value
 concatenated, with the \n line endings left intact.
 
+Content that has no key at all (as in extensions like the authority key
+identifier, whose entire body is "keyid:...", or key usage, which is plain
+text) is placed as the value of the orphan entry, normally the entry the
+list forks from. With no orphan entry given, keyless content is a parse
+error.
+
 */
 
-static void getnamval(char* buff, ami_certptr* list, int ident)
+static void getnamval(char* buff, ami_certptr* list, ami_certptr orphan)
 
 {
 
@@ -2267,10 +2324,10 @@ static void getnamval(char* buff, ami_certptr* list, int ident)
     char name[1024]; /* name */
     char* cp; /* output buffer pointer */
     ami_certptr cdp; /* current name/val being worked on */
-    int l;
 
-dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
-    cdp = NULL; /* clear list entry */
+//dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
+    cdp = orphan; /* start on the orphan entry, if given */
+    vbuff[0] = 0; /* terminate empty value */
     while (*buff) { /* loop over all lines in buffer */
 
         cp = lbuff; /* index output buffer */
@@ -2279,10 +2336,13 @@ dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
         fndkey(lbuff, name, &cp);
         if (name[0]) {
 
-dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
+//dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
             /* terminate any outstanding entry */
             remeol(vbuff); /* remove last \n, if exists */
-            if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
+            /* place gathered data as value; the orphan entry is only filled
+               if it actually gathered content */
+            if (cdp && (cdp != orphan || vbuff[0]))
+                filldata(cdp, vbuff);
             cdp = addend(list, name); /* create n/v entry */
             vbuff[0] = 0; /* terminate empty value */
             if (*cp && *cp != '\n')
@@ -2291,8 +2351,8 @@ dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
 
         } else { /* no key, concatenate to value */
 
-            /* does not begin with key, but there is no working key, then
-               something is wrong. */
+            /* does not begin with key, and there is no working entry and no
+               orphan entry to give the content to, then something is wrong */
             if (!cdp) error(ecertpar);
             strcat(vbuff, cp); /* concatenate to value */
 
@@ -2301,48 +2361,69 @@ dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
     }
     /* terminate any outstanding entry */
     remeol(vbuff); /* remove last \n, if exists */
-    if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
+    if (cdp && (cdp != orphan || vbuff[0]))
+        filldata(cdp, vbuff); /* place gathered data as value */
 
 }
 
-void ami_certlistnet(FILE *f, long which, ami_certptr* list)
+/*******************************************************************************
+
+Get message certificate data list
+
+Retrieves a list of data fields from the given file by number. The file
+must contain an open and active TLS or DTLS connection. The data list is a
+list of name - data pairs, both strings. The list can also have branches or
+forks, which make it able to contain complete trees. The certificate number
+is from 1 to N where N is the maximum certificate in the chain. Certificate 1
+is the certificate for the server connected. Certificate N is the CA or
+Certificate Authority's certificate, AKA the root certificate. If there is no
+certificate by that number, the resulting list is NULL.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that the list is allocated by this routine, and the caller is
+responsible for freeing the list as necessary (see ami_certlistfree).
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void ami_certlistmsg(long fn, long which, ami_certptr* list)
 
 {
 
     X509* cert;
+    X509* peer;
     STACK_OF(X509)* certstk;
+    int ownstk;
     BIO* bp;
     int r;
-    int fn;
     char* cp;
-    char* cp2;
     int v;
     ASN1_INTEGER* sn;
     BIGNUM* bn;
     int i, j, l;
     ASN1_TIME* atp;
     char buff[CVBUFSIZ];
-    char buff2[CVBUFSIZ];
     X509_EXTENSION* ep;
     ASN1_OBJECT* op;
-    ASN1_OCTET_STRING *sp;
-    BUF_MEM *bmp;
-    unsigned nid;
     X509_PUBKEY* kp;
     EVP_PKEY* ekp;
     const X509_ALGOR *sig_alg;
     const ASN1_BIT_STRING *sig;
+    const ASN1_OBJECT *sao;
+    const unsigned char* sd;
     /* branch placeholders */
     ami_certptr certificate;
     ami_certptr data;
     ami_certptr sigal;
     ami_certptr validity;
     ami_certptr extensions;
-    ami_certptr cdp, cdp2;
+    ami_certptr cdp;
 
-    error(eunimp);
-
-    fn = fileno(f); /* get fid */
+    *list = NULL; /* set no result */
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     if (which < 1) error(einvctn); /* invalid certificate number */
 
@@ -2350,8 +2431,11 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
     if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
 
     /* get the certificate */
-    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
-    if (!cert) error(enocert);
+    peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!peer) error(enocert);
+    cert = peer;
+    certstk = NULL;
+    ownstk = FALSE;
 
     /* see if we need to get the chain */
     if (which > 1) {
@@ -2365,6 +2449,7 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
                and stuff the first certificate in it */
             certstk = sk_X509_new_null();
             sk_X509_push(certstk, cert);
+            ownstk = TRUE; /* we own this stack shell */
 
         }
         /* if the certificate number is out of range, return nothing */
@@ -2449,7 +2534,7 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
         ekp = X509_get0_pubkey(cert);
         EVP_PKEY_print_public(bp, ekp, 0, NULL);
         getbio(bp, buff, CVBUFSIZ); /* place in buffer */
-        getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
+        getnamval(buff, &cdp->fork, cdp); /* parse n/v tree */
 
         extensions = addend(&data->fork, "X509v3 extensions");
         const STACK_OF(X509_EXTENSION)* esp = X509_get0_extensions(cert);
@@ -2470,63 +2555,95 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
             getbio(bp, buff, CVBUFSIZ);
 //dbg_printf(dlinfo, "Extension data: <start>\n%s\n<end>\n", buff);
             //filldata(cdp, buff);
-            getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
+            getnamval(buff, &cdp->fork, cdp); /* parse n/v tree */
 
         }
 
-#if 0
-printf("Signature Algorithm <start>\n");
+        /* The outer (certificate level) signature. X509_signature_print()
+           formats these with indentation that fights the name/value parser,
+           so take the structure apart directly: X509_get0_signature() gives
+           the algorithm (an X509_ALGOR, whose object is extracted with
+           X509_ALGOR_get0) and the signature bit string (an ASN1_BIT_STRING,
+           read with ASN1_STRING_get0_data/ASN1_STRING_length) */
+        sigal = addend(&certificate->fork, "Signature Algorithm");
         X509_get0_signature(&sig, &sig_alg, cert);
-        X509_signature_print(bp, sig_alg, sig);
-//        getbio(bp, buff, CVBUFSIZ);
-        /* the key contained in the signature is indented. If we remove it, the
-           key will be conforming */
-//        cp = buff;
-//        while (isspace(*cp)) cp++;
-//         = addend(&certificate->fork, "Data"); /* make data branch */
-       prtbio(bp);
-       printf("\n");
-printf("Signature Algorithm before aux print\n");
+        X509_ALGOR_get0(&sao, NULL, NULL, sig_alg);
+        i = OBJ_obj2nid(sao);
+        if (i != NID_undef) filldata(sigal, (char*)OBJ_nid2ln(i));
+        else { /* not a known algorithm, give the raw object id */
 
-        X509_aux_print(bp, cert, 0);
-        prtbio(bp);
-        printf("\n");
-printf("Signature Algorithm <end>\n");
-#endif
+            i2a_ASN1_OBJECT(bp, (ASN1_OBJECT*)sao);
+            getbio(bp, buff, CVBUFSIZ);
+            filldata(sigal, buff);
+
+        }
+
+        cdp = addend(&certificate->fork, "Signature Value");
+        sd = ASN1_STRING_get0_data(sig);
+        l = ASN1_STRING_length(sig);
+        /* format as colon separated hex, as openssl prints it */
+        if (l > (CVBUFSIZ-1)/3) l = (CVBUFSIZ-1)/3; /* clamp to buffer */
+        j = 0;
+        for (i = 0; i < l; i++) {
+
+            j += sprintf(&buff[j], "%02x", sd[i]);
+            if (i < l-1) buff[j++] = ':';
+
+        }
+        buff[j] = 0;
+        filldata(cdp, buff);
+
+        BIO_free(bp); /* release the conversion BIO */
 
     }
+    /* release the chain shell if we made it, and our reference to the peer
+       certificate (chain members are internal references, not freed) */
+    if (ownstk) sk_X509_free(certstk);
+    X509_free(peer);
 
 }
 
 /*******************************************************************************
 
-Get message certificate data list
+Get network certificate data list
 
-Retrieves a list of data fields from the given file by number. The file
-must contain an open and active DTLS connection. The data list is a list of
-name - data pairs, both strings. The list can also have branches or forks, which
-make it able to contain complete trees. The certificate number is from 1 to N
-where N is the maximum certificate in the chain. Certificate 1 is the
-certificate for the server connected. Certificate N is the CA or Certificate
-Authority's certificate, AKA the root certificate. If there is no certificate
-by that number, the resulting list is NULL.
-
-Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
-Thus the end of the certificate chain must be found by traversal.
-
-Note that the list is allocated by this routine, and the caller is responsible
-for freeing the list as necessary.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
+Retrieves a list of data fields from the given file by number. The file must
+contain an open and active TLS connection. See the notes for
+ami_certlistmsg, which this routine wraps.
 
 *******************************************************************************/
 
-void ami_certlistmsg(long fn, long which, ami_certptr* list)
+void ami_certlistnet(FILE *f, long which, ami_certptr* list)
 
 {
 
-    error(eunimp);
+    ami_certlistmsg(fileno(f), which, list); /* execute with fid */
+
+}
+
+/*******************************************************************************
+
+Free certificate data list
+
+Frees a certificate data list as returned by ami_certlistnet or
+ami_certlistmsg, including all branches and strings. The list pointer is set
+to NULL.
+
+*******************************************************************************/
+
+void ami_certlistfree(ami_certptr* list)
+
+{
+
+    ami_certptr p;
+
+    while (*list) { /* traverse the top level list */
+
+        p = *list; /* top entry from list */
+        *list = p->next;
+        putcert(p); /* free entry and its tree */
+
+    }
 
 }
 
@@ -2630,6 +2747,8 @@ static int ivclose(pclose_t closedc, int fd)
         pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
         if (fr.sec) {
 
+            /* send the close notify while the shadow socket is still open */
+            if (fr.ssl) SSL_shutdown(fr.ssl);
             if (fr.ssl) SSL_free(fr.ssl); /* free the ssl */
             if (fr.cert) X509_free(fr.cert); /* free certificate */
             (*closedc)(fr.sfn); /* close the shadow as well */
@@ -2805,8 +2924,10 @@ void initctx(
     *ctx = SSL_CTX_new(method);
     if (!*ctx) error(esslctx);
 
-    /* Set the client key and cert */
-    r = SSL_CTX_use_certificate_file(*ctx, cert, SSL_FILETYPE_PEM);
+    /* Set the client key and cert. The chain form loads a single certificate
+       exactly as before, but a file carrying leaf followed by intermediates
+       presents the whole chain to the peer */
+    r = SSL_CTX_use_certificate_chain_file(*ctx, cert);
     if (r <= 0) sslerrorqueue();
 
     r = SSL_CTX_use_PrivateKey_file(*ctx, key, SSL_FILETYPE_PEM);
@@ -2974,6 +3095,8 @@ static void ami_deinit_network()
 
         pthread_mutex_destroy(&opnfil[fi]->lock);
         if (opnfil[fi]->opn) close(fi);
+        /* politely notify any live peer before the free */
+        if (opnfil[fi]->ssl) SSL_shutdown(opnfil[fi]->ssl);
         if (opnfil[fi]->ssl) SSL_free(opnfil[fi]->ssl);
         if (opnfil[fi]->cert) X509_free(opnfil[fi]->cert);
         free(opnfil[fi]);
