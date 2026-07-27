@@ -6,6 +6,11 @@
 *                                                                              *
 *                               S. A. MOORE                                    *
 *                                                                              *
+* String output buffers are "critical": a result may occupy the entire        *
+* buffer, in which case the terminating zero is left off. Results shorter     *
+* than the buffer are zero terminated. C callers should use length limited    *
+* reads of such buffers (see strnlen and similar).                            *
+*                                                                              *
 *******************************************************************************/
 
 #ifndef __SERVICES_H__

@@ -24,6 +24,11 @@
 * built into it, which could affect start time. A logical preload/cache        *
 * model would give this package the ability to do something about that.        *
 *                                                                              *
+* String output buffers are "critical": a result may occupy the entire        *
+* buffer, in which case the terminating zero is left off. Results shorter     *
+* than the buffer are zero terminated. C callers should use length limited    *
+* reads of such buffers (see strnlen and similar).                             *
+*                                                                              *
 *******************************************************************************/
 
 #ifndef __SOUND_H__

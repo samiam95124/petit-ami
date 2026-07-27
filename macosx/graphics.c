@@ -225,6 +225,21 @@ static void set_fill_only(CGContextRef ctx, pa_rgba c)
     CGContextSetRGBFillColor(ctx, c.r, c.g, c.b, c.a);
 }
 
+/* Copy string to critical buffer. Critical string buffers follow the package
+   convention: a result that fills the entire buffer is left without a
+   terminating zero, a shorter result is zero terminated, and it is an error
+   if the result cannot fit in the buffer. */
+static void cpycrit(char* d, long dl, const char* s)
+{
+    long l = strlen(s);
+    if (l > dl) {
+        fprintf(stderr, "\nError: Graphics: String too large for buffer\n");
+        exit(1);
+    }
+    memcpy(d, s, l);
+    if (l < dl) d[l] = 0;
+}
+
 /* Convert PA 1-based coordinate to CG 0-based */
 #define PX(x) ((x) - 1)
 #define PY(y) ((y) - 1)
@@ -2065,10 +2080,8 @@ void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
     fontptr fp = fntlst;
     int i = 1;
     while (fp && i < fc) { fp = fp->next; i++; }
-    if (fp && fp->name) {
-        strncpy(fns, fp->name, fnsl-1);
-        fns[fnsl-1] = 0;
-    } else if (fnsl > 0) fns[0] = 0;
+    /* critical buffer: a full-length result is left unterminated */
+    cpycrit(fns, fnsl, fp && fp->name ? fp->name : "");
 }
 
 void ami_fontsiz(FILE* f, long s)
@@ -2914,7 +2927,15 @@ void ami_enablewidget(FILE* f, long id, long e)
 void ami_getwidgettext(FILE* f, long id, char* s, long sl)
 {
     winptr win = f2win(f); if (!win) return;
-    pa_cocoa_widget_get_text(win->han, id, s, sl);
+    /* fetch to a terminated local, then apply the critical buffer
+       convention at the caller's buffer: a result filling the entire buffer
+       is left unterminated, overflow is an error */
+    char* buf = malloc(sl+2);
+    if (!buf) return;
+    buf[0] = 0;
+    pa_cocoa_widget_get_text(win->han, id, buf, (int)(sl+2));
+    cpycrit(s, sl, buf);
+    free(buf);
 }
 
 void ami_putwidgettext(FILE* f, long id, char* s)
@@ -3457,6 +3478,10 @@ void ami_tabsel(FILE* f, long id, long tn)
 *                                                                              *
 *                        PA API — dialogs                                      *
 *                                                                              *
+* String buffers passed to these dialogs are critical buffers: a result that  *
+* fills the entire buffer is left without a terminating zero, a shorter       *
+* result is zero terminated, and it is an error if the result cannot fit.     *
+*                                                                              *
 *******************************************************************************/
 
 void ami_alert(char* title, char* message)
@@ -3469,17 +3494,56 @@ void ami_querycolor(long* r, long* g, long* b)
     pa_cocoa_query_color(r, g, b);
 }
 
-void ami_queryopen(char* s, long sl)  { pa_cocoa_query_open(s, sl); }
-void ami_querysave(char* s, long sl)  { pa_cocoa_query_save(s, sl); }
+void ami_queryopen(char* s, long sl)
+{
+    /* the bridge fills a terminated local; the critical copy happens at the
+       caller's buffer */
+    char* buf = malloc(sl+2);
+    if (!buf) return;
+    buf[0] = 0;
+    pa_cocoa_query_open(buf, (int)(sl+2));
+    cpycrit(s, sl, buf);
+    free(buf);
+}
+
+void ami_querysave(char* s, long sl)
+{
+    char* buf = malloc(sl+2);
+    if (!buf) return;
+    buf[0] = 0;
+    pa_cocoa_query_save(buf, (int)(sl+2));
+    cpycrit(s, sl, buf);
+    free(buf);
+}
 
 void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
 {
-    pa_cocoa_query_find(s, sl, opt);
+    char* buf = malloc(sl+2);
+    long l = 0;
+    if (!buf) return;
+    /* the input seed may fill the caller's buffer without a terminator */
+    while (l < sl && s[l]) l++;
+    memcpy(buf, s, l); buf[l] = 0;
+    pa_cocoa_query_find(buf, (int)(sl+2), opt);
+    cpycrit(s, sl, buf);
+    free(buf);
 }
 
 void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
 {
-    pa_cocoa_query_findrep(s, sl, r, rl, opt);
+    char* fbuf = malloc(sl+2);
+    char* rbuf = malloc(rl+2);
+    long l;
+    if (!fbuf || !rbuf) { free(fbuf); free(rbuf); return; }
+    /* the input seeds may fill the caller's buffers without terminators */
+    l = 0; while (l < sl && s[l]) l++;
+    memcpy(fbuf, s, l); fbuf[l] = 0;
+    l = 0; while (l < rl && r[l]) l++;
+    memcpy(rbuf, r, l); rbuf[l] = 0;
+    pa_cocoa_query_findrep(fbuf, (int)(sl+2), rbuf, (int)(rl+2), opt);
+    cpycrit(s, sl, fbuf);
+    cpycrit(r, rl, rbuf);
+    free(fbuf); free(rbuf);
 }
 
 void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg,

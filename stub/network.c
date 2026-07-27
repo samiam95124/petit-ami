@@ -397,6 +397,10 @@ or both may be used to break up lines in the certificate.
 Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
 Thus the end of the certificate chain must be found by traversal.
 
+The certificate buffer is a critical buffer: a result that fills the entire
+buffer is left without a terminating zero, a shorter result is zero
+terminated, and it is an error if the certificate cannot fit in the buffer.
+
 Note that this routine retrieves the peer certificate, or other end of the
 line. Servers are required to provide certificates. Clients are not.
 
@@ -433,6 +437,10 @@ or both may be used to break up lines in the certificate.
 
 Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
 Thus the end of the certificate chain must be found by traversal.
+
+The certificate buffer is a critical buffer: a result that fills the entire
+buffer is left without a terminating zero, a shorter result is zero
+terminated, and it is an error if the certificate cannot fit in the buffer.
 
 Note that this routine retrieves the peer certificate, or other end of the
 line. Servers are required to provide certificates. Clients are not.

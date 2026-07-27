@@ -1655,6 +1655,34 @@ static void error(errcod e)
 
 }
 
+/** ****************************************************************************
+
+Copy string to critical buffer
+
+Copies a string to a "critical" output buffer of the given length. If the
+string is longer than the buffer, an error results. If the string exactly
+fills the buffer, the terminating zero is left off. Otherwise, the result is
+zero terminated.
+
+Note that the only critical string output implemented in this module at
+present is the font name, so the "font name too large" error is issued on
+overflow.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l; /* length of source string */
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error(eftntl); /* string too large for buffer */
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* zero terminate if buffer not entirely filled */
+
+}
+
 /******************************************************************************
 
 XWindow error handler
@@ -10945,7 +10973,9 @@ static void font_ivf(FILE* f, long fc)
 
 Find name of font
 
-Returns the name of a font by number.
+Returns the name of a font by number. The name is returned in a critical
+buffer: if the name exactly fills the buffer, the terminating zero is left
+off, and it is an error if the name cannot fit in the buffer.
 
 *******************************************************************************/
 
@@ -10959,7 +10989,6 @@ static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
 {
 
     fontptr fp; /* pointer to font entries */
-    int i; /* string index */
 
     if (fc <= 0) error(einvftn); /* invalid number */
     fp = fntlst; /* index top of list */
@@ -10970,8 +10999,7 @@ static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
        if (!fp) error(einvftn); /* check null */
 
     }
-    if (strlen(fp->fn) > fnsl+1) error(eftntl);
-    strcpy(fns, fp->fn);
+    cpycrit(fns, fnsl, fp->fn); /* copy name to critical result buffer */
 
 }
 

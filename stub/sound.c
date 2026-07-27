@@ -1303,7 +1303,10 @@ long ami_rdwave(long p, byte* buff, long len)
 
 Find device name of synthesizer output port
 
-Returns the ALSA device name of the given synthsizer output port.
+Returns the device name of the given synthsizer output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -1319,7 +1322,10 @@ void ami_synthoutname(long p, string name, long len)
 
 Find device name of synthesizer input port
 
-Returns the ALSA device name of the given synthsizer input port.
+Returns the device name of the given synthsizer input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -1335,7 +1341,10 @@ void ami_synthinname(long p, string name, long len)
 
 Find device name of wave output port
 
-Returns the ALSA device name of the given wave output port.
+Returns the device name of the given wave output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -1351,7 +1360,10 @@ void ami_waveoutname(long p, string name, long len)
 
 Find device name of wave input port
 
-Returns the ALSA device name of the given wave input port.
+Returns the device name of the given wave input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -1454,7 +1466,9 @@ Get device parameter synth out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -1475,7 +1489,9 @@ Get device parameter synth in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -1496,7 +1512,9 @@ Get device parameter wave out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -1517,7 +1535,9 @@ Get device parameter wave in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.

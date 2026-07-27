@@ -9,6 +9,11 @@
 * Describes the full Petit-ami graphical subsystem, including terminal level,  *
 * graphics level, windowing, and widgets.                                      *
 *                                                                              *
+* String output buffers are "critical": a result may occupy the entire        *
+* buffer, in which case the terminating zero is left off. Results shorter     *
+* than the buffer are zero terminated. C callers should use length limited    *
+* reads of such buffers (see strnlen and similar).                            *
+*                                                                              *
 *******************************************************************************/
 
 #ifndef __GRAPHICS_H__

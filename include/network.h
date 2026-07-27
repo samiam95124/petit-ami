@@ -14,6 +14,11 @@
 * performance computing and applications that need to determine their own      *
 * reliable delivery protocols like audio and video data.                       *
 *                                                                              *
+* String output buffers are "critical": a result may occupy the entire        *
+* buffer, in which case the terminating zero is left off. Results shorter     *
+* than the buffer are zero terminated. C callers should use length limited    *
+* reads of such buffers (see strnlen and similar).                            *
+*                                                                              *
 * The Linux version, and in fact probably all versions, rely on stacking atop  *
 * openssl.                                                                     *
 *                                                                              *

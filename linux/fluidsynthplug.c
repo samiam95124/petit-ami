@@ -12,6 +12,7 @@ Petit_ami sound system.
 
 #include <fluidsynth.h>
 #include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 #include <localdefs.h>
 #include <sound.h>
@@ -48,6 +49,30 @@ static void error(string es)
     fprintf(stderr, "\nError: Fluidsynth: %s\n", es);
 
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Copy string to critical output buffer
+
+Copies the given source string to a caller supplied output buffer. Output
+buffers follow the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l;
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
 
 }
 
@@ -229,7 +254,9 @@ long setparamfluid(long p, string name, string value)
 Get parameter
 
 Get plug in parameter from the given name and value. Not implemented at present.
-Always returns empty string.
+Always returns empty string. The value is returned by the critical buffer
+convention: a result that fills the entire buffer is not zero terminated, a
+shorter result is zero terminated, and it is an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -237,7 +264,7 @@ void getparamfluid(long p, string name, string value, long len)
 
 {
 
-    *value = 0; /* clear output string */
+    cpycrit(value, len, ""); /* return empty string */
 
 }
 

@@ -1153,6 +1153,10 @@ Find name of font
 
 Returns the name of a font by number.
 
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
+
 *******************************************************************************/
 
 void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
@@ -2387,6 +2391,10 @@ Retrives the text from a widget. The widget must be one that contains text.
 It is an error if this call is used on a widget that does not contain text.
 This error is currently unchecked.
 
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
+
 *******************************************************************************/
 
 void ami_getwidgettext(FILE* f, long id, char* s, long sl)
@@ -3410,6 +3418,10 @@ in the current directory into a list.
 
 If the operation is cancelled, then a null string will be returned.
 
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
+
 *******************************************************************************/
 
 void ami_queryopen(char* s, long sl)
@@ -3433,6 +3445,10 @@ If a wildcard is passed as the default, this will be used to filter the files
 in the current directory into a list.
 
 If the operation is cancelled, then a null string will be returned.
+
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
 
 *******************************************************************************/
 
@@ -3467,6 +3483,10 @@ sounds very system dependent, since that could change. One method might be
 to retrive the button text, but this is still fairly system dependent. We
 table this issue until later.
 
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
+
 *******************************************************************************/
 
 void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
@@ -3491,6 +3511,10 @@ The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
 
 Bug: See comment, queryfind.
+
+The string buffers are critical buffers: a result that fills the entire
+buffer is left without a terminating zero, a shorter result is zero
+terminated, and it is an error if the result cannot fit in the buffer.
 
 *******************************************************************************/
 
