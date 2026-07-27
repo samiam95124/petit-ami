@@ -8013,6 +8013,150 @@ static int iclose_nocancel(int fd)
 
 /** ****************************************************************************
 
+Theme point names
+
+The config file names for each theme table entry, in themeindex order. The
+"th_" prefix is dropped: theme point th_backpressed is written "backpressed"
+in the config file.
+
+*******************************************************************************/
+
+static const char* themnam[th_endmarker] = {
+
+    "backpressed", "back", "backhover", "outline1",
+    "text", "textdis", "focus", "chkrad",
+    "chkradout", "scrollback", "scrollbar", "scrollbarpressed",
+    "numseldiv", "numselud", "texterr", "proginacen",
+    "proginaedg", "progactcen", "progactedg", "lsthov",
+    "outline2", "droparrow", "droptext", "sldint",
+    "tabdis", "tabback", "tabsel", "tabfocus",
+    "cancelbackfocus", "canceltextfocus", "canceloutline", "selectbackfocus",
+    "selectback", "selecttextfocus", "selecttext", "selectoutline",
+    "selectoutlinefocus", "plusbackfocus", "plusback", "plustextfocus",
+    "plustext", "plusoutline", "plusoutlinefocus", "title",
+    "querycolor1", "querycolor2", "querycolor3", "querycolor4",
+    "querycolor5", "querycolor6", "querycolor7", "querycolor8",
+    "querycolor9", "querycolor10", "querycolor11", "querycolor12",
+    "querycolor13", "querycolor14", "querycolor15", "querycolor16",
+    "querycolor17", "querycolor18", "querycolor19", "querycolor20",
+    "querycolor21", "querycolor22", "querycolor23", "querycolor24",
+    "querycolor25", "querycolor26", "querycolor27", "querycolor28",
+    "querycolor29", "querycolor30", "querycolor31", "querycolor32",
+    "querycolor33", "querycolor34", "querycolor35", "querycolor36"
+
+};
+
+/** ****************************************************************************
+
+Parse a theme value
+
+Accepts a color as three decimal components "red green blue" (0 to 255), or
+as a hex triplet "rrggbb" with an optional leading '#'. Returns TRUE and the
+packed value if the string parses, FALSE if it does not. Note the theme table
+is a general value table; a plain number is accepted as well, for theme
+points that are not colors.
+
+*******************************************************************************/
+
+static int themval(
+    /** string to parse */ const char* s,
+    /** value returned */  unsigned long* v
+)
+
+{
+
+    long r, g, b;
+    char* ep;
+
+    while (*s == ' ') s++; /* skip leading spaces */
+    if (*s == '#' || strlen(s) == 6) { /* hex triplet */
+
+        if (*s == '#') s++;
+        *v = strtoul(s, &ep, 16);
+        while (*ep == ' ') ep++; /* trailing spaces are not an error */
+
+        return (!*ep);
+
+    }
+    /* three decimal components */
+    r = strtol(s, &ep, 10);
+    if (ep == s) return (FALSE);
+    s = ep;
+    g = strtol(s, &ep, 10);
+    if (ep == s) { /* single number: a non color theme value */
+
+        *v = r;
+
+        return (TRUE);
+
+    }
+    s = ep;
+    b = strtol(s, &ep, 10);
+    if (ep == s) return (FALSE);
+    while (*ep == ' ') ep++;
+    if (*ep) return (FALSE); /* trailing junk */
+    if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) return (FALSE);
+    *v = r<<16 | g<<8 | b;
+
+    return (TRUE);
+
+}
+
+/** ****************************************************************************
+
+Load theme from config
+
+Overrides the compiled in theme defaults with any values found in the
+config file, in the block:
+
+begin widgets
+    begin theme
+        back 252 252 252
+        ...
+    end
+end
+
+An entry whose name is not a known theme point is ignored, so a config
+written for a later version still loads here. An entry that does not parse
+is an error, since that is a mistake in the file rather than a version
+difference.
+
+*******************************************************************************/
+
+static void loadtheme(void)
+
+{
+
+    ami_valptr root;  /* config root */
+    ami_valptr wp;    /* widgets block */
+    ami_valptr tp;    /* theme block */
+    ami_valptr vp;    /* value entry */
+    themeindex ti;    /* theme index */
+    unsigned long v;  /* parsed value */
+
+    root = NULL;
+    ami_config(&root); /* get the config tree */
+    wp = ami_schlst("widgets", root); /* find widgets block */
+    if (!wp || !wp->sublist) return; /* no widgets block, keep defaults */
+    tp = ami_schlst("theme", wp->sublist); /* find theme subblock */
+    if (!tp || !tp->sublist) return; /* no theme block, keep defaults */
+    for (vp = tp->sublist; vp; vp = vp->next) { /* traverse theme points */
+
+        if (vp->name && vp->value)
+            for (ti = 0; ti < th_endmarker; ti++)
+                if (!strcmp(vp->name, themnam[ti])) {
+
+            if (!themval(vp->value, &v)) error("Invalid theme value");
+            themetable[ti] = v;
+
+        }
+
+    }
+
+}
+
+/** ****************************************************************************
+
 Widgets startup
 
 *******************************************************************************/
@@ -8222,6 +8366,9 @@ static void init_widgets()
     themetable[th_querycolor34]       = TD_QUERYCOLOR34;
     themetable[th_querycolor35]       = TD_QUERYCOLOR35;
     themetable[th_querycolor36]       = TD_QUERYCOLOR36;
+
+    /* override the defaults with any theme values from the config file */
+    loadtheme();
 
 }
 
