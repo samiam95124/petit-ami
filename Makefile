@@ -589,7 +589,7 @@ ifeq ($(OSTYPE),Windows_NT)
 # Note: network_test runs its loopback servers on threads (services thread
 # api), so it builds and runs on Windows against the full Winsock/OpenSSL
 # network implementation (TCP, TLS, messages, DTLS and certificates).
-all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi dif play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
@@ -605,7 +605,7 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X
 #
-all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi dif play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg playtextmidi playtextmidig printdev printdevg connectmidi \
      connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
@@ -622,7 +622,7 @@ else ifeq ($(OSTYPE),FreeBSD)
 #
 # BSD
 #
-all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi dif play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
@@ -638,7 +638,7 @@ else
 #
 # Linux
 #
-all: dumpmidi play playg keyboard keyboardg playmidi playmidig playwave \
+all: dumpmidi dif play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
      graphics_test testviewer management_test widget_test \
@@ -995,6 +995,13 @@ endif
 #
 dumpmidi: utils/dumpmidi.c Makefile
 	$(CC) utils/dumpmidi.c -o bin/dumpmidi
+
+#
+# File difference utility with '?' wildcard compare, used by bin/regress
+# (not Petit-Ami dependent)
+#
+dif: utils/dif.c Makefile
+	$(CC) utils/dif.c -o bin/dif
 
 #
 # General test program

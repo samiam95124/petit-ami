@@ -1,0 +1,82 @@
+Services module test v1.0
+
+test1:
+lib                       4096       4096       e sd  ????/??/?? ??????????? ????/??/?? ??????????? ????/??/?? ??????????? ********** ******** rwedvcm rwedvcm r edvcm 
+..                        4096       4096       e sd  ????/??/?? ??????????? ????/??/?? ??????????? ????/??/?? ??????????? ********** ******** rwed cm r ed cm r ed cm 
+.                         4096       4096       e sd  ????/??/?? ??????????? ????/??/?? ??????????? ????/??/?? ??????????? ********** ******** rwed cm rwed cm r ed cm 
+readme.txt                269        269              ????/??/?? ??????????? ????/??/?? ??????????? ????/??/?? ??????????? ********** ******** rw dvcm rw dvcm r  dvcm 
+s/b <the listing for the current directory>
+test 3: ???????? s/b <the current time in zulu>
+test 5: ??????????? s/b <the current time in local>
+test 7: ????/??/?? s/b <the current date>
+test 9: ??????????? s/b <the time>
+test 10: ????/??/?? s/b <the date>
+test11: waiting 1 second
+test 11: * s/b 10000 (approximate)
+test 12: 1 s/b 1
+test 14: 1 s/b 1
+test 15: 1 s/b 1
+test 17  1 s/b 1
+test 18: 1 s/b 1
+test 19: 0 s/b 0
+test20: what is this s/b what is this
+test22: "" s/b ""
+test23:
+Name: HOME Data: /home/samiam
+Name: USER Data: samiam
+Name: LOGNAME Data: samiam
+Name: PATH Data: /home/samiam/projects/amitk/bin:/usr/local/bin:/usr/bin:/bin
+Name: LANG Data: en_US.UTF-8
+s/b <10 entries from the current environment>
+test24:
+waiting 5 seconds for program to start
+This is services_test1 ""
+s/b This is services_test1 "" (empty string)
+test25:
+This is services_test1 ""
+0
+s/b
+This is services_test1 ""
+0
+test26:
+waiting 5 seconds
+This is services_test1 "hi there"
+s/b This is services_test1: "hi there"
+test27:
+This is services_test1 "hi there"
+0
+s/b
+This is services_test1 "hi there"
+0
+test 29: /home/samiam/projects/amitk/tests/regress s/b <the current path>
+test 30: /home/samiam s/b <the user path>
+test 31: /home/samiam/projects/amitk/tests/regress s/b <the current path>
+test 32: Path:  Name: c:\what\ho\junk Ext: com s/b: Path: c:\what\ho\ Name: junk Ext: com
+test 33: c:\what\ho\junk.com s/b c:\what\ho\junk.com
+test 36: /home/samiam/projects/amitk/tests/regress/junk s/b <path>junk
+test 38: /home/samiam/projects/amitk/bin/ s/b <the program path>
+test 40: /home/samiam s/b <the user path>
+test 46: junk 1 s/b junk 1
+test 47: junk 0 s/b junk 0
+test 48: junk 1 s/b junk 1
+test 49: 1 s/b 1
+test 50: Set of valid characters: !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}
+test 51: Option character: -
+test 52: Path character: /
+test 53: Latitude: 0
+test 54: longitude: 0
+test 55: Altitude: 0
+test 56: Country code: 840
+test 57: Country name: United States of America
+test 58: Timezone: *
+test 59: Daysave: *
+test 60: 24 hour time: 0
+test 61: Language: 41
+test 62: Language name: English
+test 63: Decimal character: .
+test 64: Separator character: ,
+test 65: Time order: 1
+test 66: Date order: 1
+test 67: Date separator: /
+test 68: time separator: :
+test 69: Currency character: $
