@@ -117,9 +117,12 @@ static enum { /* debug levels */
 #define BLUEP(v)  (v & 0xff)
 
 /* macros to unpack color table entries to LONG_MAX ratioed numbers */
-#define RED(v)   (LONG_MAX/256*REDP(v))   /* red */
-#define GREEN(v) (LONG_MAX/256*GREENP(v)) /* green */
-#define BLUE(v)  (LONG_MAX/256*BLUEP(v)) /* blue */
+/* Unpack a byte color component to the API full scale. Dividing by 255,
+   not 256, so a component of 0xff gives exactly LONG_MAX: the divide is
+   first, so the multiply cannot overflow */
+#define RED(v)   (LONG_MAX/255*REDP(v))   /* red */
+#define GREEN(v) (LONG_MAX/255*GREENP(v)) /* green */
+#define BLUE(v)  (LONG_MAX/255*BLUEP(v)) /* blue */
 
 /* default values for color table. Note these can be overridden.
  * To increase or decrease luminescence, add or subtract a BW() value from
@@ -1283,7 +1286,8 @@ static void cbutton_draw(
     ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 20, 20);
     /* outline */
     ami_linewidth(wg->wf, 3);
-    if (wg->focus) fcolorp(wg->wf, wg->cbc->bof);
+    /* a disabled widget does not show the focus ring; see button_draw */
+    if (wg->focus && wg->enb) fcolorp(wg->wf, wg->cbc->bof);
     else fcolorp(wg->wf, wg->cbc->bon);
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 20, 20);
     if (wg->enb) fcolorp(wg->wf, wg->cbc->btn);
@@ -1398,9 +1402,11 @@ static void button_draw(
     else fcolort(wg->wf, th_back);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf),
               ami_maxyg(wg->wf));
-    /* outline */
+    /* Outline. A disabled widget does not show the focus ring: it cannot be
+       operated, so advertising focus on it misleads (windows denies focus to
+       disabled widgets outright) */
     ami_linewidth(wg->wf, 4);
-    if (wg->focus) fcolort(wg->wf, th_focus);
+    if (wg->focus && wg->enb) fcolort(wg->wf, th_focus);
     else fcolort(wg->wf, th_outline1);
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1,
              ami_maxyg(wg->wf)-1, 20, 20);
