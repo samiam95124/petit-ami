@@ -1938,7 +1938,9 @@ long ami_certmsg(long fn, long which, string buff, long len)
 {
 
     X509* cert;
+    X509* peer;
     STACK_OF(X509)* certstk;
+    int ownstk;
     BIO* cb;
     int r;
 
@@ -1949,8 +1951,11 @@ long ami_certmsg(long fn, long which, string buff, long len)
     if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
 
     /* get the certificate */
-    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
-    if (!cert) error(enocert);
+    peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!peer) error(enocert);
+    cert = peer;
+    certstk = NULL;
+    ownstk = FALSE;
 
     /* see if we need to get the chain */
     if (which > 1) {
@@ -1964,6 +1969,7 @@ long ami_certmsg(long fn, long which, string buff, long len)
                and stuff the first certificate in it */
             certstk = sk_X509_new_null();
             sk_X509_push(certstk, cert);
+            ownstk = TRUE; /* we own this stack shell */
 
         }
         /* if the certificate number is out of range, return nothing */
@@ -1988,7 +1994,13 @@ long ami_certmsg(long fn, long which, string buff, long len)
         if (r < 0) error(erdbio);
         if (!BIO_eof(cb)) error(ecerttl);
 
+        BIO_free(cb); /* release the conversion BIO */
+
     }
+    /* release the chain shell if we made it, and our reference to the peer
+       certificate (chain members are internal references, not freed) */
+    if (ownstk) sk_X509_free(certstk);
+    X509_free(peer);
 
     /* the certificate buffer is a critical buffer: terminate the result
        only if it does not fill the entire buffer */
@@ -2256,9 +2268,15 @@ multiple lines. In that case, each subsequent line is indented by one or more
 spaces. For these values, the indentation is removed, and the entire value
 concatenated, with the \n line endings left intact.
 
+Content that has no key at all (as in extensions like the authority key
+identifier, whose entire body is "keyid:...", or key usage, which is plain
+text) is placed as the value of the orphan entry, normally the entry the
+list forks from. With no orphan entry given, keyless content is a parse
+error.
+
 */
 
-static void getnamval(char* buff, ami_certptr* list, int ident)
+static void getnamval(char* buff, ami_certptr* list, ami_certptr orphan)
 
 {
 
@@ -2267,10 +2285,10 @@ static void getnamval(char* buff, ami_certptr* list, int ident)
     char name[1024]; /* name */
     char* cp; /* output buffer pointer */
     ami_certptr cdp; /* current name/val being worked on */
-    int l;
 
-dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
-    cdp = NULL; /* clear list entry */
+//dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
+    cdp = orphan; /* start on the orphan entry, if given */
+    vbuff[0] = 0; /* terminate empty value */
     while (*buff) { /* loop over all lines in buffer */
 
         cp = lbuff; /* index output buffer */
@@ -2279,10 +2297,13 @@ dbg_printf(dlinfo, "getnamval: buff:\n%s\n", buff);
         fndkey(lbuff, name, &cp);
         if (name[0]) {
 
-dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
+//dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
             /* terminate any outstanding entry */
             remeol(vbuff); /* remove last \n, if exists */
-            if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
+            /* place gathered data as value; the orphan entry is only filled
+               if it actually gathered content */
+            if (cdp && (cdp != orphan || vbuff[0]))
+                filldata(cdp, vbuff);
             cdp = addend(list, name); /* create n/v entry */
             vbuff[0] = 0; /* terminate empty value */
             if (*cp && *cp != '\n')
@@ -2291,8 +2312,8 @@ dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
 
         } else { /* no key, concatenate to value */
 
-            /* does not begin with key, but there is no working key, then
-               something is wrong. */
+            /* does not begin with key, and there is no working entry and no
+               orphan entry to give the content to, then something is wrong */
             if (!cdp) error(ecertpar);
             strcat(vbuff, cp); /* concatenate to value */
 
@@ -2301,48 +2322,69 @@ dbg_printf(dlinfo, "getnamval: key found: %s\n", name);
     }
     /* terminate any outstanding entry */
     remeol(vbuff); /* remove last \n, if exists */
-    if (cdp) filldata(cdp, vbuff); /* place gathered data as value */
+    if (cdp && (cdp != orphan || vbuff[0]))
+        filldata(cdp, vbuff); /* place gathered data as value */
 
 }
 
-void ami_certlistnet(FILE *f, long which, ami_certptr* list)
+/*******************************************************************************
+
+Get message certificate data list
+
+Retrieves a list of data fields from the given file by number. The file
+must contain an open and active TLS or DTLS connection. The data list is a
+list of name - data pairs, both strings. The list can also have branches or
+forks, which make it able to contain complete trees. The certificate number
+is from 1 to N where N is the maximum certificate in the chain. Certificate 1
+is the certificate for the server connected. Certificate N is the CA or
+Certificate Authority's certificate, AKA the root certificate. If there is no
+certificate by that number, the resulting list is NULL.
+
+Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
+Thus the end of the certificate chain must be found by traversal.
+
+Note that the list is allocated by this routine, and the caller is
+responsible for freeing the list as necessary (see ami_certlistfree).
+
+Note that this routine retrieves the peer certificate, or other end of the
+line. Servers are required to provide certificates. Clients are not.
+
+*******************************************************************************/
+
+void ami_certlistmsg(long fn, long which, ami_certptr* list)
 
 {
 
     X509* cert;
+    X509* peer;
     STACK_OF(X509)* certstk;
+    int ownstk;
     BIO* bp;
     int r;
-    int fn;
     char* cp;
-    char* cp2;
     int v;
     ASN1_INTEGER* sn;
     BIGNUM* bn;
     int i, j, l;
     ASN1_TIME* atp;
     char buff[CVBUFSIZ];
-    char buff2[CVBUFSIZ];
     X509_EXTENSION* ep;
     ASN1_OBJECT* op;
-    ASN1_OCTET_STRING *sp;
-    BUF_MEM *bmp;
-    unsigned nid;
     X509_PUBKEY* kp;
     EVP_PKEY* ekp;
     const X509_ALGOR *sig_alg;
     const ASN1_BIT_STRING *sig;
+    const ASN1_OBJECT *sao;
+    const unsigned char* sd;
     /* branch placeholders */
     ami_certptr certificate;
     ami_certptr data;
     ami_certptr sigal;
     ami_certptr validity;
     ami_certptr extensions;
-    ami_certptr cdp, cdp2;
+    ami_certptr cdp;
 
-    error(eunimp);
-
-    fn = fileno(f); /* get fid */
+    *list = NULL; /* set no result */
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     if (which < 1) error(einvctn); /* invalid certificate number */
 
@@ -2350,8 +2392,11 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
     if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
 
     /* get the certificate */
-    cert = SSL_get_peer_certificate(opnfil[fn]->ssl);
-    if (!cert) error(enocert);
+    peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!peer) error(enocert);
+    cert = peer;
+    certstk = NULL;
+    ownstk = FALSE;
 
     /* see if we need to get the chain */
     if (which > 1) {
@@ -2365,6 +2410,7 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
                and stuff the first certificate in it */
             certstk = sk_X509_new_null();
             sk_X509_push(certstk, cert);
+            ownstk = TRUE; /* we own this stack shell */
 
         }
         /* if the certificate number is out of range, return nothing */
@@ -2449,7 +2495,7 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
         ekp = X509_get0_pubkey(cert);
         EVP_PKEY_print_public(bp, ekp, 0, NULL);
         getbio(bp, buff, CVBUFSIZ); /* place in buffer */
-        getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
+        getnamval(buff, &cdp->fork, cdp); /* parse n/v tree */
 
         extensions = addend(&data->fork, "X509v3 extensions");
         const STACK_OF(X509_EXTENSION)* esp = X509_get0_extensions(cert);
@@ -2470,63 +2516,95 @@ void ami_certlistnet(FILE *f, long which, ami_certptr* list)
             getbio(bp, buff, CVBUFSIZ);
 //dbg_printf(dlinfo, "Extension data: <start>\n%s\n<end>\n", buff);
             //filldata(cdp, buff);
-            getnamval(buff, &cdp->fork, 0); /* parse n/v tree */
+            getnamval(buff, &cdp->fork, cdp); /* parse n/v tree */
 
         }
 
-#if 0
-printf("Signature Algorithm <start>\n");
+        /* The outer (certificate level) signature. X509_signature_print()
+           formats these with indentation that fights the name/value parser,
+           so take the structure apart directly: X509_get0_signature() gives
+           the algorithm (an X509_ALGOR, whose object is extracted with
+           X509_ALGOR_get0) and the signature bit string (an ASN1_BIT_STRING,
+           read with ASN1_STRING_get0_data/ASN1_STRING_length) */
+        sigal = addend(&certificate->fork, "Signature Algorithm");
         X509_get0_signature(&sig, &sig_alg, cert);
-        X509_signature_print(bp, sig_alg, sig);
-//        getbio(bp, buff, CVBUFSIZ);
-        /* the key contained in the signature is indented. If we remove it, the
-           key will be conforming */
-//        cp = buff;
-//        while (isspace(*cp)) cp++;
-//         = addend(&certificate->fork, "Data"); /* make data branch */
-       prtbio(bp);
-       printf("\n");
-printf("Signature Algorithm before aux print\n");
+        X509_ALGOR_get0(&sao, NULL, NULL, sig_alg);
+        i = OBJ_obj2nid(sao);
+        if (i != NID_undef) filldata(sigal, (char*)OBJ_nid2ln(i));
+        else { /* not a known algorithm, give the raw object id */
 
-        X509_aux_print(bp, cert, 0);
-        prtbio(bp);
-        printf("\n");
-printf("Signature Algorithm <end>\n");
-#endif
+            i2a_ASN1_OBJECT(bp, (ASN1_OBJECT*)sao);
+            getbio(bp, buff, CVBUFSIZ);
+            filldata(sigal, buff);
+
+        }
+
+        cdp = addend(&certificate->fork, "Signature Value");
+        sd = ASN1_STRING_get0_data(sig);
+        l = ASN1_STRING_length(sig);
+        /* format as colon separated hex, as openssl prints it */
+        if (l > (CVBUFSIZ-1)/3) l = (CVBUFSIZ-1)/3; /* clamp to buffer */
+        j = 0;
+        for (i = 0; i < l; i++) {
+
+            j += sprintf(&buff[j], "%02x", sd[i]);
+            if (i < l-1) buff[j++] = ':';
+
+        }
+        buff[j] = 0;
+        filldata(cdp, buff);
+
+        BIO_free(bp); /* release the conversion BIO */
 
     }
+    /* release the chain shell if we made it, and our reference to the peer
+       certificate (chain members are internal references, not freed) */
+    if (ownstk) sk_X509_free(certstk);
+    X509_free(peer);
 
 }
 
 /*******************************************************************************
 
-Get message certificate data list
+Get network certificate data list
 
-Retrieves a list of data fields from the given file by number. The file
-must contain an open and active DTLS connection. The data list is a list of
-name - data pairs, both strings. The list can also have branches or forks, which
-make it able to contain complete trees. The certificate number is from 1 to N
-where N is the maximum certificate in the chain. Certificate 1 is the
-certificate for the server connected. Certificate N is the CA or Certificate
-Authority's certificate, AKA the root certificate. If there is no certificate
-by that number, the resulting list is NULL.
-
-Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
-Thus the end of the certificate chain must be found by traversal.
-
-Note that the list is allocated by this routine, and the caller is responsible
-for freeing the list as necessary.
-
-Note that this routine retrieves the peer certificate, or other end of the
-line. Servers are required to provide certificates. Clients are not.
+Retrieves a list of data fields from the given file by number. The file must
+contain an open and active TLS connection. See the notes for
+ami_certlistmsg, which this routine wraps.
 
 *******************************************************************************/
 
-void ami_certlistmsg(long fn, long which, ami_certptr* list)
+void ami_certlistnet(FILE *f, long which, ami_certptr* list)
 
 {
 
-    error(eunimp);
+    ami_certlistmsg(fileno(f), which, list); /* execute with fid */
+
+}
+
+/*******************************************************************************
+
+Free certificate data list
+
+Frees a certificate data list as returned by ami_certlistnet or
+ami_certlistmsg, including all branches and strings. The list pointer is set
+to NULL.
+
+*******************************************************************************/
+
+void ami_certlistfree(ami_certptr* list)
+
+{
+
+    ami_certptr p;
+
+    while (*list) { /* traverse the top level list */
+
+        p = *list; /* top entry from list */
+        *list = p->next;
+        putcert(p); /* free entry and its tree */
+
+    }
 
 }
 

@@ -19,10 +19,9 @@
 * 5. Messages secured (DTLS): the same exchange with secure on.               *
 * 6. maxmsg/relymsg: sanity of the message limits for the loopback address.   *
 * 7. certnet: the raw certificate of the secure server is retrievable and     *
-*    non-empty (the prtcertnet test automated against our own server).        *
-*                                                                              *
-* The decoded certificate list (certlistnet) is not tested: per the note in   *
-* network_test.txt, that decode path is not completely working yet.           *
+*    non-empty (the prtcertnet test automated against our own server), the    *
+*    decoded certificate list (certlistnet) parses with the certificate       *
+*    level signature value present, and certlistfree clears the list.         *
 *                                                                              *
 * Run from the petit-ami/amitk root so the TLS test certificates              *
 * (client_tls_cert.pem and friends) are found in the current directory.      *
@@ -284,6 +283,9 @@ static void tcert(void)
     char  cert[10000];
     char  buff[BUFLEN];
     long  r;
+    ami_certptr list;
+    ami_certptr cp;
+    int   found;
 
     startsrv(tcpserver, PORT_CERT, TRUE);
     ami_addrnet("localhost", &addr);
@@ -293,6 +295,21 @@ static void tcert(void)
     memset(cert, 0, sizeof(cert));
     r = ami_certnet(f, 1, cert, sizeof(cert));
     result("certnet raw certificate", strlen(cert) > 0);
+
+    /* decoded certificate list: the root is "Certificate" with a data fork,
+       and the certificate level signature value is present and non-empty */
+    list = NULL;
+    ami_certlistnet(f, 1, &list);
+    result("certlistnet decodes", list && list->name &&
+           !strcmp(list->name, "Certificate") && list->fork);
+    found = 0;
+    if (list && list->fork)
+        for (cp = list->fork; cp; cp = cp->next)
+            if (cp->name && !strcmp(cp->name, "Signature Value") &&
+                cp->data && cp->data[0]) found = 1;
+    result("certlist signature value", found);
+    ami_certlistfree(&list);
+    result("certlistfree clears list", list == NULL);
 
     /* complete the exchange so the server exits; the response content is
        not checked here, only consumed */

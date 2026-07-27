@@ -8,5 +8,8 @@ message exchange secured (DTLS)          pass
 maxmsg sane                              pass
 relymsg sane                             pass
 certnet raw certificate                  pass
+certlistnet decodes                      pass
+certlist signature value                 pass
+certlistfree clears list                 pass
 
-Network test complete: 8 passes, 0 fails
+Network test complete: 11 passes, 0 fails
