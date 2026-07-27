@@ -1384,7 +1384,10 @@ void ami_exec(
 
 Execute program with wait
 
-Executes a program by name. Waits for the program to complete.
+Executes a program by name. Waits for the program to complete. The returned
+error is 0 for success, the program exit code for a normal exit, or
+128+signal if the program was terminated by a signal (shell convention), so
+an abnormal termination is always nonzero.
 
 ********************************************************************************/
 
@@ -1430,7 +1433,11 @@ void ami_execw(
         int ws; /* wait status (system type) */
 
         waitpid(pid, &ws, 0);
-        *err = WEXITSTATUS(ws);
+        /* WEXITSTATUS is only valid after a normal exit; a signal death
+           leaves the exit code byte 0, which would read as success */
+        if (WIFEXITED(ws)) *err = WEXITSTATUS(ws);
+        else if (WIFSIGNALED(ws)) *err = 128+WTERMSIG(ws);
+        else *err = 128;
 
     }
 
@@ -1490,7 +1497,9 @@ void ami_exece(
 Execute program with environment and wait
 
 Executes a program by name. Waits for the program to complete. Supplies the
-program environment.
+program environment. The returned error is 0 for success, the program exit
+code for a normal exit, or 128+signal if the program was terminated by a
+signal (shell convention), so an abnormal termination is always nonzero.
 
 ********************************************************************************/
 
@@ -1535,7 +1544,11 @@ void ami_execew(
         int ws; /* wait status (system type) */
 
         waitpid(pid, &ws, 0);
-        *err = ws;
+        /* decode the status word the same way as ami_execw: the raw word
+           would report a normal exit(1) as 256 */
+        if (WIFEXITED(ws)) *err = WEXITSTATUS(ws);
+        else if (WIFSIGNALED(ws)) *err = 128+WTERMSIG(ws);
+        else *err = 128;
 
     }
 
