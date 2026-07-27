@@ -1870,7 +1870,9 @@ void ami_clsmsg(long fn)
     /* check is a message file */
     if (!opnfil[fn] || !opnfil[fn]->msg) error(enotmsg);
 
-    /* if DTLS, free the ssl struct (frees the attached BIO as well) */
+    /* If DTLS, send the close notify while the socket is still open, then
+       free the ssl struct (frees the attached BIO as well) */
+    if (opnfil[fn]->sudp) SSL_shutdown(opnfil[fn]->ssl);
     if (opnfil[fn]->sudp) SSL_free(opnfil[fn]->ssl);
     opnfil[fn]->ssl = NULL;
     opnfil[fn]->bio = NULL;
@@ -2729,6 +2731,8 @@ static int iclose(int fd)
     if (fd >= 0 && fd < MAXFIL && opnfil[fd] && opnfil[fd]->net) {
 
         fp = opnfil[fd]; /* index that */
+        /* send the close notify while the socket is still open */
+        if (fp->ssl) SSL_shutdown(fp->ssl);
         if (fp->ssl) SSL_free(fp->ssl); /* free the ssl */
         fp->ssl = NULL;
         fp->bio = NULL; /* freed with the ssl */
@@ -2981,6 +2985,8 @@ static void ami_deinit_network()
         for (fi = 0; fi < MAXFIL; fi++)
             if (opnfil[fi] && opnfil[fi]->net) {
 
+                /* politely notify any live peer before the free */
+                if (opnfil[fi]->ssl) SSL_shutdown(opnfil[fi]->ssl);
                 if (opnfil[fi]->ssl) SSL_free(opnfil[fi]->ssl);
                 if (opnfil[fi]->cert) X509_free(opnfil[fi]->cert);
                 if (opnfil[fi]->sock != INVALID_SOCKET)

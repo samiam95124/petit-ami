@@ -886,14 +886,14 @@ void ami_addrnet(string name, unsigned long* addr)
 
 {
 
-    struct addrinfo *p;
+    struct addrinfo *pl, *p;
     int r;
     int af;
 
     af = FALSE; /* set address not found */
-    r = getaddrinfo(name, NULL, NULL, &p);
+    r = getaddrinfo(name, NULL, NULL, &pl);
     if (r) netwrterr(gai_strerror(r));
-    while (p) {
+    for (p = pl; p; p = p->ai_next) {
 
         /* traverse the available addresses */
         if (p->ai_family == AF_INET && p->ai_socktype == SOCK_STREAM) {
@@ -904,9 +904,9 @@ void ami_addrnet(string name, unsigned long* addr)
             af = TRUE; /* set an address found */
 
         }
-        p = p->ai_next;
 
     }
+    freeaddrinfo(pl); /* release the address list */
     if (!af) error(enetadr); /* no address found */
 
 }
@@ -989,15 +989,15 @@ void ami_addrnetv6(string name, unsigned long long* addrh,
 
 {
 
-    struct addrinfo *p;
+    struct addrinfo *pl, *p;
     int r;
     int af;
     struct sockaddr_in6* sap;
 
     af = FALSE; /* set address not found */
-    r = getaddrinfo(name, NULL, NULL, &p);
+    r = getaddrinfo(name, NULL, NULL, &pl);
     if (r) netwrterr(gai_strerror(r));
-    while (p) {
+    for (p = pl; p; p = p->ai_next) {
 
         /* traverse the available addresses */
         if (p->ai_family == AF_INET6 && p->ai_socktype == SOCK_STREAM) {
@@ -1008,9 +1008,9 @@ void ami_addrnetv6(string name, unsigned long long* addrh,
             af = TRUE; /* set an address found */
 
         }
-        p = p->ai_next;
 
     }
+    freeaddrinfo(pl); /* release the address list */
     if (!af) error(enetadr); /* no address found */
 
 }
@@ -1239,7 +1239,9 @@ long ami_openmsg(
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
         /* Create BIO, connect and set to already connected */
-        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
+        /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
+           close the fd a second time when SSL_free releases the BIO */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
         if (r) linuxerror();
 
@@ -1330,7 +1332,9 @@ long ami_openmsgv6(
         if (!opnfil[fn]->ssl) sslerrorqueue();
 
         /* Create BIO, connect and set to already connected */
-        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_CLOSE);
+        /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
+           close the fd a second time when SSL_free releases the BIO */
+        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
@@ -1775,6 +1779,9 @@ void ami_clsmsg(long fn)
 
     /* check is a message file */
     if (!opnfil[fn]->msg) error(enotmsg);
+
+    /* if DTLS, send the close notify while the socket is still open */
+    if (opnfil[fn]->sudp) SSL_shutdown(opnfil[fn]->ssl);
 
     close((int)fn); /* close the socket */
 
@@ -2740,6 +2747,8 @@ static int ivclose(pclose_t closedc, int fd)
         pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
         if (fr.sec) {
 
+            /* send the close notify while the shadow socket is still open */
+            if (fr.ssl) SSL_shutdown(fr.ssl);
             if (fr.ssl) SSL_free(fr.ssl); /* free the ssl */
             if (fr.cert) X509_free(fr.cert); /* free certificate */
             (*closedc)(fr.sfn); /* close the shadow as well */
@@ -3086,6 +3095,8 @@ static void ami_deinit_network()
 
         pthread_mutex_destroy(&opnfil[fi]->lock);
         if (opnfil[fi]->opn) close(fi);
+        /* politely notify any live peer before the free */
+        if (opnfil[fi]->ssl) SSL_shutdown(opnfil[fi]->ssl);
         if (opnfil[fi]->ssl) SSL_free(opnfil[fi]->ssl);
         if (opnfil[fi]->cert) X509_free(opnfil[fi]->cert);
         free(opnfil[fi]);
