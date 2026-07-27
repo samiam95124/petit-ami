@@ -12308,7 +12308,10 @@ void ami_killwidget(FILE* f, long id)
 
 Select/deselect widget
 
-Selects or deselects a widget.
+Selects or deselects a widget. Any widget accepts the select state. Buttons
+render it as a persistent pressed in look, checkboxes and radio buttons as
+their check figure; widget kinds with no select rendering accept the call
+without effect.
 
 *******************************************************************************/
 
@@ -12317,16 +12320,35 @@ static void iselectwidget(winptr win, long id, long e)
 {
 
     wigptr wp;  /* widget entry */
-    int    r; /* return value */
+    int    r;   /* return value */
+    LONG   fl;  /* window style */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
     wp = fndwig(win, id); /* find widget */
     if (!wp) error(ewignf); /* not found */
-    /* check this widget is selectable */
-    if (wp->typ != wtcheckbox && wp->typ != wtradiobutton) error(ewigsel);
-    unlockmain(); /* end exclusive access */
-    r = SendMessage(wp->han, BM_SETCHECK, e, 0);
-    lockmain();/* start exclusive access */
+    if (wp->typ == wtbutton) {
+
+        /* A plain push button has no persistent select rendering. Restyle
+           it as a pushlike checkbox, which looks the same but holds a
+           pressed in look while checked. The check state is program
+           controlled, so clicks still just send button events */
+        unlockmain(); /* end exclusive access */
+        fl = GetWindowLong(wp->han, GWL_STYLE);
+        if (!(fl & BS_PUSHLIKE))
+            SetWindowLong(wp->han, GWL_STYLE,
+                          (fl & ~(LONG)0xf) | BS_CHECKBOX | BS_PUSHLIKE);
+        r = SendMessage(wp->han, BM_SETCHECK, !!e, 0);
+        lockmain();/* start exclusive access */
+
+    } else if (wp->typ == wtcheckbox || wp->typ == wtradiobutton) {
+
+        unlockmain(); /* end exclusive access */
+        r = SendMessage(wp->han, BM_SETCHECK, !!e, 0);
+        lockmain();/* start exclusive access */
+
+    }
+    /* other widget kinds have no select rendering; the call is accepted
+       without effect */
 
 }
 
