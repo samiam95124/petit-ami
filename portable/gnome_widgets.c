@@ -127,6 +127,7 @@ static enum { /* debug levels */
  */
 #define TD_BACKPRESSED        BW(211)             /* button background pressed */
 #define TD_BACK               BW(252)             /* button background not pressed */
+#define TD_BACKHOVER          BW(230)             /* button background for hover */
 #define TD_OUTLINE1           BW(196)             /* button outline */
 #define TD_TEXT               BW(61)              /* widget face text */
 #define TD_TEXTDIS            BW(191)             /* widget face text disabled */
@@ -232,6 +233,7 @@ typedef enum {
 
     th_backpressed,        /* button background when pressed */
     th_back,               /* button background when not pressed */
+    th_backhover,          /* button background when hovered */
     th_outline1,           /* button outline */
     th_text,               /* button face text enabled */
     th_textdis,            /* button face text disabled */
@@ -1389,8 +1391,10 @@ static void button_draw(
 {
 
     /* color the background; a selected button keeps the pressed in look,
-       giving a persistent active state for modal buttons */
+       giving a persistent active state for modal buttons, and a hovered
+       button lights up */
     if (wg->pressed || wg->select) fcolort(wg->wf, th_backpressed);
+    else if (wg->hover && wg->enb) fcolort(wg->wf, th_backhover);
     else fcolort(wg->wf, th_back);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf),
               ami_maxyg(wg->wf));
@@ -1455,6 +1459,16 @@ static void button_event(
     } else if (ev->etype == ami_etnofocus) {
 
         wg->focus = 0; /* out of focus */
+        button_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == ami_ethover) {
+
+        wg->hover = 1; /* hovered, light up */
+        button_draw(wg); /* redraw the window */
+
+    } else if (ev->etype == ami_etnohover) {
+
+        wg->hover = 0; /* not hovered */
         button_draw(wg); /* redraw the window */
 
     }
@@ -8124,6 +8138,7 @@ static void init_widgets()
     /* fill out the theme table defaults */
     themetable[th_backpressed]        = TD_BACKPRESSED;
     themetable[th_back]               = TD_BACK;
+    themetable[th_backhover]          = TD_BACKHOVER;
     themetable[th_outline1]           = TD_OUTLINE1;
     themetable[th_text]               = TD_TEXT;
     themetable[th_textdis]            = TD_TEXTDIS;
