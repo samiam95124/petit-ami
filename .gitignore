@@ -1,0 +1,3 @@
+# regression run products (bin/regress); the golden .cmp files are tracked
+tests/*.lst
+tests/*.dif
