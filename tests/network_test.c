@@ -76,6 +76,15 @@ static void result(const char* name, int pass)
 
 }
 
+/* print a section banner: what is under test */
+static void section(const char* title)
+
+{
+
+    printf("\n----- %s -----\n\n", title);
+
+}
+
 /*******************************************************************************
 
 Loopback servers
@@ -238,7 +247,14 @@ static void taddrnet(void)
 
     addr = 0;
     ami_addrnet("localhost", &addr);
-    result("addrnet localhost", addr == 0x7f000001ul);
+    result("addrnet localhost (hosts file)", addr == 0x7f000001ul);
+    printf("    localhost -> %lu.%lu.%lu.%lu\n", addr>>24 & 0xff,
+           addr>>16 & 0xff, addr>>8 & 0xff, addr & 0xff);
+    addr = 0;
+    ami_addrnet("127.0.0.1", &addr);
+    result("addrnet numeric literal", addr == 0x7f000001ul);
+    printf("    \"127.0.0.1\" -> %lu.%lu.%lu.%lu\n", addr>>24 & 0xff,
+           addr>>16 & 0xff, addr>>8 & 0xff, addr & 0xff);
 
 }
 
@@ -252,7 +268,8 @@ static void taddrnetv6(void)
     addrh = 1;
     addrl = 0;
     ami_addrnetv6("::1", &addrh, &addrl);
-    result("addrnetv6 loopback", addrh == 0 && addrl == 1);
+    result("addrnetv6 numeric loopback", addrh == 0 && addrl == 1);
+    printf("    \"::1\" -> %llx:%llx (high:low 64 bit halves)\n", addrh, addrl);
 
 }
 
@@ -272,11 +289,15 @@ static void taddrdns(void)
     ami_addrnet("google.com", &addr);
     result("addrnet live DNS (google.com)",
            addr != 0 && addr != 0x7f000001ul);
+    printf("    google.com A    -> %lu.%lu.%lu.%lu\n", addr>>24 & 0xff,
+           addr>>16 & 0xff, addr>>8 & 0xff, addr & 0xff);
     addrh = 0;
     addrl = 0;
     ami_addrnetv6("google.com", &addrh, &addrl);
     result("addrnetv6 live DNS (google.com)",
            (addrh != 0 || addrl != 0) && !(addrh == 0 && addrl == 1));
+    printf("    google.com AAAA -> %llx:%llx (high:low 64 bit halves)\n",
+           addrh, addrl);
 
 }
 
@@ -302,6 +323,8 @@ static void ttcp(const char* name, int port, int secure)
     clientdone();
     finish();
     result(name, pass);
+    printf("    sent \"Hello, server\", received \"Hello, client\" over %s\n",
+           secure ? "TLS" : "TCP in the clear");
 
 }
 
@@ -327,6 +350,8 @@ static void ttcpv6(const char* name, int port, int secure)
     clientdone();
     finish();
     result(name, pass);
+    printf("    sent \"Hello, server\", received \"Hello, client\" over %s\n",
+           secure ? "TLS on IPv6" : "TCP in the clear on IPv6");
 
 }
 
@@ -361,12 +386,16 @@ static void tmsg(const char* name, int port, int secure)
         memset(cert, 0, sizeof(cert));
         r = ami_certmsg(fn, 1, cert, sizeof(cert));
         result("certmsg raw certificate (DTLS)", strlen(cert) > 0);
+        printf("    DTLS server certificate PEM: %ld bytes\n", r);
         list = NULL;
         ami_certlistmsg(fn, 1, &list);
         cp = fndnode(list, "Signature Value");
         result("certlistmsg decodes (DTLS)", list && list->name &&
                !strcmp(list->name, "Certificate") &&
                cp && cp->data && cp->data[0]);
+        cp = fndnode(list, "Subject");
+        printf("    DTLS certificate subject: %s\n",
+               cp && cp->data ? cp->data : "<none>");
         ami_certlistfree(&list);
         result("certlistfree clears list (DTLS)", list == NULL);
 
@@ -375,6 +404,8 @@ static void tmsg(const char* name, int port, int secure)
     ami_clsmsg(fn);
     finish();
     result(name, pass);
+    printf("    sent 13 byte message, received %ld byte reply over %s\n",
+           len, secure ? "DTLS" : "UDP in the clear");
 
 }
 
@@ -399,6 +430,8 @@ static void tmsgv6(const char* name, int port, int secure)
     ami_clsmsg(fn);
     finish();
     result(name, pass);
+    printf("    sent 13 byte message, received %ld byte reply over %s\n",
+           len, secure ? "DTLS on IPv6" : "UDP in the clear on IPv6");
 
 }
 
@@ -414,8 +447,10 @@ static void tmsglim(void)
     ami_addrnet("localhost", &addr);
     max = ami_maxmsg(addr);
     result("maxmsg sane", max > 0);
+    printf("    maximum message for loopback: %ld bytes\n", max);
     rely = ami_relymsg(addr);
     result("relymsg sane", rely == 0 || rely == 1);
+    printf("    loopback delivery reliable: %s\n", rely ? "yes" : "no");
 
 }
 
@@ -431,8 +466,10 @@ static void tmsglimv6(void)
     ami_addrnetv6("::1", &addrh, &addrl);
     max = ami_maxmsgv6(addrh, addrl);
     result("maxmsgv6 sane", max > 0);
+    printf("    maximum message for v6 loopback: %ld bytes\n", max);
     rely = ami_relymsgv6(addrh, addrl);
     result("relymsgv6 sane", rely == 0 || rely == 1);
+    printf("    v6 loopback delivery reliable: %s\n", rely ? "yes" : "no");
 
 }
 
@@ -458,6 +495,7 @@ static void tcert(void)
     memset(cert, 0, sizeof(cert));
     r = ami_certnet(f, 1, cert, sizeof(cert));
     result("certnet raw certificate", strlen(cert) > 0);
+    printf("    TLS server certificate PEM: %ld bytes\n", r);
 
     /* decoded certificate list: the root is "Certificate" with a data fork,
        and the certificate level signature value is present and non-empty */
@@ -471,10 +509,18 @@ static void tcert(void)
             if (cp->name && !strcmp(cp->name, "Signature Value") &&
                 cp->data && cp->data[0]) found = 1;
     result("certlist signature value", found);
+    cp = fndnode(list, "Subject");
+    printf("    certificate 1 subject: %s\n",
+           cp && cp->data ? cp->data : "<none>");
+    cp = fndnode(list, "Signature Algorithm");
+    printf("    certificate 1 signature algorithm: %s\n",
+           cp && cp->data ? cp->data : "<none>");
     /* the leaf is issued by our test CA */
     cp = fndnode(list, "Issuer");
     result("certlist leaf issuer is test CA",
            cp && cp->data && strstr(cp->data, "Petit Ami Test CA") != NULL);
+    printf("    certificate 1 issuer: %s\n",
+           cp && cp->data ? cp->data : "<none>");
     ami_certlistfree(&list);
     result("certlistfree clears list", list == NULL);
 
@@ -487,6 +533,8 @@ static void tcert(void)
     cp = fndnode(list, "Subject");
     result("certlistnet chain CA decodes",
            cp && cp->data && strstr(cp->data, "Petit Ami Test CA") != NULL);
+    printf("    certificate 2 subject: %s\n",
+           cp && cp->data ? cp->data : "<none>");
     /* the CA carries a critical basic constraints CA:TRUE; checks the
        critical flag propagates through the decode */
     cp = fndnode(list, "X509v3 Basic Constraints");
@@ -524,19 +572,27 @@ int main(int argc, char **argv)
     lockid = ami_initlock();
     sigid = ami_initsig();
 
+    section("Name resolution: addrnet (IPv4), addrnetv6 (IPv6)");
     taddrnet();
     taddrnetv6();
+    section("Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), "
+            "clear and TLS");
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);
     ttcp("TCP exchange secured (TLS)", PORT_TLS, TRUE);
     ttcpv6("TCP exchange in the clear (IPv6)", PORT_TCP6, FALSE);
     ttcpv6("TCP exchange secured (TLS, IPv6)", PORT_TLS6, TRUE);
+    section("Messages: openmsg/waitmsg/wrmsg/rdmsg/clsmsg (IPv4), openmsgv6 "
+            "(IPv6), clear and DTLS; certmsg/certlistmsg on the DTLS run");
     tmsg("message exchange in the clear", PORT_MSG, FALSE);
     tmsg("message exchange secured (DTLS)", PORT_DTLS, TRUE);
     tmsgv6("message exchange in the clear (IPv6)", PORT_MSG6, FALSE);
     tmsgv6("message exchange secured (DTLS, IPv6)", PORT_DTLS6, TRUE);
+    section("Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6)");
     tmsglim();
     tmsglimv6();
+    section("Certificates: certnet/certlistnet/certlistfree, two deep chain");
     tcert();
+    section("Live DNS: addrnet/addrnetv6 against google.com");
     taddrdns(); /* last: needs live name service */
 
     printf("\n");

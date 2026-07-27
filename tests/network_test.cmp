@@ -1,33 +1,76 @@
 Network test vs. 0.1
 
-addrnet localhost                        pass
-addrnetv6 loopback                       pass
+
+----- Name resolution: addrnet (IPv4), addrnetv6 (IPv6) -----
+
+addrnet localhost (hosts file)           pass
+    localhost -> 127.0.0.1
+addrnet numeric literal                  pass
+    "127.0.0.1" -> 127.0.0.1
+addrnetv6 numeric loopback               pass
+    "::1" -> 0:1 (high:low 64 bit halves)
+
+----- Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), clear and TLS -----
+
 TCP exchange in the clear                pass
+    sent "Hello, server", received "Hello, client" over TCP in the clear
 TCP exchange secured (TLS)               pass
+    sent "Hello, server", received "Hello, client" over TLS
 TCP exchange in the clear (IPv6)         pass
+    sent "Hello, server", received "Hello, client" over TCP in the clear on IPv6
 TCP exchange secured (TLS, IPv6)         pass
+    sent "Hello, server", received "Hello, client" over TLS on IPv6
+
+----- Messages: openmsg/waitmsg/wrmsg/rdmsg/clsmsg (IPv4), openmsgv6 (IPv6), clear and DTLS; certmsg/certlistmsg on the DTLS run -----
+
 message exchange in the clear            pass
+    sent 13 byte message, received 13 byte reply over UDP in the clear
 certmsg raw certificate (DTLS)           pass
+    DTLS server certificate PEM: 1448 bytes
 certlistmsg decodes (DTLS)               pass
+    DTLS certificate subject: C=US, ST=California, L=San Jose, O=none, OU=none, CN=Scott Franco/emailAddress=samiam@moorecad.com
 certlistfree clears list (DTLS)          pass
 message exchange secured (DTLS)          pass
+    sent 13 byte message, received 13 byte reply over DTLS
 message exchange in the clear (IPv6)     pass
+    sent 13 byte message, received 13 byte reply over UDP in the clear on IPv6
 message exchange secured (DTLS, IPv6)    pass
+    sent 13 byte message, received 13 byte reply over DTLS on IPv6
+
+----- Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6) -----
+
 maxmsg sane                              pass
+    maximum message for loopback: 65535 bytes
 relymsg sane                             pass
+    loopback delivery reliable: yes
 maxmsgv6 sane                            pass
+    maximum message for v6 loopback: 65536 bytes
 relymsgv6 sane                           pass
+    v6 loopback delivery reliable: yes
+
+----- Certificates: certnet/certlistnet/certlistfree, two deep chain -----
+
 certnet raw certificate                  pass
+    TLS server certificate PEM: 700 bytes
 certlistnet decodes                      pass
 certlist signature value                 pass
+    certificate 1 subject: C=US, O=Petit Ami, CN=localhost
+    certificate 1 signature algorithm: ecdsa-with-SHA256
 certlist leaf issuer is test CA          pass
+    certificate 1 issuer: C=US, O=Petit Ami, CN=Petit Ami Test CA
 certlistfree clears list                 pass
 certnet chain CA raw                     pass
 certlistnet chain CA decodes             pass
+    certificate 2 subject: C=US, O=Petit Ami, CN=Petit Ami Test CA
 certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
-addrnet live DNS (google.com)            pass
-addrnetv6 live DNS (google.com)          pass
 
-Network test complete: 29 passes, 0 fails
+----- Live DNS: addrnet/addrnetv6 against google.com -----
+
+addrnet live DNS (google.com)            pass
+    google.com A    -> *
+addrnetv6 live DNS (google.com)          pass
+    google.com AAAA -> *
+
+Network test complete: 30 passes, 0 fails
