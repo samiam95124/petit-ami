@@ -2083,8 +2083,23 @@ static void joyevt(ami_evtrec* er, joyptr jp)
 
 #if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */
     struct js_event ev;
+    ssize_t rl;
 
-    read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
+    if (jp->fid < 0) return; /* joystick already disconnected */
+    rl = read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
+    if (rl != sizeof(ev)) {
+
+        /* The joystick was disconnected: an end of file input is permanently
+           ready, so stop monitoring it or the event loop would spin. The
+           joystick keeps its logical number, but delivers no further events
+           or positions */
+        system_event_deaseinp(jp->sid);
+        close(jp->fid);
+        jp->fid = -1;
+
+        return;
+
+    }
     if (!(ev.type & JS_EVENT_INIT)) {
 
         if (ev.type & JS_EVENT_BUTTON) {
