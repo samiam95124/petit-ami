@@ -276,6 +276,18 @@ static void error(const char* s)
     exit(1);
 }
 
+/* Copy string to critical output buffer. Output buffers follow the critical
+   buffer convention: a result that fills the entire buffer is not zero
+   terminated, a shorter result is zero terminated, and it is an error if the
+   result cannot fit. */
+static void cpycrit(char* d, long dl, const char* s)
+{
+    long l = (long)strlen(s); /* find length of source */
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
+}
+
 /*******************************************************************************
 *                                                                              *
 *                          Time helpers                                         *
@@ -739,32 +751,32 @@ long ami_synthin(void)   { return synthin_num; }
 long ami_waveout(void)   { return waveout_num; }
 long ami_wavein(void)    { return wavein_num; }
 
+/* Device names are returned by the critical buffer convention: a result that
+   fills the entire buffer is not zero terminated, a shorter result is zero
+   terminated, and it is an error if the result cannot fit. */
+
 void ami_synthoutname(long p, string name, long len)
 {
-    if (p < 1 || p > synthout_num) { if (len > 0) name[0] = 0; return; }
-    strncpy(name, synthout_tab[p - 1].name, len);
-    if (len > 0) name[len - 1] = 0;
+    if (p < 1 || p > synthout_num) { cpycrit(name, len, ""); return; }
+    cpycrit(name, len, synthout_tab[p - 1].name);
 }
 
 void ami_synthinname(long p, string name, long len)
 {
-    if (p < 1 || p > synthin_num) { if (len > 0) name[0] = 0; return; }
-    strncpy(name, synthin_tab[p - 1].name, len);
-    if (len > 0) name[len - 1] = 0;
+    if (p < 1 || p > synthin_num) { cpycrit(name, len, ""); return; }
+    cpycrit(name, len, synthin_tab[p - 1].name);
 }
 
 void ami_waveoutname(long p, string name, long len)
 {
-    if (p < 1 || p > waveout_num) { if (len > 0) name[0] = 0; return; }
-    strncpy(name, waveout_tab[p - 1].name, len);
-    if (len > 0) name[len - 1] = 0;
+    if (p < 1 || p > waveout_num) { cpycrit(name, len, ""); return; }
+    cpycrit(name, len, waveout_tab[p - 1].name);
 }
 
 void ami_waveinname(long p, string name, long len)
 {
-    if (p < 1 || p > wavein_num) { if (len > 0) name[0] = 0; return; }
-    strncpy(name, wavein_tab[p - 1].name, len);
-    if (len > 0) name[len - 1] = 0;
+    if (p < 1 || p > wavein_num) { cpycrit(name, len, ""); return; }
+    cpycrit(name, len, wavein_tab[p - 1].name);
 }
 
 /*******************************************************************************
@@ -1690,36 +1702,40 @@ long ami_rdwave(long p, byte* buff, long len)
 *                                                                              *
 *******************************************************************************/
 
+/* Parameter values are returned by the critical buffer convention: a result
+   that fills the entire buffer is not zero terminated, a shorter result is
+   zero terminated, and it is an error if the result cannot fit. */
+
 void ami_getparamsynthout(long p, string name, string value, long len)
 {
-    if (p < 1 || p > synthout_num) { if (len > 0) value[0] = 0; return; }
+    if (p < 1 || p > synthout_num) { cpycrit(value, len, ""); return; }
     synthoutdev* d = &synthout_tab[p - 1];
     if (d->getparam) { d->getparam(p, name, value, len); return; }
-    if (len > 0) value[0] = 0;
+    cpycrit(value, len, "");
 }
 
 void ami_getparamsynthin(long p, string name, string value, long len)
 {
-    if (p < 1 || p > synthin_num) { if (len > 0) value[0] = 0; return; }
+    if (p < 1 || p > synthin_num) { cpycrit(value, len, ""); return; }
     synthindev* d = &synthin_tab[p - 1];
     if (d->getparam) { d->getparam(p, name, value, len); return; }
-    if (len > 0) value[0] = 0;
+    cpycrit(value, len, "");
 }
 
 void ami_getparamwaveout(long p, string name, string value, long len)
 {
-    if (p < 1 || p > waveout_num) { if (len > 0) value[0] = 0; return; }
+    if (p < 1 || p > waveout_num) { cpycrit(value, len, ""); return; }
     waveoutdev* d = &waveout_tab[p - 1];
     if (d->getparam) { d->getparam(p, name, value, len); return; }
-    if (len > 0) value[0] = 0;
+    cpycrit(value, len, "");
 }
 
 void ami_getparamwavein(long p, string name, string value, long len)
 {
-    if (p < 1 || p > wavein_num) { if (len > 0) value[0] = 0; return; }
+    if (p < 1 || p > wavein_num) { cpycrit(value, len, ""); return; }
     waveindev* d = &wavein_tab[p - 1];
     if (d->getparam) { d->getparam(p, name, value, len); return; }
-    if (len > 0) value[0] = 0;
+    cpycrit(value, len, "");
 }
 
 long ami_setparamsynthout(long p, string name, string value)

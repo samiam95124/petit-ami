@@ -454,6 +454,30 @@ static void error(string s)
 
 /*******************************************************************************
 
+Copy string to critical output buffer
+
+Copies the given source string to a caller supplied output buffer. Output
+buffers follow the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l;
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
+
+}
+
+/*******************************************************************************
+
 String compare unsigned to signed char with length
 
 This is the same as whitebook strncmp, but takes the first argument unsigned.
@@ -2091,6 +2115,9 @@ static long setalsaparam(long p, string name, string value)
 ALSA get parameter
 
 ALSA has no get parameter function, so this always returns an empty string.
+The value buffer follows the critical buffer convention: a result that fills
+the entire buffer is not zero terminated, a shorter result is zero terminated,
+and it is an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -2098,7 +2125,7 @@ static void getalsaparam(long p, string name, string value, long len)
 
 {
 
-    *value = 0;
+    cpycrit(value, len, ""); /* return empty string */
 
 }
 
@@ -5546,13 +5573,16 @@ long ami_rdwave(long p, byte* buff, long len)
 
 Replace \n with '-' in string
 
+The string is given by buffer and length, since critical output buffers are
+not necessarily zero terminated.
+
 *******************************************************************************/
 
-static void rplnxl(char* s)
+static void rplnxl(char* s, size_t l)
 
 {
 
-    while (*s) { if (*s == '\n') *s = '-'; s++; }
+    while (l--) { if (*s == '\n') *s = '-'; s++; }
 
 }
 
@@ -5560,7 +5590,10 @@ static void rplnxl(char* s)
 
 Find device name of synthesizer output port
 
-Returns the ALSA device name of the given synthsizer output port.
+Returns the ALSA device name of the given synthsizer output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -5568,24 +5601,26 @@ void ami_synthoutname(long p, string name, long len)
 
 {
 
-    size_t l;
+    size_t nl, tl;
 
     if (p < 1 || p > MAXMIDP) error("Invalid MIDI output port");
     if (!alsamidiout[p-1])
         error("No MIDI output device defined at logical number");
 
-    l = 0;
-    if (alsamidiout[p-1]->desc) l = strlen(alsamidiout[p-1]->desc)+1;
-    if (strlen(alsamidiout[p-1]->name)+l+1 > len)
-        error("Device name too large for destination");
-    strcpy(name, alsamidiout[p-1]->name);
+    nl = strlen(alsamidiout[p-1]->name); /* find base name length */
+    tl = nl; /* set total length */
+    if (alsamidiout[p-1]->desc) tl += strlen(alsamidiout[p-1]->desc)+1;
+    if (tl > len) error("Device name too large for destination");
+    memcpy(name, alsamidiout[p-1]->name, nl); /* place base name */
     if (alsamidiout[p-1]->desc) {
 
-        strcat(name, "-");
-        strcat(name, alsamidiout[p-1]->desc);
-        rplnxl(name);
+        name[nl] = '-'; /* place separator */
+        /* place description */
+        memcpy(name+nl+1, alsamidiout[p-1]->desc, tl-nl-1);
+        rplnxl(name, tl); /* replace any embedded \n */
 
     }
+    if (tl < len) name[tl] = 0; /* terminate if shorter than buffer */
 
 }
 
@@ -5593,7 +5628,10 @@ void ami_synthoutname(long p, string name, long len)
 
 Find device name of synthesizer input port
 
-Returns the ALSA device name of the given synthsizer input port.
+Returns the ALSA device name of the given synthsizer input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -5601,24 +5639,26 @@ void ami_synthinname(long p, string name, long len)
 
 {
 
-    size_t l;
+    size_t nl, tl;
 
     if (p < 1 || p > MAXMIDP) error("Invalid MIDI input port");
     if (!alsamidiin[p-1])
         error("No MIDI input device defined at logical number");
 
-    l = 0;
-    if (alsamidiin[p-1]->desc) l = strlen(alsamidiin[p-1]->desc)+1;
-    if (strlen(alsamidiin[p-1]->name)+l+1 > len)
-        error("Device name too large for destination");
-    strcpy(name, alsamidiin[p-1]->name);
+    nl = strlen(alsamidiin[p-1]->name); /* find base name length */
+    tl = nl; /* set total length */
+    if (alsamidiin[p-1]->desc) tl += strlen(alsamidiin[p-1]->desc)+1;
+    if (tl > len) error("Device name too large for destination");
+    memcpy(name, alsamidiin[p-1]->name, nl); /* place base name */
     if (alsamidiin[p-1]->desc) {
 
-        strcat(name, "-");
-        strcat(name, alsamidiin[p-1]->desc);
-        rplnxl(name);
+        name[nl] = '-'; /* place separator */
+        /* place description */
+        memcpy(name+nl+1, alsamidiin[p-1]->desc, tl-nl-1);
+        rplnxl(name, tl); /* replace any embedded \n */
 
     }
+    if (tl < len) name[tl] = 0; /* terminate if shorter than buffer */
 
 }
 
@@ -5626,7 +5666,10 @@ void ami_synthinname(long p, string name, long len)
 
 Find device name of wave output port
 
-Returns the ALSA device name of the given wave output port.
+Returns the ALSA device name of the given wave output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -5634,24 +5677,26 @@ void ami_waveoutname(long p, string name, long len)
 
 {
 
-    size_t l;
+    size_t nl, tl;
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
     if (!alsapcmout[p-1])
         error("No wave output device defined at logical number");
 
-    l = 0;
-    if (alsapcmout[p-1]->desc) l = strlen(alsapcmout[p-1]->desc)+1;
-    if (strlen(alsapcmout[p-1]->name)+l+1 > len)
-        error("Device name too large for destination");
-    strcpy(name, alsapcmout[p-1]->name);
+    nl = strlen(alsapcmout[p-1]->name); /* find base name length */
+    tl = nl; /* set total length */
+    if (alsapcmout[p-1]->desc) tl += strlen(alsapcmout[p-1]->desc)+1;
+    if (tl > len) error("Device name too large for destination");
+    memcpy(name, alsapcmout[p-1]->name, nl); /* place base name */
     if (alsapcmout[p-1]->desc) {
 
-        strcat(name, "-");
-        strcat(name, alsapcmout[p-1]->desc);
-        rplnxl(name);
+        name[nl] = '-'; /* place separator */
+        /* place description */
+        memcpy(name+nl+1, alsapcmout[p-1]->desc, tl-nl-1);
+        rplnxl(name, tl); /* replace any embedded \n */
 
     }
+    if (tl < len) name[tl] = 0; /* terminate if shorter than buffer */
 
 }
 
@@ -5659,7 +5704,10 @@ void ami_waveoutname(long p, string name, long len)
 
 Find device name of wave input port
 
-Returns the ALSA device name of the given wave input port.
+Returns the ALSA device name of the given wave input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -5667,24 +5715,26 @@ void ami_waveinname(long p, string name, long len)
 
 {
 
-    size_t l;
+    size_t nl, tl;
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port");
     if (!alsapcmin[p-1])
         error("No wave input device defined at logical number");
 
-    l = 0;
-    if (alsapcmin[p-1]->desc) l = strlen(alsapcmin[p-1]->desc)+1;
-    if (strlen(alsapcmin[p-1]->name)+l+1 > len)
-        error("Device name too large for destination");
-    strcpy(name, alsapcmin[p-1]->name);
+    nl = strlen(alsapcmin[p-1]->name); /* find base name length */
+    tl = nl; /* set total length */
+    if (alsapcmin[p-1]->desc) tl += strlen(alsapcmin[p-1]->desc)+1;
+    if (tl > len) error("Device name too large for destination");
+    memcpy(name, alsapcmin[p-1]->name, nl); /* place base name */
     if (alsapcmin[p-1]->desc) {
 
-        strcat(name, "-");
-        strcat(name, alsapcmin[p-1]->desc);
-        rplnxl(name);
+        name[nl] = '-'; /* place separator */
+        /* place description */
+        memcpy(name+nl+1, alsapcmin[p-1]->desc, tl-nl-1);
+        rplnxl(name, tl); /* replace any embedded \n */
 
     }
+    if (tl < len) name[tl] = 0; /* terminate if shorter than buffer */
 
 }
 
@@ -5827,7 +5877,9 @@ Get device parameter synth out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -5851,7 +5903,9 @@ Get device parameter synth in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -5875,7 +5929,9 @@ Get device parameter wave out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -5899,7 +5955,9 @@ Get device parameter wave in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.

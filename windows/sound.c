@@ -300,6 +300,30 @@ static void error(const string s)
 
 /*******************************************************************************
 
+Copy string to critical output buffer
+
+Copies the given source string to a caller supplied output buffer. Output
+buffers follow the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l;
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
+
+}
+
+/*******************************************************************************
+
 Find path separator character
 
 Returns the character used to separate filename path sections.
@@ -3554,7 +3578,10 @@ dbg_printf(dlinfo, "wBitsPerSample: %d\n", wf.wBitsPerSample);
 
 Find device name of synthesizer output port
 
-Returns the ALSA device name of the given synthsizer output port.
+Returns the device name of the given synthsizer output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -3567,8 +3594,7 @@ void ami_synthoutname(long p, string name, long len)
 
     r = midiOutGetDevCaps(p-1, &pmoc, sizeof(MIDIOUTCAPS));
     if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
-    if (strlen(pmoc.szPname)+1 > len) error("String to large for destination");
-    strcpy(name, pmoc.szPname);
+    cpycrit(name, len, pmoc.szPname); /* return name */
 
 }
 
@@ -3576,7 +3602,10 @@ void ami_synthoutname(long p, string name, long len)
 
 Find device name of synthesizer input port
 
-Returns the ALSA device name of the given synthsizer input port.
+Returns the device name of the given synthsizer input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -3589,8 +3618,7 @@ void ami_synthinname(long p, string name, long len)
 
     r = midiInGetDevCaps(p-1, &pmic, sizeof(MIDIINCAPS));
     if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
-    if (strlen(pmic.szPname)+1 > len) error("String to large for destination");
-    strcpy(name, pmic.szPname);
+    cpycrit(name, len, pmic.szPname); /* return name */
 
 }
 
@@ -3598,7 +3626,10 @@ void ami_synthinname(long p, string name, long len)
 
 Find device name of wave output port
 
-Returns the ALSA device name of the given wave output port.
+Returns the device name of the given wave output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -3611,8 +3642,7 @@ void ami_waveoutname(long p, string name, long len)
 
     r = waveOutGetDevCaps(p-1, &pwoc, sizeof(WAVEOUTCAPS));
     if (r != MMSYSERR_NOERROR) error("Unable to get wave device capabilities");
-    if (strlen(pwoc.szPname)+1 > len) error("String to large for destination");
-    strcpy(name, pwoc.szPname);
+    cpycrit(name, len, pwoc.szPname); /* return name */
 
 }
 
@@ -3620,7 +3650,10 @@ void ami_waveoutname(long p, string name, long len)
 
 Find device name of wave input port
 
-Returns the ALSA device name of the given wave input port.
+Returns the device name of the given wave input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
@@ -3633,8 +3666,7 @@ void ami_waveinname(long p, string name, long len)
 
     r = waveInGetDevCaps(p-1, &pwic, sizeof(WAVEINCAPS));
     if (r != MMSYSERR_NOERROR) error("Unable to get Midi device capabilities");
-    if (strlen(pwic.szPname)+1 > len) error("String to large for destination");
-    strcpy(name, pwic.szPname);
+    cpycrit(name, len, pwic.szPname); /* return name */
 
 }
 
@@ -4026,7 +4058,9 @@ Get device parameter synth out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -4047,7 +4081,9 @@ Get device parameter synth in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -4068,7 +4104,9 @@ Get device parameter wave out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
@@ -4089,7 +4127,9 @@ Get device parameter wave in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.

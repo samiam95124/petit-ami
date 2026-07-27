@@ -1228,6 +1228,31 @@ static void ifree(void* ptr)
 
 }
 
+/******************************************************************************
+
+Copy string to critical buffer
+
+Copies the given source string to the given destination buffer of the given
+length. Critical buffers implement the string buffer convention for this
+package: a result that fills the entire buffer is left without a terminating
+zero, a result shorter than the buffer is zero terminated, and it is an error
+if the result cannot fit in the buffer.
+
+******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l; /* length of source string */
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error(estrtl); /* string too long for destination */
+    memcpy(d, s, l); /* copy string to destination */
+    if (l < dl) d[l] = 0; /* terminate if it does not fill the buffer */
+
+}
+
 /*******************************************************************************
 
 Print message string
@@ -6488,7 +6513,9 @@ void ami_font(FILE* f, long fc)
 
 Find name of font
 
-Returns the name of a font by number.
+Returns the name of a font by number. The name buffer is a critical buffer: a
+name that fills the entire buffer is left without a terminating zero, a
+shorter name is zero terminated, and it is an error if the name cannot fit.
 
 *******************************************************************************/
 
@@ -6508,8 +6535,8 @@ static void ifontnam(winptr win, long fc, char* fns, long fnsl)
        if (!fp) error(einvftn); /* check null */
 
     }
-    if (strlen(fp->fn) > fnsl+1) error(eftntl);
-    strcpy(fns, fp->fn);
+    if (strlen(fp->fn) > fnsl) error(eftntl); /* font name too large */
+    cpycrit(fns, fnsl, fp->fn); /* copy name to critical buffer */
 
 }
 
@@ -12365,6 +12392,10 @@ Retrives the text from a widget. The widget must be one that contains text.
 It is an error if this call is used on a widget that does not contain text.
 This error is currently unchecked.
 
+The text buffer is a critical buffer: text that fills the entire buffer is
+left without a terminating zero, shorter text is zero terminated, and it is an
+error if the text cannot fit in the buffer.
+
 *******************************************************************************/
 
 static void igetwidgettext(winptr win, long id, char* s, long sl)
@@ -12374,7 +12405,6 @@ static void igetwidgettext(winptr win, long id, char* s, long sl)
     wigptr wp; /* widget pointer */
     int    ls; /* length of text */
     char*  sp; /* pointer to string */
-    int    i;  /* index for string */
     int    r;  /* return value */
 
     if (!win->visible) winvis(win); /* make sure we are displayed */
@@ -12387,8 +12417,12 @@ static void igetwidgettext(winptr win, long id, char* s, long sl)
       a zero return as being for a zero length string, but also apparently
       uses that value for errors. */
     unlockmain(); /* end exclusive access */
-    r = GetWindowText(wp->han, s, sl); /* get the text */
+    ls = GetWindowTextLength(wp->han); /* find length of widget text */
+    sp = imalloc(ls+1); /* get temporary buffer to hold text */
+    r = GetWindowText(wp->han, sp, ls+1); /* get the text */
     lockmain(); /* start exclusive access */
+    cpycrit(s, sl, sp); /* copy text to critical buffer */
+    ifree(sp); /* free the temporary buffer */
 
 }
 
@@ -15394,8 +15428,9 @@ in the current directory into a list.
 
 If the operation is cancelled, a null string will be returned.
 
-It is an error if the passed string buffer is not big enough to contain the
-result.
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
 
 *******************************************************************************/
 
@@ -15413,8 +15448,7 @@ void ami_queryopen(char* s, long sl)
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqopen, &ip); /* wait for the return */
-    if (strlen(ip->opnfil) > sl) error(estrtl); /* string overflow */
-    strcpy(s, ip->opnfil); /* set output string */
+    cpycrit(s, sl, ip->opnfil); /* copy result to critical buffer */
     ifree(ip->opnfil); /* free the temp string */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
@@ -15434,11 +15468,9 @@ in the current directory into a list.
 
 If the operation is cancelled, a null string will be returned.
 
-It is an error if the passed string buffer is not big enough to contain the
-result.
-
-It is an error if the passed string buffer is not big enough to contain the
-result.
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
 
 *******************************************************************************/
 
@@ -15456,8 +15488,7 @@ void ami_querysave(char* s, long sl)
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br)  winerr(); /* process windows error */
     waitim(imqsave, &ip); /* wait for the return */
-    if (strlen(ip->savfil) > sl) error(estrtl); /* string overflow */
-    strcpy(s, ip->savfil); /* set output string */
+    cpycrit(s, sl, ip->savfil); /* copy result to critical buffer */
     ifree(ip->savfil); /* free the temp string */
     putitm(ip); /* release im */
     unlockmain(); /* end exclusive access */
@@ -15476,6 +15507,10 @@ set the dialog.
 
 The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
+
+The string buffer is a critical buffer: a result that fills the entire buffer
+is left without a terminating zero, a shorter result is zero terminated, and
+it is an error if the result cannot fit in the buffer.
 
 Bug: should return null string on cancel. Unlike other dialogs, windows
 provides no indication of if the cancel button was pushed. To do this, we
@@ -15504,8 +15539,7 @@ void ami_queryfind(char* s, long sl, long* opt)
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqfind, &ip); /* wait for the return */
-    if (strlen(ip->fndstr) > sl) error(estrtl); /* string overflow */
-    strcpy(s, ip->fndstr); /* set output string */
+    cpycrit(s, sl, ip->fndstr); /* copy result to critical buffer */
     ifree(ip->fndstr); /* free the temp string */
     *opt = ip->fndopt; /* set output options */
     putitm(ip); /* release im */
@@ -15525,6 +15559,10 @@ set the dialog.
 
 The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
+
+The find and replace string buffers are critical buffers: a result that fills
+the entire buffer is left without a terminating zero, a shorter result is zero
+terminated, and it is an error if the result cannot fit in the buffer.
 
 Bug: See comment, queryfind.
 
@@ -15546,11 +15584,9 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, long* opt)
     br = PostMessage(dialogwin, UM_IM, (WPARAM)ip, 0);
     if (!br) winerr(); /* process windows error */
     waitim(imqfindrep, &ip); /* wait for the return */
-    if (strlen(ip->fnrsch) > sl) error(estrtl); /* string overflow */
-    strcpy(s, ip->fnrsch); /* set output find string */
+    cpycrit(s, sl, ip->fnrsch); /* copy find result to critical buffer */
     ifree(ip->fnrsch); /* free the temp string */
-    if (strlen(ip->fnrrep) > rl) error(estrtl); /* string overflow */
-    strcpy(r, ip->fnrrep);
+    cpycrit(r, rl, ip->fnrrep); /* copy replace result to critical buffer */
     ifree(ip->fnrrep); /* free the temp string */
     *opt = ip->fnropt; /* set output options */
     putitm(ip); /* release im */

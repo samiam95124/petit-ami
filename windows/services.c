@@ -229,6 +229,31 @@ static void extract(char *d, int l, char *s, int st, int ed)
 
 /********************************************************************************
 
+Copy result to critical buffer
+
+Copies a string result into a caller supplied buffer under the critical buffer
+convention: the result may occupy the entire buffer, in which case the
+terminating zero is left off. Results shorter than the buffer are zero
+terminated. It is an error if the result cannot fit into the buffer. This
+allows callers from languages that do not use zero terminated strings to pass
+fixed size buffers with no space reserved for the terminator.
+
+********************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+{
+
+    long l;
+
+    l = strlen(s);
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l);
+    if (l < dl) d[l] = 0; /* terminate only if result is short of buffer */
+
+}
+
+/********************************************************************************
+
 Trim leading and trailing spaces off string.
 
 Removes leading and trailing spaces from a given string. Since the string will
@@ -491,7 +516,8 @@ void ami_list(
 
 Get time string
 
-Converts the given time into a string.
+Converts the given time into a string. The result may occupy the entire buffer,
+in which case the terminating zero is left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -508,9 +534,8 @@ void ami_times(
     int sec; /* second */
     int  am;  /* am flag */
     int  pm;  /* pm flag */
+    bufstr buf; /* buffer to build result in */
 
-    if (sl < 11-(!ami_time24hour()*3)) /* string to small to hold result */
-        error("String buffer to small to hold time");
     /* because leap adjustments are made in terms of days, we just remove
        the days to find the time of day in seconds. this is completely
        independent of leap adjustments */
@@ -530,31 +555,32 @@ void ami_times(
 
     }
     /* place hour:miniute:second */
+    buf[0] = 0; /* clear result */
     switch (ami_timeorder()) {
 
         case 1:
-            s += sprintf(s, "%02d%c%02d%c%02d", h, ami_timesep(), m, ami_timesep(), sec);
+            sprintf(buf, "%02d%c%02d%c%02d", h, ami_timesep(), m, ami_timesep(), sec);
             break;
         case 2:
-            s += sprintf(s, "%02d%c%02d%c%02d", h, ami_timesep(), sec, ami_timesep(), m);
+            sprintf(buf, "%02d%c%02d%c%02d", h, ami_timesep(), sec, ami_timesep(), m);
             break;
         case 3:
-            s += sprintf(s, "%02d%c%02d%c%02d", m, ami_timesep(), h, ami_timesep(), sec);
+            sprintf(buf, "%02d%c%02d%c%02d", m, ami_timesep(), h, ami_timesep(), sec);
             break;
         case 4:
-            s += sprintf(s, "%02d%c%02d%c%02d", m, ami_timesep(), sec, ami_timesep(), h);
+            sprintf(buf, "%02d%c%02d%c%02d", m, ami_timesep(), sec, ami_timesep(), h);
             break;
         case 5:
-            s += sprintf(s, "%02d%c%02d%c%02d", sec, ami_timesep(), h, ami_timesep(), m);
+            sprintf(buf, "%02d%c%02d%c%02d", sec, ami_timesep(), h, ami_timesep(), m);
             break;
         case 6:
-            s += sprintf(s, "%02d%c%02d%c%02d", sec, ami_timesep(), m, ami_timesep(), h);
+            sprintf(buf, "%02d%c%02d%c%02d", sec, ami_timesep(), m, ami_timesep(), h);
             break;
 
     }
-    if (pm) strcat(s, " pm");
-    if (am) strcat(s, " am");
-    *s = 0; /* terminate string */
+    if (pm) strcat(buf, " pm");
+    if (am) strcat(buf, " am");
+    cpycrit(s, sl, buf); /* copy result to critical buffer */
 
 }
 
@@ -562,7 +588,8 @@ void ami_times(
 
 Get date string
 
-Converts the given date into a string.
+Converts the given date into a string. The result may occupy the entire buffer,
+in which case the terminating zero is left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -588,6 +615,7 @@ void ami_dates(
     short yd;   /* years in day holder */
     int done;   /* loop complete flag */
     int days[12];   /* days in months */
+    bufstr buf; /* buffer to build result in */
 
     days[0] = 31;   /* january */
     days[1] = 28;   /* february-leap day */
@@ -602,8 +630,6 @@ void ami_dates(
     days[10] = 30;   /* november */
     days[11] = 31;   /* december */
 
-    if (sl < 10) /* string to small to hold result */
-        error("*** String to small to hold date");
     if (t < 0) y = 1999; else y = 2000; /* set initial year */
     done = 0;   /* set no loop exit */
     t = labs(t);   /* find seconds magnitude */
@@ -637,29 +663,30 @@ void ami_dates(
 
     }
     /* place year/month/day */
+    buf[0] = 0; /* clear result */
     switch (ami_dateorder()) { /* place according to current location format */
 
         case 1:
-            s += sprintf(s, "%04d%c%02d%c%02d", y, ami_datesep(), m, ami_datesep(), d);
+            sprintf(buf, "%04d%c%02d%c%02d", y, ami_datesep(), m, ami_datesep(), d);
             break;
         case 2:
-            s += sprintf(s, "%04d%c%02d%c%02d", y, ami_datesep(), d, ami_datesep(), m);
+            sprintf(buf, "%04d%c%02d%c%02d", y, ami_datesep(), d, ami_datesep(), m);
             break;
         case 3:
-            s += sprintf(s, "%02d%c%02d%c%04d", m, ami_datesep(), d, ami_datesep(), y);
+            sprintf(buf, "%02d%c%02d%c%04d", m, ami_datesep(), d, ami_datesep(), y);
             break;
         case 4:
-            s += sprintf(s, "%02d%c%04d%c%02d", m, ami_datesep(), y, ami_datesep(), d);
+            sprintf(buf, "%02d%c%04d%c%02d", m, ami_datesep(), y, ami_datesep(), d);
             break;
         case 5:
-            s += sprintf(s, "%02d%c%02d%c%04d", d, ami_datesep(), m, ami_datesep(), y);
+            sprintf(buf, "%02d%c%02d%c%04d", d, ami_datesep(), m, ami_datesep(), y);
             break;
         case 6:
-            s += sprintf(s, "%02d%c%04d%c%02d", d, ami_datesep(), y, ami_datesep(), m);
+            sprintf(buf, "%02d%c%04d%c%02d", d, ami_datesep(), y, ami_datesep(), m);
             break;
 
     }
-    *s = 0; /* terminate string */
+    cpycrit(s, sl, buf); /* copy result to critical buffer */
 
 }
 
@@ -928,7 +955,9 @@ static void fndenv(
 
 Get environment string
 
-Returns an environment string by name.
+Returns an environment string by name. An unfound string returns empty. The
+result may occupy the entire buffer, in which case the terminating zero is left
+off (critical buffer convention).
 
 *******************************************************************************/
 
@@ -941,14 +970,8 @@ void ami_getenv(
 
     ami_envrec *p;
 
-    *esd = 0;
     fndenv(esn, &p);
-    if (p) {
-
-        if (strlen(p->data)+1 > esdl) error("String too large for destination");
-        if (p) strcpy(esd, p->data);
-
-    }
+    cpycrit(esd, esdl, p? p->data: ""); /* copy result to critical buffer */
 
 }
 
@@ -1361,7 +1384,9 @@ void ami_execew(
 
 Get current path
 
-Returns the current path in the given padded string.
+Returns the current path in the given padded string. The result may occupy the
+entire buffer, in which case the terminating zero is left off (critical buffer
+convention).
 
 ********************************************************************************/
 
@@ -1380,8 +1405,7 @@ void ami_getcur(
      we ignore that, since having a zero length current directory should be
      impossible. */
    if (!r) winerr(); /* process windows error */
-   if (r+1 > l) error("Current directory too long for string");
-   strcpy(pn, pb); /* copy into place */
+   cpycrit(pn, l, pb); /* copy result to critical buffer */
 
 }
 
@@ -1427,6 +1451,9 @@ consider "." to be a special character, but if the brknam and maknam procedures
 are properly paired, it will effectively be treated the same as if the "."
 were a normal character.
 
+Each result may occupy its entire buffer, in which case the terminating zero
+is left off (critical buffer convention).
+
 ********************************************************************************/
 
 void ami_brknam(
@@ -1438,13 +1465,14 @@ void ami_brknam(
 
 {
 
-    int i, s, f, t; /* string indexes */
     char *s1, *s2, *t2;
+    bufstr lp, ln, le; /* local component holding buffers */
+    long l;
 
     /* clear all strings */
-    *p = 0;
-    *n = 0;
-    *e = 0;
+    lp[0] = 0;
+    ln[0] = 0;
+    le[0] = 0;
     if (!strlen(fn)) error("File specification is empty");
     s1 = fn; /* index file spec */
     /* skip spaces */
@@ -1459,16 +1487,11 @@ void ami_brknam(
     if (s2) {
 
         /* there was a path, store that */
-        while (s1 <= s2) {
-
-            if (!pl) error("String to large for destination\n");
-            *p++ = *s1++;
-            pl--;
-
-        }
-        if (!nl) error("String to large for destination\n");
-        *p = 0;
-        /* now s1 points after path */
+        l = s2-s1+1; /* find length of path section */
+        if (l >= MAXSTR) error("String too large for destination");
+        memcpy(lp, s1, l);
+        lp[l] = 0;
+        s1 = s2+1; /* now s1 points after path */
 
     }
     /* keep any leading '.' characters from fooling extension finder */
@@ -1479,33 +1502,32 @@ void ami_brknam(
     if (s2) {
 
         /* there was a name, store that */
-        while (s1 < s2) {
-
-            if (!nl) error("String to large for destination\n");
-            *n++ = *s1++;
-            nl--;
-
-        }
-        if (!nl) error("String to large for destination\n");
-        *n = 0;
-        /* now s1 points to extension or nothing */
+        l = s2-s1; /* find length of name section */
+        if (l >= MAXSTR) error("String too large for destination");
+        memcpy(ln, s1, l);
+        ln[l] = 0;
+        s1 = s2; /* now s1 points to extension or nothing */
 
     } else {
 
         /* no extension */
-        if (strlen(s1)+1 > nl) error("String to large for destination\n");
-        strcpy(n, s1);
+        if (strlen(s1) >= MAXSTR) error("String too large for destination");
+        strcpy(ln, s1);
         while (*s1) s1++;
 
     }
     if (*s1 == '.') {
 
         /* there is an extension */
-        if (strlen(s1)+1 > el) error("String to large for destination\n");
         s1++; /* skip '.' */
-        strcpy(e, s1);
+        if (strlen(s1) >= MAXSTR) error("String too large for destination");
+        strcpy(le, s1);
 
     }
+    /* copy results to critical buffers */
+    cpycrit(p, pl, lp);
+    cpycrit(n, nl, ln);
+    cpycrit(e, el, le);
 
 }
 
@@ -1515,7 +1537,8 @@ Make specification
 
 Creates a file specification from its components, the path, name and extention.
 We make sure that the path is properly terminated with ':' or '\' before
-concatenating.
+concatenating. The result may occupy the entire buffer, in which case the
+terminating zero is left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -1528,35 +1551,36 @@ void ami_maknam(
 )
 {
 
-    int  i;    /* index for string */
-    int  fsi;  /* index for output filename */
-    char s[2]; /* path character buffer */
+    int    i;    /* index for string */
+    char   s[2]; /* path character buffer */
+    bufstr b;    /* buffer to build result in */
 
-    if (strlen(p) > fnl) error("String too large for destination");
-    strcpy(fn, p); /* place path */
+    if (strlen(p) >= MAXSTR) error("String too large for destination");
+    strcpy(b, p); /* place path */
     /* check path properly terminated; a '/' terminator counts, since the
        windows file APIs accept it as a separator (see brknam) */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
         if (p[i-1] != ami_pthchr() && p[i-1] != '/') {
 
-        if (strlen(fn)+1 > fnl) error("String too large for destination");
+        if (strlen(b)+1 >= MAXSTR) error("String too large for destination");
         s[0] = ami_pthchr(); /* set up path character as string */
         s[1] = 0;
-        strcat(fn, s); /* add path separator */
+        strcat(b, s); /* add path separator */
 
     }
     /* terminate path */
-    if (strlen(fn)+strlen(n) > fnl) error("String too large for destination");
-    strcat(fn, n); /* place name */
+    if (strlen(b)+strlen(n) >= MAXSTR) error("String too large for destination");
+    strcat(b, n); /* place name */
     if (*e) {  /* there is an extension */
 
-        if (strlen(fn)+1+strlen(e) > fnl)
+        if (strlen(b)+1+strlen(e) >= MAXSTR)
             error("String too large for destination");
-        strcat(fn, "."); /* place '.' */
-        strcat(fn, e); /* place extension */
+        strcat(b, "."); /* place '.' */
+        strcat(b, e); /* place extension */
 
     }
+    cpycrit(fn, fnl, b); /* copy result to critical buffer */
 
 }
 
@@ -1566,7 +1590,10 @@ Make full file specification
 
 If the given file specification has a default path (the current path), then
 the current path is added to it. Essentially "normalizes" file specifications.
-No validity check is done. Garbage in, garbage out.
+No validity check is done. Garbage in, garbage out. The buffer is treated as
+critical in both directions: the input may fill the entire buffer without a
+terminating zero, and the result may occupy the entire buffer, in which case
+the terminating zero is left off.
 
 ********************************************************************************/
 
@@ -1578,8 +1605,21 @@ void ami_fulnam(
 
     /* file specification */
     bufstr p, n, e, ps;   /* filespec components */
+    bufstr fs;            /* copy of input file specification */
+    long l;               /* length of input */
 
-    ami_brknam(fn, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break spec down */
+    /* copy input to local, since it may fill the entire buffer without a
+       terminating zero (critical buffer convention) */
+    l = 0;
+    while (l < fnl && fn[l]) {
+
+        if (l >= MAXSTR-1) error("String too large for destination");
+        fs[l] = fn[l];
+        l++;
+
+    }
+    fs[l] = 0; /* terminate */
+    ami_brknam(fs, p, MAXSTR, n, MAXSTR, e, MAXSTR);   /* break spec down */
     /* if the path is blank, then default to current */
     if (!*p) strcpy(p, ".");
     ami_getcur(ps, MAXSTR);   /* save current path */
@@ -1596,7 +1636,8 @@ void ami_fulnam(
 Get program path
 
 There is no direct call for program path. So we get the command line, and
-extract the program path from that.
+extract the program path from that. The result may occupy the entire buffer,
+in which case the terminating zero is left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -1608,6 +1649,7 @@ void ami_getpgm(
 
     char*  cp;           /* command line holder */
     bufstr cb;           /* command buffer */
+    bufstr pb;           /* path holding buffer */
     bufstr n, e;         /* path components */
     char   path[MAXPTH]; /* execution path */
     int    i;            /* index for path */
@@ -1621,38 +1663,48 @@ void ami_getpgm(
     r = GetModuleFileNameA(NULL, cb, MAXSTR);
     if (r > 0 && r < MAXSTR) {
 
-        ami_brknam(cb, p, pl, n, MAXSTR, e, MAXSTR); /* break off the path */
-        if (*p) return; /* have the path */
+        ami_brknam(cb, pb, MAXSTR, n, MAXSTR, e, MAXSTR); /* break off the path */
+        if (*pb) {
+
+            cpycrit(p, pl, pb); /* copy result to critical buffer */
+            return; /* have the path */
+
+        }
 
     }
     cp = GetCommandLine(); /* get the command line */
     fstwrd(cp, cb, MAXSTR); /* get command */
-    ami_brknam(cb, p, pl, n, MAXSTR, e, MAXSTR); /* break off the path */
-    if (!*p) { /* no path provided, we must search for it */
+    ami_brknam(cb, pb, MAXSTR, n, MAXSTR, e, MAXSTR); /* break off the path */
+    if (!*pb) { /* no path provided, we must search for it */
 
         /* try current directory */
-        ami_getcur(p, pl); /* get current path */
-        ami_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */
+        ami_getcur(pb, MAXSTR); /* get current path */
+        ami_maknam(cb, MAXSTR, pb, n, "exe"); /* construct name with that path */
         if (!exists(cb)) { /* try search path */
 
-            ami_getenv("Path", path, MAXPTH);
+            /* getenv leaves an exactly fitting result unterminated, so hold
+               one byte back and keep the last byte zero */
+            path[MAXPTH-1] = 0;
+            ami_getenv("Path", path, MAXPTH-1);
             f = 0; /* set path not found */
             while (*path && !f) { /* search path */
 
                 i = strchr(path, ';')-path; /* find next path separator */
                 if (!i) { /* none, the rest is the path */
 
-                    strcpy(p, path); /* place all in path */
+                    if (strlen(path) >= MAXSTR)
+                        error("String too large for destination");
+                    strcpy(pb, path); /* place all in path */
                     *path = 0; /* clear the path */
 
                 } else { /* break off next segment */
 
-                    extract(p, pl, path, 0, i-1); /* place path */
+                    extract(pb, MAXSTR-1, path, 0, i-1); /* place path */
                     /* extract the rest as remainer */
-                    extract(path, MAXPTH, path, i+1, strlen(path));
+                    extract(path, MAXPTH-1, path, i+1, strlen(path));
 
                 }
-                ami_maknam(cb, MAXSTR, p, n, "exe"); /* construct name with that path */
+                ami_maknam(cb, MAXSTR, pb, n, "exe"); /* construct name with that path */
                 f = exists(cb); /* check that exists */
 
             }
@@ -1661,6 +1713,7 @@ void ami_getpgm(
         }
 
     }
+    cpycrit(p, pl, pb); /* copy result to critical buffer */
 
 }
 
@@ -1685,6 +1738,9 @@ should be used instead, or the current path as required. The filenames used
 with program and user paths should be unique in case they end up in the same
 directory.
 
+The result may occupy the entire buffer, in which case the terminating zero is
+left off (critical buffer convention).
+
 ********************************************************************************/
 
 void ami_getusr(
@@ -1696,26 +1752,37 @@ void ami_getusr(
 
     bufstr b, b1; /* buffer for result */
 
-    ami_getenv("USERPROFILE", b, MAXSTR);
+    /* getenv leaves an exactly fitting result unterminated, so hold one byte
+       back and keep the last byte zero */
+    b[MAXSTR-1] = 0;
+    ami_getenv("USERPROFILE", b, MAXSTR-1);
     /* HOME is the unix convention, but is commonly set on windows (msys,
        cygwin, git bash), and a program can set it to relocate the user
        path; honor it next */
-    if (!*b) ami_getenv("HOME", b, MAXSTR);
+    if (!*b) ami_getenv("HOME", b, MAXSTR-1);
     if (!*b) { /* not found */
 
-        ami_getenv("HOMEPATH", b, MAXSTR);
+        ami_getenv("HOMEPATH", b, MAXSTR-1);
         if (*b) {
 
             strcpy(b1, b); /* save that */
-            ami_getenv("HOMEDRIVE", b, MAXSTR);
-            if (*b) strcat(b, b1); /* combine */
+            ami_getenv("HOMEDRIVE", b, MAXSTR-1);
+            if (*b) { /* combine */
+
+                if (strlen(b)+strlen(b1) >= MAXSTR)
+                    error("String too large for destination");
+                strcat(b, b1);
+
+            }
 
         }
         if (!*b) { /* not found */
 
-            ami_getenv("USERNAME", b, MAXSTR);
+            ami_getenv("USERNAME", b, MAXSTR-1);
             if (*b) { /* path that */
 
+                if (strlen(b)+7 >= MAXSTR) /* prefix is 7 characters */
+                    error("String too large for destination");
                 strcpy(b1, b); /* copy */
                 strcpy(b, "\\users\\"); /* set prefix */
                 strcat(b, b1); /* combine */
@@ -1726,8 +1793,7 @@ void ami_getusr(
         }
 
     }
-    if (strlen(b) > fnl+1) error("String too large for destination");
-    strcpy(fn, b); /* copy into place */
+    cpycrit(fn, fnl, b); /* copy result to critical buffer */
 
 }
 
@@ -2149,7 +2215,9 @@ long ami_country(void)
 Find country identifier string
 
 Finds the identifier string for the given ISO 3166-1 country code. If the string
-does not fit into the string provided, an error results.
+does not fit into the string provided, an error results. The result may occupy
+the entire buffer, in which case the terminating zero is left off (critical
+buffer convention).
 
 3166-1 country codes are both numeric codes, 2 letter country codes, and 3
 letter country codes. We only use the 2 letter codes.
@@ -2435,8 +2503,7 @@ void ami_countrys(
     p = countrytab;
     while (p->countrynum && p->countrynum != c) p++;
     if (!p->countrynum) error("Country number invalid");
-    if (strlen(p->countrystr) > len) error("Country string too large for buffer");
-    strncpy(s, p->countrystr, len);
+    cpycrit(s, len, p->countrystr); /* copy result to critical buffer */
 
 }
 
@@ -2537,7 +2604,9 @@ long ami_language(void)
 Find language identifier string from language code
 
 Finds a language identifier string from a given language code. If the identifier
-string is too long for the string buffer, an error results.
+string is too long for the string buffer, an error results. The result may
+occupy the entire buffer, in which case the terminating zero is left off
+(critical buffer convention).
 
 The language codes are from the ISO 639-1 standard. It describes languages with
 2 and 3 letter codes. We use only the two letter codes here.
@@ -2757,8 +2826,7 @@ void ami_languages(char* s, long len, long l)
     p = langtab;
     while (p->langnum && p->langnum != l) p++;
     if (!p->langnum) error("Language number invalid");
-    if (strlen(p->langstr) > len) error("Language string too larg e for buffer");
-    strncpy(s, p->langstr, len);
+    cpycrit(s, len, p->langstr); /* copy result to critical buffer */
 
 }
 
@@ -3290,7 +3358,10 @@ static void ami_init_services()
 
     }
 
-    ami_getenv("Path", pthstr, MAXPTH); /* load up the current path */
+    /* load up the current path. getenv leaves an exactly fitting result
+       unterminated, so hold one byte back; the last byte stays zero from
+       static initialization */
+    ami_getenv("Path", pthstr, MAXPTH-1);
     trim(pthstr); /* make sure left aligned */
 
     /* set default language and country */

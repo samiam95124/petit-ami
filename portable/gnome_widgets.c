@@ -535,6 +535,59 @@ static void error(
 
 }
 
+/** ****************************************************************************
+
+Copy string to critical buffer
+
+Copies a string to a "critical" output buffer of the given length. If the
+string is longer than the buffer, an error results. If the string exactly
+fills the buffer, the terminating zero is left off. Otherwise, the result is
+zero terminated.
+
+*******************************************************************************/
+
+static void cpycrit(
+    /** Destination buffer */           char*       d,
+    /** Length of destination buffer */ long        dl,
+    /** Source string */                const char* s
+)
+
+{
+
+    long l; /* length of source string */
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error("String too large for result buffer");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* zero terminate if buffer not entirely filled */
+
+}
+
+/** ****************************************************************************
+
+Get widget text with guaranteed zero termination
+
+Internal helper. ami_getwidgettext() fills a critical buffer, meaning the
+terminating zero is left off when the text exactly fills the buffer. Internal
+callers that parse the result need a proper C string, so this reserves one
+byte of the buffer for the terminator and guarantees termination.
+
+*******************************************************************************/
+
+static void getwidgettextz(
+    /** Window file */             FILE* f,
+    /** Logical widget id */       long  id,
+    /** Output buffer for text */  char* s,
+    /** Size of output buffer */   long  sl
+)
+
+{
+
+    ami_getwidgettext(f, id, s, sl-1); /* get text, reserve terminator byte */
+    s[sl-1] = 0; /* guarantee termination if text exactly filled buffer */
+
+}
+
 /** ***************************************************************************
 
 Print event type
@@ -2440,7 +2493,7 @@ static void numselbox_event(
                         wg->mpx < ami_maxxg(wg->wf)-udspc) {
 
                         /* down control */
-                        ami_getwidgettext(wg->wf, wg->cw->id, buff, sizeof(buff));
+                        getwidgettextz(wg->wf, wg->cw->id, buff, sizeof(buff));
                         v = atol(buff);
                         if (wg->cw->lbnd < v && v <= wg->cw->ubnd) v--;
                         sprintf(buff, "%ld", v);
@@ -2454,7 +2507,7 @@ static void numselbox_event(
                     } else if (wg->mpx >= ami_maxxg(wg->wf)-udspc) {
 
                         /* up control */
-                        ami_getwidgettext(wg->wf, wg->cw->id, buff, sizeof(buff));
+                        getwidgettextz(wg->wf, wg->cw->id, buff, sizeof(buff));
                         v = atol(buff);
                         if (wg->cw->lbnd <= v && v < wg->cw->ubnd) v++;
                         sprintf(buff, "%ld", v);
@@ -3905,6 +3958,10 @@ Retrieves the text from a widget. The widget must be one that contains text.
 It is an error if this call is used on a widget that does not contain text.
 This error is currently unchecked.
 
+The text is returned in a critical buffer: if the text exactly fills the
+buffer, the terminating zero is left off, and it is an error if the text
+cannot fit in the buffer.
+
 *******************************************************************************/
 
 static void igetwidgettext(
@@ -3922,9 +3979,7 @@ static void igetwidgettext(
     /* check this widget can have face text read */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
         error("Widget content cannot be read");
-    /* check face text too large for buffer */
-    if (strlen(wp->face) >= sl) error("Face text too large for result");
-    strcpy(s, wp->face); /* copy face text to result */
+    cpycrit(s, sl, wp->face); /* copy face text to critical result buffer */
 
 }
 
@@ -6619,6 +6674,10 @@ in the current directory into a list.
 
 If the operation is cancelled, then a null string will be returned.
 
+The result is returned in a critical buffer: if it exactly fills the buffer,
+the terminating zero is left off, and it is an error if the result cannot fit
+in the buffer.
+
 *******************************************************************************/
 
 /*
@@ -6930,7 +6989,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
             case ami_etedtbox:
                 if (er.edtbid == QFL_ID_PATH) {
                     /* user pressed enter in path: reload */
-                    ami_getwidgettext(out, QFL_ID_PATH, curdir, sizeof(curdir));
+                    getwidgettextz(out, QFL_ID_PATH, curdir, sizeof(curdir));
                     if (curdir[0] == 0) { curdir[0]='.'; curdir[1]=0; }
                     ami_killwidget(out, QFL_ID_LIST);
                     listsp = build_qfl_list(curdir);
@@ -6980,17 +7039,21 @@ static void qfl_dialog(char* s, long sl, const char* title) {
         if (s && sl > 0) s[0] = 0;
     } else if (s && sl > 0) {
         /* read both edit boxes fresh */
-        ami_getwidgettext(out, QFL_ID_PATH, curdir,  sizeof(curdir));
-        ami_getwidgettext(out, QFL_ID_NAME, curfile, sizeof(curfile));
+        getwidgettextz(out, QFL_ID_PATH, curdir,  sizeof(curdir));
+        getwidgettextz(out, QFL_ID_NAME, curfile, sizeof(curfile));
         if (curfile[0] == 0) {
             s[0] = 0;                              /* no filename given */
-        } else if (curfile[0] == '/') {
-            strncpy(s, curfile, sl-1); s[sl-1] = 0;/* absolute path */
-        } else if (curdir[0] == 0 ||
-                   (curdir[0] == '.' && curdir[1] == 0)) {
-            strncpy(s, curfile, sl-1); s[sl-1] = 0;/* CWD relative */
         } else {
-            join_path(s, sl, curdir, curfile);     /* dir + name */
+            /* build the full result locally, then copy to the critical
+               result buffer */
+            if (curfile[0] == '/')
+                strcpy(tmpbuf, curfile);           /* absolute path */
+            else if (curdir[0] == 0 ||
+                     (curdir[0] == '.' && curdir[1] == 0))
+                strcpy(tmpbuf, curfile);           /* CWD relative */
+            else
+                join_path(tmpbuf, sizeof(tmpbuf), curdir, curfile);
+            cpycrit(s, sl, tmpbuf);
         }
     }
 
@@ -7025,6 +7088,10 @@ in the current directory into a list.
 
 If the operation is cancelled, then a null string will be returned.
 
+The result is returned in a critical buffer: if it exactly fills the buffer,
+the terminating zero is left off, and it is an error if the result cannot fit
+in the buffer.
+
 *******************************************************************************/
 
 static void iquerysave(
@@ -7050,6 +7117,10 @@ set the dialog.
 
 The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
+
+The search string is returned in a critical buffer: if it exactly fills the
+buffer, the terminating zero is left off, and it is an error if it cannot fit
+in the buffer.
 
 Bug: should return null string on cancel. Unlike other dialogs, windows
 provides no indication of if the cancel button was pushed. To do this, we
@@ -7279,6 +7350,10 @@ set the dialog.
 
 The string that is passed in is discarded without complaint. It is up to the
 caller to dispose of it properly.
+
+The search and replace strings are returned in critical buffers: if a result
+exactly fills its buffer, the terminating zero is left off, and it is an
+error if a result cannot fit in its buffer.
 
 Bug: See comment, queryfind.
 
@@ -7599,7 +7674,9 @@ static void iqueryfont(
     if (nfonts < 1) nfonts = 0;
     for (i = 1; i <= nfonts; i++) {
         ami_strptr e;
-        ami_fontnam(out, i, namebuf, sizeof(namebuf));
+        /* leave room for termination, ami_fontnam() fills a critical buffer */
+        ami_fontnam(out, i, namebuf, sizeof(namebuf)-1);
+        namebuf[sizeof(namebuf)-1] = 0;
         e = malloc(sizeof(ami_strrec));
         e->next = NULL;
         e->str  = strdup(namebuf);
@@ -7741,7 +7818,7 @@ static void iqueryfont(
                     /* user pressed enter in size box: parse number */
                     char sbuf[32];
                     long n, neg, j;
-                    ami_getwidgettext(out, 4, sbuf, sizeof(sbuf));
+                    getwidgettextz(out, 4, sbuf, sizeof(sbuf));
                     n = 0; neg = 0; j = 0;
                     if (sbuf[0] == '-') { neg = 1; j = 1; }
                     while (sbuf[j] >= '0' && sbuf[j] <= '9') {
@@ -7811,7 +7888,7 @@ static void iqueryfont(
         {
             char sbuf[32];
             long n, neg, j;
-            ami_getwidgettext(out, 4, sbuf, sizeof(sbuf));
+            getwidgettextz(out, 4, sbuf, sizeof(sbuf));
             n = 0; neg = 0; j = 0;
             if (sbuf[0] == '-') { neg = 1; j = 1; }
             while (sbuf[j] >= '0' && sbuf[j] <= '9') {

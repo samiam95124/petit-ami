@@ -99,7 +99,8 @@ void ami_list(
 
 Get time string
 
-Converts the given time into a string.
+Converts the given time into a string. The result may occupy the entire buffer,
+in which case the terminating zero is left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -119,7 +120,8 @@ void ami_times(
 
 Get date string
 
-Converts the given date into a string.
+Converts the given date into a string. The result may occupy the entire buffer,
+in which case the terminating zero is left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -335,7 +337,8 @@ long ami_wild(
 
 Get environment string
 
-Returns an environment string by name.
+Returns an environment string by name. The result may occupy the entire buffer,
+in which case the terminating zero is left off (critical buffer convention).
 
 *******************************************************************************/
 
@@ -488,7 +491,9 @@ void ami_execew(
 
 Get current path
 
-Returns the current path in the given padded string.
+Returns the current path in the given padded string. The result may occupy the
+entire buffer, in which case the terminating zero is left off (critical buffer
+convention).
 
 ********************************************************************************/
 
@@ -542,6 +547,9 @@ consider "." to be a special character, but if the brknam and maknam procedures
 are properly paired, it will effectively be treated the same as if the "."
 were a normal character.
 
+Each result may occupy its entire buffer, in which case the terminating zero
+is left off (critical buffer convention).
+
 ********************************************************************************/
 
 void ami_brknam(
@@ -564,6 +572,9 @@ Make specification
 Creates a file specification from its components, the path, name and extention.
 We make sure that the path is properly terminated with ':' or '\' before
 concatenating.
+
+The result may occupy the entire buffer, in which case the terminating zero is
+left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -589,6 +600,9 @@ If the given file specification has a default path (the current path), then
 the current path is added to it. Essentially "normalizes" file specifications.
 No validity check is done. Garbage in, garbage out.
 
+The result may occupy the entire buffer, in which case the terminating zero is
+left off (critical buffer convention).
+
 ********************************************************************************/
 
 void ami_fulnam(
@@ -607,6 +621,9 @@ Get program path
 
 There is no direct call for program path. So we get the command line, and
 extract the program path from that.
+
+The result may occupy the entire buffer, in which case the terminating zero is
+left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -640,6 +657,9 @@ The caller should check if the path exists. If not, then the program path
 should be used instead, or the current path as required. The filenames used
 with program and user paths should be unique in case they end up in the same
 directory.
+
+The result may occupy the entire buffer, in which case the terminating zero is
+left off (critical buffer convention).
 
 ********************************************************************************/
 
@@ -1027,7 +1047,9 @@ long ami_country(void)
 Find country identifier string
 
 Finds the identifier string for the given ISO 3166-1 country code. If the string
-does not fit into the string provided, an error results.
+does not fit into the string provided, an error results. The result may occupy
+the entire buffer, in which case the terminating zero is left off (critical
+buffer convention).
 
 3166-1 country codes are both numeric codes, 2 letter country codes, and 3
 letter country codes. We only use the 2 letter codes.
@@ -1139,7 +1161,9 @@ long ami_language(void)
 Find language identifier string from language code
 
 Finds a language identifier string from a given language code. If the identifier
-string is too long for the string buffer, an error results.
+string is too long for the string buffer, an error results. The result may
+occupy the entire buffer, in which case the terminating zero is left off
+(critical buffer convention).
 
 The language codes are from the ISO 639-1 standard. It describes languages with
 2 and 3 letter codes. We use only the two letter codes here.
