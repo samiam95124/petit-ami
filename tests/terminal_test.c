@@ -93,9 +93,10 @@
 #define BLUEP(v)  (v & 0xff)
 
 /* macros to unpack color table entries to LONG_MAX ratioed numbers */
-#define RED(v)   (LONG_MAX/256*REDP(v))   /* red */
-#define GREEN(v) (LONG_MAX/256*GREENP(v)) /* green */
-#define BLUE(v)  (LONG_MAX/256*BLUEP(v)) /* blue */
+/* unpack to full scale: divide by 255 so 0xff gives exactly LONG_MAX */
+#define RED(v)   (LONG_MAX/255*REDP(v))   /* red */
+#define GREEN(v) (LONG_MAX/255*GREENP(v)) /* green */
+#define BLUE(v)  (LONG_MAX/255*BLUEP(v)) /* blue */
 
 static const int colormap[] = {
 
