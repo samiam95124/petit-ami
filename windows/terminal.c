@@ -2556,7 +2556,8 @@ long ami_joystick(FILE* f)
 
 Return number of buttons on a joystick
 
-Returns the number of buttons on a given joystick.
+Returns the number of buttons on a given joystick. Returns 0 if the joystick
+cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
@@ -2570,7 +2571,9 @@ static long ijoybutton(long j)
 
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
     r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
-    if (r) error(ejoyqry); /* could not access joystick */
+    /* a registered joystick that cannot be accessed was disconnected;
+       report no buttons rather than stopping the program */
+    if (r) return (0);
     nb = jc.wNumButtons; /* set number of buttons */
     /* We don't support more than 4 buttons. */
     if (nb > 4) nb = 4;
@@ -2593,7 +2596,8 @@ Return number of axies on a joystick
 
 Returns the number of axies implemented on a joystick, which can be 1 to 3.
 The axies order of implementation is x, y, then z. Typically, a monodementional
-joystick can be considered a slider without positional meaning.
+joystick can be considered a slider without positional meaning. Returns 0 if the
+joystick cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
@@ -2607,7 +2611,9 @@ long ami_joyaxis(FILE* f, long j)
 
     if (j < 1 || j > numjoy) error(einvjoy); /* bad joystick id */
     r = joyGetDevCaps(j-1, &jc, sizeof(JOYCAPS));
-    if (r) error(ejoyqry); /* could not access joystick */
+    /* a registered joystick that cannot be accessed was disconnected;
+       report no axes rather than stopping the program */
+    if (r) return (0);
     axis = jc.wNumAxes; /* set number of axes */
     /* We don't support more than 4 buttons. */
     if (axis > 3) axis = 3;
