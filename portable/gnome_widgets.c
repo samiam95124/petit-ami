@@ -6248,6 +6248,35 @@ Outputs a message dialog with the given title and message strings.
 #define ICIRCSIZ 2.3 /* size of i circle */
 #define ICHRSIZ  0.3 /* size of i character */
 
+/** ****************************************************************************
+
+Finish a modal dialog
+
+The modal dialogs run their own event loop, and manufacture ami_etterm to
+mean "the dialog was dismissed". A terminate that came from outside, such as
+the window manager closing the program's window, arrives as the same event
+type, so the two must be told apart: a dismissal ends the dialog only, while
+a real terminate must end the program.
+
+The dialog loops flag a terminate that arrived from ami_event, as opposed to
+one they made themselves, and pass that flag here. A real terminate is sent
+on to the main window, so the application's own event loop receives it and
+can shut down. Manufactured ones are dropped, having done their job of
+ending the dialog.
+
+*******************************************************************************/
+
+static void endmodal(
+    /** the event that ended the dialog */  ami_evtrec* er,
+    /** the terminate came from outside */  int realterm
+)
+
+{
+
+    if (realterm) ami_sendevent(stdout, er); /* pass the terminate on */
+
+}
+
 static void ialert(
     /** Title string */   char* title,
     /** Message string */ char* message
@@ -6269,7 +6298,9 @@ static void ialert(
     long       mpx, mpy; /* mouse position */
     themeindex tc;       /* text color */
     long       focus;    /* in focus */
+    int        realterm; /* a terminate arrived from outside */
 
+    realterm = FALSE; /* set no outside terminate */
     focus = FALSE; /* set not in focus */
     tc = th_text; /* set focused text */
     wid = ami_getwinid(); /* get anonymous window id */
@@ -6304,6 +6335,9 @@ static void ialert(
     do {
 
         ami_event(in, &er);
+        /* a terminate here came from outside, since the dialog makes its own
+           only further down; remember it so it can be passed on */
+        if (er.etype == ami_etterm) realterm = TRUE;
         switch (er.etype) {
 
             case ami_etfocus:
@@ -6381,21 +6415,24 @@ static void ialert(
 
             case ami_etmouba:
                 if (er.amoubn == 1 && mpy >= ami_maxyg(out)-ami_chrsizy(out)*2)
-                    er.etype = ami_etterm;
+                    er.etype = ami_etterm; /* the OK button was pressed */
                 break;
 
             case ami_etenter:
-                er.etype = ami_etterm;
+                er.etype = ami_etterm; /* enter is the same as OK */
                 break;
 
             default: ;
 
         }
 
-    } while (er.etype != ami_etterm); /* until terminate */
+    } while (er.etype != ami_etterm); /* until dismissed or terminated */
 
     /* kill the dialog window */
     fclose(out);
+
+    /* a terminate from outside must end the program, not just this dialog */
+    endmodal(&er, realterm);
 
 }
 
@@ -6414,6 +6451,9 @@ static void iquerycolor(
 )
 
 {
+    int        realterm; /* a terminate arrived from outside */
+
+    realterm = FALSE; /* set no outside terminate */
 
     FILE*         in = NULL;  /* window to create */
     FILE*         out;
@@ -6608,6 +6648,9 @@ static void iquerycolor(
     do {
 
         ami_event(in, &er);
+        /* a terminate here came from outside, since the dialog makes its own
+           only further down; remember it so it can be passed on */
+        if (er.etype == ami_etterm) realterm = TRUE;
         switch (er.etype) {
 
             case ami_etredraw:
@@ -6674,6 +6717,10 @@ static void iquerycolor(
         }
 
     } while (er.etype != ami_etterm); /* until terminate */
+    
+    /* a terminate from outside must end the program, not just
+       this dialog */
+    endmodal(&er, realterm);
 
     /* kill the dialog window */
     fclose(out);
@@ -6845,6 +6892,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     FILE*      out;
     long       wid;
     ami_evtrec er;
+    int        realterm; /* a terminate arrived from outside */
     wigptr     wp;
     long       chrsz;
     long       titbot;
@@ -6944,10 +6992,14 @@ static void qfl_dialog(char* s, long sl, const char* title) {
 
     mpy = 0;
     cancelled = FALSE;
+    realterm = FALSE; /* set no outside terminate */
 
     do {
 
         ami_event(in, &er);
+        /* a terminate here came from outside, since the dialog makes its own
+           only further down; remember it so it can be passed on */
+        if (er.etype == ami_etterm) realterm = TRUE;
         switch (er.etype) {
 
             case ami_etredraw:
@@ -7054,6 +7106,10 @@ static void qfl_dialog(char* s, long sl, const char* title) {
         }
 
     } while (er.etype != ami_etterm);
+    
+    /* a terminate from outside must end the program, not just
+       this dialog */
+    endmodal(&er, realterm);
 
     if (cancelled) {
         if (s && sl > 0) s[0] = 0;
@@ -7171,6 +7227,9 @@ static void iqueryfind(
 )
 
 {
+    int        realterm; /* a terminate arrived from outside */
+
+    realterm = FALSE; /* set no outside terminate */
 
     FILE*      in = NULL; /* window to create */
     FILE*      out;
@@ -7271,6 +7330,9 @@ static void iqueryfind(
     do {
 
         ami_event(in, &er);
+        /* a terminate here came from outside, since the dialog makes its own
+           only further down; remember it so it can be passed on */
+        if (er.etype == ami_etterm) realterm = TRUE;
         switch (er.etype) {
 
             case ami_etredraw:
@@ -7341,6 +7403,10 @@ static void iqueryfind(
         }
 
     } while (er.etype != ami_etterm);
+    
+    /* a terminate from outside must end the program, not just
+       this dialog */
+    endmodal(&er, realterm);
 
     /* flow-through result */
     if (cancelled) {
@@ -7401,6 +7467,9 @@ static void iqueryfindrep(
 )
 
 {
+    int        realterm; /* a terminate arrived from outside */
+
+    realterm = FALSE; /* set no outside terminate */
 
     FILE*      in = NULL;
     FILE*      out;
@@ -7515,6 +7584,9 @@ static void iqueryfindrep(
     do {
 
         ami_event(in, &er);
+        /* a terminate here came from outside, since the dialog makes its own
+           only further down; remember it so it can be passed on */
+        if (er.etype == ami_etterm) realterm = TRUE;
         switch (er.etype) {
 
             case ami_etredraw:
@@ -7582,6 +7654,10 @@ static void iqueryfindrep(
         }
 
     } while (er.etype != ami_etterm);
+    
+    /* a terminate from outside must end the program, not just
+       this dialog */
+    endmodal(&er, realterm);
 
     if (cancelled) {
         if (s && sl > 0) s[0] = 0;
@@ -7630,6 +7706,9 @@ static void iqueryfont(
 )
 
 {
+    int        realterm; /* a terminate arrived from outside */
+
+    realterm = FALSE; /* set no outside terminate */
 
     FILE*       in = NULL;
     FILE*       out;
@@ -7773,6 +7852,9 @@ static void iqueryfont(
     do {
 
         ami_event(in, &er);
+        /* a terminate here came from outside, since the dialog makes its own
+           only further down; remember it so it can be passed on */
+        if (er.etype == ami_etterm) realterm = TRUE;
         switch (er.etype) {
 
             case ami_etredraw:
@@ -7902,6 +7984,10 @@ static void iqueryfont(
         }
 
     } while (er.etype != ami_etterm);
+    
+    /* a terminate from outside must end the program, not just
+       this dialog */
+    endmodal(&er, realterm);
 
     if (!cancelled) {
         /* re-read the size from the edit box (user may not have pressed enter) */
