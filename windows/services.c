@@ -216,6 +216,9 @@ characters in the substring are too large for the destination.
 
 ********************************************************************************/
 
+/* Extract a substring, from index st through ed, into d. The length l is
+   the maximum CONTENT length: the terminator is written after it, so a
+   buffer of N characters admits l = N-1. */
 static void extract(char *d, int l, char *s, int st, int ed)
 {
 
@@ -1147,8 +1150,11 @@ static void cmdpth(
 
                 } else { /* copy partial */
 
-                    extract(p, MAXSTR, pc, 0, cp-pc-1);   /* get left side to path */
-                    extract(pc, MAXPTH, pc, cp-pc+1, strlen(pc)); /* remove from path */
+                    /* extract() takes a maximum content length and writes
+                       the terminator after it, so a buffer of N admits N-1
+                       characters */
+                    extract(p, MAXSTR-1, pc, 0, cp-pc-1); /* get left side to path */
+                    extract(pc, MAXPTH-1, pc, cp-pc+1, strlen(pc)); /* remove from path */
                     trim(pc); /* make sure left aligned */
 
                 }
@@ -1689,8 +1695,14 @@ void ami_getpgm(
             f = 0; /* set path not found */
             while (*path && !f) { /* search path */
 
-                i = strchr(path, ';')-path; /* find next path separator */
-                if (!i) { /* none, the rest is the path */
+                /* Find the next path separator. strchr gives NULL when
+                   there is none, so the pointer difference must not be
+                   taken until that is known: the old code subtracted
+                   first, leaving a meaningless index, and tested it
+                   against zero, which is also a legitimate result (a
+                   separator in the first position). */
+                cp = strchr(path, ';'); /* find next path separator */
+                if (!cp) { /* none, the rest is the path */
 
                     if (strlen(path) >= MAXSTR)
                         error("String too large for destination");
@@ -1699,6 +1711,7 @@ void ami_getpgm(
 
                 } else { /* break off next segment */
 
+                    i = cp-path; /* index of the separator */
                     extract(pb, MAXSTR-1, path, 0, i-1); /* place path */
                     /* extract the rest as remainer */
                     extract(path, MAXPTH-1, path, i+1, strlen(path));

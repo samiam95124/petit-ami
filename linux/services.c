@@ -211,6 +211,9 @@ characters in the substring are too large for the destination.
 
 ********************************************************************************/
 
+/* Extract a substring, from index st through ed, into d. The length l is
+   the maximum CONTENT length: the terminator is written after it, so a
+   buffer of N characters admits l = N-1. */
 static void extract(char *d, int l, char *s, int st, int ed)
 {
 
@@ -1282,6 +1285,32 @@ Returns the properly pathed command if found.
 
 ********************************************************************************/
 
+/********************************************************************************
+
+Copy string to internal buffer
+
+Copies a string to an internal working buffer of the given length, which
+unlike an API output buffer must end up a usable C string: the result is
+always zero terminated, and a string that does not fit is an error. Used for
+the module's own path plumbing, where the source can be an environment value
+or a name handed in by the caller, and so is not bounded by anything this
+module controls.
+
+********************************************************************************/
+
+static void cpylim(
+    /** destination */        char* d,
+    /** destination length */ int dl,
+    /** source */             const char* s
+)
+
+{
+
+    if (strlen(s) >= dl) error("String too large for buffer");
+    strcpy(d, s);
+
+}
+
 void cmdpth(
     /* command to search for */           char *cn,
     /* result correctly pathed command */ char *pcn,
@@ -1294,9 +1323,15 @@ void cmdpth(
     bufstr ncn;
     char *cp;
 
-    strcpy(ncn, cn); /* copy command to temp */
-    /* perform pathing search */
-    ami_brknam(cn, p, MAXSTR, n, MAXSTR, e, MAXSTR); /* break down the name */
+    cpylim(ncn, MAXSTR, cn); /* copy command to temp */
+    /* Break down the name. The component buffers are given one short of
+       their size with the last byte cleared, so a component that exactly
+       fills one still comes back a usable C string: these are critical
+       output buffers and would otherwise be left unterminated. */
+    p[MAXSTR-1] = 0;
+    n[MAXSTR-1] = 0;
+    e[MAXSTR-1] = 0;
+    ami_brknam(cn, p, MAXSTR-1, n, MAXSTR-1, e, MAXSTR-1);
     if (*p == 0 && *pthstr != 0) { /* no path on name and environment path exists */
 
         strcpy(pc, pthstr);   /* make a copy of the path */
@@ -1306,17 +1341,22 @@ void cmdpth(
             cp = strchr(pc, ':' /*ami_pthchr()*/); /* find next path separator */
             if (!cp) {  /* none left, use entire remaining */
 
-                strcpy(p, pc); /* none left, use entire remaining */
+                cpylim(p, MAXSTR, pc); /* none left, use entire remaining */
                 pc[0] = 0; /* clear the rest */
 
             } else { /* copy partial */
 
-                extract(p, MAXSTR, pc, 0, cp-pc-1);   /* get left side to path */
-                extract(pc, MAXSTR, pc, cp-pc+1, strlen(pc)); /* remove from path */
+                /* extract() takes a maximum content length and writes the
+                   terminator after it, so a buffer of MAXSTR admits
+                   MAXSTR-1 characters */
+                extract(p, MAXSTR-1, pc, 0, cp-pc-1); /* get left side to path */
+                extract(pc, MAXSTR-1, pc, cp-pc+1, strlen(pc)); /* remove from path */
                 trim(pc); /* make sure left aligned */
 
             }
-            ami_maknam(ncn, MAXSTR, p, n, e);   /* create filename */
+            /* one short of the buffer, so the result is terminated */
+            ncn[MAXSTR-1] = 0;
+            ami_maknam(ncn, MAXSTR-1, p, n, e);   /* create filename */
             if (exists(ncn)) *pc = 0;  /* found, indicate stop */
 
         }
@@ -1818,7 +1858,7 @@ void ami_getpgm(
     bufstr   pcn;  /* pathed command name */
 
 #if defined(__linux) || defined(__MINGW32__) /* linux, Windows */
-    strcpy(pn, program_invocation_name); /* copy invoke name to path */
+    cpylim(pn, MAXSTR, program_invocation_name); /* copy invoke name to path */
 #elif defined(__FreeBSD__) /* BSD, FreeBSD */
     strcpy(pn, prgpth); /* copy from program path */
 #else /* Mac OS X */
