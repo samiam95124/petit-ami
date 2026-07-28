@@ -116,6 +116,14 @@ int main(void)
     ami_setenv("barkbark", "what is this");
     ami_getenv("barkbark", s, MAXSTR);
     printf("test20: %s s/b what is this\n", s);
+    /* Set the same name again. This takes the "found" path in setenv,
+       which replaces the value in place rather than making a new entry,
+       and is where a one byte heap overflow lived: the replacement was
+       allocated without room for the terminator. A longer value than the
+       first makes the overflow certain rather than incidental. */
+    ami_setenv("barkbark", "a considerably longer replacement value");
+    ami_getenv("barkbark", s, MAXSTR);
+    printf("test21: %s s/b a considerably longer replacement value\n", s);
     ami_remenv("barkbark");
     ami_getenv("barkbark", s, MAXSTR);
     printf("test22: \"%s\" s/b \"\"\n", s);

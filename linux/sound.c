@@ -616,6 +616,16 @@ int alsa2params(int fmt, int* rbits, int* rsgn, int* rbig, int* rflt)
     int big;  /* big/litte endian */
     int flt;  /* floating point/integer */
 
+    /* Start as unsupported. The switch below does not cover every code ALSA
+       defines, and has no default, so without this a format outside the list
+       leaves these uninitialized and the test at the end reads whatever was
+       on the stack. */
+    supp = 0;
+    bits = 0;
+    sgn = 0;
+    big = 0;
+    flt = 0;
+
     switch (fmt) {
 
         case SND_PCM_FORMAT_S8:

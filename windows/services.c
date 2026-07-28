@@ -999,9 +999,9 @@ void ami_setenv(
     if (p) { /* found */
 
         free(p->data);   /* release last contents */
-        /* create new data string */
-        p->data = (char *) malloc(strlen(sd));
-        if (!p) error("Could not allocate string");
+        /* create new data string, with room for the terminator */
+        p->data = (char *) malloc(strlen(sd)+1);
+        if (!p->data) error("Could not allocate string");
         strcpy(p->data, sd);
 
     } else {
@@ -1012,11 +1012,11 @@ void ami_setenv(
         envlst = p;
         /* create new name string and place */
         p->name = (char *) malloc(strlen(sn)+1);
-        if (!p) error("Could not allocate string");
+        if (!p->name) error("Could not allocate string");
         strcpy(p->name, sn);
         /* create new data string and place */
         p->data = (char *) malloc(strlen(sd)+1);
-        if (!p) error("Could not allocate string");
+        if (!p->data) error("Could not allocate string");
         strcpy(p->data, sd);
 
     }

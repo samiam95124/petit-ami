@@ -20,6 +20,7 @@ test 17  1 s/b 1
 test 18: 1 s/b 1
 test 19: 0 s/b 0
 test20: what is this s/b what is this
+test21: a considerably longer replacement value s/b a considerably longer replacement value
 test22: "" s/b ""
 test23:
 Name: HOME Data: /home/samiam
