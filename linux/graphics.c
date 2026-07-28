@@ -1294,12 +1294,70 @@ If an error dialog cannot be presented to font not found or other error, returns
 
 Notes:
 
-Obviously this could use better ratios and less magic numbers.
+The dialog sizes itself from the display resolution, so it comes out the same
+physical size on any display density. The dimensions below are given for a
+nominal 96 dots per inch display and scaled from there; the scale is never
+taken below 1, so a low density display keeps the original appearance.
+
+The scale is found from the XWindow display metrics directly rather than from
+the Petit-Ami screen record, because this dialog is deliberately standalone:
+it draws with raw XWindow and FreeType so that an error can still be shown
+when the module itself is in a bad state.
 
 *******************************************************************************/
 
-#define NEGCIRCLE    80 /* negative sign circle size */
-#define NEGCIRCLESPC 20 /* space around negative circle */
+/* Dialog dimensions at 96 dots per inch. All are scaled by dlgscale() at
+   use. */
+#define DLGFONT      14  /* dialog font pixel size */
+#define NEGCIRCLE    80  /* negative sign circle size */
+#define NEGCIRCLESPC 20  /* space around negative circle */
+#define DLGDASHX     35  /* negative sign dash position and size */
+#define DLGDASHY     60
+#define DLGDASHW     50
+#define DLGDASHH     10
+#define DLGTITPAD    200 /* padding to clear the title bar controls */
+#define DLGSIDEPAD   40  /* dialog width padding */
+#define DLGHIGH      200 /* dialog height */
+#define DLGBTNPAD    50  /* close button padding around its text */
+#define DLGBTNX      20  /* close button offset from the right edge */
+#define DLGBTNY      125 /* close button top */
+#define DLGBTNH      40  /* close button height */
+#define DLGBTNTXTX   15  /* close button text offset within the button */
+#define DLGBTNTXTY   155 /* close button text baseline */
+#define DLGNOMDPM    3780 /* dots per meter at the nominal 96 dots per inch */
+
+/** ****************************************************************************
+
+Find dialog scale
+
+Returns the factor to scale the error dialog by, from the resolution of the
+display. The dialog dimensions are given for a nominal 96 dots per inch
+display, so a display of twice that density gives 2. The scale is never less
+than 1: on a low density display the dialog keeps its original size rather
+than shrinking below legibility.
+
+Uses the XWindow display metrics rather than the Petit-Ami screen record,
+since the error dialog must work when the module is in a bad state.
+
+*******************************************************************************/
+
+static double dlgscale(void)
+
+{
+
+    int    res;  /* display resolution in pixels */
+    int    size; /* display size in millimeters */
+    double dpm;  /* dots per meter */
+
+    res = DisplayHeight(padisplay, pascreen);
+    size = DisplayHeightMM(padisplay, pascreen);
+    if (size <= 0) return (1.0); /* no metrics, use the nominal size */
+    dpm = (double)res*1000/size; /* find dots per meter */
+    if (dpm < DLGNOMDPM) return (1.0); /* do not shrink */
+
+    return (dpm/DLGNOMDPM);
+
+}
 
 static int errdlg(
     /** dialog title */    char* t,
@@ -1323,8 +1381,19 @@ static int errdlg(
     FcPattern*        match;
     FcResult          result;
     FcChar8*          fcfile;
+    double            sf;    /* display scale factor */
+    int               ncirc; /* negative circle size and spacing */
+    int               nspc;
+    int               btnh;  /* close button height */
+    int               btny;  /* close button top */
 
-    dlg_size = 14; /* dialog font pixel size */
+    /* size everything from the display resolution */
+    sf = dlgscale();
+    dlg_size = DLGFONT*sf; /* dialog font pixel size */
+    ncirc = NEGCIRCLE*sf;
+    nspc = NEGCIRCLESPC*sf;
+    btnh = DLGBTNH*sf;
+    btny = DLGBTNY*sf;
 
     /* find a sans-serif font via fontconfig */
     pat = FcNameParse((FcChar8*)"sans:style=Bold Oblique");
@@ -1352,17 +1421,17 @@ static int errdlg(
     FT_Set_Pixel_Sizes(dlg_face, 0, dlg_size);
 
     /* minimum width for dialog system bar */
-    mw = ft_text_width(dlg_face, t, strlen(t))+200;
+    mw = ft_text_width(dlg_face, t, strlen(t))+DLGTITPAD*sf;
     /* minimum width for dialog contents */
-    wd = NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC+ft_text_width(dlg_face, s, strlen(s));
+    wd = nspc+ncirc+nspc+ft_text_width(dlg_face, s, strlen(s));
     if (wd > mw) mw = wd; /* set minimum overall */
 
     XWLOCK();
     /* find screen placement */
     XGetWindowAttributes(padisplay, RootWindow(padisplay, pascreen), &xwa);
 
-    ww = mw+40; /* set dialog width and height */
-    wh = 200;
+    ww = mw+DLGSIDEPAD*sf; /* set dialog width and height */
+    wh = DLGHIGH*sf;
     /* create dialog window centered on screen */
     w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0,
                             ww, wh, 5,
@@ -1378,12 +1447,12 @@ static int errdlg(
     XSetIconName(padisplay, w, t);
     XWUNLOCK();
 
-    cw = ft_text_width(dlg_face, cb, strlen(cb))+50;
+    cw = ft_text_width(dlg_face, cb, strlen(cb))+DLGBTNPAD*sf;
     /* set button rectangle */
-    bx1 = ww-cw-20;
-    by1 = 125;
+    bx1 = ww-cw-DLGBTNX*sf;
+    by1 = btny;
     bx2 = bx1+cw-1;
-    by2 = by1+40-1;
+    by2 = by1+btnh-1;
 
     do {
 
@@ -1399,24 +1468,25 @@ static int errdlg(
                            e.xexpose.width, e.xexpose.height);
             /* draw error circle */
             XSetForeground(padisplay, cxt, 0xce3c30);
-            XFillArc(padisplay, w, cxt, NEGCIRCLESPC, NEGCIRCLESPC,
-                     NEGCIRCLE, NEGCIRCLE, 0, 360*64);
+            XFillArc(padisplay, w, cxt, nspc, nspc,
+                     ncirc, ncirc, 0, 360*64);
             /* draw dash */
             XSetForeground(padisplay, cxt, 0xffffff);
-            XFillRectangle(padisplay, w, cxt, 35, 60-5, 50, 10);
+            XFillRectangle(padisplay, w, cxt, DLGDASHX*sf,
+                           (DLGDASHY-DLGDASHH/2)*sf, DLGDASHW*sf,
+                           DLGDASHH*sf);
             /* set text color */
             XSetForeground(padisplay, cxt, 0x000000);
             /* center text on circle to the right */
             ft_draw_string(w, cxt, dlg_face, dlg_size, dlg_size,
-                           NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC,
-                           NEGCIRCLESPC+NEGCIRCLE/2, s, strlen(s));
+                           nspc+ncirc+nspc, nspc+ncirc/2, s, strlen(s));
             /* place close button */
             XSetForeground(padisplay, cxt, 0xffffff);
-            XFillRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
+            XFillRectangle(padisplay, w, cxt, bx1, btny, cw, btnh);
             XSetForeground(padisplay, cxt, 0x000000);
-            XDrawRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
+            XDrawRectangle(padisplay, w, cxt, bx1, btny, cw, btnh);
             ft_draw_string(w, cxt, dlg_face, dlg_size, dlg_size,
-                           ww-cw-20+15, 155, cb, strlen(cb));
+                           bx1+DLGBTNTXTX*sf, DLGBTNTXTY*sf, cb, strlen(cb));
             XWUNLOCK();
 
         } else if (e.type == ButtonPress) {
