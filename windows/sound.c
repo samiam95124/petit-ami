@@ -3870,6 +3870,8 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
 
 {
 
+    long pv; /* pitch value expanded to full scale */
+
     long t;
     byte p1;
     byte p2;
@@ -3985,7 +3987,19 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
                   sp->time = t; /* set time */
                   sp->st = st_pitch; /* set type */
                   sp->vsc = (b1&15)+1; /* set channel */
-                  sp->vsv = p2<<7|p1; /* set pitch */
+                  /* Expand the 14 bit MIDI value to API full scale, the
+                     inverse of the reduction performed on output. Without
+                     this a pitch read from a device or file plays back at
+                     (near) centre, since the raw value is tiny against full
+                     scale. Centring puts the range at -8192..8191, so the
+                     bottom end alone lands one past -LONG_MAX, and is
+                     clamped: a raw 0 therefore returns as 1, one part in
+                     16384 at the extreme of the bend, which is preferable
+                     to handing out a value the API does not admit and whose
+                     negation would overflow. */
+                  pv = ((long)(p2<<7|p1)-0x2000)*(LONG_MAX/8192+1);
+                  if (pv < -LONG_MAX) pv = -LONG_MAX;
+                  sp->vsv = pv; /* set pitch */
                   break;
         case 0xf: /* sysex/meta */
                   /* windows sends system exclusive messages via the buffer

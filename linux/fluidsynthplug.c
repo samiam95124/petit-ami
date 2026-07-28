@@ -216,8 +216,13 @@ static void writefluid(long p, ami_seqptr sp)
             fluid_synth_pitch_bend(fp->synth, sp->vsc-1, sp->vsv/(LONG_MAX/8192+1)+0x2000);
             break;
         case st_pitchrange:
-            /* this one is open for interpretation: what is a "semitone"? */
-            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1, sp->vsv/(LONG_MAX/16384+1));
+            /* Fluidsynth takes the sensitivity in semitones, so this uses
+               the same scale as the MIDI path, whose RPN data entry coarse
+               byte is semitones: full scale is 127 of them. It divided by
+               the 14 bit constant before, handing over a number up to
+               16383 where semitones were expected. */
+            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1,
+                                         sp->vsv/(LONG_MAX/128+1));
             break;
         case st_mono:         break; /* no equivalent function */
         case st_poly:         break; /* no equivalent function */
