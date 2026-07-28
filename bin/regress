@@ -61,9 +61,9 @@ if [ -z "$tests" ]; then tests="stdio_test services_test network_test"; fi
 #   the line width varies run to run and the whole time is masked with '*'
 # - elapsed tick counts on the "test 11:" line of services_test
 # - process ids in temp file names from stdio_test
-# - timezone offset and daylight savings flag, which change with the season
-#   (and the timezone value currently also flips with the time of day, see
-#   the ami_timezone day wrap issue)
+# - the daylight savings flag, which changes with the season. The timezone
+#   offset is not masked: it is a fixed property of the machine's zone now
+#   that ami_timezone handles the day wrap
 #
 mask()
 {
@@ -74,7 +74,6 @@ mask()
         -e 's|[0-9]{2}:[0-9]{2}:[0-9]{2}( [ap]m)?|*|g' \
         -e 's|^(test 11: )[0-9]+|\1*|' \
         -e 's|/tmp/tmp\.[0-9]+\.|/tmp/tmp.*.|g' \
-        -e 's|^(test 58: Timezone: )-?[0-9]+|\1*|' \
         -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
         -e 's|^(    google.com A    -> ).*|\1*|' \
         -e 's|^(    google.com AAAA -> ).*|\1*|'

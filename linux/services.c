@@ -2675,13 +2675,25 @@ long ami_timezone(void)
     time_t t, nt;  /* seconds time holder */
     struct tm gmt; /* time structure gmt */
     struct tm lcl; /* local time structure */
+    int dd;        /* day difference, local to gmt */
 
     t = time(NULL); /* get seconds time */
     gmtime_r(&t, &gmt); /* get gmt */
     localtime_r(&t, &lcl); /* get local */
-    nt = (lcl.tm_hour-gmt.tm_hour)*HOURSEC-(!!lcl.tm_isdst*HOURSEC);
+    /* Find the difference. Minutes are included because a number of zones
+       are offset by a half or quarter hour, not a whole one. */
+    nt = (lcl.tm_hour-gmt.tm_hour)*HOURSEC+(lcl.tm_min-gmt.tm_min)*60;
+    /* The two can fall on different days, in which case the hour difference
+       above is out by a day. The year end is the reason for the second test
+       in each case: there the day numbers run 364 against 0. */
+    dd = lcl.tm_yday-gmt.tm_yday;
+    if (dd == 1 || dd < -1) nt += DAYSEC;      /* local is the next day */
+    else if (dd == -1 || dd > 1) nt -= DAYSEC; /* local is the previous day */
+    /* the result includes daylight savings; remove it, since ami_local adds
+       it back from ami_daysave() */
+    if (lcl.tm_isdst > 0) nt -= HOURSEC;
 
-    /* return hour difference */
+    /* return the offset */
     return nt;
 
 }

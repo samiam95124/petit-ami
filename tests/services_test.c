@@ -168,11 +168,19 @@ int main(void)
     ami_setcur(s);
     ami_getcur(s, MAXSTR);
     printf("test 31: %s s/b <the current path>\n", s);
-    ami_brknam("c:\\what\\ho\\junk.com", p, MAXSTR, n, MAXSTR, e, MAXSTR);
+    /* Build the path with the system's own separator. The test used a
+       Windows path with backslashes, which is not a separator on Unix, so
+       brknam correctly returned the whole string as the name and the test
+       appeared to fail everywhere but Windows. */
+    sprintf(s2, "%cwhat%cho%cjunk.com", ami_pthchr(), ami_pthchr(),
+            ami_pthchr());
+    ami_brknam(s2, p, MAXSTR, n, MAXSTR, e, MAXSTR);
     printf("test 32: Path: %s Name: %s Ext: %s ", p, n, e);
-    printf("s/b: Path: c:\\what\\ho\\ Name: junk Ext: com\n");
+    printf("s/b: Path: %cwhat%cho%c Name: junk Ext: com\n", ami_pthchr(),
+           ami_pthchr(), ami_pthchr());
     ami_maknam(s, MAXSTR, p, n, e);
-    printf("test 33: %s s/b c:\\what\\ho\\junk.com\n", s);
+    printf("test 33: %s s/b %cwhat%cho%cjunk.com\n", s, ami_pthchr(),
+           ami_pthchr(), ami_pthchr());
     strcpy(s, "junk");
     ami_fulnam(s, MAXSTR);
     printf("test 36: %s s/b <path>junk\n", s);

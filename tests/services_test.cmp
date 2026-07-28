@@ -51,8 +51,8 @@ This is services_test1 "hi there"
 test 29: /home/samiam/projects/amitk/tests/regress s/b <the current path>
 test 30: /home/samiam s/b <the user path>
 test 31: /home/samiam/projects/amitk/tests/regress s/b <the current path>
-test 32: Path:  Name: c:\what\ho\junk Ext: com s/b: Path: c:\what\ho\ Name: junk Ext: com
-test 33: c:\what\ho\junk.com s/b c:\what\ho\junk.com
+test 32: Path: /what/ho/ Name: junk Ext: com s/b: Path: /what/ho/ Name: junk Ext: com
+test 33: /what/ho/junk.com s/b /what/ho/junk.com
 test 36: /home/samiam/projects/amitk/tests/regress/junk s/b <path>junk
 test 38: /home/samiam/projects/amitk/bin/ s/b <the program path>
 test 40: /home/samiam s/b <the user path>
@@ -68,7 +68,7 @@ test 54: longitude: 0
 test 55: Altitude: 0
 test 56: Country code: 840
 test 57: Country name: United States of America
-test 58: Timezone: *
+test 58: Timezone: -28800
 test 59: Daysave: *
 test 60: 24 hour time: 0
 test 61: Language: 41
