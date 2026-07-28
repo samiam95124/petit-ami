@@ -603,8 +603,14 @@ void ami_times(
     am = 0;
     if (!ami_time24hour()) { /* do am/pm adjustment */
 
-        if (h == 0) h = 12; /* hour zero */
-        else if (h > 12) { h -= 12; pm = 1; } /* 1 pm to 11 pm */
+        /* Noon and after is pm, the rest am. The hour then folds into 1
+           through 12: midnight and noon are both shown as 12, which is why
+           they are handled apart from the simple subtraction. */
+        pm = h >= 12;
+        am = !pm;
+        if (h == 0) h = 12;        /* midnight hour is 12 am */
+        else if (h > 12) h -= 12;  /* 1 pm to 11 pm */
+        /* the noon hour stays 12, and is pm */
 
     }
     /* place hour:miniute:second */
