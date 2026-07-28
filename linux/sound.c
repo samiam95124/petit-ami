@@ -1381,6 +1381,8 @@ static void inpseq(long p, ami_seqptr sp)
 
 {
 
+    long pv; /* pitch value expanded to full scale */
+
     devptr mp; /* midi input port */
     byte b;
     long t;
@@ -1513,7 +1515,19 @@ static void inpseq(long p, ami_seqptr sp)
                   sp->time = t; /* set time */
                   sp->st = st_pitch; /* set type */
                   sp->vsc = (b&15)+1; /* set channel */
-                  sp->vsv = p2<<7|p1; /* set pitch */
+                  /* Expand the 14 bit MIDI value to API full scale, the
+                     inverse of the reduction _pa_excseq performs on output.
+                     Without this a pitch read from a device or file plays
+                     back at (near) centre, since the raw value is tiny
+                     against full scale. Centring puts the range at
+                     -8192..8191, so the bottom end alone lands one past
+                     -LONG_MAX, and is clamped: a raw 0 therefore returns as
+                     1, one part in 16384 at the extreme of the bend, which
+                     is preferable to handing out a value the API does not
+                     admit and whose negation would overflow. */
+                  pv = ((long)(p2<<7|p1)-0x2000)*(LONG_MAX/8192+1);
+                  if (pv < -LONG_MAX) pv = -LONG_MAX;
+                  sp->vsv = pv; /* set pitch */
                   break;
         case 0xf: /* sysex/meta */
                   switch (b) {
@@ -4215,6 +4229,8 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, long p, long t, int* qnote,
 
 {
 
+    long pv; /* pitch value expanded to full scale */
+
     byte p1;
     byte p2;
     byte p3;
@@ -4339,7 +4355,19 @@ static int dcdmidi(FILE* fh, byte b, int* endtrk, long p, long t, int* qnote,
                   sp->time = t; /* set time */
                   sp->st = st_pitch; /* set type */
                   sp->vsc = (b&15)+1; /* set channel */
-                  sp->vsv = p2<<7|p1; /* set pitch */
+                  /* Expand the 14 bit MIDI value to API full scale, the
+                     inverse of the reduction _pa_excseq performs on output.
+                     Without this a pitch read from a device or file plays
+                     back at (near) centre, since the raw value is tiny
+                     against full scale. Centring puts the range at
+                     -8192..8191, so the bottom end alone lands one past
+                     -LONG_MAX, and is clamped: a raw 0 therefore returns as
+                     1, one part in 16384 at the extreme of the bend, which
+                     is preferable to handing out a value the API does not
+                     admit and whose negation would overflow. */
+                  pv = ((long)(p2<<7|p1)-0x2000)*(LONG_MAX/8192+1);
+                  if (pv < -LONG_MAX) pv = -LONG_MAX;
+                  sp->vsv = pv; /* set pitch */
                   break;
         case 0xf: /* sysex/meta */
                   switch (b) {
