@@ -4497,11 +4497,21 @@ static void intevent(FILE* f)
                 } else if (ev.mmoun == 1) { /* button 1 click */
 
                     remfocus(); /* remove previous focus */
+                    /* Take the focus before announcing it. A widget
+                       redraws its face when it hears this and reads the
+                       flag to decide how to look, so announcing first
+                       drew it as though it did not have the focus. */
+                    win->focus = TRUE; /* set current focus */
+                    curfocus = win;
                     /* send focus message */
                     er.etype = ami_etfocus; /* set focus event */
                     intsendevent(win, &er); /* send to queue */
-                    win->focus = TRUE; /* set current focus */
-                    curfocus = win;
+                    /* The cursor belongs to the focused window, so it
+                       moves to this one. Without this the cursor stayed
+                       in whatever window last held the focus, and the
+                       test that asks whether the cursor follows the
+                       selection failed. */
+                    setcur(win);
                     if (inclient(win, mousex, mousey)) {
 
                         /* window went into focus, can have hover now */
