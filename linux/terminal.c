@@ -259,7 +259,8 @@ typedef enum {
     /* superscript */                sasuper,
     /* subscripting */               sasubs,
     /* italic text */                saital,
-    /* bold text */                  sabold
+    /* bold text */                  sabold,
+    /* struck out text */            sastkout
 
 } scnatt;
 
@@ -1617,6 +1618,8 @@ static void trm_clear(void) { putstrc("\33[2J\33[H"); }
 /** turn on underline */ static void trm_undl(void) { putstrc("\33[4m"); }
 /** turn on bold attribute */ static void trm_bold(void) { putstrc("\33[1m"); }
 /** turn on italic attribute */ static void trm_ital(void) { putstrc("\33[3m"); }
+/** turn on strikeout attribute */
+static void trm_stkout(void) { putstrc("\33[9m"); }
 /** turn off all attributes */
 static void trm_attroff(void) { putstrc("\33[0m"); }
 /** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[7h"); }
@@ -1851,6 +1854,7 @@ static void setattr(scnptr sc, scnatt a)
             case sasubs:  break;                /* subscripting */
             case saital:  trm_ital();    break; /* italic text */
             case sabold:  trm_bold();    break; /* bold text */
+            case sastkout: trm_stkout(); break; /* struck out text */
 
         }
         /* attribute off may change the colors back to "normal" (normal for that
@@ -4237,9 +4241,9 @@ static void bold_ivf(FILE *f, long e)
 
 Turn on strikeout attribute
 
-Turns on/off the strikeout attribute.
-
-Not implemented.
+Turns on/off the strikeout attribute. This is SGR 9, which the terminals
+that came after the fixed function ones generally present; one that does
+not simply leaves the text unmarked, as with any other attribute it lacks.
 
 *******************************************************************************/
 
@@ -4250,7 +4254,7 @@ static void strikeout_ivf(FILE *f, long e)
 {
 
     dbg_printf(dlapi, "API\n");
-    /* no capability */
+    attronoff(f, e, sastkout); /* enable/disable attribute */
 
 }
 
