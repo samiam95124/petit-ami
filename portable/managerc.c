@@ -1634,9 +1634,17 @@ static void calcfmask(winptr win)
                 /* find net client offset */
                 cx = x-(win->orgx+win->coffx);
                 cy = y-(win->orgy+win->coffy);
-                /* clear the cx/cy bit */
-                l = cy*win->bufx+cx; /* find character location */
-                win->fmask[l/8] &= ~(1<<(l%8)); /* mask off that bit */
+                /* The mask is shaped by the buffer, and the client area
+                   can be larger than the buffer, which is what a program
+                   asks for when it sizes the buffer smaller than the
+                   window. Cells outside the buffer have no bit to clear;
+                   writing one lands outside the allocation. */
+                if (cx < win->bufx && cy < win->bufy) {
+
+                    l = cy*win->bufx+cx; /* find character location */
+                    win->fmask[l/8] &= ~(1<<(l%8)); /* mask off that bit */
+
+                }
 
             }
 
@@ -3407,10 +3415,10 @@ static void intsetsiz(winptr win, long x, long y)
         win->maxy -= win->frame*2+win->size*2;
 
     }
-    /* the buffer must always cover the client area */
-    if (win->bufmod) growwinbuf(win, win->cmaxx, win->cmaxy);
-    /* as in intsetpos, the repaints below consult the masks, so they must
-       reflect the new size first */
+    /* As in intsetpos, the repaints below consult the masks, so they must
+       reflect the new size first. The buffer is left as it is: a buffer
+       smaller than the window is what a program gets when it sizes one,
+       and the client area beyond it simply shows nothing. */
     recalcfmask();
     if (win->visible) { /* window is onscreen */
 
@@ -5737,8 +5745,6 @@ static void isizbuf(FILE* f, long x, long y)
         }
         free(win->fmask); /* release previous mask */
         alcfmask(win); /* allocate and clear forward mask */
-        /* the buffer must still cover the client area */
-        growwinbuf(win, win->cmaxx, win->cmaxy);
         if (indisp(win)) restore(win); /* repaint from the new buffer */
 
     }
@@ -5946,8 +5952,12 @@ static void recompcli(winptr win)
 
         win->maxx = win->cmaxx;
         win->maxy = win->cmaxy;
+        win->bufx = win->cmaxx;
+        win->bufy = win->cmaxy;
+        if (win->fmask) { free(win->fmask); alcfmask(win); }
 
-    } else growwinbuf(win, win->cmaxx, win->cmaxy);
+    }
+    /* in buffered mode the buffer keeps the size it was given */
     recalcfmask();
 
 }
