@@ -591,7 +591,7 @@ ifeq ($(OSTYPE),Windows_NT)
 # network implementation (TCP, TLS, messages, DTLS and certificates).
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -608,7 +608,7 @@ else ifeq ($(OSTYPE),Darwin)
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg playtextmidi playtextmidig printdev printdevg connectmidi \
      connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -624,7 +624,7 @@ else ifeq ($(OSTYPE),FreeBSD)
 #
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -640,7 +640,7 @@ else
 #
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
-     connectwaveg random randomg genwave genwaveg terminal_test terminal_testg \
+     connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -951,6 +951,20 @@ lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
 		utils/option.o  cpp/terminal.o -lstdc++ -o lib/petit_ami_term.so
 	
+#
+# Terminal library with the character mode window manager always included.
+# This is a separate file from lib/petit_ami_term.so so that both the plain
+# and the managed configurations can exist at once: they were previously the
+# same file, and building one silently replaced the other.
+#
+lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
+	linux/terminal.o portable/managerc.o linux/system_event.o utils/config.o \
+	utils/option.o cpp/terminal.o
+	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
+		linux/terminal.o portable/managerc.o linux/system_event.o \
+		utils/config.o utils/option.o cpp/terminal.o -lstdc++ \
+		-o lib/petit_ami_termc.so
+
 lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
@@ -1009,6 +1023,28 @@ dif: utils/dif.c Makefile
 #
 css2theme: utils/css2theme.c Makefile
 	$(CC) utils/css2theme.c -o bin/css2theme
+
+#
+# GTK version of the widget sampler in test.c, as the reference to compare
+# the widget theme against. Not built by "make all": it links GTK, which
+# Petit-Ami deliberately does not.
+#
+test_gtk: test_gtk.c Makefile
+	$(CC) test_gtk.c `pkg-config --cflags --libs gtk+-3.0` -o test_gtk
+
+#
+# Managerc subwindow test. The terminal library must be built with managerc
+# in it: make lib/petit_ami_term.so USEMANAGERC=1
+#
+#
+# Managerc tests. These link the manager carrying library, so they need no
+# build flag: the plain and managed libraries coexist.
+#
+test_manager: test_manager.c lib/petit_ami_termc.so Makefile
+	$(CC) $(CFLAGS) test_manager.c $(CLIBSC) -o test_manager
+
+test_manager2: test_manager2.c lib/petit_ami_termc.so Makefile
+	$(CC) $(CFLAGS) test_manager2.c $(CLIBSC) -o test_manager2
 
 #
 # General test program
@@ -1160,6 +1196,12 @@ SCREEN_CAPTURE_OBJ = linux/screen_capture.o
 endif
 
 #
+# Link set for programs stacked on managerc over terminal. Same as CLIBS but
+# with the manager carrying library in place of the plain one.
+#
+CLIBSC = $(subst lib/petit_ami_term.so,lib/petit_ami_termc.so,$(CLIBS))
+
+#
 # Test console model compliant output
 #
 ifeq ($(OSTYPE),Darwin)
@@ -1212,6 +1254,24 @@ testviewer: linux/testviewer.c Makefile
 else
 testviewer: linux/testviewer.c Makefile
 	$(CC) -g3 linux/testviewer.c -lX11 -lpng -o bin/testviewer
+endif
+
+#
+# Test console model compliant output, stacked on the character mode window
+# manager: the same test as terminal_test, but running through
+# managerc over terminal rather than terminal alone. The test should behave
+# identically, since managerc presents the terminal API transparently when
+# the program does not open windows of its own.
+#
+ifeq ($(OSTYPE),Darwin)
+terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/terminal_testc
+else ifeq ($(OSTYPE),Windows_NT)
+terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/terminal_testc
+else
+terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lX11 -lpng -lz -o bin/terminal_testc
 endif
 
 #

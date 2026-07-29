@@ -81,7 +81,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* local definitions */
 #include <localdefs.h>
 #include <config.h>
-#include <terminal.h>
+#include <terminalw.h>
 
 #include <diag.h>
 
@@ -104,7 +104,7 @@ extern char *program_invocation_short_name;
 #define USEUNICODE   /* use unicode frame characters */
 //#define PRTROOTEVT /* print root window events */
 //#define PRTEVT     /* print outbound events */
-//#define PRTFMASK   /* print the forward masks calculated */
+//#define PRTFMASK /* print the forward masks calculated */
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -312,6 +312,17 @@ typedef struct {
 
 /* window description */
 typedef struct winrec* winptr;
+typedef struct wigrec* wigptr;
+
+/* menu enable state, kept per window aside the caller's menu records */
+typedef struct menena* menenaptr;
+typedef struct menena {
+
+    struct menena* next;
+    long id;   /* menu item id */
+    int  ena;  /* enabled */
+
+} menena;
 typedef struct winrec {
 
     winptr   next;              /* next entry (for free list) */
@@ -366,11 +377,53 @@ typedef struct winrec {
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
     unsigned char* fmask;       /* forward mask in bits per character */
     long     fmasklen;          /* length of the bitmask */
+    int      widget;            /* window is a widget face */
+    wigptr   wig;               /* widget data if so */
+    wigptr   wiglst;            /* list of widgets owned by this window */
+    ami_menuptr amenu;          /* API menu attached to this window */
+    wigptr   mbar;              /* the menu bar widget if a menu is on */
+    menenaptr menena;           /* menu item enable states */
     int      timers[AMI_MAXTIM]; /* timer id array */
     int      frmtim;            /* frame timer */
     ami_color frmcolor;          /* frame color */
 
 } winrec;
+
+/* widget types */
+typedef enum {
+
+    wtbutton, wtcheckbox, wtradio, wtgroup, wtbackground,
+    wtscrollvert, wtscrollhoriz, wtnumselbox, wteditbox, wtprogbar,
+    wtlistbox, wtslidehoriz, wtslidevert, wtdropbox, wtdropeditbox,
+    wttabbar, wtmenubar, wtpopup
+
+} wigtyp;
+
+/* widget tracking record. A widget is a small frameless subwindow of its
+   owning window, drawn in character cells, whose events are intercepted
+   and translated to widget events for the owner. */
+typedef struct wigrec {
+
+    wigptr next;    /* next widget in the owner's list */
+    long   id;      /* widget logical id, unique per owner */
+    wigtyp typ;     /* type of widget */
+    winptr parent;  /* owning window */
+    FILE*  wf;      /* widget subwindow file */
+    winptr win;     /* widget subwindow record */
+    char*  face;    /* label, or edit box content */
+    char** list;    /* list box strings */
+    long   listn;   /* number of list strings */
+    int    enb;     /* enabled */
+    int    sel;     /* selected state */
+    long   val;     /* value: numsel, progress, scroll and slider position */
+    long   low, high; /* numsel range */
+    long   sclsiz;  /* scroll bar thumb size, full scale */
+    long   curs;    /* edit box cursor index, 0 based */
+    ami_tabori tor; /* tab bar orientation */
+    wigptr owner;   /* for popups, the widget or bar that opened it */
+    ami_menuptr mitems; /* for menu popups, the item list shown */
+
+} wigrec;
 
 /* File tracking.
   Files can be passthrough to the OS, or can be associated with a window. If
@@ -474,6 +527,10 @@ static int      fautohold;    /* automatic hold on exit flag */
 static int      fend;         /* end of program ordered flag */
 static drgtyp   drag;         /* drag type in progress */
 static winptr   drgwin;       /* drag window */
+static wigptr   drgwig;       /* drag widget (slider or scroll thumb) */
+#define MAXPOP 8              /* maximum popup nesting (menu cascade) */
+static wigptr   popstk[MAXPOP]; /* open popup stack, bottom first */
+static int      popcnt;       /* number of open popups */
 static long     drgx;         /* drag pin x */
 static long     drgy;         /* drag pin y */
 static ami_pevthan evthan[ami_etmenus+1]; /* array of event handler routines */
@@ -498,6 +555,13 @@ static void error(
 
 {
 
+    /* Leave the alternate screen before reporting. The message would
+       otherwise be written onto the alternate screen, which the exit
+       sequence then switches away from and discards, leaving the user
+       looking at a blank screen or a single stray character of the
+       message. stderr shares the terminal with stdout, so the sequence
+       takes effect from here. */
+    fprintf(stderr, "\033[0m\033[?1049l\r\n");
     fprintf(stderr, "Error: Managerc: %s\n", es);
     fflush(stderr);
 
@@ -705,6 +769,19 @@ static winptr getwin(void)
         winfre = p->next; /* gap from list */
 
     } else p = malloc(sizeof(winrec));
+    if (!p) error("Out of memory");
+    /* The forward mask is examined before opnwin allocates it, when the Z
+       order lists are remade with this window first entered into them, so
+       it cannot be left as garbage from malloc or from the record's
+       previous life. */
+    p->fmask = NULL;
+    p->fmasklen = 0;
+    p->widget = FALSE; /* not a widget, and owns no widgets */
+    p->wig = NULL;
+    p->wiglst = NULL;
+    p->amenu = NULL; /* no API menu */
+    p->mbar = NULL;
+    p->menena = NULL;
 
     return (p);
 
@@ -1535,6 +1612,7 @@ static void calcfmask(winptr win)
     long      cx, cy;
     long      l;
 
+    if (!win->fmask) return; /* window not fully constructed yet */
     memset(win->fmask, 0xff, win->fmasklen); /* set the bitmap */
     /* find the onscreen client rectangle in root terms */
     setrect(&r1, win->orgx+win->coffx, win->orgy+win->coffy,
@@ -1622,6 +1700,73 @@ void recalcfmask(void)
         win = win->winlst; /* next window */
 
     }
+
+}
+
+/*******************************************************************************
+
+Grow window buffer
+
+Grows the given window's screen buffers to at least the given dimensions,
+keeping their contents; new cells are blanked in the window's current
+colors. The forward mask is reallocated to match, since it is sized and
+indexed by the buffer.
+
+The rule this maintains is that a window's buffer always covers at least
+its client area. Without it, a window sized larger than its buffer had
+client cells that could never be restored, and worse, the forward mask
+calculation indexed those cells into a buffer sized mask, writing outside
+the allocation.
+
+Buffers never shrink: a smaller client simply views less of the buffer.
+
+*******************************************************************************/
+
+static void growwinbuf(winptr win, long nx, long ny)
+
+{
+
+    scnrec* ns; /* new screen */
+    scnrec* os; /* old screen */
+    scnrec* scp;
+    long    x, y;
+    int     si;
+
+    if (nx <= win->maxx && ny <= win->maxy) return; /* nothing to grow */
+    if (nx < win->maxx) nx = win->maxx; /* never shrink */
+    if (ny < win->maxy) ny = win->maxy;
+    for (si = 0; si < MAXCON; si++) if (win->screens[si]) {
+
+        os = win->screens[si]; /* index old screen */
+        ns = malloc(sizeof(scnrec)*ny*nx);
+        if (!ns) error("Out of memory");
+        for (y = 1; y <= ny; y++)
+            for (x = 1; x <= nx; x++) {
+
+            scp = &ns[(y-1)*nx+(x-1)]; /* index new cell */
+            if (x <= win->maxx && y <= win->maxy)
+                /* keep old contents */
+                *scp = os[(y-1)*win->maxx+(x-1)];
+            else { /* new cell, blank in window colors */
+
+                scp->ch = ' ';
+                scp->forec = win->fcolor;
+                scp->backc = win->bcolor;
+                scp->attr = win->attr;
+
+            }
+
+        }
+        free(os); /* release the old screen */
+        win->screens[si] = ns;
+
+    }
+    win->maxx = nx; /* set new buffer size */
+    win->maxy = ny;
+    win->bufx = nx;
+    win->bufy = ny;
+    if (win->fmask) free(win->fmask); /* mask must match the buffer */
+    alcfmask(win);
 
 }
 
@@ -1828,6 +1973,14 @@ static void setcur(winptr win)
 
 {
 
+    /* The physical cursor belongs to the focus window: cursor activity in
+       any other window changes only that window's recorded position, and
+       the visible cursor stays where the user is typing. Without this the
+       cursor was left wherever the last drawing operation finished, and
+       came back to the focus window only when something happened to
+       restore that window last. When no window has focus yet, the given
+       window stands. */
+    if (curfocus && win != curfocus) return;
     if (indisp(win)) { /* in display */
 
         /* check cursor in bounds */
@@ -1883,7 +2036,13 @@ static void restoreclp(winptr win,   /* window to restore */
     scnrec* scp;   /* pointer to screen location */
     scnrec* sc;
     long x, y;
+    long bx, by;   /* buffer location */
+    long l;        /* mask index */
     rectangle r1, r2;
+    char runbuf[MAXLIN]; /* run of characters to emit as a string */
+    long runx;           /* screen x the run starts at */
+    ami_color runfc, runbc; /* the run's colors */
+    int  runat;          /* the run's attributes */
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
@@ -1891,36 +2050,96 @@ static void restoreclp(winptr win,   /* window to restore */
         setcurvis(FALSE); /* turn off cursor for drawing */
         if (win->frame) drwfrm(win, cr); /* draw window frame */
 
-        /* find intersection with client area */
+        /* Find intersection with client area. The area is bounded by both
+           the client dimensions and the buffer dimensions: the client can
+           be larger than the buffer, and the buffer must not be read
+           outside itself. */
         setrect(&r1, win->orgx+win->coffx, win->orgy+win->coffy,
-                   win->orgx+win->coffx+win->cmaxx-1,
-                   win->orgy+win->coffy+win->cmaxy-1);
+                   win->orgx+win->coffx+
+                       (win->cmaxx < win->maxx? win->cmaxx: win->maxx)-1,
+                   win->orgy+win->coffy+
+                       (win->cmaxy < win->maxy? win->cmaxy: win->maxy)-1);
         if (intersect(cr, &r1)) { /* there is an intersection with client area */
 
             intersection(&r2, cr, &r1); /* find client-clip intersection */
             sc = win->screens[win->curdsp-1]; /* index screen */
-            /* restore window from buffer */
+            /* Restore window from buffer. Cells the forward mask holds off
+               belong to windows above this one and are skipped: without
+               that check a restore of a lower window paints over whatever
+               overlaps it. The cursor is positioned per cell, which costs
+               nothing for consecutive visible cells, since the position
+               cache knows the cursor advances with each character. */
+            /* Draw in runs. A run is a stretch of cells on one line that
+               are visible, share colors and attributes, and hold no
+               control character. Those go out with one string call, which
+               exists to bypass the per character protocol below; the
+               leftovers go a character at a time. Drawing every cell
+               singly was the bulk of the manager's output cost. */
             for (y = r2.y1; y <= r2.y2; y++) {
 
-                /* Reset cursor at the start of each line. Note frame offsets. */
-                setcursor(r2.x1, y);
-                /* draw each line */
-                for (x = r2.x1; x <= r2.x2; x++) {
+                long rl = 0; /* length of the run being gathered */
 
-                    /* index screen character location */
-                    scp = &SCNBUF(sc, x-(win->orgx+win->coffx)+1,
-                                      y-(win->orgy+win->coffy)+1);
-                    setfcolor(scp->forec); /* set colors */
-                    setbcolor(scp->backc);
-                    setattrs(scp->attr); /* set attributes */
-                    wrtchr(scp->ch); /* output character */
+                for (x = r2.x1; x <= r2.x2+1; x++) {
+
+                    int vis = FALSE;
+
+                    scp = NULL;
+                    if (x <= r2.x2) { /* a real cell, not the end sentinel */
+
+                        bx = x-(win->orgx+win->coffx)+1; /* buffer location */
+                        by = y-(win->orgy+win->coffy)+1;
+                        l = (by-1)*win->bufx+(bx-1); /* mask index */
+                        vis = !!(win->fmask[l/8] & 1<<(l%8));
+                        if (vis) scp = &SCNBUF(sc, bx, by);
+
+                    }
+                    /* a cell continues the run if it is visible, matches
+                       the run's colors and attributes, and is printable */
+                    if (scp && scp->ch >= ' ' && scp->ch != 0x7f &&
+                        (!rl || (scp->forec == runfc && scp->backc == runbc &&
+                                 scp->attr == runat)) && rl < MAXLIN-1) {
+
+                        if (!rl) { /* starting a run, note its state */
+
+                            runfc = scp->forec;
+                            runbc = scp->backc;
+                            runat = scp->attr;
+                            runx = x;
+
+                        }
+                        runbuf[rl++] = scp->ch;
+
+                    } else { /* the run ends here */
+
+                        if (rl) { /* flush what was gathered */
+
+                            setcursor(runx, y);
+                            setfcolor(runfc);
+                            setbcolor(runbc);
+                            setattrs(runat);
+                            (*wrtstrn_vect)(stdout, runbuf, rl);
+                            curx += rl; /* the string moved the cursor */
+                            rl = 0;
+
+                        }
+                        if (scp) { /* an odd cell, place it singly */
+
+                            setcursor(x, y);
+                            setfcolor(scp->forec);
+                            setbcolor(scp->backc);
+                            setattrs(scp->attr);
+                            wrtchr(scp->ch);
+
+                        }
+
+                    }
 
                 }
 
             }
 
         }
-        setcur(win); /* reenable cursor */
+        setcur(curfocus? curfocus: win); /* reenable cursor */
 
     }
 
@@ -2087,12 +2306,20 @@ window. Thus it is a more complete send of the event.
 
 *******************************************************************************/
 
+static void wigevt(wigptr wg, ami_evtrec* er); /* forward */
+static void wigdrag(void); /* forward */
+static void clspops(int downto); /* forward */
+static void wigdrw(wigptr wg); /* forward */
+
 static void intsendevent(winptr win, ami_evtrec* er)
 
 {
 
     ami_evtrec ec; /* copy of event record */
 
+    /* events for a widget window go to the widget logic, never to the
+       client program */
+    if (win && win->widget) { wigevt(win->wig, er); return; }
     memcpy(&ec, er, sizeof(ami_evtrec));
     ec.winid = 0; /* set anonymous window id */
     if (win) ec.winid = win->wid; /* overwrite window id */
@@ -2122,6 +2349,11 @@ void remfocus(void)
 
         if (win->focus) { /* if this window has focus */
 
+            /* Clear the flag before announcing the loss. A widget redraws
+               its face when it hears this, and reads the flag to decide
+               whether to show itself focused: announcing first left every
+               widget drawn as though it still held the focus. */
+            win->focus = FALSE;
             /* send defocus message */
             ev.etype = ami_etnofocus; /* set no focus event */
             intsendevent(win, &ev); /* send to queue */
@@ -2325,6 +2557,12 @@ static void makzmax2min(void)
         }
 
     }
+    /* The occlusion masks depend on the Z order, and the restore paths
+       honor them, so every change of the order must recalculate them.
+       Previously only open, close, move and resize did: a window brought to
+       the front by a focus click kept the mask from its old depth, and was
+       restored with holes where windows used to be above it. */
+    recalcfmask();
 
 }
 
@@ -2481,6 +2719,12 @@ static void intfront(winptr win)
     else zmin2max = win; /* list is empty, set first */
     win->zorder = ztop; /* set our entry as top Z order */
     makzmax2min(); /* remake the max 2 min list */
+    /* Repaint the window in its new place. This was left to the mouse
+       click handler, so a front change made through the API reordered the
+       lists but left the screen stale. */
+    if (win->visible)
+        redraw(win, win->orgx, win->orgy,
+                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
 
 }
 
@@ -2515,6 +2759,11 @@ static void intback(winptr win)
     zmin2max->zmin2max = win;
     win->zorder = ztop; /* set our entry as bottom Z order */
     makzmax2min(); /* remake the max 2 min list */
+    /* repaint the region from the new order: whatever was under this
+       window is now on top of it */
+    if (win->visible)
+        redraw(zmax2min, win->orgx, win->orgy,
+                         win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
 
 }
 
@@ -2915,22 +3164,27 @@ static void intscroll(winptr win, long x, long y)
 
 {
 
-    long     xi, yi;       /* screen counters */
-    scnptr   scnsav;       /* full screen buffer save */
-    long     lx;           /* last unmatching character index */
-    int      m;            /* match flag */
-    scnptr   sc;           /* pointer to current screen */
-    scnptr   sp;           /* pointer to screen record */
-    long     curxs, curys; /* cursor position save */
+    long      xi, yi; /* screen counters */
+    scnptr    sc;     /* pointer to current screen */
+    scnptr    sp;     /* pointer to screen record */
+    rectangle cr;     /* client rectangle */
 
     /* when the scroll is arbitrary, we do it by completely refreshing the
        contents of the screen from the buffer */
     if (x <= -win->maxx || x >= win->maxx || y <= -win->maxy || y >= win->maxy) {
 
-        wrtchr('\f'); /* scroll would result in complete clear, do it */
+        /* scroll would result in complete clear, do it. Note this clears
+           and repaints only this window: the previous code cleared the
+           whole root surface, taking every other window with it. */
         iniscn(win, win->screens[win->curupd-1]);   /* clear the screen buffer */
-        /* restore cursor position */
-        setcursor(win->orgx+win->coffx, win->orgy+win->coffy);
+        if (indisp(win)) { /* in display, repaint the client area */
+
+            setrect(&cr, win->orgx+win->coffx, win->orgy+win->coffy,
+                       win->orgx+win->coffx+win->cmaxx-1,
+                       win->orgy+win->coffy+win->cmaxy-1);
+            restoreclp(win, &cr);
+
+        }
 
     } else { /* scroll */
 
@@ -2942,13 +3196,6 @@ static void intscroll(winptr win, long x, long y)
            compared to that while being output. this saves work when most of
            the screen is spaces anyways */
         sc = win->screens[win->curupd-1]; /* index current screen */
-        if (indisp(win)) { /* in display */
-
-            /* save the entire buffer */
-            scnsav = malloc(sizeof(scnrec)*win->maxy*win->maxx);
-            memcpy(scnsav, sc, sizeof(scnrec)*win->maxy*win->maxx);
-
-        }
         if (y > 0) {  /* move text up */
 
             for (yi = 1; yi < win->maxy; yi++) /* move any lines up */
@@ -3035,55 +3282,19 @@ static void intscroll(winptr win, long x, long y)
         }
         if (indisp(win)) { /* in display */
 
-            curxs = curx; /* save cursor position */
-            curys = cury;
-            /* the buffer is adjusted. now just copy the complete buffer to the
-               screen */
-            for (yi = 1; yi <= win->maxy; yi++) { /* lines */
-
-                win->curx = 1; /* set cursor */
-                win->cury = yi;
-                setcur(win);
-                /* find the last unmatching character between real and new buffers.
-                   Then, we only need output the leftmost non-matching characters
-                   on the line. note that it does not really help us that characters
-                   WITHIN the line match, because a character output is as or more
-                   efficient as a cursor movement. if, however, you want to get
-                   SERIOUSLY complex, we could check runs of matching characters,
-                   then check if performing a direct cursor position is less output
-                   characters than just outputting data :) */
-                lx = win->maxx; /* set to end */
-                do { /* check matches */
-
-                    m = 1; /* set match */
-                    /* check all elements match */
-                    if (SCNBUF(sc, lx, yi).ch != SCNBUF(scnsav, lx, yi).ch)
-                        m = 0;
-                    if (SCNBUF(sc, lx, yi).forec !=
-                        SCNBUF(scnsav, lx, yi).forec) m = 0;
-                    if (SCNBUF(sc, lx, yi).backc !=
-                        SCNBUF(scnsav, lx, yi).backc) m = 0;
-                    if (SCNBUF(sc, lx, yi).attr != SCNBUF(scnsav, lx, yi).attr)
-                        m = 0;
-                    if (m) lx--; /* next character */
-
-                } while (m && lx); /* until match or no more */
-                for (xi = 1; xi <= lx; xi++) { /* characters */
-
-                    /* for each new character, we compare the attributes and colors
-                       with what is set. if a new color or attribute is called for,
-                       we set that, and update the saves. this technique cuts down on
-                       the amount of output characters */
-                    sp = &SCNBUF(sc, xi, yi);
-                    setfcolor(sp->forec); /* set the foreground color */
-                    setbcolor(sp->backc); /* set the background color */
-                    setattrs(sp->attr); /* set the attribute */
-                    wrtchr(sp->ch);
-
-                }
-
-            }
-            (*cursor_vect)(stdout, curxs, curys); /* restore cursor position */
+            /* The buffer is adjusted; repaint the client area from it by
+               the same clipped path every other repaint uses. The previous
+               code here kept a private unclipped paint loop over the whole
+               buffer, which sprayed outside the window whenever the buffer
+               was larger than the client area, ignored occlusion, and
+               diffed against a saved copy of the buffer on the assumption
+               that the screen still matched it, which the clipping of other
+               windows had long since made false: the visible result was
+               window contents that flashed in and then blanked out. */
+            setrect(&cr, win->orgx+win->coffx, win->orgy+win->coffy,
+                       win->orgx+win->coffx+win->cmaxx-1,
+                       win->orgy+win->coffy+win->cmaxy-1);
+            restoreclp(win, &cr);
 
         }
 
@@ -3131,6 +3342,11 @@ static void intsetsiz(winptr win, long x, long y)
         win->maxy -= win->frame*2+win->size*2;
 
     }
+    /* the buffer must always cover the client area */
+    if (win->bufmod) growwinbuf(win, win->cmaxx, win->cmaxy);
+    /* as in intsetpos, the repaints below consult the masks, so they must
+       reflect the new size first */
+    recalcfmask();
     if (win->visible) { /* window is onscreen */
 
         /* check old and new overlap */
@@ -3190,10 +3406,20 @@ static void intsetpos(winptr win, long x, long y)
     long ox, oy; /* previous position of window */
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
+    wigptr wg; /* widget list pointer */
+
     ox = win->orgx; /* save previous position of window */
     oy = win->orgy;
     win->orgx = x; /* set position in parent */
     win->orgy = y;
+    /* the window's widgets ride along with it */
+    for (wg = win->wiglst; wg; wg = wg->next)
+        intsetpos(wg->win, wg->win->orgx+(x-ox), wg->win->orgy+(y-oy));
+    /* The masks must reflect the new position before anything repaints:
+       the repaint of the vacated area consults them, and with the old
+       masks it skips exactly the cells this window used to cover, leaving
+       its old frame behind on the screen. */
+    recalcfmask();
     if (win->visible) { /* window is onscreen */
 
         /* check old and new overlap */
@@ -4003,21 +4229,156 @@ static void intevent(FILE* f)
 
             }
             break;
+        /* The terminal surface gained or lost the host focus, or the mouse
+           entered or left it. These describe the surface as a whole, so
+           they go to the window that owns the manager's focus, and to the
+           root when nothing else holds it. They were dropped entirely,
+           which left a program running under the manager seeing neither
+           focus nor hover. */
+        case ami_etfocus:
+        case ami_etnofocus:
+
+            win = curfocus;
+            if (!win) { /* nothing focused, find the root */
+
+                win = winlst;
+                while (win && !win->root) win = win->winlst;
+
+            }
+            if (win) {
+
+                er.etype = ev.etype;
+                er.winid = win->wid;
+                intsendevent(win, &er);
+
+            }
+            break;
+
+        case ami_ethover:
+        case ami_etnohover:
+
+            /* Hover follows the mouse rather than the focus: it belongs to
+               the window under the pointer. The manager tracks hover for
+               its own windows on mouse movement, so the surface level
+               event is only passed on when the pointer is over the root
+               itself, which is the case a lone program sees. */
+            win = fndtop(mousex, mousey);
+            if (!win) { /* off any window, use the root */
+
+                win = winlst;
+                while (win && !win->root) win = win->winlst;
+
+            }
+            /* Only pass it on when the state actually changes. The
+               manager raises hover itself when the pointer moves into a
+               window, so forwarding unconditionally reported it twice. */
+            if (win && !!win->hover != (ev.etype == ami_ethover)) {
+
+                er.etype = ev.etype;
+                er.winid = win->wid;
+                intsendevent(win, &er);
+                win->hover = ev.etype == ami_ethover;
+
+            }
+            break;
+
+        case ami_etresize: /* the terminal surface changed size */
+
+            /* Follow the new terminal dimensions. Without this the manager
+               kept the size found at startup: after a terminal resize the
+               clip to the old root bounds was wrong, and the underlying
+               terminal package had already repainted its raw screen over
+               the composition, so nothing came back until some other
+               action forced a redraw. */
+            dimx = ev.rszx; /* set new root dimensions */
+            dimy = ev.rszy;
+            win = winlst; /* find the root window record */
+            while (win && !win->root) win = win->winlst;
+            if (win) { /* track the surface in the root window */
+
+                win->pmaxx = dimx; /* the root window is the surface */
+                win->pmaxy = dimy;
+                win->cmaxx = dimx; /* frameless, client is the whole */
+                win->cmaxy = dimy;
+                if (!win->bufmod) { /* in follow mode track the buffer too */
+
+                    win->maxx = dimx;
+                    win->maxy = dimy;
+
+                }
+                /* An expanded surface needs an expanded root buffer, kept
+                   in content, or the root background beyond the old bounds
+                   can never be restored. */
+                growwinbuf(win, dimx, dimy);
+                /* The layer below keeps its own screen buffers, sized when
+                   it started, and clips writes to them. Grow those through
+                   the standard call rather than by reaching into that
+                   module: the manager runs over any terminal implementation
+                   and must not require changes in it. The contents are
+                   discarded by that call, which costs nothing here since
+                   the whole surface is repainted below. */
+                (*sizbuf_vect)(stdout, dimx, dimy);
+
+            }
+            recalcfmask(); /* occlusion clips to the new bounds */
+            /* repaint the whole composition over the terminal's own
+               recovery paint */
+            redraw(zmax2min, 1, 1, dimx, dimy);
+            if (win) { /* tell the client its surface changed */
+
+                er.etype = ami_etresize;
+                er.rszx = dimx;
+                er.rszy = dimy;
+                er.winid = win->wid;
+                intsendevent(win, &er);
+
+            }
+            break;
         case ami_etmouba:  /* mouse button assertion */
             win = fndtop(mousex, mousey); /* find the enclosing window */
+            /* a click outside the open popups dismisses them */
+            if (popcnt) {
+
+                int inpop = FALSE;
+                int pi;
+
+                for (pi = 0; pi < popcnt; pi++)
+                    if (win == popstk[pi]->win) inpop = TRUE;
+                if (win && win->widget && win->wig->typ == wtmenubar)
+                    inpop = TRUE; /* the bar manages its own popups */
+                if (!inpop) clspops(0); /* close them all */
+
+            }
             /* first click with no focus gives focus, next click gives message */
             if (win) {
 
+                /* A widget acts on the same click that focuses it: the
+                   click-consuming focus rule below is window etiquette,
+                   and making a scroll bar or button need two clicks is
+                   not. The focus change still happens in the unfocused
+                   branch; the action is delivered here either way. */
+                if (win->widget && inclient(win, mousex, mousey)) {
+
+                    er.etype = ami_etmouba;
+                    er.amoun = ev.amoun;
+                    er.amoubn = ev.amoubn;
+                    intsendevent(win, &er); /* to the widget logic */
+
+                }
                 if (win->focus) { /* window has focus */
 
                     if (inclient(win, mousex, mousey)) {
 
-                        /* in client area */
-                        er.etype = ami_etmouba; /* set mouse button asserts */
-                        er.amoun = ev.amoun; /* set mouse number */
-                        er.amoubn = ev.amoubn; /* set button number */
-                        er.winid = win->wid; /* set window logical id */
-                        intsendevent(win, &er); /* issue event */
+                        if (!win->widget) { /* widgets were served above */
+
+                            /* in client area */
+                            er.etype = ami_etmouba; /* set mouse button asserts */
+                            er.amoun = ev.amoun; /* set mouse number */
+                            er.amoubn = ev.amoubn; /* set button number */
+                            er.winid = win->wid; /* set window logical id */
+                            intsendevent(win, &er); /* issue event */
+
+                        }
 
                     } else if (ev.mmoun == 1) {
 
@@ -4153,13 +4514,24 @@ static void intevent(FILE* f)
                         }
 
                     }
-                    if (win->zorder != ztop && !win->root) { /* if not already top window */
+                    if (!win->root) { /* the root stays put */
 
-                        intfront(win); /* bring to front */
-                        /* redraw for order */
-                        redraw(win, win->orgx, win->orgy,
-                                    win->orgx+win->pmaxx-1,
-                                    win->orgy+win->pmaxy-1);
+                        winptr fw = win->widget? win->wig->parent: win;
+                        wigptr wg;
+
+                        /* widgets on the root need no fronting: the root
+                           is always at the bottom and its widgets above */
+                        if (fw->zorder != ztop && !fw->root) {
+
+                            /* Bring the family to the front: the owning
+                               window, then its widgets above it. Fronting
+                               only the clicked widget would float it over
+                               every other window. */
+                            intfront(fw);
+                            for (wg = fw->wiglst; wg; wg = wg->next)
+                                intfront(wg->win);
+
+                        }
 
                     }
 
@@ -4180,6 +4552,7 @@ static void intevent(FILE* f)
             }
             /* cancel any drag */
             drag = dt_none;
+            drgwig = NULL;
             break;
         case ami_etmoumov: /* mouse move */
             mousex = ev.moupx; /* set current mouse position */
@@ -4211,6 +4584,8 @@ static void intevent(FILE* f)
                 }
 
             }
+            /* a value widget being dragged follows the mouse */
+            if (drgwig) wigdrag();
             /* check drag is active and mouse has moved */
             if (drag != dt_none && (drgx != mousex || drgy != mousey)) {
 
@@ -5041,50 +5416,56 @@ static void iwrtstrn(FILE* f, char* s, long n)
 
     winptr win; /* window record pointer */
     scnptr scp; /* screen buffer */
-    char*  ss;
-    long   ns;
+    long   l;   /* character location */
 
     win = txt2win(f); /* get window from file */
     if (win->autof) error("Cannot direct write string with auto on");
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    if (win->bufmod) { /* buffer is active */
+    /* Write each character with the same bounds as plcchr: the store is
+       bounded by the buffer, the display by the client area and the forward
+       mask. The previous code kept separate store and display loops, both
+       bounded by the client area, which discarded buffer content below the
+       viewport, drew over occluding windows, and advanced the cursor once
+       in each loop, twice per character in all. */
+    while (n) {
 
-        ss = s; /* save string */
-        ns = n;
-        while (ns && icurbnd(f)) { /* print string */
+        if (win->curx >= 1 && win->curx <= win->bufx &&
+            win->cury >= 1 && win->cury <= win->bufy) { /* in buffer */
 
-            /* index screen character location */
-            scp = &SCNBUF(win->screens[win->curdsp-1],
-                            win->curx, win->cury);
-            /* place character to buffer */
-            scp->ch = *ss++;
-            scp->forec = win->fcolor;
-            scp->backc = win->bcolor;
-            scp->attr = win->attr;
-            win->curx++; /* next location */
-            ns--; /* count */
+            if (win->bufmod) { /* buffer is active */
+
+                /* the store goes to the UPDATE screen: writing to the
+                   display screen sent everything to whatever was being
+                   shown, so buffers prepared while another was displayed
+                   stayed empty */
+                scp = &SCNBUF(win->screens[win->curupd-1],
+                              win->curx, win->cury);
+                scp->ch = *s; /* place character to buffer */
+                scp->forec = win->fcolor;
+                scp->backc = win->bcolor;
+                scp->attr = win->attr;
+
+            }
+            l = (win->cury-1)*win->bufx+(win->curx-1);
+            if (indisp(win) && intcurbnd(win) &&
+                win->fmask[l/8] & 1<<(l%8)) { /* visible on screen */
+
+                setattrs(win->attr); /* set attributes */
+                setfcolor(win->fcolor); /* set colors */
+                setbcolor(win->bcolor);
+                setcursor(win->curx+win->orgx-1+win->coffx,
+                          win->cury+win->orgy-1+win->coffy);
+                wrtchr(*s); /* output */
+
+            }
 
         }
+        if (win->curx < LONG_MAX) win->curx++; /* next location */
+        s++; /* next character */
+        n--; /* count */
 
     }
-    if (indisp(win)) { /* do it again for the current screen */
-
-        /* set root cursor to correct position */
-        setcursor(win->curx+win->orgx-1+win->coffx,
-                  win->cury+win->orgy-1+win->coffy);
-        setattrs(win->attr); /* set attributes */
-        setfcolor(win->fcolor); /* set colors */
-        setbcolor(win->bcolor);
-        while (*s && icurbnd(f)) { /* print string */
-
-            /* draw character to active screen */
-            wrtchr(*s++); /* output */
-            win->curx++; /* next location */
-            n--; /* count */
-
-        }
-
-    }
+    setcur(curfocus? curfocus: win); /* place the cursor */
 
 }
 
@@ -5252,16 +5633,38 @@ static void isizbuf(FILE* f, long x, long y)
 
     win = txt2win(f); /* get window from file */
     if (!win->bufmod) error("Buffer mode is not enabled");
+    if (x < 1 || y < 1) error("Invalid buffer size");
     if (win->bufx != x || win->bufy != y) {
 
         /* buffer size has changed */
         clrbufs(win); /* all the screen buffers are wrong, so tear them out */
-        /* allocate prime buffer */
-        win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
-        /* clear */
-        iniscn(win, win->screens[0]);
+        /* Take the new size before allocating: the buffer dimensions are
+           what the screens are sized and indexed by, and they were left at
+           the old values here, so the new screens came out the previous
+           size. */
+        win->bufx = x;
+        win->bufy = y;
+        win->maxx = x;
+        win->maxy = y;
+        /* Allocate the screens that are selected, not just the first one.
+           A program that has selected any other screen, which the select
+           call makes routine, was left with a null screen pointer and
+           faulted on its next write. */
+        win->screens[win->curupd-1] = malloc(sizeof(scnrec)*y*x);
+        if (!win->screens[win->curupd-1]) error("Out of memory");
+        iniscn(win, win->screens[win->curupd-1]);
+        if (win->curdsp != win->curupd) { /* display screen is a different one */
+
+            win->screens[win->curdsp-1] = malloc(sizeof(scnrec)*y*x);
+            if (!win->screens[win->curdsp-1]) error("Out of memory");
+            iniscn(win, win->screens[win->curdsp-1]);
+
+        }
         free(win->fmask); /* release previous mask */
         alcfmask(win); /* allocate and clear forward mask */
+        /* the buffer must still cover the client area */
+        growwinbuf(win, win->cmaxx, win->cmaxy);
+        if (indisp(win)) restore(win); /* repaint from the new buffer */
 
     }
     recalcfmask(); /* recalculate the forward masks */
@@ -5449,6 +5852,31 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
+/* Recompute the client geometry after a decoration change. The client
+   offsets and dimensions are derived from the frame, size and system bar
+   flags; they were set at open and must follow any change of those flags,
+   with the buffer grown to keep covering the client, and the masks redone
+   for the new client rectangle. */
+static void recompcli(winptr win)
+
+{
+
+    win->coffx = 0+(win->frame && win->size);
+    win->coffy = 0+(win->frame && win->size)+win->sysbar*2;
+    win->cmaxx = win->pmaxx; /* client dimensions from decorations */
+    win->cmaxy = win->pmaxy;
+    win->cmaxx -= (win->frame && win->size)*2;
+    win->cmaxy -= win->frame*2+win->size*2;
+    if (!win->bufmod) { /* in follow mode track the buffer */
+
+        win->maxx = win->cmaxx;
+        win->maxy = win->cmaxy;
+
+    } else growwinbuf(win, win->cmaxx, win->cmaxy);
+    recalcfmask();
+
+}
+
 static void iframe(FILE* f, long e)
 
 {
@@ -5460,6 +5888,7 @@ static void iframe(FILE* f, long e)
     if (win->frame != e) {
 
         win->frame = e; /* set frame state */
+        recompcli(win); /* the client geometry follows the decorations */
         restore(win); /* redraw */
 
     }
@@ -5489,6 +5918,7 @@ static void isizable(FILE* f, long e)
     if (win->size != e) {
 
         win->size = e; /* set frame state */
+        recompcli(win); /* the client geometry follows the decorations */
         restore(win); /* redraw */
 
     }
@@ -5517,6 +5947,7 @@ static void isysbar(FILE* f, long e)
     if (win->sysbar != e) {
 
         win->sysbar = e; /* set frame state */
+        recompcli(win); /* the client geometry follows the decorations */
         restore(win); /* redraw */
 
     }
@@ -5533,11 +5964,6 @@ deleted.
 
 *******************************************************************************/
 
-static void imenu(FILE* f, ami_menuptr m)
-
-{
-
-}
 
 /** ****************************************************************************
 
@@ -5548,11 +5974,6 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-static void imenuena(FILE* f, long id, long onoff)
-
-{
-
-}
 
 /** ****************************************************************************
 
@@ -5563,11 +5984,6 @@ selected, with no check if not.
 
 *******************************************************************************/
 
-static void imenusel(FILE* f, long id, long select)
-
-{
-
-}
 
 /** ****************************************************************************
 
@@ -5585,11 +6001,6 @@ end of the menu, then the program selections placed in the menu.
 
 *******************************************************************************/
 
-static void istdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
-
-{
-
-}
 
 /** ****************************************************************************
 
@@ -5694,12 +6105,29 @@ static void plcchr(FILE* f, char c)
 
         /* find character location */
         l = (win->cury-1)*win->bufx+(win->curx-1); 
-        if (icurbnd(f) && win->fmask[l/8] & 1<<(l%8)) { /* cursor is in bounds */
+        /* The store and the display have different bounds. The store is
+           bounded by the buffer, which can be larger than the window: the
+           client area is a viewport onto it. The display is bounded by the
+           client area, and also by the forward mask, since an occluded
+           character must not be drawn but must still reach the buffer, or
+           it would be missing when the occluding window moves away. The
+           previous code gated both on the client area and the mask
+           together, so anything written below the viewport, or under
+           another window, was silently discarded from the buffer as well:
+           a window with a buffer taller than itself lost everything past
+           the visible rows. */
+        if (win->curx >= 1 && win->curx <= win->bufx &&
+            win->cury >= 1 && win->cury <= win->bufy) { /* in buffer */
 
             if (win->bufmod) { /* buffer is active */
 
-                /* index screen character location */
-                scp = &SCNBUF(win->screens[win->curdsp-1],
+                /* Index screen character location. This is the UPDATE
+                   screen, which is the one being written; it is the
+                   display screen only when the two are selected the same.
+                   Indexing the display screen here sent writes to whatever
+                   happened to be shown, so a program preparing buffers
+                   while displaying another left them all empty. */
+                scp = &SCNBUF(win->screens[win->curupd-1],
                               win->curx, win->cury);
                 /* place character to buffer */
                 scp->ch = c;
@@ -5708,7 +6136,8 @@ static void plcchr(FILE* f, char c)
                 scp->attr = win->attr;
 
             }
-            if (indisp(win)) { /* do it again for the current screen */
+            if (indisp(win) && intcurbnd(win) &&
+                win->fmask[l/8] & 1<<(l%8)) { /* visible on screen */
 
                 setattrs(win->attr); /* set attributes */
                 setfcolor(win->fcolor); /* set colors */
@@ -5860,8 +6289,13 @@ static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
     if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
 
         win = opnfil[fd]->win; /* index window */
+        /* The cursor is off while drawing, then restored to the focus
+           window: client output must not leave the visible cursor sitting
+           wherever the last character landed. */
+        setcurvis(FALSE);
         /* send data to terminal */
         while (cnt--) plcchr(opnfil[fd]->sfp, *p++);
+        setcur(curfocus? curfocus: win); /* restore the cursor */
         rc = count; /* set return same as count */
 
     } else rc = (*writedc)(fd, buff, count);
@@ -5988,11 +6422,2458 @@ static off_t ilseek(int fd, off_t offset, int whence)
 
 /** ****************************************************************************
 
+                          CHARACTER MODE WIDGETS
+
+Implements the standard Petit-Ami widget set in character cells. Each widget
+is a small frameless subwindow of its owning window, kept on the owner's
+widget list. The subwindow machinery provides drawing, buffering, occlusion
+and repaint for free; this section provides the faces, drawn in characters,
+and the behavior: events arriving for a widget window are intercepted in
+intsendevent() and translated here into widget events for the owner.
+
+Only the character coordinate calls exist; the widgets have no graphical
+counterparts in this module. Drop boxes and tab bars are not (yet)
+implemented.
+
+*******************************************************************************/
+
+static long wigmul(long range, long val); /* forward */
+static long wigscl(long num, long den); /* forward */
+
+/* find widget by id in a window */
+static wigptr fndwig(winptr win, long id)
+
+{
+
+    wigptr wg;
+
+    wg = win->wiglst; /* index the widget list */
+    while (wg && wg->id != id) wg = wg->next;
+
+    return (wg);
+
+}
+
+/* write a string into a widget face, with reverse video select */
+static void wigtxt(wigptr wg, long x, long y, const char* s, int rev)
+
+{
+
+    winptr win = wg->win;
+
+    icursor(wg->wf, x, y); /* place cursor */
+    if (rev) win->attr |= BIT(sarev);
+    while (*s) plcchr(wg->wf, *s++);
+    win->attr &= ~BIT(sarev);
+
+}
+
+/* clear a widget face to spaces */
+static void wigclr(wigptr wg)
+
+{
+
+    long x, y;
+
+    for (y = 1; y <= wg->win->cmaxy; y++) {
+
+        icursor(wg->wf, 1, y);
+        for (x = 1; x <= wg->win->cmaxx; x++) plcchr(wg->wf, ' ');
+
+    }
+
+}
+
+/* draw a centered label into a row, clipped to width */
+static void wiglab(wigptr wg, long y, const char* s, int rev)
+
+{
+
+    long w = wg->win->cmaxx;
+    long l = strlen(s);
+    long x;
+
+    if (l > w) l = w; /* clip */
+    x = (w-l)/2+1; /* center */
+    icursor(wg->wf, x, y);
+    if (rev) wg->win->attr |= BIT(sarev);
+    while (l--) plcchr(wg->wf, *s++);
+    wg->win->attr &= ~BIT(sarev);
+
+}
+
+/** ****************************************************************************
+
+                        POPUPS, TAB BARS AND MENUS
+
+A popup is a widget whose face is a list of lines, floated above everything
+and dismissed by a selection or by a click elsewhere. Drop boxes use one to
+show their list; menus use a cascade of them. Popups are kept on a stack so
+a click outside closes the whole cascade.
+
+*******************************************************************************/
+
+/* close popups from the top down to the given depth */
+static void clspops(int downto)
+
+{
+
+    wigptr wg;
+
+    while (popcnt > downto) {
+
+        wg = popstk[--popcnt];
+        popstk[popcnt] = NULL;
+        /* unlink from its owner's widget list and drop it */
+        if (wg->parent) {
+
+            wigptr* lp = &wg->parent->wiglst;
+            while (*lp && *lp != wg) lp = &(*lp)->next;
+            if (*lp) *lp = wg->next;
+
+        }
+        fclose(wg->wf); /* close the popup window */
+        if (wg->face) free(wg->face);
+        if (wg->list) {
+
+            long i;
+            for (i = 0; i < wg->listn; i++) free(wg->list[i]);
+            free(wg->list);
+
+        }
+        free(wg);
+
+    }
+
+}
+
+/* Open a popup list at a root position. The strings are copied. Returns the
+   popup widget, which is pushed on the popup stack. */
+static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
+                     wigptr owner, ami_menuptr mitems)
+
+{
+
+    wigptr wg;
+    FILE*  wf;
+    long   i, w = 1;
+
+    if (popcnt >= MAXPOP) clspops(MAXPOP-1); /* bound the cascade */
+    for (i = 0; i < n; i++) /* widest entry sets the width */
+        if ((long)strlen(strs[i]) > w) w = strlen(strs[i]);
+    w += 2; /* frame columns */
+    wg = malloc(sizeof(wigrec));
+    if (!wg) error("Out of memory");
+    iopenwin(&stdin, &wf, NULL, igetwinid()); /* parentless: floats over all */
+    wg->id = 0; /* popups have no client id */
+    wg->typ = wtpopup;
+    wg->parent = par;
+    wg->wf = wf;
+    wg->win = txt2win(wf);
+    wg->face = NULL;
+    wg->list = malloc(sizeof(char*)*(n? n: 1));
+    if (!wg->list) error("Out of memory");
+    for (i = 0; i < n; i++) {
+
+        wg->list[i] = malloc(strlen(strs[i])+1);
+        if (!wg->list[i]) error("Out of memory");
+        strcpy(wg->list[i], strs[i]);
+
+    }
+    wg->listn = n;
+    wg->enb = TRUE;
+    wg->sel = 0;
+    wg->val = 0;
+    wg->low = 0;
+    wg->high = 0;
+    wg->sclsiz = 0;
+    wg->curs = 0;
+    wg->tor = ami_totop;
+    wg->owner = owner;
+    wg->mitems = mitems;
+    wg->win->widget = TRUE;
+    wg->win->wig = wg;
+    wg->next = par->wiglst; /* on the owner's list for cleanup */
+    par->wiglst = wg;
+    /* frame it, no system bar: a plain bordered list */
+    wg->win->frame = TRUE;
+    wg->win->size = FALSE;
+    wg->win->sysbar = FALSE;
+    recompcli(wg->win);
+    intsetsiz(wg->win, w, n+2);
+    /* keep it on the surface */
+    if (rx+w-1 > dimx) rx = dimx-w+1;
+    if (ry+n+1 > dimy) ry = dimy-n-1;
+    if (rx < 1) rx = 1;
+    if (ry < 1) ry = 1;
+    intsetpos(wg->win, rx, ry);
+    intfront(wg->win); /* above everything */
+    popstk[popcnt++] = wg; /* push */
+    wigdrw(wg);
+
+    return (wg);
+
+}
+
+/* count and collect a menu level into a string array. Returns the count.
+   Submenus are marked with a trailing arrow, checked items with a mark. */
+static long mencol(winptr win, ami_menuptr m, char*** strs)
+
+{
+
+    ami_menuptr p;
+    long n = 0, i = 0;
+    char buf[MAXLIN];
+    menenaptr me;
+
+    for (p = m; p; p = p->next) n++;
+    *strs = malloc(sizeof(char*)*(n? n: 1));
+    if (!*strs) error("Out of memory");
+    for (p = m; p; p = p->next) {
+
+        int ena = TRUE;
+        for (me = win->menena; me; me = me->next)
+            if (me->id == p->id) ena = me->ena;
+        snprintf(buf, sizeof(buf), "%c%c%s%s",
+                 ena? ' ': '(', /* disabled shown in parens */
+                 p->onoff || p->oneof? '*': ' ', /* check mark */
+                 p->face,
+                 p->branch? " >": (ena? "": ")"));
+        (*strs)[i] = malloc(strlen(buf)+1);
+        if (!(*strs)[i]) error("Out of memory");
+        strcpy((*strs)[i], buf);
+        i++;
+
+    }
+
+    return (n);
+
+}
+
+/* find the nth entry of a menu level */
+static ami_menuptr mennth(ami_menuptr m, long n)
+
+{
+
+    while (m && n > 1) { m = m->next; n--; }
+
+    return (m);
+
+}
+
+/* is a menu item enabled */
+static int menenb(winptr win, long id)
+
+{
+
+    menenaptr me;
+
+    for (me = win->menena; me; me = me->next) if (me->id == id) return (me->ena);
+
+    return (TRUE); /* enabled unless said otherwise */
+
+}
+
+/* draw the menu bar face: top level titles in a row */
+static void drwmbar(wigptr wg)
+
+{
+
+    ami_menuptr p;
+    long x = 1;
+
+    wigclr(wg);
+    for (p = wg->mitems; p; p = p->next) {
+
+        wigtxt(wg, x, 1, " ", FALSE);
+        wigtxt(wg, x+1, 1, p->face, wg->sel == x); /* selected shows reversed */
+        x += strlen(p->face)+2;
+
+    }
+
+}
+
+/* find which top level menu title a bar column lies in; returns the item or
+   NULL, and sets the column the title starts at */
+static ami_menuptr mbarhit(wigptr wg, long lx, long* startx)
+
+{
+
+    ami_menuptr p;
+    long x = 1;
+
+    for (p = wg->mitems; p; p = p->next) {
+
+        long w = strlen(p->face)+2;
+        if (lx >= x && lx < x+w) { *startx = x; return (p); }
+        x += w;
+
+    }
+
+    return (NULL);
+
+}
+
+/* draw the face of a widget from its state */
+static void wigdrw(wigptr wg)
+
+{
+
+    winptr win = wg->win;
+    long   w = win->cmaxx;
+    long   h = win->cmaxy;
+    long   x, y, i, n, ts, tp;
+    char   buf[MAXLIN];
+    int    rev;
+
+    switch (wg->typ) {
+
+        case wtbutton:
+            wigclr(wg);
+            rev = wg->sel || (win->focus && wg->enb);
+            if (h >= 3) { /* boxed face */
+
+                icursor(wg->wf, 1, 1);
+                plcchr(wg->wf, '+');
+                for (x = 2; x < w; x++) plcchr(wg->wf, '-');
+                plcchr(wg->wf, '+');
+                for (y = 2; y < h; y++) {
+
+                    icursor(wg->wf, 1, y); plcchr(wg->wf, '|');
+                    icursor(wg->wf, w, y); plcchr(wg->wf, '|');
+
+                }
+                icursor(wg->wf, 1, h);
+                plcchr(wg->wf, '+');
+                for (x = 2; x < w; x++) plcchr(wg->wf, '-');
+                plcchr(wg->wf, '+');
+                wiglab(wg, (h+1)/2, wg->face, rev);
+
+            } else { /* single row face */
+
+                icursor(wg->wf, 1, 1); plcchr(wg->wf, '[');
+                icursor(wg->wf, w, 1); plcchr(wg->wf, ']');
+                wiglab(wg, 1, wg->face, rev);
+
+            }
+            break;
+
+        case wtcheckbox:
+            wigclr(wg);
+            snprintf(buf, sizeof(buf), "[%c] %s", wg->sel? 'X': ' ', wg->face);
+            wigtxt(wg, 1, 1, buf, win->focus && wg->enb);
+            break;
+
+        case wtradio:
+            wigclr(wg);
+            snprintf(buf, sizeof(buf), "(%c) %s", wg->sel? '*': ' ', wg->face);
+            wigtxt(wg, 1, 1, buf, win->focus && wg->enb);
+            break;
+
+        case wtgroup:
+            wigclr(wg);
+            icursor(wg->wf, 1, 1);
+            plcchr(wg->wf, '+');
+            for (x = 2; x < w; x++) plcchr(wg->wf, '-');
+            plcchr(wg->wf, '+');
+            for (y = 2; y < h; y++) {
+
+                icursor(wg->wf, 1, y); plcchr(wg->wf, '|');
+                icursor(wg->wf, w, y); plcchr(wg->wf, '|');
+
+            }
+            icursor(wg->wf, 1, h);
+            plcchr(wg->wf, '+');
+            for (x = 2; x < w; x++) plcchr(wg->wf, '-');
+            plcchr(wg->wf, '+');
+            /* title in the top run */
+            if (wg->face && *wg->face) {
+
+                n = strlen(wg->face); if (n > w-4) n = w-4;
+                icursor(wg->wf, 3, 1);
+                plcchr(wg->wf, ' ');
+                for (i = 0; i < n; i++) plcchr(wg->wf, wg->face[i]);
+                plcchr(wg->wf, ' ');
+
+            }
+            break;
+
+        case wtbackground:
+            wigclr(wg);
+            break;
+
+        case wtscrollvert:
+            /* arrows at the ends, track between, thumb from size/position */
+            wigtxt(wg, 1, 1, "^", FALSE);
+            for (y = 2; y < h; y++) wigtxt(wg, 1, y, ".", FALSE);
+            wigtxt(wg, 1, h, "v", FALSE);
+            n = h-2; /* track length */
+            if (n > 0) {
+
+                ts = wigmul(n, wg->sclsiz); /* thumb size */
+                if (ts < 1) ts = 1;
+                if (ts > n) ts = n;
+                tp = wigmul(n-ts, wg->val); /* offset */
+                for (y = 0; y < ts; y++) wigtxt(wg, 1, 2+tp+y, "#", FALSE);
+
+            }
+            break;
+
+        case wtscrollhoriz:
+            wigtxt(wg, 1, 1, "<", FALSE);
+            for (x = 2; x < w; x++) wigtxt(wg, x, 1, ".", FALSE);
+            wigtxt(wg, w, 1, ">", FALSE);
+            n = w-2;
+            if (n > 0) {
+
+                ts = wigmul(n, wg->sclsiz);
+                if (ts < 1) ts = 1;
+                if (ts > n) ts = n;
+                tp = wigmul(n-ts, wg->val);
+                for (x = 0; x < ts; x++) wigtxt(wg, 2+tp+x, 1, "#", FALSE);
+
+            }
+            break;
+
+        case wtnumselbox:
+            wigclr(wg);
+            wigtxt(wg, 1, 1, "-", FALSE);
+            wigtxt(wg, w, 1, "+", FALSE);
+            snprintf(buf, sizeof(buf), "%*ld", (int)(w-2), wg->val);
+            wigtxt(wg, 2, 1, buf, win->focus);
+            break;
+
+        case wteditbox:
+            wigclr(wg);
+            n = strlen(wg->face);
+            /* keep the cursor visible: scroll the text if needed */
+            i = 0; /* display start */
+            if (wg->curs >= w) i = wg->curs-w+1;
+            for (x = 1; x <= w && i+x-1 < n+1; x++) {
+
+                char c = i+x-1 < n? wg->face[i+x-1]: ' ';
+                rev = win->focus && (i+x-1 == wg->curs);
+                buf[0] = c; buf[1] = 0;
+                wigtxt(wg, x, 1, buf, rev);
+
+            }
+            break;
+
+        case wtprogbar:
+            for (x = 1; x <= w; x++) {
+
+                n = wigmul(w, wg->val);
+                wigtxt(wg, x, 1, x <= n? "=": ".", FALSE);
+
+            }
+            break;
+
+        case wtlistbox:
+            wigclr(wg);
+            for (y = 1; y <= h && y <= wg->listn; y++)
+                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel);
+            break;
+
+        case wtslidehoriz:
+            for (x = 1; x <= w; x++) wigtxt(wg, x, 1, "-", FALSE);
+            n = 1+wigmul(w-1, wg->val);
+            wigtxt(wg, n, 1, "#", FALSE);
+            break;
+
+        case wtslidevert:
+            for (y = 1; y <= h; y++) wigtxt(wg, 1, y, "|", FALSE);
+            n = 1+wigmul(h-1, wg->val);
+            wigtxt(wg, 1, n, "#", FALSE);
+            break;
+
+        case wtdropbox:
+            /* closed face: the selection and a drop arrow */
+            wigclr(wg);
+            if (wg->sel >= 1 && wg->sel <= wg->listn)
+                wigtxt(wg, 1, 1, wg->list[wg->sel-1], win->focus);
+            wigtxt(wg, w, 1, "v", FALSE);
+            break;
+
+        case wtdropeditbox:
+            /* an edit box with a drop arrow in the last cell */
+            wigclr(wg);
+            n = strlen(wg->face);
+            i = 0;
+            if (wg->curs >= w-1) i = wg->curs-w+2;
+            for (x = 1; x <= w-1 && i+x-1 < n+1; x++) {
+
+                char c = i+x-1 < n? wg->face[i+x-1]: ' ';
+                rev = win->focus && (i+x-1 == wg->curs);
+                buf[0] = c; buf[1] = 0;
+                wigtxt(wg, x, 1, buf, rev);
+
+            }
+            wigtxt(wg, w, 1, "v", FALSE);
+            break;
+
+        case wttabbar:
+            wigclr(wg);
+            if (wg->tor == ami_totop || wg->tor == ami_tobottom) {
+
+                /* names along a row, separated by bars */
+                x = 1;
+                for (i = 0; i < wg->listn && x <= w; i++) {
+
+                    wigtxt(wg, x, 1, wg->list[i], wg->sel == i+1);
+                    x += strlen(wg->list[i]);
+                    if (i+1 < wg->listn) { wigtxt(wg, x, 1, "|", FALSE); x++; }
+
+                }
+
+            } else {
+
+                /* names down the column, one character per row, with a
+                   separator between tabs */
+                y = 1;
+                for (i = 0; i < wg->listn && y <= h; i++) {
+
+                    const char* p = wg->list[i];
+                    while (*p && y <= h) {
+
+                        buf[0] = *p++; buf[1] = 0;
+                        wigtxt(wg, 1, y++, buf, wg->sel == i+1);
+
+                    }
+                    if (i+1 < wg->listn && y <= h)
+                        wigtxt(wg, 1, y++, "-", FALSE);
+
+                }
+
+            }
+            break;
+
+        case wtmenubar:
+            drwmbar(wg);
+            break;
+
+        case wtpopup:
+            /* the list, one entry per line, current selection reversed */
+            wigclr(wg);
+            for (y = 1; y <= h && y <= wg->listn; y++)
+                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel);
+            break;
+
+    }
+
+}
+
+/* send a widget event to the owner */
+static void wigsig(wigptr wg, ami_evtcod e, long v)
+
+{
+
+    ami_evtrec er;
+
+    er.etype = e;
+    switch (e) { /* fill the union by type */
+
+        case ami_etbutton: er.butid = wg->id; break;
+        case ami_etchkbox: er.ckbxid = wg->id; break;
+        case ami_etradbut: er.radbid = wg->id; break;
+        case ami_etsclull: er.sclulid = wg->id; break;
+        case ami_etscldrl: er.scldrid = wg->id; break;
+        case ami_etsclulp: er.sclupid = wg->id; break;
+        case ami_etscldrp: er.scldpid = wg->id; break;
+        case ami_etsclpos: er.sclpid = wg->id; er.sclpos = v; break;
+        case ami_etedtbox: er.edtbid = wg->id; break;
+        case ami_etnumbox: er.numbid = wg->id; er.numbsl = v; break;
+        case ami_etlstbox: er.lstbid = wg->id; er.lstbsl = v; break;
+        case ami_etsldpos: er.sldpid = wg->id; er.sldpos = v; break;
+        case ami_etdrpbox: er.drpbid = wg->id; er.drpbsl = v; break;
+        case ami_etdrebox: er.drebid = wg->id; break;
+        case ami_ettabbar: er.tabid = wg->id; er.tabsel = v; break;
+        default: break;
+
+    }
+    intsendevent(wg->parent, &er); /* to the owner's queue */
+
+}
+
+/* cells from a full scale value: round(range*val/LONG_MAX), end exact.
+   The previous fixed point form quantized to 1024 steps and floored, so a
+   full scale value always came out one cell short of the end. */
+static long wigmul(long range, long val)
+
+{
+
+    if (val <= 0 || range <= 0) return (0);
+    if (val >= LONG_MAX) return (range);
+
+    return ((long)((double)range*val/(double)LONG_MAX+0.5));
+
+}
+
+/* full scale value from a fraction, guarding the ends */
+static long wigscl(long num, long den)
+
+{
+
+    if (den <= 0) return (0);
+    if (num <= 0) return (0);
+    if (num >= den) return (LONG_MAX);
+
+    return (num*(LONG_MAX/den));
+
+}
+
+/* Track a mouse drag on a value widget: recompute the value from the
+   mouse position, and redraw and notify only when it changes. Sliders
+   take the position directly; scroll bars position the thumb center at
+   the pointer within the track. */
+static void wigdrag(void)
+
+{
+
+    wigptr wg = drgwig;
+    winptr win;
+    long   n, ts, p, nv;
+
+    if (!wg) return;
+    win = wg->win;
+    nv = wg->val;
+    switch (wg->typ) {
+
+        case wtslidehoriz:
+            p = mousex-win->orgx; /* 0 based position */
+            if (p < 0) p = 0;
+            if (p > win->cmaxx-1) p = win->cmaxx-1;
+            nv = wigscl(p, win->cmaxx-1);
+            break;
+
+        case wtslidevert:
+            p = mousey-win->orgy;
+            if (p < 0) p = 0;
+            if (p > win->cmaxy-1) p = win->cmaxy-1;
+            nv = wigscl(p, win->cmaxy-1);
+            break;
+
+        case wtscrollvert:
+            n = win->cmaxy-2; /* track length */
+            ts = wigmul(n, wg->sclsiz); /* thumb size */
+            if (ts < 1) ts = 1;
+            if (n-ts <= 0) return; /* thumb fills the track */
+            p = mousey-win->orgy-1-ts/2; /* thumb top from pointer */
+            if (p < 0) p = 0;
+            if (p > n-ts) p = n-ts;
+            nv = wigscl(p, n-ts);
+            break;
+
+        case wtscrollhoriz:
+            n = win->cmaxx-2;
+            ts = wigmul(n, wg->sclsiz);
+            if (ts < 1) ts = 1;
+            if (n-ts <= 0) return;
+            p = mousex-win->orgx-1-ts/2;
+            if (p < 0) p = 0;
+            if (p > n-ts) p = n-ts;
+            nv = wigscl(p, n-ts);
+            break;
+
+        default: return; /* not a draggable type */
+
+    }
+    if (nv != wg->val) { /* the value moved */
+
+        wg->val = nv;
+        wigdrw(wg);
+        if (wg->typ == wtscrollvert || wg->typ == wtscrollhoriz)
+            wigsig(wg, ami_etsclpos, nv);
+        else wigsig(wg, ami_etsldpos, nv);
+
+    }
+
+}
+
+/* widget window event processor. Called from intsendevent for any event
+   whose target window is a widget. */
+static void wigevt(wigptr wg, ami_evtrec* er)
+
+{
+
+    winptr win = wg->win;
+    long   lx, ly, n;
+
+    switch (er->etype) {
+
+        case ami_etfocus:
+        case ami_etnofocus:
+        case ami_etredraw:
+            wigdrw(wg); /* focus look changed, or repaint */
+            break;
+
+        case ami_etmouba: /* click in the widget */
+            if (!wg->enb) break; /* disabled, dead */
+            lx = mousex-win->orgx+1; /* local position */
+            ly = mousey-win->orgy+1;
+            switch (wg->typ) {
+
+                case wtbutton: wigsig(wg, ami_etbutton, 0); break;
+                case wtcheckbox: wigsig(wg, ami_etchkbox, 0); break;
+                case wtradio: wigsig(wg, ami_etradbut, 0); break;
+                case wtscrollvert:
+                    if (ly == 1) wigsig(wg, ami_etsclull, 0);
+                    else if (ly == win->cmaxy) wigsig(wg, ami_etscldrl, 0);
+                    else { /* in the track */
+
+                        n = win->cmaxy-2;
+                        if (n > 0) {
+
+                            long ts = wigmul(n, wg->sclsiz);
+                            long tp;
+                            if (ts < 1) ts = 1;
+                            tp = wigmul(n-ts, wg->val);
+                            if (ly-2 >= tp && ly-2 < tp+ts)
+                                drgwig = wg; /* on the thumb: drag it */
+                            else if (ly-2 < tp) wigsig(wg, ami_etsclulp, 0);
+                            else wigsig(wg, ami_etscldrp, 0);
+
+                        }
+
+                    }
+                    break;
+                case wtscrollhoriz:
+                    if (lx == 1) wigsig(wg, ami_etsclull, 0);
+                    else if (lx == win->cmaxx) wigsig(wg, ami_etscldrl, 0);
+                    else { /* in the track */
+
+                        n = win->cmaxx-2;
+                        if (n > 0) {
+
+                            long ts = wigmul(n, wg->sclsiz);
+                            long tp;
+                            if (ts < 1) ts = 1;
+                            tp = wigmul(n-ts, wg->val);
+                            if (lx-2 >= tp && lx-2 < tp+ts)
+                                drgwig = wg; /* on the thumb: drag it */
+                            else if (lx-2 < tp) wigsig(wg, ami_etsclulp, 0);
+                            else wigsig(wg, ami_etscldrp, 0);
+
+                        }
+
+                    }
+                    break;
+                case wtnumselbox:
+                    if (lx == 1 && wg->val > wg->low) wg->val--;
+                    else if (lx == win->cmaxx && wg->val < wg->high) wg->val++;
+                    else break;
+                    wigdrw(wg);
+                    wigsig(wg, ami_etnumbox, wg->val);
+                    break;
+                case wteditbox:
+                    n = strlen(wg->face);
+                    wg->curs = lx-1 <= n? lx-1: n; /* place cursor by click */
+                    wigdrw(wg);
+                    break;
+                case wtlistbox:
+                    if (ly >= 1 && ly <= wg->listn) {
+
+                        wg->sel = ly;
+                        wigdrw(wg);
+                        wigsig(wg, ami_etlstbox, ly);
+
+                    }
+                    break;
+                case wtslidehoriz:
+                    wg->val = wigscl(lx-1, win->cmaxx-1);
+                    wigdrw(wg);
+                    wigsig(wg, ami_etsldpos, wg->val);
+                    drgwig = wg; /* and follow the mouse until release */
+                    break;
+                case wtslidevert:
+                    wg->val = wigscl(ly-1, win->cmaxy-1);
+                    wigdrw(wg);
+                    wigsig(wg, ami_etsldpos, wg->val);
+                    drgwig = wg; /* and follow the mouse until release */
+                    break;
+                case wtdropbox:
+                    /* click toggles the drop list */
+                    if (popcnt && popstk[popcnt-1]->owner == wg) clspops(0);
+                    else {
+
+                        clspops(0);
+                        opnpop(wg->parent, win->orgx, win->orgy+1,
+                               wg->list, wg->listn, wg, NULL);
+
+                    }
+                    break;
+                case wtdropeditbox:
+                    if (lx == win->cmaxx) { /* the drop arrow */
+
+                        if (popcnt && popstk[popcnt-1]->owner == wg)
+                            clspops(0);
+                        else {
+
+                            clspops(0);
+                            opnpop(wg->parent, win->orgx, win->orgy+1,
+                                   wg->list, wg->listn, wg, NULL);
+
+                        }
+
+                    } else { /* place the edit cursor */
+
+                        n = strlen(wg->face);
+                        wg->curs = lx-1 <= n? lx-1: n;
+                        wigdrw(wg);
+
+                    }
+                    break;
+                case wttabbar: { /* find the tab under the click */
+
+                    long i, p = 1, hit = 0;
+
+                    if (wg->tor == ami_totop || wg->tor == ami_tobottom) {
+
+                        for (i = 0; i < wg->listn && !hit; i++) {
+
+                            long tw = strlen(wg->list[i]);
+                            if (lx >= p && lx < p+tw) hit = i+1;
+                            p += tw+1; /* name and separator */
+
+                        }
+
+                    } else {
+
+                        for (i = 0; i < wg->listn && !hit; i++) {
+
+                            long th = strlen(wg->list[i]);
+                            if (ly >= p && ly < p+th) hit = i+1;
+                            p += th+1;
+
+                        }
+
+                    }
+                    if (hit && hit != wg->sel) {
+
+                        wg->sel = hit;
+                        wigdrw(wg);
+                        wigsig(wg, ami_ettabbar, hit);
+
+                    }
+                    break;
+
+                }
+                case wtmenubar: { /* open a pulldown */
+
+                    long sx;
+                    ami_menuptr mp = mbarhit(wg, lx, &sx);
+
+                    clspops(0);
+                    wg->sel = 0;
+                    if (mp && menenb(wg->parent, mp->id)) {
+
+                        if (mp->branch) { /* open the pulldown under it */
+
+                            char** strs;
+                            long n = mencol(wg->parent, mp->branch, &strs);
+                            long i;
+
+                            wg->sel = sx; /* show the open title */
+                            opnpop(wg->parent, win->orgx+sx-1, win->orgy+1,
+                                   strs, n, wg, mp->branch);
+                            for (i = 0; i < n; i++) free(strs[i]);
+                            free(strs);
+
+                        } else { /* a bare top level item selects */
+
+                            ami_evtrec er2;
+
+                            er2.etype = ami_etmenus;
+                            er2.menuid = mp->id;
+                            intsendevent(wg->parent, &er2);
+
+                        }
+
+                    }
+                    wigdrw(wg);
+                    break;
+
+                }
+                case wtpopup: { /* selection in a popup list */
+
+                    long row = ly;
+                    wigptr ow = wg->owner;
+
+                    if (row < 1 || row > wg->listn) break;
+                    if (wg->mitems) { /* a menu level */
+
+                        ami_menuptr item = mennth(wg->mitems, row);
+                        int depth;
+
+                        if (!item || !menenb(wg->parent, item->id)) break;
+                        /* find this popup's depth for cascade control */
+                        for (depth = 0; depth < popcnt; depth++)
+                            if (popstk[depth] == wg) break;
+                        if (item->branch) { /* cascade a submenu */
+
+                            char** strs;
+                            long n = mencol(wg->parent, item->branch, &strs);
+                            long i;
+
+                            clspops(depth+1); /* drop deeper levels */
+                            wg->sel = row;
+                            wigdrw(wg);
+                            opnpop(wg->parent,
+                                   win->orgx+win->pmaxx-1, win->orgy+row-1,
+                                   strs, n, wg->owner, item->branch);
+                            for (i = 0; i < n; i++) free(strs[i]);
+                            free(strs);
+
+                        } else { /* an item: select and close the menu */
+
+                            ami_evtrec er2;
+                            winptr mown = wg->parent;
+
+                            er2.etype = ami_etmenus;
+                            er2.menuid = item->id;
+                            clspops(0);
+                            if (mown->mbar) {
+
+                                mown->mbar->sel = 0;
+                                wigdrw(mown->mbar);
+
+                            }
+                            intsendevent(mown, &er2);
+
+                        }
+
+                    } else if (ow) { /* a drop box list */
+
+                        if (ow->typ == wtdropbox) {
+
+                            ow->sel = row;
+                            clspops(0);
+                            wigdrw(ow);
+                            wigsig(ow, ami_etdrpbox, row);
+
+                        } else if (ow->typ == wtdropeditbox) {
+
+                            snprintf(ow->face, MAXLIN, "%s", wg->list[row-1]);
+                            ow->curs = strlen(ow->face);
+                            clspops(0);
+                            wigdrw(ow);
+                            wigsig(ow, ami_etdrebox, 0);
+
+                        }
+
+                    }
+                    break;
+
+                }
+                default: break;
+
+            }
+            break;
+
+        case ami_etchar: /* keys to the focused widget */
+            if (!wg->enb) break;
+            if (wg->typ == wteditbox || wg->typ == wtdropeditbox) {
+
+                n = strlen(wg->face);
+                if (er->echar >= ' ' && er->echar != 0x7f && n < MAXLIN-1) {
+
+                    /* insert at the cursor */
+                    memmove(wg->face+wg->curs+1, wg->face+wg->curs,
+                            n-wg->curs+1);
+                    wg->face[wg->curs++] = er->echar;
+                    wigdrw(wg);
+
+                }
+
+            } else if (er->echar == ' ') { /* space activates */
+
+                if (wg->typ == wtbutton) wigsig(wg, ami_etbutton, 0);
+                else if (wg->typ == wtcheckbox) wigsig(wg, ami_etchkbox, 0);
+                else if (wg->typ == wtradio) wigsig(wg, ami_etradbut, 0);
+
+            }
+            break;
+
+        case ami_etenter:
+            if (!wg->enb) break;
+            if (wg->typ == wteditbox) wigsig(wg, ami_etedtbox, 0);
+            else if (wg->typ == wtdropeditbox) wigsig(wg, ami_etdrebox, 0);
+            else if (wg->typ == wtnumselbox) wigsig(wg, ami_etnumbox, wg->val);
+            else if (wg->typ == wtbutton) wigsig(wg, ami_etbutton, 0);
+            break;
+
+        case ami_etdelcb: /* backspace */
+            if ((wg->typ == wteditbox || wg->typ == wtdropeditbox) &&
+                wg->curs > 0) {
+
+                n = strlen(wg->face);
+                memmove(wg->face+wg->curs-1, wg->face+wg->curs, n-wg->curs+1);
+                wg->curs--;
+                wigdrw(wg);
+
+            }
+            break;
+
+        case ami_etdelcf: /* delete forward */
+            if (wg->typ == wteditbox || wg->typ == wtdropeditbox) {
+
+                n = strlen(wg->face);
+                if (wg->curs < n) {
+
+                    memmove(wg->face+wg->curs, wg->face+wg->curs+1,
+                            n-wg->curs);
+                    wigdrw(wg);
+
+                }
+
+            }
+            break;
+
+        case ami_etleft:
+            if ((wg->typ == wteditbox || wg->typ == wtdropeditbox) &&
+                wg->curs > 0)
+                { wg->curs--; wigdrw(wg); }
+            break;
+
+        case ami_etright:
+            if ((wg->typ == wteditbox || wg->typ == wtdropeditbox) &&
+                wg->curs < (long)strlen(wg->face))
+                { wg->curs++; wigdrw(wg); }
+            break;
+
+        case ami_ethomel:
+            if (wg->typ == wteditbox || wg->typ == wtdropeditbox)
+                { wg->curs = 0; wigdrw(wg); }
+            break;
+
+        case ami_etendl:
+            if (wg->typ == wteditbox || wg->typ == wtdropeditbox)
+                { wg->curs = strlen(wg->face); wigdrw(wg); }
+            break;
+
+        case ami_etup:
+            if (!wg->enb) break;
+            if (wg->typ == wtnumselbox && wg->val < wg->high)
+                { wg->val++; wigdrw(wg); wigsig(wg, ami_etnumbox, wg->val); }
+            else if (wg->typ == wtlistbox && wg->sel > 1)
+                { wg->sel--; wigdrw(wg); wigsig(wg, ami_etlstbox, wg->sel); }
+            break;
+
+        case ami_etdown:
+            if (!wg->enb) break;
+            if (wg->typ == wtnumselbox && wg->val > wg->low)
+                { wg->val--; wigdrw(wg); wigsig(wg, ami_etnumbox, wg->val); }
+            else if (wg->typ == wtlistbox && wg->sel < wg->listn)
+                { wg->sel++; wigdrw(wg); wigsig(wg, ami_etlstbox, wg->sel); }
+            break;
+
+        default: break; /* other events are of no interest */
+
+    }
+
+}
+
+/* create a widget: subwindow plus tracking record */
+static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
+                     wigtyp typ)
+
+{
+
+    winptr par;  /* owning window */
+    wigptr wg;   /* new widget */
+    FILE*  wf;
+
+    par = txt2win(f); /* index owner */
+    if (!id) error("Invalid widget id");
+    if (fndwig(par, id)) error("Widget by id already in use");
+    if (x2 < x1 || y2 < y1) error("Invalid widget rectangle");
+    wg = malloc(sizeof(wigrec));
+    if (!wg) error("Out of memory");
+    /* open the face window as an anonymous subwindow of the owner */
+    iopenwin(&stdin, &wf, f, igetwinid());
+    wg->id = id;
+    wg->typ = typ;
+    wg->parent = par;
+    wg->wf = wf;
+    wg->win = txt2win(wf);
+    wg->face = NULL;
+    wg->list = NULL;
+    wg->listn = 0;
+    wg->enb = TRUE;
+    wg->sel = FALSE;
+    wg->val = 0;
+    wg->low = 0;
+    wg->high = 0;
+    wg->sclsiz = LONG_MAX/8; /* nominal thumb */
+    wg->curs = 0;
+    wg->win->widget = TRUE; /* mark as widget window */
+    wg->win->wig = wg;
+    wg->next = par->wiglst; /* push onto the owner's list */
+    par->wiglst = wg;
+    /* Shape the face: no decorations at all, sized and placed in owner
+       client terms. The flags are set directly and the geometry recomputed
+       once, rather than through the API calls, which would repaint after
+       each flag. */
+    wg->win->frame = FALSE;
+    wg->win->size = FALSE;
+    wg->win->sysbar = FALSE;
+    recompcli(wg->win);
+    intsetsiz(wg->win, x2-x1+1, y2-y1+1);
+    intsetpos(wg->win, par->orgx+par->coffx+x1-1, par->orgy+par->coffy+y1-1);
+    /* widget colors follow the owner */
+    wg->win->fcolor = par->fcolor;
+    wg->win->bcolor = par->bcolor;
+
+    return (wg);
+
+}
+
+/* set the face text of a widget */
+static void wigfac(wigptr wg, const char* s)
+
+{
+
+    if (wg->face) free(wg->face);
+    wg->face = malloc(strlen(s)+1);
+    if (!wg->face) error("Out of memory");
+    strcpy(wg->face, s);
+
+}
+
+/** ****************************************************************************
+
+Widget API
+
+*******************************************************************************/
+
+long ami_getwigid(FILE* f)
+
+{
+
+    winptr win = txt2win(f);
+    long   id = -1;
+
+    while (fndwig(win, id)) id--; /* find a free negative id */
+
+    return (id);
+
+}
+
+void ami_killwidget(FILE* f, long id)
+
+{
+
+    winptr win = txt2win(f);
+    wigptr wg = fndwig(win, id);
+    wigptr* lp;
+
+    if (!wg) error("No widget by given id");
+    /* unlink from the owner */
+    lp = &win->wiglst;
+    while (*lp != wg) lp = &(*lp)->next;
+    *lp = wg->next;
+    fclose(wg->wf); /* close the face window, which erases it */
+    if (wg->face) free(wg->face);
+    if (wg->list) {
+
+        long i;
+        for (i = 0; i < wg->listn; i++) free(wg->list[i]);
+        free(wg->list);
+
+    }
+    free(wg);
+
+}
+
+void ami_selectwidget(FILE* f, long id, long e)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    wg->sel = !!e;
+    wigdrw(wg);
+
+}
+
+void ami_enablewidget(FILE* f, long id, long e)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    wg->enb = !!e;
+    wigdrw(wg);
+
+}
+
+void ami_getwidgettext(FILE* f, long id, char* s, long sl)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+    long   l;
+
+    if (!wg) error("No widget by given id");
+    l = wg->face? strlen(wg->face): 0;
+    /* critical output buffer: error if it does not fit, no terminator on
+       an exact fit */
+    if (l > sl) error("String too large for destination");
+    if (l) memcpy(s, wg->face, l);
+    if (l < sl) s[l] = 0;
+
+}
+
+void ami_putwidgettext(FILE* f, long id, char* s)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    wigfac(wg, s);
+    wg->curs = strlen(s);
+    wigdrw(wg);
+
+}
+
+void ami_sizwidget(FILE* f, long id, long x, long y)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    intsetsiz(wg->win, x, y);
+    wigdrw(wg);
+
+}
+
+void ami_poswidget(FILE* f, long id, long x, long y)
+
+{
+
+    winptr win = txt2win(f);
+    wigptr wg = fndwig(win, id);
+
+    if (!wg) error("No widget by given id");
+    intsetpos(wg->win, win->orgx+win->coffx+x-1, win->orgy+win->coffy+y-1);
+
+}
+
+void ami_backwidget(FILE* f, long id)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    intback(wg->win);
+
+}
+
+void ami_frontwidget(FILE* f, long id)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    intfront(wg->win);
+
+}
+
+void ami_focuswidget(FILE* f, long id)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+    ami_evtrec er;
+
+    if (!wg) error("No widget by given id");
+    remfocus(); /* drop focus elsewhere */
+    wg->win->focus = TRUE;
+    curfocus = wg->win;
+    er.etype = ami_etfocus; /* let the widget show it */
+    intsendevent(wg->win, &er);
+    setcur(wg->win); /* and place the cursor */
+
+}
+
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
+
+{
+
+    *w = strlen(s)+4; /* label, brackets and breathing room */
+    *h = 1;
+
+}
+
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtbutton);
+
+    wigfac(wg, s);
+    wigdrw(wg);
+
+}
+
+void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
+
+{
+
+    *w = strlen(s)+4; /* box, space and label */
+    *h = 1;
+
+}
+
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtcheckbox);
+
+    wigfac(wg, s);
+    wigdrw(wg);
+
+}
+
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
+
+{
+
+    *w = strlen(s)+4;
+    *h = 1;
+
+}
+
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s,
+                     long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtradio);
+
+    wigfac(wg, s);
+    wigdrw(wg);
+
+}
+
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
+                  long* ox, long* oy)
+
+{
+
+    long tw = strlen(s)+4; /* title needs the top run */
+
+    *w = cw+2; /* client plus frame */
+    if (*w < tw) *w = tw;
+    *h = ch+2;
+    *ox = 1; /* client offset within the group */
+    *oy = 1;
+
+}
+
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtgroup);
+
+    wigfac(wg, s);
+    wigdrw(wg);
+
+}
+
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtbackground);
+
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_scrollvertsiz(FILE* f, long* w, long* h)
+
+{
+
+    *w = 1; /* a column */
+    *h = 4; /* arrows and some track; usually overridden by the caller */
+
+}
+
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtscrollvert);
+
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_scrollhorizsiz(FILE* f, long* w, long* h)
+
+{
+
+    *w = 4;
+    *h = 1;
+
+}
+
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtscrollhoriz);
+
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_scrollpos(FILE* f, long id, long r)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    if (r < 0) r = 0;
+    wg->val = r;
+    wigdrw(wg);
+
+}
+
+void ami_scrollsiz(FILE* f, long id, long r)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    if (r < 0) r = 0;
+    wg->sclsiz = r;
+    wigdrw(wg);
+
+}
+
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
+
+{
+
+    char buf[40];
+    long wl, wu;
+
+    snprintf(buf, sizeof(buf), "%ld", l); wl = strlen(buf);
+    snprintf(buf, sizeof(buf), "%ld", u); wu = strlen(buf);
+    if (wl > wu) wu = wl;
+    *w = wu+2; /* digits plus the spin cells */
+    *h = 1;
+
+}
+
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                   long id)
+
+{
+
+    wigptr wg;
+
+    if (l > u) error("Invalid number range");
+    wg = wigcre(f, x1, y1, x2, y2, id, wtnumselbox);
+    wg->low = l;
+    wg->high = u;
+    wg->val = l;
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
+
+{
+
+    *w = strlen(s)+2;
+    *h = 1;
+
+}
+
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wteditbox);
+
+    wg->face = malloc(MAXLIN); /* edit content buffer */
+    if (!wg->face) error("Out of memory");
+    wg->face[0] = 0;
+    wigdrw(wg);
+
+}
+
+void ami_progbarsiz(FILE* f, long* w, long* h)
+
+{
+
+    *w = 10;
+    *h = 1;
+
+}
+
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtprogbar);
+
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_progbarpos(FILE* f, long id, long pos)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    if (pos < 0) pos = 0;
+    wg->val = pos;
+    wigdrw(wg);
+
+}
+
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
+
+{
+
+    long mw = 0, n = 0, l;
+
+    while (sp) {
+
+        l = strlen(sp->str);
+        if (l > mw) mw = l;
+        n++;
+        sp = sp->next;
+
+    }
+    *w = mw? mw: 1;
+    *h = n? n: 1;
+
+}
+
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                 long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtlistbox);
+    ami_strptr p;
+    long n = 0, i;
+
+    for (p = sp; p; p = p->next) n++; /* count strings */
+    wg->list = malloc(sizeof(char*)*(n? n: 1));
+    if (!wg->list) error("Out of memory");
+    i = 0;
+    for (p = sp; p; p = p->next) {
+
+        wg->list[i] = malloc(strlen(p->str)+1);
+        if (!wg->list[i]) error("Out of memory");
+        strcpy(wg->list[i], p->str);
+        i++;
+
+    }
+    wg->listn = n;
+    wg->sel = 0; /* no selection */
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_slidehorizsiz(FILE* f, long* w, long* h)
+
+{
+
+    *w = 10;
+    *h = 1;
+
+}
+
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark,
+                    long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtslidehoriz);
+
+    (void)mark; /* tick marks are not drawn in character cells */
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_slidevertsiz(FILE* f, long* w, long* h)
+
+{
+
+    *w = 1;
+    *h = 10;
+
+}
+
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark,
+                   long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtslidevert);
+
+    (void)mark;
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+/** ****************************************************************************
+
+Drop box, drop edit box and tab bar API
+
+*******************************************************************************/
+
+/* copy a string list into a widget */
+static void wiglst(wigptr wg, ami_strptr sp)
+
+{
+
+    ami_strptr p;
+    long n = 0, i = 0;
+
+    for (p = sp; p; p = p->next) n++;
+    wg->list = malloc(sizeof(char*)*(n? n: 1));
+    if (!wg->list) error("Out of memory");
+    for (p = sp; p; p = p->next) {
+
+        wg->list[i] = malloc(strlen(p->str)+1);
+        if (!wg->list[i]) error("Out of memory");
+        strcpy(wg->list[i], p->str);
+        i++;
+
+    }
+    wg->listn = n;
+
+}
+
+/* widest string in a list */
+static long lstwid(ami_strptr sp)
+
+{
+
+    long w = 0;
+
+    while (sp) {
+
+        if ((long)strlen(sp->str) > w) w = strlen(sp->str);
+        sp = sp->next;
+
+    }
+
+    return (w);
+
+}
+
+/* count of strings in a list */
+static long lstcnt(ami_strptr sp)
+
+{
+
+    long n = 0;
+
+    while (sp) { n++; sp = sp->next; }
+
+    return (n);
+
+}
+
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
+                    long* oh)
+
+{
+
+    *cw = lstwid(sp)+1; /* the face: widest entry and the arrow */
+    *ch = 1;
+    *ow = lstwid(sp)+3; /* the open list: entries and the frame */
+    *oh = lstcnt(sp)+2;
+
+}
+
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                 long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtdropbox);
+
+    wiglst(wg, sp);
+    wg->sel = wg->listn? 1: 0; /* first entry shows by default */
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
+                        long* oh)
+
+{
+
+    *cw = lstwid(sp)+1;
+    *ch = 1;
+    *ow = lstwid(sp)+3;
+    *oh = lstcnt(sp)+2;
+
+}
+
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
+                     ami_strptr sp, long id)
+
+{
+
+    wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtdropeditbox);
+
+    wiglst(wg, sp);
+    wg->face = malloc(MAXLIN); /* edit content */
+    if (!wg->face) error("Out of memory");
+    wg->face[0] = 0;
+    if (wg->listn) { /* start on the first entry */
+
+        snprintf(wg->face, MAXLIN, "%s", wg->list[0]);
+        wg->curs = strlen(wg->face);
+
+    }
+    wigdrw(wg);
+
+}
+
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                   long* ox, long* oy)
+
+{
+
+    if (tor == ami_totop || tor == ami_tobottom) {
+
+        *w = cw+2; /* client plus the frame sides */
+        *h = ch+3; /* client, the tab row and the frame */
+        *ox = 1;
+        *oy = tor == ami_totop? 2: 0;
+
+    } else {
+
+        *w = cw+3; /* client, the tab column and the frame */
+        *h = ch+2;
+        *ox = tor == ami_toleft? 2: 0;
+        *oy = 1;
+
+    }
+
+}
+
+void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw,
+                      long* ch, long* ox, long* oy)
+
+{
+
+    if (tor == ami_totop || tor == ami_tobottom) {
+
+        *cw = w-2;
+        *ch = h-3;
+        *ox = 1;
+        *oy = tor == ami_totop? 2: 0;
+
+    } else {
+
+        *cw = w-3;
+        *ch = h-2;
+        *ox = tor == ami_toleft? 2: 0;
+        *oy = 1;
+
+    }
+
+}
+
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                ami_tabori tor, long id)
+
+{
+
+    wigptr wg;
+
+    /* The bar occupies only the tab strip: a row for top or bottom
+       orientation, a column for left or right. The client area beside it
+       belongs to the caller, which is what tabbarclient describes. */
+    if (tor == ami_totop) y2 = y1;
+    else if (tor == ami_tobottom) y1 = y2;
+    else if (tor == ami_toleft) x2 = x1;
+    else x1 = x2;
+    wg = wigcre(f, x1, y1, x2, y2, id, wttabbar);
+    wg->tor = tor;
+    wiglst(wg, sp);
+    wg->sel = wg->listn? 1: 0; /* first tab selected */
+    wigfac(wg, "");
+    wigdrw(wg);
+
+}
+
+void ami_tabsel(FILE* f, long id, long tn)
+
+{
+
+    wigptr wg = fndwig(txt2win(f), id);
+
+    if (!wg) error("No widget by given id");
+    if (tn < 1 || tn > wg->listn) error("Invalid tab number");
+    wg->sel = tn;
+    wigdrw(wg);
+
+}
+
+/** ****************************************************************************
+
+Menus
+
+The menu bar is a widget across the top of the window's client area. Its
+pulldowns are popups, cascading for submenus. Selections are returned to the
+client as etmenus events, as the graphical implementations do.
+
+*******************************************************************************/
+
+static void imenu(FILE* f, ami_menuptr m)
+
+{
+
+    winptr win = txt2win(f);
+    wigptr wg;
+    long   id;
+
+    if (win->mbar) { /* remove the previous bar */
+
+        wigptr* lp = &win->wiglst;
+        while (*lp && *lp != win->mbar) lp = &(*lp)->next;
+        if (*lp) *lp = win->mbar->next;
+        fclose(win->mbar->wf);
+        if (win->mbar->face) free(win->mbar->face);
+        free(win->mbar);
+        win->mbar = NULL;
+
+    }
+    win->amenu = m;
+    if (!m) return; /* menu removed */
+    /* the bar spans the client width at its first row */
+    id = ami_getwigid(f);
+    wg = wigcre(f, 1, 1, win->cmaxx, 1, id, wtmenubar);
+    wg->mitems = m;
+    wg->sel = 0;
+    wigfac(wg, "");
+    win->mbar = wg;
+    wigdrw(wg);
+
+}
+
+static void imenuena(FILE* f, long id, long onoff)
+
+{
+
+    winptr    win = txt2win(f);
+    menenaptr me;
+
+    for (me = win->menena; me; me = me->next) if (me->id == id) break;
+    if (!me) { /* no entry yet, make one */
+
+        me = malloc(sizeof(menena));
+        if (!me) error("Out of memory");
+        me->id = id;
+        me->next = win->menena;
+        win->menena = me;
+
+    }
+    me->ena = !!onoff;
+    if (win->mbar) wigdrw(win->mbar);
+
+}
+
+/* find a menu item by id anywhere in a menu tree */
+static ami_menuptr fndmen(ami_menuptr m, long id)
+
+{
+
+    ami_menuptr p, r;
+
+    for (p = m; p; p = p->next) {
+
+        if (p->id == id) return (p);
+        if (p->branch) { r = fndmen(p->branch, id); if (r) return (r); }
+
+    }
+
+    return (NULL);
+
+}
+
+static void imenusel(FILE* f, long id, long select)
+
+{
+
+    winptr      win = txt2win(f);
+    ami_menuptr p = fndmen(win->amenu, id);
+
+    if (!p) error("No menu item by given id");
+    /* Set the check state in the caller's record, which is where the
+       drawing reads it. For a "one of" item, clear its chain first. */
+    if (p->oneof) {
+
+        ami_menuptr q;
+        /* the chain is the run of oneof items this one sits in */
+        for (q = win->amenu; q; q = q->next)
+            if (q->oneof && q != p) q->onoff = FALSE;
+
+    }
+    p->onoff = !!select;
+    if (win->mbar) wigdrw(win->mbar);
+
+}
+
+static void istdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+
+{
+
+    static const struct { long sel; long id; char* face; } std[] = {
+
+        { AMI_SMNEW,        AMI_SMNEW,        "New" },
+        { AMI_SMOPEN,       AMI_SMOPEN,       "Open" },
+        { AMI_SMCLOSE,      AMI_SMCLOSE,      "Close" },
+        { AMI_SMSAVE,       AMI_SMSAVE,       "Save" },
+        { AMI_SMSAVEAS,     AMI_SMSAVEAS,     "Save As" },
+        { AMI_SMPAGESET,    AMI_SMPAGESET,    "Page Setup" },
+        { AMI_SMPRINT,      AMI_SMPRINT,      "Print" },
+        { AMI_SMEXIT,       AMI_SMEXIT,       "Exit" },
+        { AMI_SMUNDO,       AMI_SMUNDO,       "Undo" },
+        { AMI_SMCUT,        AMI_SMCUT,        "Cut" },
+        { AMI_SMPASTE,      AMI_SMPASTE,      "Paste" },
+        { AMI_SMDELETE,     AMI_SMDELETE,     "Delete" },
+        { AMI_SMFIND,       AMI_SMFIND,       "Find" },
+        { AMI_SMFINDNEXT,   AMI_SMFINDNEXT,   "Find Next" },
+        { AMI_SMREPLACE,    AMI_SMREPLACE,    "Replace" },
+        { AMI_SMGOTO,       AMI_SMGOTO,       "Goto" },
+        { AMI_SMSELECTALL,  AMI_SMSELECTALL,  "Select All" },
+        { AMI_SMNEWWINDOW,  AMI_SMNEWWINDOW,  "New Window" },
+        { AMI_SMTILEHORIZ,  AMI_SMTILEHORIZ,  "Tile Horizontally" },
+        { AMI_SMTILEVERT,   AMI_SMTILEVERT,   "Tile Vertically" },
+        { AMI_SMCASCADE,    AMI_SMCASCADE,    "Cascade" },
+        { AMI_SMCLOSEALL,   AMI_SMCLOSEALL,   "Close All" },
+        { AMI_SMHELPTOPIC,  AMI_SMHELPTOPIC,  "Help Topics" },
+        { AMI_SMABOUT,      AMI_SMABOUT,      "About" },
+
+    };
+    /* which standard items belong to which top level list */
+    static const long filist[] = { AMI_SMNEW, AMI_SMOPEN, AMI_SMCLOSE,
+        AMI_SMSAVE, AMI_SMSAVEAS, AMI_SMPAGESET, AMI_SMPRINT, AMI_SMEXIT, 0 };
+    static const long edlist[] = { AMI_SMUNDO, AMI_SMCUT, AMI_SMPASTE,
+        AMI_SMDELETE, AMI_SMFIND, AMI_SMFINDNEXT, AMI_SMREPLACE, AMI_SMGOTO,
+        AMI_SMSELECTALL, 0 };
+    static const long wilist[] = { AMI_SMNEWWINDOW, AMI_SMTILEHORIZ,
+        AMI_SMTILEVERT, AMI_SMCASCADE, AMI_SMCLOSEALL, 0 };
+    static const long helist[] = { AMI_SMHELPTOPIC, AMI_SMABOUT, 0 };
+    static const struct { const long* lst; char* face; } tops[] = {
+
+        { filist, "File" }, { edlist, "Edit" }, { NULL, NULL },
+        { wilist, "Window" }, { helist, "Help" },
+
+    };
+    ami_menuptr root = NULL, rtl = NULL;
+    long ti, i;
+
+    /* Build the standard lists, in the documented order:
+       file edit <program> window help */
+    for (ti = 0; ti < 5; ti++) {
+
+        ami_menuptr sub = NULL, subl = NULL, top;
+
+        if (!tops[ti].lst) { /* the program's own menu goes here */
+
+            if (pm) {
+
+                if (rtl) rtl->next = pm; else root = pm;
+                /* walk to the end of the program list */
+                rtl = pm;
+                while (rtl->next) rtl = rtl->next;
+
+            }
+            continue;
+
+        }
+        for (i = 0; tops[ti].lst[i]; i++) {
+
+            long sel = tops[ti].lst[i];
+            long si;
+
+            if (!(sms & (1L<<sel))) continue; /* not selected */
+            for (si = 0; si < AMI_SMMAX; si++) if (std[si].sel == sel) break;
+            if (si >= AMI_SMMAX) continue;
+            {
+                ami_menuptr e = malloc(sizeof(ami_menurec));
+                if (!e) error("Out of memory");
+                e->next = NULL;
+                e->branch = NULL;
+                e->onoff = FALSE;
+                e->oneof = FALSE;
+                e->bar = FALSE;
+                e->id = std[si].id;
+                e->face = std[si].face;
+                if (subl) subl->next = e; else sub = e;
+                subl = e;
+            }
+
+        }
+        if (sub) { /* the list has entries, make its top level entry */
+
+            top = malloc(sizeof(ami_menurec));
+            if (!top) error("Out of memory");
+            top->next = NULL;
+            top->branch = sub;
+            top->onoff = FALSE;
+            top->oneof = FALSE;
+            top->bar = FALSE;
+            top->id = 0;
+            top->face = tops[ti].face;
+            if (rtl) rtl->next = top; else root = top;
+            rtl = top;
+
+        }
+
+    }
+    *sm = root;
+
+}
+
+/** ****************************************************************************
+
+                            STANDARD DIALOGS
+
+Unlike the graphical implementations, which call up host system dialogs,
+these are presented inside the terminal surface as managed windows built
+from the character widgets. Each runs its own event loop until dismissed,
+which is what makes them modal.
+
+A dialog that is terminated from outside, by the window system rather than
+by its own controls, passes the terminate on to the program after closing,
+so a quit request is not swallowed by the dialog.
+
+*******************************************************************************/
+
+/* Run a dialog window until its done flag is set. Returns the id of the
+   widget that ended it, or 0 for an outside terminate. */
+static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid)
+
+{
+
+    ami_evtrec er;
+    long       res = 0;
+    int        done = FALSE;
+    int        realterm = FALSE;
+
+    ifocus(wf); /* the dialog takes the focus */
+    do {
+
+        ievent(stdin, &er);
+        if (er.etype == ami_etterm) { realterm = TRUE; done = TRUE; }
+        else if (er.etype == ami_etbutton) {
+
+            if (er.butid == okid || er.butid == cancelid) {
+
+                res = er.butid;
+                done = TRUE;
+
+            }
+
+        } else if (er.etype == ami_etedtbox || er.etype == ami_etdrebox) {
+
+            /* enter in a text field completes as the ok button does */
+            res = okid;
+            done = TRUE;
+
+        }
+
+    } while (!done);
+    if (realterm) { /* pass the terminate on to the program */
+
+        er.etype = ami_etterm;
+        enquepaevt(&er);
+
+    }
+
+    return (res);
+
+}
+
+/* Create a dialog window centered on the surface. Returns its file, and
+   the window record through the pointer. */
+static FILE* dlgcre(char* title, long w, long h, winptr* dwin)
+
+{
+
+    FILE*  wf;
+    winptr win;
+
+    iopenwin(&stdin, &wf, NULL, igetwinid()); /* parentless: floats */
+    win = txt2win(wf);
+    win->frame = TRUE;
+    win->size = FALSE;
+    win->sysbar = TRUE;
+    recompcli(win);
+    intsetsiz(win, w, h);
+    intsetpos(win, (dimx-w)/2+1, (dimy-h)/2+1);
+    ititle(wf, title);
+    intfront(win);
+    *dwin = win;
+
+    return (wf);
+
+}
+
+void ami_alert(char* title, char* message)
+
+{
+
+    FILE*  wf;
+    winptr dwin;
+    long   w, h, bw, bh;
+    long   ml = strlen(message);
+    long   tl = strlen(title);
+
+    w = (ml > tl? ml: tl)+6;
+    if (w < 20) w = 20;
+    if (w > dimx-2) w = dimx-2;
+    h = 7;
+    wf = dlgcre(title, w, h, &dwin);
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "%.*s", (int)(dwin->cmaxx-2), message);
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    ami_button(wf, (dwin->cmaxx-bw)/2+1, dwin->cmaxy-1,
+                   (dwin->cmaxx-bw)/2+bw, dwin->cmaxy-1, "Ok", 1);
+    dlgloop(wf, dwin, 1, 0);
+    fclose(wf);
+
+}
+
+void ami_querycolor(long* r, long* g, long* b)
+
+{
+
+    FILE*  wf;
+    winptr dwin;
+    long   res;
+    /* the eight terminal colors are the palette here */
+    static char* const cnam[] = { "black", "white", "red", "green", "blue",
+                                  "cyan", "yellow", "magenta" };
+    static const long cval[8][3] = {
+
+        { 0, 0, 0 }, { INT_MAX, INT_MAX, INT_MAX }, { INT_MAX, 0, 0 },
+        { 0, INT_MAX, 0 }, { 0, 0, INT_MAX }, { 0, INT_MAX, INT_MAX },
+        { INT_MAX, INT_MAX, 0 }, { INT_MAX, 0, INT_MAX },
+
+    };
+    ami_strrec sr[8];
+    long   i, bw, bh, sel;
+    wigptr wg;
+
+    for (i = 0; i < 8; i++) {
+
+        sr[i].str = cnam[i];
+        sr[i].next = i < 7? &sr[i+1]: NULL;
+
+    }
+    wf = dlgcre("Choose color", 26, 14, &dwin);
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Color:");
+    ami_listbox(wf, 2, 3, 20, 10, &sr[0], 1);
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    ami_button(wf, 3, 12, 3+bw-1, 12, "Ok", 2);
+    ami_button(wf, 12, 12, 12+bw+4, 12, "Cancel", 3);
+    res = dlgloop(wf, dwin, 2, 3);
+    sel = 0;
+    wg = fndwig(dwin, 1); /* read the list selection */
+    if (wg) sel = wg->sel;
+    if (res == 2 && sel >= 1 && sel <= 8) { /* accepted */
+
+        *r = cval[sel-1][0];
+        *g = cval[sel-1][1];
+        *b = cval[sel-1][2];
+
+    }
+    fclose(wf);
+
+}
+
+/* shared file name query for open and save */
+static void qryfile(char* title, char* s, long sl)
+
+{
+
+    FILE*  wf;
+    winptr dwin;
+    long   res, bw, bh;
+    wigptr wg;
+    long   w = dimx-10;
+
+    if (w > 60) w = 60;
+    if (w < 24) w = 24;
+    wf = dlgcre(title, w, 8, &dwin);
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "File name:");
+    ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
+    /* seed with what the caller passed, if anything */
+    if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    ami_button(wf, 3, 5, 3+bw-1, 5, "Ok", 2);
+    ami_button(wf, 12, 5, 12+bw+4, 5, "Cancel", 3);
+    ami_focuswidget(wf, 1); /* start in the name field */
+    res = dlgloop(wf, dwin, 2, 3);
+    if (res == 2) { /* accepted: hand back the name */
+
+        wg = fndwig(dwin, 1);
+        if (wg && wg->face) {
+
+            long l = strlen(wg->face);
+            if (l > sl) error("String too large for destination");
+            memcpy(s, wg->face, l);
+            if (l < sl) s[l] = 0;
+
+        }
+
+    }
+    fclose(wf);
+
+}
+
+void ami_queryopen(char* s, long sl) { qryfile("Open file", s, sl); }
+
+void ami_querysave(char* s, long sl) { qryfile("Save file", s, sl); }
+
+void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
+
+{
+
+    FILE*  wf;
+    winptr dwin;
+    long   res, bw, bh;
+    wigptr wg;
+    long   w = dimx-10;
+
+    if (w > 50) w = 50;
+    if (w < 30) w = 30;
+    wf = dlgcre("Find", w, 11, &dwin);
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Find:");
+    ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
+    if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
+    ami_checkbox(wf, 2, 5, 20, 5, "Match case", 4);
+    ami_checkbox(wf, 2, 6, 20, 6, "Search up", 5);
+    ami_checkbox(wf, 2, 7, 24, 7, "Regular expression", 6);
+    ami_selectwidget(wf, 4, !!(*opt & (1L<<ami_qfncase)));
+    ami_selectwidget(wf, 5, !!(*opt & (1L<<ami_qfnup)));
+    ami_selectwidget(wf, 6, !!(*opt & (1L<<ami_qfnre)));
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    ami_button(wf, 3, 9, 3+bw-1, 9, "Ok", 2);
+    ami_button(wf, 12, 9, 12+bw+4, 9, "Cancel", 3);
+    ami_focuswidget(wf, 1);
+    res = dlgloop(wf, dwin, 2, 3);
+    if (res == 2) {
+
+        wg = fndwig(dwin, 1);
+        if (wg && wg->face) {
+
+            long l = strlen(wg->face);
+            if (l > sl) error("String too large for destination");
+            memcpy(s, wg->face, l);
+            if (l < sl) s[l] = 0;
+
+        }
+        *opt = 0; /* rebuild the option set from the boxes */
+        wg = fndwig(dwin, 4); if (wg && wg->sel) *opt |= 1L<<ami_qfncase;
+        wg = fndwig(dwin, 5); if (wg && wg->sel) *opt |= 1L<<ami_qfnup;
+        wg = fndwig(dwin, 6); if (wg && wg->sel) *opt |= 1L<<ami_qfnre;
+
+    }
+    fclose(wf);
+
+}
+
+void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
+
+{
+
+    FILE*  wf;
+    winptr dwin;
+    long   res, bw, bh;
+    wigptr wg;
+    long   w = dimx-10;
+
+    if (w > 50) w = 50;
+    if (w < 30) w = 30;
+    wf = dlgcre("Find and replace", w, 14, &dwin);
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Find:");
+    ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
+    if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
+    ami_cursor(wf, 2, 5);
+    fprintf(wf, "Replace with:");
+    ami_editbox(wf, 2, 6, dwin->cmaxx-1, 6, 7);
+    if (rl > 0 && *r) ami_putwidgettext(wf, 7, r);
+    ami_checkbox(wf, 2, 8, 20, 8, "Match case", 4);
+    ami_checkbox(wf, 2, 9, 20, 9, "Search up", 5);
+    ami_checkbox(wf, 2, 10, 24, 10, "All in line", 6);
+    ami_selectwidget(wf, 4, !!(*opt & (1L<<ami_qfrcase)));
+    ami_selectwidget(wf, 5, !!(*opt & (1L<<ami_qfrup)));
+    ami_selectwidget(wf, 6, !!(*opt & (1L<<ami_qfralllin)));
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    ami_button(wf, 3, 12, 3+bw-1, 12, "Ok", 2);
+    ami_button(wf, 12, 12, 12+bw+4, 12, "Cancel", 3);
+    ami_focuswidget(wf, 1);
+    res = dlgloop(wf, dwin, 2, 3);
+    if (res == 2) {
+
+        wg = fndwig(dwin, 1);
+        if (wg && wg->face) {
+
+            long l = strlen(wg->face);
+            if (l > sl) error("String too large for destination");
+            memcpy(s, wg->face, l);
+            if (l < sl) s[l] = 0;
+
+        }
+        wg = fndwig(dwin, 7);
+        if (wg && wg->face) {
+
+            long l = strlen(wg->face);
+            if (l > rl) error("String too large for destination");
+            memcpy(r, wg->face, l);
+            if (l < rl) r[l] = 0;
+
+        }
+        *opt = 0;
+        wg = fndwig(dwin, 4); if (wg && wg->sel) *opt |= 1L<<ami_qfrcase;
+        wg = fndwig(dwin, 5); if (wg && wg->sel) *opt |= 1L<<ami_qfrup;
+        wg = fndwig(dwin, 6); if (wg && wg->sel) *opt |= 1L<<ami_qfralllin;
+
+    }
+    fclose(wf);
+
+}
+
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+                   long* br, long* bg, long* bb, ami_qfteffects* effect)
+
+{
+
+    FILE*  wf;
+    winptr dwin;
+    long   res, bw, bh;
+    wigptr wg;
+    /* A character terminal has one font at one size, so the font and size
+       are reported back unchanged; what can be chosen are the colors and
+       the effects the terminal can actually present. */
+    static char* const cnam[] = { "black", "white", "red", "green", "blue",
+                                  "cyan", "yellow", "magenta" };
+    static const long cval[8][3] = {
+
+        { 0, 0, 0 }, { INT_MAX, INT_MAX, INT_MAX }, { INT_MAX, 0, 0 },
+        { 0, INT_MAX, 0 }, { 0, 0, INT_MAX }, { 0, INT_MAX, INT_MAX },
+        { INT_MAX, INT_MAX, 0 }, { INT_MAX, 0, INT_MAX },
+
+    };
+    ami_strrec fr_[8], br_[8];
+    long i;
+
+    for (i = 0; i < 8; i++) {
+
+        fr_[i].str = cnam[i]; fr_[i].next = i < 7? &fr_[i+1]: NULL;
+        br_[i].str = cnam[i]; br_[i].next = i < 7? &br_[i+1]: NULL;
+
+    }
+    wf = dlgcre("Font", 46, 16, &dwin);
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Foreground:");
+    ami_dropbox(wf, 14, 2, 26, 2, &fr_[0], 1);
+    ami_cursor(wf, 2, 4);
+    fprintf(wf, "Background:");
+    ami_dropbox(wf, 14, 4, 26, 4, &br_[0], 8);
+    ami_cursor(wf, 2, 6);
+    fprintf(wf, "Effects:");
+    ami_checkbox(wf, 2, 7, 20, 7, "Bold", 4);
+    ami_checkbox(wf, 2, 8, 20, 8, "Underline", 5);
+    ami_checkbox(wf, 2, 9, 20, 9, "Italic", 6);
+    ami_checkbox(wf, 2, 10, 20, 10, "Reverse", 9);
+    ami_checkbox(wf, 2, 11, 20, 11, "Blink", 10);
+    ami_selectwidget(wf, 4, !!(*effect & (1L<<ami_qftebold)));
+    ami_selectwidget(wf, 5, !!(*effect & (1L<<ami_qfteunderline)));
+    ami_selectwidget(wf, 6, !!(*effect & (1L<<ami_qfteitalic)));
+    ami_selectwidget(wf, 9, !!(*effect & (1L<<ami_qftereverse)));
+    ami_selectwidget(wf, 10, !!(*effect & (1L<<ami_qfteblink)));
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    ami_button(wf, 3, 14, 3+bw-1, 14, "Ok", 2);
+    ami_button(wf, 12, 14, 12+bw+4, 14, "Cancel", 3);
+    res = dlgloop(wf, dwin, 2, 3);
+    if (res == 2) {
+
+        wg = fndwig(dwin, 1);
+        if (wg && wg->sel >= 1 && wg->sel <= 8) {
+
+            *fr = cval[wg->sel-1][0];
+            *fg = cval[wg->sel-1][1];
+            *fb = cval[wg->sel-1][2];
+
+        }
+        wg = fndwig(dwin, 8);
+        if (wg && wg->sel >= 1 && wg->sel <= 8) {
+
+            *br = cval[wg->sel-1][0];
+            *bg = cval[wg->sel-1][1];
+            *bb = cval[wg->sel-1][2];
+
+        }
+        *effect = 0;
+        wg = fndwig(dwin, 4); if (wg && wg->sel) *effect |= 1L<<ami_qftebold;
+        wg = fndwig(dwin, 5);
+        if (wg && wg->sel) *effect |= 1L<<ami_qfteunderline;
+        wg = fndwig(dwin, 6); if (wg && wg->sel) *effect |= 1L<<ami_qfteitalic;
+        wg = fndwig(dwin, 9);
+        if (wg && wg->sel) *effect |= 1L<<ami_qftereverse;
+        wg = fndwig(dwin, 10); if (wg && wg->sel) *effect |= 1L<<ami_qfteblink;
+
+    }
+    fclose(wf);
+
+}
+
+/** ****************************************************************************
+
 Managerc startup
 
 *******************************************************************************/
 
-static void init_managerc(void) __attribute__((constructor (104)));
+/* Managerc overrides the terminal API, so it must initialize after terminal
+   (constructor 106) and deinitialize before it: 107 on both, since
+   constructors run ascending and destructors descending. It was 104, which
+   worked when terminal was 103; when terminal moved to 106 the order
+   inverted and managerc captured null vectors at startup. */
+static void init_managerc(void) __attribute__((constructor (107)));
 static void init_managerc()
 
 {
@@ -6177,7 +9058,7 @@ Managerc shutdown
 
 *******************************************************************************/
 
-static void deinit_managerc(void) __attribute__((destructor (104)));
+static void deinit_managerc(void) __attribute__((destructor (107)));
 static void deinit_managerc()
 
 {

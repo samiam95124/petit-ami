@@ -259,7 +259,8 @@ typedef enum {
     /* superscript */                sasuper,
     /* subscripting */               sasubs,
     /* italic text */                saital,
-    /* bold text */                  sabold
+    /* bold text */                  sabold,
+    /* struck out text */            sastkout
 
 } scnatt;
 
@@ -761,6 +762,9 @@ static void error_ivf(ami_errcod e)
 
 {
 
+    /* leave the alternate screen first, or the message is written to it
+       and discarded when the exit sequence switches back */
+    fprintf(stderr, "\033[0m\033[?1049l\r\n");
     fprintf(stderr, "*** Error: xterm: ");
     switch (e) { /* error */
 
@@ -1038,14 +1042,73 @@ Writes a string directly to the output file.
 
 *******************************************************************************/
 
+/* Control sequence assembly. A sequence is built here and sent in one
+   write, rather than a system call per byte. Nothing about the byte stream
+   changes, only the number of pieces it arrives in. */
+
+#define SEQMAX 64 /* longest control sequence assembled */
+
+static char seqbuf[SEQMAX]; /* sequence under construction */
+static int  seqlen = 0;     /* length so far */
+
+/* place a character in the sequence under construction */
+static void seqchr(char c)
+
+{
+
+    if (seqlen < SEQMAX-1) seqbuf[seqlen++] = c;
+
+}
+
+/* place a string in the sequence under construction */
+static void seqstr(const char* s)
+
+{
+
+    while (*s) seqchr(*s++);
+
+}
+
+/* place an integer, in decimal, in the sequence under construction */
+static void seqint(long i)
+
+{
+
+    char b[24];
+    int  n = 0;
+
+    if (i < 0) { seqchr('-'); i = -i; }
+    do { b[n++] = i%10+'0'; i = i/10; } while (i && n < 24);
+    while (n) seqchr(b[--n]);
+
+}
+
+/* send the assembled sequence in one piece */
+static void seqout(void)
+
+{
+
+    ssize_t rc;      /* return code */
+    int     off = 0; /* offset into the sequence */
+
+    while (off < seqlen) {
+
+        rc = (*ofpwrite)(OUTFIL, seqbuf+off, seqlen-off);
+        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+        off += rc;
+
+    }
+    seqlen = 0;
+
+}
+
 static void putstr(unsigned char *s)
 
 
 {
 
-    /** index for string */ int i;
-
-    while (*s) putchr(*s++); /* output characters */
+    seqstr((const char*)s); /* assemble */
+    seqout(); /* and send in one piece */
 
 }
 
@@ -1062,9 +1125,8 @@ static void putstrc(char *s)
 
 {
 
-    /** index for string */ int i;
-
-    while (*s) putchr(*s++); /* output characters */
+    seqstr(s); /* assemble */
+    seqout(); /* and send in one piece */
 
 }
 
@@ -1556,6 +1618,8 @@ static void trm_clear(void) { putstrc("\33[2J\33[H"); }
 /** turn on underline */ static void trm_undl(void) { putstrc("\33[4m"); }
 /** turn on bold attribute */ static void trm_bold(void) { putstrc("\33[1m"); }
 /** turn on italic attribute */ static void trm_ital(void) { putstrc("\33[3m"); }
+/** turn on strikeout attribute */
+static void trm_stkout(void) { putstrc("\33[9m"); }
 /** turn off all attributes */
 static void trm_attroff(void) { putstrc("\33[0m"); }
 /** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[7h"); }
@@ -1615,19 +1679,21 @@ static void trm_colorrgbc(int fore, int r, int g, int b)
 
     if (havetruecolor()) {
 
-        putstrc(fore? "\33[38;2;": "\33[48;2;");
-        wrtint(r);
-        putstrc(";");
-        wrtint(g);
-        putstrc(";");
-        wrtint(b);
-        putstrc("m");
+        seqstr(fore? "\33[38;2;": "\33[48;2;");
+        seqint(r);
+        seqchr(';');
+        seqint(g);
+        seqchr(';');
+        seqint(b);
+        seqchr('m');
+        seqout();
 
     } else { /* fall back to the 256 color palette */
 
-        putstrc(fore? "\33[38;5;": "\33[48;5;");
-        wrtint(rgb256(r, g, b));
-        putstrc("m");
+        seqstr(fore? "\33[38;5;": "\33[48;5;");
+        seqint(rgb256(r, g, b));
+        seqchr('m');
+        seqout();
 
     }
 
@@ -1696,11 +1762,31 @@ static void trm_cursor(long x, long y)
 
 {
 
-    putstrc("\33[");
-    wrtint(y);
-    putstrc(";");
-    wrtint(x);
-    putstrc("H");
+    seqstr("\33["); /* assemble the whole position, then send it once */
+    seqint(y);
+    seqchr(';');
+    seqint(x);
+    seqchr('H');
+    seqout();
+
+}
+
+static int curdef = 0; /* a cursor state is recorded but not yet emitted */
+
+/* Position the cursor and record that the physical cursor is now there.
+   Routines that move the cursor about the screen for their own purposes,
+   such as scrolling and restoring, must use this rather than trm_cursor:
+   leaving the tracker stale lets a later positioning take a relative move
+   from a position the cursor is no longer at. */
+static void trm_cursorset(long x, long y)
+
+{
+
+    trm_cursor(x, y);
+    curx = x; /* the physical cursor is here now */
+    cury = y;
+    curval = 1; /* and the record of it is good */
+    curdef = 0; /* any deferred position has just been satisfied */
 
 }
 
@@ -1768,6 +1854,7 @@ static void setattr(scnptr sc, scnatt a)
             case sasubs:  break;                /* subscripting */
             case saital:  trm_ital();    break; /* italic text */
             case sabold:  trm_bold();    break; /* bold text */
+            case sastkout: trm_stkout(); break; /* struck out text */
 
         }
         /* attribute off may change the colors back to "normal" (normal for that
@@ -1859,17 +1946,37 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
+/* Cursor emission is deferred. Positioning the cursor costs a control
+   sequence, and a program that walks the cursor about while drawing pays
+   for every step of the walk even though only the last position before an
+   output, or before the user is given the chance to look, can be observed.
+   setcur() therefore records the wanted position, and synccur() emits it,
+   from the two places where it becomes observable: just before characters
+   are put out, and before waiting on the user. */
+
 static void setcur(scnptr sc)
 
 {
 
+    if (indisp(sc)) curdef = 1; /* wanted state noted, emit it when needed */
+
+}
+
+/* emit the recorded cursor state, if there is one outstanding */
+static void synccur(scnptr sc)
+
+{
+
+    if (!curdef) return; /* nothing outstanding */
+    curdef = 0;
     if (indisp(sc)) { /* in display */
 
         /* check cursor in bounds */
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if ((ncurx != curx || ncury != cury) && curval) {
+            if (curval && ncurx == curx && ncury == cury) ; /* already there */
+            else if (curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
                    cursor positions to reduce bandwidth. Note we don't count on
@@ -1887,11 +1994,8 @@ static void setcur(scnptr sc)
 
             } else {
 
-                /* don't count on physical cursor location, just reset */
-                trm_cursor(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
-                curval = 1;
+                /* the physical position is not known, state it outright */
+                trm_cursorset(ncurx, ncury);
 
             }
 
@@ -2020,7 +2124,7 @@ static void restore(scnptr sc)
 #endif
         for (yi = 1; yi <= bufy; yi++) {
 
-            trm_cursor(bufx+1, yi); /* locate to line start */
+            trm_cursorset(bufx+1, yi); /* locate to line start */
             for (xi = bufx+1; xi <= dimx; xi++) putchr(' '); /* fill */
 
         }
@@ -2036,7 +2140,7 @@ static void restore(scnptr sc)
 #endif
         for (yi = bufy+1; yi <= dimy; yi++) {
 
-            trm_cursor(1, yi); /* locate to line start */
+            trm_cursorset(1, yi); /* locate to line start */
             for (xi = 1; xi <= dimx; xi++) putchr(' '); /* fill */
 
         }
@@ -2732,7 +2836,7 @@ static void iscroll(scnptr sc, long x, long y)
             trm_curoff(); /* turn cursor off for display */
             curon = FALSE;
             /* downward straight scroll, we can do this with native scrolling */
-            trm_cursor(1, dimy); /* position to bottom of screen */
+            trm_cursorset(1, dimy); /* position to bottom of screen */
             /* use linefeed to scroll. linefeeds work no matter the state of
                wrap, and use whatever the current background color is */
             yi = y;   /* set line count */
@@ -2743,7 +2847,7 @@ static void iscroll(scnptr sc, long x, long y)
 
             }
             /* restore cursor position */
-            trm_cursor(ncurx, ncury);
+            trm_cursorset(ncurx, ncury);
             cursts(sc); /* re-enable cursor */
 
         }
@@ -2779,7 +2883,7 @@ static void iscroll(scnptr sc, long x, long y)
             trm_clear();   /* scroll would result in complete clear, do it */
             clrbuf(sc);   /* clear the screen buffer */
             /* restore cursor position */
-            trm_cursor(ncurx, ncury);
+            trm_cursorset(ncurx, ncury);
 
         } else { /* scroll */
 
@@ -3141,8 +3245,12 @@ static void plcchr(scnptr sc, unsigned char c)
             /* This handling is from iright. We do this here because
                placement implicitly moves the cursor */
             if (ncurx >= 1 && ncurx <= bufx &&
-                ncury >= 1 && ncury <= bufy)
+                ncury >= 1 && ncury <= bufy) {
+
+                synccur(sc); /* the character lands at the cursor: place it */
                 putchr(c); /* output character to terminal */
+
+            }
 #ifdef ALLOWUTF8
             if (!utf8cnt)
 #endif
@@ -3166,9 +3274,13 @@ static void plcchr(scnptr sc, unsigned char c)
 
                     /* prevent overflow, but otherwise its unlimited */
                     if (ncurx < LONG_MAX) ncurx++;
-                    /* don't count on physical cursor behavior if scrolling is
-                       off and we are at extreme right */
-                    curval = 0;
+                    /* Don't count on physical cursor behavior if scrolling is
+                       off and we are at the extreme right. Note the
+                       condition: invalidating unconditionally here caused a
+                       full cursor position sequence to be emitted after
+                       every character output with auto off, about a twelve
+                       times expansion of the output. */
+                    if (curx >= dimx) curval = 0;
 
                 }
                 setcur(sc); /* update physical cursor */
@@ -3516,7 +3628,7 @@ static void finish(char* title)
             i = 0; /* set string start */
             xs = dimx/2-ml/2; /* set centered line start */
             if (xs < 1) xs = 1; /* if string too long, clip right */
-            trm_cursor(xs, 1); /* move cursor to start */
+            trm_cursorset(xs, 1); /* move cursor to start */
             for (xi = xs; xi <= dimx && i < ml; xi++) {
 
                 p = &SCNBUF(sc, xi, 1); /* index this screen element */
@@ -3585,6 +3697,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+            synccur(screens[curdsp-1]); /* about to wait on the user */
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -4126,9 +4239,9 @@ static void bold_ivf(FILE *f, long e)
 
 Turn on strikeout attribute
 
-Turns on/off the strikeout attribute.
-
-Not implemented.
+Turns on/off the strikeout attribute. This is SGR 9, which the terminals
+that came after the fixed function ones generally present; one that does
+not simply leaves the text unmarked, as with any other attribute it lacks.
 
 *******************************************************************************/
 
@@ -4139,7 +4252,7 @@ static void strikeout_ivf(FILE *f, long e)
 {
 
     dbg_printf(dlapi, "API\n");
-    /* no capability */
+    attronoff(f, e, sastkout); /* enable/disable attribute */
 
 }
 
@@ -4643,6 +4756,11 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 
         }
 
+        /* The user is about to be given the chance to look, so the
+           cursor must be where it belongs before we wait. */
+        pthread_mutex_lock(&termlock);
+        synccur(screens[curdsp-1]);
+        pthread_mutex_unlock(&termlock);
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -5055,14 +5173,15 @@ Writes a string direct to the terminal, bypassing character handling.
 
 APIOVER(wrtstr)
 void ami_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
+static void wrtstrn_ivf(FILE* f, char *s, long n); /* forward */
+
 static void wrtstr_ivf(FILE* f, char *s)
 
 {
 
     dbg_printf(dlapi, "API\n");
-    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    putstrc(s);
-    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+    /* the counted form does the work, in one piece */
+    wrtstrn_ivf(f, s, strlen(s));
 
 }
 
@@ -5081,9 +5200,25 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
 
 {
 
+    ssize_t rc;      /* return code */
+    long    off = 0; /* offset into the string */
+
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    while (n--) putchr(*s++);
+    synccur(screens[curupd-1]); /* the run lands at the cursor: place it */
+    /* Send the run in one piece. This call exists to bypass the per
+       character protocol, and emitting it a character at a time, which is
+       a write() each, gave up the very saving it is for. The caller's side
+       of that bargain is that the string holds no control characters. */
+    while (off < n) {
+
+        rc = (*ofpwrite)(OUTFIL, s+off, n-off);
+        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+        off += rc;
+
+    }
+    /* the cursor moved by the length written, and we did not track it */
+    curval = 0;
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
