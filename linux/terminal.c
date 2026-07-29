@@ -1975,7 +1975,8 @@ static void synccur(scnptr sc)
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if ((ncurx != curx || ncury != cury) && curval) {
+            if (curval && ncurx == curx && ncury == cury) ; /* already there */
+            else if (curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
                    cursor positions to reduce bandwidth. Note we don't count on
@@ -1993,11 +1994,8 @@ static void synccur(scnptr sc)
 
             } else {
 
-                /* don't count on physical cursor location, just reset */
+                /* the physical position is not known, state it outright */
                 trm_cursorset(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
-                curval = 1;
 
             }
 
