@@ -3030,22 +3030,15 @@ static void iclear(scnptr sc)
     ncurx = 1;
     if (indisp(sc)) { /* in display */
 
-        if (bufx >= dimx && bufy >= dimy) {
-
-            /* the buffer covers the display, so erasing all of it is the
-               same thing and is the cheaper way to say it */
-            trm_clear(); /* erase screen */
-            curx = 1; /* set actual cursor location */
-            cury = 1;
-            curval = 1;
-
-        } else
-            /* The buffer is smaller than the surface it is shown on. An
-               erase of the whole display would paint the area outside the
-               buffer, which is not part of the surface and belongs to
-               whatever was there before. Painting the cleared buffer over
-               its own area leaves that alone. */
-            restore(sc);
+        /* An erase of the whole display paints every cell in the current
+           background, which is what the area outside the buffer should
+           show: restore() fills those margins with the background for the
+           same reason, and the graphical implementation fills its own
+           leftover margins the same way. */
+        trm_clear(); /* erase screen */
+        curx = 1; /* set actual cursor location */
+        cury = 1;
+        curval = 1;
         setcur(sc);
 
     }

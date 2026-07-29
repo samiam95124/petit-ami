@@ -2153,6 +2153,40 @@ static void restoreclp(winptr win,   /* window to restore */
             }
 
         }
+        /* If the buffer is smaller than the client area, the part of the
+           client beyond it is filled with the window's background. That
+           area belongs to the window and shows its background, which is
+           what the graphical implementation does with the margins it has
+           left over, and what the terminal does under its own buffer. */
+        if (win->maxx < win->cmaxx || win->maxy < win->cmaxy) {
+
+            long mx, my;
+
+            setfcolor(win->fcolor);
+            setbcolor(win->bcolor);
+            setattrs(win->attr);
+            for (my = 1; my <= win->cmaxy; my++) {
+
+                /* the strip right of the buffer, and whole lines below it */
+                mx = my <= win->maxy? win->maxx+1: 1;
+                for (; mx <= win->cmaxx; mx++) {
+
+                    long sx = win->orgx+win->coffx+mx-1;
+                    long sy = win->orgy+win->coffy+my-1;
+                    long ml = (my-1)*win->bufx+(mx-1);
+
+                    if (!inrect(sx, sy, cr)) continue; /* outside the clip */
+                    /* an occluded cell belongs to the window above */
+                    if (mx <= win->bufx && my <= win->bufy &&
+                        !(win->fmask[ml/8] & 1<<(ml%8))) continue;
+                    setcursor(sx, sy);
+                    wrtchr(' ');
+
+                }
+
+            }
+
+        }
         setcur(curfocus? curfocus: win); /* reenable cursor */
 
     }
