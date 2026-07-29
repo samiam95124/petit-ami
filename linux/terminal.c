@@ -761,6 +761,9 @@ static void error_ivf(ami_errcod e)
 
 {
 
+    /* leave the alternate screen first, or the message is written to it
+       and discarded when the exit sequence switches back */
+    fprintf(stderr, "\033[0m\033[?1049l\r\n");
     fprintf(stderr, "*** Error: xterm: ");
     switch (e) { /* error */
 
@@ -1017,16 +1020,44 @@ Uses the write() override.
 
 *******************************************************************************/
 
+/* Output batching. Every emitted byte lands here, and used to be a write()
+   system call of its own, which made large updates (and especially the
+   character window manager) unacceptably slow. Bytes now collect in this
+   buffer and go out in one write when it fills, and at the points where
+   output must be visible: before waiting for input or events, and at
+   shutdown. The terminal receives an identical byte stream, only in fewer
+   pieces. */
+
+#define OUTBUFSIZ 16384 /* size of the output batching buffer */
+
+static unsigned char outbuf[OUTBUFSIZ]; /* output batching buffer */
+static int           outbuflen = 0;     /* bytes in the buffer */
+
+static void flushout(void)
+
+{
+
+    ssize_t rc;      /* return code */
+    int     off = 0; /* offset into buffer */
+
+    while (off < outbuflen) { /* until the buffer is drained */
+
+        /* send to the next handler in the override chain */
+        rc = (*ofpwrite)(OUTFIL, outbuf+off, outbuflen-off);
+        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+        off += rc;
+
+    }
+    outbuflen = 0; /* buffer now empty */
+
+}
+
 static void putchr(unsigned char c)
 
 {
 
-    ssize_t rc; /* return code */
-
-    /* send character to the next hander in the override chain */
-    rc = (*ofpwrite)(OUTFIL, &c, 1);
-
-    if (rc != 1) error(ami_dispeoutdev); /* output device error */
+    outbuf[outbuflen++] = c; /* place character in the batch */
+    if (outbuflen >= OUTBUFSIZ) flushout(); /* full, send it out */
 
 }
 
@@ -2195,6 +2226,10 @@ static void ievent(void)
     do { /* match input events */
 
         evtfnd = 0; /* set no event found */
+        /* everything drawn must be onscreen before we wait */
+        pthread_mutex_lock(&termlock);
+        flushout();
+        pthread_mutex_unlock(&termlock);
         system_event_getsevt(&sev); /* get the next system event */
         /* check the read file has signaled */
         if (sev.typ == se_inp && sev.lse == inpsev) {
@@ -2626,6 +2661,67 @@ static void clrbuf(scnptr sc)
         sp->attr = attr;
 
     }
+
+}
+
+/** ****************************************************************************
+
+Grow screen buffers
+
+Grows the screen buffers to at least the given dimensions, keeping their
+contents. Used when the onscreen surface expands: the buffers start at the
+surface size, and without this everything written beyond the old bounds was
+silently clipped. The buffers never shrink, since the display simply clips
+to a smaller surface and the content is kept.
+
+*******************************************************************************/
+
+static void growbuf(long nx, long ny)
+
+{
+
+    scnrec* ns; /* new screen */
+    scnrec* os; /* old screen */
+    scnrec* sp;
+    long    x, y;
+    int     si;
+
+    if (nx <= bufx && ny <= bufy) return; /* nothing to grow */
+    if (nx < bufx) nx = bufx; /* never shrink */
+    if (ny < bufy) ny = bufy;
+    for (si = 0; si < MAXCON; si++) if (screens[si]) {
+
+        os = screens[si]; /* index old screen */
+        ns = malloc(sizeof(scnrec)*ny*nx);
+        if (!ns) error(ami_dispenomem); /* no memory for screen */
+        for (y = 1; y <= ny; y++)
+            for (x = 1; x <= nx; x++) {
+
+            sp = &ns[(y-1)*nx+(x-1)]; /* index new cell */
+            if (x <= bufx && y <= bufy)
+                /* keep old contents */
+                *sp = os[(y-1)*bufx+(x-1)];
+            else { /* new cell, blank with current colors */
+
+                plcchrext(sp, ' ');
+#ifdef NATIVE24
+                sp->forergb = forergb;
+                sp->backrgb = backrgb;
+#else
+                sp->forec = forec;
+                sp->backc = backc;
+#endif
+                sp->attr = attr;
+
+            }
+
+        }
+        free(os); /* release the old screen */
+        screens[si] = ns;
+
+    }
+    bufx = nx; /* set new buffer size */
+    bufy = ny;
 
 }
 
@@ -3166,9 +3262,13 @@ static void plcchr(scnptr sc, unsigned char c)
 
                     /* prevent overflow, but otherwise its unlimited */
                     if (ncurx < LONG_MAX) ncurx++;
-                    /* don't count on physical cursor behavior if scrolling is
-                       off and we are at extreme right */
-                    curval = 0;
+                    /* Don't count on physical cursor behavior if scrolling is
+                       off and we are at the extreme right. Note the
+                       condition: invalidating unconditionally here caused a
+                       full cursor position sequence to be emitted after
+                       every character output with auto off, about a twelve
+                       times expansion of the output. */
+                    if (curx >= dimx) curval = 0;
 
                 }
                 setcur(sc); /* update physical cursor */
@@ -3585,6 +3685,9 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+            /* a prompt may have been written; it must be visible before we
+               block for input */
+            flushout();
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -4643,6 +4746,14 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 
         }
 
+        /* Everything drawn must be onscreen before we block for an event.
+           This flush must be here, in the caller's thread: the event
+           thread's own flush only runs when a system event wakes it, so
+           output batched by this thread after that would otherwise sit in
+           the buffer for as long as the input stays quiet. */
+        pthread_mutex_lock(&termlock);
+        flushout();
+        pthread_mutex_unlock(&termlock);
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -4652,6 +4763,9 @@ static void event_ivf(FILE* f, ami_evtrec *er)
             /* set new size */
             dimx = er->rszx;
             dimy = er->rszy;
+            /* an expanded surface needs expanded buffers, or output past
+               the old bounds is clipped */
+            growbuf(dimx, dimy);
             /* linux/xterm has an oddity here, if the winch contracts in y, it
                occasionally relocates the buffer contents up. This means we
                always need to refresh, and means it can flash. */
@@ -5928,5 +6042,6 @@ static void ami_deinit_terminal()
 
     /* back to normal buffer on xterm */
     putstrc("\033[?1049l"); fflush(stdout);
+    flushout(); /* drain the output batch on the way out */
 
 }
