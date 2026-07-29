@@ -81,7 +81,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* local definitions */
 #include <localdefs.h>
 #include <config.h>
-#include <terminal.h>
+#include <terminalw.h>
 
 #include <diag.h>
 

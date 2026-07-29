@@ -16,9 +16,8 @@
 * scroll bar positions are echoed into the progress bar, so dragging value     *
 * widgets shows visible effect.                                                *
 *                                                                              *
-* Build (managerc is off in the default build):                                *
+* Build:                                                                       *
 *                                                                              *
-*     make lib/petit_ami_term.so USEMANAGERC=1                                 *
 *     make test_manager2                                                       *
 *     ./test_manager2                                                          *
 *                                                                              *
@@ -31,7 +30,7 @@
 #include <limits.h>
 
 #include <localdefs.h>
-#include <terminal.h>
+#include <terminalw.h>
 
 /* widget ids */
 #define WBUTTON   1

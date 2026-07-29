@@ -11,10 +11,8 @@
 * them, which exercises the scroll path as well; the windows are buffered,     *
 * so the manager keeps the text present over any rearrangement.                *
 *                                                                              *
-* Build (managerc is off in the default build, so the terminal library must    *
-* be built with it on):                                                        *
+* Build:                                                                       *
 *                                                                              *
-*     make lib/petit_ami_term.so USEMANAGERC=1                                 *
 *     make test_manager                                                        *
 *     ./test_manager                                                           *
 *                                                                              *
@@ -23,16 +21,13 @@
 * "f" to refill both windows with the source text, repeating the scroll load   *
 * on demand; press "q" in any window to quit.                                  *
 *                                                                              *
-* Note: rebuilding without USEMANAGERC=1 afterwards restores the plain         *
-* terminal library.                                                            *
-*                                                                              *
 *******************************************************************************/
 
 #include <stdio.h>
 #include <string.h>
 
 #include <localdefs.h>
-#include <terminal.h>
+#include <terminalw.h>
 
 #define OFF 0
 #define ON  1

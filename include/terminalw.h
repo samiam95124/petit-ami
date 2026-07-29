@@ -1,19 +1,25 @@
 /** ****************************************************************************
  *
- * Terminal library interface header
+ * Terminal with windows library interface header
  *
- * Declares a routines and data for the Petit Ami terminal level
- * interface. The terminal interface describes a 2 demensional, fixed window on
- * which characters are drawn. Each character can have colors or attributes.
- * The size of the window can be determined, and timer, mouse, and joystick
- * services are supported.
+ * Declares the routines and data for the Petit Ami terminal level interface
+ * together with the window and widget layers. The terminal interface describes
+ * a 2 demensional, fixed window on which characters are drawn. Each character
+ * can have colors or attributes. The size of the window can be determined, and
+ * timer, mouse, and joystick services are supported.
+ *
+ * This header is the terminal interface with the windowing and widget calls
+ * added, for programs that run under the character mode window manager. A
+ * program that only needs the terminal surface uses terminal.h instead and
+ * does not carry the manager. Widgets are not broken out separately, since
+ * they only appear with windowed programs.
  *
  * Please see the Petit Ami documentation for more information.
  *
  ******************************************************************************/
 
-#ifndef __TERMINAL_H__
-#define __TERMINAL_H__
+#ifndef __TERMINALW_H__
+#define __TERMINALW_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,6 +95,21 @@ typedef enum {
     /** window maximized */             ami_etmax,      
     /** window normalized */            ami_etnorm,     
     /** menu item selected */           ami_etmenus,    
+    /** button assert */                ami_etbutton,
+    /** checkbox click */               ami_etchkbox,
+    /** radio button click */           ami_etradbut,
+    /** scroll up/left line */          ami_etsclull,
+    /** scroll down/right line */       ami_etscldrl,
+    /** scroll up/left page */          ami_etsclulp,
+    /** scroll down/right page */       ami_etscldrp,
+    /** scroll bar position */          ami_etsclpos,
+    /** edit box signals done */        ami_etedtbox,
+    /** number select box done */       ami_etnumbox,
+    /** list box selection */           ami_etlstbox,
+    /** drop box selection */           ami_etdrpbox,
+    /** drop edit box done */           ami_etdrebox,
+    /** slider position */              ami_etsldpos,
+    /** tab bar select */               ami_ettabbar,
 
     /* Reserved extra code areas, these are module defined. */
     ami_etsys    = 0x1000, /* start of base system reserved codes */
@@ -163,6 +184,66 @@ typedef struct {
         };
         /* ami_etmenus */
         long menuid; /* menu item selected */
+        /* ami_etbutton */
+        long butid; /* button id */
+        /* ami_etchkbox */
+        long ckbxid; /* checkbox id */
+        /* ami_etradbut */
+        long radbid; /* radio button id */
+        /* ami_etsclull */
+        long sclulid; /* scroll up/left line id */
+        /* ami_etscldrl */
+        long scldrid; /* scroll down/right line id */
+        /* ami_etsclulp */
+        long sclupid; /* scroll up/left page id */
+        /* ami_etscldrp */
+        long scldpid; /* scroll down/right page id */
+        /* ami_etsclpos */
+        struct {
+
+            long sclpid; /* scroll bar id */
+            long sclpos; /* scroll bar position */
+
+        };
+        /* ami_etedtbox */
+        long edtbid; /* edit box complete id */
+        /* ami_etnumbox */
+        struct {
+
+            long numbid; /* num sel box id */
+            long numbsl; /* num select value */
+
+        };
+        /* ami_etlstbox */
+        struct {
+
+            long lstbid; /* list box id */
+            long lstbsl; /* list box select number */
+
+        };
+        /* ami_etdrpbox */
+        struct {
+
+            long drpbid; /* drop box id */
+            long drpbsl; /* drop box select */
+
+        };
+        /* ami_etdrebox */
+        long drebid; /* drop edit box id */
+        /* ami_etsldpos */
+        struct {
+
+            long sldpid; /* slider id */
+            long sldpos; /* slider position */
+
+        };
+        /* ami_ettabbar */
+        struct {
+
+            long tabid;  /* tab bar id */
+            long tabsel; /* tab select */
+
+        };
 
      };
 
@@ -219,6 +300,53 @@ typedef void (*ami_pevthan)(ami_evtrec*);
 typedef void (*ami_errhan)(ami_errcod e);
 
 /* menu */
+/* standardized menu entries */
+
+#define AMI_SMNEW        1 /* new file */
+#define AMI_SMOPEN       2 /* open file */
+#define AMI_SMCLOSE      3 /* close file */
+#define AMI_SMSAVE       4 /* save file */
+#define AMI_SMSAVEAS     5 /* save file as name */
+#define AMI_SMPAGESET    6 /* page setup */
+#define AMI_SMPRINT      7 /* print */
+#define AMI_SMEXIT       8 /* exit program */
+#define AMI_SMUNDO       9 /* undo edit */
+#define AMI_SMCUT       10 /* cut selection */
+#define AMI_SMPASTE     11 /* paste selection */
+#define AMI_SMDELETE    12 /* delete selection */
+#define AMI_SMFIND      13 /* find text */
+#define AMI_SMFINDNEXT  14 /* find next */
+#define AMI_SMREPLACE   15 /* replace text */
+#define AMI_SMGOTO      16 /* goto line */
+#define AMI_SMSELECTALL 17 /* select all text */
+#define AMI_SMNEWWINDOW 18 /* new window */
+#define AMI_SMTILEHORIZ 19 /* tile child windows horizontally */
+#define AMI_SMTILEVERT  20 /* tile child windows vertically */
+#define AMI_SMCASCADE   21 /* cascade windows */
+#define AMI_SMCLOSEALL  22 /* close all windows */
+#define AMI_SMHELPTOPIC 23 /* help topics */
+#define AMI_SMABOUT     24 /* about this program */
+#define AMI_SMMAX       24 /* maximum defined standard menu entries */
+
+/* orientation for tab bars */
+typedef enum { ami_totop, ami_toright, ami_tobottom, ami_toleft } ami_tabori;
+
+/* settable items in find query */
+typedef enum { ami_qfncase, ami_qfnup, ami_qfnre } ami_qfnopt;
+typedef long ami_qfnopts;
+/* settable items in replace query */
+typedef enum { ami_qfrcase, ami_qfrup, ami_qfrre, ami_qfrfind, ami_qfrallfil,
+               ami_qfralllin } ami_qfropt;
+typedef long ami_qfropts;
+/* effects in font query */
+typedef enum { ami_qfteblink, ami_qftereverse, ami_qfteunderline,
+               ami_qftesuperscript, ami_qftesubscript, ami_qfteitalic,
+               ami_qftebold, ami_qftestrikeout, ami_qftestandout,
+               ami_qftecondensed, ami_qfteextended, ami_qftexlight,
+               ami_qftelight, ami_qftexbold, ami_qftehollow,
+               ami_qfteraised } ami_qfteffect;
+typedef long ami_qfteffects;
+
 typedef struct ami_menurec* ami_menuptr;
 typedef struct ami_menurec {
 
@@ -311,6 +439,92 @@ void ami_frame(FILE* f, long e);
 void ami_sizable(FILE* f, long e);
 void ami_sysbar(FILE* f, long e);
 void ami_menu(FILE* f, ami_menuptr m);
+
+/* string list, for list box style widgets */
+typedef struct ami_strrec* ami_strptr;
+typedef struct ami_strrec {
+
+    ami_strptr next; /* next entry in list */
+    char*    str;  /* string */
+
+} ami_strrec;
+
+/* Character mode widgets. These are implemented by the character mode window
+   manager, drawn entirely in character cells, and take character coordinates.
+   There are no graphical variants here: this is the character surface. */
+
+long ami_getwigid(FILE* f);
+void ami_killwidget(FILE* f, long id);
+void ami_selectwidget(FILE* f, long id, long e);
+void ami_enablewidget(FILE* f, long id, long e);
+void ami_getwidgettext(FILE* f, long id, char* s, long sl);
+void ami_putwidgettext(FILE* f, long id, char* s);
+void ami_sizwidget(FILE* f, long id, long x, long y);
+void ami_poswidget(FILE* f, long id, long x, long y);
+void ami_backwidget(FILE* f, long id);
+void ami_frontwidget(FILE* f, long id);
+void ami_focuswidget(FILE* f, long id);
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h);
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_checkboxsiz(FILE* f, char* s, long* w, long* h);
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h);
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s,
+                     long id);
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy);
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollvertsiz(FILE* f, long* w, long* h);
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollhorizsiz(FILE* f, long* w, long* h);
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollpos(FILE* f, long id, long r);
+void ami_scrollsiz(FILE* f, long id, long r);
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h);
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                   long id);
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h);
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_progbarsiz(FILE* f, long* w, long* h);
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_progbarpos(FILE* f, long id, long pos);
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h);
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                 long id);
+void ami_slidehorizsiz(FILE* f, long* w, long* h);
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark,
+                    long id);
+void ami_slidevertsiz(FILE* f, long* w, long* h);
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark,
+                   long id);
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
+                    long* oh);
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                 long id);
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
+                        long* oh);
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
+                     ami_strptr sp, long id);
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                   long* ox, long* oy);
+void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw,
+                      long* ch, long* ox, long* oy);
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                ami_tabori tor, long id);
+void ami_tabsel(FILE* f, long id, long tn);
+
+/* Standard dialogs. These are presented inside the terminal surface as
+   managed windows, rather than as host system dialogs. */
+
+void ami_alert(char* title, char* message);
+void ami_querycolor(long* r, long* g, long* b);
+void ami_queryopen(char* s, long sl);
+void ami_querysave(char* s, long sl);
+void ami_queryfind(char* s, long sl, ami_qfnopts* opt);
+void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt);
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+                   long* br, long* bg, long* bb, ami_qfteffects* effect);
 void ami_menuena(FILE* f, long id, long onoff);
 void ami_menusel(FILE* f, long id, long select);
 void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
@@ -701,4 +915,4 @@ void _pa_frameover_ovr(_pa_frameover_t eh, _pa_frameover_t* oeh);
 }
 #endif
 
-#endif /* __TERMINAL_H__ */
+#endif /* __TERMINALW_H__ */
