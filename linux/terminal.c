@@ -1041,14 +1041,73 @@ Writes a string directly to the output file.
 
 *******************************************************************************/
 
+/* Control sequence assembly. A sequence is built here and sent in one
+   write, rather than a system call per byte. Nothing about the byte stream
+   changes, only the number of pieces it arrives in. */
+
+#define SEQMAX 64 /* longest control sequence assembled */
+
+static char seqbuf[SEQMAX]; /* sequence under construction */
+static int  seqlen = 0;     /* length so far */
+
+/* place a character in the sequence under construction */
+static void seqchr(char c)
+
+{
+
+    if (seqlen < SEQMAX-1) seqbuf[seqlen++] = c;
+
+}
+
+/* place a string in the sequence under construction */
+static void seqstr(const char* s)
+
+{
+
+    while (*s) seqchr(*s++);
+
+}
+
+/* place an integer, in decimal, in the sequence under construction */
+static void seqint(long i)
+
+{
+
+    char b[24];
+    int  n = 0;
+
+    if (i < 0) { seqchr('-'); i = -i; }
+    do { b[n++] = i%10+'0'; i = i/10; } while (i && n < 24);
+    while (n) seqchr(b[--n]);
+
+}
+
+/* send the assembled sequence in one piece */
+static void seqout(void)
+
+{
+
+    ssize_t rc;      /* return code */
+    int     off = 0; /* offset into the sequence */
+
+    while (off < seqlen) {
+
+        rc = (*ofpwrite)(OUTFIL, seqbuf+off, seqlen-off);
+        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+        off += rc;
+
+    }
+    seqlen = 0;
+
+}
+
 static void putstr(unsigned char *s)
 
 
 {
 
-    /** index for string */ int i;
-
-    while (*s) putchr(*s++); /* output characters */
+    seqstr((const char*)s); /* assemble */
+    seqout(); /* and send in one piece */
 
 }
 
@@ -1065,9 +1124,8 @@ static void putstrc(char *s)
 
 {
 
-    /** index for string */ int i;
-
-    while (*s) putchr(*s++); /* output characters */
+    seqstr(s); /* assemble */
+    seqout(); /* and send in one piece */
 
 }
 
@@ -1618,19 +1676,21 @@ static void trm_colorrgbc(int fore, int r, int g, int b)
 
     if (havetruecolor()) {
 
-        putstrc(fore? "\33[38;2;": "\33[48;2;");
-        wrtint(r);
-        putstrc(";");
-        wrtint(g);
-        putstrc(";");
-        wrtint(b);
-        putstrc("m");
+        seqstr(fore? "\33[38;2;": "\33[48;2;");
+        seqint(r);
+        seqchr(';');
+        seqint(g);
+        seqchr(';');
+        seqint(b);
+        seqchr('m');
+        seqout();
 
     } else { /* fall back to the 256 color palette */
 
-        putstrc(fore? "\33[38;5;": "\33[48;5;");
-        wrtint(rgb256(r, g, b));
-        putstrc("m");
+        seqstr(fore? "\33[38;5;": "\33[48;5;");
+        seqint(rgb256(r, g, b));
+        seqchr('m');
+        seqout();
 
     }
 
@@ -1699,11 +1759,12 @@ static void trm_cursor(long x, long y)
 
 {
 
-    putstrc("\33[");
-    wrtint(y);
-    putstrc(";");
-    wrtint(x);
-    putstrc("H");
+    seqstr("\33["); /* assemble the whole position, then send it once */
+    seqint(y);
+    seqchr(';');
+    seqint(x);
+    seqchr('H');
+    seqout();
 
 }
 
@@ -1862,10 +1923,31 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
+/* Cursor emission is deferred. Positioning the cursor costs a control
+   sequence, and a program that walks the cursor about while drawing pays
+   for every step of the walk even though only the last position before an
+   output, or before the user is given the chance to look, can be observed.
+   setcur() therefore records the wanted position, and synccur() emits it,
+   from the two places where it becomes observable: just before characters
+   are put out, and before waiting on the user. */
+
+static int curdef = 0; /* a cursor state is recorded but not yet emitted */
+
 static void setcur(scnptr sc)
 
 {
 
+    if (indisp(sc)) curdef = 1; /* wanted state noted, emit it when needed */
+
+}
+
+/* emit the recorded cursor state, if there is one outstanding */
+static void synccur(scnptr sc)
+
+{
+
+    if (!curdef) return; /* nothing outstanding */
+    curdef = 0;
     if (indisp(sc)) { /* in display */
 
         /* check cursor in bounds */
@@ -3144,8 +3226,12 @@ static void plcchr(scnptr sc, unsigned char c)
             /* This handling is from iright. We do this here because
                placement implicitly moves the cursor */
             if (ncurx >= 1 && ncurx <= bufx &&
-                ncury >= 1 && ncury <= bufy)
+                ncury >= 1 && ncury <= bufy) {
+
+                synccur(sc); /* the character lands at the cursor: place it */
                 putchr(c); /* output character to terminal */
+
+            }
 #ifdef ALLOWUTF8
             if (!utf8cnt)
 #endif
@@ -3592,6 +3678,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+            synccur(screens[curdsp-1]); /* about to wait on the user */
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -4650,6 +4737,11 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 
         }
 
+        /* The user is about to be given the chance to look, so the
+           cursor must be where it belongs before we wait. */
+        pthread_mutex_lock(&termlock);
+        synccur(screens[curdsp-1]);
+        pthread_mutex_unlock(&termlock);
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -5094,6 +5186,7 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
 
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    synccur(screens[curupd-1]); /* the run lands at the cursor: place it */
     /* Send the run in one piece. This call exists to bypass the per
        character protocol, and emitting it a character at a time, which is
        a write() each, gave up the very saving it is for. The caller's side
