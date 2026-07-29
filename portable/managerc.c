@@ -1533,11 +1533,17 @@ static void iniscn(winptr win, scnrec* sc)
 
         /* index screen character location */
         scp = &SCNBUF(sc, x, y);
-        /* place character to buffer */
+        /* Place character to buffer. The clear takes the colors and
+           attributes in force for the window, as the terminal's own clear
+           does: a program that sets a background and then clears expects
+           the cleared surface in that background. These were black on
+           white whatever the window was set to, so a clear threw the
+           chosen colors away and only the characters written afterwards
+           carried them. */
         scp->ch = ' ';
-        scp->forec = ami_black;
-        scp->backc = ami_white;
-        scp->attr = 0;
+        scp->forec = win->fcolor;
+        scp->backc = win->bcolor;
+        scp->attr = win->attr;
 
     }
 
