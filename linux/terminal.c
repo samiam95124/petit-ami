@@ -2666,67 +2666,6 @@ static void clrbuf(scnptr sc)
 
 /** ****************************************************************************
 
-Grow screen buffers
-
-Grows the screen buffers to at least the given dimensions, keeping their
-contents. Used when the onscreen surface expands: the buffers start at the
-surface size, and without this everything written beyond the old bounds was
-silently clipped. The buffers never shrink, since the display simply clips
-to a smaller surface and the content is kept.
-
-*******************************************************************************/
-
-static void growbuf(long nx, long ny)
-
-{
-
-    scnrec* ns; /* new screen */
-    scnrec* os; /* old screen */
-    scnrec* sp;
-    long    x, y;
-    int     si;
-
-    if (nx <= bufx && ny <= bufy) return; /* nothing to grow */
-    if (nx < bufx) nx = bufx; /* never shrink */
-    if (ny < bufy) ny = bufy;
-    for (si = 0; si < MAXCON; si++) if (screens[si]) {
-
-        os = screens[si]; /* index old screen */
-        ns = malloc(sizeof(scnrec)*ny*nx);
-        if (!ns) error(ami_dispenomem); /* no memory for screen */
-        for (y = 1; y <= ny; y++)
-            for (x = 1; x <= nx; x++) {
-
-            sp = &ns[(y-1)*nx+(x-1)]; /* index new cell */
-            if (x <= bufx && y <= bufy)
-                /* keep old contents */
-                *sp = os[(y-1)*bufx+(x-1)];
-            else { /* new cell, blank with current colors */
-
-                plcchrext(sp, ' ');
-#ifdef NATIVE24
-                sp->forergb = forergb;
-                sp->backrgb = backrgb;
-#else
-                sp->forec = forec;
-                sp->backc = backc;
-#endif
-                sp->attr = attr;
-
-            }
-
-        }
-        free(os); /* release the old screen */
-        screens[si] = ns;
-
-    }
-    bufx = nx; /* set new buffer size */
-    bufy = ny;
-
-}
-
-/** ****************************************************************************
-
 Initialize screen
 
 Clears all the parameters in the present screen context, and updates the
@@ -4763,9 +4702,6 @@ static void event_ivf(FILE* f, ami_evtrec *er)
             /* set new size */
             dimx = er->rszx;
             dimy = er->rszy;
-            /* an expanded surface needs expanded buffers, or output past
-               the old bounds is clipped */
-            growbuf(dimx, dimy);
             /* linux/xterm has an oddity here, if the winch contracts in y, it
                occasionally relocates the buffer contents up. This means we
                always need to refresh, and means it can flash. */

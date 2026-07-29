@@ -4259,6 +4259,14 @@ static void intevent(FILE* f)
                    in content, or the root background beyond the old bounds
                    can never be restored. */
                 growwinbuf(win, dimx, dimy);
+                /* The layer below keeps its own screen buffers, sized when
+                   it started, and clips writes to them. Grow those through
+                   the standard call rather than by reaching into that
+                   module: the manager runs over any terminal implementation
+                   and must not require changes in it. The contents are
+                   discarded by that call, which costs nothing here since
+                   the whole surface is repainted below. */
+                (*sizbuf_vect)(stdout, dimx, dimy);
 
             }
             recalcfmask(); /* occlusion clips to the new bounds */
