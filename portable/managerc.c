@@ -4373,16 +4373,12 @@ static void intevent(FILE* f)
                 win->pmaxy = dimy;
                 win->cmaxx = dimx; /* frameless, client is the whole */
                 win->cmaxy = dimy;
-                if (!win->bufmod) { /* in follow mode track the buffer too */
-
-                    win->maxx = dimx;
-                    win->maxy = dimy;
-
-                }
-                /* An expanded surface needs an expanded root buffer, kept
-                   in content, or the root background beyond the old bounds
-                   can never be restored. */
-                growwinbuf(win, dimx, dimy);
+                /* In follow mode the buffer is the window, so it tracks
+                   the new surface. In buffered mode the program chose the
+                   buffer size and it keeps it: the window simply shows
+                   more or less of it. Growing it here regardless threw
+                   away the size a program had asked for. */
+                if (!win->bufmod) growwinbuf(win, dimx, dimy);
                 /* The layer below keeps its own screen buffers, sized when
                    it started, and clips writes to them. Grow those through
                    the standard call rather than by reaching into that
