@@ -2599,8 +2599,13 @@ static void makzmax2min(void)
             /* since we find min to max, the list gets pushed backwards and ends
                up max to min */
             win = fndzorder(z); /* find this Z window */
-            win->zmax2min = zmax2min; /* push to list */
-            zmax2min = win;
+            /* a gap in the order leaves nothing to place here */
+            if (win) {
+
+                win->zmax2min = zmax2min; /* push to list */
+                zmax2min = win;
+
+            }
 
         }
 
@@ -2794,18 +2799,32 @@ static void intback(winptr win)
     int    z;
 
     remmin2max(win); /* remove from min to maxlist */
-    /* reorder list */
-    wp = zmin2max; /* index top of list */
-    z = 2; /* set z order count */
-    while (wp) { /* traverse the list */
+    /* Put it at the back of the list, behind everything else, and number
+       the order from there. The root, if it is on the list, stays behind
+       even that: it is the surface the rest sit on.
 
-        wp->zorder = z++; /* set new order */
-        wp = wp->zmin2max; /* next entry */
+       The numbering has to run from 0 without a gap, because the max to
+       min list is built by looking each order up in turn, and a missing
+       one is a null window. This renumbered from 2 and gave the moved
+       window the top number, so nothing held 0 or 1 and building that
+       list faulted. */
+    if (zmin2max && zmin2max->root && zmin2max != win) {
+
+        /* second place, just ahead of the root */
+        win->zmin2max = zmin2max->zmin2max;
+        zmin2max->zmin2max = win;
+
+    } else { /* first place */
+
+        win->zmin2max = zmin2max;
+        zmin2max = win;
 
     }
-    win->zmin2max = zmin2max->zmin2max; /* push ahead of root */
-    zmin2max->zmin2max = win;
-    win->zorder = ztop; /* set our entry as bottom Z order */
+    /* number the list from the back, without gaps */
+    wp = zmin2max;
+    z = 0;
+    while (wp) { wp->zorder = z++; wp = wp->zmin2max; }
+    ztop = z-1; /* the top of the order is the last one numbered */
     makzmax2min(); /* remake the max 2 min list */
     /* repaint the region from the new order: whatever was under this
        window is now on top of it */
