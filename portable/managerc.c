@@ -3095,16 +3095,81 @@ static void closewin(int ofn)
     int       wid;  /* window id */
     winptr    win;  /* window data structure */
     winptr    pwin; /* parent window */
+    winptr    rw;   /* root window */
+    winptr*   lp;   /* list pointer for unlinking */
+    wigptr    wg;   /* widget pointer */
+    rectangle cr;   /* the area the window occupied */
+    int       vis;  /* it was visible */
     ami_evtrec er;   /* PA event record */
 
     wid = filwin[ofn]; /* get window id */
     ifn = opnfil[ofn]->inl; /* get the input file link */
     win = lfn2win(ofn); /* get a pointer to the window */
+    /* Take the window down. Closing the file used to close the file and
+       nothing else: the window stayed on the Z order lists and in its
+       parent's children, so it kept being drawn, and a program that closed
+       a window watched it remain on the screen. */
+    setrect(&cr, win->orgx, win->orgy,
+                 win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+    vis = win->visible;
+    /* the widgets it owns go with it */
+    while (win->wiglst) {
+
+        wg = win->wiglst;
+        win->wiglst = wg->next;
+        wg->parent = NULL; /* it is being taken down with the owner */
+        if (xltwin[wg->win->wid+MAXFIL] >= 0) fclose(wg->wf);
+        if (wg->face) free(wg->face);
+        if (wg->list) {
+
+            long i;
+            for (i = 0; i < wg->listn; i++) free(wg->list[i]);
+            free(wg->list);
+
+        }
+        free(wg);
+
+    }
+    if (win->focus) { /* it holds the focus, hand it to the root */
+
+        win->focus = FALSE;
+        curfocus = NULL;
+        rw = winlst;
+        while (rw && !rw->root) rw = rw->winlst;
+        if (rw && rw != win) { rw->focus = TRUE; curfocus = rw; }
+
+    }
+    remmin2max(win); /* out of the Z order lists */
+    remmax2min(win);
+    ztop--; /* one fewer window in the order */
+    /* out of the parent's children */
+    if (win->parwin) {
+
+        lp = &win->parwin->childwin;
+        while (*lp && *lp != win) lp = &(*lp)->childlst;
+        if (*lp) *lp = win->childlst;
+
+    }
+    /* out of the master list */
+    lp = &winlst;
+    while (*lp && *lp != win) lp = &(*lp)->winlst;
+    if (*lp) *lp = win->winlst;
+    win->visible = FALSE;
+    /* these are the window's own, and clsfil does not know of them */
+    if (win->fmask) free(win->fmask);
+    if (win->title) free(win->title);
     clsfil(ofn); /* flush and close output file */
     /* if no remaining links exist, flush and close input file */
     if (!inplnk(ifn)) clsfil(ifn);
     filwin[ofn] = -1; /* clear file to window translation */
     xltwin[wid+MAXFIL] = -1; /* clear window to file translation */
+    /* clsfil released the screen buffers and returned the record to the
+       free list, so only what it does not know about is released here */
+    if (win->fmask) { win->fmask = NULL; win->fmasklen = 0; }
+    win->title = NULL;
+    makzmax2min(); /* remake the order, which redoes the masks */
+    /* paint over where it was, from whatever is behind it */
+    if (vis) redraw(zmax2min, cr.x1, cr.y1, cr.x2, cr.y2);
 
 }
 
