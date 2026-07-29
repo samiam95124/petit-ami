@@ -1768,6 +1768,25 @@ static void trm_cursor(long x, long y)
 
 }
 
+static int curdef = 0; /* a cursor state is recorded but not yet emitted */
+
+/* Position the cursor and record that the physical cursor is now there.
+   Routines that move the cursor about the screen for their own purposes,
+   such as scrolling and restoring, must use this rather than trm_cursor:
+   leaving the tracker stale lets a later positioning take a relative move
+   from a position the cursor is no longer at. */
+static void trm_cursorset(long x, long y)
+
+{
+
+    trm_cursor(x, y);
+    curx = x; /* the physical cursor is here now */
+    cury = y;
+    curval = 1; /* and the record of it is good */
+    curdef = 0; /* any deferred position has just been satisfied */
+
+}
+
 /** set title */
 static void trm_title(char* title)
 
@@ -1931,8 +1950,6 @@ to bring the old state of the display to the same state as the new display.
    from the two places where it becomes observable: just before characters
    are put out, and before waiting on the user. */
 
-static int curdef = 0; /* a cursor state is recorded but not yet emitted */
-
 static void setcur(scnptr sc)
 
 {
@@ -1973,7 +1990,7 @@ static void synccur(scnptr sc)
             } else {
 
                 /* don't count on physical cursor location, just reset */
-                trm_cursor(ncurx, ncury);
+                trm_cursorset(ncurx, ncury);
                 curx = ncurx;
                 cury = ncury;
                 curval = 1;
@@ -2105,7 +2122,7 @@ static void restore(scnptr sc)
 #endif
         for (yi = 1; yi <= bufy; yi++) {
 
-            trm_cursor(bufx+1, yi); /* locate to line start */
+            trm_cursorset(bufx+1, yi); /* locate to line start */
             for (xi = bufx+1; xi <= dimx; xi++) putchr(' '); /* fill */
 
         }
@@ -2121,7 +2138,7 @@ static void restore(scnptr sc)
 #endif
         for (yi = bufy+1; yi <= dimy; yi++) {
 
-            trm_cursor(1, yi); /* locate to line start */
+            trm_cursorset(1, yi); /* locate to line start */
             for (xi = 1; xi <= dimx; xi++) putchr(' '); /* fill */
 
         }
@@ -2817,7 +2834,7 @@ static void iscroll(scnptr sc, long x, long y)
             trm_curoff(); /* turn cursor off for display */
             curon = FALSE;
             /* downward straight scroll, we can do this with native scrolling */
-            trm_cursor(1, dimy); /* position to bottom of screen */
+            trm_cursorset(1, dimy); /* position to bottom of screen */
             /* use linefeed to scroll. linefeeds work no matter the state of
                wrap, and use whatever the current background color is */
             yi = y;   /* set line count */
@@ -2828,7 +2845,7 @@ static void iscroll(scnptr sc, long x, long y)
 
             }
             /* restore cursor position */
-            trm_cursor(ncurx, ncury);
+            trm_cursorset(ncurx, ncury);
             cursts(sc); /* re-enable cursor */
 
         }
@@ -2864,7 +2881,7 @@ static void iscroll(scnptr sc, long x, long y)
             trm_clear();   /* scroll would result in complete clear, do it */
             clrbuf(sc);   /* clear the screen buffer */
             /* restore cursor position */
-            trm_cursor(ncurx, ncury);
+            trm_cursorset(ncurx, ncury);
 
         } else { /* scroll */
 
@@ -3609,7 +3626,7 @@ static void finish(char* title)
             i = 0; /* set string start */
             xs = dimx/2-ml/2; /* set centered line start */
             if (xs < 1) xs = 1; /* if string too long, clip right */
-            trm_cursor(xs, 1); /* move cursor to start */
+            trm_cursorset(xs, 1); /* move cursor to start */
             for (xi = xs; xi <= dimx && i < ml; xi++) {
 
                 p = &SCNBUF(sc, xi, 1); /* index this screen element */
