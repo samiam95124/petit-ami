@@ -1020,44 +1020,16 @@ Uses the write() override.
 
 *******************************************************************************/
 
-/* Output batching. Every emitted byte lands here, and used to be a write()
-   system call of its own, which made large updates (and especially the
-   character window manager) unacceptably slow. Bytes now collect in this
-   buffer and go out in one write when it fills, and at the points where
-   output must be visible: before waiting for input or events, and at
-   shutdown. The terminal receives an identical byte stream, only in fewer
-   pieces. */
-
-#define OUTBUFSIZ 16384 /* size of the output batching buffer */
-
-static unsigned char outbuf[OUTBUFSIZ]; /* output batching buffer */
-static int           outbuflen = 0;     /* bytes in the buffer */
-
-static void flushout(void)
-
-{
-
-    ssize_t rc;      /* return code */
-    int     off = 0; /* offset into buffer */
-
-    while (off < outbuflen) { /* until the buffer is drained */
-
-        /* send to the next handler in the override chain */
-        rc = (*ofpwrite)(OUTFIL, outbuf+off, outbuflen-off);
-        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
-        off += rc;
-
-    }
-    outbuflen = 0; /* buffer now empty */
-
-}
-
 static void putchr(unsigned char c)
 
 {
 
-    outbuf[outbuflen++] = c; /* place character in the batch */
-    if (outbuflen >= OUTBUFSIZ) flushout(); /* full, send it out */
+    ssize_t rc; /* return code */
+
+    /* send character to the next hander in the override chain */
+    rc = (*ofpwrite)(OUTFIL, &c, 1);
+
+    if (rc != 1) error(ami_dispeoutdev); /* output device error */
 
 }
 
@@ -2226,10 +2198,6 @@ static void ievent(void)
     do { /* match input events */
 
         evtfnd = 0; /* set no event found */
-        /* everything drawn must be onscreen before we wait */
-        pthread_mutex_lock(&termlock);
-        flushout();
-        pthread_mutex_unlock(&termlock);
         system_event_getsevt(&sev); /* get the next system event */
         /* check the read file has signaled */
         if (sev.typ == se_inp && sev.lse == inpsev) {
@@ -3624,9 +3592,6 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-            /* a prompt may have been written; it must be visible before we
-               block for input */
-            flushout();
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -4685,14 +4650,6 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 
         }
 
-        /* Everything drawn must be onscreen before we block for an event.
-           This flush must be here, in the caller's thread: the event
-           thread's own flush only runs when a system event wakes it, so
-           output batched by this thread after that would otherwise sit in
-           the buffer for as long as the input stays quiet. */
-        pthread_mutex_lock(&termlock);
-        flushout();
-        pthread_mutex_unlock(&termlock);
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -5105,14 +5062,15 @@ Writes a string direct to the terminal, bypassing character handling.
 
 APIOVER(wrtstr)
 void ami_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
+static void wrtstrn_ivf(FILE* f, char *s, long n); /* forward */
+
 static void wrtstr_ivf(FILE* f, char *s)
 
 {
 
     dbg_printf(dlapi, "API\n");
-    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    putstrc(s);
-    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+    /* the counted form does the work, in one piece */
+    wrtstrn_ivf(f, s, strlen(s));
 
 }
 
@@ -5131,9 +5089,24 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
 
 {
 
+    ssize_t rc;      /* return code */
+    long    off = 0; /* offset into the string */
+
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    while (n--) putchr(*s++);
+    /* Send the run in one piece. This call exists to bypass the per
+       character protocol, and emitting it a character at a time, which is
+       a write() each, gave up the very saving it is for. The caller's side
+       of that bargain is that the string holds no control characters. */
+    while (off < n) {
+
+        rc = (*ofpwrite)(OUTFIL, s+off, n-off);
+        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+        off += rc;
+
+    }
+    /* the cursor moved by the length written, and we did not track it */
+    curval = 0;
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -5978,6 +5951,5 @@ static void ami_deinit_terminal()
 
     /* back to normal buffer on xterm */
     putstrc("\033[?1049l"); fflush(stdout);
-    flushout(); /* drain the output batch on the way out */
 
 }

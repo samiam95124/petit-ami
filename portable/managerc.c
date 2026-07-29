@@ -2039,6 +2039,10 @@ static void restoreclp(winptr win,   /* window to restore */
     long bx, by;   /* buffer location */
     long l;        /* mask index */
     rectangle r1, r2;
+    char runbuf[MAXLIN]; /* run of characters to emit as a string */
+    long runx;           /* screen x the run starts at */
+    ami_color runfc, runbc; /* the run's colors */
+    int  runat;          /* the run's attributes */
 
     if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
 
@@ -2065,21 +2069,68 @@ static void restoreclp(winptr win,   /* window to restore */
                overlaps it. The cursor is positioned per cell, which costs
                nothing for consecutive visible cells, since the position
                cache knows the cursor advances with each character. */
+            /* Draw in runs. A run is a stretch of cells on one line that
+               are visible, share colors and attributes, and hold no
+               control character. Those go out with one string call, which
+               exists to bypass the per character protocol below; the
+               leftovers go a character at a time. Drawing every cell
+               singly was the bulk of the manager's output cost. */
             for (y = r2.y1; y <= r2.y2; y++) {
 
-                for (x = r2.x1; x <= r2.x2; x++) {
+                long rl = 0; /* length of the run being gathered */
 
-                    bx = x-(win->orgx+win->coffx)+1; /* buffer location */
-                    by = y-(win->orgy+win->coffy)+1;
-                    l = (by-1)*win->bufx+(bx-1); /* mask index */
-                    if (win->fmask[l/8] & 1<<(l%8)) { /* not occluded */
+                for (x = r2.x1; x <= r2.x2+1; x++) {
 
-                        scp = &SCNBUF(sc, bx, by); /* index character */
-                        setcursor(x, y); /* at that location */
-                        setfcolor(scp->forec); /* set colors */
-                        setbcolor(scp->backc);
-                        setattrs(scp->attr); /* set attributes */
-                        wrtchr(scp->ch); /* output character */
+                    int vis = FALSE;
+
+                    scp = NULL;
+                    if (x <= r2.x2) { /* a real cell, not the end sentinel */
+
+                        bx = x-(win->orgx+win->coffx)+1; /* buffer location */
+                        by = y-(win->orgy+win->coffy)+1;
+                        l = (by-1)*win->bufx+(bx-1); /* mask index */
+                        vis = !!(win->fmask[l/8] & 1<<(l%8));
+                        if (vis) scp = &SCNBUF(sc, bx, by);
+
+                    }
+                    /* a cell continues the run if it is visible, matches
+                       the run's colors and attributes, and is printable */
+                    if (scp && scp->ch >= ' ' && scp->ch != 0x7f &&
+                        (!rl || (scp->forec == runfc && scp->backc == runbc &&
+                                 scp->attr == runat)) && rl < MAXLIN-1) {
+
+                        if (!rl) { /* starting a run, note its state */
+
+                            runfc = scp->forec;
+                            runbc = scp->backc;
+                            runat = scp->attr;
+                            runx = x;
+
+                        }
+                        runbuf[rl++] = scp->ch;
+
+                    } else { /* the run ends here */
+
+                        if (rl) { /* flush what was gathered */
+
+                            setcursor(runx, y);
+                            setfcolor(runfc);
+                            setbcolor(runbc);
+                            setattrs(runat);
+                            (*wrtstrn_vect)(stdout, runbuf, rl);
+                            curx += rl; /* the string moved the cursor */
+                            rl = 0;
+
+                        }
+                        if (scp) { /* an odd cell, place it singly */
+
+                            setcursor(x, y);
+                            setfcolor(scp->forec);
+                            setbcolor(scp->backc);
+                            setattrs(scp->attr);
+                            wrtchr(scp->ch);
+
+                        }
 
                     }
 
