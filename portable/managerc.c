@@ -343,6 +343,10 @@ typedef struct winrec {
     scnrec*  screens[MAXCON];   /* screen contexts array */
     ami_color sbcolor[MAXCON];  /* background each screen was cleared to */
     int      redrawpend;        /* a redraw announcement is queued */
+    int      maxed;             /* window is maximized */
+    int      mined;             /* window is minimized */
+    long     normx, normy;      /* geometry restored to by normalize */
+    long     normw, normh;
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
     long     orgx;              /* window origin in root x */
@@ -2532,6 +2536,7 @@ static void clspops(int downto); /* forward */
 static void wigdrw(wigptr wg); /* forward */
 static void mbarsiz(winptr win); /* forward */
 static void fronttree(winptr win); /* forward */
+static void intsetpos(winptr win, long x, long y); /* forward */
 
 static void intsendevent(winptr win, ami_evtrec* er)
 
@@ -3188,6 +3193,8 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     } else win->focus = FALSE;
     win->hover = FALSE; /* set no hover */
     win->redrawpend = FALSE; /* no redraw announcement pending */
+    win->maxed = FALSE; /* window presents at its set size */
+    win->mined = FALSE;
     win->zorder = ztop; /* set Z order for this window */
     makzmin2max(); /* (re)create the Z min to max list */
     makzmax2min(); /* (re)create the Z max to min list */
@@ -3254,16 +3261,15 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     win->curupd = 1; /* set current update screen */
     win->visible = FALSE; /* set not visible */
     win->title = NULL; /* set no title */
-    if (root) {
-
 #ifndef __MACH__ /* Mac OS X */
+    /* Every window titles as the invoking program until the program sets
+       its own, as the graphical window managers present it; only the root
+       carried the default before, and a fresh child window showed an
+       empty title bar. */
     win->title = malloc(strlen(program_invocation_short_name)+1);
     if (!win->title) error("Out of memory");
-    /* set title to invoking program */
     strcpy(win->title, program_invocation_short_name);
 #endif
-
-    }
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -3805,6 +3811,76 @@ static void intsetsiz(winptr win, long x, long y)
     recalcfmask(); /* recalculate the forward masks */
     mbarsiz(win); /* the menu bar follows the client width */
     annresize(win); /* tell the program its client changed size */
+
+}
+
+/*******************************************************************************
+
+Minimize, maximize and normalize a window
+
+The manager carries these states itself, as the graphical window managers
+do: the buttons announced the events but changed nothing, so minimize and
+maximize did not function. Maximize fills the parent's client area;
+minimize reduces the window to its bar, the decorations alone; normalize
+restores the geometry the window had before either. The announcements
+(etmax, etmin, etnorm) are made by the callers.
+
+*******************************************************************************/
+
+static void savnorm(winptr win)
+
+{
+
+    if (!win->maxed && !win->mined) { /* the current geometry is the normal */
+
+        win->normx = win->orgx;
+        win->normy = win->orgy;
+        win->normw = win->pmaxx;
+        win->normh = win->pmaxy;
+
+    }
+
+}
+
+static void intmax(winptr win)
+
+{
+
+    winptr par = win->parwin;
+
+    if (!par) return; /* the root is the screen; it has no other size */
+    savnorm(win); /* note what to restore to */
+    win->maxed = TRUE;
+    win->mined = FALSE;
+    intsetpos(win, 1, 1); /* fill the parent's client */
+    intsetsiz(win, par->cmaxx, par->cmaxy);
+
+}
+
+static void intmin(winptr win)
+
+{
+
+    long h;
+
+    savnorm(win); /* note what to restore to */
+    win->mined = TRUE;
+    win->maxed = FALSE;
+    h = decory(win); /* the bar: the decorations alone */
+    if (h < 2) h = 2; /* observe the minimum */
+    intsetsiz(win, win->pmaxx, h);
+
+}
+
+static void intnorm(winptr win)
+
+{
+
+    if (!win->maxed && !win->mined) return; /* already normal */
+    win->maxed = FALSE;
+    win->mined = FALSE;
+    intsetpos(win, win->normx, win->normy);
+    intsetsiz(win, win->normw, win->normh);
 
 }
 
@@ -4838,16 +4914,36 @@ static void intevent(FILE* f)
                                 intsendevent(win, &er); /* issue event */
                                 fend = TRUE; /* set end program requested */
 
-                            } if (mousex-absx(win) == win->pmaxx-5) {
+                            } else if (mousex-absx(win) == win->pmaxx-5) {
 
-                                /* max */
-                                er.etype = ami_etmax; /* set type */
+                                /* maximize, or restore a maximized window */
+                                if (win->maxed) {
+
+                                    intnorm(win);
+                                    er.etype = ami_etnorm;
+
+                                } else {
+
+                                    intmax(win);
+                                    er.etype = ami_etmax;
+
+                                }
                                 intsendevent(win, &er); /* issue event */
 
-                            } if (mousex-absx(win) == win->pmaxx-7) {
+                            } else if (mousex-absx(win) == win->pmaxx-7) {
 
-                                /* min */
-                                er.etype = ami_etmin; /* set type */
+                                /* minimize, or restore a minimized window */
+                                if (win->mined) {
+
+                                    intnorm(win);
+                                    er.etype = ami_etnorm;
+
+                                } else {
+
+                                    intmin(win);
+                                    er.etype = ami_etmin;
+
+                                }
                                 intsendevent(win, &er); /* issue event */
 
                             } else if (mousex-absx(win) >= 1 &&
