@@ -357,7 +357,14 @@ int main(void)
     fprintf(tw, "cursor follows\n");
     fprintf(tw, "\n");
     fprintf(tw, "Here is the cursor->");
+    /* the second window is a standard 80x25 terminal like the test window,
+       offset on the desktop so both stay reachable */
     ami_openwin(&stdin, &win2, NULL, 3);
+    ami_winclient(win2, 80, 25, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsiz(win2, x, y);
+    ami_setpos(win2, 6, 6);
+    ami_sizbuf(win2, 80, 25);
     fprintf(win2, "This is the second window\n");
     fprintf(win2, "\n");
     fprintf(win2, "Here is the cursor->");
