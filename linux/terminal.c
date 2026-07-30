@@ -260,8 +260,7 @@ typedef enum {
     /* subscripting */               sasubs,
     /* italic text */                saital,
     /* bold text */                  sabold,
-    /* struck out text */            sastkout,
-    /* faint (dim) text */           safaint
+    /* struck out text */            sastkout
 
 } scnatt;
 
@@ -468,7 +467,6 @@ static _pa_subscript_t   subscript_vect;
 static _pa_italic_t      italic_vect;
 static _pa_bold_t        bold_vect;
 static _pa_strikeout_t   strikeout_vect;
-static _pa_faint_t       faint_vect;
 static _pa_standout_t    standout_vect;
 static _pa_fcolor_t      fcolor_vect;
 static _pa_bcolor_t      bcolor_vect;
@@ -694,7 +692,6 @@ static int      curval;      /* physical cursor position valid */
 static int      curvis;      /* current status of cursor visible */
 static ami_color forec;       /* current writing foreground color primaries */
 static int      forergb;     /* foreground color in RGB */
-static int      faintact;    /* faint attribute is active */
 static ami_color backc;       /* current writing background color primaries */
 static int      backrgb;     /* background color in RGB */
 static scnatt   attr;        /* current writing attribute */
@@ -1621,8 +1618,6 @@ static void trm_clear(void) { putstrc("\33[2J\33[H"); }
 /** turn on underline */ static void trm_undl(void) { putstrc("\33[4m"); }
 /** turn on bold attribute */ static void trm_bold(void) { putstrc("\33[1m"); }
 /** turn on italic attribute */ static void trm_ital(void) { putstrc("\33[3m"); }
-/** turn on faint attribute */ static void trm_faint(void) { putstrc("\33[2m"); }
-
 /** turn on strikeout attribute */
 static void trm_stkout(void) { putstrc("\33[9m"); }
 /** turn off all attributes */
@@ -1709,24 +1704,7 @@ static void trm_fcolorrgb(int rgb)
 
 {
 
-    int r = rgb >> 16 & 0xff;
-    int g = rgb >> 8 & 0xff;
-    int b = rgb & 0xff;
-
-    if (faintact) {
-
-        /* Faint under full color. Terminals generally do not dim a 24 bit
-           foreground on SGR 2 -- they dim palette colors only -- so the
-           dimming is done here, blending the foreground halfway to the
-           background. The attribute change paths re-emit the foreground
-           whenever the attribute state changes, so the blend follows the
-           attribute on and off. */
-        r = (r+(backrgb >> 16 & 0xff))/2;
-        g = (g+(backrgb >> 8 & 0xff))/2;
-        b = (b+(backrgb & 0xff))/2;
-
-    }
-    trm_colorrgbc(TRUE, r, g, b);
+    trm_colorrgbc(TRUE, rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
 
 }
 
@@ -1866,7 +1844,6 @@ static void setattr(scnptr sc, scnatt a)
 
     if (indisp(sc)) { /* in display */
 
-        faintact = (a == safaint); /* the foreground blend follows faint */
         switch (a) { /* attribute */
 
             case sanone:  trm_attroff(); break; /* no attribute */
@@ -1878,7 +1855,6 @@ static void setattr(scnptr sc, scnatt a)
             case saital:  trm_ital();    break; /* italic text */
             case sabold:  trm_bold();    break; /* bold text */
             case sastkout: trm_stkout(); break; /* struck out text */
-            case safaint: trm_faint();   break; /* faint (dim) text */
 
         }
         /* attribute off may change the colors back to "normal" (normal for that
@@ -4287,27 +4263,6 @@ static void strikeout_ivf(FILE *f, long e)
 
 /** ****************************************************************************
 
-Turn on faint attribute
-
-Turns on/off the faint (dim) attribute. This is SGR 2, which terminals
-generally present as dimmed or grey text; one that lacks it leaves the
-text unmarked, as with any other attribute it lacks.
-
-*******************************************************************************/
-
-APIOVER(faint)
-void ami_faint(FILE* f, long e) { (*faint_vect)(f, e); }
-static void faint_ivf(FILE *f, long e)
-
-{
-
-    dbg_printf(dlapi, "API\n");
-    attronoff(f, e, safaint); /* enable/disable attribute */
-
-}
-
-/** ****************************************************************************
-
 Turn on standout attribute
 
 Turns on/off the standout attribute. Standout is implemented as reverse video.
@@ -5640,7 +5595,6 @@ static void ami_init_terminal(int argc, char* argv[])
     italic_vect      = italic_ivf;
     bold_vect        = bold_ivf;
     strikeout_vect   = strikeout_ivf;
-    faint_vect       = faint_ivf;
     standout_vect    = standout_ivf;
     fcolor_vect      = fcolor_ivf;
     bcolor_vect      = bcolor_ivf;
