@@ -286,6 +286,65 @@ static void frametest(const string s)
 }
 
 
+/* Run the sample menu on the given window: install it, exercise it until
+   return is hit, then remove it. Used on the root window and then on the
+   test window; the menu list ml must be built by the caller. */
+
+static void samplemenu(FILE* w)
+
+{
+
+    ami_evtrec er;
+
+    ami_auto(w, ON);
+    ami_menu(w, ml);
+    ami_menuena(w, 3, OFF); /* disable "Walk" */
+    ami_menusel(w, 5, ON); /* turn on "slow" */
+    ami_menusel(w, 8, ON); /* turn on "red" */
+
+    ami_home(w);
+    fprintf(w, "Use sample menu above\n");
+    fprintf(w, "'Walk' is disabled\n");
+    fprintf(w, "'Sublist' is a dropdown\n");
+    fprintf(w, "'slow', 'medium' and 'fast' are a one/of list\n");
+    fprintf(w, "'red', 'green' and 'blue' are on/off\n");
+    fprintf(w, "There should be a bar between slow-medium-fast groups and\n");
+    fprintf(w, "red-green-blue groups.\n");
+    sred = ON; /* set states */
+    sgreen = OFF;
+    sblue = OFF;
+    do {
+
+        ami_event(stdin, &er);
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+        if (er.etype == ami_etmenus) {
+
+            fprintf(w, "Menu select: ");
+            switch (er.menuid) {
+
+                case 1:  fprintf(w, "Say hello\n"); break;
+                case 2:  fprintf(w, "Bark\n"); break;
+                case 3:  fprintf(w, "Walk\n"); break;
+                case 4:  fprintf(w, "Sublist\n"); break;
+                case 5:  fprintf(w, "slow\n"); ami_menusel(w, 5, ON); break;
+                case 6:  fprintf(w, "medium\n"); ami_menusel(w, 6, ON); break;
+                case 7:  fprintf(w, "fast\n"); ami_menusel(w, 7, ON); break;
+                case 8:  fprintf(w, "red\n"); sred = !sred;
+                         ami_menusel(w, 8, sred); break;
+                case 9:  fprintf(w, "green\n"); sgreen = !sgreen;
+                         ami_menusel(w, 9, sgreen); break;
+                case 10: fprintf(w, "blue\n"); sblue = !sblue;
+                         ami_menusel(w, 10, sblue); break;
+
+            }
+
+        }
+
+    } while (er.etype != ami_etenter && er.etype != ami_etterm);
+    ami_menu(w, NULL);
+
+}
+
 static ami_color nextcolor(ami_color c)
 
 {
@@ -568,12 +627,7 @@ int main(void)
 
     /* ********************************* Menu test ***************************** */
 
-    ami_auto(tw, ON);
-    fputc('\f', tw);
-    ami_fcolor(tw, ami_cyan);
-    charbox(tw, ami_maxx(tw), ami_maxy(tw));
-    ami_auto(tw, ON);
-    ami_fcolor(tw, ami_black);
+    /* build the sample menu, used on the root window and the test window */
     ml = NULL; /* clear menu list */
     newmenu(&mp, FALSE, FALSE, OFF, 1, "Say hello");
     appendmenu(&ml, mp);
@@ -597,51 +651,35 @@ int main(void)
     appendmenu(&sm->branch, mp);
     newmenu(&mp, TRUE, FALSE,  OFF, 10, "blue");
     appendmenu(&sm->branch, mp);
-    ami_menu(tw, ml);
-    ami_menuena(tw, 3, OFF); /* disable "Walk" */
-    ami_menusel(tw, 5, ON); /* turn on "slow" */
-    ami_menusel(tw, 8, ON); /* turn on "red" */
 
-    ami_home(tw);
-    fprintf(tw, "Use sample menu above\n");
-    fprintf(tw, "'Walk' is disabled\n");
-    fprintf(tw, "'Sublist' is a dropdown\n");
-    fprintf(tw, "'slow', 'medium' and 'fast' are a one/of list\n");
-    fprintf(tw, "'red', 'green' and 'blue' are on/off\n");
-    fprintf(tw, "There should be a bar between slow-medium-fast groups and\n");
-    fprintf(tw, "red-green-blue groups.\n");
-    sred = ON; /* set states */
-    sgreen = OFF;
-    sblue = OFF;
-    do {
+    /* The menu presents on the root window as well as child windows. The
+       test window is taken down so the desktop carries the menu alone;
+       the root is frameless, so the bar takes its first line. */
+    fclose(tw);
+    ami_auto(stdout, ON);
+    fprintf(stdout, "\f");
+    samplemenu(stdout);
+    ami_auto(stdout, OFF);
+    fprintf(stdout, "\f");
+    fprintf(stdout, "Character mode window management test -- this window is the desktop\n");
 
-        ami_event(stdin, &er);
-        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
-        if (er.etype == ami_etmenus) {
+    /* the test window returns */
+    ami_openwin(&stdin, &tw, stdout, 2);
+    ami_winclient(tw, 80, 25, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsiz(tw, x, y);
+    ami_setpos(tw, 2, 2);
+    ami_sizbuf(tw, 80, 25);
+    ami_auto(tw, OFF);
+    ami_curvis(tw, OFF);
 
-            fprintf(tw, "Menu select: ");
-            switch (er.menuid) {
-
-                case 1:  fprintf(tw, "Say hello\n"); break;
-                case 2:  fprintf(tw, "Bark\n"); break;
-                case 3:  fprintf(tw, "Walk\n"); break;
-                case 4:  fprintf(tw, "Sublist\n"); break;
-                case 5:  fprintf(tw, "slow\n"); ami_menusel(tw, 5, ON); break;
-                case 6:  fprintf(tw, "medium\n"); ami_menusel(tw, 6, ON); break;
-                case 7:  fprintf(tw, "fast\n"); ami_menusel(tw, 7, ON); break;
-                case 8:  fprintf(tw, "red\n"); sred = !sred;
-                         ami_menusel(tw, 8, sred); break;
-                case 9:  fprintf(tw, "green\n"); sgreen = !sgreen;
-                         ami_menusel(tw, 9, sgreen); break;
-                case 10: fprintf(tw, "blue\n"); sblue = !sblue;
-                         ami_menusel(tw, 10, sblue); break;
-
-            }
-
-        }
-
-    } while (er.etype != ami_etenter && er.etype != ami_etterm);
-    ami_menu(tw, NULL);
+    /* and the same menu presents on it */
+    ami_auto(tw, ON);
+    fputc('\f', tw);
+    ami_fcolor(tw, ami_cyan);
+    charbox(tw, ami_maxx(tw), ami_maxy(tw));
+    ami_fcolor(tw, ami_black);
+    samplemenu(tw);
 
     /* ****************************** Standard menu test ******************** */
 
