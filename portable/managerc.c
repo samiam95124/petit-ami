@@ -8721,6 +8721,8 @@ static void imenu(FILE* f, ami_menuptr m)
     wg->mitems = m;
     wg->sel = 0;
     wigfac(wg, "");
+    /* the bar carries its own background, setting it off from the client */
+    wg->win->bcolor = ami_cyan;
     win->mbar = wg;
     recompcli(win); /* the client geometry now includes the menu row */
     if (win->frame) /* place the bar in its row, above the client origin */
