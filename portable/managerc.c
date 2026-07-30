@@ -2531,6 +2531,7 @@ static void wigdrag(void); /* forward */
 static void clspops(int downto); /* forward */
 static void wigdrw(wigptr wg); /* forward */
 static void mbarsiz(winptr win); /* forward */
+static void fronttree(winptr win); /* forward */
 
 static void intsendevent(winptr win, ami_evtrec* er)
 
@@ -4982,17 +4983,13 @@ static void intevent(FILE* f)
 
                         /* widgets on the root need no fronting: the root
                            is always at the bottom and its widgets above */
-                        if (fw->zorder != ztop && !fw->root) {
-
-                            /* Bring the family to the front: the owning
-                               window, then its widgets above it. Fronting
-                               only the clicked widget would float it over
-                               every other window. */
-                            intfront(fw);
-                            for (wg = fw->wiglst; wg; wg = wg->next)
-                                intfront(wg->win);
-
-                        }
+                        if (fw->zorder != ztop && !fw->root)
+                            /* Bring the family to the front: the window,
+                               then its subtree over it -- widget faces
+                               and child windows are all children in the
+                               window tree. Fronting the window alone
+                               raised it over its own children. */
+                            fronttree(fw);
 
                     }
 
@@ -6279,6 +6276,37 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
+/* Bring a window and its subtree to the front. The children of a window
+   stay above it: the window fronts first, then the children over it.
+   Fronting the window alone raised it over its own children, and they
+   disappeared behind it. */
+
+static void fronttree(winptr win)
+
+{
+
+    winptr c;
+
+    intfront(win);
+    for (c = win->childwin; c; c = c->childlst) fronttree(c);
+
+}
+
+/* Put a window and its subtree to the back, keeping the children above
+   their window: the children go back first, and the window slides in
+   beneath them. */
+
+static void backtree(winptr win)
+
+{
+
+    winptr c;
+
+    for (c = win->childwin; c; c = c->childlst) backtree(c);
+    intback(win);
+
+}
+
 static void ifront(FILE* f)
 
 {
@@ -6286,7 +6314,7 @@ static void ifront(FILE* f)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    intfront(win); /* make this the front window */
+    fronttree(win); /* make this the front window, children above */
 
 }
 
@@ -6305,7 +6333,7 @@ static void iback(FILE* f)
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
-    intback(win); /* make this the back window */
+    backtree(win); /* make this the back window, children above it */
 
 }
 
