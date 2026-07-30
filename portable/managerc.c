@@ -4839,8 +4839,16 @@ static void intevent(FILE* f)
 
                     }
 
-                } else if (ev.mmoun == 1) { /* button 1 click */
+                } else if (ev.mmoun == 1 &&
+                           !(win->widget &&
+                             (win->wig->typ == wtmenubar ||
+                              win->wig->typ == wtpopup))) { /* button 1 click */
 
+                    /* Menu controls are excluded above: a click on the
+                       menu bar or an open menu acts on the menu, and the
+                       keyboard focus stays with the window it was in. It
+                       was following the menu, and the cursor with it,
+                       parked at the end of the menu bar. */
                     remfocus(); /* remove previous focus */
                     /* Take the focus before announcing it. A widget
                        redraws its face when it hears this and reads the
@@ -7328,6 +7336,11 @@ static void wigdrw(wigptr wg)
             break;
 
     }
+    /* The drawing walked the physical cursor over the widget face; it
+       belongs to the focus window. Without this the cursor was left
+       sitting at the end of whatever widget drew last -- the menu bar
+       showed it parked after its last title. */
+    setcur(curfocus? curfocus: wg->parent);
 
 }
 

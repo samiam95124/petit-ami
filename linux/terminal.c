@@ -694,6 +694,7 @@ static int      curval;      /* physical cursor position valid */
 static int      curvis;      /* current status of cursor visible */
 static ami_color forec;       /* current writing foreground color primaries */
 static int      forergb;     /* foreground color in RGB */
+static int      faintact;    /* faint attribute is active */
 static ami_color backc;       /* current writing background color primaries */
 static int      backrgb;     /* background color in RGB */
 static scnatt   attr;        /* current writing attribute */
@@ -1708,7 +1709,24 @@ static void trm_fcolorrgb(int rgb)
 
 {
 
-    trm_colorrgbc(TRUE, rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
+    int r = rgb >> 16 & 0xff;
+    int g = rgb >> 8 & 0xff;
+    int b = rgb & 0xff;
+
+    if (faintact) {
+
+        /* Faint under full color. Terminals generally do not dim a 24 bit
+           foreground on SGR 2 -- they dim palette colors only -- so the
+           dimming is done here, blending the foreground halfway to the
+           background. The attribute change paths re-emit the foreground
+           whenever the attribute state changes, so the blend follows the
+           attribute on and off. */
+        r = (r+(backrgb >> 16 & 0xff))/2;
+        g = (g+(backrgb >> 8 & 0xff))/2;
+        b = (b+(backrgb & 0xff))/2;
+
+    }
+    trm_colorrgbc(TRUE, r, g, b);
 
 }
 
@@ -1848,6 +1866,7 @@ static void setattr(scnptr sc, scnatt a)
 
     if (indisp(sc)) { /* in display */
 
+        faintact = (a == safaint); /* the foreground blend follows faint */
         switch (a) { /* attribute */
 
             case sanone:  trm_attroff(); break; /* no attribute */
