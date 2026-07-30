@@ -5152,29 +5152,35 @@ static void intevent(FILE* f)
                     case dt_none:   /* no drag active */
                         break;
                     case dt_sysbar: /* sysbar drag (whole window) */
-                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin)+y);
+                        /* The origin is parent relative and intsetpos
+                           takes it so; the mouse delta is the same in
+                           screen and parent space. Applying the delta to
+                           the absolute position handed intsetpos the
+                           parent offset over again, and a child of a
+                           child ran away by that much per step. */
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
                         break;
                     case dt_ulcnr:  /* upper left corner */
-                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin)+y);
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
                         intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy-y);
                         break;
                     case dt_urcnr:  /* upper right corner */
-                        intsetpos(drgwin, absx(drgwin), absy(drgwin)+y);
+                        intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
                         intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy-y);
                         break;
                     case dt_blcnr:  /* bottom left corner */
-                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin));
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
                         intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy+y);
                         break;
                     case dt_brcnr:  /* bottom right corner */
                         intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy+y);
                         break;
                     case dt_top:    /* top frame bar */
-                        intsetpos(drgwin, absx(drgwin), absy(drgwin)+y);
+                        intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
                         intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy-y);
                         break;
                     case dt_left:   /* left frame bar */
-                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin));
+                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
                         intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy);
                         break;
                     case dt_right:  /* right frame bar */
