@@ -2497,6 +2497,7 @@ static void wigevt(wigptr wg, ami_evtrec* er); /* forward */
 static void wigdrag(void); /* forward */
 static void clspops(int downto); /* forward */
 static void wigdrw(wigptr wg); /* forward */
+static void mbarsiz(winptr win); /* forward */
 
 static void intsendevent(winptr win, ami_evtrec* er)
 
@@ -3759,6 +3760,7 @@ static void intsetsiz(winptr win, long x, long y)
 
     }
     recalcfmask(); /* recalculate the forward masks */
+    mbarsiz(win); /* the menu bar follows the client width */
     annresize(win); /* tell the program its client changed size */
 
 }
@@ -4690,6 +4692,7 @@ static void intevent(FILE* f)
 
             }
             recalcfmask(); /* occlusion clips to the new bounds */
+            if (win) mbarsiz(win); /* the root menu bar follows the width */
             /* repaint the whole composition over the terminal's own
                recovery paint */
             redraw(zmax2min, 1, 1, dimx, dimy);
@@ -6175,6 +6178,24 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
+static void mbarsiz(winptr win)
+
+{
+
+    wigptr wg = win->mbar;
+
+    /* The menu bar spans the client width, so a change to the window's
+       geometry re-spans it: without this the bar kept the width it was
+       created at, and a window grown wider showed it stopping short. */
+    if (!wg) return;
+    isizbuf(wg->wf, win->cmaxx, 1); /* buffer to the new width */
+    intsetsiz(wg->win, win->cmaxx, 1); /* face to the new width */
+    intsetpos(wg->win, win->orgx+win->coffx,
+              win->orgy+win->coffy-(win->frame != 0));
+    wigdrw(wg); /* the size buffer change cleared the face */
+
+}
+
 static void iwinclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
@@ -6257,6 +6278,7 @@ static void recompcli(winptr win)
        buffer keeps the size it was given */
     if (!win->bufmod) resizewinbuf(win, win->cmaxx, win->cmaxy);
     recalcfmask();
+    mbarsiz(win); /* the menu bar follows the client */
 
 }
 
