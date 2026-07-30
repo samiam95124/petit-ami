@@ -338,6 +338,7 @@ typedef struct winrec {
     winptr   zmax2min;          /* Z order maximum to minimum list */
     scnrec*  screens[MAXCON];   /* screen contexts array */
     ami_color sbcolor[MAXCON];  /* background each screen was cleared to */
+    int      redrawpend;        /* a redraw announcement is queued */
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
     long     orgx;              /* window origin in root x */
@@ -1189,6 +1190,14 @@ static void dequepaevt(ami_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(ami_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
+    if (e->etype == ami_etredraw) { /* the announcement is now delivered */
+
+        winptr wp = winlst;
+
+        while (wp && wp->wid != e->winid) wp = wp->winlst;
+        if (wp) wp->redrawpend = FALSE;
+
+    }
 
 }
 
@@ -2096,11 +2105,39 @@ static void restoreclp(winptr win,   /* window to restore */
     ami_color runfc, runbc; /* the run's colors */
     int  runat;          /* the run's attributes */
 
-    if (win->bufmod && win->visible)  { /* buffered mode is on, and visible */
+    if (!win->visible) return; /* nothing onscreen to restore */
+    setcurvis(FALSE); /* turn off cursor for drawing */
+    if (win->frame) drwfrm(win, cr); /* draw window frame */
+    if (!win->bufmod) {
 
-        /* find intersection with client area */
-        setcurvis(FALSE); /* turn off cursor for drawing */
-        if (win->frame) drwfrm(win, cr); /* draw window frame */
+        /* Follow mode: there is no content store, the program owns the
+           content, as it does in the graphical implementations. The
+           manager paints the frame above and the client background here,
+           and the program repaints its content on the redraw and resize
+           events the manager sends for the operations that disturb it. */
+        long mx, my;
+
+        setfcolor(win->fcolor);
+        setbcolor(win->sbcolor[win->curdsp-1]);
+        setattrs(0);
+        for (my = 1; my <= win->cmaxy; my++)
+            for (mx = 1; mx <= win->cmaxx; mx++) {
+
+            long sx = win->orgx+win->coffx+mx-1;
+            long sy = win->orgy+win->coffy+my-1;
+            long ml = (my-1)*win->bufx+(mx-1);
+
+            if (!inrect(sx, sy, cr)) continue; /* outside the clip */
+            /* an occluded cell belongs to the window above */
+            if (mx <= win->bufx && my <= win->bufy &&
+                !(win->fmask[ml/8] & 1<<(ml%8))) continue;
+            setcursor(sx, sy);
+            wrtchr(' ');
+
+        }
+        setcur(curfocus? curfocus: win); /* reenable cursor */
+
+    } else { /* buffered mode is on */
 
         /* Find intersection with client area. The area is bounded by both
            the client dimensions and the buffer dimensions: the client can
@@ -2282,6 +2319,8 @@ the max 2 min list given.
 
 *******************************************************************************/
 
+static void annredraw(winptr win); /* forward */
+
 static void redraw(winptr win, long x1, long y1, long x2, long y2)
 
 {
@@ -2301,6 +2340,7 @@ static void redraw(winptr win, long x1, long y1, long x2, long y2)
             intersection(&r3, &r1, &r2); /* find the intersected rectangle */
             /* restore that part of the window */
             restoreclp(win, &r3);
+            annredraw(win); /* a follow mode window needs its program */
             if (win->zmax2min) { /* not last window in max 2 min list*/
 
                 /* find rectangle fractions */
@@ -2414,6 +2454,65 @@ static void intsendevent(winptr win, ami_evtrec* er)
     ec.winid = 0; /* set anonymous window id */
     if (win) ec.winid = win->wid; /* overwrite window id */
     enquepaevt(&ec); /* send to queue */
+
+}
+
+/*******************************************************************************
+
+Announce redraw to the program
+
+Asks the program that owns an unbuffered window to repaint it. Buffered
+windows are repainted from their buffers by the manager; a follow mode
+window has no content store, so the manager repaints the frame and the
+client background, and the program supplies the content, the way the
+graphical implementations do with expose events. Called by the manager
+initiated operations that disturb the window: moves, sizes, Z order
+changes, and the repaint of revealed areas. It is never called from the
+program's own drawing, which would ask the program to redraw because it
+drew.
+
+*******************************************************************************/
+
+static void annredraw(winptr win)
+
+{
+
+    ami_evtrec er;
+
+    if (!win->bufmod && win->visible && !win->widget && !win->redrawpend) {
+
+        win->redrawpend = TRUE; /* one announcement serves until delivered */
+        er.etype = ami_etredraw;
+        intsendevent(win, &er);
+
+    }
+
+}
+
+/*******************************************************************************
+
+Announce resize to the program
+
+Tells the program its window client area changed size, with the new
+dimensions, as the graphical implementations do. Sent for user sizing and
+for decoration changes, which resize the client within the same window.
+
+*******************************************************************************/
+
+static void annresize(winptr win)
+
+{
+
+    ami_evtrec er;
+
+    if (win->visible && !win->widget) {
+
+        er.etype = ami_etresize;
+        er.rszx = win->cmaxx;
+        er.rszy = win->cmaxy;
+        intsendevent(win, &er);
+
+    }
 
 }
 
@@ -2925,6 +3024,7 @@ static void winvis(winptr win)
         /* now display this one */
         win->visible = TRUE; /* set now visible */
         restore(win); /* restore window */
+        annredraw(win); /* a follow mode window needs its program */
 
     }
 
@@ -2982,6 +3082,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
 
     } else win->focus = FALSE;
     win->hover = FALSE; /* set no hover */
+    win->redrawpend = FALSE; /* no redraw announcement pending */
     win->zorder = ztop; /* set Z order for this window */
     makzmin2max(); /* (re)create the Z min to max list */
     makzmax2min(); /* (re)create the Z max to min list */
@@ -3541,6 +3642,7 @@ static void intsetsiz(winptr win, long x, long y)
     }
     ox = win->pmaxx; /* save previous size of window */
     oy = win->pmaxy;
+    if (x == ox && y == oy) return; /* size is unchanged */
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
     win->cmaxx = win->pmaxx; /* copy to client dimensions */
@@ -3595,6 +3697,7 @@ static void intsetsiz(winptr win, long x, long y)
 
     }
     recalcfmask(); /* recalculate the forward masks */
+    annresize(win); /* tell the program its client changed size */
 
 }
 
@@ -6088,6 +6191,8 @@ static void iframe(FILE* f, long e)
         win->frame = e; /* set frame state */
         recompcli(win); /* the client geometry follows the decorations */
         restore(win); /* redraw */
+        annresize(win); /* the client changed size within the window */
+        annredraw(win); /* a follow mode window needs its program */
 
     }
 
@@ -6118,6 +6223,8 @@ static void isizable(FILE* f, long e)
         win->size = e; /* set frame state */
         recompcli(win); /* the client geometry follows the decorations */
         restore(win); /* redraw */
+        annresize(win); /* the client changed size within the window */
+        annredraw(win); /* a follow mode window needs its program */
 
     }
 
@@ -6147,6 +6254,8 @@ static void isysbar(FILE* f, long e)
         win->sysbar = e; /* set frame state */
         recompcli(win); /* the client geometry follows the decorations */
         restore(win); /* redraw */
+        annresize(win); /* the client changed size within the window */
+        annredraw(win); /* a follow mode window needs its program */
 
     }
 
