@@ -425,6 +425,158 @@ static void stdmenutest(FILE* w)
 
 }
 
+/* Take the test window down for a phase run on the root window; status
+   output and the waits target the root while it is down. */
+
+static void suspendtestwin(void)
+
+{
+
+    fclose(tw);
+    tw = stdout; /* status and waits go to the root */
+    ami_auto(stdout, ON);
+    fprintf(stdout, "\f");
+
+}
+
+/* Restore the desktop banner and bring the test window back. */
+
+static void resumetestwin(void)
+
+{
+
+    long x, y;
+
+    ami_auto(stdout, OFF);
+    fprintf(stdout, "\f");
+    fprintf(stdout, "Character mode window management test -- this window is the desktop\n");
+    ami_openwin(&stdin, &tw, stdout, 2);
+    ami_winclient(tw, 80, 25, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsiz(tw, x, y);
+    ami_setpos(tw, 2, 2);
+    ami_sizbuf(tw, 80, 25);
+    ami_auto(tw, OFF);
+    ami_curvis(tw, OFF);
+
+}
+
+/* Run the child windows test with children of the given parent. */
+
+static void childtest(FILE* par)
+
+{
+
+    fputc('\f', par);
+    prtcen(ami_maxy(par), "Child windows test character");
+    ami_openwin(&stdin, &win2, par, 3);
+    ami_curvis(win2, OFF);
+    ami_setpos(win2, 1, 10);
+    ami_sizbuf(win2, 20, 10);
+    ami_setsiz(win2, 20, 10);
+    ami_openwin(&stdin, &win3, par, 4);
+    ami_curvis(win3, OFF);
+    ami_setpos(win3, 21, 10);
+    ami_sizbuf(win3, 20, 10);
+    ami_setsiz(win3, 20, 10);
+    ami_openwin(&stdin, &win4, par, 5);
+    ami_curvis(win4, OFF);
+    ami_setpos(win4, 41, 10);
+    ami_sizbuf(win4, 20, 10);
+    ami_setsiz(win4, 20, 10);
+    ami_bcolor(win2, ami_cyan);
+    putc('\f', win2);
+    fprintf(win2, "I am child window 1\n");
+    ami_bcolor(win3, ami_yellow);
+    putc('\f', win3);
+    fprintf(win3, "I am child window 2\n");
+    ami_bcolor(win4, ami_magenta);
+    putc('\f', win4);
+    fprintf(win4, "I am child window 3\n");
+    ami_home(par);
+    fprintf(par, "There should be 3 labeled child windows below, with frames   \n");
+    fprintf(par, "(the system may not implement frames on child windows)      \n");
+    waitnext();
+    ami_frame(win2, OFF);
+    ami_frame(win3, OFF);
+    ami_frame(win4, OFF);
+    ami_home(par);
+    fprintf(par, "There should be 3 labeled child windows below, without frames\n");
+    fprintf(par, "                                                            \n");
+    waitnext();
+    fclose(win2);
+    fclose(win3);
+    fclose(win4);
+    ami_home(par);
+    fprintf(par, "Child windows should all be closed                           \n");
+    waitnext();
+
+}
+
+/* Run the independent child windows test with children of the given
+   parent; parid is the parent's window id, whose return ends the test. */
+
+static void childindtest(FILE* par, long parid)
+
+{
+
+    ami_curvis(par, ON);
+    fputc('\f', par);
+    prtcen(ami_maxy(par), "Child windows independent test character");
+    ami_openwin(&stdin, &win2, par, 3);
+    ami_setpos(win2, 11, 10);
+    ami_sizbuf(win2, 30, 10);
+    ami_setsiz(win2, 30, 10);
+    ami_openwin(&stdin, &win3, par, 4);
+    ami_setpos(win3, 41, 10);
+    ami_sizbuf(win3, 30, 10);
+    ami_setsiz(win3, 30, 10);
+    ami_bcolor(win2, ami_cyan);
+    putc('\f', win2);
+    fprintf(win2, "I am child window 1\n");
+    ami_bcolor(win3, ami_yellow);
+    putc('\f', win3);
+    fprintf(win3, "I am child window 2\n");
+    ami_home(par);
+    fprintf(par, "There should be 2 labeled child windows below, with frames   \n");
+    fprintf(par, "(the system may not implement frames on child windows)       \n");
+    fprintf(par, "Test focus can be moved between windows, including the main  \n");
+    fprintf(par, "window. Test windows can be minimized and maximized          \n");
+    fprintf(par, "(if framed), test entering characters to windows.            \n");
+    do {
+
+        ami_event(stdin, &er); /* get next event */
+        if (er.etype == ami_etchar) {
+
+            if (er.winid == 3) fputc(er.echar, win2);
+            else if (er.winid == 4) fputc(er.echar, win3);
+
+        } else if (er.etype == ami_etenter) {
+
+            /* translate the crs so we can test scrolling */
+            if (er.winid == 3) fputc('\n', win2);
+            else if (er.winid == 4) fputc('\n', win3);
+
+        } else if (er.etype == ami_etterm &&
+                   (er.winid == 1 || er.winid == parid))
+            /* only take terminations from the desktop or the parent */
+            longjmp(terminate_buf, 1);
+
+    /* terminate on cr to the parent window only */
+    } while (er.etype != ami_etenter || er.winid != parid);
+    fclose(win2);
+    fclose(win3);
+    ami_home(par);
+    fprintf(par, "Child windows should all be closed                           \n");
+    fprintf(par, "                                                             \n");
+    fprintf(par, "                                                             \n");
+    fprintf(par, "                                                             \n");
+    fprintf(par, "                                                             \n");
+    ami_curvis(par, OFF);
+    waitnext();
+
+}
+
 static ami_color nextcolor(ami_color c)
 
 {
@@ -735,24 +887,10 @@ int main(void)
     /* The menu presents on the root window as well as child windows. The
        test window is taken down so the desktop carries the menu alone;
        the root is frameless, so the bar takes its first line. */
-    fclose(tw);
-    ami_auto(stdout, ON);
-    fprintf(stdout, "\f");
+    suspendtestwin();
     samplemenu(stdout);
     stdmenutest(stdout);
-    ami_auto(stdout, OFF);
-    fprintf(stdout, "\f");
-    fprintf(stdout, "Character mode window management test -- this window is the desktop\n");
-
-    /* the test window returns */
-    ami_openwin(&stdin, &tw, stdout, 2);
-    ami_winclient(tw, 80, 25, &x, &y,
-                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    ami_setsiz(tw, x, y);
-    ami_setpos(tw, 2, 2);
-    ami_sizbuf(tw, 80, 25);
-    ami_auto(tw, OFF);
-    ami_curvis(tw, OFF);
+    resumetestwin();
 
     /* and the same menu presents on it */
     ami_auto(tw, ON);
@@ -768,106 +906,19 @@ int main(void)
 
     /* ************************* Child windows test character ****************** */
 
-    fputc('\f', tw);
-    prtcen(ami_maxy(tw), "Child windows test character");
-    ami_openwin(&stdin, &win2, tw, 3);
-    ami_curvis(win2, OFF);
-    ami_setpos(win2, 1, 10);
-    ami_sizbuf(win2, 20, 10);
-    ami_setsiz(win2, 20, 10);
-    ami_openwin(&stdin, &win3, tw, 4);
-    ami_curvis(win3, OFF);
-    ami_setpos(win3, 21, 10);
-    ami_sizbuf(win3, 20, 10);
-    ami_setsiz(win3, 20, 10);
-    ami_openwin(&stdin, &win4, tw, 5);
-    ami_curvis(win4, OFF);
-    ami_setpos(win4, 41, 10);
-    ami_sizbuf(win4, 20, 10);
-    ami_setsiz(win4, 20, 10);
-    ami_bcolor(win2, ami_cyan);
-    putc('\f', win2);
-    fprintf(win2, "I am child window 1\n");
-    ami_bcolor(win3, ami_yellow);
-    putc('\f', win3);
-    fprintf(win3, "I am child window 2\n");
-    ami_bcolor(win4, ami_magenta);
-    putc('\f', win4);
-    fprintf(win4, "I am child window 3\n");
-    ami_home(tw);
-    fprintf(tw, "There should be 3 labeled child windows below, with frames   \n");
-    fprintf(tw, "(the system may not implement frames on child windows)      \n");
-    waitnext();
-    ami_frame(win2, OFF);
-    ami_frame(win3, OFF);
-    ami_frame(win4, OFF);
-    ami_home(tw);
-    fprintf(tw, "There should be 3 labeled child windows below, without frames\n");
-    fprintf(tw, "                                                            \n");
-    waitnext();
-    fclose(win2);
-    fclose(win3);
-    fclose(win4);
-    ami_home(tw);
-    fprintf(tw, "Child windows should all be closed                           \n");
-    waitnext();
+    /* on the root window first, then on the test window */
+    suspendtestwin();
+    childtest(stdout);
+    resumetestwin();
+    childtest(tw);
 
     /* *************** Child windows independent test character ************ */
 
-    ami_curvis(tw, ON);
-    fputc('\f', tw);
-    prtcen(ami_maxy(tw), "Child windows independent test character");
-    ami_openwin(&stdin, &win2, tw, 3);
-    ami_setpos(win2, 11, 10);
-    ami_sizbuf(win2, 30, 10);
-    ami_setsiz(win2, 30, 10);
-    ami_openwin(&stdin, &win3, tw, 4);
-    ami_setpos(win3, 41, 10);
-    ami_sizbuf(win3, 30, 10);
-    ami_setsiz(win3, 30, 10);
-    ami_bcolor(win2, ami_cyan);
-    putc('\f', win2);
-    fprintf(win2, "I am child window 1\n");
-    ami_bcolor(win3, ami_yellow);
-    putc('\f', win3);
-    fprintf(win3, "I am child window 2\n");
-    ami_home(tw);
-    fprintf(tw, "There should be 2 labeled child windows below, with frames   \n");
-    fprintf(tw, "(the system may not implement frames on child windows)       \n");
-    fprintf(tw, "Test focus can be moved between windows, including the main  \n");
-    fprintf(tw, "window. Test windows can be minimized and maximized          \n");
-    fprintf(tw, "(if framed), test entering characters to windows.            \n");
-    do {
-
-        ami_event(stdin, &er); /* get next event */
-        if (er.etype == ami_etchar) {
-
-            if (er.winid == 3) fputc(er.echar, win2);
-            else if (er.winid == 4) fputc(er.echar, win3);
-
-        } else if (er.etype == ami_etenter) {
-
-            /* translate the crs so we can test scrolling */
-            if (er.winid == 3) fputc('\n', win2);
-            else if (er.winid == 4) fputc('\n', win3);
-
-        } else if (er.etype == ami_etterm &&
-                   (er.winid == 1 || er.winid == 2))
-            /* only take terminations from the desktop or the test window */
-            longjmp(terminate_buf, 1);
-
-    /* terminate on cr to the test window only */
-    } while (er.etype != ami_etenter || er.winid != 2);
-    fclose(win2);
-    fclose(win3);
-    ami_home(tw);
-    fprintf(tw, "Child windows should all be closed                           \n");
-    fprintf(tw, "                                                             \n");
-    fprintf(tw, "                                                             \n");
-    fprintf(tw, "                                                             \n");
-    fprintf(tw, "                                                             \n");
-    ami_curvis(tw, OFF);
-    waitnext();
+    /* on the root window first, then on the test window */
+    suspendtestwin();
+    childindtest(stdout, 1);
+    resumetestwin();
+    childindtest(tw, 2);
 
     /* ******************************* Buffer off test *********************** */
 

@@ -549,6 +549,39 @@ static long       dimx, dimy;     /* terminal/root dimensions */
 /* forwards */
 static void plcchr(FILE* f, char c);
 
+/*******************************************************************************
+
+Find absolute screen position of window origin
+
+The window list is a tree: every window but the root has a parent, and a
+window's origin is stored relative to its parent's client area. The
+absolute screen position is the sum up the parent chain, so placing a
+window in any parent, and moving a parent with its children, follow from
+the structure rather than from per-case arithmetic. The root has no
+parent; its origin is the screen origin.
+
+*******************************************************************************/
+
+static long absx(winptr win)
+
+{
+
+    if (!win->parwin) return (win->orgx);
+
+    return (absx(win->parwin)+win->parwin->coffx+win->orgx-1);
+
+}
+
+static long absy(winptr win)
+
+{
+
+    if (!win->parwin) return (win->orgy);
+
+    return (absy(win->parwin)+win->parwin->coffy+win->orgy-1);
+
+}
+
 /** ****************************************************************************
 
 Process error
@@ -1697,15 +1730,15 @@ static void calcfmask(winptr win)
     if (!win->fmask) return; /* window not fully constructed yet */
     memset(win->fmask, 0xff, win->fmasklen); /* set the bitmap */
     /* find the onscreen client rectangle in root terms */
-    setrect(&r1, win->orgx+win->coffx, win->orgy+win->coffy,
-                 win->orgx+win->coffx+win->cmaxx-1, 
-                 win->orgy+win->coffy+win->cmaxy-1);
+    setrect(&r1, absx(win)+win->coffx, absy(win)+win->coffy,
+                 absx(win)+win->coffx+win->cmaxx-1, 
+                 absy(win)+win->coffy+win->cmaxy-1);
     wp = win->zmin2max; /* index windows in front by Z order */
     while (wp) { /* tour the (possibly) lapping windows */
 
         /* set window rectangle in root terms */
-        setrect(&r2, wp->orgx, wp->orgy,
-                    wp->orgx+wp->pmaxx-1, wp->orgy+wp->pmaxy-1);
+        setrect(&r2, absx(wp), absy(wp),
+                    absx(wp)+wp->pmaxx-1, absy(wp)+wp->pmaxy-1);
         if (intersect(&r1, &r2)) { /* if this window overlaps our client area */
 
             intersection(&r3, &r1, &r2); /* find the intersected rectangle */
@@ -1714,8 +1747,8 @@ static void calcfmask(winptr win)
                 for (x = r3.x1; x <= r3.x2; x++) {
 
                 /* find net client offset */
-                cx = x-(win->orgx+win->coffx);
-                cy = y-(win->orgy+win->coffy);
+                cx = x-(absx(win)+win->coffx);
+                cy = y-(absy(win)+win->coffy);
                 /* The mask is shaped by the buffer, and the client area
                    can be larger than the buffer, which is what a program
                    asks for when it sizes the buffer smaller than the
@@ -1948,22 +1981,22 @@ static void drwfrm(winptr win, rectangle* cr)
         if (win->size) { /* draw size bars */
 
             /* draw top and bottom */
-            setcursor(win->orgx, win->orgy);
+            setcursor(absx(win), absy(win));
             wrtextclp(frmchrs[toplftcnr], cr);
             for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[horzlin], cr);
             wrtextclp(frmchrs[toprgtcnr], cr);
 
-            setcursor(win->orgx, win->orgy+win->pmaxy-1);
+            setcursor(absx(win), absy(win)+win->pmaxy-1);
             wrtextclp(frmchrs[btmlftcnr], cr);
             for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[horzlin], cr);
             wrtextclp(frmchrs[btmrgtcnr], cr);
 
             /* draw sides */
-            for (y = win->orgy+1; y < win->orgy+win->pmaxy-1; y++) {
+            for (y = absy(win)+1; y < absy(win)+win->pmaxy-1; y++) {
 
-                setcursor(win->orgx, y);
+                setcursor(absx(win), y);
                 wrtextclp(frmchrs[vertlin], cr);
-                setcursor(win->orgx+win->pmaxx-1, y);
+                setcursor(absx(win)+win->pmaxx-1, y);
                 wrtextclp(frmchrs[vertlin], cr);
 
             }
@@ -1975,7 +2008,7 @@ static void drwfrm(winptr win, rectangle* cr)
             /* draw blanks in title section */
             if (win->pmaxx-6 > 2) {
 
-                setcursor(win->orgx+1, win->orgy+y);
+                setcursor(absx(win)+1, absy(win)+y);
                 for (x = 1; x < win->pmaxx-6; x++) wrtchrclp(' ', cr);
 
             }
@@ -1984,7 +2017,7 @@ static void drwfrm(winptr win, rectangle* cr)
             if (x > 2) {
 
                 /* set draw location */
-                setcursor(win->orgx+x-1, win->orgy+y);
+                setcursor(absx(win)+x-1, absy(win)+y);
                 wrtextclp(frmchrs[minbtn], cr);
 
             }
@@ -1992,7 +2025,7 @@ static void drwfrm(winptr win, rectangle* cr)
             if (x > 2) {
 
                 /* set draw location */
-                setcursor(win->orgx+x-1, win->orgy+y);
+                setcursor(absx(win)+x-1, absy(win)+y);
                 wrtchrclp(' ', cr);
 
             }
@@ -2000,7 +2033,7 @@ static void drwfrm(winptr win, rectangle* cr)
             if (x > 2) {
 
                 /* set draw location */
-                setcursor(win->orgx+x-1, win->orgy+y);
+                setcursor(absx(win)+x-1, absy(win)+y);
                 wrtextclp(frmchrs[maxbtn], cr);
 
             }
@@ -2008,7 +2041,7 @@ static void drwfrm(winptr win, rectangle* cr)
             if (x > 2) {
 
                 /* set draw location */
-                setcursor(win->orgx+x-1, win->orgy+y);
+                setcursor(absx(win)+x-1, absy(win)+y);
                 wrtchrclp(' ', cr);
 
             }
@@ -2016,7 +2049,7 @@ static void drwfrm(winptr win, rectangle* cr)
             if (x > 2) {
 
                 /* set draw location */
-                setcursor(win->orgx+x-1, win->orgy+y);
+                setcursor(absx(win)+x-1, absy(win)+y);
                 wrtextclp(frmchrs[canbtn], cr);
 
             }
@@ -2024,7 +2057,7 @@ static void drwfrm(winptr win, rectangle* cr)
             if (x > 2) {
 
                 /* set draw location */
-                setcursor(win->orgx+x-1, win->orgy+y);
+                setcursor(absx(win)+x-1, absy(win)+y);
                 wrtchrclp(' ', cr);
 
             }
@@ -2037,7 +2070,7 @@ static void drwfrm(winptr win, rectangle* cr)
                 if (win->pmaxx-6-4 < l) l = win->pmaxx-6-4;
                 if (l > 0) { /* there is room for some of the title */
 
-                    setcursor(win->orgx+2+(win->pmaxx-6-4)/2-(l/2), win->orgy+y);
+                    setcursor(absx(win)+2+(win->pmaxx-6-4)/2-(l/2), absy(win)+y);
                     wrtstrclp(win->title, l, cr);
 
                 }
@@ -2046,7 +2079,7 @@ static void drwfrm(winptr win, rectangle* cr)
 
             /* draw underbar */
             y++;
-            setcursor(win->orgx, win->orgy+y);
+            setcursor(absx(win), absy(win)+y);
             if (win->pmaxy <= 3) wrtextclp(frmchrs[btmlftcnr], cr);
             else wrtextclp(frmchrs[intlft], cr);
             for (x = 2; x <= win->pmaxx-1; x++) wrtextclp(frmchrs[sysudl], cr);
@@ -2106,8 +2139,8 @@ static void setcur(winptr win)
 
             setcurvis(win->curv); /* set cursor on or off */
             /* position actual cursor */
-            setcursor(win->curx+win->orgx-1+win->coffx,
-                      win->cury+win->orgy-1+win->coffy);
+            setcursor(win->curx+absx(win)-1+win->coffx,
+                      win->cury+absy(win)-1+win->coffy);
 
         } else setcurvis(FALSE); /* set cursor off out of bounds */
 
@@ -2180,8 +2213,8 @@ static void restoreclp(winptr win,   /* window to restore */
         for (my = 1; my <= win->cmaxy; my++)
             for (mx = 1; mx <= win->cmaxx; mx++) {
 
-            long sx = win->orgx+win->coffx+mx-1;
-            long sy = win->orgy+win->coffy+my-1;
+            long sx = absx(win)+win->coffx+mx-1;
+            long sy = absy(win)+win->coffy+my-1;
             long ml = (my-1)*win->bufx+(mx-1);
 
             if (!inrect(sx, sy, cr)) continue; /* outside the clip */
@@ -2200,10 +2233,10 @@ static void restoreclp(winptr win,   /* window to restore */
            the client dimensions and the buffer dimensions: the client can
            be larger than the buffer, and the buffer must not be read
            outside itself. */
-        setrect(&r1, win->orgx+win->coffx, win->orgy+win->coffy,
-                   win->orgx+win->coffx+
+        setrect(&r1, absx(win)+win->coffx, absy(win)+win->coffy,
+                   absx(win)+win->coffx+
                        (win->cmaxx < win->maxx? win->cmaxx: win->maxx)-1,
-                   win->orgy+win->coffy+
+                   absy(win)+win->coffy+
                        (win->cmaxy < win->maxy? win->cmaxy: win->maxy)-1);
         if (intersect(cr, &r1)) { /* there is an intersection with client area */
 
@@ -2232,8 +2265,8 @@ static void restoreclp(winptr win,   /* window to restore */
                     scp = NULL;
                     if (x <= r2.x2) { /* a real cell, not the end sentinel */
 
-                        bx = x-(win->orgx+win->coffx)+1; /* buffer location */
-                        by = y-(win->orgy+win->coffy)+1;
+                        bx = x-(absx(win)+win->coffx)+1; /* buffer location */
+                        by = y-(absy(win)+win->coffy)+1;
                         l = (by-1)*win->bufx+(bx-1); /* mask index */
                         vis = !!(win->fmask[l/8] & 1<<(l%8));
                         if (vis) scp = &SCNBUF(sc, bx, by);
@@ -2307,8 +2340,8 @@ static void restoreclp(winptr win,   /* window to restore */
                 mx = my <= win->maxy? win->maxx+1: 1;
                 for (; mx <= win->cmaxx; mx++) {
 
-                    long sx = win->orgx+win->coffx+mx-1;
-                    long sy = win->orgy+win->coffy+my-1;
+                    long sx = absx(win)+win->coffx+mx-1;
+                    long sy = absy(win)+win->coffy+my-1;
                     long ml = (my-1)*win->bufx+(mx-1);
 
                     if (!inrect(sx, sy, cr)) continue; /* outside the clip */
@@ -2345,8 +2378,8 @@ static void restore(winptr win) /* window to restore */
     rectangle cr;
 
     /* set clipping rectangle to whole window */
-    setrect(&cr, win->orgx, win->orgy,
-               win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+    setrect(&cr, absx(win), absy(win),
+               absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
     restoreclp(win, &cr);
 
 }
@@ -2390,8 +2423,8 @@ static void redraw(winptr win, long x1, long y1, long x2, long y2)
         setrect(&r1, x1, y1, x2, y2); /* set update rectangle */
         cliproot(&r1); /* clip to terminal root window */
         /* set window rectangle */
-        setrect(&r2, win->orgx, win->orgy,
-                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        setrect(&r2, absx(win), absy(win),
+                    absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
         if (intersect(&r1, &r2)) { /* there is an intersection */
 
             intersection(&r3, &r1, &r2); /* find the intersected rectangle */
@@ -2664,10 +2697,10 @@ static int inclient(winptr win, long x, long y)
     ox = decorx(win);
     oy = decory(win);
     /* check in client area */
-    return (win->orgx+win->coffx <= x &&
-            x <= win->orgx+win->coffx+win->pmaxx-ox-1 &&
-            win->orgy+win->coffy <= y &&
-            y <= win->orgy+win->coffy+win->pmaxy-oy-1);
+    return (absx(win)+win->coffx <= x &&
+            x <= absx(win)+win->coffx+win->pmaxx-ox-1 &&
+            absy(win)+win->coffy <= y &&
+            y <= absy(win)+win->coffy+win->pmaxy-oy-1);
 
 }
 
@@ -2726,8 +2759,8 @@ static winptr fndtop(long x, long y)
     z = -1; /* set invalid z order */
     while (win) { /* traverse the windows list */
 
-        if (win->orgx <= x && x <= win->orgx+win->pmaxx-1 &&
-            win->orgy <= y && y <= win->orgy+win->pmaxy-1 &&
+        if (absx(win) <= x && x <= absx(win)+win->pmaxx-1 &&
+            absy(win) <= y && y <= absy(win)+win->pmaxy-1 &&
             win->zorder > z) {
 
             /* found inclusion, Z order above previous */
@@ -3007,8 +3040,8 @@ static void intfront(winptr win)
        click handler, so a front change made through the API reordered the
        lists but left the screen stale. */
     if (win->visible)
-        redraw(win, win->orgx, win->orgy,
-                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        redraw(win, absx(win), absy(win),
+                    absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
 
 }
 
@@ -3060,8 +3093,8 @@ static void intback(winptr win)
     /* repaint the region from the new order: whatever was under this
        window is now on top of it */
     if (win->visible)
-        redraw(zmax2min, win->orgx, win->orgy,
-                         win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        redraw(zmax2min, absx(win), absy(win),
+                         absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
 
 }
 
@@ -3120,6 +3153,15 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     win->wid = wid; /* set window id */
     pwin = NULL; /* set no parent */
     if (pfn >= 0) pwin = lfn2win(pfn); /* index parent window */
+    /* The window list is a tree: every window but the root has a parent.
+       A window opened with no parent given hangs off the root, and its
+       origin is relative to the root as any child's is to its parent. */
+    if (!pwin && !root) {
+
+        pwin = winlst;
+        while (pwin && !pwin->root) pwin = pwin->winlst;
+
+    }
     win->parwin = pwin; /* copy link to windows structure */
     win->childwin = NULL; /* clear the child window list */
     win->childlst = NULL; /* clear child member list pointer */
@@ -3416,8 +3458,8 @@ static void closewin(int ofn)
        nothing else: the window stayed on the Z order lists and in its
        parent's children, so it kept being drawn, and a program that closed
        a window watched it remain on the screen. */
-    setrect(&cr, win->orgx, win->orgy,
-                 win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+    setrect(&cr, absx(win), absy(win),
+                 absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
     vis = win->visible;
     /* the widgets it owns go with it */
     while (win->wiglst) {
@@ -3558,9 +3600,9 @@ static void intscroll(winptr win, long x, long y)
         iniscn(win, win->screens[win->curupd-1]);   /* clear the screen buffer */
         if (indisp(win)) { /* in display, repaint the client area */
 
-            setrect(&cr, win->orgx+win->coffx, win->orgy+win->coffy,
-                       win->orgx+win->coffx+win->cmaxx-1,
-                       win->orgy+win->coffy+win->cmaxy-1);
+            setrect(&cr, absx(win)+win->coffx, absy(win)+win->coffy,
+                       absx(win)+win->coffx+win->cmaxx-1,
+                       absy(win)+win->coffy+win->cmaxy-1);
             restoreclp(win, &cr);
 
         }
@@ -3670,9 +3712,9 @@ static void intscroll(winptr win, long x, long y)
                that the screen still matched it, which the clipping of other
                windows had long since made false: the visible result was
                window contents that flashed in and then blanked out. */
-            setrect(&cr, win->orgx+win->coffx, win->orgy+win->coffy,
-                       win->orgx+win->coffx+win->cmaxx-1,
-                       win->orgy+win->coffy+win->cmaxy-1);
+            setrect(&cr, absx(win)+win->coffx, absy(win)+win->coffy,
+                       absx(win)+win->coffx+win->cmaxx-1,
+                       absy(win)+win->coffy+win->cmaxy-1);
             restoreclp(win, &cr);
 
         }
@@ -3723,9 +3765,9 @@ static void intsetsiz(winptr win, long x, long y)
     if (win->visible) { /* window is onscreen */
 
         /* check old and new overlap */
-        setrect(&r1, win->orgx, win->orgy, win->orgx+ox-1, win->orgy+oy-1);
-        setrect(&r2, win->orgx, win->orgy,
-                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+        setrect(&r1, absx(win), absy(win), absx(win)+ox-1, absy(win)+oy-1);
+        setrect(&r2, absx(win), absy(win),
+                             absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
         if (intersect(&r1, &r2)) { /* intersects */
 
             /* find rectangle fractions */
@@ -3742,19 +3784,19 @@ static void intsetsiz(winptr win, long x, long y)
             /* note we kept the Z order of the repositioned window */
             makzmax2min(); /* remake the max 2 min list */
             /* draw the new window position in */
-            redraw(zmax2min, win->orgx, win->orgy,
-                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+            redraw(zmax2min, absx(win), absy(win),
+                             absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
 
         } else {
 
             remmax2min(win); /* take out of max 2 min list */
             /* draw the current window position out */
-            redraw(zmax2min, win->orgx, win->orgy, win->orgx+ox-1, win->orgy+oy-1);
+            redraw(zmax2min, absx(win), absy(win), absx(win)+ox-1, absy(win)+oy-1);
             /* note we kept the Z order of the repositioned window */
             makzmax2min(); /* remake the max 2 min list */
             /* draw the new window size in */
-            redraw(zmax2min, win->orgx, win->orgy,
-                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+            redraw(zmax2min, absx(win), absy(win),
+                             absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
 
         }
 
@@ -3774,22 +3816,45 @@ order.
 
 *******************************************************************************/
 
+/* Find the bounding rectangle of a window and its whole subtree, in
+   absolute screen terms. Children are placed in their parents but are not
+   bound to stay inside them, so the repaint of a moved window must cover
+   everything that moved with it. */
+
+static void treerect(winptr win, rectangle* r)
+
+{
+
+    winptr    c;
+    rectangle cr;
+
+    setrect(r, absx(win), absy(win),
+               absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
+    for (c = win->childwin; c; c = c->childlst) {
+
+        treerect(c, &cr);
+        if (cr.x1 < r->x1) r->x1 = cr.x1;
+        if (cr.y1 < r->y1) r->y1 = cr.y1;
+        if (cr.x2 > r->x2) r->x2 = cr.x2;
+        if (cr.y2 > r->y2) r->y2 = cr.y2;
+
+    }
+
+}
+
 static void intsetpos(winptr win, long x, long y)
 
 {
 
-    long ox, oy; /* previous position of window */
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
-    wigptr wg; /* widget list pointer */
-
-    ox = win->orgx; /* save previous position of window */
-    oy = win->orgy;
+    treerect(win, &r1); /* previous place of the window and its subtree */
     win->orgx = x; /* set position in parent */
     win->orgy = y;
-    /* the window's widgets ride along with it */
-    for (wg = win->wiglst; wg; wg = wg->next)
-        intsetpos(wg->win, wg->win->orgx+(x-ox), wg->win->orgy+(y-oy));
+    /* The children, widget faces among them, are placed relative to this
+       window, so they move with it by construction; there is no list walk
+       to carry them along. */
+    treerect(win, &r2); /* the new place of the window and its subtree */
     /* The masks must reflect the new position before anything repaints:
        the repaint of the vacated area consults them, and with the old
        masks it skips exactly the cells this window used to cover, leaving
@@ -3798,9 +3863,6 @@ static void intsetpos(winptr win, long x, long y)
     if (win->visible) { /* window is onscreen */
 
         /* check old and new overlap */
-        setrect(&r1, ox, oy, ox+win->pmaxx-1, oy+win->pmaxy-1);
-        setrect(&r2, win->orgx, win->orgy,
-                    win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
         if (intersect(&r1, &r2)) { /* intersects */
 
             /* find rectangle fractions */
@@ -3816,20 +3878,18 @@ static void intsetpos(winptr win, long x, long y)
                 redraw(win->zmax2min, rb.x1, rb.y1, rb.x2, rb.y2);
             /* note we kept the Z order of the repositioned window */
             makzmax2min(); /* remake the max 2 min list */
-            /* draw the new window position in */
-            redraw(zmax2min, win->orgx, win->orgy,
-                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+            /* draw the new place in */
+            redraw(zmax2min, r2.x1, r2.y1, r2.x2, r2.y2);
 
         } else {
 
             remmax2min(win); /* take out of max 2 min list */
-            /* draw the current window position out */
-            redraw(zmax2min, ox, oy, ox+win->pmaxx-1, oy+win->pmaxy-1);
+            /* draw the old place out */
+            redraw(zmax2min, r1.x1, r1.y1, r1.x2, r1.y2);
             /* note we kept the Z order of the repositioned window */
             makzmax2min(); /* remake the max 2 min list */
-            /* draw the new window position in */
-            redraw(zmax2min, win->orgx, win->orgy,
-                             win->orgx+win->pmaxx-1, win->orgy+win->pmaxy-1);
+            /* draw the new place in */
+            redraw(zmax2min, r2.x1, r2.y1, r2.x2, r2.y2);
 
         }
 
@@ -4765,32 +4825,32 @@ static void intevent(FILE* f)
 
                     } else if (ev.mmoun == 1) {
 
-                        if (win->sysbar && mousey-win->orgy == win->size &&
-                            mousex-win->orgx >= 1 &&
-                            mousex-win->orgx < win->pmaxx-1) {
+                        if (win->sysbar && mousey-absy(win) == win->size &&
+                            mousex-absx(win) >= 1 &&
+                            mousex-absx(win) < win->pmaxx-1) {
 
                             /* check for system bar events */
-                            if (mousex-win->orgx == win->pmaxx-3) {
+                            if (mousex-absx(win) == win->pmaxx-3) {
 
                                 /* terminate */
                                 er.etype = ami_etterm; /* set type */
                                 intsendevent(win, &er); /* issue event */
                                 fend = TRUE; /* set end program requested */
 
-                            } if (mousex-win->orgx == win->pmaxx-5) {
+                            } if (mousex-absx(win) == win->pmaxx-5) {
 
                                 /* max */
                                 er.etype = ami_etmax; /* set type */
                                 intsendevent(win, &er); /* issue event */
 
-                            } if (mousex-win->orgx == win->pmaxx-7) {
+                            } if (mousex-absx(win) == win->pmaxx-7) {
 
                                 /* min */
                                 er.etype = ami_etmin; /* set type */
                                 intsendevent(win, &er); /* issue event */
 
-                            } else if (mousex-win->orgx >= 1 &&
-                                       mousex-win->orgx < win->pmaxx-1) {
+                            } else if (mousex-absx(win) >= 1 &&
+                                       mousex-absx(win) < win->pmaxx-1) {
 
                                 /* system bar click */
                                 drag = dt_sysbar; /* set drag type */
@@ -4803,8 +4863,8 @@ static void intevent(FILE* f)
                         } else if (win->frame && win->size) {
 
                             /* frame and sizebars are enabled */
-                            if (mousey-win->orgy == 0 &&
-                                  mousex-win->orgx == 0) {
+                            if (mousey-absy(win) == 0 &&
+                                  mousex-absx(win) == 0) {
 
                                 /* top left click */
                                 drag = dt_ulcnr; /* set drag type */
@@ -4812,8 +4872,8 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousey-win->orgy == 0 &&
-                                  mousex-win->orgx == win->pmaxx-1) {
+                            } else if (mousey-absy(win) == 0 &&
+                                  mousex-absx(win) == win->pmaxx-1) {
 
                                 /* top right click */
                                 drag = dt_urcnr; /* set drag type */
@@ -4821,8 +4881,8 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousey-win->orgy == win->pmaxy-1 &&
-                                  mousex-win->orgx == 0) {
+                            } else if (mousey-absy(win) == win->pmaxy-1 &&
+                                  mousex-absx(win) == 0) {
 
                                 /* bottom left click */
                                 drag = dt_blcnr; /* set drag type */
@@ -4830,8 +4890,8 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousey-win->orgy == win->pmaxy-1 &&
-                                  mousex-win->orgx == win->pmaxx-1) {
+                            } else if (mousey-absy(win) == win->pmaxy-1 &&
+                                  mousex-absx(win) == win->pmaxx-1) {
 
                                 /* bottom right click */
                                 drag = dt_brcnr; /* set drag type */
@@ -4839,7 +4899,7 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousey-win->orgy == 0) {
+                            } else if (mousey-absy(win) == 0) {
 
                                 /* top bar click */
                                 drag = dt_top; /* set drag type */
@@ -4847,7 +4907,7 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousey-win->orgy == win->pmaxy-1) {
+                            } else if (mousey-absy(win) == win->pmaxy-1) {
 
                                 /* bottom bar click */
                                 drag = dt_bottom; /* set drag type */
@@ -4855,7 +4915,7 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousex-win->orgx == 0) {
+                            } else if (mousex-absx(win) == 0) {
 
                                 /* left bar click */
                                 drag = dt_left; /* set drag type */
@@ -4863,7 +4923,7 @@ static void intevent(FILE* f)
                                 drgx = mousex;
                                 drgy = mousey;
 
-                            } else if (mousex-win->orgx == win->pmaxx-1) {
+                            } else if (mousex-absx(win) == win->pmaxx-1) {
 
                                 /* right bar click */
                                 drag = dt_right; /* set drag type */
@@ -4968,8 +5028,8 @@ static void intevent(FILE* f)
                     er.etype = ami_etmoumov; /* set mouse move event */
                     er.mmoun = ev.mmoun; /* set mouse number */
                     /* calculate relative location in client area */
-                    er.moupx = mousex-(win->orgx+win->coffx)+1;
-                    er.moupy = mousey-(win->orgy+win->coffy)+1;
+                    er.moupx = mousex-(absx(win)+win->coffx)+1;
+                    er.moupy = mousey-(absy(win)+win->coffy)+1;
                     win->mpx = er.moupx; /* copy to window data */
                     win->mpy = er.moupy;
                     er.winid = win->wid; /* set window logical id */
@@ -4999,29 +5059,29 @@ static void intevent(FILE* f)
                     case dt_none:   /* no drag active */
                         break;
                     case dt_sysbar: /* sysbar drag (whole window) */
-                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
+                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin)+y);
                         break;
                     case dt_ulcnr:  /* upper left corner */
-                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy+y);
+                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin)+y);
                         intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy-y);
                         break;
                     case dt_urcnr:  /* upper right corner */
-                        intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
+                        intsetpos(drgwin, absx(drgwin), absy(drgwin)+y);
                         intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy-y);
                         break;
                     case dt_blcnr:  /* bottom left corner */
-                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
+                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin));
                         intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy+y);
                         break;
                     case dt_brcnr:  /* bottom right corner */
                         intsetsiz(drgwin, drgwin->pmaxx+x, drgwin->pmaxy+y);
                         break;
                     case dt_top:    /* top frame bar */
-                        intsetpos(drgwin, drgwin->orgx, drgwin->orgy+y);
+                        intsetpos(drgwin, absx(drgwin), absy(drgwin)+y);
                         intsetsiz(drgwin, drgwin->pmaxx, drgwin->pmaxy-y);
                         break;
                     case dt_left:   /* left frame bar */
-                        intsetpos(drgwin, drgwin->orgx+x, drgwin->orgy);
+                        intsetpos(drgwin, absx(drgwin)+x, absy(drgwin));
                         intsetsiz(drgwin, drgwin->pmaxx-x, drgwin->pmaxy);
                         break;
                     case dt_right:  /* right frame bar */
@@ -5854,8 +5914,8 @@ static void iwrtstrn(FILE* f, char* s, long n)
                 setattrs(win->attr); /* set attributes */
                 setfcolora(win->fcolor, win->bcolor, win->attr);
                 setbcolor(win->bcolor);
-                setcursor(win->curx+win->orgx-1+win->coffx,
-                          win->cury+win->orgy-1+win->coffy);
+                setcursor(win->curx+absx(win)-1+win->coffx,
+                          win->cury+absy(win)-1+win->coffy);
                 wrtchr(*s); /* output */
 
             }
@@ -5928,8 +5988,8 @@ static void ititlen(FILE* f, char* ts, long n)
            visible */
 
         /* set title bounding box */
-        setrect(&r, win->orgx+2, win->orgy+win->size, 
-                   win->pmaxx-6-4, win->orgy+win->size); 
+        setrect(&r, absx(win)+2, absy(win)+win->size, 
+                   win->pmaxx-6-4, absy(win)+win->size); 
         drwfrm(win, &r); /* draw or redraw title */
 
     }
@@ -6190,8 +6250,7 @@ static void mbarsiz(winptr win)
     if (!wg) return;
     isizbuf(wg->wf, win->cmaxx, 1); /* buffer to the new width */
     intsetsiz(wg->win, win->cmaxx, 1); /* face to the new width */
-    intsetpos(wg->win, win->orgx+win->coffx,
-              win->orgy+win->coffy-(win->frame != 0));
+    intsetpos(wg->win, 1, 1-(win->frame != 0));
     wigdrw(wg); /* the size buffer change cleared the face */
 
 }
@@ -6554,8 +6613,8 @@ static void plcchr(FILE* f, char c)
                 setfcolora(win->fcolor, win->bcolor, win->attr);
                 setbcolor(win->bcolor);
                 /* draw character to active screen */
-                setcursor(win->curx+win->orgx-1+win->coffx,
-                          win->cury+win->orgy-1+win->coffy);
+                setcursor(win->curx+absx(win)-1+win->coffx,
+                          win->cury+absy(win)-1+win->coffy);
                 wrtchr(c); /* output */
 
             }
@@ -7484,14 +7543,14 @@ static void wigdrag(void)
     switch (wg->typ) {
 
         case wtslidehoriz:
-            p = mousex-win->orgx; /* 0 based position */
+            p = mousex-absx(win); /* 0 based position */
             if (p < 0) p = 0;
             if (p > win->cmaxx-1) p = win->cmaxx-1;
             nv = wigscl(p, win->cmaxx-1);
             break;
 
         case wtslidevert:
-            p = mousey-win->orgy;
+            p = mousey-absy(win);
             if (p < 0) p = 0;
             if (p > win->cmaxy-1) p = win->cmaxy-1;
             nv = wigscl(p, win->cmaxy-1);
@@ -7502,7 +7561,7 @@ static void wigdrag(void)
             ts = wigmul(n, wg->sclsiz); /* thumb size */
             if (ts < 1) ts = 1;
             if (n-ts <= 0) return; /* thumb fills the track */
-            p = mousey-win->orgy-1-ts/2; /* thumb top from pointer */
+            p = mousey-absy(win)-1-ts/2; /* thumb top from pointer */
             if (p < 0) p = 0;
             if (p > n-ts) p = n-ts;
             nv = wigscl(p, n-ts);
@@ -7513,7 +7572,7 @@ static void wigdrag(void)
             ts = wigmul(n, wg->sclsiz);
             if (ts < 1) ts = 1;
             if (n-ts <= 0) return;
-            p = mousex-win->orgx-1-ts/2;
+            p = mousex-absx(win)-1-ts/2;
             if (p < 0) p = 0;
             if (p > n-ts) p = n-ts;
             nv = wigscl(p, n-ts);
@@ -7553,8 +7612,8 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
         case ami_etmouba: /* click in the widget */
             if (!wg->enb) break; /* disabled, dead */
-            lx = mousex-win->orgx+1; /* local position */
-            ly = mousey-win->orgy+1;
+            lx = mousex-absx(win)+1; /* local position */
+            ly = mousey-absy(win)+1;
             switch (wg->typ) {
 
                 case wtbutton: wigsig(wg, ami_etbutton, 0); break;
@@ -7641,7 +7700,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                     else {
 
                         clspops(0);
-                        opnpop(wg->parent, win->orgx, win->orgy+1,
+                        opnpop(wg->parent, absx(win), absy(win)+1,
                                wg->list, wg->listn, wg, NULL);
 
                     }
@@ -7654,7 +7713,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                         else {
 
                             clspops(0);
-                            opnpop(wg->parent, win->orgx, win->orgy+1,
+                            opnpop(wg->parent, absx(win), absy(win)+1,
                                    wg->list, wg->listn, wg, NULL);
 
                         }
@@ -7718,7 +7777,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                             long i;
 
                             wg->sel = sx; /* show the open title */
-                            opnpop(wg->parent, win->orgx+sx-1, win->orgy+1,
+                            opnpop(wg->parent, absx(win)+sx-1, absy(win)+1,
                                    strs, n, wg, mp->branch);
                             for (i = 0; i < n; i++) free(strs[i]);
                             free(strs);
@@ -7763,7 +7822,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                             wg->sel = row;
                             wigdrw(wg);
                             opnpop(wg->parent,
-                                   win->orgx+win->pmaxx-1, win->orgy+row-1,
+                                   absx(win)+win->pmaxx-1, absy(win)+row-1,
                                    strs, n, wg->owner, item->branch);
                             for (i = 0; i < n; i++) free(strs[i]);
                             free(strs);
@@ -7967,7 +8026,7 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     wg->win->sysbar = FALSE;
     recompcli(wg->win);
     intsetsiz(wg->win, x2-x1+1, y2-y1+1);
-    intsetpos(wg->win, par->orgx+par->coffx+x1-1, par->orgy+par->coffy+y1-1);
+    intsetpos(wg->win, x1, y1); /* placed in the owner's client space */
     /* widget colors follow the owner */
     wg->win->fcolor = par->fcolor;
     wg->win->bcolor = par->bcolor;
@@ -8107,7 +8166,7 @@ void ami_poswidget(FILE* f, long id, long x, long y)
     wigptr wg = fndwig(win, id);
 
     if (!wg) error("No widget by given id");
-    intsetpos(wg->win, win->orgx+win->coffx+x-1, win->orgy+win->coffy+y-1);
+    intsetpos(wg->win, x, y); /* placed in the owner's client space */
 
 }
 
@@ -8748,7 +8807,7 @@ static void imenu(FILE* f, ami_menuptr m)
     win->mbar = wg;
     recompcli(win); /* the client geometry now includes the menu row */
     if (win->frame) /* place the bar in its row, above the client origin */
-        intsetpos(wg->win, win->orgx+win->coffx, win->orgy+win->coffy-1);
+        intsetpos(wg->win, 1, 0);
     restore(win); /* redraw the window under the new layout */
     annresize(win);
     annredraw(win);
