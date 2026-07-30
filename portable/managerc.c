@@ -518,6 +518,7 @@ static winptr   rootlst;      /* master list of all roots */
 static winptr   zmin2max;     /* Z order minimum to maximum list */
 static winptr   zmax2min;     /* Z order maximum to minimum list */
 static winptr   curfocus;     /* current focus window, or NULL */
+static int      opnwig;       /* opening a widget face window */
 static int      ztop;         /* current maximum/front Z order */
 static long     mousex;       /* mouse tracking x */
 static long     mousey;       /* mouse tracking y */
@@ -1719,24 +1720,22 @@ void recalcfmask(void)
 
 /*******************************************************************************
 
-Grow window buffer
+Resize window buffer
 
-Grows the given window's screen buffers to at least the given dimensions,
-keeping their contents; new cells are blanked in the window's current
-colors. The forward mask is reallocated to match, since it is sized and
-indexed by the buffer.
+Resizes the given window's screen buffers to the given dimensions, keeping
+their contents where old and new overlap; new cells are blanked in the
+window's current colors. The forward mask is reallocated to match, since it
+is sized and indexed by the buffer.
 
-The rule this maintains is that a window's buffer always covers at least
-its client area. Without it, a window sized larger than its buffer had
-client cells that could never be restored, and worse, the forward mask
-calculation indexed those cells into a buffer sized mask, writing outside
+The screens hold window content in both buffered and follow modes: they are
+what repaints the surface when the window arrangement changes. So every
+follow mode path that changes the client size must come through here, or
+the client and the buffer disagree and buffer indexed drawing runs outside
 the allocation.
-
-Buffers never shrink: a smaller client simply views less of the buffer.
 
 *******************************************************************************/
 
-static void growwinbuf(winptr win, long nx, long ny)
+static void resizewinbuf(winptr win, long nx, long ny)
 
 {
 
@@ -1746,9 +1745,9 @@ static void growwinbuf(winptr win, long nx, long ny)
     long    x, y;
     int     si;
 
-    if (nx <= win->maxx && ny <= win->maxy) return; /* nothing to grow */
-    if (nx < win->maxx) nx = win->maxx; /* never shrink */
-    if (ny < win->maxy) ny = win->maxy;
+    if (nx < 1) nx = 1; /* observe minimum size */
+    if (ny < 1) ny = 1;
+    if (nx == win->maxx && ny == win->maxy) return; /* nothing to do */
     for (si = 0; si < MAXCON; si++) if (win->screens[si]) {
 
         os = win->screens[si]; /* index old screen */
@@ -1781,6 +1780,29 @@ static void growwinbuf(winptr win, long nx, long ny)
     win->bufy = ny;
     if (win->fmask) free(win->fmask); /* mask must match the buffer */
     alcfmask(win);
+    if (win->curx > nx) win->curx = nx; /* keep the cursor on the surface */
+    if (win->cury > ny) win->cury = ny;
+
+}
+
+/*******************************************************************************
+
+Grow window buffer
+
+Grows the window buffer to at least the given size, keeping contents. The
+buffer never shrinks: this serves the follow mode root window, which keeps
+its largest extent over terminal size changes.
+
+*******************************************************************************/
+
+static void growwinbuf(winptr win, long nx, long ny)
+
+{
+
+    if (nx <= win->maxx && ny <= win->maxy) return; /* nothing to grow */
+    if (nx < win->maxx) nx = win->maxx; /* never shrink */
+    if (ny < win->maxy) ny = win->maxy;
+    resizewinbuf(win, nx, ny);
 
 }
 
@@ -2417,6 +2439,34 @@ void remfocus(void)
 
 /*******************************************************************************
 
+Find character overhead of the window decorations
+
+Gives the number of character cells the decorations occupy beyond the client
+area, in x and y. All decorations live inside the frame: the border needs
+frame and size, and the system bar with its menu row needs frame and sysbar.
+drwfrm() draws by these same rules, so client geometry computed here stays in
+step with what is actually drawn.
+
+*******************************************************************************/
+
+static long decorx(winptr win)
+
+{
+
+    return ((win->frame && win->size)*2);
+
+}
+
+static long decory(winptr win)
+
+{
+
+    return ((win->frame && win->size)*2+(win->frame && win->sysbar)*2);
+
+}
+
+/*******************************************************************************
+
 Check x,y location is in the client area
 
 Finds if the given x,y location lies in the client area. Note that this does not
@@ -2428,10 +2478,10 @@ static int inclient(winptr win, long x, long y)
 
 {
 
-    int ox, oy;
+    long ox, oy;
 
-    ox = (win->frame && win->size)*2;
-    oy = (win->frame && win->size)*2+win->sysbar*2;
+    ox = decorx(win);
+    oy = decory(win);
     /* check in client area */
     return (win->orgx+win->coffx <= x &&
             x <= win->orgx+win->coffx+win->pmaxx-ox-1 &&
@@ -2904,9 +2954,13 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
 
     }
     ztop++; /* increase Z ordering */
-    remfocus(); /* remove any existing focus */
-    win->focus = TRUE; /* last window in gets focus */
-    curfocus = win;
+    if (!opnwig) { /* widget faces never take the keyboard */
+
+        remfocus(); /* remove any existing focus */
+        win->focus = TRUE; /* last window in gets focus */
+        curfocus = win;
+
+    } else win->focus = FALSE;
     win->hover = FALSE; /* set no hover */
     win->zorder = ztop; /* set Z order for this window */
     makzmin2max(); /* (re)create the Z min to max list */
@@ -2936,8 +2990,8 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     win->maxx = win->pmaxx; /* copy to client dimensions */
     win->maxy = win->pmaxy;
     /* subtract frame from client if enabled */
-    win->maxx -= (win->frame && win->size)*2;
-    win->maxy -= win->frame*2+win->size*2;
+    win->maxx -= decorx(win);
+    win->maxy -= decory(win);
     win->cmaxx = win->maxx; /* set client size to track buffer */
     win->cmaxy = win->maxy;
     win->mpx = 0; /* set mouse relative position invalid */
@@ -2952,7 +3006,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     win->orgy = 1;
     /* set client offset considering framing characteristics */
     win->coffx = 0+(win->frame && win->size);
-    win->coffy = 0+(win->frame && win->size)+win->sysbar*2;
+    win->coffy = 0+(win->frame && win->size)+(win->frame && win->sysbar)*2;
     win->curx = 1; /* set cursor at home */
     win->cury = 1;
     /* clear tabs and set to 8ths */
@@ -3163,6 +3217,8 @@ static void closewin(int ofn)
     winptr    win;  /* window data structure */
     winptr    pwin; /* parent window */
     winptr    rw;   /* root window */
+    winptr    zp;   /* z order renumber pointer */
+    long      z;    /* z order count */
     winptr*   lp;   /* list pointer for unlinking */
     wigptr    wg;   /* widget pointer */
     rectangle cr;   /* the area the window occupied */
@@ -3208,7 +3264,14 @@ static void closewin(int ofn)
     }
     remmin2max(win); /* out of the Z order lists */
     remmax2min(win);
-    ztop--; /* one fewer window in the order */
+    /* Renumber the remaining order from the back, without gaps. The max to
+       min list is rebuilt by looking each order from 0 to ztop up, so a
+       hole leaves the windows above it off the list, and their own close
+       then cannot find them. */
+    zp = zmin2max;
+    z = 0;
+    while (zp) { zp->zorder = z++; zp = zp->zmin2max; }
+    ztop = z-1;
     /* out of the parent's children */
     if (win->parwin) {
 
@@ -3463,17 +3526,10 @@ static void intsetsiz(winptr win, long x, long y)
     win->cmaxx = win->pmaxx; /* copy to client dimensions */
     win->cmaxy = win->pmaxy;
     /* subtract frame from client if enabled */
-    win->cmaxx -= (win->frame && win->size)*2;
-    win->cmaxy -= win->frame*2+win->size*2;
-    if (!win->bufmod) { /* in follow mode */
-
-        win->maxx = win->pmaxx; /* copy to client area dimensions */
-        win->maxy = win->pmaxy;
-        /* subtract frame from client area if enabled */
-        win->maxx -= (win->frame && win->size)*2;
-        win->maxy -= win->frame*2+win->size*2;
-
-    }
+    win->cmaxx -= decorx(win);
+    win->cmaxy -= decory(win);
+    /* in follow mode the buffer tracks the client */
+    if (!win->bufmod) resizewinbuf(win, win->cmaxx, win->cmaxy);
     /* As in intsetpos, the repaints below consult the masks, so they must
        reflect the new size first. The buffer is left as it is: a buffer
        smaller than the window is what a program gets when it sizes one,
@@ -5730,26 +5786,13 @@ static void ibuffer(FILE* f, long e)
     if (e != win->bufmod) { /* buffered status has changed */
 
         win->bufmod = e; /* set new buffer status */
-        if (e) { /* enable buffered mode */
-
-            win->maxx = win->bufx; /* restore previous buffer size */
-            win->maxy = win->bufy;
-            /* allocate prime buffer */
-            win->screens[0] = malloc(sizeof(scnrec)*win->maxy*win->maxx);
-            /* clear */
-            iniscn(win, win->screens[0]);
-
-        } else {
-
-            /* find dimensions from parent for follow modes */
-            win->maxx = win->pmaxx; /* copy to client dimensions */
-            win->maxy = win->pmaxy;
-            /* subtract frame from client if enabled */
-            win->maxx -= (win->frame && win->size)*2;
-            win->maxy -= win->frame*2+win->size*2;
-            clrbufs(win); /* clear out all allocatedbuffers */
-
-        }
+        /* The screens hold the window content in both modes: they are what
+           repaints the surface when the window arrangement changes. The
+           difference is only what governs their size: entering follow mode
+           sizes the buffer to the client, and from there it tracks the
+           client; entering buffered mode keeps the buffer as it stands, and
+           from there the program governs it with sizbuf. */
+        if (!e) resizewinbuf(win, win->cmaxx, win->cmaxy);
 
     }
 
@@ -5932,13 +5975,15 @@ static void iwinclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmod
 
 {
 
-    if ((BIT(ami_wmframe) & ms) && (BIT(ami_wmsize) & ms)) {
+    long frame, size, sysbar;
 
-        cx++; /* add size bars to client */
-        cy++;
-
-    }
-    if (BIT(ami_wmsysbar) & ms) cy += 2; /* add sysbar to client */
+    /* the inverse of the client geometry in recompcli()/decorx()/decory(),
+       from the given mode set rather than a window's current state */
+    frame = !!(BIT(ami_wmframe) & ms);
+    size = !!(BIT(ami_wmsize) & ms);
+    sysbar = !!(BIT(ami_wmsysbar) & ms);
+    *wx = cx+(frame && size)*2;
+    *wy = cy+(frame && size)*2+(frame && sysbar)*2;
 
 }
 
@@ -5998,21 +6043,14 @@ static void recompcli(winptr win)
 {
 
     win->coffx = 0+(win->frame && win->size);
-    win->coffy = 0+(win->frame && win->size)+win->sysbar*2;
+    win->coffy = 0+(win->frame && win->size)+(win->frame && win->sysbar)*2;
     win->cmaxx = win->pmaxx; /* client dimensions from decorations */
     win->cmaxy = win->pmaxy;
-    win->cmaxx -= (win->frame && win->size)*2;
-    win->cmaxy -= win->frame*2+win->size*2;
-    if (!win->bufmod) { /* in follow mode track the buffer */
-
-        win->maxx = win->cmaxx;
-        win->maxy = win->cmaxy;
-        win->bufx = win->cmaxx;
-        win->bufy = win->cmaxy;
-        if (win->fmask) { free(win->fmask); alcfmask(win); }
-
-    }
-    /* in buffered mode the buffer keeps the size it was given */
+    win->cmaxx -= decorx(win);
+    win->cmaxy -= decory(win);
+    /* in follow mode the buffer tracks the client; in buffered mode the
+       buffer keeps the size it was given */
+    if (!win->bufmod) resizewinbuf(win, win->cmaxx, win->cmaxy);
     recalcfmask();
 
 }
@@ -6704,7 +6742,11 @@ static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
     w += 2; /* frame columns */
     wg = malloc(sizeof(wigrec));
     if (!wg) error("Out of memory");
-    iopenwin(&stdin, &wf, NULL, igetwinid()); /* parentless: floats over all */
+    /* parentless: floats over all. As with widget faces, popups take no
+       keyboard focus */
+    opnwig = TRUE;
+    iopenwin(&stdin, &wf, NULL, igetwinid());
+    opnwig = FALSE;
     wg->id = 0; /* popups have no client id */
     wg->typ = wtpopup;
     wg->parent = par;
@@ -7628,8 +7670,12 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     if (x2 < x1 || y2 < y1) error("Invalid widget rectangle");
     wg = malloc(sizeof(wigrec));
     if (!wg) error("Out of memory");
-    /* open the face window as an anonymous subwindow of the owner */
+    /* open the face window as an anonymous subwindow of the owner. It must
+       not take the keyboard: focus moves to a widget by click, not by the
+       widget being created */
+    opnwig = TRUE;
     iopenwin(&stdin, &wf, f, igetwinid());
+    opnwig = FALSE;
     wg->id = id;
     wg->typ = typ;
     wg->parent = par;

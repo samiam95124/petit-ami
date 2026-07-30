@@ -4,7 +4,12 @@
 *                                                                             *
 *                    Copyright (C) 2005 Scott A. Moore                        *
 *                                                                             *
-* Tests text and graphical windows management calls.                          *
+* Tests text windows management calls. The root window serves as the         *
+* desktop: all testing is applied to a child window, a standard 80x25         *
+* terminal surface, the way the graphical form of this test applies to a      *
+* program window on the desktop. Tests that create child windows make them    *
+* children of the test window, a child of a child. Maximize the root window   *
+* to give the test room to work.                                              *
 *                                                                             *
 *******************************************************************************/
 
@@ -34,6 +39,7 @@
 #define SIZOFF(a, b, tol) (labs((a) - (b)) > (tol))
 
 static jmp_buf terminate_buf;
+static FILE*      tw;           /* the window under test */
 static FILE*      win2;
 static FILE*      win3;
 static FILE*      win4;
@@ -100,7 +106,7 @@ static void waitnextt(int keeptitle)
     if (!keeptitle) {
 
         sprintf(titlebuf, "management_test: frame %d", framenum);
-        ami_title(stdout, titlebuf);
+        ami_title(tw, titlebuf);
 
     }
 
@@ -128,7 +134,7 @@ static void waitnextprint(void)
 
         ami_event(stdin, &er);
         if (er.etype == ami_etchar)
-            printf("Window: %ld char: %c\n", er.winid, er.echar);
+            fprintf(tw, "Window: %ld char: %c\n", er.winid, er.echar);
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -141,8 +147,8 @@ static void prtcen(long y, const char* s)
 
 {
 
-   ami_cursor(stdout, (ami_maxx(stdout)/2)-(strlen(s)/2), y);
-   printf("%s", s);
+   ami_cursor(tw, (ami_maxx(tw)/2)-(strlen(s)/2), y);
+   fprintf(tw, "%s", s);
 
 }
 
@@ -155,7 +161,7 @@ static void waittime(int t)
 
     ami_evtrec er;
 
-    ami_timer(stdout, 1, t, FALSE);
+    ami_timer(tw, 1, t, FALSE);
     do { ami_event(stdin, &er);
     } while (er.etype != ami_ettim && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -236,13 +242,13 @@ static void frameinside(const string s, long x, long y)
     /* draw the frame as a box of characters, with the corners joined, which
        is the character surface equivalent of the ruled rectangle and
        diagonals the graphical form draws */
-    printf("\f");
-    ami_cursor(stdout, 1, 1);
-    for (i = 1; i <= x; i++) putchar('-');
-    ami_cursor(stdout, 1, y);
-    for (i = 1; i <= x; i++) putchar('-');
-    for (i = 1; i <= y; i++) { ami_cursor(stdout, 1, i); putchar('|'); }
-    for (i = 1; i <= y; i++) { ami_cursor(stdout, x, i); putchar('|'); }
+    fprintf(tw, "\f");
+    ami_cursor(tw, 1, 1);
+    for (i = 1; i <= x; i++) fputc('-', tw);
+    ami_cursor(tw, 1, y);
+    for (i = 1; i <= x; i++) fputc('-', tw);
+    for (i = 1; i <= y; i++) { ami_cursor(tw, 1, i); fputc('|', tw); }
+    for (i = 1; i <= y; i++) { ami_cursor(tw, x, i); fputc('|', tw); }
     prtcen(y/2, s);
 
 }
@@ -254,8 +260,8 @@ static void frametest(const string s)
     ami_evtrec er;
     long      x, y;
 
-    x = ami_maxx(stdout); /* set size */
-    y = ami_maxy(stdout);
+    x = ami_maxx(tw); /* set size */
+    y = ami_maxy(tw);
     frameinside(s, x, y);
     do {
 
@@ -265,8 +271,8 @@ static void frametest(const string s)
 
             /* Save the new dimensions, even if not required. This way we must
                get a resize notification for this test to work. */
-            x = ami_maxx(stdout);
-            y = ami_maxy(stdout);
+            x = ami_maxx(tw);
+            y = ami_maxy(tw);
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -295,151 +301,178 @@ int main(void)
 
     if (setjmp(terminate_buf)) goto terminate;
 
-    ami_auto(stdout, OFF);
+    /* The root window is the desktop for this test; everything below is
+       applied to a child window on it */
     ami_curvis(stdout, OFF);
-    printf("Managed screen test vs. 0.1\n");
-    printf("\n");
+    ami_auto(stdout, OFF);
+    fprintf(stdout, "\f");
+    fprintf(stdout, "Character mode window management test -- this window is the desktop\n");
+
+    /* open the window under test, a standard 80x25 terminal surface */
+    ami_openwin(&stdin, &tw, stdout, 2);
+    ami_winclient(tw, 80, 25, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsiz(tw, x, y);
+    ami_setpos(tw, 2, 2);
+    ami_sizbuf(tw, 80, 25);
+
+    ami_auto(tw, OFF);
+    ami_curvis(tw, OFF);
+    fprintf(tw, "Managed screen test vs. 0.1\n");
+    fprintf(tw, "\n");
     /* The graphical form of this test reports each measure twice, once in
        characters and once in pixels. A character surface has only the one
        measure, so each is reported once. */
-    ami_scnsiz(stdout, &x, &y);
-    printf("Screen size character: x: %ld y: %ld\n", x, y);
-    printf("\n");
-    ami_getsiz(stdout, &x, &y);
-    printf("Window size character: x: %ld y: %ld\n", x, y);
-    printf("\n");
-    printf("Client size character: x: %ld y: %ld\n", ami_maxx(stdout), ami_maxy(stdout));
-    printf("\n");
-    printf("Hit return in any window to continue for each test\n");
+    ami_scnsiz(tw, &x, &y);
+    fprintf(tw, "Screen size character: x: %ld y: %ld\n", x, y);
+    fprintf(tw, "\n");
+    ami_getsiz(tw, &x, &y);
+    fprintf(tw, "Window size character: x: %ld y: %ld\n", x, y);
+    fprintf(tw, "\n");
+    fprintf(tw, "Client size character: x: %ld y: %ld\n", ami_maxx(tw), ami_maxy(tw));
+    fprintf(tw, "\n");
+    fprintf(tw, "If this window does not fit the desktop, expand or maximize\n");
+    fprintf(tw, "the desktop window, and/or move this window, before continuing\n");
+    fprintf(tw, "\n");
+    fprintf(tw, "Hit return in any window to continue for each test\n");
     waitnext();
 
     /* ************************** Window titling test ************************** */
 
-    ami_title(stdout, "This is a mangement test window");
-    printf("The title bar of this window should read: This is a mangement test window\n");
-    prtcen(ami_maxy(stdout), "Window title test");
+    ami_title(tw, "This is a mangement test window");
+    fprintf(tw, "The title bar of this window should read: This is a mangement test window\n");
+    prtcen(ami_maxy(tw), "Window title test");
     waitnextt(TRUE); /* keep the title we just set -- this frame IS the title test */
 
     /* ************************** Multiple windows ************************** */
 
-    putchar('\f');
-    ami_curvis(stdout, ON);
-    prtcen(ami_maxy(stdout), "Multiple window test");
-    ami_home(stdout);
-    ami_auto(stdout, ON);
-    printf("This is the main window");
-    printf("\n");
-    printf("Select back and forth between each window, and make sure the\n");
-    printf("cursor follows\n");
-    printf("\n");
-    printf("Here is the cursor->");
-    ami_openwin(&stdin, &win2, NULL, 2);
+    fputc('\f', tw);
+    ami_curvis(tw, ON);
+    prtcen(ami_maxy(tw), "Multiple window test");
+    ami_home(tw);
+    ami_auto(tw, ON);
+    fprintf(tw, "This is the main window");
+    fprintf(tw, "\n");
+    fprintf(tw, "Select back and forth between each window, and make sure the\n");
+    fprintf(tw, "cursor follows\n");
+    fprintf(tw, "\n");
+    fprintf(tw, "Here is the cursor->");
+    ami_openwin(&stdin, &win2, NULL, 3);
     fprintf(win2, "This is the second window\n");
     fprintf(win2, "\n");
     fprintf(win2, "Here is the cursor->");
     waitnext();
-    printf("\n");
-    printf("Now enter characters to each window, then end with return\n");
+    fprintf(tw, "\n");
+    fprintf(tw, "Now enter characters to each window, then end with return\n");
     waitnextprint();
     fclose(win2);
-    putchar('\f');
-    printf("Second window now closed\n");
+    fputc('\f', tw);
+    fprintf(tw, "Second window now closed\n");
     waitnext();
-    ami_curvis(stdout, OFF);
-    ami_auto(stdout, OFF);
+    ami_curvis(tw, OFF);
+    ami_auto(tw, OFF);
 
     /* ********************* Resize buffer window character ******************** */
 
-    ox = ami_maxx(stdout);
-    oy = ami_maxy(stdout);
-    ami_bcolor(stdout, ami_white);
-    ami_sizbuf(stdout, 50, 50);
-    ami_bcolor(stdout, ami_cyan);
-    putchar('\f');
-    for (x = 1; x <= ami_maxx(stdout); x++) printf("*");
-    ami_cursor(stdout, 1, ami_maxy(stdout));
-    for (x = 1; x <= ami_maxx(stdout); x++) printf("*");
-    for (y = 1; y <= ami_maxy(stdout); y++) { ami_cursor(stdout, 1, y); printf("*"); }
-    for (y = 1; y <= ami_maxy(stdout); y++) { ami_cursor(stdout, ami_maxx(stdout), y); printf("*"); }
-    ami_home(stdout);
-    printf("Buffer should now be 50 by 50 characters, and\n");
-    printf("painted blue\n");
-    printf("maxx: %ld maxy: %ld\n", ami_maxx(stdout), ami_maxy(stdout));
-    printf("Open up window to verify this\n");
-    prtcen(ami_maxy(stdout), "Buffer resize character test\n");
-    ami_bcolor(stdout, ami_white);
+    ox = ami_maxx(tw);
+    oy = ami_maxy(tw);
+    ami_bcolor(tw, ami_white);
+    ami_sizbuf(tw, 50, 50);
+    ami_bcolor(tw, ami_cyan);
+    fputc('\f', tw);
+    for (x = 1; x <= ami_maxx(tw); x++) fprintf(tw, "*");
+    ami_cursor(tw, 1, ami_maxy(tw));
+    for (x = 1; x <= ami_maxx(tw); x++) fprintf(tw, "*");
+    for (y = 1; y <= ami_maxy(tw); y++) { ami_cursor(tw, 1, y); fprintf(tw, "*"); }
+    for (y = 1; y <= ami_maxy(tw); y++) { ami_cursor(tw, ami_maxx(tw), y); fprintf(tw, "*"); }
+    ami_home(tw);
+    fprintf(tw, "Buffer should now be 50 by 50 characters, and\n");
+    fprintf(tw, "painted blue\n");
+    fprintf(tw, "maxx: %ld maxy: %ld\n", ami_maxx(tw), ami_maxy(tw));
+    fprintf(tw, "Open up window to verify this\n");
+    prtcen(ami_maxy(tw), "Buffer resize character test\n");
+    ami_bcolor(tw, ami_white);
     waitnext();
-    ami_sizbuf(stdout, ox, oy);
+    ami_sizbuf(tw, ox, oy);
 
     /* ****************** Resize screen with buffer on character *************** */
 
-    ox = ami_maxx(stdout);
-    oy = ami_maxy(stdout);
+    ox = ami_maxx(tw);
+    oy = ami_maxy(tw);
     for (x = 20; x <= 80; x++) {
 
-        ami_setsiz(stdout, x, 25);
-        ami_getsiz(stdout, &x2, &y2);
+        ami_setsiz(tw, x, 25);
+        ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, x, SIZTOLC) || SIZOFF(y2, 25, SIZTOLC)) {
 
-            ami_setsiz(stdout, 80, 25);
-            putchar('\f');
-            printf("*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %d\n",
+            ami_setsiz(tw, 80, 25);
+            fputc('\f', tw);
+            fprintf(tw, "*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %d\n",
                    x2, y2, x, 25);
             waitnext();
             longjmp(terminate_buf, 1);
 
         };
-        putchar('\f');
-        printf("Resize screen buffered character\n");
-        printf("*** DON'T MOVE THE WINDOW ***\n");
-        printf("\n");
-        printf("Moving in x\n");
+        fputc('\f', tw);
+        fprintf(tw, "Resize screen buffered character\n");
+        fprintf(tw, "*** DON'T MOVE THE WINDOW ***\n");
+        fprintf(tw, "\n");
+        fprintf(tw, "Moving in x\n");
         waittime(1000);
 
     }
-    printf("\n");
-    printf("Complete");
+    fprintf(tw, "\n");
+    fprintf(tw, "Complete");
     waitnext();
     for (y = 10; y <= 50; y++) {
 
-        ami_setsiz(stdout, 80, y);
-        ami_getsiz(stdout, &x2, &y2);
+        ami_setsiz(tw, 80, y);
+        ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, 80, SIZTOLC) || SIZOFF(y2, y, SIZTOLC)) {
 
-            ami_setsiz(stdout, 80, 25);
-            putchar('\f');
-            printf("*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %d y: %ld\n",
+            ami_setsiz(tw, 80, 25);
+            fputc('\f', tw);
+            fprintf(tw, "*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %d y: %ld\n",
                    x2, y2, 80, y);
-            printf("*** Getsiz does not match setsiz\n");
+            fprintf(tw, "*** Getsiz does not match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
 
         }
-        putchar('\f');
-        printf("Resize screen buffered character\n");
-        printf("*** DON'T MOVE THE WINDOW ***\n");
-        printf("\n");
-        printf("Moving in y\n");
+        fputc('\f', tw);
+        fprintf(tw, "Resize screen buffered character\n");
+        fprintf(tw, "*** DON'T MOVE THE WINDOW ***\n");
+        fprintf(tw, "\n");
+        fprintf(tw, "Moving in y\n");
         waittime(1000);
 
     }
-    printf("\n");
-    printf("Complete\n");
+    fprintf(tw, "\n");
+    fprintf(tw, "Complete\n");
     waitnext();
-    ami_winclient(stdout, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    ami_setsiz(stdout, ox, oy);
+    ami_winclient(tw, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsiz(tw, ox, oy);
 
     /* ********************************* Front/back test *********************** */
 
-    /* a small window for the front/back test. The graphical form derives a
-       square from the screen ratio; on a character surface the cells are
-       not square, so a plain size serves the same purpose. */
+    /* A reference window on the desktop to flip against. The graphical form
+       flips the window against whatever else is on the desktop; here the
+       desktop is the root window, so the test provides the neighbor. */
     xs = 30;
     ys = 10;
-    putchar('\f');
-    ami_auto(stdout, OFF);
-    printf("Position window for font/back test\n");
-    printf("Then hit space to flip font/back status, or return to stop\n");
+    ami_openwin(&stdin, &win2, NULL, 3);
+    ami_winclient(win2, xs, ys, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsiz(win2, x, y);
+    ami_sizbuf(win2, xs, ys);
+    ami_setpos(win2, 20, 8);
+    ami_bcolor(win2, ami_yellow);
+    fputc('\f', win2);
+    fprintf(win2, "reference window\n");
+    fputc('\f', tw);
+    ami_auto(tw, OFF);
+    fprintf(tw, "Position this window over the reference window\n");
+    fprintf(tw, "Then hit space to flip front/back status, or return to stop\n");
     fb = FALSE; /* clear front/back status */
 
     do {
@@ -450,19 +483,19 @@ int main(void)
             fb = !fb;
             if (fb) {
 
-                ami_front(stdout);
-                ami_fcolor(stdout, ami_white);
-                prtcen(ami_maxy(stdout)/2, "Back");
-                ami_fcolor(stdout, ami_black);
-                prtcen(ami_maxy(stdout)/2, "Front");
+                ami_front(tw);
+                ami_fcolor(tw, ami_white);
+                prtcen(ami_maxy(tw)/2, "Back");
+                ami_fcolor(tw, ami_black);
+                prtcen(ami_maxy(tw)/2, "Front");
 
             } else {
 
-                ami_back(stdout);
-                ami_fcolor(stdout, ami_white);
-                prtcen(ami_maxy(stdout)/2, "Front");
-                ami_fcolor(stdout, ami_black);
-                prtcen(ami_maxy(stdout)/2, "Back");
+                ami_back(tw);
+                ami_fcolor(tw, ami_white);
+                prtcen(ami_maxy(tw)/2, "Front");
+                ami_fcolor(tw, ami_black);
+                prtcen(ami_maxy(tw)/2, "Back");
 
             }
 
@@ -470,83 +503,84 @@ int main(void)
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
-    ami_home(stdout);
-    ami_auto(stdout, ON);
+    fclose(win2);
+    ami_home(tw);
+    ami_auto(tw, ON);
 
     /* ************************* Frame controls test buffered ****************** */
 
-    putchar('\f');
-    ami_fcolor(stdout, ami_cyan);
+    fputc('\f', tw);
+    ami_fcolor(tw, ami_cyan);
     { /* box the window in characters */
         long bi;
-        ami_cursor(stdout, 1, 1);
-        for (bi = 1; bi <= ami_maxx(stdout); bi++) putchar('-');
-        ami_cursor(stdout, 1, ami_maxy(stdout));
-        for (bi = 1; bi <= ami_maxx(stdout); bi++) putchar('-');
-        for (bi = 1; bi <= ami_maxy(stdout); bi++)
-            { ami_cursor(stdout, 1, bi); putchar('|'); }
-        for (bi = 1; bi <= ami_maxy(stdout); bi++)
-            { ami_cursor(stdout, ami_maxx(stdout), bi); putchar('|'); }
+        ami_cursor(tw, 1, 1);
+        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
+        ami_cursor(tw, 1, ami_maxy(tw));
+        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
+        for (bi = 1; bi <= ami_maxy(tw); bi++)
+            { ami_cursor(tw, 1, bi); fputc('|', tw); }
+        for (bi = 1; bi <= ami_maxy(tw); bi++)
+            { ami_cursor(tw, ami_maxx(tw), bi); fputc('|', tw); }
     }
-    ami_fcolor(stdout, ami_black);
-    printf("Ready for frame controls buffered\n");
-    printf("(Note system may not implement all -- or any frame controls)\n");
+    ami_fcolor(tw, ami_black);
+    fprintf(tw, "Ready for frame controls buffered\n");
+    fprintf(tw, "(Note system may not implement all -- or any frame controls)\n");
     waitnext();
-    ami_frame(stdout, OFF);
-    printf("Entire frame off\n");
+    ami_frame(tw, OFF);
+    fprintf(tw, "Entire frame off\n");
     waitnext();
-    ami_frame(stdout, ON);
-    printf("Entire frame on\n");
+    ami_frame(tw, ON);
+    fprintf(tw, "Entire frame on\n");
     waitnext();
-    ami_sysbar(stdout, OFF);
-    printf("System bar off\n");
+    ami_sysbar(tw, OFF);
+    fprintf(tw, "System bar off\n");
     waitnext();
-    ami_sysbar(stdout, ON);
-    printf("System bar on\n");
+    ami_sysbar(tw, ON);
+    fprintf(tw, "System bar on\n");
     waitnext();
-    ami_sizable(stdout, OFF);
-    printf("Size bars off\n");
+    ami_sizable(tw, OFF);
+    fprintf(tw, "Size bars off\n");
     waitnext();
-    ami_sizable(stdout, ON);
-    printf("Size bars on\n");
+    ami_sizable(tw, ON);
+    fprintf(tw, "Size bars on\n");
     waitnext();
 
     /* ************************* Frame controls test unbuffered ****************** */
 
-    ami_buffer(stdout, OFF);
+    ami_buffer(tw, OFF);
     frametest("Ready for frame controls unbuffered - Resize me!");
-    printf("(Note system may not implement all -- or any frame controls)\n");
-    ami_frame(stdout, OFF);
+    fprintf(tw, "(Note system may not implement all -- or any frame controls)\n");
+    ami_frame(tw, OFF);
     frametest("Entire frame off");
-    ami_frame(stdout, ON);
+    ami_frame(tw, ON);
     frametest("Entire frame on");
-    ami_sysbar(stdout, OFF);
+    ami_sysbar(tw, OFF);
     frametest("System bar off");
-    ami_sysbar(stdout, ON);
+    ami_sysbar(tw, ON);
     frametest("System bar on");
-    ami_sizable(stdout, OFF);
+    ami_sizable(tw, OFF);
     frametest("Size bars off");
-    ami_sizable(stdout, ON);
+    ami_sizable(tw, ON);
     frametest("Size bars on");
-    ami_buffer(stdout, ON);
+    ami_buffer(tw, ON);
 
     /* ********************************* Menu test ***************************** */
 
-    ami_auto(stdout, ON);
-    putchar('\f');
-    ami_fcolor(stdout, ami_cyan);
+    ami_auto(tw, ON);
+    fputc('\f', tw);
+    ami_fcolor(tw, ami_cyan);
     { /* box the window in characters */
         long bi;
-        ami_cursor(stdout, 1, 1);
-        for (bi = 1; bi <= ami_maxx(stdout); bi++) putchar('-');
-        ami_cursor(stdout, 1, ami_maxy(stdout));
-        for (bi = 1; bi <= ami_maxx(stdout); bi++) putchar('-');
-        for (bi = 1; bi <= ami_maxy(stdout); bi++)
-            { ami_cursor(stdout, 1, bi); putchar('|'); }
-        for (bi = 1; bi <= ami_maxy(stdout); bi++)
-            { ami_cursor(stdout, ami_maxx(stdout), bi); putchar('|'); }
+        ami_cursor(tw, 1, 1);
+        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
+        ami_cursor(tw, 1, ami_maxy(tw));
+        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
+        for (bi = 1; bi <= ami_maxy(tw); bi++)
+            { ami_cursor(tw, 1, bi); fputc('|', tw); }
+        for (bi = 1; bi <= ami_maxy(tw); bi++)
+            { ami_cursor(tw, ami_maxx(tw), bi); fputc('|', tw); }
     }
-    ami_fcolor(stdout, ami_black);
+    ami_fcolor(tw, ami_black);
     ml = NULL; /* clear menu list */
     newmenu(&mp, FALSE, FALSE, OFF, 1, "Say hello");
     appendmenu(&ml, mp);
@@ -570,19 +604,19 @@ int main(void)
     appendmenu(&sm->branch, mp);
     newmenu(&mp, TRUE, FALSE,  OFF, 10, "blue");
     appendmenu(&sm->branch, mp);
-    ami_menu(stdout, ml);
-    ami_menuena(stdout, 3, OFF); /* disable "Walk" */
-    ami_menusel(stdout, 5, ON); /* turn on "slow" */
-    ami_menusel(stdout, 8, ON); /* turn on "red" */
+    ami_menu(tw, ml);
+    ami_menuena(tw, 3, OFF); /* disable "Walk" */
+    ami_menusel(tw, 5, ON); /* turn on "slow" */
+    ami_menusel(tw, 8, ON); /* turn on "red" */
 
-    ami_home(stdout);
-    printf("Use sample menu above\n");
-    printf("'Walk' is disabled\n");
-    printf("'Sublist' is a dropdown\n");
-    printf("'slow', 'medium' and 'fast' are a one/of list\n");
-    printf("'red', 'green' and 'blue' are on/off\n");
-    printf("There should be a bar between slow-medium-fast groups and\n");
-    printf("red-green-blue groups.\n");
+    ami_home(tw);
+    fprintf(tw, "Use sample menu above\n");
+    fprintf(tw, "'Walk' is disabled\n");
+    fprintf(tw, "'Sublist' is a dropdown\n");
+    fprintf(tw, "'slow', 'medium' and 'fast' are a one/of list\n");
+    fprintf(tw, "'red', 'green' and 'blue' are on/off\n");
+    fprintf(tw, "There should be a bar between slow-medium-fast groups and\n");
+    fprintf(tw, "red-green-blue groups.\n");
     sred = ON; /* set states */
     sgreen = OFF;
     sblue = OFF;
@@ -592,34 +626,34 @@ int main(void)
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
-            printf("Menu select: ");
+            fprintf(tw, "Menu select: ");
             switch (er.menuid) {
 
-                case 1:  printf("Say hello\n"); break;
-                case 2:  printf("Bark\n"); break;
-                case 3:  printf("Walk\n"); break;
-                case 4:  printf("Sublist\n"); break;
-                case 5:  printf("slow\n"); ami_menusel(stdout, 5, ON); break;
-                case 6:  printf("medium\n"); ami_menusel(stdout, 6, ON); break;
-                case 7:  printf("fast\n"); ami_menusel(stdout, 7, ON); break;
-                case 8:  printf("red\n"); sred = !sred;
-                         ami_menusel(stdout, 8, sred); break;
-                case 9:  printf("green\n"); sgreen = !sgreen;
-                         ami_menusel(stdout, 9, sgreen); break;
-                case 10: printf("blue\n"); sblue = !sblue;
-                         ami_menusel(stdout, 10, sblue); break;
+                case 1:  fprintf(tw, "Say hello\n"); break;
+                case 2:  fprintf(tw, "Bark\n"); break;
+                case 3:  fprintf(tw, "Walk\n"); break;
+                case 4:  fprintf(tw, "Sublist\n"); break;
+                case 5:  fprintf(tw, "slow\n"); ami_menusel(tw, 5, ON); break;
+                case 6:  fprintf(tw, "medium\n"); ami_menusel(tw, 6, ON); break;
+                case 7:  fprintf(tw, "fast\n"); ami_menusel(tw, 7, ON); break;
+                case 8:  fprintf(tw, "red\n"); sred = !sred;
+                         ami_menusel(tw, 8, sred); break;
+                case 9:  fprintf(tw, "green\n"); sgreen = !sgreen;
+                         ami_menusel(tw, 9, sgreen); break;
+                case 10: fprintf(tw, "blue\n"); sblue = !sblue;
+                         ami_menusel(tw, 10, sblue); break;
 
             }
 
         }
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
-    ami_menu(stdout, NULL);
+    ami_menu(tw, NULL);
 
     /* ****************************** Standard menu test ******************** */
 
-    putchar('\f');
-    ami_auto(stdout, ON);
+    fputc('\f', tw);
+    ami_auto(tw, ON);
     ml = NULL; /* clear menu list */
     newmenu(&mp, FALSE, FALSE, OFF, AMI_SMMAX+1, "one");
     appendmenu(&ml, mp);
@@ -636,69 +670,69 @@ int main(void)
                BIT(AMI_SMTILEHORIZ) | BIT(AMI_SMTILEVERT) | BIT(AMI_SMCASCADE) |
                BIT(AMI_SMCLOSEALL) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
                &mp, ml);
-    ami_menu(stdout, mp);
-    printf("Standard menu appears above\n");
-    printf("Check our 'one', 'two', 'three' buttons are in the program\n");
-    printf("defined position\n");
+    ami_menu(tw, mp);
+    fprintf(tw, "Standard menu appears above\n");
+    fprintf(tw, "Check our 'one', 'two', 'three' buttons are in the program\n");
+    fprintf(tw, "defined position\n");
     do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
-            printf("Menu select: ");
+            fprintf(tw, "Menu select: ");
             switch (er.menuid) {
 
-                case AMI_SMNEW:       printf("new\n"); break;
-                case AMI_SMOPEN:      printf("open\n"); break;
-                case AMI_SMCLOSE:     printf("close\n"); break;
-                case AMI_SMSAVE:      printf("save\n"); break;
-                case AMI_SMSAVEAS:    printf("saveas\n"); break;
-                case AMI_SMPAGESET:   printf("pageset\n"); break;
-                case AMI_SMPRINT:     printf("print\n"); break;
-                case AMI_SMEXIT:      printf("exit\n"); break;
-                case AMI_SMUNDO:      printf("undo\n"); break;
-                case AMI_SMCUT:       printf("cut\n"); break;
-                case AMI_SMPASTE:     printf("paste\n"); break;
-                case AMI_SMDELETE:    printf("delete\n"); break;
-                case AMI_SMFIND:      printf("find\n"); break;
-                case AMI_SMFINDNEXT:  printf("findnext\n"); break;
-                case AMI_SMREPLACE:   printf("replace\n"); break;
-                case AMI_SMGOTO:      printf("goto\n"); break;
-                case AMI_SMSELECTALL: printf("selectall\n"); break;
-                case AMI_SMNEWWINDOW: printf("newwindow\n"); break;
-                case AMI_SMTILEHORIZ: printf("tilehoriz\n"); break;
-                case AMI_SMTILEVERT:  printf("tilevert\n"); break;
-                case AMI_SMCASCADE:   printf("cascade\n"); break;
-                case AMI_SMCLOSEALL:  printf("closeall\n"); break;
-                case AMI_SMHELPTOPIC: printf("helptopic\n"); break;
-                case AMI_SMABOUT:     printf("about\n"); break;
-                case AMI_SMMAX+1:     printf("one\n"); break;
-                case AMI_SMMAX+2:     printf("two\n"); break;
-                case AMI_SMMAX+3:     printf("three\n"); break;
+                case AMI_SMNEW:       fprintf(tw, "new\n"); break;
+                case AMI_SMOPEN:      fprintf(tw, "open\n"); break;
+                case AMI_SMCLOSE:     fprintf(tw, "close\n"); break;
+                case AMI_SMSAVE:      fprintf(tw, "save\n"); break;
+                case AMI_SMSAVEAS:    fprintf(tw, "saveas\n"); break;
+                case AMI_SMPAGESET:   fprintf(tw, "pageset\n"); break;
+                case AMI_SMPRINT:     fprintf(tw, "print\n"); break;
+                case AMI_SMEXIT:      fprintf(tw, "exit\n"); break;
+                case AMI_SMUNDO:      fprintf(tw, "undo\n"); break;
+                case AMI_SMCUT:       fprintf(tw, "cut\n"); break;
+                case AMI_SMPASTE:     fprintf(tw, "paste\n"); break;
+                case AMI_SMDELETE:    fprintf(tw, "delete\n"); break;
+                case AMI_SMFIND:      fprintf(tw, "find\n"); break;
+                case AMI_SMFINDNEXT:  fprintf(tw, "findnext\n"); break;
+                case AMI_SMREPLACE:   fprintf(tw, "replace\n"); break;
+                case AMI_SMGOTO:      fprintf(tw, "goto\n"); break;
+                case AMI_SMSELECTALL: fprintf(tw, "selectall\n"); break;
+                case AMI_SMNEWWINDOW: fprintf(tw, "newwindow\n"); break;
+                case AMI_SMTILEHORIZ: fprintf(tw, "tilehoriz\n"); break;
+                case AMI_SMTILEVERT:  fprintf(tw, "tilevert\n"); break;
+                case AMI_SMCASCADE:   fprintf(tw, "cascade\n"); break;
+                case AMI_SMCLOSEALL:  fprintf(tw, "closeall\n"); break;
+                case AMI_SMHELPTOPIC: fprintf(tw, "helptopic\n"); break;
+                case AMI_SMABOUT:     fprintf(tw, "about\n"); break;
+                case AMI_SMMAX+1:     fprintf(tw, "one\n"); break;
+                case AMI_SMMAX+2:     fprintf(tw, "two\n"); break;
+                case AMI_SMMAX+3:     fprintf(tw, "three\n"); break;
 
             }
 
         }
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
-    ami_menu(stdout, NULL);
+    ami_menu(tw, NULL);
 
     /* ************************* Child windows test character ****************** */
 
-    putchar('\f');
-    prtcen(ami_maxy(stdout), "Child windows test character");
-    ami_openwin(&stdin, &win2, stdout, 2);
+    fputc('\f', tw);
+    prtcen(ami_maxy(tw), "Child windows test character");
+    ami_openwin(&stdin, &win2, tw, 3);
     ami_curvis(win2, OFF);
     ami_setpos(win2, 1, 10);
     ami_sizbuf(win2, 20, 10);
     ami_setsiz(win2, 20, 10);
-    ami_openwin(&stdin, &win3, stdout, 3);
+    ami_openwin(&stdin, &win3, tw, 4);
     ami_curvis(win3, OFF);
     ami_setpos(win3, 21, 10);
     ami_sizbuf(win3, 20, 10);
     ami_setsiz(win3, 20, 10);
-    ami_openwin(&stdin, &win4, stdout, 4);
+    ami_openwin(&stdin, &win4, tw, 5);
     ami_curvis(win4, OFF);
     ami_setpos(win4, 41, 10);
     ami_sizbuf(win4, 20, 10);
@@ -712,34 +746,34 @@ int main(void)
     ami_bcolor(win4, ami_magenta);
     putc('\f', win4);
     fprintf(win4, "I am child window 3\n");
-    ami_home(stdout);
-    printf("There should be 3 labeled child windows below, with frames   \n");
-    printf("(the system may not implement frames on child windows)      \n");
+    ami_home(tw);
+    fprintf(tw, "There should be 3 labeled child windows below, with frames   \n");
+    fprintf(tw, "(the system may not implement frames on child windows)      \n");
     waitnext();
     ami_frame(win2, OFF);
     ami_frame(win3, OFF);
     ami_frame(win4, OFF);
-    ami_home(stdout);
-    printf("There should be 3 labeled child windows below, without frames\n");
-    printf("                                                            \n");
+    ami_home(tw);
+    fprintf(tw, "There should be 3 labeled child windows below, without frames\n");
+    fprintf(tw, "                                                            \n");
     waitnext();
     fclose(win2);
     fclose(win3);
     fclose(win4);
-    ami_home(stdout);
-    printf("Child windows should all be closed                           \n");
+    ami_home(tw);
+    fprintf(tw, "Child windows should all be closed                           \n");
     waitnext();
 
     /* *************** Child windows independent test character ************ */
 
-    ami_curvis(stdout, ON);
-    putchar('\f');
-    prtcen(ami_maxy(stdout), "Child windows independent test character");
-    ami_openwin(&stdin, &win2, stdout, 2);
+    ami_curvis(tw, ON);
+    fputc('\f', tw);
+    prtcen(ami_maxy(tw), "Child windows independent test character");
+    ami_openwin(&stdin, &win2, tw, 3);
     ami_setpos(win2, 11, 10);
     ami_sizbuf(win2, 30, 10);
     ami_setsiz(win2, 30, 10);
-    ami_openwin(&stdin, &win3, stdout, 3);
+    ami_openwin(&stdin, &win3, tw, 4);
     ami_setpos(win3, 41, 10);
     ami_sizbuf(win3, 30, 10);
     ami_setsiz(win3, 30, 10);
@@ -749,84 +783,85 @@ int main(void)
     ami_bcolor(win3, ami_yellow);
     putc('\f', win3);
     fprintf(win3, "I am child window 2\n");
-    ami_home(stdout);
-    printf("There should be 2 labeled child windows below, with frames   \n");
-    printf("(the system may not implement frames on child windows)       \n");
-    printf("Test focus can be moved between windows, including the main  \n");
-    printf("window. Test windows can be minimized and maximized          \n");
-    printf("(if framed), test entering characters to windows.            \n");
+    ami_home(tw);
+    fprintf(tw, "There should be 2 labeled child windows below, with frames   \n");
+    fprintf(tw, "(the system may not implement frames on child windows)       \n");
+    fprintf(tw, "Test focus can be moved between windows, including the main  \n");
+    fprintf(tw, "window. Test windows can be minimized and maximized          \n");
+    fprintf(tw, "(if framed), test entering characters to windows.            \n");
     do {
 
         ami_event(stdin, &er); /* get next event */
         if (er.etype == ami_etchar) {
 
-            if (er.winid == 2) fputc(er.echar, win2);
-            else if (er.winid == 3) fputc(er.echar, win3);
+            if (er.winid == 3) fputc(er.echar, win2);
+            else if (er.winid == 4) fputc(er.echar, win3);
 
         } else if (er.etype == ami_etenter) {
 
             /* translate the crs so we can test scrolling */
-            if (er.winid == 2) fputc('\n', win2);
-            else if (er.winid == 3) fputc('\n', win3);
+            if (er.winid == 3) fputc('\n', win2);
+            else if (er.winid == 4) fputc('\n', win3);
 
-        } else if (er.etype == ami_etterm && er.winid == 1)
-            /* only take terminations from main window */
+        } else if (er.etype == ami_etterm &&
+                   (er.winid == 1 || er.winid == 2))
+            /* only take terminations from the desktop or the test window */
             longjmp(terminate_buf, 1);
 
-    /* terminate on cr to the main window only */
-    } while (er.etype != ami_etenter || er.winid != 1);
+    /* terminate on cr to the test window only */
+    } while (er.etype != ami_etenter || er.winid != 2);
     fclose(win2);
     fclose(win3);
-    ami_home(stdout);
-    printf("Child windows should all be closed                           \n");
-    printf("                                                             \n");
-    printf("                                                             \n");
-    printf("                                                             \n");
-    printf("                                                             \n");
-    ami_curvis(stdout, OFF);
+    ami_home(tw);
+    fprintf(tw, "Child windows should all be closed                           \n");
+    fprintf(tw, "                                                             \n");
+    fprintf(tw, "                                                             \n");
+    fprintf(tw, "                                                             \n");
+    fprintf(tw, "                                                             \n");
+    ami_curvis(tw, OFF);
     waitnext();
 
     /* ******************************* Buffer off test *********************** */
 
-    putchar('\f');
-    ami_auto(stdout, OFF);
-    ami_buffer(stdout, OFF);
+    fputc('\f', tw);
+    ami_auto(tw, OFF);
+    ami_buffer(tw, OFF);
     /* initialize prime size information */
-    x = ami_maxx(stdout);
-    y = ami_maxy(stdout);
+    x = ami_maxx(tw);
+    y = ami_maxy(tw);
     do {
 
         ami_event(stdin, &er); /* get next event */
         if (er.etype == ami_etredraw || er.etype == ami_etresize) {
 
             /* clear screen without overwriting frame */
-            ami_fcolor(stdout, ami_white);
-            ami_fcolor(stdout, ami_black);
-            prtcen(ami_maxy(stdout)/2,
+            ami_fcolor(tw, ami_white);
+            ami_fcolor(tw, ami_black);
+            prtcen(ami_maxy(tw)/2,
                     "SIZE AND COVER ME !");
-            charbox(stdout, x, y); /* frame the window */
+            charbox(tw, x, y); /* frame the window */
 
         }
         if (er.etype == ami_etresize) {
 
             /* Save the new demensions, even if not required. This way we must
                get a resize notification for this test to work. */
-            x = ami_maxx(stdout);
-            y = ami_maxy(stdout);
+            x = ami_maxx(tw);
+            y = ami_maxy(tw);
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
-    ami_buffer(stdout, ON);
-    ami_home(stdout);
-    ami_auto(stdout, ON);
+    ami_buffer(tw, ON);
+    ami_home(tw);
+    ami_auto(tw, ON);
 
     /* ****************************** min/max/norm test ********************* */
 
-    putchar('\f');
-    ami_auto(stdout, OFF);
-    ami_buffer(stdout, OFF);
+    fputc('\f', tw);
+    ami_auto(tw, OFF);
+    ami_buffer(tw, OFF);
     mincnt = 0; /* clear minimize counter */
     maxcnt = 0; /* clear maximize counter */
     nrmcnt = 0; /* clear normalize counter */
@@ -840,29 +875,29 @@ int main(void)
         if (er.etype == ami_etredraw || er.etype == ami_etmax ||
             er.etype == ami_etmin || er.etype == ami_etnorm) {
 
-            putchar('\f');
-            printf("Minimize, maximize and restore this window\n");
-            printf("\n");
-            printf("Minimize count:  %d\n", mincnt);
-            printf("Maximize count:  %d\n", maxcnt);
-            printf("Normalize count: %d\n", nrmcnt);
+            fputc('\f', tw);
+            fprintf(tw, "Minimize, maximize and restore this window\n");
+            fprintf(tw, "\n");
+            fprintf(tw, "Minimize count:  %d\n", mincnt);
+            fprintf(tw, "Maximize count:  %d\n", maxcnt);
+            fprintf(tw, "Normalize count: %d\n", nrmcnt);
 
         }
 
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
-    ami_buffer(stdout, ON);
+    ami_buffer(tw, ON);
 
     /* ******************** Window size calculate character ***************** */
 
-    putchar('\f');
-    prtcen(ami_maxy(stdout), "Window size calculate character");
-    ami_home(stdout);
-    ami_openwin(&stdin, &win2, NULL, 2);
+    fputc('\f', tw);
+    prtcen(ami_maxy(tw), "Window size calculate character");
+    ami_home(tw);
+    ami_openwin(&stdin, &win2, NULL, 3);
 
-    ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (20, 10) client, full frame, window size is: %ld,%ld\n", x, y);
+    ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    fprintf(tw, "For (20, 10) client, full frame, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -879,13 +914,13 @@ int main(void)
     ami_fcolor(win2, ami_cyan);
     charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
-    printf("Check client window has (20, 10) surface\n");
+    fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
 
-    printf("System bar off\n");
+    fprintf(tw, "System bar off\n");
     ami_sysbar(win2, OFF);
-    ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize));
-    printf("For (20, 10) client, no system bar, window size is: %ld,%ld\n", x, y);
+    ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize));
+    fprintf(tw, "For (20, 10) client, no system bar, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -902,14 +937,14 @@ int main(void)
     ami_fcolor(win2, ami_cyan);
     charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
-    printf("Check client window has (20, 10) surface\n");
+    fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
 
-    printf("Sizing bars off\n");
+    fprintf(tw, "Sizing bars off\n");
     ami_sysbar(win2, ON);
     ami_sizable(win2, OFF);
-    ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsysbar));
-    printf("For (20, 10) client, no size bars, window size is: %ld,%ld\n", x, y);
+    ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsysbar));
+    fprintf(tw, "For (20, 10) client, no size bars, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -926,15 +961,15 @@ int main(void)
     ami_fcolor(win2, ami_cyan);
     charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
-    printf("Check client window has (20, 10) surface\n");
+    fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
 
-    printf("frame off\n");
+    fprintf(tw, "frame off\n");
     ami_sysbar(win2, ON);
     ami_sizable(win2, ON);
     ami_frame(win2, OFF);
-    ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (20, 10) client, no frame, window size is: %ld,%ld\n", x, y);
+    ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    fprintf(tw, "For (20, 10) client, no frame, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -951,15 +986,15 @@ int main(void)
     ami_fcolor(win2, ami_cyan);
     charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
-    printf("Check client window has (20, 10) surface\n");
+    fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
 
     fclose(win2);
 
     terminate: /* terminate */
 
-    putchar('\f');
-    ami_auto(stdout, OFF);
-    prtcen(ami_maxy(stdout)/2, "Test complete");
+    fputc('\f', tw);
+    ami_auto(tw, OFF);
+    prtcen(ami_maxy(tw)/2, "Test complete");
 
 }
