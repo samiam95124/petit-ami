@@ -345,6 +345,86 @@ static void samplemenu(FILE* w)
 
 }
 
+/* Run the standard menu on the given window: build it with the program's
+   own entries appended, exercise it until return is hit, then remove it.
+   Uses its own menu list, leaving the sample menu list intact. */
+
+static void stdmenutest(FILE* w)
+
+{
+
+    ami_evtrec  er;
+    ami_menuptr lml; /* this test's own menu list */
+    ami_menuptr lmp;
+
+    fputc('\f', w);
+    ami_auto(w, ON);
+    lml = NULL; /* clear menu list */
+    newmenu(&lmp, FALSE, FALSE, OFF, AMI_SMMAX+1, "one");
+    appendmenu(&lml, lmp);
+    newmenu(&lmp, TRUE, FALSE,  ON, AMI_SMMAX+2, "two");
+    appendmenu(&lml, lmp);
+    newmenu(&lmp, FALSE, FALSE, OFF, AMI_SMMAX+3, "three");
+    appendmenu(&lml, lmp);
+    ami_stdmenu(BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) | BIT(AMI_SMCLOSE) |
+               BIT(AMI_SMSAVE) | BIT(AMI_SMSAVEAS) | BIT(AMI_SMPAGESET) |
+               BIT(AMI_SMPRINT) | BIT(AMI_SMEXIT) | BIT(AMI_SMUNDO) |
+               BIT(AMI_SMCUT) | BIT(AMI_SMPASTE) | BIT(AMI_SMDELETE) |
+               BIT(AMI_SMFIND) | BIT(AMI_SMFINDNEXT) | BIT(AMI_SMREPLACE) |
+               BIT(AMI_SMGOTO) | BIT(AMI_SMSELECTALL) | BIT(AMI_SMNEWWINDOW) |
+               BIT(AMI_SMTILEHORIZ) | BIT(AMI_SMTILEVERT) | BIT(AMI_SMCASCADE) |
+               BIT(AMI_SMCLOSEALL) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
+               &lmp, lml);
+    ami_menu(w, lmp);
+    fprintf(w, "Standard menu appears above\n");
+    fprintf(w, "Check our 'one', 'two', 'three' buttons are in the program\n");
+    fprintf(w, "defined position\n");
+    do {
+
+        ami_event(stdin, &er);
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+        if (er.etype == ami_etmenus) {
+
+            fprintf(w, "Menu select: ");
+            switch (er.menuid) {
+
+                case AMI_SMNEW:       fprintf(w, "new\n"); break;
+                case AMI_SMOPEN:      fprintf(w, "open\n"); break;
+                case AMI_SMCLOSE:     fprintf(w, "close\n"); break;
+                case AMI_SMSAVE:      fprintf(w, "save\n"); break;
+                case AMI_SMSAVEAS:    fprintf(w, "saveas\n"); break;
+                case AMI_SMPAGESET:   fprintf(w, "pageset\n"); break;
+                case AMI_SMPRINT:     fprintf(w, "print\n"); break;
+                case AMI_SMEXIT:      fprintf(w, "exit\n"); break;
+                case AMI_SMUNDO:      fprintf(w, "undo\n"); break;
+                case AMI_SMCUT:       fprintf(w, "cut\n"); break;
+                case AMI_SMPASTE:     fprintf(w, "paste\n"); break;
+                case AMI_SMDELETE:    fprintf(w, "delete\n"); break;
+                case AMI_SMFIND:      fprintf(w, "find\n"); break;
+                case AMI_SMFINDNEXT:  fprintf(w, "findnext\n"); break;
+                case AMI_SMREPLACE:   fprintf(w, "replace\n"); break;
+                case AMI_SMGOTO:      fprintf(w, "goto\n"); break;
+                case AMI_SMSELECTALL: fprintf(w, "selectall\n"); break;
+                case AMI_SMNEWWINDOW: fprintf(w, "newwindow\n"); break;
+                case AMI_SMTILEHORIZ: fprintf(w, "tilehoriz\n"); break;
+                case AMI_SMTILEVERT:  fprintf(w, "tilevert\n"); break;
+                case AMI_SMCASCADE:   fprintf(w, "cascade\n"); break;
+                case AMI_SMCLOSEALL:  fprintf(w, "closeall\n"); break;
+                case AMI_SMHELPTOPIC: fprintf(w, "helptopic\n"); break;
+                case AMI_SMABOUT:     fprintf(w, "about\n"); break;
+                case AMI_SMMAX+1:     fprintf(w, "one\n"); break;
+                case AMI_SMMAX+2:     fprintf(w, "two\n"); break;
+                case AMI_SMMAX+3:     fprintf(w, "three\n"); break;
+
+            }
+
+        }
+
+    } while (er.etype != ami_etenter && er.etype != ami_etterm);
+    ami_menu(w, NULL);
+
+}
+
 static ami_color nextcolor(ami_color c)
 
 {
@@ -659,6 +739,7 @@ int main(void)
     ami_auto(stdout, ON);
     fprintf(stdout, "\f");
     samplemenu(stdout);
+    stdmenutest(stdout);
     ami_auto(stdout, OFF);
     fprintf(stdout, "\f");
     fprintf(stdout, "Character mode window management test -- this window is the desktop\n");
@@ -683,71 +764,7 @@ int main(void)
 
     /* ****************************** Standard menu test ******************** */
 
-    fputc('\f', tw);
-    ami_auto(tw, ON);
-    ml = NULL; /* clear menu list */
-    newmenu(&mp, FALSE, FALSE, OFF, AMI_SMMAX+1, "one");
-    appendmenu(&ml, mp);
-    newmenu(&mp, TRUE, FALSE,  ON, AMI_SMMAX+2, "two");
-    appendmenu(&ml, mp);
-    newmenu(&mp, FALSE, FALSE, OFF, AMI_SMMAX+3, "three");
-    appendmenu(&ml, mp);
-    ami_stdmenu(BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) | BIT(AMI_SMCLOSE) |
-               BIT(AMI_SMSAVE) | BIT(AMI_SMSAVEAS) | BIT(AMI_SMPAGESET) |
-               BIT(AMI_SMPRINT) | BIT(AMI_SMEXIT) | BIT(AMI_SMUNDO) |
-               BIT(AMI_SMCUT) | BIT(AMI_SMPASTE) | BIT(AMI_SMDELETE) |
-               BIT(AMI_SMFIND) | BIT(AMI_SMFINDNEXT) | BIT(AMI_SMREPLACE) |
-               BIT(AMI_SMGOTO) | BIT(AMI_SMSELECTALL) | BIT(AMI_SMNEWWINDOW) |
-               BIT(AMI_SMTILEHORIZ) | BIT(AMI_SMTILEVERT) | BIT(AMI_SMCASCADE) |
-               BIT(AMI_SMCLOSEALL) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
-               &mp, ml);
-    ami_menu(tw, mp);
-    fprintf(tw, "Standard menu appears above\n");
-    fprintf(tw, "Check our 'one', 'two', 'three' buttons are in the program\n");
-    fprintf(tw, "defined position\n");
-    do {
-
-        ami_event(stdin, &er);
-        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
-        if (er.etype == ami_etmenus) {
-
-            fprintf(tw, "Menu select: ");
-            switch (er.menuid) {
-
-                case AMI_SMNEW:       fprintf(tw, "new\n"); break;
-                case AMI_SMOPEN:      fprintf(tw, "open\n"); break;
-                case AMI_SMCLOSE:     fprintf(tw, "close\n"); break;
-                case AMI_SMSAVE:      fprintf(tw, "save\n"); break;
-                case AMI_SMSAVEAS:    fprintf(tw, "saveas\n"); break;
-                case AMI_SMPAGESET:   fprintf(tw, "pageset\n"); break;
-                case AMI_SMPRINT:     fprintf(tw, "print\n"); break;
-                case AMI_SMEXIT:      fprintf(tw, "exit\n"); break;
-                case AMI_SMUNDO:      fprintf(tw, "undo\n"); break;
-                case AMI_SMCUT:       fprintf(tw, "cut\n"); break;
-                case AMI_SMPASTE:     fprintf(tw, "paste\n"); break;
-                case AMI_SMDELETE:    fprintf(tw, "delete\n"); break;
-                case AMI_SMFIND:      fprintf(tw, "find\n"); break;
-                case AMI_SMFINDNEXT:  fprintf(tw, "findnext\n"); break;
-                case AMI_SMREPLACE:   fprintf(tw, "replace\n"); break;
-                case AMI_SMGOTO:      fprintf(tw, "goto\n"); break;
-                case AMI_SMSELECTALL: fprintf(tw, "selectall\n"); break;
-                case AMI_SMNEWWINDOW: fprintf(tw, "newwindow\n"); break;
-                case AMI_SMTILEHORIZ: fprintf(tw, "tilehoriz\n"); break;
-                case AMI_SMTILEVERT:  fprintf(tw, "tilevert\n"); break;
-                case AMI_SMCASCADE:   fprintf(tw, "cascade\n"); break;
-                case AMI_SMCLOSEALL:  fprintf(tw, "closeall\n"); break;
-                case AMI_SMHELPTOPIC: fprintf(tw, "helptopic\n"); break;
-                case AMI_SMABOUT:     fprintf(tw, "about\n"); break;
-                case AMI_SMMAX+1:     fprintf(tw, "one\n"); break;
-                case AMI_SMMAX+2:     fprintf(tw, "two\n"); break;
-                case AMI_SMMAX+3:     fprintf(tw, "three\n"); break;
-
-            }
-
-        }
-
-    } while (er.etype != ami_etenter && er.etype != ami_etterm);
-    ami_menu(tw, NULL);
+    stdmenutest(tw);
 
     /* ************************* Child windows test character ****************** */
 
