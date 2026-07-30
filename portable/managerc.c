@@ -337,6 +337,7 @@ typedef struct winrec {
     winptr   zmin2max;          /* Z order minimum to maximum list */
     winptr   zmax2min;          /* Z order maximum to minimum list */
     scnrec*  screens[MAXCON];   /* screen contexts array */
+    ami_color sbcolor[MAXCON];  /* background each screen was cleared to */
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
     long     orgx;              /* window origin in root x */
@@ -1526,7 +1527,15 @@ static void iniscn(winptr win, scnrec* sc)
 {
 
     int x, y;
+    int si;
     scnrec* scp;   /* pointer to screen location */
+
+    /* The client area beyond the buffer shows the background the surface
+       was cleared to, and a later redraw must reproduce it even if the
+       program has since changed its background for drawing, so the color
+       is noted with the screen being cleared. */
+    for (si = 0; si < MAXCON; si++)
+        if (win->screens[si] == sc) win->sbcolor[si] = win->bcolor;
 
     /* clear buffer */
     for (y = 1; y <= win->maxy; y++)
@@ -1861,7 +1870,15 @@ static void drwfrm(winptr win, rectangle* cr)
 
     if (win->frame) { /* draw window frame */
 
-        (*fcolor_vect)(stdout, win->frmcolor);
+        /* The decorations draw in the frame color on the decoration
+           background, with no attributes. These go through the caches, so
+           the drawing that follows knows the state left behind. Without
+           the background set, the decorations landed on whatever
+           background the last drawing left, and the system bar showed
+           whatever color the window content had been painted with. */
+        setfcolor(win->frmcolor);
+        setbcolor(ami_white);
+        setattrs(0);
         if (win->size) { /* draw size bars */
 
             /* draw top and bottom */
@@ -1971,7 +1988,6 @@ static void drwfrm(winptr win, rectangle* cr)
             else wrtextclp(frmchrs[intrgt], cr);
 
         }
-        (*fcolor_vect)(stdout, fcolor);
 
     }
 
@@ -2179,14 +2195,18 @@ static void restoreclp(winptr win,   /* window to restore */
            client beyond it is filled with the window's background. That
            area belongs to the window and shows its background, which is
            what the graphical implementation does with the margins it has
-           left over, and what the terminal does under its own buffer. */
+           left over, and what the terminal does under its own buffer. The
+           background used is the one the surface was cleared to, not the
+           current drawing background: a program that paints and then
+           changes its background for later drawing must see the same
+           margins on a redraw that the paint gave it. */
         if (win->maxx < win->cmaxx || win->maxy < win->cmaxy) {
 
             long mx, my;
 
             setfcolor(win->fcolor);
-            setbcolor(win->bcolor);
-            setattrs(win->attr);
+            setbcolor(win->sbcolor[win->curdsp-1]);
+            setattrs(0);
             for (my = 1; my <= win->cmaxy; my++) {
 
                 /* the strip right of the buffer, and whole lines below it */
