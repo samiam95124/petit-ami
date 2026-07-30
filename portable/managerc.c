@@ -7086,6 +7086,11 @@ static void wigdrw(wigptr wg)
     long   h = win->cmaxy;
     long   x, y, i, n, ts, tp;
     char   buf[MAXLIN];
+
+    /* The cursor is off while the face draws, so it does not flash along
+       the drawing; setcur() below restores it, with its visibility, at
+       the focus window when the face is done. */
+    setcurvis(FALSE);
     int    rev;
 
     switch (wg->typ) {
