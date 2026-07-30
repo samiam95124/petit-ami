@@ -8648,9 +8648,17 @@ static void imenu(FILE* f, ami_menuptr m)
     }
     win->amenu = m;
     if (!m) return; /* menu removed */
-    /* the bar spans the client width at its first row */
+    /* The bar spans the client width, and lives in the frame's menu row:
+       the second of the two rows the system bar reserves, where the frame
+       draws its underbar. That leaves the client area whole -- the bar
+       was covering the client's first row, hiding whatever the program
+       put there. A window without the reserved row (no frame or no
+       system bar) gives up its first client row instead. */
     id = ami_getwigid(f);
-    wg = wigcre(f, 1, 1, win->cmaxx, 1, id, wtmenubar);
+    if (win->frame && win->sysbar)
+        wg = wigcre(f, 1, 0, win->cmaxx, 0, id, wtmenubar);
+    else
+        wg = wigcre(f, 1, 1, win->cmaxx, 1, id, wtmenubar);
     wg->mitems = m;
     wg->sel = 0;
     wigfac(wg, "");
