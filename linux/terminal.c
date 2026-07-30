@@ -5222,8 +5222,15 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
         off += rc;
 
     }
-    /* the cursor moved by the length written, and we did not track it */
-    curval = 0;
+    /* The string advanced both cursors by the length written: the logical
+       position, which later placements and cursor syncs read, and the
+       physical tracker. Leaving the logical position at the run start sent
+       the next placement back to it -- the characters that followed a run
+       landed over it, not after it. */
+    ncurx += n;
+    curx += n;
+    /* at or past the right side, don't count on the screen wrap action */
+    if (curx >= dimx) curval = 0;
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }

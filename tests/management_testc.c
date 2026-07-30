@@ -224,6 +224,9 @@ static void charbox(FILE* f, long x, long y)
 
     long i;
 
+    /* Auto off: the box includes the bottom right corner cell, and with
+       auto on writing it scrolls the window, shifting the box just drawn. */
+    ami_auto(f, OFF);
     ami_cursor(f, 1, 1);
     for (i = 1; i <= x; i++) fputc('-', f);
     ami_cursor(f, 1, y);
@@ -243,6 +246,7 @@ static void frameinside(const string s, long x, long y)
        is the character surface equivalent of the ruled rectangle and
        diagonals the graphical form draws */
     fprintf(tw, "\f");
+    ami_auto(tw, OFF); /* the box includes the bottom right corner cell */
     ami_cursor(tw, 1, 1);
     for (i = 1; i <= x; i++) fputc('-', tw);
     ami_cursor(tw, 1, y);
@@ -518,17 +522,8 @@ int main(void)
 
     fputc('\f', tw);
     ami_fcolor(tw, ami_cyan);
-    { /* box the window in characters */
-        long bi;
-        ami_cursor(tw, 1, 1);
-        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
-        ami_cursor(tw, 1, ami_maxy(tw));
-        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
-        for (bi = 1; bi <= ami_maxy(tw); bi++)
-            { ami_cursor(tw, 1, bi); fputc('|', tw); }
-        for (bi = 1; bi <= ami_maxy(tw); bi++)
-            { ami_cursor(tw, ami_maxx(tw), bi); fputc('|', tw); }
-    }
+    charbox(tw, ami_maxx(tw), ami_maxy(tw));
+    ami_home(tw);
     ami_fcolor(tw, ami_black);
     fprintf(tw, "Ready for frame controls buffered\n");
     fprintf(tw, "(Note system may not implement all -- or any frame controls)\n");
@@ -576,17 +571,8 @@ int main(void)
     ami_auto(tw, ON);
     fputc('\f', tw);
     ami_fcolor(tw, ami_cyan);
-    { /* box the window in characters */
-        long bi;
-        ami_cursor(tw, 1, 1);
-        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
-        ami_cursor(tw, 1, ami_maxy(tw));
-        for (bi = 1; bi <= ami_maxx(tw); bi++) fputc('-', tw);
-        for (bi = 1; bi <= ami_maxy(tw); bi++)
-            { ami_cursor(tw, 1, bi); fputc('|', tw); }
-        for (bi = 1; bi <= ami_maxy(tw); bi++)
-            { ami_cursor(tw, ami_maxx(tw), bi); fputc('|', tw); }
-    }
+    charbox(tw, ami_maxx(tw), ami_maxy(tw));
+    ami_auto(tw, ON);
     ami_fcolor(tw, ami_black);
     ml = NULL; /* clear menu list */
     newmenu(&mp, FALSE, FALSE, OFF, 1, "Say hello");
