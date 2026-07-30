@@ -4666,10 +4666,21 @@ static void intevent(FILE* f)
                    branch; the action is delivered here either way. */
                 if (win->widget && inclient(win, mousex, mousey)) {
 
+                    winptr wp;
+
                     er.etype = ami_etmouba;
                     er.amoun = ev.amoun;
                     er.amoubn = ev.amoubn;
                     intsendevent(win, &er); /* to the widget logic */
+                    /* The action may have taken the window down: a popup
+                       selection closes the popup, which frees its window
+                       record. Touch it no further unless it is still on
+                       the window list; the focus etiquette below was
+                       marking the freed record focused and asking the
+                       closed window to redraw. */
+                    wp = winlst;
+                    while (wp && wp != win) wp = wp->winlst;
+                    if (!wp) break;
 
                 }
                 if (win->focus) { /* window has focus */
