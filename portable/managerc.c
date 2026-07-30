@@ -130,6 +130,7 @@ typedef enum {
     saital,      /* italic text */
     sabold,      /* bold text */
     sastkout,    /* strikeout text */
+    safaint,     /* faint (dim) text */
 
 } scnatt;
 
@@ -210,6 +211,7 @@ static _pa_subscript_t subscript_vect;
 static _pa_italic_t italic_vect;
 static _pa_bold_t bold_vect;
 static _pa_strikeout_t strikeout_vect;
+static _pa_faint_t     faint_vect;
 static _pa_standout_t standout_vect;
 static _pa_fcolor_t fcolor_vect;
 static _pa_bcolor_t bcolor_vect;
@@ -1349,6 +1351,8 @@ static void setattrs(int at)
         if (!(BIT(sablink) & at)) (*blink_vect)(stdout, FALSE);
     if ((BIT(sastkout) & at) != (BIT(sastkout) & attr)) /* has changed */
         if(!(BIT(sastkout) & at)) (*strikeout_vect)(stdout, FALSE);
+    if ((BIT(safaint) & at) != (BIT(safaint) & attr)) /* has changed */
+        if (!(BIT(safaint) & at)) (*faint_vect)(stdout, FALSE);
     if ((BIT(saital) & at) != (BIT(saital) & attr)) /* has changed */
         if (!(BIT(saital) & at)) (*italic_vect)(stdout, FALSE);
     if ((BIT(sabold) & at) != (BIT(sabold) & attr)) /* has changed */
@@ -1367,6 +1371,8 @@ static void setattrs(int at)
         if (BIT(sablink) & at) (*blink_vect)(stdout, TRUE);
     if ((BIT(sastkout) & at) != (BIT(sastkout) & attr)) /* has changed */
         if (BIT(sastkout) & at) (*strikeout_vect)(stdout, TRUE);
+    if ((BIT(safaint) & at) != (BIT(safaint) & attr)) /* has changed */
+        if (BIT(safaint) & at) (*faint_vect)(stdout, TRUE);
     if ((BIT(saital) & at) != (BIT(saital) & attr)) /* has changed */
         if (BIT(saital) & at) (*italic_vect)(stdout, TRUE);
     if ((BIT(sabold) & at) != (BIT(sabold) & attr)) /* has changed */
@@ -4181,6 +4187,27 @@ static void istrikeout(FILE* f, long e)
     win = txt2win(f); /* get window from file */
     if (e) win->attr |= BIT(sastkout); /* turn on */
     else win->attr &= ~BIT(sastkout); /* turn off */
+
+}
+
+/** ****************************************************************************
+
+Turn on faint attribute
+
+Turns on/off the faint (dim) attribute, which terminals generally present
+as dimmed or grey text.
+
+*******************************************************************************/
+
+static void ifaint(FILE* f, long e)
+
+{
+
+    winptr win; /* windows record pointer */
+
+    win = txt2win(f); /* get window from file */
+    if (e) win->attr |= BIT(safaint); /* turn on */
+    else win->attr &= ~BIT(safaint); /* turn off */
 
 }
 
@@ -7007,8 +7034,13 @@ static void drwmbar(wigptr wg)
     wigclr(wg);
     for (p = wg->mitems; p; p = p->next) {
 
+        int enb = menenb(wg->parent, p->id);
+
         wigtxt(wg, x, 1, " ", FALSE);
-        wigtxt(wg, x+1, 1, p->face, wg->sel == x); /* selected shows reversed */
+        /* a disabled item shows faint (grey); selected shows reversed */
+        if (!enb) wg->win->attr |= BIT(safaint);
+        wigtxt(wg, x+1, 1, p->face, wg->sel == x);
+        wg->win->attr &= ~BIT(safaint);
         x += strlen(p->face)+2;
 
     }
@@ -7274,10 +7306,25 @@ static void wigdrw(wigptr wg)
             break;
 
         case wtpopup:
-            /* the list, one entry per line, current selection reversed */
+            /* the list, one entry per line, current selection reversed; a
+               disabled menu entry shows faint (grey) */
             wigclr(wg);
-            for (y = 1; y <= h && y <= wg->listn; y++)
+            for (y = 1; y <= h && y <= wg->listn; y++) {
+
+                int enb = TRUE;
+
+                if (wg->mitems) { /* a menu level knows enabled state */
+
+                    ami_menuptr item = mennth(wg->mitems, y);
+
+                    if (item) enb = menenb(wg->parent, item->id);
+
+                }
+                if (!enb) wg->win->attr |= BIT(safaint);
                 wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel);
+                wg->win->attr &= ~BIT(safaint);
+
+            }
             break;
 
     }
@@ -9277,6 +9324,7 @@ static void init_managerc()
     _pa_italic_ovr(iitalic, &italic_vect);
     _pa_bold_ovr(ibold, &bold_vect);
     _pa_strikeout_ovr(istrikeout, &strikeout_vect);
+    _pa_faint_ovr(ifaint, &faint_vect);
     _pa_standout_ovr(istandout, &standout_vect);
     _pa_fcolor_ovr(ifcolor, &fcolor_vect);
     _pa_bcolor_ovr(ibcolor, &bcolor_vect);
@@ -9340,6 +9388,7 @@ static void init_managerc()
     (*subscript_vect)(stdout, FALSE);
     (*blink_vect)(stdout, FALSE);
     (*strikeout_vect)(stdout, FALSE);
+    (*faint_vect)(stdout, FALSE);
     (*italic_vect)(stdout, FALSE);
     (*bold_vect)(stdout, FALSE);
     (*underline_vect)(stdout, FALSE);
