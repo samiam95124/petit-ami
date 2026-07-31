@@ -718,6 +718,70 @@ static void childstackrsz(FILE* par, long parid, int variant)
 
 }
 
+static ami_color nextcolor(ami_color c); /* forward */
+
+/* Child windows torture test: place and remove three child windows of
+   the given parent against the clock, one hundred times, cycling their
+   colors, and report the rate. */
+
+static void childtorture(FILE* par)
+
+{
+
+    long i;
+
+    xs = ami_maxx(par)/4; /* size children to the parent */
+    ys = ami_maxy(par)/3;
+    if (xs < 8) xs = 8;
+    if (ys < 4) ys = 4;
+    c1 = ami_red;
+    c2 = ami_green;
+    c3 = ami_blue;
+    fputc('\f', par);
+    fprintf(par, "Child windows torture test character\n");
+    t = ami_clock(); /* get base time */
+    for (i = 1; i <= 100; i++) {
+
+        ami_openwin(&stdin, &win2, par, 3);
+        ami_setpos(win2, 2, 3);
+        ami_sizbuf(win2, xs, ys);
+        ami_setsiz(win2, xs, ys);
+        ami_openwin(&stdin, &win3, par, 4);
+        ami_setpos(win3, 2+xs, 3);
+        ami_sizbuf(win3, xs, ys);
+        ami_setsiz(win3, xs, ys);
+        ami_openwin(&stdin, &win4, par, 5);
+        ami_setpos(win4, 2+xs*2, 3);
+        ami_sizbuf(win4, xs, ys);
+        ami_setsiz(win4, xs, ys);
+        ami_bcolor(win2, c1);
+        c1 = nextcolor(c1);
+        putc('\f', win2);
+        fprintf(win2, "I am child window 1\n");
+        ami_bcolor(win3, c2);
+        c2 = nextcolor(c2);
+        putc('\f', win3);
+        fprintf(win3, "I am child window 2\n");
+        ami_bcolor(win4, c3);
+        c3 = nextcolor(c3);
+        putc('\f', win4);
+        fprintf(win4, "I am child window 3\n");
+        fclose(win2);
+        fclose(win3);
+        fclose(win4);
+
+    }
+    et = ami_elapsed(t);
+    ami_home(par);
+    fprintf(par, "Child windows should all be closed\n");
+    fprintf(par, "\n");
+    fprintf(par, "Child windows place and remove %d iterations %f seconds\n",
+            100, et*0.0001);
+    fprintf(par, "%f per iteration\n", et*0.0001/100);
+    waitnext();
+
+}
+
 static ami_color nextcolor(ami_color c)
 
 {
@@ -1246,6 +1310,14 @@ int main(void)
     waitnext();
 
     fclose(win2);
+
+    /* ******************* Child windows torture test character ************** */
+
+    /* on the root window first, then on the test window */
+    suspendtestwin();
+    childtorture(stdout);
+    resumetestwin();
+    childtorture(tw);
 
     terminate: /* terminate */
 
