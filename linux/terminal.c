@@ -782,6 +782,7 @@ static void error_ivf(ami_errcod e)
         case ami_dispeinpdev: fprintf(stderr, "Error in input device"); break;
         case ami_dispeinvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case ami_dispeinvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case ami_dispestrauto: fprintf(stderr, "String write requires auto off"); break;
         case ami_dispecfgval: fprintf(stderr, "Invalid configuration value"); break;
         case ami_dispenomem: fprintf(stderr, "Out of memory"); break;
         case ami_dispesendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
@@ -5269,6 +5270,10 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
     long    i;
 
     dbg_printf(dlapi, "API\n");
+    /* The call is disallowed with auto on: a run is a straight lay of
+       characters, and holding auto off means no screen wrap or scroll can
+       occur within it, so none is handled below. */
+    if (scroll) error(ami_dispestrauto);
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
     sc = screens[curupd-1];
     /* Store the run into the buffer as the per character path does, one
@@ -5306,9 +5311,11 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
             off += rc;
 
         }
-        /* the physical cursor moved by the length written */
+        /* The physical cursor moved by the length written. Auto is off,
+           so no logical wrap occurred; at or past the right side the
+           physical terminal's own wrap action still cannot be counted
+           on, as with the per character path. */
         curx += n;
-        /* at or past the right side, don't count on the screen wrap */
         if (curx >= dimx) curval = 0;
 
     }
