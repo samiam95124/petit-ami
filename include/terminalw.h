@@ -289,6 +289,7 @@ typedef enum {
     ami_dispestdmenu_unimp,   /* stdmenu unimplemented */
     ami_dispegetwinid_unimp,  /* getwinid unimplemented */
     ami_dispefocus_unimp,     /* focus unimplemented */
+    ami_dispestrauto,         /* string write requires auto off */
     ami_dispesystem           /* system fault */
 
 } ami_errcod;

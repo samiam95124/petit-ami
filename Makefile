@@ -592,6 +592,7 @@ ifeq ($(OSTYPE),Windows_NT)
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
+     management_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -609,6 +610,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      playwaveg playtextmidi playtextmidig printdev printdevg connectmidi \
      connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
+     management_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -625,6 +627,7 @@ else ifeq ($(OSTYPE),FreeBSD)
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
+     management_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -641,6 +644,7 @@ else
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
+     management_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -1283,6 +1287,24 @@ management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
 else
 management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/management_test
+endif
+
+#
+# Test windows management model compliant output, stacked on the character
+# mode window manager. This is management_test with the graphical mode tests
+# removed and the character mode ones kept, running through managerc over
+# terminal. Every test in the management test has a character form and a
+# graphical form; only the character forms can run on a character surface.
+#
+ifeq ($(OSTYPE),Darwin)
+management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/management_testc
+else ifeq ($(OSTYPE),Windows_NT)
+management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/management_testc
+else
+management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lX11 -lpng -lz -o bin/management_testc
 endif
 
 #

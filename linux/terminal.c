@@ -782,6 +782,7 @@ static void error_ivf(ami_errcod e)
         case ami_dispeinpdev: fprintf(stderr, "Error in input device"); break;
         case ami_dispeinvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case ami_dispeinvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case ami_dispestrauto: fprintf(stderr, "String write requires auto off"); break;
         case ami_dispecfgval: fprintf(stderr, "Invalid configuration value"); break;
         case ami_dispenomem: fprintf(stderr, "Out of memory"); break;
         case ami_dispesendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
@@ -826,10 +827,65 @@ Accepts a linux error code. Prints the error string and exits.
 void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp)
     { *ofp = linuxerror_vect; linuxerror_vect = nfp; }
 static void linuxerror(int ec) { (*linuxerror_vect)(ec); }
+/* Diagnostic input trace, enabled by PETIT_AMI_LOG in the environment:
+   appends the raw input bytes and key terminal events to the common
+   diagnostic log /tmp/petit_ami.log, with the raw system calls so none
+   of the interdicted paths are involved. Other Petit-Ami modules may
+   append their own traces to the same file. */
+
+static int ttlogfd = -2;
+
+static int ttlog(void)
+
+{
+
+    if (ttlogfd == -2)
+        ttlogfd = getenv("PETIT_AMI_LOG")?
+            open("/tmp/petit_ami.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
+
+    return (ttlogfd >= 0);
+
+}
+
+static void ttlogb(unsigned char c)
+
+{
+
+    char b[8];
+    int  n;
+
+    if (!ttlog()) return;
+    if (c == 0x1b) n = snprintf(b, sizeof(b), "\nESC ");
+    else if (c >= ' ' && c < 127) { b[0] = (char)c; n = 1; }
+    else n = snprintf(b, sizeof(b), "<%02x>", c);
+    if (n > 0) { ssize_t r = write(ttlogfd, b, n); (void)r; }
+
+}
+
+static void ttlogs(const char* s)
+
+{
+
+    ssize_t r;
+
+    if (!ttlog()) return;
+    r = write(ttlogfd, s, strlen(s));
+    (void)r;
+
+}
+
 static void linuxerror_ivf(long ec)
 
 {
 
+    if (ttlog()) {
+
+        char b[64];
+
+        snprintf(b, sizeof(b), "\n[linuxerror ec=%ld %s]\n", ec, strerror(ec));
+        ttlogs(b);
+
+    }
     fprintf(stderr, "Linux error: %s\n", strerror(ec)); fflush(stderr);
     errflg = TRUE; /* flag error occurred */
 
@@ -2305,6 +2361,7 @@ static void ievent(void)
 
             /* keyboard (standard input) */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
+            ttlogb((unsigned char)keybuf[keylen-1]);
             if (mousts == mnone) { /* do table matching */
 
                 pmatch = 0; /* set no partial matches */
@@ -2329,6 +2386,8 @@ static void ievent(void)
                                 else er.fkey = i-ami_etterm;
 
                             } else er.etype = i; /* set event */
+                            if (er.etype == ami_etterm)
+                                ttlogs("\n[terminal key etterm]\n");
                             evtfnd = 1; /* set event found */
                             enquepaevt(&er); /* send to queue */
                             keylen = 0; /* clear buffer */
@@ -2680,7 +2739,7 @@ static void plcchrext(scnrec* p, unsigned char c)
             } else {
 
                 /* more extension characters than count char */
-                if (ci > utf8bits[p->ch[0]])
+                if (ci > utf8bits[((unsigned char)p->ch[0]) >> 4])
                     for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
                 else /* place next in sequence */
                     p->ch[ci] = c;
@@ -3030,6 +3089,11 @@ static void iclear(scnptr sc)
     ncurx = 1;
     if (indisp(sc)) { /* in display */
 
+        /* An erase of the whole display paints every cell in the current
+           background, which is what the area outside the buffer should
+           show: restore() fills those margins with the background for the
+           same reason, and the graphical implementation fills its own
+           leftover margins the same way. */
         trm_clear(); /* erase screen */
         curx = 1; /* set actual cursor location */
         cury = 1;
@@ -5203,22 +5267,65 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
     ssize_t rc;      /* return code */
     long    off = 0; /* offset into the string */
 
-    dbg_printf(dlapi, "API\n");
-    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    synccur(screens[curupd-1]); /* the run lands at the cursor: place it */
-    /* Send the run in one piece. This call exists to bypass the per
-       character protocol, and emitting it a character at a time, which is
-       a write() each, gave up the very saving it is for. The caller's side
-       of that bargain is that the string holds no control characters. */
-    while (off < n) {
+    scnptr  sc;
+    scnrec* p;
+    long    i;
 
-        rc = (*ofpwrite)(OUTFIL, s+off, n-off);
-        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
-        off += rc;
+    dbg_printf(dlapi, "API\n");
+    /* The call is disallowed with auto on: a run is a straight lay of
+       characters, and holding auto off means no screen wrap or scroll can
+       occur within it, so none is handled below. */
+    if (scroll) error(ami_dispestrauto);
+    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+    sc = screens[curupd-1];
+    /* Store the run into the buffer as the per character path does, one
+       cell per byte -- the caller's side of the bargain is that the run
+       holds no control characters. The run bypassed the buffer entirely,
+       so a buffered program mixing this call with anything that restores
+       from the buffer lost the run. The saving this call exists for is
+       the single write below; the stores are memory. */
+    for (i = 0; i < n; i++)
+        if (ncurx+i >= 1 && ncurx+i <= bufx &&
+            ncury >= 1 && ncury <= bufy) {
+
+        p = &SCNBUF(sc, ncurx+i, ncury);
+        plcchrext(p, (unsigned char)s[i]); /* place character in buffer */
+#ifdef NATIVE24
+        p->forergb = forergb; /* place colors */
+        p->backrgb = backrgb;
+#else
+        p->forec = forec; /* place colors */
+        p->backc = backc;
+#endif
+        p->attr = attr; /* place attribute */
 
     }
-    /* the cursor moved by the length written, and we did not track it */
-    curval = 0;
+    if (indisp(sc)) { /* the display shows this screen */
+
+        synccur(sc); /* the run lands at the cursor: place it */
+        /* Send the run in one piece. This call exists to bypass the per
+           character protocol, and emitting it a character at a time,
+           which is a write() each, gave up the very saving it is for. */
+        while (off < n) {
+
+            rc = (*ofpwrite)(OUTFIL, s+off, n-off);
+            if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+            off += rc;
+
+        }
+        /* The physical cursor moved by the length written. Auto is off,
+           so no logical wrap occurred; at or past the right side the
+           physical terminal's own wrap action still cannot be counted
+           on, as with the per character path. */
+        curx += n;
+        if (curx >= dimx) curval = 0;
+
+    }
+    /* The logical position, which later placements and cursor syncs read,
+       advanced by the length written. Leaving it at the run start sent
+       the next placement back to it -- the characters that followed a run
+       landed over it, not after it. */
+    ncurx += n;
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -6027,6 +6134,13 @@ static void ami_deinit_terminal()
         free(trmnam); /* free up termination name */
 
     }
+
+    /* Stop the event thread before tearing down what it uses. It was
+       left running here, and its next take of a destroyed lock failed
+       with EINVAL: a control-C exit died with "Linux error: Invalid
+       argument" whenever the timing landed wrong. */
+    pthread_cancel(eventthread);
+    pthread_join(eventthread, NULL);
 
     /* release the terminal broadlock */
     pthread_mutex_destroy(&termlock);
