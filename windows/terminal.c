@@ -180,6 +180,7 @@ typedef enum {
     ejoyqry, /* Could not get information on joystick */
     einvjoy, /* Invalid joystick ID */
     enomem,  /* insufficient memory */
+    estrauto, /* string write requires auto off */
     esystem  /* System consistency check */
 
 } errcod;
@@ -289,6 +290,7 @@ static void error(int e)
         case ejoyqry: fprintf(stderr, "Could not get information on joystick");
                       break;
         case enomem:  fprintf(stderr, "Insufficient memory"); break;
+        case estrauto: fprintf(stderr, "String write requires auto off"); break;
         case esystem: fprintf(stderr, "System fault"); break;
 
     }
@@ -2747,6 +2749,10 @@ void ami_wrtstrn(FILE* f, char *s, long n)
     COORD  xy;
 
     sc = screens[curupd-1];
+    /* The call is disallowed with auto on: a run is a straight lay of
+       characters, and holding auto off means no screen wrap or scroll
+       can occur within it, so none is handled. */
+    if (sc->autof) error(estrauto);
     while (n > 0) {
 
         if (icurbnd(sc)) { /* cursor in bounds */
