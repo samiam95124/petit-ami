@@ -827,9 +827,11 @@ Accepts a linux error code. Prints the error string and exits.
 void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp)
     { *ofp = linuxerror_vect; linuxerror_vect = nfp; }
 static void linuxerror(int ec) { (*linuxerror_vect)(ec); }
-/* Diagnostic input trace, enabled by MANAGERC_LOG: appends the raw input
-   bytes and key terminal events to /tmp/managerc.log with the raw system
-   calls, sharing the file with the manager's trace. */
+/* Diagnostic input trace, enabled by PETIT_AMI_LOG in the environment:
+   appends the raw input bytes and key terminal events to the common
+   diagnostic log /tmp/petit_ami.log, with the raw system calls so none
+   of the interdicted paths are involved. Other Petit-Ami modules may
+   append their own traces to the same file. */
 
 static int ttlogfd = -2;
 
@@ -838,8 +840,8 @@ static int ttlog(void)
 {
 
     if (ttlogfd == -2)
-        ttlogfd = getenv("MANAGERC_LOG")?
-            open("/tmp/managerc.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
+        ttlogfd = getenv("PETIT_AMI_LOG")?
+            open("/tmp/petit_ami.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
 
     return (ttlogfd >= 0);
 

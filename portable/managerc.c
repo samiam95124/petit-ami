@@ -532,12 +532,13 @@ static winptr   zmin2max;     /* Z order minimum to maximum list */
 static winptr   zmax2min;     /* Z order maximum to minimum list */
 static winptr   curfocus;     /* current focus window, or NULL */
 
-/* Diagnostic log, enabled by MANAGERC_LOG in the environment: appends a
-   trace of the manager operations and the events delivered to the
-   program to /tmp/managerc.log. The log writes with the raw system
-   calls, touching none of the interdicted, buffered paths the manager
-   itself stands in -- a buffered log write from inside the machinery
-   recursed into it. Off, it costs one check. */
+/* Diagnostic log, enabled by PETIT_AMI_LOG in the environment: appends
+   a trace of the manager operations and the events delivered to the
+   program to the common diagnostic log /tmp/petit_ami.log, which other
+   Petit-Ami modules may also append to. The log writes with the raw
+   system calls, touching none of the interdicted, buffered paths the
+   manager itself stands in -- a buffered log write from inside the
+   machinery recursed into it. Off, it costs one check. */
 
 static int mclogfd = -2; /* unopened */
 
@@ -546,8 +547,8 @@ static int mclog(void)
 {
 
     if (mclogfd == -2)
-        mclogfd = getenv("MANAGERC_LOG")?
-            open("/tmp/managerc.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
+        mclogfd = getenv("PETIT_AMI_LOG")?
+            open("/tmp/petit_ami.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
 
     return (mclogfd >= 0);
 
