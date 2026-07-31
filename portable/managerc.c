@@ -599,6 +599,8 @@ typedef enum {
 
 static winptr  hovfwin;  /* window holding the hover highlight, or NULL */
 static frmpart hovfpart; /* the highlighted frame part */
+static wigptr  hovwig;   /* widget holding the hover highlight, or NULL */
+static long    hovwprt;  /* the highlighted widget part, coded per type */
 static int     frmhrev;  /* the frame draws reversed (hover highlight) */
 static winptr  hovflt;   /* frame cells draw only where this window is top */
 static winptr fndtop(long x, long y); /* forward */
@@ -2692,6 +2694,7 @@ window. Thus it is a more complete send of the event.
 *******************************************************************************/
 
 static void wigevt(wigptr wg, ami_evtrec* er); /* forward */
+static long wighit(wigptr wg, long lx, long ly); /* forward */
 static void wigdrag(void); /* forward */
 static void clspops(int downto); /* forward */
 static void wigdrw(wigptr wg); /* forward */
@@ -3752,6 +3755,7 @@ static void closewin(int ofn)
         wg = win->wiglst;
         win->wiglst = wg->next;
         wg->parent = NULL; /* it is being taken down with the owner */
+        if (hovwig == wg) hovwig = NULL; /* the highlight dies with it */
         if (xltwin[wg->win->wid+MAXFIL] >= 0) fclose(wg->wf);
         if (wg->face) free(wg->face);
         if (wg->list) {
@@ -5435,13 +5439,25 @@ static void intevent(FILE* f)
 
                         /* widgets on the root need no fronting: the root
                            is always at the bottom and its widgets above */
-                        if (fw->zorder != ztop && !fw->root)
+                        if (fw->zorder != ztop && !fw->root) {
+
+                            int pi;
+
                             /* Bring the family to the front: the window,
                                then its subtree over it -- widget faces
                                and child windows are all children in the
                                window tree. Fronting the window alone
                                raised it over its own children. */
                             fronttree(fw);
+                            /* Popups float over everything, and the click
+                               being served may just have opened one: a
+                               drop box opened its list, then the fronting
+                               here buried it under the family, and the
+                               box needed a second click to show it. */
+                            for (pi = 0; pi < popcnt; pi++)
+                                fronttree(popstk[pi]->win);
+
+                        }
 
                     }
                     /* A frame click acts on the same click that focuses
@@ -5508,8 +5524,18 @@ static void intevent(FILE* f)
 
                 winptr  hw = fndtop(mousex, mousey);
                 frmpart hp = fp_none;
+                wigptr  ww = NULL;
+                long    wp = 0;
 
-                if (hw && !hw->widget && !hw->root && hw->frame)
+                if (hw && hw->widget) { /* the live widget part reverses */
+
+                    ww = hw->wig;
+                    if (ww->enb)
+                        wp = wighit(ww, mousex-absx(hw)+1,
+                                        mousey-absy(hw)+1);
+                    if (!wp) ww = NULL;
+
+                } else if (hw && !hw->root && hw->frame)
                     hp = frmhit(hw, mousex, mousey);
                 if (hp == fp_none) hw = NULL;
                 if (hw != hovfwin || hp != hovfpart) {
@@ -5518,6 +5544,16 @@ static void intevent(FILE* f)
                     hovfwin = hw; /* note the new holder */
                     hovfpart = hp;
                     if (hovfwin) drwfrmpart(hovfwin, hovfpart, TRUE);
+
+                }
+                if (ww != hovwig || wp != hovwprt) {
+
+                    wigptr ow = hovwig;
+
+                    hovwig = ww; /* the face draw reads these */
+                    hovwprt = wp;
+                    if (ow) wigdrw(ow);
+                    if (ww) wigdrw(ww);
 
                 }
 
@@ -7603,6 +7639,7 @@ static void clspops(int downto)
 
         wg = popstk[--popcnt];
         popstk[popcnt] = NULL;
+        if (hovwig == wg) hovwig = NULL; /* the highlight dies with it */
         /* unlink from its owner's widget list and drop it */
         if (wg->parent) {
 
@@ -7676,6 +7713,7 @@ static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
     wg->mitems = mitems;
     wg->win->widget = TRUE;
     wg->win->wig = wg;
+    wg->win->curv = FALSE; /* a widget face never shows the cursor */
     wg->next = par->wiglst; /* on the owner's list for cleanup */
     par->wiglst = wg;
     /* frame it, no system bar: a plain bordered list */
@@ -7764,6 +7802,7 @@ static void drwmbar(wigptr wg)
 
     ami_menuptr p;
     long x = 1;
+    long hp = wg == hovwig? hovwprt: 0; /* hovered title start column */
 
     wigclr(wg);
     for (p = wg->mitems; p; p = p->next) {
@@ -7771,9 +7810,9 @@ static void drwmbar(wigptr wg)
         int enb = menenb(wg->parent, p->id);
 
         wigtxt(wg, x, 1, " ", FALSE);
-        /* a disabled item shows grey; selected shows reversed */
+        /* a disabled item shows grey; selected or hovered shows reversed */
         if (!enb) wg->win->attr |= BIT(sagrey);
-        wigtxt(wg, x+1, 1, p->face, wg->sel == x);
+        wigtxt(wg, x+1, 1, p->face, wg->sel == x || hp == x);
         wg->win->attr &= ~BIT(sagrey);
         x += strlen(p->face)+2;
 
@@ -7818,12 +7857,17 @@ static void wigdrw(wigptr wg)
        the focus window when the face is done. */
     setcurvis(FALSE);
     int    rev;
+    /* the live part under the mouse shows reversed, as frame parts do */
+    long   hp = wg == hovwig? hovwprt: 0;
 
+    /* a disabled widget shows its whole face grey, as a disabled menu
+       item does */
+    if (!wg->enb) win->attr |= BIT(sagrey);
     switch (wg->typ) {
 
         case wtbutton:
             wigclr(wg);
-            rev = wg->sel || (win->focus && wg->enb);
+            rev = wg->sel || hp || (win->focus && wg->enb);
             if (h >= 3) { /* boxed face */
 
                 icursor(wg->wf, 1, 1);
@@ -7854,13 +7898,13 @@ static void wigdrw(wigptr wg)
         case wtcheckbox:
             wigclr(wg);
             snprintf(buf, sizeof(buf), "[%c] %s", wg->sel? 'X': ' ', wg->face);
-            wigtxt(wg, 1, 1, buf, win->focus && wg->enb);
+            wigtxt(wg, 1, 1, buf, hp || (win->focus && wg->enb));
             break;
 
         case wtradio:
             wigclr(wg);
             snprintf(buf, sizeof(buf), "(%c) %s", wg->sel? '*': ' ', wg->face);
-            wigtxt(wg, 1, 1, buf, win->focus && wg->enb);
+            wigtxt(wg, 1, 1, buf, hp || (win->focus && wg->enb));
             break;
 
         case wtgroup:
@@ -7896,42 +7940,48 @@ static void wigdrw(wigptr wg)
             break;
 
         case wtscrollvert:
-            /* arrows at the ends, track between, thumb from size/position */
-            wigtxt(wg, 1, 1, "^", FALSE);
-            for (y = 2; y < h; y++) wigtxt(wg, 1, y, ".", FALSE);
-            wigtxt(wg, 1, h, "v", FALSE);
+            /* arrows at the ends, track between, thumb from size/position;
+               the arrows, the thumb, and the paging runs of the track are
+               each their own hover part */
             n = h-2; /* track length */
+            ts = tp = 0;
             if (n > 0) {
 
                 ts = wigmul(n, wg->sclsiz); /* thumb size */
                 if (ts < 1) ts = 1;
                 if (ts > n) ts = n;
                 tp = wigmul(n-ts, wg->val); /* offset */
-                for (y = 0; y < ts; y++) wigtxt(wg, 1, 2+tp+y, "#", FALSE);
 
             }
+            wigtxt(wg, 1, 1, "^", hp == 1);
+            for (y = 2; y < h; y++)
+                wigtxt(wg, 1, y, ".", y-2 < tp? hp == 4: hp == 5);
+            wigtxt(wg, 1, h, "v", hp == 2);
+            for (y = 0; y < ts; y++) wigtxt(wg, 1, 2+tp+y, "#", hp == 3);
             break;
 
         case wtscrollhoriz:
-            wigtxt(wg, 1, 1, "<", FALSE);
-            for (x = 2; x < w; x++) wigtxt(wg, x, 1, ".", FALSE);
-            wigtxt(wg, w, 1, ">", FALSE);
             n = w-2;
+            ts = tp = 0;
             if (n > 0) {
 
                 ts = wigmul(n, wg->sclsiz);
                 if (ts < 1) ts = 1;
                 if (ts > n) ts = n;
                 tp = wigmul(n-ts, wg->val);
-                for (x = 0; x < ts; x++) wigtxt(wg, 2+tp+x, 1, "#", FALSE);
 
             }
+            wigtxt(wg, 1, 1, "<", hp == 1);
+            for (x = 2; x < w; x++)
+                wigtxt(wg, x, 1, ".", x-2 < tp? hp == 4: hp == 5);
+            wigtxt(wg, w, 1, ">", hp == 2);
+            for (x = 0; x < ts; x++) wigtxt(wg, 2+tp+x, 1, "#", hp == 3);
             break;
 
         case wtnumselbox:
             wigclr(wg);
-            wigtxt(wg, 1, 1, "-", FALSE);
-            wigtxt(wg, w, 1, "+", FALSE);
+            wigtxt(wg, 1, 1, "-", hp == 1);
+            wigtxt(wg, w, 1, "+", hp == 2);
             snprintf(buf, sizeof(buf), "%*ld", (int)(w-2), wg->val);
             wigtxt(wg, 2, 1, buf, win->focus);
             break;
@@ -7942,10 +7992,12 @@ static void wigdrw(wigptr wg)
             /* keep the cursor visible: scroll the text if needed */
             i = 0; /* display start */
             if (wg->curs >= w) i = wg->curs-w+1;
-            for (x = 1; x <= w && i+x-1 < n+1; x++) {
+            for (x = 1; x <= w; x++) {
 
                 char c = i+x-1 < n? wg->face[i+x-1]: ' ';
-                rev = win->focus && (i+x-1 == wg->curs);
+                /* hover reverses the field; the edit cursor cell flips
+                   back, so it stays visible within the highlight */
+                rev = (win->focus && (i+x-1 == wg->curs)) ^ (hp != 0);
                 buf[0] = c; buf[1] = 0;
                 wigtxt(wg, x, 1, buf, rev);
 
@@ -7964,44 +8016,45 @@ static void wigdrw(wigptr wg)
         case wtlistbox:
             wigclr(wg);
             for (y = 1; y <= h && y <= wg->listn; y++)
-                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel);
+                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel || y == hp);
             break;
 
         case wtslidehoriz:
             for (x = 1; x <= w; x++) wigtxt(wg, x, 1, "-", FALSE);
             n = 1+wigmul(w-1, wg->val);
-            wigtxt(wg, n, 1, "#", FALSE);
+            wigtxt(wg, n, 1, "#", hp != 0);
             break;
 
         case wtslidevert:
             for (y = 1; y <= h; y++) wigtxt(wg, 1, y, "|", FALSE);
             n = 1+wigmul(h-1, wg->val);
-            wigtxt(wg, 1, n, "#", FALSE);
+            wigtxt(wg, 1, n, "#", hp != 0);
             break;
 
         case wtdropbox:
             /* closed face: the selection and a drop arrow */
             wigclr(wg);
             if (wg->sel >= 1 && wg->sel <= wg->listn)
-                wigtxt(wg, 1, 1, wg->list[wg->sel-1], win->focus);
-            wigtxt(wg, w, 1, "v", FALSE);
+                wigtxt(wg, 1, 1, wg->list[wg->sel-1], win->focus || hp);
+            wigtxt(wg, w, 1, "v", hp != 0);
             break;
 
         case wtdropeditbox:
-            /* an edit box with a drop arrow in the last cell */
+            /* an edit box with a drop arrow in the last cell; the arrow
+               and the edit area are separate hover parts */
             wigclr(wg);
             n = strlen(wg->face);
             i = 0;
             if (wg->curs >= w-1) i = wg->curs-w+2;
-            for (x = 1; x <= w-1 && i+x-1 < n+1; x++) {
+            for (x = 1; x <= w-1; x++) {
 
                 char c = i+x-1 < n? wg->face[i+x-1]: ' ';
-                rev = win->focus && (i+x-1 == wg->curs);
+                rev = (win->focus && (i+x-1 == wg->curs)) ^ (hp == 1);
                 buf[0] = c; buf[1] = 0;
                 wigtxt(wg, x, 1, buf, rev);
 
             }
-            wigtxt(wg, w, 1, "v", FALSE);
+            wigtxt(wg, w, 1, "v", hp == 2);
             break;
 
         case wttabbar:
@@ -8012,7 +8065,8 @@ static void wigdrw(wigptr wg)
                 x = 1;
                 for (i = 0; i < wg->listn && x <= w; i++) {
 
-                    wigtxt(wg, x, 1, wg->list[i], wg->sel == i+1);
+                    wigtxt(wg, x, 1, wg->list[i],
+                           wg->sel == i+1 || hp == i+1);
                     x += strlen(wg->list[i]);
                     if (i+1 < wg->listn) { wigtxt(wg, x, 1, "|", FALSE); x++; }
 
@@ -8029,7 +8083,7 @@ static void wigdrw(wigptr wg)
                     while (*p && y <= h) {
 
                         buf[0] = *p++; buf[1] = 0;
-                        wigtxt(wg, 1, y++, buf, wg->sel == i+1);
+                        wigtxt(wg, 1, y++, buf, wg->sel == i+1 || hp == i+1);
 
                     }
                     if (i+1 < wg->listn && y <= h)
@@ -8060,18 +8114,134 @@ static void wigdrw(wigptr wg)
 
                 }
                 if (!enb) wg->win->attr |= BIT(sagrey);
-                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel);
+                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel || y == hp);
                 wg->win->attr &= ~BIT(sagrey);
 
             }
             break;
 
     }
+    win->attr &= ~BIT(sagrey);
     /* The drawing walked the physical cursor over the widget face; it
        belongs to the focus window. Without this the cursor was left
        sitting at the end of whatever widget drew last -- the menu bar
        showed it parked after its last title. */
     setcur(curfocus? curfocus: wg->parent);
+
+}
+
+/* Map a position in a widget face to the live part under it, for hover
+   feedback. Zero is no live part, and the codes are per type, matching
+   what a click there does: parts that are dead to clicks (a group box, a
+   progress bar, the value cell of a number select) return zero, so the
+   highlight marks exactly what is live. */
+static long wighit(wigptr wg, long lx, long ly)
+
+{
+
+    winptr win = wg->win;
+    long   n, ts, tp;
+
+    switch (wg->typ) {
+
+        case wtbutton:
+        case wtcheckbox:
+        case wtradio:
+        case wteditbox:
+        case wtslidehoriz:
+        case wtslidevert:
+        case wtdropbox:
+            return (1); /* the whole face is live */
+
+        case wtscrollvert:
+            if (ly == 1) return (1); /* up arrow */
+            if (ly == win->cmaxy) return (2); /* down arrow */
+            n = win->cmaxy-2; /* track length */
+            if (n <= 0) return (0);
+            ts = wigmul(n, wg->sclsiz); /* thumb size */
+            if (ts < 1) ts = 1;
+            if (ts > n) ts = n;
+            tp = wigmul(n-ts, wg->val); /* offset */
+            if (ly-2 >= tp && ly-2 < tp+ts) return (3); /* thumb */
+            return (ly-2 < tp? 4: 5); /* page up/down runs of the track */
+
+        case wtscrollhoriz:
+            if (lx == 1) return (1);
+            if (lx == win->cmaxx) return (2);
+            n = win->cmaxx-2;
+            if (n <= 0) return (0);
+            ts = wigmul(n, wg->sclsiz);
+            if (ts < 1) ts = 1;
+            if (ts > n) ts = n;
+            tp = wigmul(n-ts, wg->val);
+            if (lx-2 >= tp && lx-2 < tp+ts) return (3);
+            return (lx-2 < tp? 4: 5);
+
+        case wtnumselbox:
+            if (lx == 1) return (1); /* decrement */
+            if (lx == win->cmaxx) return (2); /* increment */
+            return (0); /* the value cell is dead */
+
+        case wtlistbox: /* the entry row */
+            return (ly >= 1 && ly <= wg->listn? ly: 0);
+
+        case wtdropeditbox: /* drop arrow, or the edit area */
+            return (lx == win->cmaxx? 2: 1);
+
+        case wttabbar: { /* the tab under the pointer */
+
+            long i, p = 1;
+
+            if (wg->tor == ami_totop || wg->tor == ami_tobottom) {
+
+                for (i = 0; i < wg->listn; i++) {
+
+                    long tw = strlen(wg->list[i]);
+                    if (lx >= p && lx < p+tw) return (i+1);
+                    p += tw+1; /* name and separator */
+
+                }
+
+            } else {
+
+                for (i = 0; i < wg->listn; i++) {
+
+                    long th = strlen(wg->list[i]);
+                    if (ly >= p && ly < p+th) return (i+1);
+                    p += th+1;
+
+                }
+
+            }
+            return (0);
+
+        }
+
+        case wtmenubar: { /* the title under the pointer, by start column,
+                             which is how the bar codes its selection */
+
+            long sx;
+            ami_menuptr mp = mbarhit(wg, lx, &sx);
+
+            return (mp && menenb(wg->parent, mp->id)? sx: 0);
+
+        }
+
+        case wtpopup: /* the entry row, if the item is enabled */
+            if (ly < 1 || ly > wg->listn) return (0);
+            if (wg->mitems) { /* a menu level knows enabled state */
+
+                ami_menuptr item = mennth(wg->mitems, ly);
+
+                if (!item || !menenb(wg->parent, item->id)) return (0);
+
+            }
+            return (ly);
+
+        default: /* group, background, progress bar: nothing is live */
+            return (0);
+
+    }
 
 }
 
@@ -8624,6 +8794,10 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     wg->curs = 0;
     wg->win->widget = TRUE; /* mark as widget window */
     wg->win->wig = wg;
+    /* A widget face never shows the physical cursor. It takes the focus
+       when clicked, and the cursor followed it and sat on the face -- on
+       a scroll bar it showed riding the thumb as it dragged. */
+    wg->win->curv = FALSE;
     wg->next = par->wiglst; /* push onto the owner's list */
     par->wiglst = wg;
     /* Shape the face: no decorations at all, sized and placed in owner
@@ -8684,6 +8858,7 @@ void ami_killwidget(FILE* f, long id)
     wigptr* lp;
 
     if (!wg) error("No widget by given id");
+    if (hovwig == wg) hovwig = NULL; /* the highlight dies with it */
     /* unlink from the owner */
     lp = &win->wiglst;
     while (*lp != wg) lp = &(*lp)->next;
@@ -8721,6 +8896,8 @@ void ami_enablewidget(FILE* f, long id, long e)
 
     if (!wg) error("No widget by given id");
     wg->enb = !!e;
+    /* a disabled widget takes no hover highlight */
+    if (!wg->enb && hovwig == wg) hovwig = NULL;
     wigdrw(wg);
 
 }
