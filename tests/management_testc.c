@@ -1094,22 +1094,23 @@ int main(void)
     do {
 
         ami_event(stdin, &er); /* get next event */
+        if (er.etype == ami_etresize) {
+
+            /* The new dimensions, taken before any drawing: drawing first
+               boxed the window at the old size, and the redraw that
+               followed boxed it again at the new -- a doubled border. */
+            x = ami_maxx(tw);
+            y = ami_maxy(tw);
+
+        }
         if (er.etype == ami_etredraw || er.etype == ami_etresize) {
 
-            /* clear screen without overwriting frame */
-            ami_fcolor(tw, ami_white);
-            ami_fcolor(tw, ami_black);
+            /* The graphical form fills a rectangle here, which is also
+               its clear; the character clear is the form feed. */
+            fputc('\f', tw);
             prtcen(ami_maxy(tw)/2,
                     "SIZE AND COVER ME !");
             charbox(tw, x, y); /* frame the window */
-
-        }
-        if (er.etype == ami_etresize) {
-
-            /* Save the new demensions, even if not required. This way we must
-               get a resize notification for this test to work. */
-            x = ami_maxx(tw);
-            y = ami_maxy(tw);
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);

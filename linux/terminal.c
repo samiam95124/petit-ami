@@ -6096,6 +6096,13 @@ static void ami_deinit_terminal()
 
     }
 
+    /* Stop the event thread before tearing down what it uses. It was
+       left running here, and its next take of a destroyed lock failed
+       with EINVAL: a control-C exit died with "Linux error: Invalid
+       argument" whenever the timing landed wrong. */
+    pthread_cancel(eventthread);
+    pthread_join(eventthread, NULL);
+
     /* release the terminal broadlock */
     pthread_mutex_destroy(&termlock);
 
