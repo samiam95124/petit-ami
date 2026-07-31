@@ -3995,6 +3995,11 @@ static void intsetsiz(winptr win, long x, long y)
        smaller than the window is what a program gets when it sizes one,
        and the client area beyond it simply shows nothing. */
     recalcfmask();
+    /* The resize announcement goes out before the repaints: the repaints
+       announce redraws, and the program draws on those -- it must hear
+       the new size first, or it draws to the old one and the parts beyond
+       the new client are lost. */
+    annresize(win);
     if (win->visible) { /* window is onscreen */
 
         /* check old and new overlap */
@@ -4036,7 +4041,6 @@ static void intsetsiz(winptr win, long x, long y)
     }
     recalcfmask(); /* recalculate the forward masks */
     mbarsiz(win); /* the menu bar follows the client width */
-    annresize(win); /* tell the program its client changed size */
 
 }
 
@@ -5056,11 +5060,10 @@ static void intevent(FILE* f)
             }
             recalcfmask(); /* occlusion clips to the new bounds */
             if (win) mbarsiz(win); /* the root menu bar follows the width */
-            /* repaint the whole composition over the terminal's own
-               recovery paint */
-            redraw(zmax2min, 1, 1, dimx, dimy);
             if (win) { /* tell the client its surface changed */
 
+                /* Before the repaint: the repaint announces redraws, and
+                   the client draws on those to the size it last heard. */
                 er.etype = ami_etresize;
                 er.rszx = dimx;
                 er.rszy = dimy;
@@ -5068,6 +5071,9 @@ static void intevent(FILE* f)
                 intsendevent(win, &er);
 
             }
+            /* repaint the whole composition over the terminal's own
+               recovery paint */
+            redraw(zmax2min, 1, 1, dimx, dimy);
             break;
         case ami_etmouba:  /* mouse button assertion */
             win = fndtop(mousex, mousey); /* find the enclosing window */
@@ -6414,8 +6420,8 @@ static void ibuffer(FILE* f, long e)
                program's to paint, so it is asked to, as the graphical
                expose after a buffer change asks. Without this the window
                sat blank until some other action disturbed it. */
-            annredraw(win);
             annresize(win);
+            annredraw(win);
 
         }
 
