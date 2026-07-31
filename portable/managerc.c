@@ -72,6 +72,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* whitebook definitions */
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -531,25 +534,38 @@ static winptr   curfocus;     /* current focus window, or NULL */
 
 /* Diagnostic log, enabled by MANAGERC_LOG in the environment: appends a
    trace of the manager operations and the events delivered to the
-   program to /tmp/managerc.log. For running down what a live session
-   saw; off, it costs one null check. */
+   program to /tmp/managerc.log. The log writes with the raw system
+   calls, touching none of the interdicted, buffered paths the manager
+   itself stands in -- a buffered log write from inside the machinery
+   recursed into it. Off, it costs one check. */
 
-static FILE* mclog(void)
+static int mclogfd = -2; /* unopened */
+
+static int mclog(void)
 
 {
 
-    static FILE* f = NULL;
-    static int   tried = FALSE;
+    if (mclogfd == -2)
+        mclogfd = getenv("MANAGERC_LOG")?
+            open("/tmp/managerc.log", O_WRONLY|O_CREAT|O_TRUNC, 0644): -1;
 
-    if (!tried) {
+    return (mclogfd >= 0);
 
-        tried = TRUE;
-        if (getenv("MANAGERC_LOG")) f = fopen("/tmp/managerc.log", "w");
-        if (f) setvbuf(f, NULL, _IOLBF, 0);
+}
 
-    }
+static void mclogf(const char* fmt, ...)
 
-    return (f);
+{
+
+    char    buf[128];
+    va_list ap;
+    int     n;
+
+    if (!mclog()) return;
+    va_start(ap, fmt);
+    n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    if (n > 0) { ssize_t r = write(mclogfd, buf, n); (void)r; }
 
 }
 static int      opnwig;       /* opening a widget face window */
@@ -1279,7 +1295,7 @@ static void dequepaevt(ami_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(ami_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
-    if (mclog()) fprintf(mclog(), "deliver type %d wid %ld\n",
+    mclogf("deliver type %d wid %ld\n",
                          (int)e->etype, e->winid);
     if (e->etype == ami_etredraw) { /* the announcement is now delivered */
 
@@ -2723,7 +2739,7 @@ static void annredraw(winptr win)
     if (!win->bufmod && win->visible && !win->widget && !win->redrawpend) {
 
         win->redrawpend = TRUE; /* one announcement serves until delivered */
-        if (mclog()) fprintf(mclog(), "queue redraw wid %ld\n", win->wid);
+        mclogf("queue redraw wid %ld\n", win->wid);
         er.etype = ami_etredraw;
         intsendevent(win, &er);
 
@@ -2749,7 +2765,7 @@ static void annresize(winptr win)
 
     if (win->visible && !win->widget) {
 
-        if (mclog()) fprintf(mclog(), "queue resize wid %ld %ldx%ld\n",
+        mclogf("queue resize wid %ld %ldx%ld\n",
                              win->wid, win->cmaxx, win->cmaxy);
         er.etype = ami_etresize;
         er.rszx = win->cmaxx;
@@ -4017,7 +4033,7 @@ static void intsetsiz(winptr win, long x, long y)
     ox = win->pmaxx; /* save previous size of window */
     oy = win->pmaxy;
     if (x == ox && y == oy) return; /* size is unchanged */
-    if (mclog()) fprintf(mclog(), "setsiz wid %ld %ldx%ld -> %ldx%ld\n",
+    mclogf("setsiz wid %ld %ldx%ld -> %ldx%ld\n",
                          win->wid, ox, oy, x, y);
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
@@ -4193,7 +4209,7 @@ static void intsetpos(winptr win, long x, long y)
 
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
-    if (mclog()) fprintf(mclog(), "setpos wid %ld %ld,%ld -> %ld,%ld\n",
+    mclogf("setpos wid %ld %ld,%ld -> %ld,%ld\n",
                          win->wid, win->orgx, win->orgy, x, y);
     treerect(win, &r1); /* previous place of the window and its subtree */
     win->orgx = x; /* set position in parent */
@@ -7081,7 +7097,7 @@ static void plcchr(FILE* f, char c)
     } else if (c == '\b') ileft(f); /* back space, move left */
     else if (c == '\f') {
 
-        if (mclog()) fprintf(mclog(), "clear wid %ld %ldx%ld\n",
+        mclogf("clear wid %ld %ldx%ld\n",
                              win->wid, win->maxx, win->maxy);
         clrscn(f); /* clear screen */
 
