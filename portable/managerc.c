@@ -6406,7 +6406,18 @@ static void ibuffer(FILE* f, long e)
            sizes the buffer to the client, and from there it tracks the
            client; entering buffered mode keeps the buffer as it stands, and
            from there the program governs it with sizbuf. */
-        if (!e) resizewinbuf(win, win->cmaxx, win->cmaxy);
+        if (!e) {
+
+            resizewinbuf(win, win->cmaxx, win->cmaxy);
+            /* In follow mode the program owns the content and draws on
+               the redraw announcements; entering it, the surface is the
+               program's to paint, so it is asked to, as the graphical
+               expose after a buffer change asks. Without this the window
+               sat blank until some other action disturbed it. */
+            annredraw(win);
+            annresize(win);
+
+        }
 
     }
 

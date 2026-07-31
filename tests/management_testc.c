@@ -993,7 +993,8 @@ int main(void)
     fputc('\f', tw);
     prtcen(ami_maxy(tw), "Window size calculate character");
     ami_home(tw);
-    ami_openwin(&stdin, &win2, NULL, 3);
+    ami_openwin(&stdin, &win2, tw, 3); /* a child of the test window */
+    ami_setpos(win2, 30, 8);
 
     ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     fprintf(tw, "For (20, 10) client, full frame, window size is: %ld,%ld\n", x, y);
