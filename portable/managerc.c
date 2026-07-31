@@ -1356,6 +1356,41 @@ static void setcurvis(int e)
 
 }
 
+/* Full color cells: a cell color is either a primary code or an encoded
+   24 bit rgb color, marked by the flag bit. Exact primaries stay primary
+   codes, so the common paths and the run batching see the same values
+   the primary calls set; everything else the full color calls set is
+   carried exactly and emitted through the full color vector. */
+#define RGBFLG (1L<<30)
+#define RGBENC(r, g, b) (RGBFLG|(r) << 16|(g) << 8|(b))
+#define ISRGB(c) (((c)&RGBFLG) != 0)
+#define RGBR(c) ((c) >> 16&0xff)
+#define RGBG(c) ((c) >> 8&0xff)
+#define RGBB(c) ((c)&0xff)
+
+/* full scale color component to 8 bits, and back */
+static long colc8(long v)
+
+{
+
+    if (v <= 0) return (0);
+    if (v >= LONG_MAX-LONG_MAX/255) return (255);
+
+    return (v/(LONG_MAX/255));
+
+}
+
+static long col8full(long v)
+
+{
+
+    if (v <= 0) return (0);
+    if (v >= 255) return (LONG_MAX);
+
+    return (v*(LONG_MAX/255));
+
+}
+
 /*******************************************************************************
 
 Set foreground color cached
@@ -1370,7 +1405,10 @@ static int setfcolor(ami_color c)
 
     if (c != fcolor) {
 
-        (*fcolor_vect)(stdout, c); /* set new color */
+        if (ISRGB(c)) /* an encoded color emits through the full color call */
+            (*fcolorc_vect)(stdout, col8full(RGBR(c)), col8full(RGBG(c)),
+                                    col8full(RGBB(c)));
+        else (*fcolor_vect)(stdout, c); /* set new color */
         fcolor = c; /* cache that */
 
     }
@@ -1391,7 +1429,10 @@ static int setbcolor(ami_color c)
 
     if (c != bcolor) {
 
-        (*bcolor_vect)(stdout, c); /* set new color */
+        if (ISRGB(c)) /* an encoded color emits through the full color call */
+            (*bcolorc_vect)(stdout, col8full(RGBR(c)), col8full(RGBG(c)),
+                                    col8full(RGBB(c)));
+        else (*bcolor_vect)(stdout, c); /* set new color */
         bcolor = c; /* cache that */
 
     }
@@ -1411,11 +1452,20 @@ color the cache cannot represent.
 
 *******************************************************************************/
 
-/* primary color code to full color components */
+/* primary or encoded color code to full color components */
 static void colnumrgb(ami_color c, long* r, long* g, long* b)
 
 {
 
+    if (ISRGB(c)) {
+
+        *r = col8full(RGBR(c));
+        *g = col8full(RGBG(c));
+        *b = col8full(RGBB(c));
+
+        return;
+
+    }
     *r = (c == ami_red || c == ami_yellow || c == ami_magenta ||
           c == ami_white)? LONG_MAX: 0;
     *g = (c == ami_green || c == ami_yellow || c == ami_cyan ||
@@ -4776,10 +4826,14 @@ static void ifcolorc(FILE* f, long r, long g, long b)
 
 {
 
-    winptr win; /* windows record pointer */
+    winptr win = txt2win(f); /* get window from file */
+    long r8 = colc8(r), g8 = colc8(g), b8 = colc8(b);
 
-    win = txt2win(f); /* get window from file */
-    win->fcolor = colrgbnum(r, g, b); /* set color */
+    /* an exact primary stays a primary code; the rest carry exactly */
+    if ((r8 == 0 || r8 == 255) && (g8 == 0 || g8 == 255) &&
+        (b8 == 0 || b8 == 255))
+        win->fcolor = colrgbnum(r, g, b);
+    else win->fcolor = RGBENC(r8, g8, b8);
 
 }
 
@@ -4814,10 +4868,14 @@ static void ibcolorc(FILE* f, long r, long g, long b)
 
 {
 
-    winptr win; /* windows record pointer */
+    winptr win = txt2win(f); /* get window from file */
+    long r8 = colc8(r), g8 = colc8(g), b8 = colc8(b);
 
-    win = txt2win(f); /* get window from file */
-    win->bcolor = colrgbnum(r, g, b); /* set color */
+    /* an exact primary stays a primary code; the rest carry exactly */
+    if ((r8 == 0 || r8 == 255) && (g8 == 0 || g8 == 255) &&
+        (b8 == 0 || b8 == 255))
+        win->bcolor = colrgbnum(r, g, b);
+    else win->bcolor = RGBENC(r8, g8, b8);
 
 }
 
@@ -9861,7 +9919,10 @@ so a quit request is not swallowed by the dialog.
 /* Run a dialog window until its done flag is set. Returns the id of the
    widget that ended it, or 0 for an outside terminate. */
 static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
-                    void (*lay)(FILE* wf, winptr dwin, void* ctx), void* ctx)
+                    void (*lay)(FILE* wf, winptr dwin, void* ctx),
+                    void (*evt)(FILE* wf, winptr dwin, ami_evtrec* er,
+                                void* ctx),
+                    void* ctx)
 
 {
 
@@ -9893,7 +9954,7 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
             res = okid;
             done = TRUE;
 
-        }
+        } else if (evt) evt(wf, dwin, &er, ctx); /* to the dialog's logic */
 
     } while (!done);
     if (realterm) { /* pass the terminate on to the program */
@@ -9978,31 +10039,236 @@ void ami_alert(char* title, char* message)
     ami_button(wf, (dwin->cmaxx-bw)/2+1, dwin->cmaxy-1,
                    (dwin->cmaxx-bw)/2+bw, dwin->cmaxy-1, "Ok", 1);
     alertlay(wf, dwin, message);
-    dlgloop(wf, dwin, 1, 0, alertlay, message);
+    dlgloop(wf, dwin, 1, 0, alertlay, NULL, message);
     fclose(wf);
 
 }
 
-/* flow the color query: the list fills the middle, the buttons keep the
-   bottom row */
+/* The color query holds a full 24 bit color, 8 bits per component. The
+   preset list picks the primaries, the R, G and B sliders enter any
+   color directly, the luminosity slider runs the color from black to
+   white holding its hue, and the swatch shows the result exactly. */
+typedef struct { long r, g, b; } qcolst;
+
+/* the presets, matching the primary color codes */
+static char* const qcolnam[] = { "black", "white", "red", "green", "blue",
+                                 "cyan", "yellow", "magenta" };
+static const long qcolpre[8][3] = {
+
+    { 0, 0, 0 }, { 255, 255, 255 }, { 255, 0, 0 }, { 0, 255, 0 },
+    { 0, 0, 255 }, { 0, 255, 255 }, { 255, 255, 0 }, { 255, 0, 255 },
+
+};
+
+/* rgb (0..255) to hsl (h 0..6, s and l 0..1) and back, for the
+   luminosity slider: lightness moves, the hue holds */
+static void rgbhsl(long r, long g, long b, double* h, double* s, double* l)
+
+{
+
+    double rr = r/255.0, gg = g/255.0, bb = b/255.0;
+    double mx = rr, mn = rr, d;
+
+    if (gg > mx) mx = gg;
+    if (bb > mx) mx = bb;
+    if (gg < mn) mn = gg;
+    if (bb < mn) mn = bb;
+    d = mx-mn;
+    *l = (mx+mn)/2;
+    *s = 0;
+    *h = 0;
+    if (d > 0) {
+
+        *s = *l > 0.5? d/(2-mx-mn): d/(mx+mn);
+        if (mx == rr) *h = (gg-bb)/d+(gg < bb? 6: 0);
+        else if (mx == gg) *h = (bb-rr)/d+2;
+        else *h = (rr-gg)/d+4;
+
+    }
+
+}
+
+static double qcolhue(double p, double q, double t)
+
+{
+
+    if (t < 0) t += 6;
+    if (t >= 6) t -= 6;
+    if (t < 1) return (p+(q-p)*t);
+    if (t < 3) return (q);
+    if (t < 4) return (p+(q-p)*(4-t));
+
+    return (p);
+
+}
+
+static void hslrgb(double h, double s, double l, long* r, long* g, long* b)
+
+{
+
+    if (s <= 0) *r = *g = *b = (long)(l*255+0.5);
+    else {
+
+        double q = l < 0.5? l*(1+s): l+s-l*s;
+        double p = 2*l-q;
+
+        *r = (long)(qcolhue(p, q, h+2)*255+0.5);
+        *g = (long)(qcolhue(p, q, h)*255+0.5);
+        *b = (long)(qcolhue(p, q, h-2)*255+0.5);
+
+    }
+
+}
+
+/* the luminosity of the held color, 0..255 */
+static long qcollum(qcolst* st)
+
+{
+
+    long mx = st->r, mn = st->r;
+
+    if (st->g > mx) mx = st->g;
+    if (st->b > mx) mx = st->b;
+    if (st->g < mn) mn = st->g;
+    if (st->b < mn) mn = st->b;
+
+    return ((mx+mn)/2);
+
+}
+
+/* place a slider on an 8 bit value */
+static void qcolsld(winptr dwin, long id, long v8)
+
+{
+
+    wigptr wg = fndwig(dwin, id);
+
+    if (wg) {
+
+        wg->val = wigscl(v8, 255);
+        wigdrw(wg);
+
+    }
+
+}
+
+/* keep the preset list marking the held color: selected while the color
+   is one of its entries, unmarked while it is not */
+static void qcolsel(winptr dwin, qcolst* st)
+
+{
+
+    wigptr wg = fndwig(dwin, 1);
+    long   i, sel = 0;
+
+    for (i = 0; i < 8; i++)
+        if (st->r == qcolpre[i][0] && st->g == qcolpre[i][1] &&
+            st->b == qcolpre[i][2]) sel = i+1;
+    if (wg && wg->sel != sel) {
+
+        wg->sel = sel;
+        wigdrw(wg);
+
+    }
+
+}
+
+/* show the held color: the swatch paints it exactly, and the component
+   readouts follow the sliders */
+static void qcolshow(FILE* wf, winptr dwin, qcolst* st)
+
+{
+
+    long x, y;
+
+    ami_bcolorc(wf, col8full(st->r), col8full(st->g), col8full(st->b));
+    for (y = 3; y <= 10; y++) {
+
+        ami_cursor(wf, 36, y);
+        for (x = 36; x <= 54; x++) fputc(' ', wf);
+
+    }
+    ami_bcolor(wf, ami_white);
+    ami_cursor(wf, 47, 12); fprintf(wf, "%3ld", st->r);
+    ami_cursor(wf, 47, 14); fprintf(wf, "%3ld", st->g);
+    ami_cursor(wf, 47, 16); fprintf(wf, "%3ld", st->b);
+
+}
+
+/* flow the color query face */
 static void qrycollay(FILE* wf, winptr dwin, void* ctx)
 
 {
 
-    long lw, lh;
+    qcolst* st = (qcolst*)ctx;
+    long    i, n = dwin->cmaxx;
 
     fprintf(wf, "\f");
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "Color:");
-    lw = dwin->cmaxx-7;
-    if (lw > 19) lw = 19;
-    if (lw < 1) lw = 1;
-    lh = dwin->cmaxy-4;
-    if (lh < 1) lh = 1;
-    ami_sizwidget(wf, 1, lw, lh);
-    ami_poswidget(wf, 1, 2, 3);
+    /* the section header, marked off and centered */
+    ami_cursor(wf, 1, 1);
+    for (i = 1; i <= n; i++) fputc('-', wf);
+    ami_cursor(wf, (n-7)/2+1, 1);
+    fprintf(wf, " Color ");
+    ami_cursor(wf, 3, 12); fprintf(wf, "Red");
+    ami_cursor(wf, 3, 14); fprintf(wf, "Green");
+    ami_cursor(wf, 3, 16); fprintf(wf, "Blue");
+    ami_cursor(wf, 3, 18); fprintf(wf, "Lum");
     ami_poswidget(wf, 2, 3, dwin->cmaxy);
     ami_poswidget(wf, 3, 12, dwin->cmaxy);
+    qcolshow(wf, dwin, st);
+
+}
+
+/* the dialog's live logic: presets, component sliders and the luminosity
+   slider all hold one color, and every control follows it */
+static void qrycolevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
+
+{
+
+    qcolst* st = (qcolst*)ctx;
+    double  h, s, l;
+
+    if (er->etype == ami_etlstbox && er->lstbid == 1) {
+
+        if (er->lstbsl >= 1 && er->lstbsl <= 8) {
+
+            st->r = qcolpre[er->lstbsl-1][0];
+            st->g = qcolpre[er->lstbsl-1][1];
+            st->b = qcolpre[er->lstbsl-1][2];
+            qcolsld(dwin, 4, st->r);
+            qcolsld(dwin, 5, st->g);
+            qcolsld(dwin, 6, st->b);
+            qcolsld(dwin, 9, qcollum(st));
+            qcolshow(wf, dwin, st);
+
+        }
+
+    } else if (er->etype == ami_etsldpos) {
+
+        long v8 = wigmul(255, er->sldpos);
+
+        if (er->sldpid >= 4 && er->sldpid <= 6) {
+
+            if (er->sldpid == 4) st->r = v8;
+            else if (er->sldpid == 5) st->g = v8;
+            else st->b = v8;
+            qcolsld(dwin, 9, qcollum(st));
+            qcolsel(dwin, st);
+            qcolshow(wf, dwin, st);
+
+        } else if (er->sldpid == 9) {
+
+            rgbhsl(st->r, st->g, st->b, &h, &s, &l);
+            hslrgb(h, s, v8/255.0, &st->r, &st->g, &st->b);
+            qcolsld(dwin, 4, st->r);
+            qcolsld(dwin, 5, st->g);
+            qcolsld(dwin, 6, st->b);
+            qcolsel(dwin, st);
+            qcolshow(wf, dwin, st);
+
+        }
+
+    }
 
 }
 
@@ -10013,41 +10279,41 @@ void ami_querycolor(long* r, long* g, long* b)
     FILE*  wf;
     winptr dwin;
     long   res;
-    /* the eight terminal colors are the palette here */
-    static char* const cnam[] = { "black", "white", "red", "green", "blue",
-                                  "cyan", "yellow", "magenta" };
-    static const long cval[8][3] = {
-
-        { 0, 0, 0 }, { INT_MAX, INT_MAX, INT_MAX }, { INT_MAX, 0, 0 },
-        { 0, INT_MAX, 0 }, { 0, 0, INT_MAX }, { 0, INT_MAX, INT_MAX },
-        { INT_MAX, INT_MAX, 0 }, { INT_MAX, 0, INT_MAX },
-
-    };
     ami_strrec sr[8];
-    long   i, bw, bh, sel;
-    wigptr wg;
+    long   i, bw, bh;
+    qcolst st;
 
     for (i = 0; i < 8; i++) {
 
-        sr[i].str = cnam[i];
+        sr[i].str = qcolnam[i];
         sr[i].next = i < 7? &sr[i+1]: NULL;
 
     }
-    wf = dlgcre("Choose color", 26, 14, &dwin);
-    ami_listbox(wf, 2, 3, 20, 10, &sr[0], 1);
+    /* the color passed in is where the dialog starts */
+    st.r = colc8(*r);
+    st.g = colc8(*g);
+    st.b = colc8(*b);
+    wf = dlgcre("Choose color", 56, 23, &dwin);
+    ami_listbox(wf, 3, 3, 13, 10, &sr[0], 1);
+    ami_slidehoriz(wf, 10, 12, 44, 12, 0, 4);
+    ami_slidehoriz(wf, 10, 14, 44, 14, 0, 5);
+    ami_slidehoriz(wf, 10, 16, 44, 16, 0, 6);
+    ami_slidehoriz(wf, 10, 18, 44, 18, 0, 9);
     ami_buttonsiz(wf, "Ok", &bw, &bh);
-    ami_button(wf, 3, 12, 3+bw-1, 12, "Ok", 2);
-    ami_button(wf, 12, 12, 12+bw+4, 12, "Cancel", 3);
-    qrycollay(wf, dwin, NULL);
-    res = dlgloop(wf, dwin, 2, 3, qrycollay, NULL);
-    sel = 0;
-    wg = fndwig(dwin, 1); /* read the list selection */
-    if (wg) sel = wg->sel;
-    if (res == 2 && sel >= 1 && sel <= 8) { /* accepted */
+    ami_button(wf, 3, dwin->cmaxy, 3+bw-1, dwin->cmaxy, "Ok", 2);
+    ami_button(wf, 12, dwin->cmaxy, 12+bw+4, dwin->cmaxy, "Cancel", 3);
+    qcolsld(dwin, 4, st.r);
+    qcolsld(dwin, 5, st.g);
+    qcolsld(dwin, 6, st.b);
+    qcolsld(dwin, 9, qcollum(&st));
+    qcolsel(dwin, &st);
+    qrycollay(wf, dwin, &st);
+    res = dlgloop(wf, dwin, 2, 3, qrycollay, qrycolevt, &st);
+    if (res == 2) { /* accepted */
 
-        *r = cval[sel-1][0];
-        *g = cval[sel-1][1];
-        *b = cval[sel-1][2];
+        *r = col8full(st.r);
+        *g = col8full(st.g);
+        *b = col8full(st.b);
 
     }
     fclose(wf);
@@ -10096,7 +10362,7 @@ static void qryfile(char* title, char* s, long sl)
     ami_button(wf, 12, 5, 12+bw+4, 5, "Cancel", 3);
     qryfilelay(wf, dwin, NULL);
     ami_focuswidget(wf, 1); /* start in the name field */
-    res = dlgloop(wf, dwin, 2, 3, qryfilelay, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qryfilelay, NULL, NULL);
     if (res == 2) { /* accepted: hand back the name */
 
         wg = fndwig(dwin, 1);
@@ -10164,7 +10430,7 @@ void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
     ami_button(wf, 12, 9, 12+bw+4, 9, "Cancel", 3);
     qryfndlay(wf, dwin, NULL);
     ami_focuswidget(wf, 1);
-    res = dlgloop(wf, dwin, 2, 3, qryfndlay, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qryfndlay, NULL, NULL);
     if (res == 2) {
 
         wg = fndwig(dwin, 1);
@@ -10238,7 +10504,7 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     ami_button(wf, 12, 12, 12+bw+4, 12, "Cancel", 3);
     qryfrplay(wf, dwin, NULL);
     ami_focuswidget(wf, 1);
-    res = dlgloop(wf, dwin, 2, 3, qryfrplay, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qryfrplay, NULL, NULL);
     if (res == 2) {
 
         wg = fndwig(dwin, 1);
@@ -10334,7 +10600,7 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
     ami_button(wf, 3, 14, 3+bw-1, 14, "Ok", 2);
     ami_button(wf, 12, 14, 12+bw+4, 14, "Cancel", 3);
     qryfntlay(wf, dwin, NULL);
-    res = dlgloop(wf, dwin, 2, 3, qryfntlay, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qryfntlay, NULL, NULL);
     if (res == 2) {
 
         wg = fndwig(dwin, 1);
