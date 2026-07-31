@@ -537,6 +537,30 @@ static long     timids[AMI_MAXTIM]; /* timer logical ids */
 static int      fautohold;    /* automatic hold on exit flag */
 static int      fend;         /* end of program ordered flag */
 static drgtyp   drag;         /* drag type in progress */
+
+/* frame parts, for hover feedback */
+typedef enum {
+
+    fp_none,   /* not on a live frame part */
+    fp_min,    /* minimize button */
+    fp_max,    /* maximize button */
+    fp_close,  /* close button */
+    fp_top,    /* sizing edges */
+    fp_bottom,
+    fp_left,
+    fp_right,
+    fp_ulcnr,  /* sizing corners */
+    fp_urcnr,
+    fp_blcnr,
+    fp_brcnr
+
+} frmpart;
+
+static winptr  hovfwin;  /* window holding the hover highlight, or NULL */
+static frmpart hovfpart; /* the highlighted frame part */
+static int     frmhrev;  /* the frame draws reversed (hover highlight) */
+static winptr  hovflt;   /* frame cells draw only where this window is top */
+static winptr fndtop(long x, long y); /* forward */
 static winptr   drgwin;       /* drag window */
 static wigptr   drgwig;       /* drag widget (slider or scroll thumb) */
 #define MAXPOP 8              /* maximum popup nesting (menu cascade) */
@@ -1561,7 +1585,8 @@ static void wrtchrclp(char c, rectangle* cr)
 
 {
 
-    if (inrect(curx, cury, cr)) { /* not clipped */
+    if (inrect(curx, cury, cr) &&
+        (!hovflt || fndtop(curx, cury) == hovflt)) { /* not clipped */
 
         (*ofpwrite)(OUTFIL, &c, 1);
         curx++;
@@ -1606,7 +1631,8 @@ static void wrtextclp(char* s, rectangle* cr)
 
 {
 
-    if (inrect(curx, cury, cr)) { /* not clipped */
+    if (inrect(curx, cury, cr) &&
+        (!hovflt || fndtop(curx, cury) == hovflt)) { /* not clipped */
 
         while (*s) { (*ofpwrite)(OUTFIL, s, 1); s++; }
         curx++; /* advance cursor */
@@ -2057,7 +2083,7 @@ static void drwfrm(winptr win, rectangle* cr)
            whatever color the window content had been painted with. */
         setfcolor(win->frmcolor);
         setbcolor(ami_white);
-        setattrs(0);
+        setattrs(frmhrev? BIT(sarev): 0);
         if (win->size) { /* draw size bars */
 
             /* draw top and bottom */
@@ -2878,6 +2904,107 @@ static winptr fndtop(long x, long y)
 
 /*******************************************************************************
 
+Find the frame part at a screen location
+
+Returns which live frame part of the window the location lies on: the
+system bar buttons, the sizing edges, or the sizing corners. The same
+geometry the mouse click handler acts on, so the hover feedback marks
+exactly what a click would do.
+
+*******************************************************************************/
+
+static frmpart frmhit(winptr win, long x, long y)
+
+{
+
+    long lx = x-absx(win);
+    long ly = y-absy(win);
+
+    if (!win->frame) return (fp_none);
+    if (win->sysbar && ly == win->size) { /* the system bar row */
+
+        if (lx == win->pmaxx-3) return (fp_close);
+        if (lx == win->pmaxx-5) return (fp_max);
+        if (lx == win->pmaxx-7) return (fp_min);
+        return (fp_none);
+
+    }
+    if (win->size) { /* the sizing border */
+
+        int t = ly == 0, b = ly == win->pmaxy-1;
+        int l = lx == 0, r = lx == win->pmaxx-1;
+
+        if (t && l) return (fp_ulcnr);
+        if (t && r) return (fp_urcnr);
+        if (b && l) return (fp_blcnr);
+        if (b && r) return (fp_brcnr);
+        if (t) return (fp_top);
+        if (b) return (fp_bottom);
+        if (l) return (fp_left);
+        if (r) return (fp_right);
+
+    }
+
+    return (fp_none);
+
+}
+
+/*******************************************************************************
+
+Draw a frame part highlighted or normal
+
+Repaints just the given frame part, reversed for the hover highlight or
+back to normal. The paint is the ordinary frame draw clipped to the
+part's rectangle, and the cells emit only where this window is topmost,
+so the highlight never lands on a window lying over the frame.
+
+*******************************************************************************/
+
+static void drwfrmpart(winptr win, frmpart p, int rev)
+
+{
+
+    rectangle r;
+    long      x1 = absx(win);
+    long      y1 = absy(win);
+
+    if (p == fp_none) return;
+    switch (p) {
+
+        case fp_close:  setrect(&r, x1+win->pmaxx-3, y1+win->size,
+                                    x1+win->pmaxx-3, y1+win->size); break;
+        case fp_max:    setrect(&r, x1+win->pmaxx-5, y1+win->size,
+                                    x1+win->pmaxx-5, y1+win->size); break;
+        case fp_min:    setrect(&r, x1+win->pmaxx-7, y1+win->size,
+                                    x1+win->pmaxx-7, y1+win->size); break;
+        case fp_top:    setrect(&r, x1+1, y1, x1+win->pmaxx-2, y1); break;
+        case fp_bottom: setrect(&r, x1+1, y1+win->pmaxy-1,
+                                    x1+win->pmaxx-2, y1+win->pmaxy-1); break;
+        case fp_left:   setrect(&r, x1, y1+1, x1, y1+win->pmaxy-2); break;
+        case fp_right:  setrect(&r, x1+win->pmaxx-1, y1+1,
+                                    x1+win->pmaxx-1, y1+win->pmaxy-2); break;
+        case fp_ulcnr:  setrect(&r, x1, y1, x1, y1); break;
+        case fp_urcnr:  setrect(&r, x1+win->pmaxx-1, y1,
+                                    x1+win->pmaxx-1, y1); break;
+        case fp_blcnr:  setrect(&r, x1, y1+win->pmaxy-1,
+                                    x1, y1+win->pmaxy-1); break;
+        case fp_brcnr:  setrect(&r, x1+win->pmaxx-1, y1+win->pmaxy-1,
+                                    x1+win->pmaxx-1, y1+win->pmaxy-1); break;
+        default: return;
+
+    }
+    setcurvis(FALSE); /* no cursor while drawing */
+    frmhrev = rev; /* reversed or normal */
+    hovflt = win; /* only where this window shows */
+    drwfrm(win, &r);
+    hovflt = NULL;
+    frmhrev = FALSE;
+    setcur(curfocus? curfocus: win); /* hand the cursor back */
+
+}
+
+/*******************************************************************************
+
 Find Z order window
 
 Finds the given Z order window. Returns that or NULL if not found.
@@ -3589,6 +3716,7 @@ static void closewin(int ofn)
         if (rw && rw != win) { rw->focus = TRUE; curfocus = rw; }
 
     }
+    if (hovfwin == win) hovfwin = NULL; /* the highlight dies with it */
     remmin2max(win); /* out of the Z order lists */
     remmax2min(win);
     /* Renumber the remaining order from the back, without gaps. The max to
@@ -5228,6 +5356,28 @@ static void intevent(FILE* f)
                         win->hover = TRUE; /* set hover active */
 
                     }
+
+                }
+
+            }
+            /* Frame hover feedback: the frame part under the mouse
+               shows reversed, so the sizing edges and the bar buttons
+               show they are live. Held off while a drag runs; the drag
+               repaints make it stale and the next move renews it. */
+            if (drag == dt_none && !drgwig) {
+
+                winptr  hw = fndtop(mousex, mousey);
+                frmpart hp = fp_none;
+
+                if (hw && !hw->widget && !hw->root && hw->frame)
+                    hp = frmhit(hw, mousex, mousey);
+                if (hp == fp_none) hw = NULL;
+                if (hw != hovfwin || hp != hovfpart) {
+
+                    if (hovfwin) drwfrmpart(hovfwin, hovfpart, FALSE);
+                    hovfwin = hw; /* note the new holder */
+                    hovfpart = hp;
+                    if (hovfwin) drwfrmpart(hovfwin, hovfpart, TRUE);
 
                 }
 
