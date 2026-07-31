@@ -6473,32 +6473,54 @@ Brings the indicated window to the front of the Z order.
 *******************************************************************************/
 
 /* Bring a window and its subtree to the front. The children of a window
-   stay above it: the window fronts first, then the children over it.
-   Fronting the window alone raised it over its own children, and they
-   disappeared behind it. */
+   stay above it: the window fronts first, then the children over it, in
+   their current relative order -- lowest first, so what the user had on
+   top stays on top. Walking the child list fronts in creation order,
+   which reshuffled the children on every click of their parent. Children
+   already fronted sit at the top of the order, so the minimum is always
+   the next unfronted one. */
 
 static void fronttree(winptr win)
 
 {
 
-    winptr c;
+    winptr c, sel;
+    long   n = 0;
 
     intfront(win);
-    for (c = win->childwin; c; c = c->childlst) fronttree(c);
+    for (c = win->childwin; c; c = c->childlst) n++;
+    while (n--) {
+
+        sel = NULL;
+        for (c = win->childwin; c; c = c->childlst)
+            if (!sel || c->zorder < sel->zorder) sel = c;
+        fronttree(sel);
+
+    }
 
 }
 
 /* Put a window and its subtree to the back, keeping the children above
-   their window: the children go back first, and the window slides in
-   beneath them. */
+   their window in their current relative order: the children go back
+   highest first, each sliding in beneath the one before, and the window
+   goes in beneath them all. */
 
 static void backtree(winptr win)
 
 {
 
-    winptr c;
+    winptr c, sel;
+    long   n = 0;
 
-    for (c = win->childwin; c; c = c->childlst) backtree(c);
+    for (c = win->childwin; c; c = c->childlst) n++;
+    while (n--) {
+
+        sel = NULL;
+        for (c = win->childwin; c; c = c->childlst)
+            if (!sel || c->zorder > sel->zorder) sel = c;
+        backtree(sel);
+
+    }
     intback(win);
 
 }
