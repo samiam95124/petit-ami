@@ -431,6 +431,7 @@ typedef struct wigrec {
     long   val;     /* value: numsel, progress, scroll and slider position */
     long   low, high; /* numsel range */
     long   sclsiz;  /* scroll bar thumb size, full scale */
+    long   marks;   /* slider tick mark count */
     long   curs;    /* edit box cursor index, 0 based */
     ami_tabori tor; /* tab bar orientation */
     wigptr owner;   /* for popups, the widget or bar that opened it */
@@ -7707,6 +7708,7 @@ static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
     wg->low = 0;
     wg->high = 0;
     wg->sclsiz = 0;
+    wg->marks = 0;
     wg->curs = 0;
     wg->tor = ami_totop;
     wg->owner = owner;
@@ -8021,12 +8023,21 @@ static void wigdrw(wigptr wg)
 
         case wtslidehoriz:
             for (x = 1; x <= w; x++) wigtxt(wg, x, 1, "-", FALSE);
+            /* tick marks spaced evenly along the rail, ends included */
+            if (wg->marks > 1)
+                for (i = 0; i < wg->marks; i++)
+                    wigtxt(wg, 1+((w-1)*i+(wg->marks-1)/2)/(wg->marks-1), 1,
+                           "+", FALSE);
             n = 1+wigmul(w-1, wg->val);
             wigtxt(wg, n, 1, "#", hp != 0);
             break;
 
         case wtslidevert:
             for (y = 1; y <= h; y++) wigtxt(wg, 1, y, "|", FALSE);
+            if (wg->marks > 1)
+                for (i = 0; i < wg->marks; i++)
+                    wigtxt(wg, 1, 1+((h-1)*i+(wg->marks-1)/2)/(wg->marks-1),
+                           "+", FALSE);
             n = 1+wigmul(h-1, wg->val);
             wigtxt(wg, 1, n, "#", hp != 0);
             break;
@@ -8667,6 +8678,35 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
                 }
 
+            } else if (wg->typ == wtnumselbox &&
+                       er->echar >= '0' && er->echar <= '9') {
+
+                /* digits shift into the value; a digit that would run
+                   past the range starts a new number, so a full value
+                   types over without clearing first */
+                long d = er->echar-'0';
+                long nv = wg->val*10+(wg->val < 0? -d: d);
+
+                if (nv > wg->high || (wg->val < 0 && nv < wg->low))
+                    nv = wg->val < 0? -d: d;
+                if (nv <= wg->high) {
+
+                    wg->val = nv;
+                    wigdrw(wg);
+                    /* a partial entry can sit under the range bottom;
+                       it reports only once it is a valid value */
+                    if (nv >= wg->low) wigsig(wg, ami_etnumbox, nv);
+
+                }
+
+            } else if (wg->typ == wtnumselbox && er->echar == '-' &&
+                       wg->low < 0) {
+
+                wg->val = -wg->val;
+                wigdrw(wg);
+                if (wg->val >= wg->low && wg->val <= wg->high)
+                    wigsig(wg, ami_etnumbox, wg->val);
+
             } else if (er->echar == ' ') { /* space activates */
 
                 if (wg->typ == wtbutton) wigsig(wg, ami_etbutton, 0);
@@ -8680,8 +8720,13 @@ static void wigevt(wigptr wg, ami_evtrec* er)
             if (!wg->enb) break;
             if (wg->typ == wteditbox) wigsig(wg, ami_etedtbox, 0);
             else if (wg->typ == wtdropeditbox) wigsig(wg, ami_etdrebox, 0);
-            else if (wg->typ == wtnumselbox) wigsig(wg, ami_etnumbox, wg->val);
-            else if (wg->typ == wtbutton) wigsig(wg, ami_etbutton, 0);
+            else if (wg->typ == wtnumselbox) {
+
+                /* a partial entry left under the range clamps to it */
+                if (wg->val < wg->low) { wg->val = wg->low; wigdrw(wg); }
+                wigsig(wg, ami_etnumbox, wg->val);
+
+            } else if (wg->typ == wtbutton) wigsig(wg, ami_etbutton, 0);
             break;
 
         case ami_etdelcb: /* backspace */
@@ -8692,6 +8737,12 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                 memmove(wg->face+wg->curs-1, wg->face+wg->curs, n-wg->curs+1);
                 wg->curs--;
                 wigdrw(wg);
+
+            } else if (wg->typ == wtnumselbox) {
+
+                wg->val /= 10; /* drop the last digit */
+                wigdrw(wg);
+                if (wg->val >= wg->low) wigsig(wg, ami_etnumbox, wg->val);
 
             }
             break;
@@ -8791,6 +8842,7 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     wg->low = 0;
     wg->high = 0;
     wg->sclsiz = LONG_MAX/8; /* nominal thumb */
+    wg->marks = 0;
     wg->curs = 0;
     wg->win->widget = TRUE; /* mark as widget window */
     wg->win->wig = wg;
@@ -9309,7 +9361,7 @@ void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark,
 
     wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtslidehoriz);
 
-    (void)mark; /* tick marks are not drawn in character cells */
+    wg->marks = mark;
     wigfac(wg, "");
     wigdrw(wg);
 
@@ -9331,7 +9383,7 @@ void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark,
 
     wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtslidevert);
 
-    (void)mark;
+    wg->marks = mark;
     wigfac(wg, "");
     wigdrw(wg);
 
@@ -9794,7 +9846,8 @@ so a quit request is not swallowed by the dialog.
 
 /* Run a dialog window until its done flag is set. Returns the id of the
    widget that ended it, or 0 for an outside terminate. */
-static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid)
+static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
+                    void (*lay)(FILE* wf, winptr dwin, void* ctx), void* ctx)
 
 {
 
@@ -9808,6 +9861,9 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid)
 
         ievent(stdin, &er);
         if (er.etype == ami_etterm) { realterm = TRUE; done = TRUE; }
+        else if (er.etype == ami_etresize && er.winid == dwin->wid && lay)
+            /* the dialog was resized: flow the layout to the new client */
+            lay(wf, dwin, ctx);
         else if (er.etype == ami_etbutton) {
 
             if (er.butid == okid || er.butid == cancelid) {
@@ -9838,7 +9894,9 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid)
 }
 
 /* Create a dialog window centered on the surface. Returns its file, and
-   the window record through the pointer. */
+   the window record through the pointer. The given size is in the terms
+   the dialogs were laid out in, sysbar only: the sizing border grows the
+   window around it, keeping the client those layouts expect. */
 static FILE* dlgcre(char* title, long w, long h, winptr* dwin)
 
 {
@@ -9849,9 +9907,14 @@ static FILE* dlgcre(char* title, long w, long h, winptr* dwin)
     iopenwin(&stdin, &wf, NULL, igetwinid()); /* parentless: floats */
     win = txt2win(wf);
     win->frame = TRUE;
-    win->size = FALSE;
+    win->size = TRUE; /* a complete frame, and the size bars work */
     win->sysbar = TRUE;
+    win->curv = FALSE; /* a dialog never shows the cursor */
     recompcli(win);
+    w += 2; /* the sizing border */
+    h += 2;
+    if (w > dimx) w = dimx;
+    if (h > dimy) h = dimy;
     intsetsiz(win, w, h);
     intsetpos(win, (dimx-w)/2+1, (dimy-h)/2+1);
     ititle(wf, title);
@@ -9859,6 +9922,25 @@ static FILE* dlgcre(char* title, long w, long h, winptr* dwin)
     *dwin = win;
 
     return (wf);
+
+}
+
+/* flow the alert to its client: the message at the top, the button
+   centered on the bottom row */
+static void alertlay(FILE* wf, winptr dwin, void* ctx)
+
+{
+
+    char* message = (char*)ctx;
+    long  bw, bh, bx;
+
+    fprintf(wf, "\f");
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "%.*s", (int)(dwin->cmaxx-2), message);
+    ami_buttonsiz(wf, "Ok", &bw, &bh);
+    bx = (dwin->cmaxx-bw)/2+1;
+    if (bx < 1) bx = 1;
+    ami_poswidget(wf, 1, bx, dwin->cmaxy-1);
 
 }
 
@@ -9877,13 +9959,35 @@ void ami_alert(char* title, char* message)
     if (w > dimx-2) w = dimx-2;
     h = 7;
     wf = dlgcre(title, w, h, &dwin);
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "%.*s", (int)(dwin->cmaxx-2), message);
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, (dwin->cmaxx-bw)/2+1, dwin->cmaxy-1,
                    (dwin->cmaxx-bw)/2+bw, dwin->cmaxy-1, "Ok", 1);
-    dlgloop(wf, dwin, 1, 0);
+    alertlay(wf, dwin, message);
+    dlgloop(wf, dwin, 1, 0, alertlay, message);
     fclose(wf);
+
+}
+
+/* flow the color query: the list fills the middle, the buttons keep the
+   bottom row */
+static void qrycollay(FILE* wf, winptr dwin, void* ctx)
+
+{
+
+    long lw, lh;
+
+    fprintf(wf, "\f");
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Color:");
+    lw = dwin->cmaxx-7;
+    if (lw > 19) lw = 19;
+    if (lw < 1) lw = 1;
+    lh = dwin->cmaxy-4;
+    if (lh < 1) lh = 1;
+    ami_sizwidget(wf, 1, lw, lh);
+    ami_poswidget(wf, 1, 2, 3);
+    ami_poswidget(wf, 2, 3, dwin->cmaxy);
+    ami_poswidget(wf, 3, 12, dwin->cmaxy);
 
 }
 
@@ -9915,13 +10019,12 @@ void ami_querycolor(long* r, long* g, long* b)
 
     }
     wf = dlgcre("Choose color", 26, 14, &dwin);
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "Color:");
     ami_listbox(wf, 2, 3, 20, 10, &sr[0], 1);
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, 3, 12, 3+bw-1, 12, "Ok", 2);
     ami_button(wf, 12, 12, 12+bw+4, 12, "Cancel", 3);
-    res = dlgloop(wf, dwin, 2, 3);
+    qrycollay(wf, dwin, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qrycollay, NULL);
     sel = 0;
     wg = fndwig(dwin, 1); /* read the list selection */
     if (wg) sel = wg->sel;
@@ -9933,6 +10036,26 @@ void ami_querycolor(long* r, long* g, long* b)
 
     }
     fclose(wf);
+
+}
+
+/* flow the file query: the name field takes the width, the buttons keep
+   the bottom row */
+static void qryfilelay(FILE* wf, winptr dwin, void* ctx)
+
+{
+
+    long ew;
+
+    fprintf(wf, "\f");
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "File name:");
+    ew = dwin->cmaxx-2;
+    if (ew < 1) ew = 1;
+    ami_sizwidget(wf, 1, ew, 1);
+    ami_poswidget(wf, 1, 2, 3);
+    ami_poswidget(wf, 2, 3, dwin->cmaxy-1);
+    ami_poswidget(wf, 3, 12, dwin->cmaxy-1);
 
 }
 
@@ -9950,16 +10073,15 @@ static void qryfile(char* title, char* s, long sl)
     if (w > 60) w = 60;
     if (w < 24) w = 24;
     wf = dlgcre(title, w, 8, &dwin);
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "File name:");
     ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
     /* seed with what the caller passed, if anything */
     if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, 3, 5, 3+bw-1, 5, "Ok", 2);
     ami_button(wf, 12, 5, 12+bw+4, 5, "Cancel", 3);
+    qryfilelay(wf, dwin, NULL);
     ami_focuswidget(wf, 1); /* start in the name field */
-    res = dlgloop(wf, dwin, 2, 3);
+    res = dlgloop(wf, dwin, 2, 3, qryfilelay, NULL);
     if (res == 2) { /* accepted: hand back the name */
 
         wg = fndwig(dwin, 1);
@@ -9981,6 +10103,26 @@ void ami_queryopen(char* s, long sl) { qryfile("Open file", s, sl); }
 
 void ami_querysave(char* s, long sl) { qryfile("Save file", s, sl); }
 
+/* flow the find query: the search field takes the width, the option
+   boxes hold their rows, the buttons keep the bottom row */
+static void qryfndlay(FILE* wf, winptr dwin, void* ctx)
+
+{
+
+    long ew;
+
+    fprintf(wf, "\f");
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Find:");
+    ew = dwin->cmaxx-2;
+    if (ew < 1) ew = 1;
+    ami_sizwidget(wf, 1, ew, 1);
+    ami_poswidget(wf, 1, 2, 3);
+    ami_poswidget(wf, 2, 3, dwin->cmaxy);
+    ami_poswidget(wf, 3, 12, dwin->cmaxy);
+
+}
+
 void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
 
 {
@@ -9994,8 +10136,6 @@ void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
     if (w > 50) w = 50;
     if (w < 30) w = 30;
     wf = dlgcre("Find", w, 11, &dwin);
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "Find:");
     ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
     if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
     ami_checkbox(wf, 2, 5, 20, 5, "Match case", 4);
@@ -10007,8 +10147,9 @@ void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, 3, 9, 3+bw-1, 9, "Ok", 2);
     ami_button(wf, 12, 9, 12+bw+4, 9, "Cancel", 3);
+    qryfndlay(wf, dwin, NULL);
     ami_focuswidget(wf, 1);
-    res = dlgloop(wf, dwin, 2, 3);
+    res = dlgloop(wf, dwin, 2, 3, qryfndlay, NULL);
     if (res == 2) {
 
         wg = fndwig(dwin, 1);
@@ -10030,6 +10171,30 @@ void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
 
 }
 
+/* flow the find/replace query: both fields take the width, the option
+   boxes hold their rows, the buttons keep the bottom row */
+static void qryfrplay(FILE* wf, winptr dwin, void* ctx)
+
+{
+
+    long ew;
+
+    fprintf(wf, "\f");
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Find:");
+    ami_cursor(wf, 2, 5);
+    fprintf(wf, "Replace with:");
+    ew = dwin->cmaxx-2;
+    if (ew < 1) ew = 1;
+    ami_sizwidget(wf, 1, ew, 1);
+    ami_poswidget(wf, 1, 2, 3);
+    ami_sizwidget(wf, 7, ew, 1);
+    ami_poswidget(wf, 7, 2, 6);
+    ami_poswidget(wf, 2, 3, dwin->cmaxy);
+    ami_poswidget(wf, 3, 12, dwin->cmaxy);
+
+}
+
 void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
 
 {
@@ -10043,12 +10208,8 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     if (w > 50) w = 50;
     if (w < 30) w = 30;
     wf = dlgcre("Find and replace", w, 14, &dwin);
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "Find:");
     ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
     if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
-    ami_cursor(wf, 2, 5);
-    fprintf(wf, "Replace with:");
     ami_editbox(wf, 2, 6, dwin->cmaxx-1, 6, 7);
     if (rl > 0 && *r) ami_putwidgettext(wf, 7, r);
     ami_checkbox(wf, 2, 8, 20, 8, "Match case", 4);
@@ -10060,8 +10221,9 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, 3, 12, 3+bw-1, 12, "Ok", 2);
     ami_button(wf, 12, 12, 12+bw+4, 12, "Cancel", 3);
+    qryfrplay(wf, dwin, NULL);
     ami_focuswidget(wf, 1);
-    res = dlgloop(wf, dwin, 2, 3);
+    res = dlgloop(wf, dwin, 2, 3, qryfrplay, NULL);
     if (res == 2) {
 
         wg = fndwig(dwin, 1);
@@ -10089,6 +10251,24 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
 
     }
     fclose(wf);
+
+}
+
+/* flow the font query: the labels and boxes hold their rows, the buttons
+   keep the bottom row */
+static void qryfntlay(FILE* wf, winptr dwin, void* ctx)
+
+{
+
+    fprintf(wf, "\f");
+    ami_cursor(wf, 2, 2);
+    fprintf(wf, "Foreground:");
+    ami_cursor(wf, 2, 4);
+    fprintf(wf, "Background:");
+    ami_cursor(wf, 2, 6);
+    fprintf(wf, "Effects:");
+    ami_poswidget(wf, 2, 3, dwin->cmaxy);
+    ami_poswidget(wf, 3, 12, dwin->cmaxy);
 
 }
 
@@ -10123,14 +10303,8 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
 
     }
     wf = dlgcre("Font", 46, 16, &dwin);
-    ami_cursor(wf, 2, 2);
-    fprintf(wf, "Foreground:");
     ami_dropbox(wf, 14, 2, 26, 2, &fr_[0], 1);
-    ami_cursor(wf, 2, 4);
-    fprintf(wf, "Background:");
     ami_dropbox(wf, 14, 4, 26, 4, &br_[0], 8);
-    ami_cursor(wf, 2, 6);
-    fprintf(wf, "Effects:");
     ami_checkbox(wf, 2, 7, 20, 7, "Bold", 4);
     ami_checkbox(wf, 2, 8, 20, 8, "Underline", 5);
     ami_checkbox(wf, 2, 9, 20, 9, "Italic", 6);
@@ -10144,7 +10318,8 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, 3, 14, 3+bw-1, 14, "Ok", 2);
     ami_button(wf, 12, 14, 12+bw+4, 14, "Cancel", 3);
-    res = dlgloop(wf, dwin, 2, 3);
+    qryfntlay(wf, dwin, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qryfntlay, NULL);
     if (res == 2) {
 
         wg = fndwig(dwin, 1);
