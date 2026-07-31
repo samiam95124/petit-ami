@@ -316,7 +316,10 @@ static void screen_capture_fini(void) {
         cap_file = NULL;
         if (cap_frame_count == 0) {
             remove(CAPTURE_FILENAME);
-        } else {
+        } else if (!isatty(fileno(stderr))) {
+            /* The summary is for harness runs with stderr captured. On a
+               terminal it landed on the program's final screen, printing
+               over whatever the test left there. */
             fprintf(stderr, "screen_capture: wrote %u frames to %s\n",
                     cap_frame_count, CAPTURE_FILENAME);
         }

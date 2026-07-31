@@ -6637,56 +6637,110 @@ Brings the indicated window to the front of the Z order.
 
 *******************************************************************************/
 
-/* Bring a window and its subtree to the front. The children of a window
-   stay above it: the window fronts first, then the children over it, in
-   their current relative order -- lowest first, so what the user had on
-   top stays on top. Walking the child list fronts in creation order,
-   which reshuffled the children on every click of their parent. Children
-   already fronted sit at the top of the order, so the minimum is always
-   the next unfronted one. */
+/* Find whether a window lies in the subtree of another. */
+
+static int intree(winptr t, winptr w)
+
+{
+
+    while (w) {
+
+        if (w == t) return (TRUE);
+        w = w->parwin;
+
+    }
+
+    return (FALSE);
+
+}
+
+/* Move a window and its whole subtree to sit just above the given anchor
+   window in the Z order, keeping the subtree's internal order; a NULL
+   anchor places it at the very back. The subtree is pulled out of the
+   bottom-first list in one pass, which preserves its order, and spliced
+   back in above the anchor; the order is then renumbered without gaps and
+   the masks follow. */
+
+static void placetree(winptr win, winptr anchor)
+
+{
+
+    winptr  chain = NULL; /* the extracted subtree, bottom first */
+    winptr  chend = NULL;
+    winptr  wp;
+    winptr* lp;
+    long    z;
+
+    lp = &zmin2max;
+    while (*lp) {
+
+        if (intree(win, *lp)) { /* pull out, keeping order */
+
+            wp = *lp;
+            *lp = wp->zmin2max;
+            wp->zmin2max = NULL;
+            if (chend) chend->zmin2max = wp; else chain = wp;
+            chend = wp;
+
+        } else lp = &(*lp)->zmin2max;
+
+    }
+    if (anchor) { /* splice back in just above the anchor */
+
+        chend->zmin2max = anchor->zmin2max;
+        anchor->zmin2max = chain;
+
+    } else { /* the very back */
+
+        chend->zmin2max = zmin2max;
+        zmin2max = chain;
+
+    }
+    /* renumber from the back, without gaps */
+    wp = zmin2max;
+    z = 0;
+    while (wp) { wp->zorder = z++; wp = wp->zmin2max; }
+    ztop = z-1;
+    makzmax2min(); /* remake the top-first list */
+    recalcfmask(); /* occlusion follows the new order */
+
+}
+
+/* Bring a window and its subtree to the front, above everything outside
+   the subtree, keeping its internal order: the children stay above their
+   window, and what the user had on top stays on top. */
 
 static void fronttree(winptr win)
 
 {
 
-    winptr c, sel;
-    long   n = 0;
+    winptr    wp;
+    winptr    anchor = NULL;
+    rectangle r;
 
-    intfront(win);
-    for (c = win->childwin; c; c = c->childlst) n++;
-    while (n--) {
-
-        sel = NULL;
-        for (c = win->childwin; c; c = c->childlst)
-            if (!sel || c->zorder < sel->zorder) sel = c;
-        fronttree(sel);
-
-    }
+    /* the topmost window outside the subtree is the one to land on */
+    for (wp = zmin2max; wp; wp = wp->zmin2max)
+        if (!intree(win, wp)) anchor = wp;
+    placetree(win, anchor);
+    treerect(win, &r);
+    redraw(zmax2min, r.x1, r.y1, r.x2, r.y2); /* repaint its region */
 
 }
 
-/* Put a window and its subtree to the back, keeping the children above
-   their window in their current relative order: the children go back
-   highest first, each sliding in beneath the one before, and the window
-   goes in beneath them all. */
+/* Put a window and its subtree to the back of its sibling group: just
+   above its parent, keeping its internal order. The back of the order is
+   relative to the parent in the window tree -- a child sent to the back
+   goes behind its siblings, not behind the window that contains it. */
 
 static void backtree(winptr win)
 
 {
 
-    winptr c, sel;
-    long   n = 0;
+    rectangle r;
 
-    for (c = win->childwin; c; c = c->childlst) n++;
-    while (n--) {
-
-        sel = NULL;
-        for (c = win->childwin; c; c = c->childlst)
-            if (!sel || c->zorder > sel->zorder) sel = c;
-        backtree(sel);
-
-    }
-    intback(win);
+    placetree(win, win->parwin); /* NULL parent: the root, the very back */
+    treerect(win, &r);
+    redraw(zmax2min, r.x1, r.y1, r.x2, r.y2); /* repaint its region */
 
 }
 
@@ -8588,7 +8642,7 @@ void ami_backwidget(FILE* f, long id)
     wigptr wg = fndwig(txt2win(f), id);
 
     if (!wg) error("No widget by given id");
-    intback(wg->win);
+    backtree(wg->win); /* behind its siblings, above its owner */
 
 }
 
@@ -8599,7 +8653,7 @@ void ami_frontwidget(FILE* f, long id)
     wigptr wg = fndwig(txt2win(f), id);
 
     if (!wg) error("No widget by given id");
-    intfront(wg->win);
+    fronttree(wg->win);
 
 }
 

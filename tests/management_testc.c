@@ -577,6 +577,147 @@ static void childindtest(FILE* par, long parid)
 
 }
 
+/* Child windows stacking test: three overlapped children of the given
+   parent, reordered with back and front. */
+
+static void childstacktest(FILE* par)
+
+{
+
+    long i;
+
+    fputc('\f', par);
+    prtcen(ami_maxy(par), "Child windows stacking test character");
+    ami_openwin(&stdin, &win2, par, 3);
+    ami_openwin(&stdin, &win3, par, 4);
+    ami_openwin(&stdin, &win4, par, 5);
+    for (i = 0; i < 3; i++) {
+
+        FILE* w = i == 0? win2: i == 1? win3: win4;
+
+        ami_curvis(w, OFF);
+        ami_setpos(w, 5+10*i, 6+3*i);
+        ami_sizbuf(w, 20, 10);
+        ami_setsiz(w, 20, 10);
+
+    }
+    ami_bcolor(win2, ami_cyan);
+    putc('\f', win2);
+    fprintf(win2, "I am child window 1\n");
+    ami_bcolor(win3, ami_yellow);
+    putc('\f', win3);
+    fprintf(win3, "I am child window 2\n");
+    ami_bcolor(win4, ami_magenta);
+    putc('\f', win4);
+    fprintf(win4, "I am child window 3\n");
+    ami_home(par);
+    fprintf(par, "There should be 3 labeled child windows below, overlapped,  \n");
+    fprintf(par, "with child 1 on the bottom, child 2 middle, and child 3 top.\n");
+    waitnext();
+    ami_back(win2);
+    ami_back(win3);
+    ami_back(win4);
+    ami_home(par);
+    fprintf(par, "Now the windows are reordered, with child 1 on top, child 2 \n");
+    fprintf(par, "below that, and child 3 on the bottom.                      \n");
+    waitnext();
+    ami_front(win2);
+    ami_front(win3);
+    ami_front(win4);
+    ami_home(par);
+    fprintf(par, "Now the windows are reordered, with child 3 on top, child 2 \n");
+    fprintf(par, "below that, and child 1 on the bottom.                      \n");
+    waitnext();
+    fclose(win2);
+    fclose(win3);
+    fclose(win4);
+    fputc('\f', par);
+    fprintf(par, "Child windows should all be closed                          \n");
+    waitnext();
+
+}
+
+/* Child windows stacking resize test: three stacked children over the
+   unbuffered parent, moved and resized by hand to exercise the repaint
+   speed. Variant 1 gives the children full buffers; variant 2 gives them
+   a one line buffer, the rest of each face being background fill. */
+
+static void childstackrsz(FILE* par, long parid, int variant)
+
+{
+
+    long mx, my, xs, ys, i;
+    ami_evtrec er;
+
+    ami_buffer(par, OFF);
+    ami_auto(par, OFF);
+    mx = ami_maxx(par);
+    my = ami_maxy(par);
+    xs = mx/10; /* stack step */
+    ys = my/10;
+    if (xs < 2) xs = 2;
+    if (ys < 1) ys = 1;
+    ami_openwin(&stdin, &win2, par, 3);
+    ami_openwin(&stdin, &win3, par, 4);
+    ami_openwin(&stdin, &win4, par, 5);
+    for (i = 1; i <= 3; i++) {
+
+        FILE* w = i == 1? win2: i == 2? win3: win4;
+
+        ami_curvis(w, OFF);
+        ami_setpos(w, xs*i, ys*i);
+        if (variant == 1) ami_sizbuf(w, mx-xs*4, my-ys*4);
+        else ami_sizbuf(w, 19, 1); /* the label line; the rest is fill */
+        ami_setsiz(w, mx-xs*4, my-ys*4);
+
+    }
+    ami_bcolor(win2, ami_cyan);
+    putc('\f', win2);
+    fprintf(win2, "I am child window 1");
+    ami_bcolor(win3, ami_yellow);
+    putc('\f', win3);
+    fprintf(win3, "I am child window 2");
+    ami_bcolor(win4, ami_magenta);
+    putc('\f', win4);
+    fprintf(win4, "I am child window 3");
+    do {
+
+        ami_event(stdin, &er);
+        /* repaint the parent on its own redraw or resize */
+        if ((er.etype == ami_etredraw || er.etype == ami_etresize) &&
+            er.winid == parid) {
+
+            fputc('\f', par);
+            prtcen(ami_maxy(par), variant == 1?
+                   "Child windows stacking resize test character 1":
+                   "Child windows stacking resize test character 2");
+            ami_cursor(par, 1, 1);
+            fprintf(par, "move and resize");
+            if (er.etype == ami_etresize) {
+
+                /* re-fit the children to the new parent size */
+                mx = ami_maxx(par);
+                my = ami_maxy(par);
+                ami_setsiz(win2, mx-xs*4, my-ys*4);
+                ami_setsiz(win3, mx-xs*4, my-ys*4);
+                ami_setsiz(win4, mx-xs*4, my-ys*4);
+
+            }
+
+        }
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != ami_etenter);
+    fclose(win2);
+    fclose(win3);
+    fclose(win4);
+    ami_buffer(par, ON);
+    fputc('\f', par);
+    fprintf(par, "Child windows should all be closed                          \n");
+    waitnext();
+
+}
+
 static ami_color nextcolor(ami_color c)
 
 {
@@ -919,6 +1060,28 @@ int main(void)
     childindtest(stdout, 1);
     resumetestwin();
     childindtest(tw, 2);
+
+    /* ************** Child windows stacking test character ***************** */
+
+    /* on the root window first, then on the test window */
+    suspendtestwin();
+    childstacktest(stdout);
+    resumetestwin();
+    childstacktest(tw);
+
+    /* ********* Child windows stacking resize test character 1 ************* */
+
+    suspendtestwin();
+    childstackrsz(stdout, 1, 1);
+    resumetestwin();
+    childstackrsz(tw, 2, 1);
+
+    /* ********* Child windows stacking resize test character 2 ************* */
+
+    suspendtestwin();
+    childstackrsz(stdout, 1, 2);
+    resumetestwin();
+    childstackrsz(tw, 2, 2);
 
     /* ******************************* Buffer off test *********************** */
 
