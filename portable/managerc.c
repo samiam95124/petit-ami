@@ -547,7 +547,7 @@ static int mclog(void)
 
     if (mclogfd == -2)
         mclogfd = getenv("MANAGERC_LOG")?
-            open("/tmp/managerc.log", O_WRONLY|O_CREAT|O_TRUNC, 0644): -1;
+            open("/tmp/managerc.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
 
     return (mclogfd >= 0);
 

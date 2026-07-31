@@ -826,10 +826,63 @@ Accepts a linux error code. Prints the error string and exits.
 void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp)
     { *ofp = linuxerror_vect; linuxerror_vect = nfp; }
 static void linuxerror(int ec) { (*linuxerror_vect)(ec); }
+/* Diagnostic input trace, enabled by MANAGERC_LOG: appends the raw input
+   bytes and key terminal events to /tmp/managerc.log with the raw system
+   calls, sharing the file with the manager's trace. */
+
+static int ttlogfd = -2;
+
+static int ttlog(void)
+
+{
+
+    if (ttlogfd == -2)
+        ttlogfd = getenv("MANAGERC_LOG")?
+            open("/tmp/managerc.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
+
+    return (ttlogfd >= 0);
+
+}
+
+static void ttlogb(unsigned char c)
+
+{
+
+    char b[8];
+    int  n;
+
+    if (!ttlog()) return;
+    if (c == 0x1b) n = snprintf(b, sizeof(b), "\nESC ");
+    else if (c >= ' ' && c < 127) { b[0] = (char)c; n = 1; }
+    else n = snprintf(b, sizeof(b), "<%02x>", c);
+    if (n > 0) { ssize_t r = write(ttlogfd, b, n); (void)r; }
+
+}
+
+static void ttlogs(const char* s)
+
+{
+
+    ssize_t r;
+
+    if (!ttlog()) return;
+    r = write(ttlogfd, s, strlen(s));
+    (void)r;
+
+}
+
 static void linuxerror_ivf(long ec)
 
 {
 
+    if (ttlog()) {
+
+        char b[64];
+
+        snprintf(b, sizeof(b), "\n[linuxerror ec=%ld %s]\n", ec, strerror(ec));
+        ttlogs(b);
+
+    }
     fprintf(stderr, "Linux error: %s\n", strerror(ec)); fflush(stderr);
     errflg = TRUE; /* flag error occurred */
 
@@ -2305,6 +2358,7 @@ static void ievent(void)
 
             /* keyboard (standard input) */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
+            ttlogb((unsigned char)keybuf[keylen-1]);
             if (mousts == mnone) { /* do table matching */
 
                 pmatch = 0; /* set no partial matches */
@@ -2329,6 +2383,8 @@ static void ievent(void)
                                 else er.fkey = i-ami_etterm;
 
                             } else er.etype = i; /* set event */
+                            if (er.etype == ami_etterm)
+                                ttlogs("\n[terminal key etterm]\n");
                             evtfnd = 1; /* set event found */
                             enquepaevt(&er); /* send to queue */
                             keylen = 0; /* clear buffer */
