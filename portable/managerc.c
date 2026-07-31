@@ -2923,6 +2923,10 @@ static frmpart frmhit(winptr win, long x, long y)
     if (!win->frame) return (fp_none);
     if (win->sysbar && ly == win->size) { /* the system bar row */
 
+        /* the sizing side borders pass through the bar row, and a click
+           there sizes, so the highlight follows */
+        if (win->size && lx == 0) return (fp_left);
+        if (win->size && lx == win->pmaxx-1) return (fp_right);
         if (lx == win->pmaxx-3) return (fp_close);
         if (lx == win->pmaxx-5) return (fp_max);
         if (lx == win->pmaxx-7) return (fp_min);
