@@ -10209,6 +10209,22 @@ static void qrycollay(FILE* wf, winptr dwin, void* ctx)
     for (i = 1; i <= n; i++) fputc('-', wf);
     ami_cursor(wf, (n-7)/2+1, 1);
     fprintf(wf, " Color ");
+    /* the swatch border: the swatch starts white, the dialog's own
+       background, and without this there is no telling it is there */
+    ami_cursor(wf, 35, 2);
+    fputc('+', wf);
+    for (i = 36; i <= 54; i++) fputc('-', wf);
+    fputc('+', wf);
+    for (i = 3; i <= 10; i++) {
+
+        ami_cursor(wf, 35, i); fputc('|', wf);
+        ami_cursor(wf, 55, i); fputc('|', wf);
+
+    }
+    ami_cursor(wf, 35, 11);
+    fputc('+', wf);
+    for (i = 36; i <= 54; i++) fputc('-', wf);
+    fputc('+', wf);
     ami_cursor(wf, 3, 12); fprintf(wf, "Red");
     ami_cursor(wf, 3, 14); fprintf(wf, "Green");
     ami_cursor(wf, 3, 16); fprintf(wf, "Blue");
