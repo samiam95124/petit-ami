@@ -1010,8 +1010,6 @@ int main(void)
     fprintf(win2, "8\n");
     fprintf(win2, "9\n");
     fprintf(win2, "0\n");
-    ami_fcolor(win2, ami_cyan);
-    charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
     fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
@@ -1033,8 +1031,6 @@ int main(void)
     fprintf(win2, "8\n");
     fprintf(win2, "9\n");
     fprintf(win2, "0\n");
-    ami_fcolor(win2, ami_cyan);
-    charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
     fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
@@ -1057,8 +1053,6 @@ int main(void)
     fprintf(win2, "8\n");
     fprintf(win2, "9\n");
     fprintf(win2, "0\n");
-    ami_fcolor(win2, ami_cyan);
-    charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
     fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
@@ -1082,8 +1076,6 @@ int main(void)
     fprintf(win2, "8\n");
     fprintf(win2, "9\n");
     fprintf(win2, "0\n");
-    ami_fcolor(win2, ami_cyan);
-    charbox(win2, 20, 10); /* box the child window */
     ami_curvis(win2, OFF);
     fprintf(tw, "Check client window has (20, 10) surface\n");
     waitnext();
