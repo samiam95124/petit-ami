@@ -5264,29 +5264,59 @@ static void wrtstrn_ivf(FILE* f, char *s, long n)
     ssize_t rc;      /* return code */
     long    off = 0; /* offset into the string */
 
+    scnptr  sc;
+    scnrec* p;
+    long    i;
+
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    synccur(screens[curupd-1]); /* the run lands at the cursor: place it */
-    /* Send the run in one piece. This call exists to bypass the per
-       character protocol, and emitting it a character at a time, which is
-       a write() each, gave up the very saving it is for. The caller's side
-       of that bargain is that the string holds no control characters. */
-    while (off < n) {
+    sc = screens[curupd-1];
+    /* Store the run into the buffer as the per character path does, one
+       cell per byte -- the caller's side of the bargain is that the run
+       holds no control characters. The run bypassed the buffer entirely,
+       so a buffered program mixing this call with anything that restores
+       from the buffer lost the run. The saving this call exists for is
+       the single write below; the stores are memory. */
+    for (i = 0; i < n; i++)
+        if (ncurx+i >= 1 && ncurx+i <= bufx &&
+            ncury >= 1 && ncury <= bufy) {
 
-        rc = (*ofpwrite)(OUTFIL, s+off, n-off);
-        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
-        off += rc;
+        p = &SCNBUF(sc, ncurx+i, ncury);
+        plcchrext(p, (unsigned char)s[i]); /* place character in buffer */
+#ifdef NATIVE24
+        p->forergb = forergb; /* place colors */
+        p->backrgb = backrgb;
+#else
+        p->forec = forec; /* place colors */
+        p->backc = backc;
+#endif
+        p->attr = attr; /* place attribute */
 
     }
-    /* The string advanced both cursors by the length written: the logical
-       position, which later placements and cursor syncs read, and the
-       physical tracker. Leaving the logical position at the run start sent
+    if (indisp(sc)) { /* the display shows this screen */
+
+        synccur(sc); /* the run lands at the cursor: place it */
+        /* Send the run in one piece. This call exists to bypass the per
+           character protocol, and emitting it a character at a time,
+           which is a write() each, gave up the very saving it is for. */
+        while (off < n) {
+
+            rc = (*ofpwrite)(OUTFIL, s+off, n-off);
+            if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+            off += rc;
+
+        }
+        /* the physical cursor moved by the length written */
+        curx += n;
+        /* at or past the right side, don't count on the screen wrap */
+        if (curx >= dimx) curval = 0;
+
+    }
+    /* The logical position, which later placements and cursor syncs read,
+       advanced by the length written. Leaving it at the run start sent
        the next placement back to it -- the characters that followed a run
        landed over it, not after it. */
     ncurx += n;
-    curx += n;
-    /* at or past the right side, don't count on the screen wrap action */
-    if (curx >= dimx) curval = 0;
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
