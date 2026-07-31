@@ -4145,14 +4145,55 @@ static void intmin(winptr win)
 
 {
 
-    long h;
+    winptr par = win->parwin;
+    winptr c;
+    long   h, w, tx, ty;
+    int    moved;
 
+    if (!par) return; /* the root does not minimize */
     savnorm(win); /* note what to restore to */
     win->mined = TRUE;
     win->maxed = FALSE;
-    h = decory(win); /* the bar: the decorations alone */
+    /* The window reduces to its title bar alone: the decorations high,
+       and wide enough for the whole title, or eight characters, plus
+       the borders and the bar buttons. */
+    h = decory(win);
     if (h < 2) h = 2; /* observe the minimum */
-    intsetsiz(win, win->pmaxx, h);
+    w = win->title? (long)strlen(win->title): 0;
+    if (w < 8) w = 8; /* the title, or eight characters */
+    w += 10; /* borders, buttons, and the title's margin */
+    if (w > par->cmaxx) w = par->cmaxx; /* no wider than the parent */
+    /* Minimized windows park along the bottom of the parent's client,
+       left to right in the order minimized, wrapping back to the left a
+       row up when the row is full. The slot search walks the minimized
+       siblings and steps past any that overlap the candidate. */
+    tx = 1;
+    ty = par->cmaxy-h+1;
+    do {
+
+        moved = FALSE;
+        if (tx+w-1 > par->cmaxx && tx > 1) { /* row is full, wrap */
+
+            tx = 1;
+            ty -= h;
+            moved = TRUE;
+
+        }
+        if (ty < 1) break; /* parent is full of bars; stack at the top */
+        for (c = par->childwin; c; c = c->childlst)
+            if (c != win && c->mined &&
+                c->orgx < tx+w && c->orgx+c->pmaxx > tx &&
+                c->orgy < ty+h && c->orgy+c->pmaxy > ty) {
+
+                tx = c->orgx+c->pmaxx; /* step past this bar */
+                moved = TRUE;
+
+            }
+
+    } while (moved);
+    if (ty < 1) { ty = 1; tx = 1; } /* overfull parent: best effort */
+    intsetsiz(win, w, h);
+    intsetpos(win, tx, ty);
 
 }
 

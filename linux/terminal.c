@@ -2736,7 +2736,7 @@ static void plcchrext(scnrec* p, unsigned char c)
             } else {
 
                 /* more extension characters than count char */
-                if (ci > utf8bits[p->ch[0]])
+                if (ci > utf8bits[((unsigned char)p->ch[0]) >> 4])
                     for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
                 else /* place next in sequence */
                     p->ch[ci] = c;
