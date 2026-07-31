@@ -1721,12 +1721,58 @@ valid.
 
 *******************************************************************************/
 
+/*******************************************************************************
+
+Find the ancestor clip of a window
+
+A child window shows only within its parent, and that in turn within its
+own parent: the visible region of a window is the intersection of the
+client areas of every ancestor up the tree. Fills r with that region in
+absolute terms and returns TRUE, or FALSE when the intersection is empty
+and the window shows nowhere (as when its parent is minimized). A widget
+face is exempted one level: it lives in its owner's decorations -- the
+menu bar sits in the frame's menu row -- so it clips to the owner's whole
+window rather than its client.
+
+*******************************************************************************/
+
+static int ancclip(winptr win, rectangle* r)
+
+{
+
+    winptr    c = win; /* the window whose bound we take next */
+    winptr    p = win->parwin;
+    rectangle pr, ri;
+
+    setrect(r, 1, 1, dimx, dimy); /* the screen bounds everything */
+    while (p) {
+
+        if (c->widget)
+            setrect(&pr, absx(p), absy(p),
+                         absx(p)+p->pmaxx-1, absy(p)+p->pmaxy-1);
+        else
+            setrect(&pr, absx(p)+p->coffx, absy(p)+p->coffy,
+                         absx(p)+p->coffx+p->cmaxx-1,
+                         absy(p)+p->coffy+p->cmaxy-1);
+        if (!intersect(r, &pr)) return (FALSE); /* shows nowhere */
+        intersection(&ri, r, &pr);
+        *r = ri;
+        c = p;
+        p = p->parwin;
+
+    }
+
+    return (TRUE);
+
+}
+
 static void calcfmask(winptr win)
 
 {
 
     winptr    wp;         /* window structure pointer */
     rectangle r1, r2, r3; /* window rectangles */
+    rectangle ra, rw;     /* ancestor clips */
     long      x, y;
     long      cx, cy;
     long      l;
@@ -1737,12 +1783,42 @@ static void calcfmask(winptr win)
     setrect(&r1, absx(win)+win->coffx, absy(win)+win->coffy,
                  absx(win)+win->coffx+win->cmaxx-1, 
                  absy(win)+win->coffy+win->cmaxy-1);
+    /* The window shows only within its ancestors: cells outside the
+       ancestor clip are off, so nothing of the window draws where it
+       hangs out of its parent. */
+    if (!ancclip(win, &ra)) {
+
+        memset(win->fmask, 0, win->fmasklen); /* shows nowhere */
+        return;
+
+    }
+    for (y = r1.y1; y <= r1.y2; y++)
+        for (x = r1.x1; x <= r1.x2; x++)
+            if (!inrect(x, y, &ra)) {
+
+            cx = x-(absx(win)+win->coffx);
+            cy = y-(absy(win)+win->coffy);
+            if (cx < win->bufx && cy < win->bufy) {
+
+                l = cy*win->bufx+cx;
+                win->fmask[l/8] &= ~(1<<(l%8));
+
+            }
+
+        }
     wp = win->zmin2max; /* index windows in front by Z order */
     while (wp) { /* tour the (possibly) lapping windows */
 
+        /* A window above occludes only where it shows: clipped by its own
+           ancestors. One hanging out of its parent does not blot windows
+           below in the region where it is not drawn. */
+        if (!ancclip(wp, &rw)) { wp = wp->zmin2max; continue; }
         /* set window rectangle in root terms */
         setrect(&r2, absx(wp), absy(wp),
                     absx(wp)+wp->pmaxx-1, absy(wp)+wp->pmaxy-1);
+        if (!intersect(&r2, &rw)) { wp = wp->zmin2max; continue; }
+        intersection(&r3, &r2, &rw);
+        r2 = r3;
         if (intersect(&r1, &r2)) { /* if this window overlaps our client area */
 
             intersection(&r3, &r1, &r2); /* find the intersected rectangle */
@@ -2194,12 +2270,19 @@ static void restoreclp(winptr win,   /* window to restore */
     long bx, by;   /* buffer location */
     long l;        /* mask index */
     rectangle r1, r2;
+    rectangle rca, rcc; /* ancestor clip */
     char runbuf[MAXLIN]; /* run of characters to emit as a string */
     long runx;           /* screen x the run starts at */
     ami_color runfc, runbc; /* the run's colors */
     int  runat;          /* the run's attributes */
 
     if (!win->visible) return; /* nothing onscreen to restore */
+    /* the window shows only within its ancestors: frame, client and
+       margins all clip to them */
+    if (!ancclip(win, &rca)) return; /* shows nowhere */
+    if (!intersect(cr, &rca)) return; /* no part in the clip area */
+    intersection(&rcc, cr, &rca);
+    cr = &rcc;
     setcurvis(FALSE); /* turn off cursor for drawing */
     if (win->frame) drwfrm(win, cr); /* draw window frame */
     if (!win->bufmod) {
@@ -2420,15 +2503,24 @@ static void redraw(winptr win, long x1, long y1, long x2, long y2)
 {
 
     rectangle r1, r2, r3, rt, rl, rr, rb;
+    rectangle rw; /* ancestor clip */
 
     if (win) { /* if window exists */
 
 
         setrect(&r1, x1, y1, x2, y2); /* set update rectangle */
         cliproot(&r1); /* clip to terminal root window */
-        /* set window rectangle */
+        /* The window covers only the part of its rectangle within its
+           ancestors; the rest of the damage falls through to the windows
+           below. */
         setrect(&r2, absx(win), absy(win),
                     absx(win)+win->pmaxx-1, absy(win)+win->pmaxy-1);
+        if (ancclip(win, &rw) && intersect(&r2, &rw)) {
+
+            intersection(&r3, &r2, &rw);
+            r2 = r3;
+
+        } else setrect(&r2, 0, 0, -1, -1); /* shows nowhere: empty */
         if (intersect(&r1, &r2)) { /* there is an intersection */
 
             intersection(&r3, &r1, &r2); /* find the intersected rectangle */
@@ -2759,6 +2851,7 @@ static winptr fndtop(long x, long y)
     winptr win; /* pointer to windows list */
     winptr fp;  /* found window pointer */
     int    z;   /* z order of last found */
+    rectangle ra; /* ancestor clip */
 
     win = winlst; /* get the master list */
     fp = NULL; /* set no window found */
@@ -2767,9 +2860,10 @@ static winptr fndtop(long x, long y)
 
         if (absx(win) <= x && x <= absx(win)+win->pmaxx-1 &&
             absy(win) <= y && y <= absy(win)+win->pmaxy-1 &&
-            win->zorder > z) {
+            win->zorder > z &&
+            ancclip(win, &ra) && inrect(x, y, &ra)) {
 
-            /* found inclusion, Z order above previous */
+            /* found inclusion where the window shows, Z above previous */
             fp = win; /* set candidate */
             z = win->zorder;
 
