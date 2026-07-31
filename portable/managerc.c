@@ -5032,6 +5032,159 @@ static void defaultevent(ami_evtrec* ev)
 
 }
 
+/*******************************************************************************
+
+Process a click on the window frame
+
+Handles a button 1 press on a window's frame: the system bar buttons --
+close, maximize or restore, minimize or restore -- the title bar drag,
+and the sizing edge and corner drags. Called for the click on a focused
+window, and for the click that focuses one: a button acts on the same
+click that focuses its window, as a widget does; needing a second click
+was not usable.
+
+*******************************************************************************/
+
+static void frmclick(winptr win)
+
+{
+
+    ami_evtrec er;
+
+
+    if (win->sysbar && mousey-absy(win) == win->size &&
+        mousex-absx(win) >= 1 &&
+        mousex-absx(win) < win->pmaxx-1) {
+
+        /* check for system bar events */
+        if (mousex-absx(win) == win->pmaxx-3) {
+
+            /* terminate */
+            er.etype = ami_etterm; /* set type */
+            intsendevent(win, &er); /* issue event */
+            fend = TRUE; /* set end program requested */
+
+        } else if (mousex-absx(win) == win->pmaxx-5) {
+
+            /* maximize, or restore a maximized window */
+            if (win->maxed) {
+
+                intnorm(win);
+                er.etype = ami_etnorm;
+
+            } else {
+
+                intmax(win);
+                er.etype = ami_etmax;
+
+            }
+            intsendevent(win, &er); /* issue event */
+
+        } else if (mousex-absx(win) == win->pmaxx-7) {
+
+            /* minimize, or restore a minimized window */
+            if (win->mined) {
+
+                intnorm(win);
+                er.etype = ami_etnorm;
+
+            } else {
+
+                intmin(win);
+                er.etype = ami_etmin;
+
+            }
+            intsendevent(win, &er); /* issue event */
+
+        } else if (mousex-absx(win) >= 1 &&
+                   mousex-absx(win) < win->pmaxx-1) {
+
+            /* system bar click */
+            drag = dt_sysbar; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        }
+
+    } else if (win->frame && win->size) {
+
+        /* frame and sizebars are enabled */
+        if (mousey-absy(win) == 0 &&
+              mousex-absx(win) == 0) {
+
+            /* top left click */
+            drag = dt_ulcnr; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousey-absy(win) == 0 &&
+              mousex-absx(win) == win->pmaxx-1) {
+
+            /* top right click */
+            drag = dt_urcnr; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousey-absy(win) == win->pmaxy-1 &&
+              mousex-absx(win) == 0) {
+
+            /* bottom left click */
+            drag = dt_blcnr; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousey-absy(win) == win->pmaxy-1 &&
+              mousex-absx(win) == win->pmaxx-1) {
+
+            /* bottom right click */
+            drag = dt_brcnr; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousey-absy(win) == 0) {
+
+            /* top bar click */
+            drag = dt_top; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousey-absy(win) == win->pmaxy-1) {
+
+            /* bottom bar click */
+            drag = dt_bottom; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousex-absx(win) == 0) {
+
+            /* left bar click */
+            drag = dt_left; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        } else if (mousex-absx(win) == win->pmaxx-1) {
+
+            /* right bar click */
+            drag = dt_right; /* set drag type */
+            drgwin = win; /* set up drag pin */
+            drgx = mousex;
+            drgy = mousey;
+
+        }
+
+    }
+
+
+}
+
 /** ****************************************************************************
 
 Acquire next input event
@@ -5233,139 +5386,8 @@ static void intevent(FILE* f)
 
                         }
 
-                    } else if (ev.mmoun == 1) {
+                    } else if (ev.mmoun == 1) frmclick(win);
 
-                        if (win->sysbar && mousey-absy(win) == win->size &&
-                            mousex-absx(win) >= 1 &&
-                            mousex-absx(win) < win->pmaxx-1) {
-
-                            /* check for system bar events */
-                            if (mousex-absx(win) == win->pmaxx-3) {
-
-                                /* terminate */
-                                er.etype = ami_etterm; /* set type */
-                                intsendevent(win, &er); /* issue event */
-                                fend = TRUE; /* set end program requested */
-
-                            } else if (mousex-absx(win) == win->pmaxx-5) {
-
-                                /* maximize, or restore a maximized window */
-                                if (win->maxed) {
-
-                                    intnorm(win);
-                                    er.etype = ami_etnorm;
-
-                                } else {
-
-                                    intmax(win);
-                                    er.etype = ami_etmax;
-
-                                }
-                                intsendevent(win, &er); /* issue event */
-
-                            } else if (mousex-absx(win) == win->pmaxx-7) {
-
-                                /* minimize, or restore a minimized window */
-                                if (win->mined) {
-
-                                    intnorm(win);
-                                    er.etype = ami_etnorm;
-
-                                } else {
-
-                                    intmin(win);
-                                    er.etype = ami_etmin;
-
-                                }
-                                intsendevent(win, &er); /* issue event */
-
-                            } else if (mousex-absx(win) >= 1 &&
-                                       mousex-absx(win) < win->pmaxx-1) {
-
-                                /* system bar click */
-                                drag = dt_sysbar; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            }
-
-                        } else if (win->frame && win->size) {
-
-                            /* frame and sizebars are enabled */
-                            if (mousey-absy(win) == 0 &&
-                                  mousex-absx(win) == 0) {
-
-                                /* top left click */
-                                drag = dt_ulcnr; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousey-absy(win) == 0 &&
-                                  mousex-absx(win) == win->pmaxx-1) {
-
-                                /* top right click */
-                                drag = dt_urcnr; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousey-absy(win) == win->pmaxy-1 &&
-                                  mousex-absx(win) == 0) {
-
-                                /* bottom left click */
-                                drag = dt_blcnr; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousey-absy(win) == win->pmaxy-1 &&
-                                  mousex-absx(win) == win->pmaxx-1) {
-
-                                /* bottom right click */
-                                drag = dt_brcnr; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousey-absy(win) == 0) {
-
-                                /* top bar click */
-                                drag = dt_top; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousey-absy(win) == win->pmaxy-1) {
-
-                                /* bottom bar click */
-                                drag = dt_bottom; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousex-absx(win) == 0) {
-
-                                /* left bar click */
-                                drag = dt_left; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            } else if (mousex-absx(win) == win->pmaxx-1) {
-
-                                /* right bar click */
-                                drag = dt_right; /* set drag type */
-                                drgwin = win; /* set up drag pin */
-                                drgx = mousex;
-                                drgy = mousey;
-
-                            }
-
-                        }
-
-                    }
 
                 } else if (ev.mmoun == 1 &&
                            !(win->widget &&
@@ -5421,6 +5443,12 @@ static void intevent(FILE* f)
                             fronttree(fw);
 
                     }
+                    /* A frame click acts on the same click that focuses
+                       the window: the bar buttons and the drags work on
+                       the first click, as a widget does. Client clicks
+                       stay consumed by the focus, as window etiquette. */
+                    if (!win->widget && !inclient(win, mousex, mousey))
+                        frmclick(win);
 
                 }
 
