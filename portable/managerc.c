@@ -381,6 +381,7 @@ typedef struct winrec {
     int      frame;             /* frame on/off */
     int      size;              /* size bars on/off */
     int      sysbar;            /* system bar on/off */
+    int      fixed;             /* size bars draw but sizing is ignored */
     char     inpbuf[MAXLIN];    /* input line buffer */
     int      inpptr;            /* input line index */
     int      visible;           /* window is visible */
@@ -3516,6 +3517,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     win->fcolor = ami_black; /*foreground black */
     win->bcolor = ami_white; /* background white */
     win->frmcolor = ami_blue; /* frame color blue */
+    win->fixed = FALSE; /* sizing works where the bars show */
     win->curv = TRUE; /* cursor visible */
     win->orgx = 1;  /* set origin to root */
     win->orgy = 1;
@@ -5072,19 +5074,24 @@ static void frmclick(winptr win)
 
         } else if (mousex-absx(win) == win->pmaxx-5) {
 
-            /* maximize, or restore a maximized window */
-            if (win->maxed) {
+            /* maximize, or restore a maximized window; a fixed window
+               ignores it, as it ignores all sizing */
+            if (!win->fixed) {
 
-                intnorm(win);
-                er.etype = ami_etnorm;
+                if (win->maxed) {
 
-            } else {
+                    intnorm(win);
+                    er.etype = ami_etnorm;
 
-                intmax(win);
-                er.etype = ami_etmax;
+                } else {
+
+                    intmax(win);
+                    er.etype = ami_etmax;
+
+                }
+                intsendevent(win, &er); /* issue event */
 
             }
-            intsendevent(win, &er); /* issue event */
 
         } else if (mousex-absx(win) == win->pmaxx-7) {
 
@@ -5113,7 +5120,7 @@ static void frmclick(winptr win)
 
         }
 
-    } else if (win->frame && win->size) {
+    } else if (win->frame && win->size && !win->fixed) {
 
         /* frame and sizebars are enabled */
         if (mousey-absy(win) == 0 &&
@@ -5536,8 +5543,15 @@ static void intevent(FILE* f)
                                         mousey-absy(hw)+1);
                     if (!wp) ww = NULL;
 
-                } else if (hw && !hw->root && hw->frame)
+                } else if (hw && !hw->root && hw->frame) {
+
                     hp = frmhit(hw, mousex, mousey);
+                    /* a fixed window ignores sizing: its size bars and
+                       maximize button are not live, so no highlight */
+                    if (hw->fixed && (hp >= fp_top || hp == fp_max))
+                        hp = fp_none;
+
+                }
                 if (hp == fp_none) hw = NULL;
                 if (hw != hovfwin || hp != hovfpart) {
 
@@ -9907,7 +9921,8 @@ static FILE* dlgcre(char* title, long w, long h, winptr* dwin)
     iopenwin(&stdin, &wf, NULL, igetwinid()); /* parentless: floats */
     win = txt2win(wf);
     win->frame = TRUE;
-    win->size = TRUE; /* a complete frame, and the size bars work */
+    win->size = TRUE; /* a complete frame... */
+    win->fixed = TRUE; /* ...but a dialog does not resize */
     win->sysbar = TRUE;
     win->curv = FALSE; /* a dialog never shows the cursor */
     recompcli(win);
