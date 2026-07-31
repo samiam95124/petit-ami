@@ -528,6 +528,30 @@ static winptr   rootlst;      /* master list of all roots */
 static winptr   zmin2max;     /* Z order minimum to maximum list */
 static winptr   zmax2min;     /* Z order maximum to minimum list */
 static winptr   curfocus;     /* current focus window, or NULL */
+
+/* Diagnostic log, enabled by MANAGERC_LOG in the environment: appends a
+   trace of the manager operations and the events delivered to the
+   program to /tmp/managerc.log. For running down what a live session
+   saw; off, it costs one null check. */
+
+static FILE* mclog(void)
+
+{
+
+    static FILE* f = NULL;
+    static int   tried = FALSE;
+
+    if (!tried) {
+
+        tried = TRUE;
+        if (getenv("MANAGERC_LOG")) f = fopen("/tmp/managerc.log", "w");
+        if (f) setvbuf(f, NULL, _IOLBF, 0);
+
+    }
+
+    return (f);
+
+}
 static int      opnwig;       /* opening a widget face window */
 static int      ztop;         /* current maximum/front Z order */
 static long     mousex;       /* mouse tracking x */
@@ -1255,6 +1279,8 @@ static void dequepaevt(ami_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(ami_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
+    if (mclog()) fprintf(mclog(), "deliver type %d wid %ld\n",
+                         (int)e->etype, e->winid);
     if (e->etype == ami_etredraw) { /* the announcement is now delivered */
 
         winptr wp = winlst;
@@ -2697,6 +2723,7 @@ static void annredraw(winptr win)
     if (!win->bufmod && win->visible && !win->widget && !win->redrawpend) {
 
         win->redrawpend = TRUE; /* one announcement serves until delivered */
+        if (mclog()) fprintf(mclog(), "queue redraw wid %ld\n", win->wid);
         er.etype = ami_etredraw;
         intsendevent(win, &er);
 
@@ -2722,6 +2749,8 @@ static void annresize(winptr win)
 
     if (win->visible && !win->widget) {
 
+        if (mclog()) fprintf(mclog(), "queue resize wid %ld %ldx%ld\n",
+                             win->wid, win->cmaxx, win->cmaxy);
         er.etype = ami_etresize;
         er.rszx = win->cmaxx;
         er.rszy = win->cmaxy;
@@ -3988,6 +4017,8 @@ static void intsetsiz(winptr win, long x, long y)
     ox = win->pmaxx; /* save previous size of window */
     oy = win->pmaxy;
     if (x == ox && y == oy) return; /* size is unchanged */
+    if (mclog()) fprintf(mclog(), "setsiz wid %ld %ldx%ld -> %ldx%ld\n",
+                         win->wid, ox, oy, x, y);
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
     win->cmaxx = win->pmaxx; /* copy to client dimensions */
@@ -4162,6 +4193,8 @@ static void intsetpos(winptr win, long x, long y)
 
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
+    if (mclog()) fprintf(mclog(), "setpos wid %ld %ld,%ld -> %ld,%ld\n",
+                         win->wid, win->orgx, win->orgy, x, y);
     treerect(win, &r1); /* previous place of the window and its subtree */
     win->orgx = x; /* set position in parent */
     win->orgy = y;
@@ -7046,7 +7079,13 @@ static void plcchr(FILE* f, char c)
         icursor(f, 1, win->cury);
 
     } else if (c == '\b') ileft(f); /* back space, move left */
-    else if (c == '\f') clrscn(f); /* clear screen */
+    else if (c == '\f') {
+
+        if (mclog()) fprintf(mclog(), "clear wid %ld %ldx%ld\n",
+                             win->wid, win->maxx, win->maxy);
+        clrscn(f); /* clear screen */
+
+    }
     else if (c == '\t') itab(f); /* process tab */
     /* only output visible characters */
     else if (c >= ' ' && c != 0x7f) {
