@@ -2726,6 +2726,13 @@ static void annresize(winptr win)
         er.rszx = win->cmaxx;
         er.rszy = win->cmaxy;
         intsendevent(win, &er);
+        /* The program draws on redraw announcements, to the size it last
+           heard. A redraw already queued sits ahead of this resize, so
+           the draw it produces is to the old size: every resize is
+           followed by its own redraw, and the last size heard always has
+           a draw behind it. */
+        win->redrawpend = FALSE;
+        annredraw(win);
 
     }
 
