@@ -593,6 +593,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
+     widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -611,6 +612,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
+     widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -628,6 +630,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
+     widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -645,6 +648,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
+     widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -1312,6 +1316,16 @@ endif
 #
 widget_test: $(GLIBSD) tests/widget_test.c
 	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
+
+#
+# Test widget compliant output, character mode
+#
+# The widget test applied to the character mode window manager over the
+# terminal. Every widget test has a character form and a graphical form;
+# only the character forms can run on a character surface.
+#
+widget_testc: lib/petit_ami_termc.so tests/widget_testc.c
+	$(CC) $(CFLAGS) tests/widget_testc.c $(CLIBSC) -o bin/widget_testc
 	
 #
 # Test sound model compliant input/output (uses console timers)
