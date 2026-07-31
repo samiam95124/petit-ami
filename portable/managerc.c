@@ -75,6 +75,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -427,6 +429,7 @@ typedef struct wigrec {
     char*  face;    /* label, or edit box content */
     char** list;    /* list box strings */
     long   listn;   /* number of list strings */
+    long   top;     /* list box scroll offset, 0 based */
     int    enb;     /* enabled */
     int    sel;     /* selected state */
     long   val;     /* value: numsel, progress, scroll and slider position */
@@ -7648,10 +7651,11 @@ static void wigtxt(wigptr wg, long x, long y, const char* s, int rev)
 {
 
     winptr win = wg->win;
+    long   n = win->cmaxx-x+1; /* room to the edge: never run past it */
 
     icursor(wg->wf, x, y); /* place cursor */
     if (rev) win->attr |= BIT(sarev);
-    while (*s) plcchr(wg->wf, *s++);
+    while (*s && n-- > 0) plcchr(wg->wf, *s++);
     win->attr &= ~BIT(sarev);
 
 }
@@ -7781,6 +7785,7 @@ static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
     wg->high = 0;
     wg->sclsiz = 0;
     wg->marks = 0;
+    wg->top = 0;
     wg->curs = 0;
     wg->tor = ami_totop;
     wg->owner = owner;
@@ -8089,8 +8094,9 @@ static void wigdrw(wigptr wg)
 
         case wtlistbox:
             wigclr(wg);
-            for (y = 1; y <= h && y <= wg->listn; y++)
-                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel || y == hp);
+            for (y = 1; y <= h && wg->top+y <= wg->listn; y++)
+                wigtxt(wg, 1, y, wg->list[wg->top+y-1],
+                       wg->top+y == wg->sel || y == hp);
             break;
 
         case wtslidehoriz:
@@ -8266,7 +8272,7 @@ static long wighit(wigptr wg, long lx, long ly)
             return (0); /* the value cell is dead */
 
         case wtlistbox: /* the entry row */
-            return (ly >= 1 && ly <= wg->listn? ly: 0);
+            return (ly >= 1 && wg->top+ly <= wg->listn? ly: 0);
 
         case wtdropeditbox: /* drop arrow, or the edit area */
             return (lx == win->cmaxx? 2: 1);
@@ -8536,11 +8542,11 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                     wigdrw(wg);
                     break;
                 case wtlistbox:
-                    if (ly >= 1 && ly <= wg->listn) {
+                    if (ly >= 1 && wg->top+ly <= wg->listn) {
 
-                        wg->sel = ly;
+                        wg->sel = wg->top+ly;
                         wigdrw(wg);
-                        wigsig(wg, ami_etlstbox, ly);
+                        wigsig(wg, ami_etlstbox, wg->sel);
 
                     }
                     break;
@@ -8860,16 +8866,31 @@ static void wigevt(wigptr wg, ami_evtrec* er)
             if (!wg->enb) break;
             if (wg->typ == wtnumselbox && wg->val < wg->high)
                 { wg->val++; wigdrw(wg); wigsig(wg, ami_etnumbox, wg->val); }
-            else if (wg->typ == wtlistbox && wg->sel > 1)
-                { wg->sel--; wigdrw(wg); wigsig(wg, ami_etlstbox, wg->sel); }
+            else if (wg->typ == wtlistbox && wg->sel > 1) {
+
+                wg->sel--;
+                /* scroll to keep the selection shown */
+                if (wg->sel-1 < wg->top) wg->top = wg->sel-1;
+                wigdrw(wg);
+                wigsig(wg, ami_etlstbox, wg->sel);
+
+            }
             break;
 
         case ami_etdown:
             if (!wg->enb) break;
             if (wg->typ == wtnumselbox && wg->val > wg->low)
                 { wg->val--; wigdrw(wg); wigsig(wg, ami_etnumbox, wg->val); }
-            else if (wg->typ == wtlistbox && wg->sel < wg->listn)
-                { wg->sel++; wigdrw(wg); wigsig(wg, ami_etlstbox, wg->sel); }
+            else if (wg->typ == wtlistbox && wg->sel < wg->listn) {
+
+                wg->sel++;
+                /* scroll to keep the selection shown */
+                if (wg->sel > wg->top+wg->win->cmaxy)
+                    wg->top = wg->sel-wg->win->cmaxy;
+                wigdrw(wg);
+                wigsig(wg, ami_etlstbox, wg->sel);
+
+            }
             break;
 
         default: break; /* other events are of no interest */
@@ -8915,6 +8936,7 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     wg->high = 0;
     wg->sclsiz = LONG_MAX/8; /* nominal thumb */
     wg->marks = 0;
+    wg->top = 0;
     wg->curs = 0;
     wg->win->widget = TRUE; /* mark as widget window */
     wg->win->wig = wg;
@@ -10336,23 +10358,263 @@ void ami_querycolor(long* r, long* g, long* b)
 
 }
 
-/* flow the file query: the name field takes the width, the buttons keep
-   the bottom row */
+/* The file queries are a browser: the current directory across the top,
+   the directories within it in a pane at the left, the files within it
+   in a pane at the right, each with a scroll bar, and the name field at
+   the bottom. Picking a directory enters it, picking a file takes its
+   name, and a name can always just be typed. */
+#define QFPTH 1024 /* directory path length */
+typedef struct {
+
+    char dir[QFPTH];  /* the directory the browser is in */
+    char home[QFPTH]; /* the directory the dialog opened in */
+
+} qfilst;
+
+/* replace a list box's contents */
+static void lstput(winptr dwin, long id, char** strs, long n)
+
+{
+
+    wigptr wg = fndwig(dwin, id);
+    long   i;
+
+    if (!wg) return;
+    if (wg->list) {
+
+        for (i = 0; i < wg->listn; i++) free(wg->list[i]);
+        free(wg->list);
+
+    }
+    wg->list = malloc(sizeof(char*)*(n? n: 1));
+    if (!wg->list) error("Out of memory");
+    for (i = 0; i < n; i++) {
+
+        wg->list[i] = malloc(strlen(strs[i])+1);
+        if (!wg->list[i]) error("Out of memory");
+        strcpy(wg->list[i], strs[i]);
+
+    }
+    wg->listn = n;
+    wg->sel = 0;
+    wg->top = 0;
+    wigdrw(wg);
+
+}
+
+/* set a pane's scroll bar from its list: the thumb is the visible share,
+   at the scrolled position */
+static void qfilbar(winptr dwin, long lid, long bid)
+
+{
+
+    wigptr lw = fndwig(dwin, lid);
+    wigptr bw = fndwig(dwin, bid);
+    long   vis, max;
+
+    if (!lw || !bw) return;
+    vis = lw->win->cmaxy;
+    max = lw->listn-vis;
+    if (max < 0) max = 0;
+    bw->sclsiz = lw->listn > vis? wigscl(vis, lw->listn): LONG_MAX;
+    bw->val = max? wigscl(lw->top, max): 0;
+    wigdrw(bw);
+
+}
+
+/* scroll a pane by its scroll bar's report */
+static void qfilscl(winptr dwin, long lid, long bid, ami_evtcod e, long pos)
+
+{
+
+    wigptr lw = fndwig(dwin, lid);
+    long   vis, max;
+
+    if (!lw) return;
+    vis = lw->win->cmaxy;
+    max = lw->listn-vis;
+    if (max < 0) max = 0;
+    switch (e) {
+
+        case ami_etsclull: lw->top--; break;
+        case ami_etscldrl: lw->top++; break;
+        case ami_etsclulp: lw->top -= vis; break;
+        case ami_etscldrp: lw->top += vis; break;
+        case ami_etsclpos: lw->top = wigmul(max, pos); break;
+        default: break;
+
+    }
+    if (lw->top < 0) lw->top = 0;
+    if (lw->top > max) lw->top = max;
+    wigdrw(lw);
+    qfilbar(dwin, lid, bid);
+
+}
+
+/* show the directory the browser is in, tail first when it is long */
+static void qfilpath(FILE* wf, winptr dwin, qfilst* st)
+
+{
+
+    long max = dwin->cmaxx-8;
+    long l = strlen(st->dir);
+    long i;
+
+    ami_cursor(wf, 2, 1);
+    fprintf(wf, "Path: ");
+    if (l <= max) {
+
+        fprintf(wf, "%s", st->dir);
+        for (i = l; i < max; i++) fputc(' ', wf); /* blank the rest */
+
+    } else fprintf(wf, "...%s", st->dir+l-(max-3));
+
+}
+
+/* Read the browser's directory into the panes: the directories within it
+   at the left, dot-dot included, the files at the right, both sorted.
+   Hidden entries stay hidden. */
+static int qfilcmp(const void* a, const void* b)
+
+{
+
+    return (strcmp(*(char* const*)a, *(char* const*)b));
+
+}
+
+static void qfilread(FILE* wf, winptr dwin, qfilst* st)
+
+{
+
+    DIR*           dp;
+    struct dirent* de;
+    struct stat    sb;
+    char**         nm[2] = { NULL, NULL }; /* directories, then files */
+    long           nc[2] = { 0, 0 };
+    long           na[2] = { 0, 0 };
+    char           pth[QFPTH+300];
+    long           i, w;
+
+    dp = opendir(st->dir);
+    if (dp) {
+
+        while ((de = readdir(dp))) {
+
+            if (de->d_name[0] == '.' && strcmp(de->d_name, ".."))
+                continue; /* hidden, and the directory itself */
+            snprintf(pth, sizeof(pth), "%s/%s", st->dir, de->d_name);
+            if (stat(pth, &sb)) continue; /* unreadable: not offered */
+            w = !S_ISDIR(sb.st_mode);
+            if (nc[w] == na[w]) {
+
+                na[w] = na[w]? na[w]*2: 32;
+                nm[w] = realloc(nm[w], sizeof(char*)*na[w]);
+                if (!nm[w]) error("Out of memory");
+
+            }
+            nm[w][nc[w]] = malloc(strlen(de->d_name)+1);
+            if (!nm[w][nc[w]]) error("Out of memory");
+            strcpy(nm[w][nc[w]++], de->d_name);
+
+        }
+        closedir(dp);
+
+    }
+    for (w = 0; w < 2; w++) {
+
+        qsort(nm[w], nc[w], sizeof(char*), qfilcmp);
+        lstput(dwin, 4+w, nm[w], nc[w]);
+        qfilbar(dwin, 4+w, 6+w);
+        for (i = 0; i < nc[w]; i++) free(nm[w][i]);
+        free(nm[w]);
+
+    }
+    qfilpath(wf, dwin, st);
+
+}
+
+/* enter a directory from the pane */
+static void qfilnav(FILE* wf, winptr dwin, qfilst* st, const char* name)
+
+{
+
+    if (!strcmp(name, "..")) { /* up: drop the last component */
+
+        char* p = strrchr(st->dir, '/');
+
+        if (p && p != st->dir) *p = 0;
+        else strcpy(st->dir, "/");
+
+    } else {
+
+        long l = strlen(st->dir);
+
+        if (l+1+(long)strlen(name)+1 > QFPTH) return; /* cannot hold it */
+        snprintf(st->dir+l, QFPTH-l, "%s%s",
+                 l && st->dir[l-1] == '/'? "": "/", name);
+
+    }
+    qfilread(wf, dwin, st);
+
+}
+
+/* flow the file query face */
 static void qryfilelay(FILE* wf, winptr dwin, void* ctx)
 
 {
 
-    long ew;
+    qfilst* st = (qfilst*)ctx;
 
     fprintf(wf, "\f");
-    ami_cursor(wf, 2, 2);
+    ami_cursor(wf, 2, 3);
+    fprintf(wf, "Directories:");
+    ami_cursor(wf, 26, 3);
+    fprintf(wf, "Files:");
+    ami_cursor(wf, 2, 16);
     fprintf(wf, "File name:");
-    ew = dwin->cmaxx-2;
-    if (ew < 1) ew = 1;
-    ami_sizwidget(wf, 1, ew, 1);
-    ami_poswidget(wf, 1, 2, 3);
-    ami_poswidget(wf, 2, 3, dwin->cmaxy-1);
-    ami_poswidget(wf, 3, 12, dwin->cmaxy-1);
+    ami_poswidget(wf, 2, 3, dwin->cmaxy);
+    ami_poswidget(wf, 3, 12, dwin->cmaxy);
+    qfilpath(wf, dwin, st);
+
+}
+
+/* the browser's live logic */
+static void qryfileevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
+
+{
+
+    qfilst* st = (qfilst*)ctx;
+    wigptr  wg;
+    long    bid = 0, pos = 0;
+
+    switch (er->etype) {
+
+        case ami_etlstbox:
+            if (er->lstbid == 4) { /* a directory: enter it */
+
+                wg = fndwig(dwin, 4);
+                if (wg && er->lstbsl >= 1 && er->lstbsl <= wg->listn)
+                    qfilnav(wf, dwin, st, wg->list[er->lstbsl-1]);
+
+            } else if (er->lstbid == 5) { /* a file: take its name */
+
+                wg = fndwig(dwin, 5);
+                if (wg && er->lstbsl >= 1 && er->lstbsl <= wg->listn)
+                    ami_putwidgettext(wf, 1, wg->list[er->lstbsl-1]);
+
+            }
+            break;
+
+        case ami_etsclull: bid = er->sclulid; break;
+        case ami_etscldrl: bid = er->scldrid; break;
+        case ami_etsclulp: bid = er->sclupid; break;
+        case ami_etscldrp: bid = er->scldpid; break;
+        case ami_etsclpos: bid = er->sclpid; pos = er->sclpos; break;
+        default: break;
+
+    }
+    if (bid == 6) qfilscl(dwin, 4, 6, er->etype, pos);
+    else if (bid == 7) qfilscl(dwin, 5, 7, er->etype, pos);
 
 }
 
@@ -10365,28 +10627,47 @@ static void qryfile(char* title, char* s, long sl)
     winptr dwin;
     long   res, bw, bh;
     wigptr wg;
-    long   w = dimx-10;
+    qfilst st;
 
-    if (w > 60) w = 60;
-    if (w < 24) w = 24;
-    wf = dlgcre(title, w, 8, &dwin);
-    ami_editbox(wf, 2, 3, dwin->cmaxx-1, 3, 1);
+    if (!getcwd(st.dir, sizeof(st.dir))) strcpy(st.dir, "/");
+    strcpy(st.home, st.dir);
+    wf = dlgcre(title, 58, 22, &dwin);
+    ami_listbox(wf, 2, 4, 20, 14, NULL, 4);
+    ami_scrollvert(wf, 22, 4, 22, 14, 6);
+    ami_listbox(wf, 26, 4, 52, 14, NULL, 5);
+    ami_scrollvert(wf, 54, 4, 54, 14, 7);
+    ami_editbox(wf, 2, 17, 57, 17, 1);
     /* seed with what the caller passed, if anything */
     if (sl > 0 && *s) ami_putwidgettext(wf, 1, s);
     ami_buttonsiz(wf, "Ok", &bw, &bh);
-    ami_button(wf, 3, 5, 3+bw-1, 5, "Ok", 2);
-    ami_button(wf, 12, 5, 12+bw+4, 5, "Cancel", 3);
-    qryfilelay(wf, dwin, NULL);
+    ami_button(wf, 3, dwin->cmaxy, 3+bw-1, dwin->cmaxy, "Ok", 2);
+    ami_button(wf, 12, dwin->cmaxy, 12+bw+4, dwin->cmaxy, "Cancel", 3);
+    qryfilelay(wf, dwin, &st);
+    qfilread(wf, dwin, &st);
     ami_focuswidget(wf, 1); /* start in the name field */
-    res = dlgloop(wf, dwin, 2, 3, qryfilelay, NULL, NULL);
+    res = dlgloop(wf, dwin, 2, 3, qryfilelay, qryfileevt, &st);
     if (res == 2) { /* accepted: hand back the name */
 
         wg = fndwig(dwin, 1);
-        if (wg && wg->face) {
+        if (wg && wg->face && *wg->face) {
 
-            long l = strlen(wg->face);
+            char  pth[QFPTH+MAXLIN];
+            char* rp = wg->face;
+            long  l;
+
+            /* A name picked where the dialog opened, or typed absolute,
+               goes back as it stands; browsing elsewhere hands back the
+               full path there. */
+            if (rp[0] != '/' && strcmp(st.dir, st.home)) {
+
+                snprintf(pth, sizeof(pth), "%s%s%s", st.dir,
+                         !strcmp(st.dir, "/")? "": "/", rp);
+                rp = pth;
+
+            }
+            l = strlen(rp);
             if (l > sl) error("String too large for destination");
-            memcpy(s, wg->face, l);
+            memcpy(s, rp, l);
             if (l < sl) s[l] = 0;
 
         }
