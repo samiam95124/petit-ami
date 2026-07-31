@@ -4042,6 +4042,8 @@ static void intsetsiz(winptr win, long x, long y)
     /* subtract frame from client if enabled */
     win->cmaxx -= decorx(win);
     win->cmaxy -= decory(win);
+    if (win->cmaxx < 0) win->cmaxx = 0; /* a bar only window has no client */
+    if (win->cmaxy < 0) win->cmaxy = 0;
     /* in follow mode the buffer tracks the client */
     if (!win->bufmod) resizewinbuf(win, win->cmaxx, win->cmaxy);
     /* As in intsetpos, the repaints below consult the masks, so they must
@@ -4154,10 +4156,12 @@ static void intmin(winptr win)
     savnorm(win); /* note what to restore to */
     win->mined = TRUE;
     win->maxed = FALSE;
-    /* The window reduces to its title bar alone: the decorations high,
-       and wide enough for the whole title, or eight characters, plus
-       the borders and the bar buttons. */
-    h = decory(win);
+    /* The window reduces to its title bar alone -- top border, the bar,
+       bottom border, no client at all -- and wide enough for the whole
+       title, or eight characters, plus the borders and the bar buttons.
+       The frame draws its underbar row as the bottom border on a window
+       three high. */
+    h = (win->frame && win->size)*2+(win->frame && win->sysbar);
     if (h < 2) h = 2; /* observe the minimum */
     w = win->title? (long)strlen(win->title): 0;
     if (w < 8) w = 8; /* the title, or eight characters */
@@ -6901,6 +6905,8 @@ static void recompcli(winptr win)
     win->cmaxy = win->pmaxy;
     win->cmaxx -= decorx(win);
     win->cmaxy -= decory(win);
+    if (win->cmaxx < 0) win->cmaxx = 0; /* a bar only window has no client */
+    if (win->cmaxy < 0) win->cmaxy = 0;
     /* in follow mode the buffer tracks the client; in buffered mode the
        buffer keeps the size it was given */
     if (!win->bufmod) resizewinbuf(win, win->cmaxx, win->cmaxy);
