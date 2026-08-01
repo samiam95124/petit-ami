@@ -1344,7 +1344,7 @@ terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/terminal_testg
 else
 terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/terminal_testg
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/terminal_testg
 endif
 
 #
@@ -1404,7 +1404,7 @@ management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
 else
 management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/management_test
+	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
 endif
 
 #
