@@ -11,8 +11,9 @@
 * portable/widget_demo.c in the middle: the kick button, a button whose        *
 * face is a still photo of a soccer player. Press it and the player kicks      *
 * the ball, as a frame animation with the kick sound at the moment of          *
-* contact. Each press reports a standard button event, counted under the       *
-* widget.                                                                      *
+* contact. The widget reports with its own user defined event, ETKICKED,       *
+* fired at the frame where the foot meets the ball; this program waits on      *
+* that event (or terminate), and answers it under the widget.                  *
 *                                                                              *
 * What to look at:                                                             *
 *                                                                              *
@@ -37,19 +38,19 @@
 
 static long bx, by, bs; /* button place and size */
 
-/* write the kick count under the widget */
-static void count(long kicks)
+/* answer the kick under the widget */
+static void kicked(void)
 
 {
 
     ami_cursorg(stdout, bx, by+bs+ami_chrsizy(stdout));
-    printf("Kicks: %ld   ", kicks);
+    printf("He kicked the ball!");
 
 }
 
 /* place or replace the widget centered in the window, with the banner
-   and the count around it */
-static void layout(long kicks, long widgeted)
+   over it */
+static void layout(long widgeted)
 
 {
 
@@ -61,7 +62,6 @@ static void layout(long kicks, long widgeted)
     ami_cursorg(stdout, bx, by-ami_chrsizy(stdout)*2);
     printf("Press the button: the player kicks the ball.");
     kickbutton(stdout, bx, by, bx+bs, by+bs, BUTTON_ID);
-    count(kicks);
 
 }
 
@@ -70,23 +70,23 @@ int main(void)
 {
 
     ami_evtrec er;
-    long       kicks = 0;
 
     ami_title(stdout, "Widget demonstrator: the kick button");
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_font(stdout, AMI_FONT_SIGN);
     ami_fontsiz(stdout, 24);
-    layout(kicks, FALSE);
+    layout(FALSE);
+    /* wait on the widget's own event, or terminate */
     do {
 
         ami_event(stdin, &er);
-        if (er.etype == ami_etbutton && er.butid == BUTTON_ID)
-            count(++kicks); /* the widget reports as a stock button does */
+        if (er.etype == ETKICKED && er.butid == BUTTON_ID)
+            kicked(); /* the moment the foot meets the ball */
         else if (er.etype == ami_etresize)
             /* recenter: kill and recreate the widget at the new middle,
                which also exercises the create/kill lifecycle */
-            layout(kicks, TRUE);
+            layout(TRUE);
 
     } while (er.etype != ami_etterm);
     kickbuttonkill(stdout, BUTTON_ID);

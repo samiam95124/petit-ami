@@ -42,10 +42,13 @@ window. What remains for the widget author is:
    and text. Anything the drawing calls can do can be a widget face.
 
 4. BEHAVE: react to the mouse and keyboard events aimed at your window,
-   and report completed actions to the parent window's event queue with
-   ami_sendevent. This widget reports ami_etbutton, because it is a
-   button; a widget with no stock analogue can send user event codes
-   (ami_etuser and up).
+   and report to the parent window's event queue with ami_sendevent. A
+   widget standing in for a stock kind would report the stock code (a
+   button reports ami_etbutton); a widget with no stock analogue defines
+   its own code from the user space, ami_etuser and up, with the event
+   record's union fields its own to assign. This widget defines ETKICKED
+   (widget_demo.h), fired not at the press but at the frame where the
+   foot meets the ball, the widget id riding in the record.
 
 5. DESTROY: close the widget window and release the record, and do the
    same for all widgets in a window when the window file closes under
@@ -422,11 +425,12 @@ the widget's window:
 
 - redraw paints the face.
 - a button 1 press starts the kick: a repeating timer on the widget
-  window paces the frames, and the completed press is reported to the
-  parent as a button event, exactly as a stock button reports.
+  window paces the frames.
 - each timer tick advances a frame; at the contact frame the kick sound
-  fires; after the last frame the timer is killed and the face returns
-  to the still.
+  fires and the kick reports to the parent as the user defined ETKICKED
+  event -- the widget's meaning is "he kicked the ball", and that is
+  when the ball is kicked; after the last frame the timer is killed and
+  the face returns to the still.
 - focus, hover and their ends just repaint, showing the state color.
 
 *******************************************************************************/
@@ -449,10 +453,6 @@ static void kickbutton_event(
             wg->playing = TRUE;
             wg->frame = 1;
             ami_timer(wg->wf, FRMTIMER, FRATE, TRUE);
-            /* report the press to the parent, as a stock button does */
-            er.etype = ami_etbutton;
-            er.butid = wg->id;
-            ami_sendevent(wg->parent, &er);
 
         }
 
@@ -461,9 +461,17 @@ static void kickbutton_event(
         if (wg->playing && wg->frame < FRAMES) {
 
             wg->frame++;
-            /* the foot meets the ball */
-            if (wg->frame == KICKFRM && sndopn)
-                ami_playwave(AMI_WAVE_OUT, 0, KICKWAV);
+            if (wg->frame == KICKFRM) {
+
+                /* The foot meets the ball: the sound, and the report.
+                   The kick goes to the parent as the widget's own user
+                   defined event, at the moment it means. */
+                if (sndopn) ami_playwave(AMI_WAVE_OUT, 0, KICKWAV);
+                er.etype = ETKICKED;
+                er.butid = wg->id; /* ours to assign for our own code */
+                ami_sendevent(wg->parent, &er);
+
+            }
             kickbutton_draw(wg);
 
         } else { /* done: back to the still */

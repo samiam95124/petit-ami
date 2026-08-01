@@ -17,6 +17,15 @@ ami_ vector to override, and needs none.
 #define __WIDGET_DEMO_H__
 
 #include <stdio.h>
+#include <graphics.h>
+
+/* The kick button reports with a user defined event code. The codes from
+   ami_etuser up are reserved for programs and packages to define; the
+   union fields of the event record are theirs to assign for their own
+   codes. This one carries the widget id in er.butid's position, and it
+   fires not at the press but at the moment in the animation where the
+   foot meets the ball. */
+#define ETKICKED (ami_etuser+0) /* he kicked the ball */
 
 /* create a kick button over the rectangle, graphical coordinates */
 void kickbutton(FILE* f, long x1, long y1, long x2, long y2, long id);
