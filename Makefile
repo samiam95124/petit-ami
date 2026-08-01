@@ -145,10 +145,11 @@ ifndef STDIO_SOURCE
         #
         # Linux
         #
-        # glibc assumes that this is a patched glibc with override calls.
+        # The local stdio with overrides (STDIO_BYPASS) is the standard.
+        # The patched glibc option that preceded it is deprecated: too
+        # complex, too version specific.
         #
-        #STDIO_SOURCE=glibc
-		STDIO_SOURCE=stdio
+        STDIO_SOURCE=stdio
 
     endif
 endif
@@ -184,15 +185,14 @@ ifndef LINK_TYPE
     else
     
         #
-        # Linux 
+        # Linux
         #
-        ifeq ($(STDIO_SOURCE),stdio)
-            # Linking local stdio, must be dynamic
-            LINK_TYPE=dynamic
-        else
-            # LINK_TYPE=static
-            LINK_TYPE=dynamic
-        endif
+        # Static, like the other platforms: each level links as one
+        # combined object with everything inside (see the .o rules with
+        # the Linux libraries below). LINK_TYPE=dynamic still selects
+        # the .so configuration.
+        #
+        LINK_TYPE=static
         
     endif
     
@@ -299,11 +299,6 @@ else
     #
     # Linux
     #
-    ifneq ($(STDIO_SOURCE),stdio)
-	# Link path is through bin to get glibc.
-	#
-    CFLAGS+=-Wl,--rpath=bin
-    endif
     # FreeType/fontconfig for font rendering
     CFLAGS+=$(shell pkg-config --cflags freetype2 fontconfig)
     
@@ -313,7 +308,16 @@ endif
 # Set library dependencies
 #
 ifeq ($(LINK_TYPE),static)
-    LIBEXT = .a
+    ifeq ($(OSTYPE),Windows_NT)
+        LIBEXT = .a
+    else ifeq ($(OSTYPE),Darwin)
+        LIBEXT = .a
+    else ifeq ($(OSTYPE),FreeBSD)
+        LIBEXT = .a
+    else
+        # Linux: the single combined object per level
+        LIBEXT = .o
+    endif
 else
     LIBEXT = .so
 endif
@@ -387,34 +391,8 @@ else ifeq ($(OSTYPE),FreeBSD)
 
 else
 
-	ifeq ($(STDIO_SOURCE),stdio)
-	
-		# Nothing, libc is linked in overall lib
-		
-	else
-	
-	    #
-	    # Linux, use modified GLIBC
-	    #
-	    
-	    #
-	    # For modified GLIBC, we need to specify the libary first or it won't
-	    # link correctly.
-	    #
-	    ifeq ($(LINK_TYPE),static)
-	        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        PLIBSD = bin/libc.a
-	        CLIBSD = bin/libc.a
-	        GLIBSD = bin/libc.a
-	    else
-		    PLIBS = bin/libc.so.6
-		    CLIBS = bin/libc.so.6
-		    GLIBS = bin/libc.so.6
-	    endif
-	   
-	endif
+	# Linux: nothing, libc is linked in overall lib. (The deprecated
+	# patched-glibc configuration linked bin/libc here, first.)
     
 endif
 
@@ -430,6 +408,13 @@ else
 	LINUXSTDIO =
 	
 endif
+
+#
+# X and png link tail for programs that use them directly (the test
+# harness's screen capture). The Linux static configuration overrides
+# with the full static closures below.
+#
+XLIBS = -lX11 -lpng -lz
 
 #
 # Collected libraries
@@ -454,8 +439,14 @@ endif
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	PLIBS += lib/petit_ami_plain.a
-    else
+    else ifeq ($(OSTYPE),Windows_NT)
     	PLIBS += -Wl,--whole-archive lib/petit_ami_plain.a -Wl,--no-whole-archive
+    else ifeq ($(OSTYPE),FreeBSD)
+    	PLIBS += -Wl,--whole-archive lib/petit_ami_plain.a -Wl,--no-whole-archive
+    else
+        # Linux: the level's single combined object; everything is inside,
+        # and an object always links whole, constructors included
+    	PLIBS += lib/petit_ami_plain.o
     endif
 else
     PLIBS += lib/petit_ami_plain.so
@@ -471,8 +462,13 @@ endif
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	CLIBS += lib/petit_ami_term.a
-    else
+    else ifeq ($(OSTYPE),Windows_NT)
     	CLIBS += -Wl,--whole-archive lib/petit_ami_term.a -Wl,--no-whole-archive
+    else ifeq ($(OSTYPE),FreeBSD)
+    	CLIBS += -Wl,--whole-archive lib/petit_ami_term.a -Wl,--no-whole-archive
+    else
+        # Linux: the level's single combined object
+    	CLIBS += lib/petit_ami_term.o
     endif
 else
     CLIBS += stub/keeper.o lib/petit_ami_term.so
@@ -486,8 +482,13 @@ CLIBSCPP = $(CLIBS) cpp/terminal.o
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
     	GLIBS += -Wl,-force_load,lib/petit_ami_graph.a
-    else
+    else ifeq ($(OSTYPE),Windows_NT)
     	GLIBS += -Wl,--whole-archive lib/petit_ami_graph.a -Wl,--no-whole-archive
+    else ifeq ($(OSTYPE),FreeBSD)
+    	GLIBS += -Wl,--whole-archive lib/petit_ami_graph.a -Wl,--no-whole-archive
+    else
+        # Linux: the level's single combined object
+    	GLIBS += lib/petit_ami_graph.o
     endif
 else
     GLIBS += stub/keeper.o lib/petit_ami_graph.so
@@ -559,6 +560,22 @@ else
     #
     # Linux
     #
+    ifeq ($(LINK_TYPE),static)
+
+	# The combined objects carry sound, network's OpenSSL, the X chain
+	# (graph) and the C++ runtime inside; what remains is the toolchain's
+	# own, which cannot merge.
+	PLIBS += -lm -lpthread -ldl
+	CLIBS += -lm -lpthread -ldl
+	GLIBS += -lm -lpthread -ldl
+	# X and png for programs that use them directly (the test harness's
+	# screen capture): the static closures, ordered so png finds z and m
+	XLIBS = -lX11 -lxcb -lXau -lXdmcp -lpng -lz -lm -ldl
+
+    else
+
+	# Sound cannot live in an .so (an ALSA bug), so its objects link
+	# directly in the dynamic configuration.
 	PLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 	CLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
@@ -567,8 +584,10 @@ else
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11 \
 	         -lfreetype -lfontconfig
 	PLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
-    CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+	CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	GLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+
+    endif
     
 endif
 
@@ -1004,6 +1023,82 @@ lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o  \
 		cpp/terminal.o
 	
+
+#
+# Terminal archive with the character mode window manager always included,
+# matching lib/petit_ami_termc.so.
+#
+lib/petit_ami_termc.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
+	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+	linux/terminal.o portable/managerc.o linux/system_event.o utils/config.o \
+	utils/option.o cpp/terminal.o
+	ar rcs lib/petit_ami_termc.a $(LINUXSTDIO) linux/services.o linux/sound.o \
+		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
+		linux/terminal.o portable/managerc.o linux/system_event.o \
+		utils/config.o utils/option.o cpp/terminal.o
+
+#
+# The Linux static configuration: one combined object per level.
+#
+# Each level's object is a partial link of everything a static program
+# needs above the toolchain: the level's archive and the patched static
+# ALSA linked whole (both register by constructor, and a member a normal
+# archive link would drop loses its registration), and the needed members
+# of the dependency closures -- fluidsynth with glib and pcre, network's
+# OpenSSL, the C++ runtime, and for graph the X chain. The result always
+# links whole, constructors included, so no keeper, no whole-archive and
+# no forced symbols appear on program link lines:
+#
+#     gcc -static prog.c lib/petit_ami_term.o -lm -lpthread -ldl
+#
+# The static ALSA and fluidsynth are built and installed to
+# /usr/local/lib by tools/staticdeps/build.sh; the rest come with the
+# distribution.
+#
+ALSA_A   = /usr/local/lib/libasound.a
+FLUID_A  = /usr/local/lib/libfluidsynth.a
+GLIB_A   = $(shell $(CC) -print-file-name=libglib-2.0.a)
+PCRE_A   = $(shell $(CC) -print-file-name=libpcre.a)
+SSL_A    = $(shell $(CC) -print-file-name=libssl.a)
+CRYPTO_A = $(shell $(CC) -print-file-name=libcrypto.a)
+STDCPP_A = $(shell $(CC) -print-file-name=libstdc++.a)
+X11_A    = $(shell $(CC) -print-file-name=libX11.a)
+XCB_A    = $(shell $(CC) -print-file-name=libxcb.a)
+XAU_A    = $(shell $(CC) -print-file-name=libXau.a)
+XDMCP_A  = $(shell $(CC) -print-file-name=libXdmcp.a)
+FT_A     = $(shell $(CC) -print-file-name=libfreetype.a)
+FC_A     = $(shell $(CC) -print-file-name=libfontconfig.a)
+EXPAT_A  = $(shell $(CC) -print-file-name=libexpat.a)
+PNG_A    = $(shell $(CC) -print-file-name=libpng.a)
+Z_A      = $(shell $(CC) -print-file-name=libz.a)
+UUID_A   = $(shell $(CC) -print-file-name=libuuid.a)
+
+STATIC_CLOSURE = --start-group $(FLUID_A) $(GLIB_A) $(PCRE_A) $(SSL_A) \
+	$(CRYPTO_A) $(STDCPP_A) --end-group
+STATIC_XCLOSURE = --start-group $(FLUID_A) $(GLIB_A) $(PCRE_A) $(SSL_A) \
+	$(CRYPTO_A) $(STDCPP_A) $(X11_A) $(XCB_A) $(XAU_A) $(XDMCP_A) $(FT_A) \
+	$(FC_A) $(EXPAT_A) $(PNG_A) $(Z_A) $(UUID_A) --end-group
+
+lib/petit_ami_plain.o: lib/petit_ami_plain.a
+	ld -r -o lib/petit_ami_plain.o \
+	    --whole-archive lib/petit_ami_plain.a $(ALSA_A) --no-whole-archive \
+	    $(STATIC_CLOSURE)
+
+lib/petit_ami_term.o: lib/petit_ami_term.a
+	ld -r -o lib/petit_ami_term.o \
+	    --whole-archive lib/petit_ami_term.a $(ALSA_A) --no-whole-archive \
+	    $(STATIC_CLOSURE)
+
+lib/petit_ami_termc.o: lib/petit_ami_termc.a
+	ld -r -o lib/petit_ami_termc.o \
+	    --whole-archive lib/petit_ami_termc.a $(ALSA_A) --no-whole-archive \
+	    $(STATIC_CLOSURE)
+
+lib/petit_ami_graph.o: lib/petit_ami_graph.a
+	ld -r -o lib/petit_ami_graph.o \
+	    --whole-archive lib/petit_ami_graph.a $(ALSA_A) --no-whole-archive \
+	    $(STATIC_XCLOSURE)
+
 endif
 
 ################################################################################
@@ -1218,7 +1313,7 @@ endif
 # Link set for programs stacked on managerc over terminal. Same as CLIBS but
 # with the manager carrying library in place of the plain one.
 #
-CLIBSC = $(subst lib/petit_ami_term.so,lib/petit_ami_termc.so,$(CLIBS))
+CLIBSC = $(subst petit_ami_term.,petit_ami_termc.,$(CLIBS))
 
 #
 # Test console model compliant output
@@ -1233,7 +1328,7 @@ terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lpng -lz -o bin/terminal_test
 else
 terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lX11 -lpng -lz -o bin/terminal_test
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) $(XLIBS) -o bin/terminal_test
 endif
 
 ifeq ($(OSTYPE),Darwin)
@@ -1252,7 +1347,7 @@ graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/graphics_test
 else
 graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/graphics_test
+	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/graphics_test
 endif
 
 #
@@ -1290,7 +1385,7 @@ terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OB
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/terminal_testc
 else
 terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lX11 -lpng -lz -o bin/terminal_testc
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) $(XLIBS) -o bin/terminal_testc
 endif
 
 #
@@ -1319,7 +1414,7 @@ management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTU
 	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/management_testc
 else
 management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lX11 -lpng -lz -o bin/management_testc
+	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) $(XLIBS) -o bin/management_testc
 endif
 
 #
