@@ -940,8 +940,12 @@ int main(void)
                ferror(fp) != 0);
         if (!ferror(fp)) fails++;
 
-        printf("test 806: %d s/b %d (_fileno matches fileno())\n",
-               fp->_fileno, fileno(fp));
+        /* The raw descriptor number depends on what else the program
+           has open (the dynamic build's always-resident sound holds one
+           more than the static build's), so the printed result is the
+           comparison, not the numbers. */
+        printf("test 806: %d s/b 1 (_fileno matches fileno())\n",
+               fp->_fileno == fileno(fp));
         if (fp->_fileno != fileno(fp)) fails++;
 
         fclose(fp);
