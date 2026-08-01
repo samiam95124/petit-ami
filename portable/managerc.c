@@ -430,6 +430,9 @@ typedef struct wigrec {
     char** list;    /* list box strings */
     long   listn;   /* number of list strings */
     long   top;     /* list box scroll offset, 0 based */
+    ami_color* lcol; /* per entry face colors, or NULL: entries showing
+                        their own color (internal, the dialogs' use) */
+    long   fatt;    /* extra face attributes (internal, the dialogs' use) */
     int    enb;     /* enabled */
     int    sel;     /* selected state */
     long   val;     /* value: numsel, progress, scroll and slider position */
@@ -3814,6 +3817,7 @@ static void closewin(int ofn)
         if (hovwig == wg) hovwig = NULL; /* the highlight dies with it */
         if (xltwin[wg->win->wid+MAXFIL] >= 0) fclose(wg->wf);
         if (wg->face) free(wg->face);
+        if (wg->lcol) free(wg->lcol);
         if (wg->list) {
 
             long i;
@@ -7652,11 +7656,14 @@ static void wigtxt(wigptr wg, long x, long y, const char* s, int rev)
 
     winptr win = wg->win;
     long   n = win->cmaxx-x+1; /* room to the edge: never run past it */
+    long   sat = win->attr; /* restored whole: a face can carry its own
+                               attributes, and clearing just the reverse
+                               bit was dropping them */
 
     icursor(wg->wf, x, y); /* place cursor */
     if (rev) win->attr |= BIT(sarev);
     while (*s && n-- > 0) plcchr(wg->wf, *s++);
-    win->attr &= ~BIT(sarev);
+    win->attr = sat;
 
 }
 
@@ -7727,6 +7734,7 @@ static void clspops(int downto)
         }
         fclose(wg->wf); /* close the popup window */
         if (wg->face) free(wg->face);
+        if (wg->lcol) free(wg->lcol);
         if (wg->list) {
 
             long i;
@@ -7743,7 +7751,7 @@ static void clspops(int downto)
 /* Open a popup list at a root position. The strings are copied. Returns the
    popup widget, which is pushed on the popup stack. */
 static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
-                     wigptr owner, ami_menuptr mitems)
+                     wigptr owner, ami_menuptr mitems, ami_color* lcol)
 
 {
 
@@ -7786,6 +7794,15 @@ static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
     wg->sclsiz = 0;
     wg->marks = 0;
     wg->top = 0;
+    wg->lcol = NULL;
+    if (lcol && n) { /* the entries keep their own colors */
+
+        wg->lcol = malloc(sizeof(ami_color)*n);
+        if (!wg->lcol) error("Out of memory");
+        memcpy(wg->lcol, lcol, sizeof(ami_color)*n);
+
+    }
+    wg->fatt = 0;
     wg->curs = 0;
     wg->tor = ami_totop;
     wg->owner = owner;
@@ -7940,8 +7957,9 @@ static void wigdrw(wigptr wg)
     long   hp = wg == hovwig? hovwprt: 0;
 
     /* a disabled widget shows its whole face grey, as a disabled menu
-       item does */
+       item does; a face carrying its own attributes shows them */
     if (!wg->enb) win->attr |= BIT(sagrey);
+    win->attr |= wg->fatt;
     switch (wg->typ) {
 
         case wtbutton:
@@ -8121,10 +8139,25 @@ static void wigdrw(wigptr wg)
             break;
 
         case wtdropbox:
-            /* closed face: the selection and a drop arrow */
+            /* closed face: the selection and a drop arrow; an entry
+               carrying its own color shows in it, light ones grounded
+               on black so they read on the light face */
             wigclr(wg);
-            if (wg->sel >= 1 && wg->sel <= wg->listn)
+            if (wg->sel >= 1 && wg->sel <= wg->listn) {
+
+                ami_color sf = win->fcolor, sb = win->bcolor;
+
+                if (wg->lcol) {
+
+                    win->fcolor = wg->lcol[wg->sel-1];
+                    if (win->fcolor == ami_white) win->bcolor = ami_black;
+
+                }
                 wigtxt(wg, 1, 1, wg->list[wg->sel-1], win->focus || hp);
+                win->fcolor = sf;
+                win->bcolor = sb;
+
+            }
             wigtxt(wg, w, 1, "v", hp != 0);
             break;
 
@@ -8203,14 +8236,25 @@ static void wigdrw(wigptr wg)
 
                 }
                 if (!enb) wg->win->attr |= BIT(sagrey);
-                wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel || y == hp);
+                if (wg->lcol) { /* the entry in its own color */
+
+                    ami_color sf = win->fcolor, sb = win->bcolor;
+
+                    win->fcolor = wg->lcol[y-1];
+                    if (win->fcolor == ami_white) win->bcolor = ami_black;
+                    wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel || y == hp);
+                    win->fcolor = sf;
+                    win->bcolor = sb;
+
+                } else
+                    wigtxt(wg, 1, y, wg->list[y-1], y == wg->sel || y == hp);
                 wg->win->attr &= ~BIT(sagrey);
 
             }
             break;
 
     }
-    win->attr &= ~BIT(sagrey);
+    win->attr &= ~(BIT(sagrey)|wg->fatt);
     /* The drawing walked the physical cursor over the widget face; it
        belongs to the focus window. Without this the cursor was left
        sitting at the end of whatever widget drew last -- the menu bar
@@ -8569,7 +8613,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
                         clspops(0);
                         opnpop(wg->parent, absx(win), absy(win)+1,
-                               wg->list, wg->listn, wg, NULL);
+                               wg->list, wg->listn, wg, NULL, wg->lcol);
 
                     }
                     break;
@@ -8582,7 +8626,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
                             clspops(0);
                             opnpop(wg->parent, absx(win), absy(win)+1,
-                                   wg->list, wg->listn, wg, NULL);
+                                   wg->list, wg->listn, wg, NULL, wg->lcol);
 
                         }
 
@@ -8646,7 +8690,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
                             wg->sel = sx; /* show the open title */
                             opnpop(wg->parent, absx(win)+sx-1, absy(win)+1,
-                                   strs, n, wg, mp->branch);
+                                   strs, n, wg, mp->branch, NULL);
                             for (i = 0; i < n; i++) free(strs[i]);
                             free(strs);
 
@@ -8691,7 +8735,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                             wigdrw(wg);
                             opnpop(wg->parent,
                                    absx(win)+win->pmaxx-1, absy(win)+row-1,
-                                   strs, n, wg->owner, item->branch);
+                                   strs, n, wg->owner, item->branch, NULL);
                             for (i = 0; i < n; i++) free(strs[i]);
                             free(strs);
 
@@ -8937,6 +8981,8 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     wg->sclsiz = LONG_MAX/8; /* nominal thumb */
     wg->marks = 0;
     wg->top = 0;
+    wg->lcol = NULL;
+    wg->fatt = 0;
     wg->curs = 0;
     wg->win->widget = TRUE; /* mark as widget window */
     wg->win->wig = wg;
@@ -9011,6 +9057,7 @@ void ami_killwidget(FILE* f, long id)
     *lp = wg->next;
     fclose(wg->wf); /* close the face window, which erases it */
     if (wg->face) free(wg->face);
+    if (wg->lcol) free(wg->lcol);
     if (wg->list) {
 
         long i;
@@ -9957,20 +10004,24 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
     do {
 
         ievent(stdin, &er);
+        /* Everything here minds its window id: dialogs nest (the font
+           query opens the color query), and both loops read the same
+           queue, so an event for the one must not act on the other. */
         if (er.etype == ami_etterm) { realterm = TRUE; done = TRUE; }
         else if (er.etype == ami_etresize && er.winid == dwin->wid && lay)
             /* the dialog was resized: flow the layout to the new client */
             lay(wf, dwin, ctx);
-        else if (er.etype == ami_etbutton) {
+        else if (er.etype == ami_etbutton && er.winid == dwin->wid) {
 
             if (er.butid == okid || er.butid == cancelid) {
 
                 res = er.butid;
                 done = TRUE;
 
-            }
+            } else if (evt) evt(wf, dwin, &er, ctx); /* its own extras */
 
-        } else if (er.etype == ami_etedtbox || er.etype == ami_etdrebox) {
+        } else if ((er.etype == ami_etedtbox || er.etype == ami_etdrebox) &&
+                   er.winid == dwin->wid) {
 
             /* enter in a text field completes as the ok button does */
             res = okid;
@@ -10280,6 +10331,7 @@ static void qrycolevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
     qcolst* st = (qcolst*)ctx;
     double  h, s, l;
 
+    if (er->winid != dwin->wid) return; /* dialogs nest: not ours */
     if (er->etype == ami_etlstbox && er->lstbid == 1) {
 
         if (er->lstbsl >= 1 && er->lstbsl <= 8) {
@@ -10400,6 +10452,7 @@ static void lstput(winptr dwin, long id, char** strs, long n)
         free(wg->list);
 
     }
+    if (wg->lcol) { free(wg->lcol); wg->lcol = NULL; }
     wg->list = malloc(sizeof(char*)*(n? n: 1));
     if (!wg->list) error("Out of memory");
     for (i = 0; i < n; i++) {
@@ -10601,6 +10654,7 @@ static void qryfileevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
     wigptr  wg;
     long    bid = 0, pos = 0;
 
+    if (er->winid != dwin->wid) return; /* dialogs nest: not ours */
     switch (er->etype) {
 
         case ami_etlstbox:
@@ -10846,11 +10900,91 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
 
 }
 
-/* flow the font query: the labels and boxes hold their rows, the buttons
-   keep the bottom row */
+/* The font query holds the terminal's one font at its one size; what it
+   chooses are the colors and the effects. The color names show in their
+   colors, the effect names show in their effects, and the rgb buttons
+   open the full color query for a 24 bit pick, shown in the swatch by
+   each color's row. */
+typedef struct { long fr, fg, fb, br, bg, bb; } qfntst;
+
+/* the drop entries take the preset colors, so each name shows in it */
+static void qfntcol(winptr dwin, long id)
+
+{
+
+    static const ami_color pc[8] = {
+
+        ami_black, ami_white, ami_red, ami_green, ami_blue, ami_cyan,
+        ami_yellow, ami_magenta
+
+    };
+    wigptr wg = fndwig(dwin, id);
+    long   i;
+
+    if (!wg) return;
+    if (wg->lcol) free(wg->lcol);
+    wg->lcol = malloc(sizeof(ami_color)*8);
+    if (!wg->lcol) error("Out of memory");
+    for (i = 0; i < 8; i++) wg->lcol[i] = pc[i];
+    wigdrw(wg);
+
+}
+
+/* the effect faces show their own effects */
+static void qfnteff(winptr dwin, long id, long att)
+
+{
+
+    wigptr wg = fndwig(dwin, id);
+
+    if (!wg) return;
+    wg->fatt = att;
+    wigdrw(wg);
+
+}
+
+/* keep a color drop box marking the held color: selected while it is a
+   preset, unmarked while it is a 24 bit pick */
+static void qfntsel(winptr dwin, long id, long r, long g, long b)
+
+{
+
+    wigptr wg = fndwig(dwin, id);
+    long   i, sel = 0;
+
+    for (i = 0; i < 8; i++)
+        if (r == qcolpre[i][0] && g == qcolpre[i][1] && b == qcolpre[i][2])
+            sel = i+1;
+    if (wg && wg->sel != sel) {
+
+        wg->sel = sel;
+        wigdrw(wg);
+
+    }
+
+}
+
+/* the swatches by each color row show the held colors exactly */
+static void qfntshow(FILE* wf, winptr dwin, qfntst* st)
+
+{
+
+    ami_bcolorc(wf, col8full(st->fr), col8full(st->fg), col8full(st->fb));
+    ami_cursor(wf, 38, 2);
+    fprintf(wf, "   ");
+    ami_bcolorc(wf, col8full(st->br), col8full(st->bg), col8full(st->bb));
+    ami_cursor(wf, 38, 4);
+    fprintf(wf, "   ");
+    ami_bcolor(wf, ami_white);
+
+}
+
+/* flow the font query face */
 static void qryfntlay(FILE* wf, winptr dwin, void* ctx)
 
 {
+
+    qfntst* st = (qfntst*)ctx;
 
     fprintf(wf, "\f");
     ami_cursor(wf, 2, 2);
@@ -10861,6 +10995,70 @@ static void qryfntlay(FILE* wf, winptr dwin, void* ctx)
     fprintf(wf, "Effects:");
     ami_poswidget(wf, 2, 3, dwin->cmaxy);
     ami_poswidget(wf, 3, 12, dwin->cmaxy);
+    qfntshow(wf, dwin, st);
+
+}
+
+/* the dialog's live logic: the drop boxes pick presets, the rgb buttons
+   open the full color query over this one */
+static void qryfntevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
+
+{
+
+    qfntst* st = (qfntst*)ctx;
+    long    r, g, b;
+
+    if (er->winid != dwin->wid) return; /* dialogs nest: not ours */
+    if (er->etype == ami_etdrpbox) {
+
+        if (er->drpbsl >= 1 && er->drpbsl <= 8) {
+
+            if (er->drpbid == 1) {
+
+                st->fr = qcolpre[er->drpbsl-1][0];
+                st->fg = qcolpre[er->drpbsl-1][1];
+                st->fb = qcolpre[er->drpbsl-1][2];
+
+            } else if (er->drpbid == 8) {
+
+                st->br = qcolpre[er->drpbsl-1][0];
+                st->bg = qcolpre[er->drpbsl-1][1];
+                st->bb = qcolpre[er->drpbsl-1][2];
+
+            }
+            qfntshow(wf, dwin, st);
+
+        }
+
+    } else if (er->etype == ami_etbutton) {
+
+        if (er->butid == 11) { /* a 24 bit foreground */
+
+            r = col8full(st->fr);
+            g = col8full(st->fg);
+            b = col8full(st->fb);
+            ami_querycolor(&r, &g, &b);
+            st->fr = colc8(r);
+            st->fg = colc8(g);
+            st->fb = colc8(b);
+            qfntsel(dwin, 1, st->fr, st->fg, st->fb);
+            qfntshow(wf, dwin, st);
+
+        } else if (er->butid == 12) { /* a 24 bit background */
+
+            r = col8full(st->br);
+            g = col8full(st->bg);
+            b = col8full(st->bb);
+            ami_querycolor(&r, &g, &b);
+            st->br = colc8(r);
+            st->bg = colc8(g);
+            st->bb = colc8(b);
+            qfntsel(dwin, 8, st->br, st->bg, st->bb);
+            qfntshow(wf, dwin, st);
+
+        }
+
+    }
 
 }
 
@@ -10878,15 +11076,9 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
        the effects the terminal can actually present. */
     static char* const cnam[] = { "black", "white", "red", "green", "blue",
                                   "cyan", "yellow", "magenta" };
-    static const long cval[8][3] = {
-
-        { 0, 0, 0 }, { INT_MAX, INT_MAX, INT_MAX }, { INT_MAX, 0, 0 },
-        { 0, INT_MAX, 0 }, { 0, 0, INT_MAX }, { 0, INT_MAX, INT_MAX },
-        { INT_MAX, INT_MAX, 0 }, { INT_MAX, 0, INT_MAX },
-
-    };
     ami_strrec fr_[8], br_[8];
     long i;
+    qfntst st;
 
     for (i = 0; i < 8; i++) {
 
@@ -10894,14 +11086,29 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
         br_[i].str = cnam[i]; br_[i].next = i < 7? &br_[i+1]: NULL;
 
     }
+    /* the colors passed in are where the dialog starts */
+    st.fr = colc8(*fr); st.fg = colc8(*fg); st.fb = colc8(*fb);
+    st.br = colc8(*br); st.bg = colc8(*bg); st.bb = colc8(*bb);
     wf = dlgcre("Font", 46, 16, &dwin);
     ami_dropbox(wf, 14, 2, 26, 2, &fr_[0], 1);
     ami_dropbox(wf, 14, 4, 26, 4, &br_[0], 8);
+    qfntcol(dwin, 1);
+    qfntcol(dwin, 8);
+    qfntsel(dwin, 1, st.fr, st.fg, st.fb);
+    qfntsel(dwin, 8, st.br, st.bg, st.bb);
+    ami_buttonsiz(wf, "rgb", &bw, &bh);
+    ami_button(wf, 29, 2, 29+bw-1, 2, "rgb", 11);
+    ami_button(wf, 29, 4, 29+bw-1, 4, "rgb", 12);
     ami_checkbox(wf, 2, 7, 20, 7, "Bold", 4);
     ami_checkbox(wf, 2, 8, 20, 8, "Underline", 5);
     ami_checkbox(wf, 2, 9, 20, 9, "Italic", 6);
     ami_checkbox(wf, 2, 10, 20, 10, "Reverse", 9);
     ami_checkbox(wf, 2, 11, 20, 11, "Blink", 10);
+    qfnteff(dwin, 4, BIT(sabold));
+    qfnteff(dwin, 5, BIT(saundl));
+    qfnteff(dwin, 6, BIT(saital));
+    qfnteff(dwin, 9, BIT(sarev));
+    qfnteff(dwin, 10, BIT(sablink));
     ami_selectwidget(wf, 4, !!(*effect & (1L<<ami_qftebold)));
     ami_selectwidget(wf, 5, !!(*effect & (1L<<ami_qfteunderline)));
     ami_selectwidget(wf, 6, !!(*effect & (1L<<ami_qfteitalic)));
@@ -10910,26 +11117,12 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
     ami_buttonsiz(wf, "Ok", &bw, &bh);
     ami_button(wf, 3, 14, 3+bw-1, 14, "Ok", 2);
     ami_button(wf, 12, 14, 12+bw+4, 14, "Cancel", 3);
-    qryfntlay(wf, dwin, NULL);
-    res = dlgloop(wf, dwin, 2, 3, qryfntlay, NULL, NULL);
+    qryfntlay(wf, dwin, &st);
+    res = dlgloop(wf, dwin, 2, 3, qryfntlay, qryfntevt, &st);
     if (res == 2) {
 
-        wg = fndwig(dwin, 1);
-        if (wg && wg->sel >= 1 && wg->sel <= 8) {
-
-            *fr = cval[wg->sel-1][0];
-            *fg = cval[wg->sel-1][1];
-            *fb = cval[wg->sel-1][2];
-
-        }
-        wg = fndwig(dwin, 8);
-        if (wg && wg->sel >= 1 && wg->sel <= 8) {
-
-            *br = cval[wg->sel-1][0];
-            *bg = cval[wg->sel-1][1];
-            *bb = cval[wg->sel-1][2];
-
-        }
+        *fr = col8full(st.fr); *fg = col8full(st.fg); *fb = col8full(st.fb);
+        *br = col8full(st.br); *bg = col8full(st.bg); *bb = col8full(st.bb);
         *effect = 0;
         wg = fndwig(dwin, 4); if (wg && wg->sel) *effect |= 1L<<ami_qftebold;
         wg = fndwig(dwin, 5);
