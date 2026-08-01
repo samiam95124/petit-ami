@@ -1318,6 +1318,12 @@ widget_test: $(GLIBSD) tests/widget_test.c
 	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
 
 #
+# Widget demonstrator: how to make your own widget
+#
+widget_demo: $(GLIBSD) portable/widget_demo.c tests/widget_demo_test.c
+	$(CC) $(CFLAGS) tests/widget_demo_test.c portable/widget_demo.c $(GLIBS) -o bin/widget_demo
+
+#
 # Test widget compliant output, character mode
 #
 # The widget test applied to the character mode window manager over the
