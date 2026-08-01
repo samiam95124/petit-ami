@@ -1,14 +1,3 @@
---- a/include/global.h	2020-02-19 01:35:39.000000000 -0800
-+++ b/include/global.h	2026-06-10 20:05:29.898565566 -0700
-@@ -79,7 +79,7 @@
-  */
- #define SND_DLSYM_BUILD_VERSION(name, version) \
-   static struct snd_dlsym_link __SND_DLSYM_VERSION(snd_dlsym_, name, version); \
--  void __SND_DLSYM_VERSION(snd_dlsym_constructor_, name, version) (void) __attribute__ ((constructor)); \
-+  void __SND_DLSYM_VERSION(snd_dlsym_constructor_, name, version) (void) __attribute__ ((constructor (102))); \
-   void __SND_DLSYM_VERSION(snd_dlsym_constructor_, name, version) (void) { \
-     __SND_DLSYM_VERSION(snd_dlsym_, name, version).next = snd_dlsym_start; \
-     __SND_DLSYM_VERSION(snd_dlsym_, name, version).dlsym_name = # name; \
 --- a/src/conf.c	2020-02-19 01:35:39.000000000 -0800
 +++ b/src/conf.c	2026-06-10 22:03:13.829353694 -0700
 @@ -3621,6 +3621,17 @@

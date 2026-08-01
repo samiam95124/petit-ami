@@ -19,19 +19,17 @@
 # brings a large static closure of its own. The remaining fluidsynth closure
 # is glib and pcre, whose static libraries the distribution carries.
 #
-# The ALSA static patch (alsa-static.patch) makes two changes a static link
-# requires:
+# The ALSA static patch (alsa-static.patch) makes the one change a static
+# link requires: a config hook whose module cannot be loaded is tolerated
+# when the hook sets 'errors false' (snd_config_hooks_call). The
+# distribution's 99-pulse.conf hook loads a shared module, which a static
+# binary cannot; without this the failure poisons the whole ALSA
+# configuration and no device opens.
 #
-# 1. The static-build dlsym registry is populated by constructors; they get
-#    priority 102 so they run before the sound module initializer at priority
-#    103 (prioritized constructors run before all default-priority ones, so
-#    without this the registry is empty when Ami enumerates devices).
-#
-# 2. A config hook whose module cannot be loaded is tolerated when the hook
-#    sets 'errors false' (snd_config_hooks_call). The distribution's
-#    99-pulse.conf hook loads a shared module, which a static binary cannot;
-#    without this the failure poisons the whole ALSA configuration and no
-#    device opens.
+# (The patch previously also prioritized the static-build dlsym registry
+# constructors, needed while the sound module enumerated devices from its
+# own prioritized constructor; enumeration now runs on first use, after
+# every constructor, and the registry needs no help.)
 #
 # Run with sudo available for the installs. Rerunnable; builds in /tmp.
 #
