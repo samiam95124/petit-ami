@@ -3568,7 +3568,12 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     win->cmaxy = win->maxy;
     win->mpx = 0; /* set mouse relative position invalid */
     win->mpy = 0;
-    win->attr = attr; /* no attribute */
+    /* No attribute. This copied the root emission cache, which is
+       whatever attribute the terminal was last left on: a window created
+       right after a blinking face drew stored its whole face blinking,
+       and a dialog created after a reversed face drew came up reversed
+       whole -- black, with a black swatch no color could change. */
+    win->attr = 0;
     win->autof = TRUE; /* auto on */
     win->fcolor = ami_black; /*foreground black */
     win->bcolor = ami_white; /* background white */
@@ -7667,19 +7672,23 @@ static void wigtxt(wigptr wg, long x, long y, const char* s, int rev)
 
 }
 
-/* clear a widget face to spaces */
+/* clear a widget face to spaces. The face attributes stay off the
+   blanks: an underlined label underlines its text, not the whole row */
 static void wigclr(wigptr wg)
 
 {
 
     long x, y;
+    long sat = wg->win->attr;
 
+    wg->win->attr &= ~wg->fatt;
     for (y = 1; y <= wg->win->cmaxy; y++) {
 
         icursor(wg->wf, 1, y);
         for (x = 1; x <= wg->win->cmaxx; x++) plcchr(wg->wf, ' ');
 
     }
+    wg->win->attr = sat;
 
 }
 
