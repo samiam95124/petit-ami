@@ -308,16 +308,7 @@ endif
 # Set library dependencies
 #
 ifeq ($(LINK_TYPE),static)
-    ifeq ($(OSTYPE),Windows_NT)
-        LIBEXT = .a
-    else ifeq ($(OSTYPE),Darwin)
-        LIBEXT = .a
-    else ifeq ($(OSTYPE),FreeBSD)
-        LIBEXT = .a
-    else
-        # Linux: the single combined object per level
-        LIBEXT = .o
-    endif
+    LIBEXT = .a
 else
     LIBEXT = .so
 endif
@@ -444,9 +435,9 @@ ifeq ($(LINK_TYPE),static)
     else ifeq ($(OSTYPE),FreeBSD)
     	PLIBS += -Wl,--whole-archive lib/petit_ami_plain.a -Wl,--no-whole-archive
     else
-        # Linux: the level's single combined object; everything is inside,
-        # and an object always links whole, constructors included
-    	PLIBS += lib/petit_ami_plain.o
+        # Linux: the model's bundle archive. Sound and network are bundle
+        # members, pulled only when the program uses them.
+    	PLIBS += lib/petit_ami_plain.a
     endif
 else
     PLIBS += lib/petit_ami_plain.so
@@ -467,8 +458,10 @@ ifeq ($(LINK_TYPE),static)
     else ifeq ($(OSTYPE),FreeBSD)
     	CLIBS += -Wl,--whole-archive lib/petit_ami_term.a -Wl,--no-whole-archive
     else
-        # Linux: the level's single combined object
-    	CLIBS += lib/petit_ami_term.o
+        # Linux: the model's bundle archive. keeper forces the core in for
+        # programs that make no terminal calls of their own; sound and
+        # network members pull only when used.
+    	CLIBS += stub/keeper.o lib/petit_ami_term.a
     endif
 else
     CLIBS += stub/keeper.o lib/petit_ami_term.so
@@ -487,8 +480,8 @@ ifeq ($(LINK_TYPE),static)
     else ifeq ($(OSTYPE),FreeBSD)
     	GLIBS += -Wl,--whole-archive lib/petit_ami_graph.a -Wl,--no-whole-archive
     else
-        # Linux: the level's single combined object
-    	GLIBS += lib/petit_ami_graph.o
+        # Linux: the model's bundle archive, as for the terminal model
+    	GLIBS += stub/keeper.o lib/petit_ami_graph.a
     endif
 else
     GLIBS += stub/keeper.o lib/petit_ami_graph.so
@@ -562,7 +555,7 @@ else
     #
     ifeq ($(LINK_TYPE),static)
 
-	# The combined objects carry sound, network's OpenSSL, the X chain
+	# The bundle archives carry sound, network's OpenSSL, the X chain
 	# (graph) and the C++ runtime inside; what remains is the toolchain's
 	# own, which cannot merge.
 	PLIBS += -lm -lpthread -ldl
@@ -1013,47 +1006,32 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o \
         -lstdc++ -o lib/petit_ami_graph.so
 
-lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
-	ar rcs lib/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/graphics.o linux/system_event.o \
-		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o  \
-		cpp/terminal.o
-	
-
 #
-# Terminal archive with the character mode window manager always included,
-# matching lib/petit_ami_termc.so.
+# The Linux static configuration: per model, one bundle archive.
 #
-lib/petit_ami_termc.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/terminal.o portable/managerc.o linux/system_event.o utils/config.o \
-	utils/option.o cpp/terminal.o
-	ar rcs lib/petit_ami_termc.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/terminal.o portable/managerc.o linux/system_event.o \
-		utils/config.o utils/option.o cpp/terminal.o
-
+# Each archive holds three members, each a partial link (ld -r):
 #
-# The Linux static configuration: one combined object per level.
+#   <model>_core.o  the model's presentation, services, stdio glue and
+#                   configuration -- everything that must be present the
+#                   moment the model is linked. Constructor-registered
+#                   modules (managerc, the widget packages) link whole
+#                   inside the bundle, so archive selectivity cannot drop
+#                   them. A program that makes no calls of its own is
+#                   promoted by keeper.o referencing into the core.
+#   sound.o         the sound module, both synthesizer plugins, the
+#                   patched static ALSA (whole: its device plugins
+#                   register by constructor) and the needed members of
+#                   the fluidsynth closure. Pulled only when the program
+#                   uses sound.
+#   network.o       the network module and the needed members of
+#                   OpenSSL. Pulled only when the program uses network.
 #
-# Each level's object is a partial link of everything a static program
-# needs above the toolchain: the level's archive and the patched static
-# ALSA linked whole (both register by constructor, and a member a normal
-# archive link would drop loses its registration), and the needed members
-# of the dependency closures -- fluidsynth with glib and pcre, network's
-# OpenSSL, the C++ runtime, and for graph the X chain. The result always
-# links whole, constructors included, so no keeper, no whole-archive and
-# no forced symbols appear on program link lines:
+# So programs get what they use, as always: no sound calls, no ALSA or
+# fluidsynth in the binary. The static ALSA and fluidsynth build with
+# tools/staticdeps/build.sh; the rest of the closures ship with the
+# distribution. A program link line is:
 #
-#     gcc -static prog.c lib/petit_ami_term.o -lm -lpthread -ldl
-#
-# The static ALSA and fluidsynth are built and installed to
-# /usr/local/lib by tools/staticdeps/build.sh; the rest come with the
-# distribution.
+#     gcc -static prog.c stub/keeper.o lib/petit_ami_term.a -lm -lpthread -ldl
 #
 ALSA_A   = /usr/local/lib/libasound.a
 FLUID_A  = /usr/local/lib/libfluidsynth.a
@@ -1073,31 +1051,61 @@ PNG_A    = $(shell $(CC) -print-file-name=libpng.a)
 Z_A      = $(shell $(CC) -print-file-name=libz.a)
 UUID_A   = $(shell $(CC) -print-file-name=libuuid.a)
 
-STATIC_CLOSURE = --start-group $(FLUID_A) $(GLIB_A) $(PCRE_A) $(SSL_A) \
-	$(CRYPTO_A) $(STDCPP_A) --end-group
-STATIC_XCLOSURE = --start-group $(FLUID_A) $(GLIB_A) $(PCRE_A) $(SSL_A) \
-	$(CRYPTO_A) $(STDCPP_A) $(X11_A) $(XCB_A) $(XAU_A) $(XDMCP_A) $(FT_A) \
+# the graph core's X chain, needed members only
+GRAPH_X = --start-group $(X11_A) $(XCB_A) $(XAU_A) $(XDMCP_A) $(FT_A) \
 	$(FC_A) $(EXPAT_A) $(PNG_A) $(Z_A) $(UUID_A) --end-group
 
-lib/petit_ami_plain.o: lib/petit_ami_plain.a
-	ld -r -o lib/petit_ami_plain.o \
-	    --whole-archive lib/petit_ami_plain.a $(ALSA_A) --no-whole-archive \
-	    $(STATIC_CLOSURE)
+# the sound bundle: module and plugins whole (objects always are), the
+# patched ALSA whole, the fluidsynth closure by need
+lib/sound.o: linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+	ld -r -o lib/sound.o \
+	    linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
+	    --whole-archive $(ALSA_A) --no-whole-archive \
+	    --start-group $(FLUID_A) $(GLIB_A) $(PCRE_A) --end-group
 
-lib/petit_ami_term.o: lib/petit_ami_term.a
-	ld -r -o lib/petit_ami_term.o \
-	    --whole-archive lib/petit_ami_term.a $(ALSA_A) --no-whole-archive \
-	    $(STATIC_CLOSURE)
+# the network bundle: module whole, OpenSSL by need
+lib/network.o: linux/network.o
+	ld -r -o lib/network.o linux/network.o \
+	    --start-group $(SSL_A) $(CRYPTO_A) --end-group
 
-lib/petit_ami_termc.o: lib/petit_ami_termc.a
-	ld -r -o lib/petit_ami_termc.o \
-	    --whole-archive lib/petit_ami_termc.a $(ALSA_A) --no-whole-archive \
-	    $(STATIC_CLOSURE)
+# the model cores
+CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o
 
-lib/petit_ami_graph.o: lib/petit_ami_graph.a
-	ld -r -o lib/petit_ami_graph.o \
-	    --whole-archive lib/petit_ami_graph.a $(ALSA_A) --no-whole-archive \
-	    $(STATIC_XCLOSURE)
+lib/plain_core.o: $(CORE_COMMON)
+	ld -r -o lib/plain_core.o $(CORE_COMMON)
+
+lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	linux/system_event.o cpp/terminal.o
+	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	    linux/system_event.o cpp/terminal.o $(STDCPP_A)
+
+lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
+	linux/system_event.o cpp/terminal.o
+	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
+	    portable/managerc.o linux/system_event.o cpp/terminal.o $(STDCPP_A)
+
+lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
+	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o
+	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
+	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    cpp/terminal.o $(STDCPP_A) $(GRAPH_X)
+
+# the model archives
+lib/petit_ami_plain.a: lib/plain_core.o lib/sound.o lib/network.o
+	rm -f lib/petit_ami_plain.a
+	ar rcs lib/petit_ami_plain.a lib/plain_core.o lib/sound.o lib/network.o
+
+lib/petit_ami_term.a: lib/term_core.o lib/sound.o lib/network.o
+	rm -f lib/petit_ami_term.a
+	ar rcs lib/petit_ami_term.a lib/term_core.o lib/sound.o lib/network.o
+
+lib/petit_ami_termc.a: lib/termc_core.o lib/sound.o lib/network.o
+	rm -f lib/petit_ami_termc.a
+	ar rcs lib/petit_ami_termc.a lib/termc_core.o lib/sound.o lib/network.o
+
+lib/petit_ami_graph.a: lib/graph_core.o lib/sound.o lib/network.o
+	rm -f lib/petit_ami_graph.a
+	ar rcs lib/petit_ami_graph.a lib/graph_core.o lib/sound.o lib/network.o
 
 endif
 
