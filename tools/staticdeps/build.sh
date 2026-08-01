@@ -19,7 +19,7 @@
 # brings a large static closure of its own. The remaining fluidsynth closure
 # is glib and pcre, whose static libraries the distribution carries.
 #
-# The ALSA static patch (alsa-static.patch) makes the one change a static
+# The ALSA static fix (alsa-static-fix.py) makes the one change a static
 # link requires: a config hook whose module cannot be loaded is tolerated
 # when the hook sets 'errors false' (snd_config_hooks_call). The
 # distribution's 99-pulse.conf hook loads a shared module, which a static
@@ -55,7 +55,11 @@ fi
 rm -rf "alsa-lib-$ALSAVER"
 tar xjf "alsa-lib-$ALSAVER.tar.bz2"
 cd "alsa-lib-$ALSAVER"
-patch -p1 < "$HERE/alsa-static.patch"
+if grep -q 'err >= 0 && func' src/conf.c; then
+    echo "ALSA config hook fix already present (fixed upstream?)"
+else
+    python3 "$HERE/alsa-static-fix.py" src/conf.c
+fi
 ./configure --enable-static --disable-shared --without-versioned --quiet
 make -j"$(nproc)" > /dev/null
 sudo cp src/.libs/libasound.a /usr/local/lib/
