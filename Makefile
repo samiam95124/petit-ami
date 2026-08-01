@@ -1069,6 +1069,13 @@ testc: $(CLIBSD) test.c
 	
 testg: $(GLIBSD) test.c
 	$(CC) $(CFLAGS) test.c -Wl,-u,ami_cursorg $(GLIBS) -o testg
+
+#
+# Widget demonstrator: a graphics window with the demonstration widget
+# from portable/widget_demo.c centered in it, for examination and test
+#
+test_demo: $(GLIBSD) test_demo.c portable/widget_demo.c
+	$(CC) $(CFLAGS) test_demo.c portable/widget_demo.c $(GLIBS) -o test_demo
 	
 test+: $(PLIBSD) test.cp
 	$(CPP) $(CFLAGS) test.cp $(PLIBS) -o test
@@ -1317,11 +1324,6 @@ endif
 widget_test: $(GLIBSD) tests/widget_test.c
 	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
 
-#
-# Widget demonstrator: how to make your own widget
-#
-widget_demo: $(GLIBSD) portable/widget_demo.c tests/widget_demo_test.c
-	$(CC) $(CFLAGS) tests/widget_demo_test.c portable/widget_demo.c $(GLIBS) -o bin/widget_demo
 
 #
 # Test widget compliant output, character mode
