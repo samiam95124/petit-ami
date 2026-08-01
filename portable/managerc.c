@@ -9976,6 +9976,20 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
             res = okid;
             done = TRUE;
 
+        } else if (er.etype == ami_etchkbox && er.winid == dwin->wid) {
+
+            /* A checkbox reports its click and leaves the state to its
+               owner, which a program answers with selectwidget. The
+               dialog owns these, so it checks and unchecks them here. */
+            wigptr wg = fndwig(dwin, er.ckbxid);
+
+            if (wg) {
+
+                wg->sel = !wg->sel;
+                wigdrw(wg);
+
+            }
+
         } else if (evt) evt(wf, dwin, &er, ctx); /* to the dialog's logic */
 
     } while (!done);
