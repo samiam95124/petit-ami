@@ -359,6 +359,16 @@ ifeq ($(LINK_TYPE),static)
 
         # Linux
         CFLAGS += -static
+        # Link with lld when present: glibc's static archive carries
+        # linker warnings on the NSS family (getaddrinfo, getpwnam and
+        # kin, dlopen), which BFD ld and gold print once per referencing
+        # object -- noisy and unactionable, since the property is
+        # glibc's. lld does not implement the warning mechanism. The
+        # binaries are equivalent; without lld the warnings are just
+        # noise to ignore.
+        ifneq ($(shell which ld.lld 2>/dev/null),)
+            CFLAGS += -fuse-ld=lld
+        endif
         
     endif
     
@@ -965,13 +975,6 @@ lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/con
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
 		utils/option.o -o lib/petit_ami_plain.so
 	
-lib/libami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	utils/config.o utils/option.o
-	ar rcs lib/libami_plain.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o utils/option.o
-	
 lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
@@ -993,15 +996,6 @@ lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 		utils/config.o utils/option.o cpp/terminal.o -lstdc++ \
 		-o lib/petit_ami_termc.so
 
-lib/libami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
-    cpp/terminal.o
-	ar rcs lib/libami_term.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
-		 cpp/terminal.o
-	
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/system_event.o \
 	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
