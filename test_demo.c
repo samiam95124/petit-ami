@@ -11,17 +11,18 @@
 * portable/widget_demo.c in the middle: the kick button, a button whose        *
 * face is a still photo of a soccer player. Press it and the player kicks      *
 * the ball, as a frame animation with the kick sound at the moment of          *
-* contact. The widget reports with its own user defined event, ETKICKED,       *
-* fired at the frame where the foot meets the ball; this program waits on      *
-* that event (or terminate), and answers it under the widget.                  *
+* contact.                                                                     *
 *                                                                              *
-* What to look at:                                                             *
+* What this program tests is the event coming back: the widget reports         *
+* with its own user defined event, ETKICKED, fired at the frame where the      *
+* foot meets the ball. The main loop here waits on that event (or              *
+* terminate), and answers it with nothing more than a printf() into the        *
+* window's normal text stream -- each kick adds a line, and the text           *
+* wraps and scrolls as any terminal stream does, flowing under the             *
+* widget, which occludes it as any window occludes.                            *
 *                                                                              *
-* The widget is a frameless subwindow, so everything a window gets, it         *
-* gets: it clips, occludes, and takes mouse events on its own. Hover over      *
-* it and the outline lights; click it and the outline shows the focus          *
-* color. Resize the window and the widget is killed and recreated at the       *
-* new center, exercising the create/kill lifecycle.                            *
+* Resize the window and the widget is killed and recreated at the new          *
+* center, exercising the create/kill lifecycle.                                *
 *                                                                              *
 * Run from the repository root: the widget loads its animation frames and      *
 * kick sound from tests/widget_demo/.                                          *
@@ -36,31 +37,18 @@
 
 #define BUTTON_ID 1
 
-static long bx, by, bs; /* button place and size */
-
-/* answer the kick under the widget */
-static void kicked(void)
+/* place or replace the widget centered in the window */
+static void place(long widgeted)
 
 {
 
-    ami_cursorg(stdout, bx, by+bs+ami_chrsizy(stdout));
-    printf("He kicked the ball!");
-
-}
-
-/* place or replace the widget centered in the window, with the banner
-   over it */
-static void layout(long widgeted)
-
-{
+    long bs; /* button size */
+    long bx, by;
 
     if (widgeted) kickbuttonkill(stdout, BUTTON_ID);
-    printf("\f");
     bs = ami_maxyg(stdout)/2; /* a square, half the window height */
     bx = ami_maxxg(stdout)/2-bs/2;
     by = ami_maxyg(stdout)/2-bs/2;
-    ami_cursorg(stdout, bx, by-ami_chrsizy(stdout)*2);
-    printf("Press the button: the player kicks the ball.");
     kickbutton(stdout, bx, by, bx+bs, by+bs, BUTTON_ID);
 
 }
@@ -72,21 +60,21 @@ int main(void)
     ami_evtrec er;
 
     ami_title(stdout, "Widget demonstrator: the kick button");
-    ami_curvis(stdout, FALSE);
-    ami_auto(stdout, FALSE);
-    ami_font(stdout, AMI_FONT_SIGN);
-    ami_fontsiz(stdout, 24);
-    layout(FALSE);
+    printf("Press the button: the player kicks the ball.\n");
+    place(FALSE);
     /* wait on the widget's own event, or terminate */
     do {
 
         ami_event(stdin, &er);
         if (er.etype == ETKICKED && er.butid == BUTTON_ID)
-            kicked(); /* the moment the foot meets the ball */
+            /* The widget's event, back in the main loop. The answer is
+               ordinary stream output: the lines accumulate and scroll
+               as in any terminal window. */
+            printf("He kicked the ball!\n");
         else if (er.etype == ami_etresize)
             /* recenter: kill and recreate the widget at the new middle,
                which also exercises the create/kill lifecycle */
-            layout(TRUE);
+            place(TRUE);
 
     } while (er.etype != ami_etterm);
     kickbuttonkill(stdout, BUTTON_ID);
