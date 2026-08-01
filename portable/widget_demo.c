@@ -7,10 +7,9 @@
 Copyright (C) 2026 Scott A. Franco
 
 This is a demonstrator for creating your own widgets on top of Petit-Ami
-graphics. It is a cut down copy of gnome_widgets.c, the existence proof
-that a complete widget set can be built on nothing but the PA drawing and
-event calls, holding exactly one widget so the shape of the thing can be
-seen whole.
+graphics. It is the smallest possible widget package: exactly one widget,
+built on widget_base.c, the common support shared with the stock widget
+set in gnome_widgets.c, so the shape of the thing can be seen whole.
 
 The widget here is a "kick button": a button whose face is a still photo
 of a soccer player. Press it and the player kicks the ball, as a frame
@@ -23,44 +22,40 @@ widget set would ever give you, which is the point of rolling your own.
 A widget is a small frameless subwindow of the window that owns it. That
 one idea buys everything else: the graphics module clips it, buffers it,
 occludes it and delivers events addressed to it, exactly as for any other
-window. What remains for the widget author is:
+window. The base (widget_base.h) owns that machinery; what remains for
+the widget author is exactly what makes the widget itself:
 
-1. CREATE: open a child window over the widget's rectangle in the parent,
-   with frame, buffering, auto and cursor all off. See widget() below.
-   Keep a record per widget, found from the parent file and the widget id.
+1. THE RECORD: declare your widget record with the base head first
+   (WB_WIGHEAD) and your own state after it -- here, the animation frame
+   and whether it is running. Register the package once at startup
+   (wb_init), passing your callbacks.
 
-2. INTERCEPT: hook the event chain once at startup (ami_eventsover). Every
-   event delivered to the program passes through you first; events whose
-   window id belongs to one of your widget windows are yours, everything
-   else is passed on down the chain unseen. See widget_event() below.
-   Because modules hook the same chain in constructor order, your widgets
-   coexist with the stock widget set; each module fields its own.
-
-3. DRAW: paint the face on the widget window when a redraw event arrives,
+2. DRAW: paint the face on the widget window when a redraw event arrives,
    and whenever your own state changes. The face here is a picture
    (ami_loadpict/ami_picture); the stock set draws with lines, rectangles
    and text. Anything the drawing calls can do can be a widget face.
 
-4. BEHAVE: react to the mouse and keyboard events aimed at your window,
-   and report to the parent window's event queue with ami_sendevent. A
-   widget standing in for a stock kind would report the stock code (a
-   button reports ami_etbutton); a widget with no stock analogue defines
-   its own code from the user space, ami_etuser and up, with the event
-   record's union fields its own to assign. This widget defines ETKICKED
-   (widget_demo.h), fired not at the press but at the frame where the
-   foot meets the ball, the widget id riding in the record.
+3. BEHAVE: your dispatch callback receives every event addressed to your
+   widgets' windows -- mouse, keyboard, timers, redraw -- and reports to
+   the parent window's event queue with ami_sendevent. A widget standing
+   in for a stock kind would report the stock code; a widget with no
+   stock analogue defines its own code from the user space, ami_etuser
+   and up, with the event record's union fields its own to assign. This
+   widget defines ETKICKED (widget_demo.h), fired not at the press but
+   at the frame where the foot meets the ball, the widget id riding in
+   the record.
 
-5. DESTROY: close the widget window and release the record, and do the
-   same for all widgets in a window when the window file closes under
-   them (the close override below).
+4. ENTRY CALLS: a widget package defines its own. The stock set overrides
+   the ami_ widget vectors because it implements the standard set; a user
+   widget has no vector to override, and none is needed: kickbutton() is
+   just a call, and wb_widget/wb_killwidget under it do the mechanics.
 
-What was left out of the copy, and why: the theme system (this widget's
-few colors are constants below; gnome_widgets reads a config-driven theme
-table); the "window 0" font metrics window (a picture face needs no font
-measurements); the sizing calls (the demo takes the rectangle it is
-given); and the subclassing fields, by which stock widgets build compound
-widgets from simpler ones. All are worth studying in gnome_widgets.c once
-the skeleton here is understood.
+The base holds what every package needs alike: the tracking tables, the
+subwindow creation, the event chain intercept that routes each package
+its own windows and passes the rest down, teardown, and the close()
+override that takes a window's widgets down with it. Read this file for
+the shape, then gnome_widgets.c for what a full set looks like on the
+same base.
 
                               THE ASSETS
 
@@ -102,19 +97,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
 #include <stdio.h>
 
 #include <localdefs.h>
 #include <graphics.h>
 #include <sound.h>
 
+#include <widget_base.h>
 #include <widget_demo.h>
-
-#define MAXFIL 100 /* maximum open files */
-#define MAXWIG 100 /* maximum widgets per window */
 
 /* the animation */
 #define FRAMES    24  /* frames in the kick animation */
@@ -135,251 +125,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define COL_HOVER    RGB(0x4a, 0x90, 0xd9) /* outline with the mouse over */
 #define COL_FOCUS    RGB(0x1a, 0x5f, 0xb4) /* outline with the focus */
 
-/* system override for close(): a window file closed with widgets still
-   in it takes the widgets down with it */
-typedef int (*pclose_t)(int);
-extern void ovr_close(pclose_t nfp, pclose_t* ofp);
-#ifndef __MACH__
-#define NOCANCEL
-extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
-#endif
-
-/* Widget record: everything the widget needs to know about one instance.
-   The stock set's record carries the union of what seventeen widget kinds
-   need; one widget carries only its own */
+/* Widget record: the base head first, then everything this widget needs
+   to know about one instance -- which for the kick button is only the
+   animation state. */
 typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
-    /** next entry in free list */            wigptr next;
-    /** output file for the widget window */  FILE*  wf;
-    /** parent window */                      FILE*  parent;
-    /** id number, client assigned */         long   id;
-    /** widget window id */                   long   wid;
-    /** widget is enabled */                  long   enb;
-    /** focused */                            long   focus;
-    /** hovered */                            long   hover;
-    /** the kick is running */                long   playing;
-    /** current animation frame, 1 based */   long   frame;
+    WB_WIGHEAD(struct wigrec*) /* the base head, first */
+    /** the kick is running */              long playing;
+    /** current animation frame, 1 based */ long frame;
 
 } wigrec;
 
-/* Per window file record: the widgets living in that window, indexed by
-   client id. Ids may be negative (anonymous); 0 is never used */
-typedef struct filrec* filptr;
-typedef struct filrec {
-
-    wigptr widgets[MAXWIG*2+1];
-
-} filrec;
-
-static ami_pevthan widget_event_old;    /* downchain event handler */
-static wigptr      wigfre;              /* free widget entry list */
-static filptr      opnfil[MAXFIL];      /* open files table */
-static wigptr      xltwig[MAXFIL*2+1];  /* widget window id to widget */
-static int         sndopn;              /* kick sound is loaded */
-
-/* saved close() vectors */
-static pclose_t ofpclose;
-#ifdef NOCANCEL
-static pclose_t ofpclose_nocancel;
-#endif
-
-/** ****************************************************************************
-
-Process error
-
-*******************************************************************************/
-
-static void error(
-    /** Error string */ char* es
-)
-
-{
-
-    fprintf(stderr, "Error: widget_demo: %s\n", es);
-    fflush(stderr);
-
-    exit(1);
-
-}
-
-/** ****************************************************************************
-
-Get file entry
-
-Allocates and initializes a new file entry.
-
-\returns File entry pointer.
-
-*******************************************************************************/
-
-static filptr getfil(void)
-
-{
-
-    filptr fp;
-    long   i;
-
-    fp = malloc(sizeof(filrec));
-    if (!fp) error("Out of memory");
-    for (i = 0; i < MAXWIG*2+1; i++) fp->widgets[i] = NULL;
-
-    return (fp);
-
-}
-
-/** ****************************************************************************
-
-Make file entry
-
-If the indicated file does not have a file tracking structure, one is
-created. Otherwise it is a no-op.
-
-*******************************************************************************/
-
-static void makfil(
-    /** Window file */ FILE* f
-)
-
-{
-
-    long fn;
-
-    if (!f) error("Invalid window file");
-    fn = fileno(f);
-    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn]) opnfil[fn] = getfil();
-
-}
-
-/** ****************************************************************************
-
-Get widget
-
-Gets a widget record off the free list, or allocates one, and initializes
-it to the resting state.
-
-\returns Pointer to new widget.
-
-*******************************************************************************/
-
-static wigptr getwig(void)
-
-{
-
-    wigptr wp;
-
-    if (wigfre) {
-
-        wp = wigfre;
-        wigfre = wigfre->next;
-
-    } else wp = malloc(sizeof(wigrec));
-    if (!wp) error("Out of memory");
-    wp->enb = TRUE;
-    wp->focus = FALSE;
-    wp->hover = FALSE;
-    wp->playing = FALSE;
-    wp->frame = 1; /* resting on the still */
-
-    return (wp);
-
-}
-
-/** ****************************************************************************
-
-Put widget
-
-Releases a widget record to the free list.
-
-*******************************************************************************/
-
-static void putwig(
-    /** Pointer to widget to free */ wigptr wp
-)
-
-{
-
-    wp->next = wigfre;
-    wigfre = wp;
-
-}
-
-/** ****************************************************************************
-
-Find widget
-
-Given a window file and a widget id, returns the widget. Validates both.
-
-\returns Pointer to found widget.
-
-*******************************************************************************/
-
-static wigptr fndwig(
-    /** Window file pointer */ FILE* f,
-    /** Logical widget id */   long  id
-)
-
-{
-
-    long fn;
-
-    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
-    fn = fileno(f);
-    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn] || !opnfil[fn]->widgets[id+MAXWIG])
-        error("No widget by given id");
-
-    return (opnfil[fn]->widgets[id+MAXWIG]);
-
-}
-
-/** ****************************************************************************
-
-Create widget
-
-The heart of the pattern: a widget is a frameless subwindow of its parent,
-placed over the widget's rectangle. Buffering is off so draws appear as
-made, auto is off so drawing cannot scroll it, the cursor is off so no
-cursor shows in it, and the frame is off so it is nothing but its face.
-Events addressed to this window arrive at widget_event() below.
-
-*******************************************************************************/
-
-static void widget(
-    /** Parent window file */              FILE* f,
-    /** Containing rectangle for widget */ long x1, long y1, long x2, long y2,
-    /** logical id for widget */           long id,
-    /** Widget I/O pointer */              wigptr* wpr
-)
-
-{
-
-    long   fn;
-    wigptr wp;
-
-    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
-    makfil(f);
-    fn = fileno(f);
-    if (opnfil[fn]->widgets[id+MAXWIG]) error("Widget by id already in use");
-    wp = getwig();
-    opnfil[fn]->widgets[id+MAXWIG] = wp;
-    wp->wid = ami_getwinid(); /* allocate a buried window id */
-    ami_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
-    wp->parent = f;
-    xltwig[wp->wid+MAXFIL] = wp; /* events for that window find the widget */
-    wp->id = id;
-    ami_buffer(wp->wf, FALSE); /* draws appear as made */
-    ami_auto(wp->wf, FALSE);   /* drawing must not scroll the face */
-    ami_curvis(wp->wf, FALSE); /* a widget face never shows a cursor */
-    ami_frame(wp->wf, FALSE);  /* the widget is nothing but its face */
-    ami_setposg(wp->wf, x1, y1);
-    ami_setsizg(wp->wf, x2-x1, y2-y1);
-    ami_binvis(wp->wf); /* no background writes */
-
-    *wpr = wp;
-
-}
+static wbpkg pkg;    /* this package's base instance */
+static int   sndopn; /* kick sound is loaded */
 
 /** ****************************************************************************
 
@@ -420,8 +179,8 @@ static void kickbutton_draw(
 
 Kick button event handler
 
-The widget's behavior, fed by the events the graphics module addresses to
-the widget's window:
+The widget's behavior, fed by the events the base routes to this package
+for its widget windows:
 
 - redraw paints the face.
 - a button 1 press starts the kick: a repeating timer on the widget
@@ -437,11 +196,12 @@ the widget's window:
 
 static void kickbutton_event(
     /** Event record pointer */ ami_evtrec* ev,
-    /** Widget data pointer */  wigptr      wg
+    /** Widget data pointer */  void*       vwg
 )
 
 {
 
+    wigptr     wg = (wigptr)vwg;
     ami_evtrec er;
 
     if (ev->etype == ami_etredraw) kickbutton_draw(wg);
@@ -509,126 +269,48 @@ static void kickbutton_event(
 
 /** ****************************************************************************
 
-Widget event intercept
+Package callbacks
 
-Hooked into the event chain at startup. Events whose window id belongs to
-one of our widget windows are dispatched to the widget's handler; all
-others pass down the chain to whoever hooked before us -- the stock
-widget set, and finally the program. This is what lets any number of
-widget packages coexist: each recognizes only its own windows.
+The base initializes the record head; wiginit initializes this widget's
+own fields. wigkill runs before the base takes a widget down: the
+animation timer must not outlive its window.
 
 *******************************************************************************/
 
-static void widget_event(
-    /** Event record pointer */ ami_evtrec* ev
+static void kickbutton_init(
+    /** Widget data pointer */ void* vwg
 )
 
 {
 
-    wigptr wg;
+    wigptr wg = (wigptr)vwg;
 
-    wg = NULL;
-    if (ev->winid > -MAXFIL && ev->winid <= MAXFIL)
-        wg = xltwig[ev->winid+MAXFIL];
-    if (!wg) widget_event_old(ev); /* not ours: down the chain */
-    else kickbutton_event(ev, wg); /* ours: the one widget we hold */
+    wg->playing = FALSE;
+    wg->frame = 1; /* resting on the still */
 
 }
 
-/** ****************************************************************************
-
-Kill widget internal
-
-Takes the widget down: window id tracking cleared first, so a window id
-reused after the widget is freed cannot dispatch events to the freed
-entry, then the widget window is closed and the record released.
-
-*******************************************************************************/
-
-static void intkillwidget(
-    /** file id */           long fn,
-    /** Logical widget id */ long id
+static void kickbutton_kill(
+    /** Widget data pointer */ void* vwg
 )
 
 {
 
-    wigptr wp;
+    wigptr wg = (wigptr)vwg;
 
-    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn]) error("File by id not open");
-    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
-    if (!opnfil[fn]->widgets[id+MAXWIG]) error("No widget by given id");
-    wp = opnfil[fn]->widgets[id+MAXWIG];
-    xltwig[wp->wid+MAXFIL] = NULL;
-    fclose(wp->wf); /* close the window, erasing the widget */
-    opnfil[fn]->widgets[id+MAXWIG] = NULL;
-    putwig(wp);
+    if (wg->playing) ami_killtimer(wg->wf, FRMTIMER);
 
 }
-
-/** ****************************************************************************
-
-Close intercepts
-
-A window file closed with widgets still in it takes the widgets down with
-it; without this, closing the parent stranded the widget windows and
-their records.
-
-*******************************************************************************/
-
-static int ivclose(
-    /** Base call vector */ pclose_t closedc,
-    /** File logical id */  int fd
-)
-
-{
-
-    int i;
-
-    if (fd >= 0 && fd < MAXFIL && opnfil[fd]) {
-
-        for (i = 0; i < MAXWIG*2+1; i++)
-            if (opnfil[fd]->widgets[i]) intkillwidget(fd, i-MAXWIG);
-        free(opnfil[fd]);
-        opnfil[fd] = NULL;
-
-    }
-
-    return (*closedc)(fd);
-
-}
-
-static int iclose(int fd)
-
-{
-
-    return ivclose(ofpclose, fd);
-
-}
-
-#ifdef NOCANCEL
-static int iclose_nocancel(int fd)
-
-{
-
-    return ivclose(ofpclose_nocancel, fd);
-
-}
-#endif
 
 /** ****************************************************************************
 
 Create kick button
 
 The public call: creates a kick button in the given window over the given
-rectangle, in graphical coordinates, with the given client id. The face
-photo and the animation frames load onto the widget's own window (each
-window carries its own picture table), and the kick sound loads once for
-the program.
-
-A widget package defines its own entry calls. The stock set overrides the
-ami_ widget vectors because it implements the standard set; a user widget
-has no vector to override, and none is needed: this is just a call.
+rectangle, in graphical coordinates, with the given client id. The base
+makes the subwindow and the record; the face photo and the animation
+frames load onto the widget's own window (each window carries its own
+picture table), and the kick sound loads once for the program.
 
 *******************************************************************************/
 
@@ -640,11 +322,11 @@ void kickbutton(
 
 {
 
-    wigptr wp;
+    wigptr wp = NULL;
     char   fn[100];
     long   i;
 
-    widget(f, x1, y1, x2, y2, id, &wp); /* the subwindow and the record */
+    wb_widget(&pkg, f, x1, y1, x2, y2, id, &wp);
     /* the still and the animation frames, pictures 1..FRAMES on the
        widget window */
     for (i = 1; i <= FRAMES; i++) {
@@ -681,10 +363,7 @@ void kickbuttonkill(
 
 {
 
-    wigptr wp = fndwig(f, id); /* validates */
-
-    if (wp->playing) ami_killtimer(wp->wf, FRMTIMER);
-    intkillwidget(fileno(f), id);
+    wb_killwidget(&pkg, f, id); /* wigkill stops the animation */
 
 }
 
@@ -704,7 +383,7 @@ void kickbuttonenable(
 
 {
 
-    wigptr wp = fndwig(f, id);
+    wigptr wp = wb_fndwig(&pkg, f, id);
 
     wp->enb = !!e;
     kickbutton_draw(wp);
@@ -715,11 +394,10 @@ void kickbuttonenable(
 
 Widget demo startup/shutdown
 
-Runs after graphics (102), sound (103) and the stock widget set (105), so
-the event hook lands on top of the chain: our widgets are recognized
-first, everything else falls through to the stock set and the program.
-The teardown runs first for the same ordering reason, and puts back the
-vectors it took, verifying that what it removes is its own.
+Registers the package with the base. Runs after graphics (102), sound
+(103) and the stock widget set (105): registration order is constructor
+order, and each package's widgets are recognized from its own windows
+regardless of order.
 
 *******************************************************************************/
 
@@ -728,21 +406,9 @@ static void init_widget_demo()
 
 {
 
-    long fn;
-
-    wigfre = NULL;
     sndopn = FALSE;
-    for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
-    for (fn = 0; fn < MAXFIL*2+1; fn++) xltwig[fn] = NULL;
-
-    /* hook the event chain */
-    ami_eventsover(widget_event, &widget_event_old);
-
-    /* hook close(), so a closing window takes its widgets with it */
-    ovr_close(iclose, &ofpclose);
-#ifdef NOCANCEL
-    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
-#endif
+    wb_init(&pkg, sizeof(wigrec), kickbutton_event, kickbutton_init,
+            kickbutton_kill, NULL, NULL);
 
 }
 
@@ -751,21 +417,6 @@ static void deinit_widget_demo()
 
 {
 
-    ami_pevthan cppevt;
-    pclose_t    cppclose;
-#ifdef NOCANCEL
-    pclose_t    cppclose_nocancel;
-#endif
-
-    /* put back the vectors we took, and check what we took out is ours */
-    ami_eventsover(widget_event_old, &cppevt);
-    if (cppevt != widget_event) error("Event vector mismatch");
-    ovr_close(ofpclose, &cppclose);
-    if (cppclose != iclose) error("System override vector mismatch");
-#ifdef NOCANCEL
-    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
-    if (cppclose_nocancel != iclose_nocancel)
-        error("System override vector mismatch");
-#endif
+    wb_deinit(&pkg);
 
 }

@@ -62,6 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <config.h>
 #include <graphics.h>
 #include <services.h>
+#include <widget_base.h>
 
 /*
  * Debug print system
@@ -91,12 +92,6 @@ static enum { /* debug levels */
 /* select dialog/command line error */
 #define USEDLG
 
-#ifndef __MACH__ /* Mac OS X */
-#define NOCANCEL /* include nocancel overrides */
-#endif
-
-#define MAXFIL 100 /* maximum open files */
-#define MAXWIG 100 /* maximum widgets per window */
 /* amount of space in pixels to add around scrollbar sliders */
 #define ENDSPACE 6
 #define ENDLEDSPC 10 /* space at start and end of text edit box */
@@ -218,18 +213,6 @@ static enum { /* debug levels */
 #define PERRGB(rgb, p) (PERCENT(REDP(rgb), p)<<16 | PERCENT(GREENP(rgb), p)<<8 | \
         PERCENT(BLUEP(rgb), p))
 
-/* types of system vectors for override calls */
-
-typedef int (*pclose_t)(int);
-
-/* system override calls */
-
-extern void ovr_close(pclose_t nfp, pclose_t* ofp);
-
-#ifdef NOCANCEL
-extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
-#endif
-
 /* values table ids */
 
 typedef enum {
@@ -342,29 +325,23 @@ typedef struct ccolor {
 
 } ccolor;
 
-/* Widget control structure */
+/* Widget control structure. The base head lays down the fields every
+   package's record shares (widget_base.h); this package's own follow. */
 typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
-    /** next entry in list */                 wigptr    next;
+    WB_WIGHEAD(wigptr) /* the widget base head, first */
     /** type of widget */                     wigtyp    typ;
     /** in the pressed state */               long      pressed;
     /** last pressed state */                 long      lpressed;
     /** the current on/off state */           long      select;
-    /** output file for the widget window */  FILE*     wf;
     /** face text */                          char*     face;
-    /** parent window */                      FILE*     parent;
-    /** id number */                          long      id;
-    /** widget window id */                   long      wid;
-    /** widget is enabled */                  long      enb;
     /** scrollbar size in LONG_MAX ratio */   long      sclsiz;
     /** scrollbar position in LONG_MAX ratio */ long    sclpos;
     /** mouse tracking in widget */           long      mpx, mpy;
     /** last mouse position */                long      lmpx, lmpy;
     /** text cursor */                        long      curs;
     /** text left side index */               long      tleft;
-    /** focused */                            long      focus;
-    /** hovered */                            long      hover;
     /** insert/overwrite mode */              long      ins;
     /** allow only numeric entry */           long      num;
     /** low bound of number */                long      lbnd;
@@ -380,7 +357,6 @@ typedef struct wigrec {
     /** string list */                        ami_strptr strlst;
     /** string selected, 0 if none */         long      ss;
     /** string hovered, 0 if none */          long      sh;
-    /** position of widget in parent */       long      px, py;
     /** child window id */                    long      cid;
     /** mouse grabs scrollbar/slider */       long      grab;
     /** tick marks on slider */               long      ticks;
@@ -391,14 +367,6 @@ typedef struct wigrec {
     /** use check/text */                     long      check;
 
 } wigrec;
-
-/*
- * Saved vectors to system calls. These vectors point to the old, existing
- * vectors that were overriden by this module.
- *
- */
-static pclose_t  ofpclose;
-static pclose_t  ofpclose_nocancel;
 
 /*
  * Saved vectors for entry calls for widgets.
@@ -500,18 +468,8 @@ static ami_queryfont_t       queryfont_vect;
   on a window, they can be output, or they can be input. In the case of
   input, the file has its own input queue, and will receive input from all
   windows that are attached to it. */
-typedef struct filrec* filptr;
-typedef struct filrec {
-
-    /* table of widgets in window, includes negatives and 0 */
-    wigptr widgets[MAXWIG*2+1];
-
-} filrec;
-
-static ami_pevthan    widget_event_old;   /* previous event vector save */
-static wigptr        wigfre;             /* free widget entry list */
-static filptr        opnfil[MAXFIL];     /* open files table */
-static wigptr        xltwig[MAXFIL*2+1]; /* widget entry equivalence table */
+static wbpkg         pkg;                /* this package's widget base
+                                            instance */
 static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
 static unsigned long themetable[th_endmarker];
@@ -862,57 +820,6 @@ static void frestrlst(
 
 /** ****************************************************************************
 
-Get file entry
-
-Allocates and initializes a new file entry. File entries are left in the opnfil
-array, so are recycled in place.
-
-\returns Pointer to new file entry.
-
-*******************************************************************************/
-
-static filptr getfil(void)
-
-{
-
-    filptr fp;
-    long   i;
-
-    fp = malloc(sizeof(filrec)); /* get new file entry */
-    /* clear widget table */
-    for (i = 0; i < MAXWIG*2+1; i++) fp->widgets[i] = NULL;
-
-    return (fp); /* exit with file entry */
-
-}
-
-/** ****************************************************************************
-
-Make file entry
-
-If the indicated file does not contain a file control structure, one is created.
-Otherwise it is a no-op.
-
-*******************************************************************************/
-
-static void makfil(
-    /** File entry pointer */ FILE* f
-)
-
-{
-
-    long fn;
-
-    if (!f) error("Invalid window file");
-    fn = fileno(f); /* get the file logical number */
-    if (fn > MAXFIL) error("Invalid file number");
-    /* check table empty */
-    if (!opnfil[fn]) opnfil[fn] = getfil(); /* allocate file entry */
-
-}
-
-/** ****************************************************************************
-
 Get widget
 
 Get a widget and place into the window tracking list. If a free widget entry
@@ -926,23 +833,25 @@ static wigptr getwig(void)
 
 {
 
-    wigptr wp; /* widget pointer */
+    return ((wigptr)wb_getwig(&pkg)); /* base allocates, wiginit fills */
 
-    if (wigfre) { /* used entry exists, get that */
+}
 
-        wp = wigfre; /* index top entry */
-        wigfre = wigfre->next; /* gap out */
+/* base callback: initialize this package's fields of a fresh record;
+   the base has initialized the head */
+static void wiginit(void* vwg)
 
-    } else wp = malloc(sizeof(wigrec)); /* get entry */
+{
+
+    wigptr wp = (wigptr)vwg;
+
     wp->pressed = FALSE; /* set not pressed */
     wp->lpressed = FALSE;
     wp->select = FALSE; /* set not selected */
-    wp->enb = FALSE; /* set not enabled */
+    wp->face = NULL; /* no face yet */
     wp->sclpos = 0; /* set scrollbar position top/left */
     wp->curs = 0; /* set text cursor */
     wp->tleft = 0; /* set text left side in edit box */
-    wp->focus = 0; /* set not focused */
-    wp->hover = 0; /* set no hover */
     wp->ins = 0; /* set insert mode */
     wp->mpx = 0; /* clear mouse position */
     wp->mpy = 0;
@@ -960,16 +869,12 @@ static wigptr getwig(void)
     wp->strlst = NULL; /* clear string list */
     wp->ss = 0; /* no string selected */
     wp->sh = 0; /* no string hovered */
-    wp->px = 0; /* clear origin in parent */
-    wp->py = 0;
     wp->cid = 0; /* clear child id */
     wp->grab = FALSE; /* set no scrollbar/slider grab */
     wp->ticks = 0; /* set no tick marks on slider */
     wp->tor = ami_totop; /* set tab orientation top */
     wp->charb = FALSE; /* widget based on character grid */
     wp->check = FALSE; /* do not use check instead of text */
-
-    return wp; /* return entry */
 
 }
 
@@ -982,16 +887,15 @@ list.
 
 *******************************************************************************/
 
-static void putwig(
-    /** Pointer to wiget to free */ wigptr wp)
+static void wigfree(void* vwg)
 
 {
+
+    wigptr wp = (wigptr)vwg;
 
     /* if not a subclass widget, free string list */
     if (!wp->pw) frestrlst(wp->strlst);
     if (wp->face) free(wp->face); /* free face string if exists */
-    wp->next = wigfre; /* push to free list */
-    wigfre = wp;
 
 }
 
@@ -1013,16 +917,7 @@ static wigptr fndwig(
 
 {
 
-    long      fn;  /* logical file name */
-    wigptr    wp;  /* widget entry pointer */
-
-    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
-    fn = fileno(f); /* get the file index */
-    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn]->widgets[id+MAXWIG]) error("No widget by given id");
-    wp = opnfil[fn]->widgets[id+MAXWIG]; /* index that */
-
-    return (wp); /* return the widget pointer */
+    return ((wigptr)wb_fndwig(&pkg, f, id));
 
 }
 
@@ -1171,30 +1066,15 @@ Kills the given widget by id and in the window file by file id.
 
 *******************************************************************************/
 
-static void intkillwidget(
-    /** file id */           long fn,
-    /** Logical widget id */ long wid
-)
+static void wigkill(void* vwg)
 
 {
 
-    wigptr wp; /* widget entry pointer */
+    wigptr wp = (wigptr)vwg;
 
-    if (fn < 0 || fn > MAXFIL) error("Invalid file number");
-    if (!opnfil[fn]) error("File by id not open");
-    if (wid <= -MAXWIG || wid > MAXWIG || !wid) error("Invalid widget id");
-    if (!opnfil[fn]->widgets[wid+MAXWIG]) error("No widget by given id");
-    wp = opnfil[fn]->widgets[wid+MAXWIG]; /* index that */
     /* if there is a subwidget, kill that as well */
     if (wp->cw) ami_killwidget(wp->cw->pw->wf, wp->cw->id);
     if (wp->cw2) ami_killwidget(wp->cw2->pw->wf, wp->cw2->id);
-    xltwig[wp->wid+MAXFIL] = NULL; /* clear the window-to-widget tracking
-                                      entry, or a window id reused after this
-                                      widget is freed would dispatch events to
-                                      the freed entry */
-    fclose(wp->wf); /* close the window file */
-    opnfil[fn]->widgets[wid+MAXWIG] = NULL; /* clear widget slot  */
-    putwig(wp); /* release widget data */
 
 }
 
@@ -1224,36 +1104,15 @@ static void widget(
 
 {
 
-    long fn; /* logical file name */
     wigptr wp;
 
-    if (id <= -MAXWIG || id > MAXWIG || !id) error("Invalid widget id");
-    makfil(f); /* ensure there is a file entry and validate */
-    fn = fileno(f); /* get the file index */
     wp = *wpr; /* get any predefined widget entry */
-    if (!wp) wp = getwig(); /* get widget entry if none passed in */
-    if (opnfil[fn]->widgets[id+MAXWIG]) error("Widget by id already in use");
-    opnfil[fn]->widgets[id+MAXWIG] = wp; /* set widget entry */
-
+    /* the base opens, places and registers the widget subwindow */
+    wb_widget(&pkg, f, x1, y1, x2, y2, id, &wp);
     wp->face = str(s); /* place face */
-    wp->wid = ami_getwinid(); /* allocate a buried wid */
-    ami_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
-    wp->parent = f; /* save parent file */
-    xltwig[wp->wid+MAXFIL] = wp; /* set the tracking entry for the window */
-    wp->id = id; /* set button widget id */
-    ami_buffer(wp->wf, FALSE); /* turn off buffering */
-    ami_auto(wp->wf, FALSE); /* turn off auto */
-    ami_curvis(wp->wf, FALSE); /* turn off cursor */
     ami_font(wp->wf, AMI_FONT_SIGN); /* set sign font */
-    ami_frame(wp->wf, FALSE); /* turn off frame */
-    ami_setposg(wp->wf, x1, y1); /* place at position */
-    ami_setsizg(wp->wf, x2-x1, y2-y1); /* set size */
-    ami_binvis(wp->wf); /* no background write */
     wp->typ = typ; /* place type */
-    wp->enb = TRUE; /* set is enabled */
     wp->sclsiz = LONG_MAX/10; /* set default size scrollbar */
-    wp->px = x1; /* set widget position in parent */
-    wp->py = y1;
 
     *wpr = wp; /* copy back to caller */
 
@@ -3807,17 +3666,15 @@ Handles the events posted to widgets.
 *******************************************************************************/
 
 static void widget_event(
-    /** Event record pointer */ ami_evtrec* ev
+    /** Event record pointer */ ami_evtrec* ev,
+    /** Widget data pointer */  void*       vwg
 )
 
 {
 
-    wigptr wg; /* pointer to widget */
+    wigptr wg = (wigptr)vwg; /* the base found one of ours */
 
-    /* if not our window, send it on */
-    wg = xltwig[ev->winid+MAXFIL]; /* get possible widget entry */
-    if (!wg) widget_event_old(ev);
-    else switch (wg->typ) { /* handle according to type */
+    switch (wg->typ) { /* handle according to type */
 
         case wtcbutton:      cbutton_event(ev, wg); break;
         case wtbutton:       button_event(ev, wg); break;
@@ -3872,17 +3729,7 @@ static long igetwigid(
 
 {
 
-    long fn;  /* logical file name */
-    long wid; /* widget id */
-
-    fn = fileno(f); /* get the logical file number */
-    wid = -1; /* start at -1 */
-    /* find any open entry */
-    while (wid > -MAXWIG && opnfil[fn]->widgets[wid+MAXWIG]) wid--;
-    if (wid == -MAXWIG)
-        error("No more anonymous widget IDs"); /* ran out of anonymous wids */
-
-    return (wid); /* return the wid */
+    return (wb_getwigid(&pkg, f)); /* the base allocates */
 
 }
 
@@ -3901,10 +3748,7 @@ static void ikillwidget(
 
 {
 
-    long   fn; /* logical file name */
-
-    fn = fileno(f); /* get the logical file number */
-    intkillwidget(fn, id); /* kill widget */
+    wb_killwidget(&pkg, f, id); /* wigkill cascades any subwidgets */
 
 }
 
@@ -8050,55 +7894,6 @@ elsewhere.
 
 /** ****************************************************************************
 
-Close
-
-If the file is attached to an output window, closes the window file. Otherwise,
-the close is just passed on.
-
-*******************************************************************************/
-
-static int ivclose(
-    /** Base call vector */ pclose_t closedc,
-    /** File logical id */  int fd)
-
-{
-
-    int i;
-
-    if (fd < 0 || fd >= MAXFIL) error("Invalid file handle");
-    /* check if the file is an output window */
-    if (opnfil[fd]) {
-
-        /* close any widgets in file */
-        for (i = 0; i < MAXWIG*2+1; i++)
-            if (opnfil[fd]->widgets[i]) intkillwidget(fd, i-MAXWIG);
-        free(opnfil[fd]); /* free the file record */
-        opnfil[fd] = NULL; /* clear it */
-
-    }
-
-    return (*closedc)(fd);
-
-}
-
-static int iclose(int fd)
-
-{
-
-    return ivclose(ofpclose, fd);
-
-}
-
-static int iclose_nocancel(int fd)
-
-{
-
-    return ivclose(ofpclose_nocancel, fd);
-
-}
-
-/** ****************************************************************************
-
 Theme point names
 
 The config file names for each theme table entry, in themeindex order. The
@@ -8255,21 +8050,12 @@ static void init_widgets()
 
 {
 
-    long fn; /* file number */
-    long wid; /* window id */
-
-    /* override the event handler */
-    ami_eventsover(widget_event, &widget_event_old);
-
-    wigfre = NULL; /* clear widget free list */
-
-    /* clear open files table */
-    for (fn = 0; fn < MAXFIL; fn++) opnfil[fn] = NULL;
-
-    /* clear window equivalence table */
-    for (fn = 0; fn < MAXFIL*2+1; fn++)
-        /* clear window logical number translator table */
-        xltwig[fn] = NULL; /* set no widget entry */
+    /* Register with the widget base: the tracking tables, the event
+       intercept, the close intercept and the widget lifecycle are all
+       under it. The error reporter is ours, so widget errors present
+       as they always have. */
+    wb_init(&pkg, sizeof(wigrec), widget_event, wiginit, wigkill, wigfree,
+            error);
 
     /* open "window 0" dummy window */
     ami_openwin(&stdin, &win0, NULL, ami_getwinid()); /* open window */
@@ -8277,12 +8063,6 @@ static void init_widgets()
     ami_auto(win0, FALSE); /* turn off auto (for font change) */
     ami_font(win0, AMI_FONT_SIGN); /* set sign font */
     ami_frame(win0, FALSE); /* turn off frame */
-
-    /* override system calls for basic I/O */
-    ovr_close(iclose, &ofpclose);
-#ifdef NOCANCEL
-    ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
-#endif
 
     /* override entry calls to widgets */
     _pa_getwigid_ovr(igetwigid, &getwigid_vect);
@@ -8472,13 +8252,6 @@ static void deinit_widgets()
 
 {
 
-    long fn; /* file number */
-    long i;
-
-    /* holding copies of system vectors */
-    pclose_t cppclose;
-    pclose_t cppclose_nocancel;
-
     /* holding copies of widgets override vectors */
     ami_getwigid_t        cppgetwigid;
     ami_killwidget_t      cppkillwidget;
@@ -8569,16 +8342,10 @@ static void deinit_widgets()
     ami_queryfindrep_t    cppqueryfindrep;
     ami_queryfont_t       cppqueryfont;
 
-    /* shut down file and widgets */
-    for (fn = 0; fn < MAXFIL; fn++) if (opnfil[fn]) {
-
-        /* close any widgets in file */
-        for (i = 0; i < MAXWIG*2+1; i++)
-            if (opnfil[fn]->widgets[i]) intkillwidget(fn, i-MAXWIG);
-        free(opnfil[fn]); /* free the file record */
-        opnfil[fn] = NULL; /* clear it */
-
-    }
+    /* Unregister from the widget base, which takes down any widgets
+       still standing; the last package out restores the event and close
+       intercepts. */
+    wb_deinit(&pkg);
 
     /* swap old override vectors for existing vectors */
     _pa_getwigid_ovr(getwigid_vect, &cppgetwigid);
@@ -8670,14 +8437,5 @@ static void deinit_widgets()
     _pa_queryfind_ovr(queryfind_vect, &cppqueryfind);
     _pa_queryfindrep_ovr(queryfindrep_vect, &cppqueryfindrep);
     _pa_queryfont_ovr(queryfont_vect, &cppqueryfont);
-
-    /* swap old vectors for existing vectors */
-    ovr_close(ofpclose, &cppclose);
-#ifdef NOCANCEL
-    ovr_close_nocancel(ofpclose_nocancel, &cppclose_nocancel);
-#endif
-
-    /* if we don't see our own vector flag an error */
-    if (cppclose != iclose) error("System override vector mismatch");
 
 }
