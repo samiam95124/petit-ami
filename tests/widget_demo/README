@@ -1,0 +1,17 @@
+Assets for the widget demonstrator (portable/widget_demo.c).
+
+kick01.bmp .. kick24.bmp
+    Animation frames, 160x160, 24 bit uncompressed BMP (the format
+    ami_loadpict() reads). Derived from the video
+    "Boykickingball-slowmotion-tokyo-20160423.webm" by Nesnad,
+    Wikimedia Commons,
+    https://commons.wikimedia.org/wiki/File:Boykickingball-slowmotion-tokyo-20160423.webm
+    licensed under Creative Commons Attribution 4.0
+    (https://creativecommons.org/licenses/by/4.0/).
+    Changes: cropped, scaled, and sampled to 24 frames.
+    kick01.bmp doubles as the button's resting face.
+
+kick.wav
+    The kick sound, 44100 Hz 16 bit mono PCM. Synthesized for this
+    demonstrator (a decaying low tone under a short noise transient);
+    no license restrictions.

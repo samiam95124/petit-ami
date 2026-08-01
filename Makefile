@@ -830,6 +830,10 @@ cpp/terminal.o: cpp/terminal.cpp
 portable/gnome_widgets.o: portable/gnome_widgets.c
 	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
 		-o portable/gnome_widgets.o
+
+portable/widget_base.o: portable/widget_base.c
+	$(CC) $(CFLAGS) -c portable/widget_base.c \
+		-o portable/widget_base.o
 		
 portable/managerc.o: portable/managerc.c
 	$(CC) $(CFLAGS) -c portable/managerc.c \
@@ -921,11 +925,11 @@ lib/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 lib/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
     bsd/graphics.o bsd/system_event.o \
-	portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
+	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
 	ar rcs lib/petit_ami_graph.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
-	    portable/gnome_widgets.o utils/config.o utils/option.o bsd/stdio.o
+	    portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
 	
 else
 
@@ -984,20 +988,20 @@ lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/graphics.o linux/system_event.o \
-		portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o \
+		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o \
         -lstdc++ -o lib/petit_ami_graph.so
 
 lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
 	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 	linux/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o utils/config.o utils/option.o cpp/terminal.o
+	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
 	ar rcs lib/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
 		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
 		linux/graphics.o linux/system_event.o \
-		portable/gnome_widgets.o utils/config.o utils/option.o  \
+		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o  \
 		cpp/terminal.o
 	
 endif
@@ -1069,6 +1073,13 @@ testc: $(CLIBSD) test.c
 	
 testg: $(GLIBSD) test.c
 	$(CC) $(CFLAGS) test.c -Wl,-u,ami_cursorg $(GLIBS) -o testg
+
+#
+# Widget demonstrator: a graphics window with the demonstration widget
+# from portable/widget_demo.c centered in it, for examination and test
+#
+test_demo: $(GLIBSD) test_demo.c portable/widget_demo.c
+	$(CC) $(CFLAGS) test_demo.c portable/widget_demo.c $(GLIBS) -o test_demo
 	
 test+: $(PLIBSD) test.cp
 	$(CPP) $(CFLAGS) test.cp $(PLIBS) -o test
@@ -1316,6 +1327,7 @@ endif
 #
 widget_test: $(GLIBSD) tests/widget_test.c
 	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
+
 
 #
 # Test widget compliant output, character mode
