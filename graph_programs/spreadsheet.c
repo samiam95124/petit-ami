@@ -822,8 +822,13 @@ static void follow(void)
 
 }
 
-/* scroll the view without moving the current cell, as the bars do */
-static void scrollto(long nx, long ny)
+/* Scroll the view without moving the current cell, as the bars do. The
+   bar the scroll came from, if any, is left alone: it reported where the
+   user put its slider and has been set there, and setting it again from
+   the view would drag the slider back to the nearest whole cell -- which
+   on a bar with few cells of travel is most of the way back where it
+   started, so the bar appeared not to work. */
+static void scrollto(long nx, long ny, long frombar)
 
 {
 
@@ -834,8 +839,8 @@ static void scrollto(long nx, long ny)
     clamporg();
     if (ox != orgx || oy != orgy) {
 
-        setbar(SBVERT, orgy, celly, ROWS);
-        setbar(SBHORIZ, orgx, cellx, COLS);
+        if (frombar != SBVERT) setbar(SBVERT, orgy, celly, ROWS);
+        if (frombar != SBHORIZ) setbar(SBHORIZ, orgx, cellx, COLS);
         drawall();
 
     }
@@ -1155,30 +1160,33 @@ int main(int argc, char* argv[])
                 break;
 
             case ami_etsclull: /* a line back */
-                if (er.sclulid == SBVERT) scrollto(orgx, orgy-1);
-                else scrollto(orgx-1, orgy);
+                if (er.sclulid == SBVERT) scrollto(orgx, orgy-1, 0);
+                else scrollto(orgx-1, orgy, 0);
                 break;
 
             case ami_etscldrl: /* a line on */
-                if (er.scldrid == SBVERT) scrollto(orgx, orgy+1);
-                else scrollto(orgx+1, orgy);
+                if (er.scldrid == SBVERT) scrollto(orgx, orgy+1, 0);
+                else scrollto(orgx+1, orgy, 0);
                 break;
 
             case ami_etsclulp: /* a page back */
-                if (er.sclupid == SBVERT) scrollto(orgx, orgy-celly);
-                else scrollto(orgx-cellx, orgy);
+                if (er.sclupid == SBVERT) scrollto(orgx, orgy-celly, 0);
+                else scrollto(orgx-cellx, orgy, 0);
                 break;
 
             case ami_etscldrp: /* a page on */
-                if (er.scldpid == SBVERT) scrollto(orgx, orgy+celly);
-                else scrollto(orgx+cellx, orgy);
+                if (er.scldpid == SBVERT) scrollto(orgx, orgy+celly, 0);
+                else scrollto(orgx+cellx, orgy, 0);
                 break;
 
-            case ami_etsclpos: /* dragged to a position */
+            case ami_etsclpos: /* the slider was placed */
+                /* the slider goes where the user put it, then the view
+                   follows from there */
+                ami_scrollpos(stdout, er.sclpid, er.sclpos);
                 if (er.sclpid == SBVERT)
-                    scrollto(orgx, barcell(er.sclpos, ROWS-celly));
+                    scrollto(orgx, barcell(er.sclpos, ROWS-celly), SBVERT);
                 else
-                    scrollto(barcell(er.sclpos, COLS-cellx), orgy);
+                    scrollto(barcell(er.sclpos, COLS-cellx), orgy, SBHORIZ);
                 break;
 
             case ami_etmenus: /* the menu */
