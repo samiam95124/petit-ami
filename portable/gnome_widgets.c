@@ -53,6 +53,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <time.h>
 
 /* linux definitions */
 #include <limits.h>
@@ -6599,6 +6600,22 @@ in the buffer.
 #define QFL_ID_PATH     3
 #define QFL_ID_LIST     4
 #define QFL_ID_NAME     5
+#define QFL_ID_PLACES   6 /* the places at the left */
+
+/* Rebuild the file list for the directory now current. The widget is
+   made anew rather than refilled, which is what the widget set gives;
+   killing it frees the old list, so the old pointer must not be touched
+   after. Kept in one place because the geometry must match the layout
+   below wherever the list is rebuilt. */
+#define QFL_RELIST() do { \
+    ami_killwidget(out, QFL_ID_LIST); \
+    listsp = build_qfl_list(curdir); \
+    wp = getwig(); \
+    wp->strlst = listsp; \
+    widget(out, chrw*16, titbot+chrsz*3.4, chrw*78, titbot+chrsz*19.0, \
+           "", QFL_ID_LIST, wtlistbox, &wp); \
+    ami_font(fndwig(out, QFL_ID_LIST)->wf, AMI_FONT_TERM); \
+} while (0)
 
 /*
  * Build a listbox string list for directory `dir`. Directories get a trailing
@@ -6606,18 +6623,145 @@ in the buffer.
  * Returns a list suitable to pass to widget(...wtlistbox...).
  * Caller must pass the returned list to free_qfl_list() when done.
  */
+/* The places: the directories a file is most often wanted from. The
+   home directory and the standard folders under it, each shown by its
+   own name and carrying its path. */
+static const char* qfl_places[] = {
+
+    "Home", "", "Desktop", "Desktop", "Documents", "Documents",
+    "Downloads", "Downloads", "Music", "Music", "Pictures", "Pictures",
+    "Videos", "Videos", NULL, NULL
+
+};
+
+static ami_strptr build_qfl_places(void)
+
+{
+
+    ami_strptr head = NULL, tail = NULL, e;
+    long i;
+
+    for (i = 0; qfl_places[i]; i += 2) {
+
+        e = malloc(sizeof(ami_strrec));
+        if (!e) break;
+        e->next = NULL;
+        e->str = strdup(qfl_places[i]);
+        if (!head) head = e; else tail->next = e;
+        tail = e;
+
+    }
+
+    return (head);
+
+}
+
+/* the path a place stands for */
+static void qfl_placepath(long n, char* d, long dl)
+
+{
+
+    const char* home = getenv("HOME");
+
+    if (!home) home = "/";
+    if (n < 1) { strncpy(d, home, dl-1); d[dl-1] = 0; return; }
+    if (!qfl_places[(n-1)*2]) { strncpy(d, home, dl-1); d[dl-1] = 0; return; }
+    snprintf(d, dl, "%s%s%s", home, qfl_places[(n-1)*2+1][0]? "/": "",
+             qfl_places[(n-1)*2+1]);
+
+}
+
+/* An entry as the list shows it: the name, then its size and the date it
+   was last changed, in columns. The list is set in the fixed pitch font,
+   so the columns line up under their headings. */
+#define QFL_NAMEW 32 /* the name column, in characters */
+
+static void qfl_entry(char* d, long dl, const char* name, int isdir,
+                      long long size, long modify)
+
+{
+
+    char   szs[32];
+    char   dts[32];
+    char   tms[32];
+    long   i;
+
+    /* the name, cut with an ellipsis if it will not fit its column */
+    for (i = 0; i < QFL_NAMEW && name[i]; i++) d[i] = name[i];
+    if (name[i]) { d[QFL_NAMEW-3] = '.'; d[QFL_NAMEW-2] = '.';
+                   d[QFL_NAMEW-1] = '.'; i = QFL_NAMEW; }
+    if (isdir && i < QFL_NAMEW) d[i++] = '/';
+    while (i < QFL_NAMEW+1) d[i++] = ' ';
+    /* the size, in the units it reads best in; a directory has none */
+    if (isdir) strcpy(szs, "");
+    else if (size < 1000LL) sprintf(szs, "%lld B", size);
+    else if (size < 1000000LL) sprintf(szs, "%.1f kB", size/1000.0);
+    else if (size < 1000000000LL) sprintf(szs, "%.1f MB", size/1000000.0);
+    else sprintf(szs, "%.1f GB", size/1000000000.0);
+    for (i = 0; i < 10-(long)strlen(szs); i++) d[QFL_NAMEW+1+i] = ' ';
+    strcpy(d+QFL_NAMEW+1+i, szs); /* right aligned, as sizes read */
+    i = strlen(d);
+    d[i++] = ' ';
+    d[i++] = ' ';
+    /* The date and time last changed, through the services module's own
+       formatters: the time in a file record is its own, not the C
+       library's, and reading it as the C library's put every file in
+       another century. */
+    if (modify) {
+
+        ami_dates(dts, sizeof(dts), ami_local(modify));
+        ami_times(tms, sizeof(tms), ami_local(modify));
+        snprintf(d+i, dl-i, "%s %s", dts, tms);
+
+    } else d[i] = 0; /* nothing to say, as for .. */
+
+}
+
+/* The name out of a list entry, which carries its columns: the name
+   fills the first field, padded, and a directory ends with a slash.
+   Returns whether the entry is a directory. */
+static int qfl_name(const char* e, char* d, long dl)
+
+{
+
+    long i = 0, isdir;
+
+    while (i < QFL_NAMEW && e[i] && e[i] != ' ' && i < dl-1) { d[i] = e[i];
+                                                              i++; }
+    d[i] = 0;
+    isdir = i > 0 && d[i-1] == '/';
+    if (isdir) d[i-1] = 0; /* the slash marks it, it is not in the name */
+
+    return (isdir);
+
+}
+
+/* directories before files, and each in name order, which is how a file
+   list is expected to arrive */
+static int qfl_before(const char* an, int ad, const char* bn, int bd)
+
+{
+
+    if (ad != bd) return (ad); /* a directory leads a file */
+
+    return (strcasecmp(an, bn) < 0);
+
+}
+
 static ami_strptr build_qfl_list(const char* dir) {
 
     ami_filrec *files = NULL;
     ami_strptr  head = NULL;
     ami_strptr  tail = NULL;
     char        pat[4096];
+    char        line[256];
     long        dl;
 
     /* always include ".." for navigation */
     head = malloc(sizeof(ami_strrec));
     head->next = NULL;
-    head->str  = strdup("../");
+    qfl_entry(line, sizeof(line), "..", TRUE, 0, 0);
+    head->str  = strdup(line);
     tail = head;
 
     /* ami_list() treats its argument as dir + wildcard-filename. To list
@@ -6630,21 +6774,28 @@ static ami_strptr build_qfl_list(const char* dir) {
     ami_list(pat, &files);
     for (ami_filrec *fp = files; fp; fp = fp->next) {
         long is_dir;
-        size_t nl;
-        ami_strptr e;
+        ami_strptr e, lp;
         if (!fp->name) continue;
-        if (fp->name[0] == '.' && fp->name[1] == 0) continue; /* skip "." */
-        if (fp->name[0] == '.' && fp->name[1] == '.' && fp->name[2] == 0)
-            continue; /* already added */
+        /* the hidden entries stay hidden, as a file dialog shows them
+           only when asked; .. is already in the list */
+        if (fp->name[0] == '.') continue;
         is_dir = !!(fp->attr & (1L << ami_atdir));
-        nl = strlen(fp->name);
+        qfl_entry(line, sizeof(line), fp->name, is_dir, fp->size, fp->modify);
         e = malloc(sizeof(ami_strrec));
         e->next = NULL;
-        e->str  = malloc(nl + 2);
-        strcpy(e->str, fp->name);
-        if (is_dir) strcat(e->str, "/");
-        tail->next = e;
-        tail = e;
+        e->str  = strdup(line);
+        /* in place, after the entries that come before it. The first
+           entry is always .., which nothing displaces */
+        lp = head;
+        while (lp->next &&
+               !qfl_before(e->str, is_dir, lp->next->str,
+                           strchr(lp->next->str, '/') != NULL &&
+                           strchr(lp->next->str, '/') <
+                               lp->next->str+QFL_NAMEW+1))
+            lp = lp->next;
+        e->next = lp->next;
+        lp->next = e;
+        if (tail == lp) tail = e;
     }
 
     /* NOTE: ami_list's returned records are owned by services; we do not
@@ -6746,6 +6897,8 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     char       curdir[4096];
     char       curfile[512];
     ami_strptr listsp;
+    ami_strptr plcsp;
+    long       chrw; /* character width, for the horizontal */
     char       tmpbuf[4096];
     long       i;
 
@@ -6791,8 +6944,13 @@ static void qfl_dialog(char* s, long sl, const char* title) {
 
     chrsz = ami_chrsizy(out);
     titbot = chrsz*1.6;
+    /* The horizontal is laid out in character widths and the vertical in
+       character heights. Both were the height before, so every width came
+       out twice what it read as: the dialog was half again wider than the
+       screen it had to fit. */
+    chrw = ami_strsiz(out, "0");
 
-    ami_setsizg(out, chrsz*50, titbot+chrsz*22);
+    ami_setsizg(out, chrw*79, titbot+chrsz*24);
 
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
@@ -6801,9 +6959,17 @@ static void qfl_dialog(char* s, long sl, const char* title) {
 
     /* path edit box: current directory */
     wp = getwig();
-    widget(out, chrsz*6, titbot+chrsz*0.6,
-                chrsz*49, titbot+chrsz*2.0, "", QFL_ID_PATH, wteditbox, &wp);
+    widget(out, chrw*6, titbot+chrsz*0.6,
+                chrw*78, titbot+chrsz*2.0, "", QFL_ID_PATH, wteditbox, &wp);
     ami_putwidgettext(out, QFL_ID_PATH, curdir);
+
+    /* The places at the left: the directories a file is most often
+       wanted from, which saves typing a path to reach them. */
+    plcsp = build_qfl_places();
+    wp = getwig();
+    wp->strlst = plcsp;
+    widget(out, chrw, titbot+chrsz*3.4,
+                chrw*15, titbot+chrsz*19.0, "", QFL_ID_PLACES, wtlistbox, &wp);
 
     /* file list box. Set wp->strlst BEFORE widget() so that any draws
        during construction see a populated list. The widget will free the
@@ -6811,27 +6977,30 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     listsp = build_qfl_list(curdir);
     wp = getwig();
     wp->strlst = listsp;
-    widget(out, chrsz, titbot+chrsz*2.5,
-                chrsz*49, titbot+chrsz*18.0, "", QFL_ID_LIST, wtlistbox, &wp);
+    widget(out, chrw*16, titbot+chrsz*3.4,
+                chrw*78, titbot+chrsz*19.0, "", QFL_ID_LIST, wtlistbox, &wp);
+    /* the list is set in the fixed pitch font, so its columns line up
+       under the headings drawn above it */
+    ami_font(fndwig(out, QFL_ID_LIST)->wf, AMI_FONT_TERM);
 
     /* filename edit box */
     wp = getwig();
-    widget(out, chrsz*6, titbot+chrsz*18.8,
-                chrsz*35, titbot+chrsz*20.2, "", QFL_ID_NAME, wteditbox, &wp);
+    widget(out, chrw*6, titbot+chrsz*19.8,
+                chrw*60, titbot+chrsz*21.2, "", QFL_ID_NAME, wteditbox, &wp);
     if (curfile[0]) ami_putwidgettext(out, QFL_ID_NAME, curfile);
 
     /* OK button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrsz*37, titbot+chrsz*18.7,
-                chrsz*43, titbot+chrsz*20.3, "OK",
+    widget(out, chrw*62, titbot+chrsz*19.7,
+                chrw*69, titbot+chrsz*21.3, "Open",
                 QFL_ID_OK, wtcbutton, &wp);
 
     /* Cancel button */
     wp = getwig();
     wp->cbc = &cancel_cbc;
-    widget(out, chrsz*44, titbot+chrsz*18.7,
-                chrsz*49, titbot+chrsz*20.3, "Cancel",
+    widget(out, chrw*70, titbot+chrsz*19.7,
+                chrw*78, titbot+chrsz*21.3, "Cancel",
                 QFL_ID_CANCEL, wtcbutton, &wp);
 
     mpy = 0;
@@ -6857,46 +7026,53 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                 fputs(title, out);
                 ami_bold(out, FALSE);
                 ami_fcolor(out, ami_black);
-                ami_cursorg(out, chrsz, titbot+chrsz*0.9);
+                ami_cursorg(out, chrw, titbot+chrsz*0.9);
                 fputs("Path:", out);
-                ami_cursorg(out, chrsz, titbot+chrsz*19.1);
+                ami_cursorg(out, chrw, titbot+chrsz*20.1);
                 fputs("Name:", out);
+                /* the headings over the two lists. The file headings are
+                   set in the fixed pitch font the list itself uses, so
+                   they stand over their columns. */
+                ami_bold(out, TRUE);
+                ami_cursorg(out, chrw, titbot+chrsz*2.4);
+                fputs("Places", out);
+                ami_font(out, AMI_FONT_TERM);
+                ami_cursorg(out, chrw*16, titbot+chrsz*2.4);
+                fputs("Name                             "
+                      "      Size  Modified", out);
+                ami_font(out, AMI_FONT_SIGN);
+                ami_bold(out, FALSE);
                 break;
 
             case ami_etlstbox:
-                if (er.lstbid == QFL_ID_LIST) {
+                if (er.lstbid == QFL_ID_PLACES) { /* to a place */
+
+                    qfl_placepath(er.lstbsl, tmpbuf, sizeof(tmpbuf));
+                    normalize_dir(curdir, sizeof(curdir), tmpbuf);
+                    QFL_RELIST();
+                    ami_putwidgettext(out, QFL_ID_PATH, curdir);
+
+                } else if (er.lstbid == QFL_ID_LIST) {
                     /* find the selected string */
                     ami_strptr sp = listsp;
                     long n = er.lstbsl;
                     for (i = 1; i < n && sp; i++) sp = sp->next;
                     if (sp && sp->str) {
-                        long l = (long)strlen(sp->str);
-                        long is_dir = (l > 0 && sp->str[l-1] == '/');
+                        char name[512];
+                        long is_dir = qfl_name(sp->str, name, sizeof(name));
                         if (is_dir) {
                             /* navigate into this directory */
-                            char trimmed[512];
-                            long tl = l - 1;
-                            if (tl >= (long)sizeof(trimmed))
-                                tl = sizeof(trimmed)-1;
-                            memcpy(trimmed, sp->str, tl);
-                            trimmed[tl] = 0;
-                            join_path(tmpbuf, sizeof(tmpbuf), curdir, trimmed);
+                            join_path(tmpbuf, sizeof(tmpbuf), curdir, name);
                             normalize_dir(curdir, sizeof(curdir), tmpbuf);
                             /* rebuild listbox. ami_killwidget frees the
                                previous strlst via putwig, so we must not
                                touch the old listsp pointer. */
-                            ami_killwidget(out, QFL_ID_LIST);
-                            listsp = build_qfl_list(curdir);
-                            wp = getwig();
-                            wp->strlst = listsp; /* set before widget() */
-                            widget(out, chrsz, titbot+chrsz*2.5,
-                                        chrsz*49, titbot+chrsz*18.0,
-                                        "", QFL_ID_LIST, wtlistbox, &wp);
+                            QFL_RELIST();
                             /* update path edit */
                             ami_putwidgettext(out, QFL_ID_PATH, curdir);
                         } else {
                             /* file selected: copy to name edit box */
-                            ami_putwidgettext(out, QFL_ID_NAME, sp->str);
+                            ami_putwidgettext(out, QFL_ID_NAME, name);
                         }
                     }
                 }
@@ -6907,13 +7083,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                     /* user pressed enter in path: reload */
                     getwidgettextz(out, QFL_ID_PATH, curdir, sizeof(curdir));
                     if (curdir[0] == 0) { curdir[0]='.'; curdir[1]=0; }
-                    ami_killwidget(out, QFL_ID_LIST);
-                    listsp = build_qfl_list(curdir);
-                    wp = getwig();
-                    wp->strlst = listsp;
-                    widget(out, chrsz, titbot+chrsz*2.5,
-                                chrsz*49, titbot+chrsz*18.0,
-                                "", QFL_ID_LIST, wtlistbox, &wp);
+                    QFL_RELIST();
                 } else if (er.edtbid == QFL_ID_NAME) {
                     er.etype = ami_etterm; /* enter in name = OK */
                 }
