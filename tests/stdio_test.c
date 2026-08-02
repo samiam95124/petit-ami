@@ -319,8 +319,12 @@ int main(void)
     if (strcmp(s, "42-hi") || n != 5) fails++;
 
     /* snprintf: output truncated to the size, always terminated, returns the
-       length that would have been written */
+       length that would have been written. The truncation is the test, so
+       the compiler's truncation warning does not apply. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
     n = snprintf(s, 4, "%d-%s", 42, "hi");
+#pragma GCC diagnostic pop
     printf("test 164: \"%s\" n=%d s/b \"42-\" 5\n", s, n);
     if (strcmp(s, "42-") || n != 5) fails++;
 
