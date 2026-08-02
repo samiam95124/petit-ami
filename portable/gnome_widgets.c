@@ -358,6 +358,13 @@ typedef struct wigrec {
     /** string list */                        ami_strptr strlst;
     /** string selected, 0 if none */         long      ss;
     /** string hovered, 0 if none */          long      sh;
+    /** list box: first entry shown, 1 based */ long    top;
+    /** List box column stops, in pixels from the left of the box. An
+       entry is split at tabs and each field placed at its stop; a
+       negative stop right aligns the field to it, as a column of sizes
+       reads. None means the entry is one string, as it always was. */
+                                              long      tabs[4];
+    /** how many stops */                     long      ntabs;
     /** child window id */                    long      cid;
     /** mouse grabs scrollbar/slider */       long      grab;
     /** tick marks on slider */               long      ticks;
@@ -870,6 +877,8 @@ static void wiginit(void* vwg)
     wp->strlst = NULL; /* clear string list */
     wp->ss = 0; /* no string selected */
     wp->sh = 0; /* no string hovered */
+    wp->top = 1; /* the list starts at its first entry */
+    wp->ntabs = 0; /* no columns: the entry is one string */
     wp->cid = 0; /* clear child id */
     wp->grab = FALSE; /* set no scrollbar/slider grab */
     wp->ticks = 0; /* set no tick marks on slider */
@@ -2488,6 +2497,44 @@ Handles drawing list boxes.
    The fill is inset horizontally so the rounded outline is never overpainted --
    that lets the motion handler repaint just the line that gains or loses the
    hover highlight instead of redrawing (and re-rendering) the whole list. */
+/* the entries a list box has room for */
+static long listbox_vis(wigptr wg)
+
+{
+
+    long n = (ami_maxyg(wg->wf)-ami_chrsizy(wg->wf)*0.5)/ami_chrsizy(wg->wf);
+
+    return (n < 1? 1: n);
+
+}
+
+/* the entries it holds */
+static long listbox_cnt(wigptr wg)
+
+{
+
+    ami_strptr sp = wg->strlst;
+    long n = 0;
+
+    while (sp) { n++; sp = sp->next; }
+
+    return (n);
+
+}
+
+/* Hold the view inside the list: it starts at the first entry, and it
+   cannot start so late that the box would run past the end. */
+static void listbox_clamp(wigptr wg)
+
+{
+
+    long last = listbox_cnt(wg)-listbox_vis(wg)+1;
+
+    if (wg->top > last) wg->top = last;
+    if (wg->top < 1) wg->top = 1;
+
+}
+
 static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
 
 {
@@ -2497,8 +2544,39 @@ static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
     else ami_fcolor(wg->wf, ami_white); /* normal background */
     ami_frect(wg->wf, 4, y, ami_maxxg(wg->wf)-3, y+ami_chrsizy(wg->wf)-1);
     ami_fcolor(wg->wf, ami_black);
-    ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, y);
-    fprintf(wg->wf, "%s", sp->str); /* place string */
+    if (wg->ntabs) { /* in columns, each field at its stop */
+
+        const char* p = sp->str;
+        long i = 0;
+
+        while (p && i <= wg->ntabs) {
+
+            const char* e = strchr(p, '\t');
+            char  fld[256];
+            long  l = e? (long)(e-p): (long)strlen(p);
+            long  x;
+
+            if (l > (long)sizeof(fld)-1) l = sizeof(fld)-1;
+            memcpy(fld, p, l);
+            fld[l] = 0;
+            if (!i) x = ami_chrsizy(wg->wf)*0.5; /* the name leads */
+            else if (wg->tabs[i-1] < 0) /* right aligned to its stop */
+                x = -wg->tabs[i-1]-ami_strsiz(wg->wf, fld);
+            else x = wg->tabs[i-1];
+            ami_cursorg(wg->wf, x, y);
+            fprintf(wg->wf, "%s", fld);
+            if (!e) break;
+            p = e+1;
+            i++;
+
+        }
+
+    } else {
+
+        ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, y);
+        fprintf(wg->wf, "%s", sp->str); /* place string */
+
+    }
 
 }
 
@@ -2513,10 +2591,11 @@ static void listbox_line_idx(wigptr wg, long idx)
     long      y;
     long      sc;
 
-    if (idx < 1) return; /* nothing to paint */
+    if (idx < wg->top) return; /* above the view, nothing to paint */
     sp = wg->strlst; /* index top of stringlist */
-    y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
     sc = 1; /* set first string */
+    while (sp && sc < wg->top) { sp = sp->next; sc++; } /* to the view */
+    y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
     while (sp && sc < idx) { /* walk to the target line */
 
         y += ami_chrsizy(wg->wf); /* next line */
@@ -2524,7 +2603,9 @@ static void listbox_line_idx(wigptr wg, long idx)
         sc++; /* next select */
 
     }
-    if (sp) listbox_line(wg, sp, idx, y); /* in range: paint it */
+    /* in the view: paint it. Below it, there is nothing to paint */
+    if (sp && y+ami_chrsizy(wg->wf) <= ami_maxyg(wg->wf))
+        listbox_line(wg, sp, idx, y);
 
 }
 
@@ -2545,10 +2626,13 @@ static void listbox_draw(
     fcolort(wg->wf, th_outline1);
     ami_linewidth(wg->wf, 2);
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 10, 10);
+    /* from the entry the view starts at, for as many as the box holds */
+    listbox_clamp(wg);
     sp = wg->strlst; /* index top of stringlist */
-    y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
     sc = 1; /* set first string */
-    while (sp) { /* traverse and paint */
+    while (sp && sc < wg->top) { sp = sp->next; sc++; } /* to the view */
+    y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
+    while (sp && y+ami_chrsizy(wg->wf) <= ami_maxyg(wg->wf)) {
 
         listbox_line(wg, sp, sc, y); /* paint this line */
         y += ami_chrsizy(wg->wf); /* next line */
@@ -2580,7 +2664,35 @@ static void listbox_event(
     ami_strptr sp;
 
     if (ev->etype == ami_etredraw) listbox_draw(wg); /* redraw the window */
-    else if (ev->etype == ami_etmouba && ev->amoubn == 1) {
+    else if (ev->etype == ami_etmouba &&
+             (ev->amoubn == 4 || ev->amoubn == 5)) {
+
+        /* The wheel moves the view. A list longer than its box could not
+           be reached at all before: it drew from its first entry and
+           there it stayed. */
+        long was = wg->top;
+
+        wg->top += ev->amoubn == 4? -3: 3; /* the usual three lines */
+        listbox_clamp(wg);
+        if (wg->top != was) listbox_draw(wg);
+
+    } else if (ev->etype == ami_etscru || ev->etype == ami_etscrd) {
+
+        long was = wg->top; /* the scroll keys, a line at a time */
+
+        wg->top += ev->etype == ami_etscru? -1: 1;
+        listbox_clamp(wg);
+        if (wg->top != was) listbox_draw(wg);
+
+    } else if (ev->etype == ami_etpagu || ev->etype == ami_etpagd) {
+
+        long was = wg->top; /* and by the boxful */
+
+        wg->top += (ev->etype == ami_etpagu? -1: 1)*listbox_vis(wg);
+        listbox_clamp(wg);
+        if (wg->top != was) listbox_draw(wg);
+
+    } else if (ev->etype == ami_etmouba && ev->amoubn == 1) {
 
         /* note that if there is a click in the window, there must have also
            a mouse move */
@@ -2607,12 +2719,14 @@ static void listbox_event(
         wg->mpx = ev->moupxg; /* set present position */
         wg->mpy = ev->moupyg;
 
-        /* find which string the mouse is over */
-        y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
+        /* which string the mouse is over, counting from the entry the
+           view starts at */
         sp = wg->strlst; /* index top of string list */
         sc = 1; /* set first string */
+        while (sp && sc < wg->top) { sp = sp->next; sc++; } /* to the view */
+        y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
         wg->ss = 0; /* set no string selected */
-        while (sp) { /* traverse string list */
+        while (sp && y+ami_chrsizy(wg->wf) <= ami_maxyg(wg->wf)) {
 
             /* if within the string bounding box, select it */
             if (wg->mpy >= y && wg->mpy <= y+ami_chrsizy(wg->wf)) wg->ss = sc;
@@ -6612,9 +6726,11 @@ in the buffer.
     listsp = build_qfl_list(curdir); \
     wp = getwig(); \
     wp->strlst = listsp; \
+    wp->tabs[0] = -chrw*47; \
+    wp->tabs[1] = chrw*49; \
+    wp->ntabs = 2; \
     widget(out, chrw*16, titbot+chrsz*3.4, chrw*78, titbot+chrsz*19.0, \
            "", QFL_ID_LIST, wtlistbox, &wp); \
-    ami_font(fndwig(out, QFL_ID_LIST)->wf, AMI_FONT_TERM); \
 } while (0)
 
 /*
@@ -6686,23 +6802,21 @@ static void qfl_entry(char* d, long dl, const char* name, int isdir,
     char   tms[32];
     long   i;
 
-    /* the name, cut with an ellipsis if it will not fit its column */
+    /* the name, and a directory marked as one */
     for (i = 0; i < QFL_NAMEW && name[i]; i++) d[i] = name[i];
     if (name[i]) { d[QFL_NAMEW-3] = '.'; d[QFL_NAMEW-2] = '.';
                    d[QFL_NAMEW-1] = '.'; i = QFL_NAMEW; }
-    if (isdir && i < QFL_NAMEW) d[i++] = '/';
-    while (i < QFL_NAMEW+1) d[i++] = ' ';
+    if (isdir) d[i++] = '/';
+    d[i++] = '\t'; /* the columns are placed by the list box */
     /* the size, in the units it reads best in; a directory has none */
     if (isdir) strcpy(szs, "");
     else if (size < 1000LL) sprintf(szs, "%lld B", size);
     else if (size < 1000000LL) sprintf(szs, "%.1f kB", size/1000.0);
     else if (size < 1000000000LL) sprintf(szs, "%.1f MB", size/1000000.0);
     else sprintf(szs, "%.1f GB", size/1000000000.0);
-    for (i = 0; i < 10-(long)strlen(szs); i++) d[QFL_NAMEW+1+i] = ' ';
-    strcpy(d+QFL_NAMEW+1+i, szs); /* right aligned, as sizes read */
-    i = strlen(d);
-    d[i++] = ' ';
-    d[i++] = ' ';
+    strcpy(d+i, szs);
+    i += strlen(szs);
+    d[i++] = '\t';
     /* When it was last changed, said the way a file list says it: the
        time alone for today, Yesterday for the day before, the day and
        month within the year, and the year as well for anything older.
@@ -6742,8 +6856,7 @@ static int qfl_name(const char* e, char* d, long dl)
 
     long i = 0, isdir;
 
-    while (i < QFL_NAMEW && e[i] && e[i] != ' ' && i < dl-1) { d[i] = e[i];
-                                                              i++; }
+    while (e[i] && e[i] != '\t' && i < dl-1) { d[i] = e[i]; i++; }
     d[i] = 0;
     isdir = i > 0 && d[i-1] == '/';
     if (isdir) d[i-1] = 0; /* the slash marks it, it is not in the name */
@@ -6803,12 +6916,17 @@ static ami_strptr build_qfl_list(const char* dir) {
         /* in place, after the entries that come before it. The first
            entry is always .., which nothing displaces */
         lp = head;
-        while (lp->next &&
-               !qfl_before(e->str, is_dir, lp->next->str,
-                           strchr(lp->next->str, '/') != NULL &&
-                           strchr(lp->next->str, '/') <
-                               lp->next->str+QFL_NAMEW+1))
+        while (lp->next) {
+
+            char  onam[512];
+            int   odir = qfl_name(lp->next->str, onam, sizeof(onam));
+            char  nnam[512];
+
+            qfl_name(e->str, nnam, sizeof(nnam));
+            if (qfl_before(nnam, is_dir, onam, odir)) break;
             lp = lp->next;
+
+        }
         e->next = lp->next;
         lp->next = e;
         if (tail == lp) tail = e;
@@ -6996,11 +7114,11 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     listsp = build_qfl_list(curdir);
     wp = getwig();
     wp->strlst = listsp;
+    wp->tabs[0] = -chrw*47; /* the size, right aligned as sizes read */
+    wp->tabs[1] = chrw*49;  /* the date */
+    wp->ntabs = 2;
     widget(out, chrw*16, titbot+chrsz*3.4,
                 chrw*78, titbot+chrsz*19.0, "", QFL_ID_LIST, wtlistbox, &wp);
-    /* the list is set in the fixed pitch font, so its columns line up
-       under the headings drawn above it */
-    ami_font(fndwig(out, QFL_ID_LIST)->wf, AMI_FONT_TERM);
 
     /* filename edit box */
     wp = getwig();
@@ -7057,11 +7175,13 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                 ami_bold(out, TRUE);
                 ami_cursorg(out, chrw, titbot+chrsz*2.4);
                 fputs("Places", out);
-                ami_font(out, AMI_FONT_TERM);
                 ami_cursorg(out, chrw*16, titbot+chrsz*2.4);
-                fputs("Name                             "
-                      "      Size  Modified", out);
-                ami_font(out, AMI_FONT_SIGN);
+                fputs("Name", out);
+                ami_cursorg(out, chrw*16+chrw*47-ami_strsiz(out, "Size"),
+                            titbot+chrsz*2.4);
+                fputs("Size", out);
+                ami_cursorg(out, chrw*16+chrw*49, titbot+chrsz*2.4);
+                fputs("Modified", out);
                 ami_bold(out, FALSE);
                 break;
 
