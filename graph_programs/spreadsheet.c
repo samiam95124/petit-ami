@@ -585,9 +585,24 @@ sheet reflows on a resize or a column width change.
 
 *******************************************************************************/
 
+/* A fraction as a ratio of LONG_MAX, which is the full scale the bars
+   work in. In integers: LONG_MAX is not representable as a double, so
+   the obvious double form rounds up to one past it, and the cast back
+   overflows to a negative -- which the scroll bar rejects as an invalid
+   position, exactly at the end of the sheet, where num reaches den. */
+static long fullscale(long num, long den)
+
+{
+
+    if (den < 1 || num <= 0) return (0);
+    if (num >= den) return (LONG_MAX);
+
+    return (LONG_MAX/den*num); /* num < den, so this cannot overflow */
+
+}
+
 /* Set a scroll bar from the view: the thumb is the visible share of the
-   sheet, at the scrolled position. The bars work in ratios of LONG_MAX,
-   as the rest of the API does. */
+   sheet, at the scrolled position. */
 static void setbar(long id, long org, long vis, long total)
 
 {
@@ -595,9 +610,8 @@ static void setbar(long id, long org, long vis, long total)
     long max = total-vis;
 
     if (max < 1) max = 1;
-    if (vis > total) vis = total;
-    ami_scrollsiz(stdout, id, (long)((double)LONG_MAX*vis/total));
-    ami_scrollpos(stdout, id, (long)((double)LONG_MAX*org/max));
+    ami_scrollsiz(stdout, id, fullscale(vis, total));
+    ami_scrollpos(stdout, id, fullscale(org, max));
 
 }
 
@@ -606,9 +620,10 @@ static long barcell(long pos, long travel)
 
 {
 
-    if (travel < 1) return (0);
+    if (travel < 1 || pos <= 0) return (0);
+    if (pos >= LONG_MAX) return (travel);
 
-    return ((long)((double)travel*pos/LONG_MAX+0.5));
+    return ((long)((double)travel*((double)pos/LONG_MAX)+0.5));
 
 }
 
