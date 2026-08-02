@@ -29,6 +29,11 @@
 *     =SUM(A1:A10)      SUM, AVG, MIN, MAX, COUNT over a range                 *
 *     =2*(SUM(B1:B9)+1) they nest                                              *
 *                                                                              *
+* Text that does not fit its column runs on into the empty cells to its       *
+* right, so a title need not fit the column it starts in; it stops at the      *
+* first cell holding anything. A number that does not fit shows as # marks     *
+* rather than a truncated number, which would read as a different number.      *
+*                                                                              *
 * A cell shows its value; the entry line at the top shows what the current     *
 * cell holds, which for a formula is the formula. Formulas recalculate         *
 * whenever anything changes, and a formula that cannot be evaluated shows      *
@@ -677,7 +682,64 @@ static void cellpos(long x, long y, long* px, long* py)
 
 }
 
-/* draw one cell, headers included in the caller's frame */
+/* A text cell prints past its own cell, into the empty cells to its
+   right, so a title need not fit the column it starts in. The run ends
+   at the first cell holding anything, or at the edge of the grid.
+   Numbers do not run on: a number that does not fit is not a number the
+   reader can trust, so it shows as # marks instead. */
+static long spillwid(long x, long y)
+
+{
+
+    long w = colw;
+    long i, px, py;
+
+    for (i = x+1; i < COLS; i++) {
+
+        cellpos(i, y, &px, &py);
+        if (px > gridx1) break; /* the edge of the grid */
+        if (cells[y][i].text) break; /* the next cell holds something */
+        w += colw;
+
+    }
+    cellpos(x, y, &px, &py);
+    if (px+w-2 > gridx1) w = gridx1-px+2; /* clipped to the grid */
+
+    return (w);
+
+}
+
+/* clip a string to a pixel width, in place */
+static void clipstr(char* s, long w)
+
+{
+
+    long i = strlen(s);
+
+    while (i && ami_strsiz(stdout, s) > w) s[--i] = 0;
+
+}
+
+/* The face of one cell. The faces of a row go down before any of its
+   contents, so that text running past its own cell is not painted over
+   by the cells it runs into. */
+static void drawface(long x, long y)
+
+{
+
+    long px, py;
+
+    if (x < orgx || y < orgy) return;
+    cellpos(x, y, &px, &py);
+    if (px > gridx1 || py > gridy1) return;
+    /* the current cell is marked */
+    if (x == curx && y == cury) ami_fcolor(stdout, ami_cyan);
+    else ami_fcolor(stdout, ami_white);
+    ami_frect(stdout, px, py, px+colw-2, py+rowh-2);
+
+}
+
+/* the contents of one cell */
 static void drawcell(long x, long y)
 
 {
@@ -685,37 +747,51 @@ static void drawcell(long x, long y)
     long px, py;
     char s[CELLEN];
     long tw;
+    int  val; /* the cell shows a value, not text */
 
     if (x < orgx || y < orgy) return;
     cellpos(x, y, &px, &py);
     if (px > gridx1 || py > gridy1) return;
-    /* the cell face: the current cell is marked */
-    if (x == curx && y == cury) ami_fcolor(stdout, ami_cyan);
-    else ami_fcolor(stdout, ami_white);
-    ami_frect(stdout, px, py, px+colw-2, py+rowh-2);
-    ami_fcolor(stdout, ami_black);
     if (entering && x == curx && y == cury) strcpy(s, entry);
     else celldsp(x, y, s, sizeof(s));
-    if (*s) {
+    if (!*s) return;
+    /* a value keeps to its own cell, text runs on into empty cells */
+    val = !entering && cells[y][x].text &&
+          (cells[y][x].isnum || cells[y][x].text[0] == '=' ||
+           cells[y][x].err);
+    if (val) { /* numbers to the right, in their own cell */
 
-        /* numbers to the right, text to the left, as a sheet does */
-        tw = ami_strsiz(stdout, s);
-        if (tw > colw-4) tw = colw-4;
-        if (!entering && cells[y][x].text &&
-            (cells[y][x].isnum || cells[y][x].text[0] == '=' ||
-             cells[y][x].err))
-            ami_cursorg(stdout, px+colw-3-tw, py+2);
-        else ami_cursorg(stdout, px+2, py+2);
-        /* clipped to the cell by the window's own edge; keep it short */
-        if (ami_strsiz(stdout, s) > colw-4) {
+        ami_fcolor(stdout, ami_black);
+        if (ami_strsiz(stdout, s) > colw-4) { /* it does not fit */
 
-            long i = strlen(s);
-            while (i && ami_strsiz(stdout, s) > colw-4) s[--i] = 0;
+            long i;
+
+            for (i = 0; i < (long)sizeof(s)-1; i++) s[i] = '#';
+            s[i] = 0;
+            clipstr(s, colw-4);
 
         }
-        fprintf(stdout, "%s", s);
+        tw = ami_strsiz(stdout, s);
+        ami_cursorg(stdout, px+colw-3-tw, py+2);
+
+    } else { /* text to the left, running on if it must */
+
+        long w = spillwid(x, y);
+
+        if (ami_strsiz(stdout, s) > colw-4 && w > colw) {
+
+            /* clear the run, which takes the grid lines under it, as a
+               sheet does where text crosses a cell edge */
+            ami_fcolor(stdout, ami_white);
+            ami_frect(stdout, px+colw-1, py-1, px+w-2, py+rowh-2);
+
+        }
+        ami_fcolor(stdout, ami_black);
+        clipstr(s, w-4);
+        ami_cursorg(stdout, px+2, py+2);
 
     }
+    fprintf(stdout, "%s", s);
 
 }
 
@@ -767,10 +843,9 @@ static void drawall(void)
         fprintf(stdout, "%s", s);
 
     }
-    /* the cells */
-    for (y = orgy; y < orgy+ny && y < ROWS; y++)
-        for (x = orgx; x < orgx+nx && x < COLS; x++) drawcell(x, y);
-    /* the grid lines, stopped at the grid area */
+    /* The grid lines, stopped at the grid area. They go down before the
+       cells, so text that runs past its own cell can take the lines it
+       crosses with it. */
     ami_fcolor(stdout, ami_black);
     for (x = orgx; x <= orgx+nx && x <= COLS; x++) {
 
@@ -784,6 +859,13 @@ static void drawall(void)
         cellpos(orgx, y, &px, &py);
         if (py-1 > gridy1) break;
         ami_line(stdout, 1, py-1, gridx1, py-1);
+
+    }
+    /* the cells, faces first so a run is not painted over */
+    for (y = orgy; y < orgy+ny && y < ROWS; y++) {
+
+        for (x = orgx; x < orgx+nx && x < COLS; x++) drawface(x, y);
+        for (x = orgx; x < orgx+nx && x < COLS; x++) drawcell(x, y);
 
     }
 
