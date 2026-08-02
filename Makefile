@@ -357,18 +357,13 @@ ifeq ($(LINK_TYPE),static)
 
     else
 
-        # Linux
-        CFLAGS += -static
-        # Link with lld when present: glibc's static archive carries
-        # linker warnings on the NSS family (getaddrinfo, getpwnam and
-        # kin, dlopen), which BFD ld and gold print once per referencing
-        # object -- noisy and unactionable, since the property is
-        # glibc's. lld does not implement the warning mechanism. The
-        # binaries are equivalent; without lld the warnings are just
-        # noise to ignore.
-        ifneq ($(shell which ld.lld 2>/dev/null),)
-            CFLAGS += -fuse-ld=lld
-        endif
+        # Linux: nothing. The static configuration is mostly static:
+        # Petit-Ami's code links from the archives into the executable,
+        # and the system libraries -- glibc, ALSA, fluidsynth, OpenSSL,
+        # X -- stay shared. ALSA reaches PulseAudio through its shared
+        # bridge module, so sound mixes with the desktop as usual. A
+        # fully static binary is not supported: ALSA and PulseAudio do
+        # not support static operation, and that is theirs to change.
         
     endif
     
@@ -416,8 +411,7 @@ endif
 
 #
 # X and png link tail for programs that use them directly (the test
-# harness's screen capture). The Linux static configuration overrides
-# with the full static closures below.
+# harness's screen capture).
 #
 XLIBS = -lX11 -lpng -lz
 
@@ -569,15 +563,13 @@ else
     #
     ifeq ($(LINK_TYPE),static)
 
-	# The bundle archives carry sound, network's OpenSSL, the X chain
-	# (graph) and the C++ runtime inside; what remains is the toolchain's
-	# own, which cannot merge.
-	PLIBS += -lm -lpthread -ldl
-	CLIBS += -lm -lpthread -ldl
-	GLIBS += -lm -lpthread -ldl
-	# X and png for programs that use them directly (the test harness's
-	# screen capture): the static closures, ordered so png finds z and m
-	XLIBS = -lX11 -lxcb -lXau -lXdmcp -lpng -lz -lm -ldl
+	# The archives carry Petit-Ami's code; the system libraries stay
+	# shared. The sound and network tails cost nothing when unused:
+	# with the members not pulled, as-needed linking drops them.
+	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 \
+	         -lfreetype -lfontconfig -lm -lpthread
 
     else
 
@@ -1005,66 +997,42 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
         -lstdc++ -o lib/petit_ami_graph.so
 
 #
-# The Linux static configuration: per model, one bundle archive.
+# The Linux static configuration: per model, one bundle archive holding
+# Petit-Ami's code. The system libraries -- glibc, ALSA, fluidsynth,
+# OpenSSL, X -- stay shared: ALSA and PulseAudio do not support static
+# operation, so neither does Petit-Ami, and sound mixes with the desktop
+# through ALSA's shared PulseAudio bridge as usual.
 #
-# Each archive holds three members, each a partial link (ld -r):
+# Each archive holds three members:
 #
 #   <model>_core.o  the model's presentation, services, stdio glue and
-#                   configuration -- everything that must be present the
-#                   moment the model is linked. Constructor-registered
-#                   modules (managerc, the widget packages) link whole
-#                   inside the bundle, so archive selectivity cannot drop
-#                   them. A program that makes no calls of its own is
-#                   promoted by keeper.o referencing into the core.
-#   sound.o         the sound module, both synthesizer plugins, the
-#                   patched static ALSA (whole: its device plugins
-#                   register by constructor) and the needed members of
-#                   the fluidsynth closure. Pulled only when the program
-#                   uses sound.
-#   network.o       the network module and the needed members of
-#                   OpenSSL. Pulled only when the program uses network.
+#                   configuration, partial-linked (ld -r) into one member
+#                   so the constructor-registered modules (managerc, the
+#                   widget packages) cannot be dropped by archive
+#                   selectivity. A program that makes no calls of its
+#                   own is promoted by keeper.o referencing into it.
+#   sound.o         the sound module and both synthesizer plugins,
+#                   partial-linked so the plugins' constructor
+#                   registrations ride with the member. Pulled only when
+#                   the program uses sound, and with it the shared
+#                   libasound/libfluidsynth dependencies; programs
+#                   without sound carry neither.
+#   network.o       the network module, pulled only when used, and with
+#                   it the shared OpenSSL dependency.
 #
-# So programs get what they use, as always: no sound calls, no ALSA or
-# fluidsynth in the binary. The static ALSA and fluidsynth build with
-# tools/staticdeps/build.sh; the rest of the closures ship with the
-# distribution. A program link line is:
+# So programs get what they use, as always. A program link line is:
 #
-#     gcc -static prog.c stub/keeper.o lib/libami_term.a -lm -lpthread -ldl
+#     gcc prog.c stub/keeper.o -Llib -lami_term \
+#         -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 #
-ALSA_A   = /usr/local/lib/libasound.a
-FLUID_A  = /usr/local/lib/libfluidsynth.a
-GLIB_A   = $(shell $(CC) -print-file-name=libglib-2.0.a)
-PCRE_A   = $(shell $(CC) -print-file-name=libpcre.a)
-SSL_A    = $(shell $(CC) -print-file-name=libssl.a)
-CRYPTO_A = $(shell $(CC) -print-file-name=libcrypto.a)
-STDCPP_A = $(shell $(CC) -print-file-name=libstdc++.a)
-X11_A    = $(shell $(CC) -print-file-name=libX11.a)
-XCB_A    = $(shell $(CC) -print-file-name=libxcb.a)
-XAU_A    = $(shell $(CC) -print-file-name=libXau.a)
-XDMCP_A  = $(shell $(CC) -print-file-name=libXdmcp.a)
-FT_A     = $(shell $(CC) -print-file-name=libfreetype.a)
-FC_A     = $(shell $(CC) -print-file-name=libfontconfig.a)
-EXPAT_A  = $(shell $(CC) -print-file-name=libexpat.a)
-PNG_A    = $(shell $(CC) -print-file-name=libpng.a)
-Z_A      = $(shell $(CC) -print-file-name=libz.a)
-UUID_A   = $(shell $(CC) -print-file-name=libuuid.a)
+# with the trailing libraries dropped by as-needed linking when the
+# member that wants them is not pulled.
+#
 
-# the graph core's X chain, needed members only
-GRAPH_X = --start-group $(X11_A) $(XCB_A) $(XAU_A) $(XDMCP_A) $(FT_A) \
-	$(FC_A) $(EXPAT_A) $(PNG_A) $(Z_A) $(UUID_A) --end-group
-
-# the sound bundle: module and plugins whole (objects always are), the
-# patched ALSA whole, the fluidsynth closure by need
+# the sound bundle: module and plugins whole, one member
 lib/sound.o: linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	ld -r -o lib/sound.o \
-	    linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
-	    --whole-archive $(ALSA_A) --no-whole-archive \
-	    --start-group $(FLUID_A) $(GLIB_A) $(PCRE_A) --end-group
-
-# the network bundle: module whole, OpenSSL by need
-lib/network.o: linux/network.o
-	ld -r -o lib/network.o linux/network.o \
-	    --start-group $(SSL_A) $(CRYPTO_A) --end-group
+	    linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 
 # the model cores
 CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o
@@ -1075,35 +1043,35 @@ lib/plain_core.o: $(CORE_COMMON)
 lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
 	linux/system_event.o cpp/terminal.o
 	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
-	    linux/system_event.o cpp/terminal.o $(STDCPP_A)
+	    linux/system_event.o cpp/terminal.o
 
 lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
 	linux/system_event.o cpp/terminal.o
 	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
-	    portable/managerc.o linux/system_event.o cpp/terminal.o $(STDCPP_A)
+	    portable/managerc.o linux/system_event.o cpp/terminal.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o
 	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
-	    cpp/terminal.o $(STDCPP_A) $(GRAPH_X)
+	    cpp/terminal.o
 
 # the model archives
-lib/libami_plain.a: lib/plain_core.o lib/sound.o lib/network.o
+lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_plain.a
-	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o lib/network.o
+	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o
 
-lib/libami_term.a: lib/term_core.o lib/sound.o lib/network.o
+lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_term.a
-	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o lib/network.o
+	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o
 
-lib/libami_termc.a: lib/termc_core.o lib/sound.o lib/network.o
+lib/libami_termc.a: lib/termc_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_termc.a
-	ar rcs lib/libami_termc.a lib/termc_core.o lib/sound.o lib/network.o
+	ar rcs lib/libami_termc.a lib/termc_core.o lib/sound.o linux/network.o
 
-lib/libami_graph.a: lib/graph_core.o lib/sound.o lib/network.o
+lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_graph.a
-	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o lib/network.o
+	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o
 
 endif
 
