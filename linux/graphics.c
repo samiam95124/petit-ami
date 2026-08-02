@@ -6406,6 +6406,14 @@ static void remmen(metptr mp)
         /* if window file is open, close it */
         if (mp->wf && !mp->prime) {
 
+            /* Clear the window to menu tracking entry with it. The entry
+               was left in place, so the next window to be given this id
+               -- ids return to use as windows close, and a menu opens
+               and closes them freely -- had its events dispatched to
+               this entry, whose file is now gone: the next dialog to
+               open drew through a null file and died with "File is
+               invalid". */
+            xltmnu[mp->wid+MAXFIL] = NULL;
             fclose(mp->wf); /* close */
             mp->wf = NULL; /* clear file link */
             mp->pressed = FALSE; /* remove any press status */

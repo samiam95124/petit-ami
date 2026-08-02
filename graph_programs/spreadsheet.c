@@ -1944,8 +1944,12 @@ int main(int argc, char* argv[])
 
                     case AMI_SMOPEN:
                         fn[0] = 0;
+                        if (diag) fprintf(stderr, "queryopen: calling\n");
                         ami_queryopen(fn, sizeof(fn));
+                        if (diag) fprintf(stderr, "queryopen: returned [%s]\n",
+                                          fn);
                         if (*fn) { loadsheet(fn); layout(); drawall(); }
+                        if (diag) fprintf(stderr, "queryopen: loaded\n");
                         break;
 
                     case AMI_SMSAVE:
