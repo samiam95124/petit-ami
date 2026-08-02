@@ -807,7 +807,9 @@ int main(int argc, char* argv[])
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_font(stdout, AMI_FONT_TERM); /* a fixed pitch font suits a grid */
-    ami_fontsiz(stdout, 20);
+    /* by point size, so the sheet is the same size on any display: a
+       pixel height would come out small on a high density screen */
+    ami_setpoints(stdout, 12.0);
     ami_binvis(stdout);
     setupmenu();
     clearsheet();
