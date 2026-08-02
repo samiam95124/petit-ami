@@ -9,7 +9,10 @@
 * Build and run:                                                               *
 *                                                                              *
 *     make spreadsheet                                                         *
-*     bin/spreadsheet [<file>]                                                 *
+*     bin/spreadsheet [-d] [<file>]                                            *
+*                                                                              *
+* -d reports the layout and the events to stderr, for when the window          *
+* behaves unexpectedly.                                                        *
 *                                                                              *
 * Using it:                                                                    *
 *                                                                              *
@@ -123,6 +126,7 @@ static char   filename[500];   /* the file this sheet came from */
 static int    modified;        /* the sheet has unsaved changes */
 static int    evalnest;        /* formula evaluation depth */
 static long   mpx, mpy;        /* the mouse, tracked in pixels */
+static int    diag;            /* report to stderr, from -d */
 
 /* the parser's position in a formula, and its error flag */
 static const char* pp;
@@ -581,8 +585,9 @@ sheet reflows on a resize or a column width change.
 
 *******************************************************************************/
 
-/* set a scroll bar from the view: the thumb is the visible share of the
-   sheet, at the scrolled position */
+/* Set a scroll bar from the view: the thumb is the visible share of the
+   sheet, at the scrolled position. The bars work in ratios of LONG_MAX,
+   as the rest of the API does. */
 static void setbar(long id, long org, long vis, long total)
 
 {
@@ -590,8 +595,20 @@ static void setbar(long id, long org, long vis, long total)
     long max = total-vis;
 
     if (max < 1) max = 1;
-    ami_scrollsiz(stdout, id, (long)((double)INT_MAX*vis/total));
-    ami_scrollpos(stdout, id, (long)((double)INT_MAX*org/max));
+    if (vis > total) vis = total;
+    ami_scrollsiz(stdout, id, (long)((double)LONG_MAX*vis/total));
+    ami_scrollpos(stdout, id, (long)((double)LONG_MAX*org/max));
+
+}
+
+/* a cell offset from a bar position, over the given travel */
+static long barcell(long pos, long travel)
+
+{
+
+    if (travel < 1) return (0);
+
+    return ((long)((double)travel*pos/LONG_MAX+0.5));
 
 }
 
@@ -626,6 +643,12 @@ static void layout(void)
     ami_sizwidgetg(stdout, SBHORIZ, gridx1-gridx0, sbh);
     setbar(SBVERT, orgy, celly, ROWS);
     setbar(SBHORIZ, orgx, cellx, COLS);
+    if (diag) fprintf(stderr,
+        "layout: window %ldx%ld grid %ld,%ld-%ld,%ld cells %ldx%ld "
+        "bars: vert at %ld,%ld %ldx%ld horiz at %ld,%ld %ldx%ld\n",
+        ami_maxxg(stdout), ami_maxyg(stdout), gridx0, gridy0, gridx1, gridy1,
+        cellx, celly, gridx1+1, gridy0, sbw, gridy1-gridy0,
+        gridx0, gridy1+1, gridx1-gridx0, sbh);
 
 }
 
@@ -910,6 +933,13 @@ int main(int argc, char* argv[])
     char  fn[500];
     long  x, y;
 
+    if (argc > 1 && !strcmp(argv[1], "-d")) { /* report what happens */
+
+        diag = TRUE;
+        argc--;
+        argv++;
+
+    }
     ami_title(stdout, "Spreadsheet");
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
@@ -931,6 +961,28 @@ int main(int argc, char* argv[])
     do {
 
         ami_event(stdin, &er);
+        if (diag) switch (er.etype) { /* the events the bars send */
+
+            case ami_etmouba:
+                fprintf(stderr, "click button %ld at %ld,%ld\n",
+                        er.amoubn, mpx, mpy);
+                break;
+            case ami_etsclull: fprintf(stderr, "scroll line back, bar %ld\n",
+                                       er.sclulid); break;
+            case ami_etscldrl: fprintf(stderr, "scroll line on, bar %ld\n",
+                                       er.scldrid); break;
+            case ami_etsclulp: fprintf(stderr, "scroll page back, bar %ld\n",
+                                       er.sclupid); break;
+            case ami_etscldrp: fprintf(stderr, "scroll page on, bar %ld\n",
+                                       er.scldpid); break;
+            case ami_etsclpos: fprintf(stderr, "scroll to %ld, bar %ld\n",
+                                       er.sclpos, er.sclpid); break;
+            case ami_etresize: fprintf(stderr, "resize to %ldx%ld\n",
+                                       er.rszxg, er.rszyg); break;
+            case ami_etredraw: fprintf(stderr, "redraw\n"); break;
+            default: break;
+
+        }
         switch (er.etype) {
 
             case ami_etresize:
@@ -1109,11 +1161,9 @@ int main(int argc, char* argv[])
 
             case ami_etsclpos: /* dragged to a position */
                 if (er.sclpid == SBVERT)
-                    scrollto(orgx, (long)((double)(ROWS-celly)*
-                                          er.sclpos/INT_MAX));
+                    scrollto(orgx, barcell(er.sclpos, ROWS-celly));
                 else
-                    scrollto((long)((double)(COLS-cellx)*
-                                    er.sclpos/INT_MAX), orgy);
+                    scrollto(barcell(er.sclpos, COLS-cellx), orgy);
                 break;
 
             case ami_etmenus: /* the menu */
