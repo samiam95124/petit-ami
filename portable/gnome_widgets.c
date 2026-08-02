@@ -6703,15 +6703,31 @@ static void qfl_entry(char* d, long dl, const char* name, int isdir,
     i = strlen(d);
     d[i++] = ' ';
     d[i++] = ' ';
-    /* The date and time last changed, through the services module's own
-       formatters: the time in a file record is its own, not the C
-       library's, and reading it as the C library's put every file in
+    /* When it was last changed, said the way a file list says it: the
+       time alone for today, Yesterday for the day before, the day and
+       month within the year, and the year as well for anything older.
+       The times here are the services module's own, not the C
+       library's, and read as the C library's every file landed in
        another century. */
     if (modify) {
 
-        ami_dates(dts, sizeof(dts), ami_local(modify));
-        ami_times(tms, sizeof(tms), ami_local(modify));
-        snprintf(d+i, dl-i, "%s %s", dts, tms);
+        long lt = ami_local(modify);
+        long now = ami_local(ami_time());
+        long day = 24L*60*60; /* a day: these times count in seconds */
+        char yr[32]; /* the formatter writes a whole date, not four
+                        characters: a short buffer is an error to it */
+
+        ami_dates(dts, sizeof(dts), lt);
+        ami_times(tms, sizeof(tms), lt);
+        if (strlen(tms) > 5) strcpy(tms+5, tms+8); /* drop the seconds */
+        ami_dates(yr, sizeof(yr), now);
+        yr[4] = 0; /* this year, to compare against */
+        if (now >= lt && now-lt < day) snprintf(d+i, dl-i, "%s", tms);
+        else if (now >= lt && now-lt < 2*day)
+            snprintf(d+i, dl-i, "Yesterday");
+        else if (!strncmp(dts, yr, 4)) /* this year: no need to say which */
+            snprintf(d+i, dl-i, "%s", dts+5);
+        else snprintf(d+i, dl-i, "%s", dts);
 
     } else d[i] = 0; /* nothing to say, as for .. */
 
@@ -6943,7 +6959,10 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     ami_frame(out, FALSE);
 
     chrsz = ami_chrsizy(out);
-    titbot = chrsz*1.6;
+    /* The header bar carries the two buttons, one at each end,
+       with the title between them, which is where a desktop file
+       dialog puts them. It is deep enough for a button to sit in. */
+    titbot = chrsz*2.2;
     /* The horizontal is laid out in character widths and the vertical in
        character heights. Both were the height before, so every width came
        out twice what it read as: the dialog was half again wider than the
@@ -6986,21 +7005,20 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     /* filename edit box */
     wp = getwig();
     widget(out, chrw*6, titbot+chrsz*19.8,
-                chrw*60, titbot+chrsz*21.2, "", QFL_ID_NAME, wteditbox, &wp);
+                chrw*78, titbot+chrsz*21.2, "", QFL_ID_NAME, wteditbox, &wp);
     if (curfile[0]) ami_putwidgettext(out, QFL_ID_NAME, curfile);
 
     /* OK button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrw*62, titbot+chrsz*19.7,
-                chrw*69, titbot+chrsz*21.3, "Open",
+    widget(out, chrw*70, chrsz*0.35, chrw*78, chrsz*1.85,
+                title[0] == 'S'? "Save": "Open",
                 QFL_ID_OK, wtcbutton, &wp);
 
     /* Cancel button */
     wp = getwig();
     wp->cbc = &cancel_cbc;
-    widget(out, chrw*70, titbot+chrsz*19.7,
-                chrw*78, titbot+chrsz*21.3, "Cancel",
+    widget(out, chrw, chrsz*0.35, chrw*9, chrsz*1.85, "Cancel",
                 QFL_ID_CANCEL, wtcbutton, &wp);
 
     mpy = 0;
@@ -7022,7 +7040,10 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                 ami_frect(out, 1, 1, ami_maxxg(out), titbot);
                 ami_fcolor(out, ami_white);
                 ami_bold(out, TRUE);
-                ami_cursorg(out, chrsz, titbot*0.5 - chrsz*0.5);
+                /* centered between the buttons at the ends */
+                ami_cursorg(out, ami_maxxg(out)/2-
+                            ami_strsiz(out, title)/2,
+                            titbot*0.5 - chrsz*0.5);
                 fputs(title, out);
                 ami_bold(out, FALSE);
                 ami_fcolor(out, ami_black);
