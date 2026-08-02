@@ -14,6 +14,8 @@
 * Using it:                                                                    *
 *                                                                              *
 * Click a cell, or move with the arrow keys, page up and down, home and end.   *
+* The scroll bars at the right and the bottom move the view over the whole      *
+* sheet, which is 78 columns (A through BZ) by 1000 rows.                       *
 * Type to enter: digits and text go in as typed, and a leading = makes a       *
 * formula. Enter commits and steps down, tab commits and steps right, escape   *
 * abandons the entry. Delete or backspace on a settled cell clears it.         *
@@ -67,6 +69,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <limits.h>
 
 #include <localdefs.h>
 #include <graphics.h>
@@ -74,12 +77,18 @@
 #define OFF 0
 #define ON  1
 
-#define COLS     26   /* columns, A through Z */
-#define ROWS     200  /* rows */
+#define COLS     78   /* columns, A through Z, AA through BZ */
+/* the sheet is fixed at these bounds; the window shows what fits and the
+   scroll bars move the view over the rest */
+#define ROWS     1000 /* rows */
 #define CELLEN   80   /* longest cell contents */
 #define COLDIG   9    /* column width in digits of the display font */
 #define HDRDIG   4    /* row header width in digits */
 #define MAXNEST  32   /* deepest formula evaluation, catches cycles */
+
+/* the scroll bars */
+#define SBVERT   1 /* vertical scroll bar widget id */
+#define SBHORIZ  2 /* horizontal scroll bar widget id */
 
 /* menu ids of our own, after the standard ones */
 #define MENUWIDER  (AMI_SMMAX+1) /* wider columns */
@@ -103,7 +112,10 @@ static long   curx, cury;      /* the current cell, 0 based */
 static long   orgx, orgy;      /* top left cell shown, 0 based */
 static long   colw, rowh;      /* cell size in pixels */
 static long   hdrw, hdrh;      /* header sizes in pixels */
-static long   cellx, celly;    /* cells that fit in the client area */
+static long   cellx, celly;    /* whole cells that fit in the grid area */
+static long   gridx0, gridy0;  /* the grid area, in pixels */
+static long   gridx1, gridy1;
+static long   sbw, sbh;        /* scroll bar thickness */
 static long   coldig = COLDIG; /* column width in digits */
 static char   entry[CELLEN];   /* the entry under construction */
 static int    entering;        /* an entry is being typed */
@@ -126,12 +138,25 @@ Cell naming
 
 *******************************************************************************/
 
+/* the name of a column, as A or AB */
+static void colnam(long x, char* s)
+
+{
+
+    if (x < 26) sprintf(s, "%c", (int)('A'+x));
+    else sprintf(s, "%c%c", (int)('A'+x/26-1), (int)('A'+x%26));
+
+}
+
 /* the name of a cell, as A1 */
 static void cellnam(long x, long y, char* s)
 
 {
 
-    sprintf(s, "%c%ld", (int)('A'+x), y+1);
+    char c[4];
+
+    colnam(x, c);
+    sprintf(s, "%s%ld", c, y+1);
 
 }
 
@@ -147,6 +172,12 @@ static int cellref(long* x, long* y)
     if (!isalpha((unsigned char)*pp)) return (FALSE);
     *x = toupper((unsigned char)*pp)-'A';
     pp++;
+    if (isalpha((unsigned char)*pp)) { /* a two letter column */
+
+        *x = (*x+1)*26+(toupper((unsigned char)*pp)-'A');
+        pp++;
+
+    }
     if (!isdigit((unsigned char)*pp)) { pp = sp; return (FALSE); }
     while (isdigit((unsigned char)*pp)) r = r*10+(*pp++-'0');
     *y = r-1;
@@ -550,7 +581,22 @@ sheet reflows on a resize or a column width change.
 
 *******************************************************************************/
 
-/* recompute the geometry from the window and the font */
+/* set a scroll bar from the view: the thumb is the visible share of the
+   sheet, at the scrolled position */
+static void setbar(long id, long org, long vis, long total)
+
+{
+
+    long max = total-vis;
+
+    if (max < 1) max = 1;
+    ami_scrollsiz(stdout, id, (long)((double)INT_MAX*vis/total));
+    ami_scrollpos(stdout, id, (long)((double)INT_MAX*org/max));
+
+}
+
+/* recompute the geometry from the window and the font, place the scroll
+   bars, and set them from the view */
 static void layout(void)
 
 {
@@ -559,11 +605,27 @@ static void layout(void)
     rowh = ami_chrsizy(stdout)+4;
     hdrw = ami_strsiz(stdout, "0")*HDRDIG;
     hdrh = rowh; /* the column header row */
-    /* the entry line sits above the grid, one row tall with a margin */
-    cellx = (ami_maxxg(stdout)-hdrw)/colw;
-    celly = (ami_maxyg(stdout)-hdrh-rowh*2)/rowh;
+    /* the grid area: below the entry line and the column headers, and
+       inside the scroll bars */
+    gridx0 = hdrw;
+    gridy0 = rowh*2+hdrh;
+    gridx1 = ami_maxxg(stdout)-sbw;
+    gridy1 = ami_maxyg(stdout)-sbh;
+    if (gridx1 < gridx0+colw) gridx1 = gridx0+colw;
+    if (gridy1 < gridy0+rowh) gridy1 = gridy0+rowh;
+    /* whole cells that fit, which is what a page moves by */
+    cellx = (gridx1-gridx0)/colw;
+    celly = (gridy1-gridy0)/rowh;
     if (cellx < 1) cellx = 1;
     if (celly < 1) celly = 1;
+    /* the bars line the grid area: vertical at the right of it,
+       horizontal under it, each spanning the grid */
+    ami_poswidgetg(stdout, SBVERT, gridx1+1, gridy0);
+    ami_sizwidgetg(stdout, SBVERT, sbw, gridy1-gridy0);
+    ami_poswidgetg(stdout, SBHORIZ, gridx0, gridy1+1);
+    ami_sizwidgetg(stdout, SBHORIZ, gridx1-gridx0, sbh);
+    setbar(SBVERT, orgy, celly, ROWS);
+    setbar(SBHORIZ, orgx, cellx, COLS);
 
 }
 
@@ -586,8 +648,9 @@ static void drawcell(long x, long y)
     char s[CELLEN];
     long tw;
 
-    if (x < orgx || x >= orgx+cellx || y < orgy || y >= orgy+celly) return;
+    if (x < orgx || y < orgy) return;
     cellpos(x, y, &px, &py);
+    if (px > gridx1 || py > gridy1) return;
     /* the cell face: the current cell is marked */
     if (x == curx && y == cury) ami_fcolor(stdout, ami_cyan);
     else ami_fcolor(stdout, ami_white);
@@ -627,6 +690,9 @@ static void drawall(void)
     char s[CELLEN+40];
     char nam[16];
 
+    long nx = (gridx1-gridx0+colw-1)/colw+1; /* cells to cover the area */
+    long ny = (gridy1-gridy0+rowh-1)/rowh+1;
+
     ami_fcolor(stdout, ami_white);
     ami_frect(stdout, 1, 1, ami_maxxg(stdout), ami_maxyg(stdout));
     /* the entry line: the current cell and what it holds */
@@ -638,49 +704,65 @@ static void drawall(void)
     ami_cursorg(stdout, 2, 2);
     fprintf(stdout, "%s", s);
     ami_line(stdout, 1, rowh*2-2, ami_maxxg(stdout), rowh*2-2);
-    /* the column headers */
+    /* the header bands */
     ami_fcolor(stdout, ami_yellow);
-    ami_frect(stdout, 1, rowh*2, ami_maxxg(stdout), rowh*2+hdrh-1);
-    ami_frect(stdout, 1, rowh*2, hdrw-1, ami_maxyg(stdout));
+    ami_frect(stdout, 1, rowh*2, gridx1, rowh*2+hdrh-1);
+    ami_frect(stdout, 1, rowh*2, hdrw-1, gridy1);
     ami_fcolor(stdout, ami_black);
-    for (x = orgx; x < orgx+cellx && x < COLS; x++) {
+    /* the column headers */
+    for (x = orgx; x < orgx+nx && x < COLS; x++) {
 
         cellpos(x, orgy, &px, &py);
-        sprintf(s, "%c", (int)('A'+x));
+        if (px > gridx1) break;
+        colnam(x, s);
         ami_cursorg(stdout, px+colw/2-ami_strsiz(stdout, s)/2, rowh*2+2);
         fprintf(stdout, "%s", s);
 
     }
     /* the row headers */
-    for (y = orgy; y < orgy+celly && y < ROWS; y++) {
+    for (y = orgy; y < orgy+ny && y < ROWS; y++) {
 
         cellpos(orgx, y, &px, &py);
+        if (py > gridy1) break;
         sprintf(s, "%ld", y+1);
         ami_cursorg(stdout, hdrw-2-ami_strsiz(stdout, s), py+2);
         fprintf(stdout, "%s", s);
 
     }
     /* the cells */
-    for (y = orgy; y < orgy+celly && y < ROWS; y++)
-        for (x = orgx; x < orgx+cellx && x < COLS; x++) drawcell(x, y);
-    /* the grid lines */
+    for (y = orgy; y < orgy+ny && y < ROWS; y++)
+        for (x = orgx; x < orgx+nx && x < COLS; x++) drawcell(x, y);
+    /* the grid lines, stopped at the grid area */
     ami_fcolor(stdout, ami_black);
-    for (x = orgx; x <= orgx+cellx && x <= COLS; x++) {
+    for (x = orgx; x <= orgx+nx && x <= COLS; x++) {
 
         cellpos(x, orgy, &px, &py);
-        ami_line(stdout, px-1, rowh*2, px-1, ami_maxyg(stdout));
+        if (px-1 > gridx1) break;
+        ami_line(stdout, px-1, rowh*2, px-1, gridy1);
 
     }
-    for (y = orgy; y <= orgy+celly && y <= ROWS; y++) {
+    for (y = orgy; y <= orgy+ny && y <= ROWS; y++) {
 
         cellpos(orgx, y, &px, &py);
-        ami_line(stdout, 1, py-1, ami_maxxg(stdout), py-1);
+        if (py-1 > gridy1) break;
+        ami_line(stdout, 1, py-1, gridx1, py-1);
 
     }
 
 }
 
 /* bring the current cell into view, and redraw if the view moved */
+static void clamporg(void)
+
+{
+
+    if (orgx > COLS-cellx) orgx = COLS-cellx;
+    if (orgy > ROWS-celly) orgy = ROWS-celly;
+    if (orgx < 0) orgx = 0;
+    if (orgy < 0) orgy = 0;
+
+}
+
 static void follow(void)
 
 {
@@ -691,9 +773,34 @@ static void follow(void)
     if (curx >= orgx+cellx) orgx = curx-cellx+1;
     if (cury < orgy) orgy = cury;
     if (cury >= orgy+celly) orgy = cury-celly+1;
-    if (orgx < 0) orgx = 0;
-    if (orgy < 0) orgy = 0;
-    if (ox != orgx || oy != orgy) drawall();
+    clamporg();
+    if (ox != orgx || oy != orgy) {
+
+        setbar(SBVERT, orgy, celly, ROWS);
+        setbar(SBHORIZ, orgx, cellx, COLS);
+        drawall();
+
+    }
+
+}
+
+/* scroll the view without moving the current cell, as the bars do */
+static void scrollto(long nx, long ny)
+
+{
+
+    long ox = orgx, oy = orgy;
+
+    orgx = nx;
+    orgy = ny;
+    clamporg();
+    if (ox != orgx || oy != orgy) {
+
+        setbar(SBVERT, orgy, celly, ROWS);
+        setbar(SBHORIZ, orgx, cellx, COLS);
+        drawall();
+
+    }
 
 }
 
@@ -814,6 +921,11 @@ int main(int argc, char* argv[])
     setupmenu();
     clearsheet();
     if (argc > 1) loadsheet(argv[1]);
+    /* the scroll bars, at their standard thickness */
+    ami_scrollvertsizg(stdout, &sbw, &y);
+    ami_scrollhorizsizg(stdout, &x, &sbh);
+    ami_scrollvertg(stdout, 1, 1, sbw, 100, SBVERT);
+    ami_scrollhorizg(stdout, 1, 1, 100, sbh, SBHORIZ);
     layout();
     drawall();
     do {
@@ -835,9 +947,10 @@ int main(int argc, char* argv[])
 
             case ami_etmouba: /* a click picks a cell */
                 if (er.amoubn != 1) break;
-                if (mpx < hdrw || mpy < rowh*2+hdrh) break;
-                x = (mpx-hdrw)/colw+orgx;
-                y = (mpy-rowh*2-hdrh)/rowh+orgy;
+                if (mpx < gridx0 || mpy < gridy0 ||
+                    mpx > gridx1 || mpy > gridy1) break;
+                x = (mpx-gridx0)/colw+orgx;
+                y = (mpy-gridy0)/rowh+orgy;
                 if (x < 0 || x >= COLS || y < 0 || y >= ROWS) break;
                 commit();
                 curx = x;
@@ -962,6 +1075,35 @@ int main(int argc, char* argv[])
                 curx = x;
                 follow();
                 drawall();
+                break;
+
+            case ami_etsclull: /* a line back */
+                if (er.sclulid == SBVERT) scrollto(orgx, orgy-1);
+                else scrollto(orgx-1, orgy);
+                break;
+
+            case ami_etscldrl: /* a line on */
+                if (er.scldrid == SBVERT) scrollto(orgx, orgy+1);
+                else scrollto(orgx+1, orgy);
+                break;
+
+            case ami_etsclulp: /* a page back */
+                if (er.sclupid == SBVERT) scrollto(orgx, orgy-celly);
+                else scrollto(orgx-cellx, orgy);
+                break;
+
+            case ami_etscldrp: /* a page on */
+                if (er.scldpid == SBVERT) scrollto(orgx, orgy+celly);
+                else scrollto(orgx+cellx, orgy);
+                break;
+
+            case ami_etsclpos: /* dragged to a position */
+                if (er.sclpid == SBVERT)
+                    scrollto(orgx, (long)((double)(ROWS-celly)*
+                                          er.sclpos/INT_MAX));
+                else
+                    scrollto((long)((double)(COLS-cellx)*
+                                    er.sclpos/INT_MAX), orgy);
                 break;
 
             case ami_etmenus: /* the menu */
