@@ -145,10 +145,11 @@ ifndef STDIO_SOURCE
         #
         # Linux
         #
-        # glibc assumes that this is a patched glibc with override calls.
+        # The local stdio with overrides (STDIO_BYPASS) is the standard.
+        # The patched glibc option that preceded it is deprecated: too
+        # complex, too version specific.
         #
-        #STDIO_SOURCE=glibc
-		STDIO_SOURCE=stdio
+        STDIO_SOURCE=stdio
 
     endif
 endif
@@ -184,15 +185,14 @@ ifndef LINK_TYPE
     else
     
         #
-        # Linux 
+        # Linux
         #
-        ifeq ($(STDIO_SOURCE),stdio)
-            # Linking local stdio, must be dynamic
-            LINK_TYPE=dynamic
-        else
-            # LINK_TYPE=static
-            LINK_TYPE=dynamic
-        endif
+        # Static, like the other platforms: each level links as one
+        # combined object with everything inside (see the .o rules with
+        # the Linux libraries below). LINK_TYPE=dynamic still selects
+        # the .so configuration.
+        #
+        LINK_TYPE=static
         
     endif
     
@@ -299,23 +299,22 @@ else
     #
     # Linux
     #
-    ifneq ($(STDIO_SOURCE),stdio)
-	# Link path is through bin to get glibc.
-	#
-    CFLAGS+=-Wl,--rpath=bin
-    endif
     # FreeType/fontconfig for font rendering
     CFLAGS+=$(shell pkg-config --cflags freetype2 fontconfig)
     
 endif
 
 #
-# Set library dependencies
+# Set library dependencies. The static archives carry the lib prefix
+# (libami_<model>.a), so they also serve -lami_<model>; the shared
+# libraries keep their historical names.
 #
 ifeq ($(LINK_TYPE),static)
     LIBEXT = .a
+    LIBPFX = lib/libami_
 else
     LIBEXT = .so
+    LIBPFX = lib/petit_ami_
 endif
 
 #
@@ -358,8 +357,13 @@ ifeq ($(LINK_TYPE),static)
 
     else
 
-        # Linux
-        CFLAGS += -static
+        # Linux: nothing. The static configuration is mostly static:
+        # Petit-Ami's code links from the archives into the executable,
+        # and the system libraries -- glibc, ALSA, fluidsynth, OpenSSL,
+        # X -- stay shared. ALSA reaches PulseAudio through its shared
+        # bridge module, so sound mixes with the desktop as usual. A
+        # fully static binary is not supported: ALSA and PulseAudio do
+        # not support static operation, and that is theirs to change.
         
     endif
     
@@ -387,34 +391,8 @@ else ifeq ($(OSTYPE),FreeBSD)
 
 else
 
-	ifeq ($(STDIO_SOURCE),stdio)
-	
-		# Nothing, libc is linked in overall lib
-		
-	else
-	
-	    #
-	    # Linux, use modified GLIBC
-	    #
-	    
-	    #
-	    # For modified GLIBC, we need to specify the libary first or it won't
-	    # link correctly.
-	    #
-	    ifeq ($(LINK_TYPE),static)
-	        PLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        CLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        GLIBS = -Wl,--whole-archive bin/libc.a -Wl,--no-whole-archive
-	        PLIBSD = bin/libc.a
-	        CLIBSD = bin/libc.a
-	        GLIBSD = bin/libc.a
-	    else
-		    PLIBS = bin/libc.so.6
-		    CLIBS = bin/libc.so.6
-		    GLIBS = bin/libc.so.6
-	    endif
-	   
-	endif
+	# Linux: nothing, libc is linked in overall lib. (The deprecated
+	# patched-glibc configuration linked bin/libc here, first.)
     
 endif
 
@@ -430,6 +408,12 @@ else
 	LINUXSTDIO =
 	
 endif
+
+#
+# X and png link tail for programs that use them directly (the test
+# harness's screen capture).
+#
+XLIBS = -lX11 -lpng -lz
 
 #
 # Collected libraries
@@ -453,9 +437,15 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	PLIBS += lib/petit_ami_plain.a
+    	PLIBS += lib/libami_plain.a
+    else ifeq ($(OSTYPE),Windows_NT)
+    	PLIBS += -Wl,--whole-archive lib/libami_plain.a -Wl,--no-whole-archive
+    else ifeq ($(OSTYPE),FreeBSD)
+    	PLIBS += -Wl,--whole-archive lib/libami_plain.a -Wl,--no-whole-archive
     else
-    	PLIBS += -Wl,--whole-archive lib/petit_ami_plain.a -Wl,--no-whole-archive
+        # Linux: the model's bundle archive. Sound and network are bundle
+        # members, pulled only when the program uses them.
+    	PLIBS += lib/libami_plain.a
     endif
 else
     PLIBS += lib/petit_ami_plain.so
@@ -470,9 +460,16 @@ endif
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	CLIBS += lib/petit_ami_term.a
+    	CLIBS += lib/libami_term.a
+    else ifeq ($(OSTYPE),Windows_NT)
+    	CLIBS += -Wl,--whole-archive lib/libami_term.a -Wl,--no-whole-archive
+    else ifeq ($(OSTYPE),FreeBSD)
+    	CLIBS += -Wl,--whole-archive lib/libami_term.a -Wl,--no-whole-archive
     else
-    	CLIBS += -Wl,--whole-archive lib/petit_ami_term.a -Wl,--no-whole-archive
+        # Linux: the model's bundle archive. keeper forces the core in for
+        # programs that make no terminal calls of their own; sound and
+        # network members pull only when used.
+    	CLIBS += stub/keeper.o lib/libami_term.a
     endif
 else
     CLIBS += stub/keeper.o lib/petit_ami_term.so
@@ -485,9 +482,14 @@ CLIBSCPP = $(CLIBS) cpp/terminal.o
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	GLIBS += -Wl,-force_load,lib/petit_ami_graph.a
+    	GLIBS += -Wl,-force_load,lib/libami_graph.a
+    else ifeq ($(OSTYPE),Windows_NT)
+    	GLIBS += -Wl,--whole-archive lib/libami_graph.a -Wl,--no-whole-archive
+    else ifeq ($(OSTYPE),FreeBSD)
+    	GLIBS += -Wl,--whole-archive lib/libami_graph.a -Wl,--no-whole-archive
     else
-    	GLIBS += -Wl,--whole-archive lib/petit_ami_graph.a -Wl,--no-whole-archive
+        # Linux: the model's bundle archive, as for the terminal model
+    	GLIBS += stub/keeper.o lib/libami_graph.a
     endif
 else
     GLIBS += stub/keeper.o lib/petit_ami_graph.so
@@ -496,9 +498,9 @@ endif
 #
 # Create dependency macros
 #
-PLIBSD += lib/petit_ami_plain$(LIBEXT)
-CLIBSD += lib/petit_ami_term$(LIBEXT) stub/keeper.o
-GLIBSD += lib/petit_ami_graph$(LIBEXT) stub/keeper.o
+PLIBSD += $(LIBPFX)plain$(LIBEXT)
+CLIBSD += $(LIBPFX)term$(LIBEXT) stub/keeper.o
+GLIBSD += $(LIBPFX)graph$(LIBEXT) stub/keeper.o
 
 CLIBSCPPD = $(CLIBSD) cpp/terminal.o
 #
@@ -559,6 +561,20 @@ else
     #
     # Linux
     #
+    ifeq ($(LINK_TYPE),static)
+
+	# The archives carry Petit-Ami's code; the system libraries stay
+	# shared. The sound and network tails cost nothing when unused:
+	# with the members not pulled, as-needed linking drops them.
+	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 \
+	         -lfreetype -lfontconfig -lm -lpthread
+
+    else
+
+	# Sound cannot live in an .so (an ALSA bug), so its objects link
+	# directly in the dynamic configuration.
 	PLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 	CLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
@@ -567,8 +583,10 @@ else
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11 \
 	         -lfreetype -lfontconfig
 	PLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
-    CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+	CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	GLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+
+    endif
     
 endif
 
@@ -857,20 +875,20 @@ ifeq ($(OSTYPE),Windows_NT)
 # Windows cannot use .so files, but rather uses statically linked files that
 # reference .dlls at runtime.
 #
-lib/petit_ami_plain.a: windows/services.o windows/sound.o windows/network.o \
+lib/libami_plain.a: windows/services.o windows/sound.o windows/network.o \
 	utils/option.o utils/config.o windows/stdio.o
-	ar rcs lib/petit_ami_plain.a windows/services.o windows/sound.o \
+	ar rcs lib/libami_plain.a windows/services.o windows/sound.o \
         windows/network.o utils/config.o utils/option.o windows/stdio.o
 	
-lib/petit_ami_term.a: windows/services.o windows/sound.o windows/network.o \
+lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
     windows/terminal.o utils/config.o utils/option.o windows/stdio.o
-	ar rcs lib/petit_ami_term.a windows/services.o windows/sound.o \
+	ar rcs lib/libami_term.a windows/services.o windows/sound.o \
 	    windows/network.o windows/terminal.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
-lib/petit_ami_graph.a: windows/services.o windows/sound.o windows/network.o \
+lib/libami_graph.a: windows/services.o windows/sound.o windows/network.o \
     windows/graphics.o utils/config.o utils/option.o windows/stdio.o
-	ar rcs lib/petit_ami_graph.a windows/services.o windows/sound.o \
+	ar rcs lib/libami_graph.a windows/services.o windows/sound.o \
 	    windows/network.o windows/graphics.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
@@ -881,22 +899,22 @@ else ifeq ($(OSTYPE),Darwin)
 #
 # Mac OS X cannot use .so files, but rather uses statically linked files.
 #
-lib/petit_ami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/libami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
 	utils/config.o utils/option.o macosx/stdio.o
-	ar rcs lib/petit_ami_plain.a macosx/services.o macosx/sound.o \
+	ar rcs lib/libami_plain.a macosx/services.o macosx/sound.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
-lib/petit_ami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/terminal.o utils/config.o utils/option.o \
     macosx/stdio.o
-	ar rcs lib/petit_ami_term.a macosx/services.o macosx/sound.o \
+	ar rcs lib/libami_term.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/terminal.o \
 	    utils/config.o utils/option.o macosx/stdio.o
 	
-lib/petit_ami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/libami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/graphics.o macosx/graphics_cocoa.o \
     utils/config.o utils/option.o macosx/stdio.o
-	ar rcs lib/petit_ami_graph.a macosx/services.o macosx/sound.o \
+	ar rcs lib/libami_graph.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/graphics.o \
 	    macosx/graphics_cocoa.o utils/config.o utils/option.o macosx/stdio.o
 
@@ -907,26 +925,26 @@ else ifeq ($(OSTYPE),FreeBSD)
 #
 # Use statically linked files, for BSD
 #
-lib/petit_ami_plain.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
+lib/libami_plain.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o utils/config.o utils/option.o bsd/stdio.o
-	ar rcs lib/petit_ami_plain.a bsd/services.o bsd/sound.o \
+	ar rcs lib/libami_plain.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
         bsd/network.o utils/config.o utils/option.o bsd/stdio.o
 
-lib/petit_ami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
+lib/libami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
     bsd/system_event.o bsd/terminal.o utils/config.o utils/option.o \
     bsd/stdio.o
-	ar rcs lib/petit_ami_term.a bsd/services.o bsd/sound.o \
+	ar rcs lib/libami_term.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/terminal.o \
 	    utils/config.o utils/option.o bsd/stdio.o
 
-lib/petit_ami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
+lib/libami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
     bsd/graphics.o bsd/system_event.o \
 	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
-	ar rcs lib/petit_ami_graph.a bsd/services.o bsd/sound.o \
+	ar rcs lib/libami_graph.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
 	    portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
@@ -949,13 +967,6 @@ lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/con
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o utils/config.o \
 		utils/option.o -o lib/petit_ami_plain.so
 	
-lib/petit_ami_plain.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	utils/config.o utils/option.o
-	ar rcs lib/petit_ami_plain.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-	    linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	    utils/config.o utils/option.o
-	
 lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o
@@ -977,15 +988,6 @@ lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 		utils/config.o utils/option.o cpp/terminal.o -lstdc++ \
 		-o lib/petit_ami_termc.so
 
-lib/petit_ami_term.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
-    cpp/terminal.o
-	ar rcs lib/petit_ami_term.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
-		 cpp/terminal.o
-	
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/system_event.o \
 	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
@@ -994,16 +996,83 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o \
         -lstdc++ -o lib/petit_ami_graph.so
 
-lib/petit_ami_graph.a: $(LINUXSTDIO) linux/services.o linux/sound.o \
-	linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-	linux/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
-	ar rcs lib/petit_ami_graph.a $(LINUXSTDIO) linux/services.o linux/sound.o \
-		linux/fluidsynthplug.o linux/dumpsynthplug.o linux/network.o \
-		linux/graphics.o linux/system_event.o \
-		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o  \
-		cpp/terminal.o
-	
+#
+# The Linux static configuration: per model, one bundle archive holding
+# Petit-Ami's code. The system libraries -- glibc, ALSA, fluidsynth,
+# OpenSSL, X -- stay shared: ALSA and PulseAudio do not support static
+# operation, so neither does Petit-Ami, and sound mixes with the desktop
+# through ALSA's shared PulseAudio bridge as usual.
+#
+# Each archive holds three members:
+#
+#   <model>_core.o  the model's presentation, services, stdio glue and
+#                   configuration, partial-linked (ld -r) into one member
+#                   so the constructor-registered modules (managerc, the
+#                   widget packages) cannot be dropped by archive
+#                   selectivity. A program that makes no calls of its
+#                   own is promoted by keeper.o referencing into it.
+#   sound.o         the sound module and both synthesizer plugins,
+#                   partial-linked so the plugins' constructor
+#                   registrations ride with the member. Pulled only when
+#                   the program uses sound, and with it the shared
+#                   libasound/libfluidsynth dependencies; programs
+#                   without sound carry neither.
+#   network.o       the network module, pulled only when used, and with
+#                   it the shared OpenSSL dependency.
+#
+# So programs get what they use, as always. A program link line is:
+#
+#     gcc prog.c stub/keeper.o -Llib -lami_term \
+#         -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+#
+# with the trailing libraries dropped by as-needed linking when the
+# member that wants them is not pulled.
+#
+
+# the sound bundle: module and plugins whole, one member
+lib/sound.o: linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+	ld -r -o lib/sound.o \
+	    linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
+
+# the model cores
+CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o
+
+lib/plain_core.o: $(CORE_COMMON)
+	ld -r -o lib/plain_core.o $(CORE_COMMON)
+
+lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	linux/system_event.o cpp/terminal.o
+	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	    linux/system_event.o cpp/terminal.o
+
+lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
+	linux/system_event.o cpp/terminal.o
+	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
+	    portable/managerc.o linux/system_event.o cpp/terminal.o
+
+lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
+	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o
+	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
+	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    cpp/terminal.o
+
+# the model archives
+lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_plain.a
+	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o
+
+lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_term.a
+	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o
+
+lib/libami_termc.a: lib/termc_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_termc.a
+	ar rcs lib/libami_termc.a lib/termc_core.o lib/sound.o linux/network.o
+
+lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_graph.a
+	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o
+
 endif
 
 ################################################################################
@@ -1218,7 +1287,7 @@ endif
 # Link set for programs stacked on managerc over terminal. Same as CLIBS but
 # with the manager carrying library in place of the plain one.
 #
-CLIBSC = $(subst lib/petit_ami_term.so,lib/petit_ami_termc.so,$(CLIBS))
+CLIBSC = $(subst ami_term.,ami_termc.,$(CLIBS))
 
 #
 # Test console model compliant output
@@ -1233,7 +1302,7 @@ terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lpng -lz -o bin/terminal_test
 else
 terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lX11 -lpng -lz -o bin/terminal_test
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) $(XLIBS) -o bin/terminal_test
 endif
 
 ifeq ($(OSTYPE),Darwin)
@@ -1241,7 +1310,7 @@ terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/terminal_testg
 else
 terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/terminal_testg
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/terminal_testg
 endif
 
 #
@@ -1252,7 +1321,7 @@ graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/graphics_test
 else
 graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/graphics_test
+	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/graphics_test
 endif
 
 #
@@ -1283,14 +1352,14 @@ endif
 # the program does not open windows of its own.
 #
 ifeq ($(OSTYPE),Darwin)
-terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/terminal_testc
 else ifeq ($(OSTYPE),Windows_NT)
-terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/terminal_testc
 else
-terminal_testc: lib/petit_ami_termc.so tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lX11 -lpng -lz -o bin/terminal_testc
+terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) $(XLIBS) -o bin/terminal_testc
 endif
 
 #
@@ -1301,7 +1370,7 @@ management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
 else
 management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -lpng -lz -o bin/management_test
+	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
 endif
 
 #
@@ -1312,14 +1381,14 @@ endif
 # graphical form; only the character forms can run on a character surface.
 #
 ifeq ($(OSTYPE),Darwin)
-management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
+management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/management_testc
 else ifeq ($(OSTYPE),Windows_NT)
-management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
+management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/management_testc
 else
-management_testc: lib/petit_ami_termc.so tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lX11 -lpng -lz -o bin/management_testc
+management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) $(XLIBS) -o bin/management_testc
 endif
 
 #
@@ -1336,7 +1405,7 @@ widget_test: $(GLIBSD) tests/widget_test.c
 # terminal. Every widget test has a character form and a graphical form;
 # only the character forms can run on a character surface.
 #
-widget_testc: lib/petit_ami_termc.so tests/widget_testc.c
+widget_testc: $(LIBPFX)termc$(LIBEXT) tests/widget_testc.c
 	$(CC) $(CFLAGS) tests/widget_testc.c $(CLIBSC) -o bin/widget_testc
 	
 #

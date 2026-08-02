@@ -64,6 +64,7 @@ extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
 #endif
 
 static wbpkgptr    pkglst;          /* registered packages, first in first */
+static int         wb_hooked;       /* the vectors are hooked */
 static ami_pevthan wb_event_old;    /* downchain event handler */
 static pclose_t    ofpclose;        /* saved close() vectors */
 #ifdef NOCANCEL
@@ -504,6 +505,7 @@ void wb_init(
 #ifdef NOCANCEL
         ovr_close_nocancel(iclose_nocancel, &ofpclose_nocancel);
 #endif
+        wb_hooked = TRUE;
 
     }
 
@@ -551,6 +553,10 @@ void wb_deinit(
     lp = &pkglst;
     while (*lp && *lp != pk) lp = &(*lp)->next;
     if (*lp) *lp = pk->next;
+    /* An error exit during early startup runs destructors for packages
+       that never registered; with nothing hooked there is nothing to
+       put back. */
+    if (!wb_hooked) return;
     if (!pkglst) { /* last out: put back the vectors we took */
 
         ami_eventsover(wb_event_old, &cppevt);

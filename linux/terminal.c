@@ -724,6 +724,8 @@ static joyptr joytab[MAXJOY]; /* joystick control table */
 static int    dmpevt;         /* enable dump Petit-Ami messages */
 static int    inpsev;         /* keyboard input system event number */
 static int    winchsev;       /* windows change system event number */
+static int    exitsev;        /* shutdown wakeup system event number */
+static int    exitpipe[2];    /* shutdown wakeup pipe, read then write end */
 #ifdef ALLOWUTF8
 static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
@@ -2356,6 +2358,8 @@ static void ievent(void)
 
         evtfnd = 0; /* set no event found */
         system_event_getsevt(&sev); /* get the next system event */
+        /* the shutdown wakeup: deinit asks the thread to leave */
+        if (sev.typ == se_inp && sev.lse == exitsev) return;
         /* check the read file has signaled */
         if (sev.typ == se_inp && sev.lse == inpsev) {
 
@@ -5972,6 +5976,13 @@ static void ami_init_terminal(int argc, char* argv[])
     /* add input file event */
     inpsev = system_event_addseinp(0);
 
+    /* The shutdown wakeup: deinit writes a byte here to ask the event
+       thread out. The thread was cancelled instead, but glibc's
+       cancellation unwinds through pselect, and in a static link that
+       unwind aborts; a cooperative exit works in either link. */
+    if (pipe(exitpipe) < 0) error(ami_dispesystem);
+    exitsev = system_event_addseinp(exitpipe[0]);
+
     /* clear the timers table */
     for (i = 0; i < AMI_MAXTIM; i++) timtbl[i] = 0;
 
@@ -6138,9 +6149,15 @@ static void ami_deinit_terminal()
     /* Stop the event thread before tearing down what it uses. It was
        left running here, and its next take of a destroyed lock failed
        with EINVAL: a control-C exit died with "Linux error: Invalid
-       argument" whenever the timing landed wrong. */
-    pthread_cancel(eventthread);
+       argument" whenever the timing landed wrong. It was then cancelled
+       here, but glibc's cancellation unwinds through pselect, and in a
+       static link that unwind aborts the program at exit: the thread is
+       asked out through its wakeup pipe instead, which works in either
+       link. */
+    if (write(exitpipe[1], "x", 1) < 0) { /* it leaves on its own below */ }
     pthread_join(eventthread, NULL);
+    close(exitpipe[0]);
+    close(exitpipe[1]);
 
     /* release the terminal broadlock */
     pthread_mutex_destroy(&termlock);

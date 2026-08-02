@@ -161,7 +161,7 @@ test 802: 1 s/b 1 (fwritable on wb+)
 test 803: 18 s/b >0 (freadahead reports read ahead)
 test 804: 18 s/b 18 (freadahead == bytes actually buffered)
 test 805: 1 s/b 1 (ferror sees a directly set error)
-test 806: 4 s/b 4 (_fileno matches fileno())
+test 806: 1 s/b 1 (_fileno matches fileno())
 test 807: 0 s/b 0 (fwritable on rb)
 test 808: 1 s/b 1 (freadable on rb)
 
