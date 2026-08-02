@@ -1111,10 +1111,18 @@ static void loadsheet(const char* fn)
         if (!strncmp(p, "<table:table-row", 16)) { /* a row, maybe repeated */
 
             char* e = strchr(p, '>');
+            long  rep = 1;
 
-            y++;
+            if (!e) break;
+            *e = 0; /* the element alone, for the attribute search */
+            /* a run of like rows is written once and counted, which is
+               how the empty rows between entries arrive */
+            if (xmlatt(p, "table:number-rows-repeated", att, sizeof(att)))
+                rep = atol(att);
+            *e = '>';
+            y += rep;
             x = 0;
-            p = e? e: p+16;
+            p = e;
 
         } else if (!strncmp(p, "<table:table-cell", 17)) {
 
@@ -1122,8 +1130,10 @@ static void loadsheet(const char* fn)
             char* close;
             long  rep = 1;
             long  empty = TRUE;
+            int   selfend; /* the element closes itself: it holds nothing */
 
             if (!e) break;
+            selfend = e > p && e[-1] == '/';
             *e = 0; /* the element alone, for the attribute search */
             if (xmlatt(p, "table:number-columns-repeated", att, sizeof(att)))
                 rep = atol(att);
@@ -1152,8 +1162,13 @@ static void loadsheet(const char* fn)
 
             }
             *e = '>';
-            if (empty) { /* text, if it holds any */
+            if (empty && !selfend) { /* text, if it holds any */
 
+                /* An element that closes itself holds nothing. Looking
+                   for its closing tag found the next cell's instead, and
+                   the empty cell took that cell's text -- which is how a
+                   value appeared in the cells before it, and how a row
+                   took the text of a row below. */
                 close = strstr(e, "</table:table-cell>");
                 if (!close) close = e+1;
                 xmltext(e, close, txt, sizeof(txt));
