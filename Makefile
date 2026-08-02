@@ -1665,6 +1665,12 @@ ball5: $(GLIBSD) graph_programs/ball5.c
 	
 ball6: $(GLIBSD) graph_programs/ball6.c
 	$(CC) $(CFLAGS) graph_programs/ball6.c $(GLIBS) -o bin/ball6
+
+#
+# Spreadsheet: grid, formulas, menus, file dialogs
+#
+spreadsheet: $(GLIBSD) graph_programs/spreadsheet.c
+	$(CC) $(CFLAGS) graph_programs/spreadsheet.c $(GLIBS) -lz -o bin/spreadsheet
 	
 #
 # Moving lines dazzlers
