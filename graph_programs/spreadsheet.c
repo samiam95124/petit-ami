@@ -933,10 +933,20 @@ int main(int argc, char* argv[])
         ami_event(stdin, &er);
         switch (er.etype) {
 
-            case ami_etredraw:
             case ami_etresize:
+                /* The window is buffered, so its measurements are the
+                   buffer's: without this the sheet kept the size it
+                   started at while the window grew around it. The
+                   buffer follows the window, and everything after is
+                   derived from the new measurements. */
+                ami_sizbufg(stdout, er.rszxg, er.rszyg);
                 layout();
-                follow();
+                clamporg();
+                drawall();
+                break;
+
+            case ami_etredraw:
+                layout();
                 drawall();
                 break;
 
