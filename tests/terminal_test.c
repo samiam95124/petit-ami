@@ -1212,7 +1212,7 @@ int main(int argc, char *argv[])
     for (y = 1; y <= ami_maxy(stdout); y++) {
 
         for (i = 1; i <= y-1; i++) printf("\t");
-        printf(">Tab %3d\n", y-1);
+        printf(">Tab %3ld\n", y-1);
 
     }
     prtcen(ami_maxy(stdout), "Tabbing test");

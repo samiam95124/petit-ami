@@ -325,15 +325,34 @@ ifeq ($(STDIO_SOURCE),stdio)
     # In local link, we need to get stdio.h from local directory
     #
     CFLAGS +=-Ilibc
-    ifneq ($(OSTYPE),Windows_NT)
-    ifneq ($(OSTYPE),Darwin)
-        # Linux and FreeBSD use X11/libXau which accesses FILE* internals
-        # directly (backdoor access). STDIO_BYPASS prevents petit_ami from
-        # exporting fopen/fclose etc. as global symbols, so libXau always
-        # uses the real system fopen and a proper FILE*. Mac OS X is exempt
-        # because it uses Cocoa/CoreGraphics and does not involve libXau.
+    ifeq ($(OSTYPE),FreeBSD)
+        # FreeBSD keeps the coined-namespace bypass: its libc is not
+        # glibc, and the override scheme below is built on glibc facts.
         CFLAGS += -DSTDIO_BYPASS
-    endif
+    else ifeq ($(OSTYPE),Windows_NT)
+        # Windows overrides at link time, as always
+    else ifeq ($(OSTYPE),Darwin)
+        # Mac OS X overrides at link time, as always
+    else ifeq ($(LINK_TYPE),dynamic)
+        # The dynamic configuration keeps the STDIO_BYPASS coined
+        # namespace: petit ami's stdio lives beside glibc's under
+        # stdio_ names, paired with programs through the local header.
+        CFLAGS += -DSTDIO_BYPASS
+    else
+        # The static configuration runs stdio in override mode with
+        # hidden dynamic visibility (see the linux/stdio.o rule). The
+        # program and the petit ami archives resolve the real stdio
+        # names to petit ami's stdio at static link -- a program needs
+        # no special headers, printf lands in the window -- while the
+        # symbols stay out of the dynamic table, so every shared
+        # library (X, ALSA, and glibc's own NSS lookups, whose FILEs
+        # glibc processes internally) binds glibc's stdio and runs
+        # wholly on glibc FILEs. The two stdio worlds split at the
+        # dynamic boundary, which no FILE crosses.
+        # tools/stdioaudit lists a binary's stdio surface if a new
+        # system needs checking. Switching LINK_TYPE requires a clean
+        # build: the modes compile stdio call sites differently.
+        STDIOVIS = -fvisibility=hidden
     endif
 endif
 
@@ -687,7 +706,7 @@ endif
 # Linux library components
 #
 linux/stdio.o: libc/stdio.c libc/stdio.h Makefile
-	$(CC) $(CFLAGS) -c libc/stdio.c -o linux/stdio.o
+	$(CC) $(CFLAGS) $(STDIOVIS) -c libc/stdio.c -o linux/stdio.o
 
 linux/services.o: linux/services.c include/services.h Makefile
 	$(CC) $(CFLAGS) -c linux/services.c -o linux/services.o

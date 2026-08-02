@@ -20,9 +20,11 @@ ROOT     = ..
 BINDIR   = $(ROOT)/bin
 CC       = gcc
 
-# flags for building the curses adapter (needs Ami stdio interception)
+# flags for building the curses adapter (needs Ami stdio interception).
+# Matches the main build: Linux runs stdio in override mode, no
+# STDIO_BYPASS coined namespace.
 AMIFLAGS = -g3 -I$(ROOT)/apis -I$(ROOT)/include -I$(ROOT)/libc \
-           -I/usr/include/freetype2 -I/usr/include/libpng16 -DSTDIO_BYPASS
+           -I/usr/include/freetype2 -I/usr/include/libpng16
 
 # flags for building program source (standard libc, no Ami stdio override)
 CFLAGS   = -g3 -I$(ROOT)/apis -D'__COPYRIGHT(x)=' -D'__RCSID(x)='
