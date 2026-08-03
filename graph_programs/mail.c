@@ -2306,7 +2306,7 @@ static void openmsg(long i)
     if (!readwf) {
 
         ami_openwin(&stdin, &readwf, NULL, READWIN);
-        ami_buffer(readwf, FALSE);
+        ami_buffer(readwf, TRUE);
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
@@ -2315,6 +2315,7 @@ static void openmsg(long i)
         ami_winclientg(readwf, ami_strsiz(readwf, "0")*84, chrh*40, &wx, &wy,
                        BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
         ami_setsizg(readwf, wx, wy);
+        ami_sizbufg(readwf, wx, wy);
         /* down and to the right, so it does not sit on top of the list
            it was opened from */
         ami_setposg(readwf, 80, 80);
@@ -2579,8 +2580,10 @@ static void layout(void)
     if (foldw > ami_maxxg(stdout)/2) foldw = ami_maxxg(stdout)/2;
     ami_setposg(foldwf, 1, top);
     ami_setsizg(foldwf, foldw, h);
+    ami_sizbufg(foldwf, foldw, h); /* the buffer follows the pane */
     ami_setposg(listwf, foldw+2, top);
     ami_setsizg(listwf, ami_maxxg(stdout)-foldw-2, h);
+    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-2, h);
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
@@ -2917,7 +2920,10 @@ int main(int argc, char* argv[])
     /* A pane is part of the main window, not a window of its own: no
        frame, no title bar, no sizing bars. */
     ami_frame(foldwf, FALSE);
-    ami_buffer(foldwf, FALSE);
+    /* Buffered, so the library puts back what other windows have covered
+       instead of the program redrawing every row each time one passes
+       over it. */
+    ami_buffer(foldwf, TRUE);
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
@@ -2925,7 +2931,7 @@ int main(int argc, char* argv[])
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
-    ami_buffer(listwf, FALSE);
+    ami_buffer(listwf, TRUE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
@@ -2961,8 +2967,14 @@ int main(int argc, char* argv[])
             switch (er.etype) {
 
                 case ami_etterm: closeread(); break;
-                case ami_etredraw:
-                case ami_etresize: wrapread(); drawread(); break;
+                case ami_etredraw: break; /* buffered: the library has it */
+                case ami_etresize:
+                    /* the buffer follows the window, or everything after
+                       is worked out from the size it used to be */
+                    ami_sizbufg(readwf, er.rszxg, er.rszyg);
+                    wrapread();
+                    drawread();
+                    break;
                 case ami_etmouba:
                     if (er.amoubn == 4) { readtop -= WHEELROWS; showread(); }
                     else if (er.amoubn == 5)
@@ -3006,7 +3018,7 @@ int main(int argc, char* argv[])
                     i = (mpy-4-chrh*2)/(chrh+4);
                     if (i >= 0 && i < foldct) showfolder(i);
                     break;
-                case ami_etredraw: drawfolders(); break;
+                case ami_etredraw: break; /* buffered, as the list is */
                 default: break;
 
             }
@@ -3065,7 +3077,8 @@ int main(int argc, char* argv[])
                     drawlist();
                     fromdrag = FALSE;
                     break;
-                case ami_etredraw: drawlist(); break;
+                /* nothing on a redraw: the pane is buffered */
+                case ami_etredraw: break;
                 default: break;
 
             }
