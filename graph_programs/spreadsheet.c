@@ -107,7 +107,6 @@
 #define MENUSHEET  (AMI_SMMAX+1) /* the sheet menu itself */
 #define MENUWIDER  (AMI_SMMAX+2) /* wider columns */
 #define MENUNARROW (AMI_SMMAX+3) /* narrower columns */
-#define MENUCLEAR  (AMI_SMMAX+4) /* clear the sheet */
 #define MENURECALC (AMI_SMMAX+5) /* recalculate */
 
 /* a cell holds what the user typed; the value is derived */
@@ -1390,17 +1389,27 @@ static void drawcell(long x, long y)
     } else { /* text to the left, running on if it must */
 
         long w = spillwid(x, y);
+        long ex;
 
-        if (ami_strsiz(stdout, s) > colw-4 && w > colw) {
+        /* clipped first, so what follows measures the text as it will
+           actually be drawn */
+        clipstr(s, w-4);
+        tw = ami_strsiz(stdout, s);
+        ex = px+2+tw; /* where the text ends */
+        if (ex > px+w-2) ex = px+w-2; /* never past the run */
+        if (ex > px+colw-1) {
 
-            /* clear the run, which takes the grid lines under it, as a
-               sheet does where text crosses a cell edge */
+            /* Clear as far as the text reaches, which takes the grid
+               lines under it, as a sheet does where text crosses a cell
+               edge. Only that far: clearing the whole run erased the
+               lines of every empty cell after the text as well. */
             ami_fcolor(stdout, ami_white);
-            ami_frect(stdout, px+colw-1, py-1, px+w-2, py+rowh-2);
+            /* between the lines above and below, which stay: the run
+               crosses the cell edges beside it, not the rows */
+            ami_frect(stdout, px+colw-1, py, ex, py+rowh-2);
 
         }
         ami_fcolor(stdout, ami_black);
-        clipstr(s, w-4);
         ami_cursorg(stdout, px+2, py+2);
 
     }
@@ -1611,8 +1620,6 @@ static void setupmenu(void)
     appendmenu(&sh->branch, mp);
     newmenu(&mp, FALSE, FALSE, ON, MENURECALC, "Recalculate");
     appendmenu(&sh->branch, mp);
-    newmenu(&mp, FALSE, FALSE, OFF, MENUCLEAR, "Clear Sheet");
-    appendmenu(&sh->branch, mp);
     ami_menu(stdout, sm);
 
 }
@@ -1720,6 +1727,9 @@ int main(int argc, char* argv[])
 
     }
     ami_title(stdout, "Spreadsheet");
+    /* File/Exit means exit: without this the window is held open after
+       main returns, waiting to be closed a second time */
+    ami_autohold(FALSE);
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_font(stdout, AMI_FONT_TERM); /* a fixed pitch font suits a grid */
@@ -2084,11 +2094,6 @@ int main(int argc, char* argv[])
 
                     case MENURECALC:
                         recalc();
-                        drawall();
-                        break;
-
-                    case MENUCLEAR:
-                        clearsheet();
                         drawall();
                         break;
 
