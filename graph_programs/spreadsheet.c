@@ -76,6 +76,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h> /* strncasecmp, for the help search */
 #include <ctype.h>
 #include <math.h>
 #include <limits.h>
@@ -101,6 +102,14 @@
 /* the scroll bars */
 #define SBVERT   1 /* vertical scroll bar widget id */
 #define SBHORIZ  2 /* horizontal scroll bar widget id */
+
+/* The help window is a window of the program's own, id 2; the sheet is
+   always window 1. Its widgets are numbered in it, and widget numbers
+   belong to their window, so these do not collide with the bars above. */
+#define HELPWIN   2 /* the help window */
+#define HELPFIND  1 /* the search entry */
+#define HELPLIST  2 /* the topic list */
+#define HELPCLOSE 3 /* the close button */
 
 /* Menu ids of our own, after the standard ones. They hang under one
    Sheet entry of our own, which the standard menu places between its
@@ -1554,6 +1563,388 @@ static void scrollto(long nx, long ny, long frombar)
 
 /*******************************************************************************
 
+Help topics
+
+A window of the program's own, not a dialog. A dialog stops the program
+and runs a loop of its own until it is answered; help is not a question,
+so it opens beside the sheet and stays up while the sheet is worked on.
+
+That takes no machinery. There is one event queue for the program, and
+every event names the window it came from, so the main loop tells the
+help window's events from the sheet's by their window id and hands them
+here. Nothing is nested, and no thread is needed -- though one could be
+put in charge of this window just as well, since its state is all here.
+
+Widgets are numbered within their window, so the search entry, the topic
+list and the close button are 1, 2 and 3 here even though the sheet's
+scroll bars are 1 and 2 there.
+
+*******************************************************************************/
+
+/* A topic is a title and its text. The text is one string; the window
+   wraps it to whatever width it has been given. */
+typedef struct { char* title; char* text; } helprec;
+
+static const helprec helptopics[] = {
+
+    { "Entering data",
+      "Type into the sheet and what you type appears in the cell, with "
+      "the entry marked. Enter puts the entry down and steps to the row "
+      "below, tab puts it down and steps to the column right, and escape "
+      "abandons it. Backspace takes back the last character; on a cell "
+      "with no entry under way it clears the cell." },
+
+    { "Formulas",
+      "A cell whose contents begin with = is a formula, and what the "
+      "cell shows is the result. The formula itself is shown while the "
+      "cell is being entered. Formulas take + - * / and parentheses, "
+      "numbers, and the names of other cells: =A1+B1*2 is a formula, and "
+      "so is =(A1+B1)/2. A cell that cannot be worked out shows an "
+      "error mark rather than a wrong number." },
+
+    { "Functions",
+      "SUM, AVG, MIN, MAX and COUNT each take a range and give one "
+      "number: =SUM(B1:B10) adds the column, =AVG(B1:B10) averages it, "
+      "and =COUNT(B1:B10) counts the cells in it that hold numbers. A "
+      "function may stand anywhere a number may, so =SUM(B1:B10)/12 is "
+      "a formula like any other." },
+
+    { "Ranges",
+      "A range is two cell names with a colon between them, as B1:B10 "
+      "or A1:D20. It covers the rectangle with those cells at opposite "
+      "corners, so A1:D20 is eighty cells, not two. Ranges are used by "
+      "the functions; a range on its own is not a value." },
+
+    { "Moving about",
+      "The arrow keys move the current cell one at a time and the sheet "
+      "follows when the cell would leave it. Page up and page down move "
+      "a screen at a time. The scroll bars and the mouse wheel move the "
+      "sheet without moving the current cell, which is how to look "
+      "somewhere else without losing your place. A click puts the "
+      "current cell where it lands." },
+
+    { "Column width",
+      "Sheet/Wider Columns and Sheet/Narrower Columns change the width "
+      "of every column at once, from five to twenty digits of the "
+      "display font. A number too wide for its column is shown as a row "
+      "of marks rather than a number missing its digits. Text is not "
+      "held to its column at all: see Text past a cell." },
+
+    { "Text past a cell",
+      "Text longer than its column prints on across the cells to the "
+      "right of it, as long as they are empty, which is what makes "
+      "titles and labels readable. The first cell to the right that "
+      "holds something stops it, and the text is cut there. Nothing is "
+      "lost by this: the cell still holds all of what was typed, and "
+      "widening the columns or clearing the cell to the right shows "
+      "more of it." },
+
+    { "Recalculation",
+      "Every formula is worked out again whenever the sheet changes, so "
+      "there is normally nothing to do. Sheet/Recalculate forces it. A "
+      "formula that refers to itself, directly or through others, is "
+      "stopped rather than followed forever, and the cells in the loop "
+      "show an error." },
+
+    { "Files",
+      "File/Open and File/Save read and write Open Document "
+      "spreadsheets, the .ods files of OpenOffice and LibreOffice, "
+      "which is ISO/IEC 26300. Formulas are saved as formulas, so a "
+      "sheet written here opens in those programs with its formulas "
+      "live, and theirs open here the same way. File/New starts an "
+      "empty sheet and forgets the file name." },
+
+    { "Finding a cell",
+      "Edit/Find looks through the sheet for text and makes the first "
+      "cell holding it current, searching on from the current cell and "
+      "coming round to it. Edit/Go To takes a cell name, as B12, and "
+      "goes straight there. Both are faster than scrolling on a sheet "
+      "of any size." },
+
+    { "Limits",
+      "The sheet is seventy eight columns, A through BZ, by a thousand "
+      "rows, and a cell holds up to eighty characters. These are fixed: "
+      "the window shows what fits and the scroll bars move it over the "
+      "rest. Nothing is allocated per cell until the cell is used." },
+
+};
+#define HELPTOPICS ((long)(sizeof(helptopics)/sizeof(helprec)))
+
+static FILE* helpwf;                 /* the help window, NULL when closed */
+static long  helpmatch[HELPTOPICS];  /* the topics the search matched */
+static long  helpmatches;            /* how many of them */
+static long  helpsel;                /* the topic shown, -1 for none */
+static long  helpx0, helpy0;         /* the text pane, in pixels */
+static long  helpx1, helpy1;
+static int   helplistup;             /* the list box has been made */
+
+/* does the topic hold the text, in either case? An empty search matches
+   everything, which is what an empty search box should mean. */
+static int helphas(const helprec* h, const char* what)
+
+{
+
+    const char* p;
+    long        n = strlen(what);
+
+    if (!n) return (TRUE);
+    for (p = h->title; *p; p++)
+        if (!strncasecmp(p, what, n)) return (TRUE);
+    for (p = h->text; *p; p++)
+        if (!strncasecmp(p, what, n)) return (TRUE);
+
+    return (FALSE);
+
+}
+
+/* Build the list of topics matching the search and put it in the list
+   box. The list box is made again rather than changed, since a list box
+   is given its contents when it is made; it copies them, so the list
+   built here is ours to free. */
+static void helpfill(const char* what)
+
+{
+
+    ami_strptr sl = NULL, sp, lp = NULL;
+    long       i;
+
+    helpmatches = 0;
+    for (i = 0; i < HELPTOPICS; i++) if (helphas(&helptopics[i], what)) {
+
+        sp = malloc(sizeof(ami_strrec));
+        if (!sp) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        sp->str = helptopics[i].title;
+        sp->next = NULL;
+        if (lp) lp->next = sp; else sl = sp;
+        lp = sp;
+        helpmatch[helpmatches++] = i;
+
+    }
+    /* a search that matches nothing still needs a list, or there would
+       be no box to type the next search against */
+    if (!sl) {
+
+        sl = malloc(sizeof(ami_strrec));
+        if (!sl) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        sl->str = "(no topic matches)";
+        sl->next = NULL;
+
+    }
+    if (helplistup) ami_killwidget(helpwf, HELPLIST);
+    ami_listboxg(helpwf, helpx0, helpy0, helpx1, helpy1, sl, HELPLIST);
+    helplistup = TRUE;
+    while (sl) { sp = sl->next; free(sl); sl = sp; }
+    /* the topic shown is only still shown if the search kept it */
+    if (helpsel >= 0) {
+
+        for (i = 0; i < helpmatches; i++) if (helpmatch[i] == helpsel) break;
+        if (i >= helpmatches) helpsel = -1;
+
+    }
+
+}
+
+/* draw the topic text, wrapped to the pane it is given */
+static void helptext(void)
+
+{
+
+    const char* p;
+    const char* q;
+    char        line[200];
+    long        chrh = ami_chrsizy(helpwf);
+    long        x = helpx1+ami_strsiz(helpwf, "00");
+    long        y = helpy0;
+    long        w = ami_maxxg(helpwf)-ami_strsiz(helpwf, "00")-x;
+    long        n;
+
+    /* clear the pane, then the title in bold and the text under it */
+    ami_fcolor(helpwf, ami_white);
+    ami_frect(helpwf, x, helpy0, ami_maxxg(helpwf), helpy1);
+    ami_fcolor(helpwf, ami_black);
+    if (helpsel < 0) {
+
+        ami_cursorg(helpwf, x, y);
+        fprintf(helpwf, "Pick a topic.");
+
+        return;
+
+    }
+    ami_bold(helpwf, TRUE);
+    ami_cursorg(helpwf, x, y);
+    fprintf(helpwf, "%s", helptopics[helpsel].title);
+    ami_bold(helpwf, FALSE);
+    y += chrh*2;
+    /* Break the text at the last space that still fits. Measuring the
+       line as it grows is what makes this right for a proportional
+       font, where character counts are no guide to width. */
+    p = helptopics[helpsel].text;
+    while (*p && y+chrh <= helpy1) {
+
+        q = p;
+        n = 0;
+        line[0] = 0;
+        while (*q) { /* as many whole words as fit */
+
+            const char* e = q;
+            char        try[200];
+            long        m;
+
+            while (*e && *e != ' ') e++; /* the next word */
+            m = e-p;
+            if (m >= (long)sizeof(try)) break;
+            memcpy(try, p, m);
+            try[m] = 0;
+            if (n && ami_strsiz(helpwf, try) > w) break; /* it does not fit */
+            strcpy(line, try);
+            n = m;
+            q = e;
+            while (*q == ' ') q++;
+            if (!*e) break;
+
+        }
+        if (!n) { /* one word longer than the pane: put it down anyway */
+
+            while (*q && *q != ' ') q++;
+            n = q-p;
+            if (n >= (long)sizeof(line)) n = sizeof(line)-1;
+            memcpy(line, p, n);
+            line[n] = 0;
+            while (*q == ' ') q++;
+
+        }
+        ami_cursorg(helpwf, x, y);
+        fprintf(helpwf, "%s", line);
+        y += chrh;
+        p = p+n;
+        while (*p == ' ') p++;
+
+    }
+
+}
+
+/* place the widgets and work out the panes, on opening and on resize */
+static void helplay(void)
+
+{
+
+    long chrh = ami_chrsizy(helpwf);
+    long chrw = ami_strsiz(helpwf, "0");
+    long lw   = chrw*30;  /* the topic list */
+    long bw, bh, ew, eh;
+
+    ami_buttonsizg(helpwf, "Close", &bw, &bh);
+    ami_editboxsizg(helpwf, "0", &ew, &eh);
+    /* the search entry along the top of the list column */
+    helpx0 = chrw*2;
+    helpy0 = chrh*2+eh;
+    helpx1 = helpx0+lw;
+    helpy1 = ami_maxyg(helpwf)-bh-chrh*2;
+    if (helpy1 < helpy0+chrh) helpy1 = helpy0+chrh;
+    ami_poswidgetg(helpwf, HELPFIND, helpx0+ami_strsiz(helpwf, "Search: "),
+                   chrh);
+    ami_sizwidgetg(helpwf, HELPFIND,
+                   lw-ami_strsiz(helpwf, "Search: "), eh);
+    ami_poswidgetg(helpwf, HELPCLOSE, ami_maxxg(helpwf)-bw-chrw*2,
+                   ami_maxyg(helpwf)-bh-chrh/2);
+    ami_sizwidgetg(helpwf, HELPCLOSE, bw, bh);
+    /* The list is moved and sized rather than made again, so that the
+       topic picked in it stays picked across a resize. Only a change
+       of contents needs it made again, which is what helpfill is for. */
+    if (helplistup) {
+
+        ami_poswidgetg(helpwf, HELPLIST, helpx0, helpy0);
+        ami_sizwidgetg(helpwf, HELPLIST, helpx1-helpx0, helpy1-helpy0);
+
+    } else helpfill("");
+    /* the frame, the label, and the topic */
+    fprintf(helpwf, "\f");
+    ami_fcolor(helpwf, ami_black);
+    ami_cursorg(helpwf, helpx0, chrh);
+    fprintf(helpwf, "Search:");
+    helptext();
+
+}
+
+/* close the help window, if it is open */
+static void helpclose(void)
+
+{
+
+    if (helpwf) { fclose(helpwf); helpwf = NULL; helplistup = FALSE; }
+
+}
+
+/* Open the help window. A second open just brings the one already up to
+   the front, as help does everywhere. */
+static void helpopen(void)
+
+{
+
+    long wx, wy;
+
+    if (helpwf) { ami_front(helpwf); return; }
+    helpsel = -1;
+    ami_openwin(&stdin, &helpwf, NULL, HELPWIN);
+    ami_title(helpwf, "Spreadsheet help");
+    /* Unbuffered, so the window's measurements are the window's. A
+       buffered window answers maxxg with the buffer, which is not what
+       the layout wants here: this window has nothing to keep. */
+    ami_buffer(helpwf, FALSE);
+    ami_auto(helpwf, FALSE);
+    ami_curvis(helpwf, FALSE);
+    ami_font(helpwf, AMI_FONT_SIGN);
+    ami_setpoints(helpwf, 12.0);
+    ami_binvis(helpwf);
+    ami_winclientg(helpwf, ami_strsiz(helpwf, "0")*86, ami_chrsizy(helpwf)*26,
+                   &wx, &wy, BIT(ami_wmframe) | BIT(ami_wmsize) |
+                             BIT(ami_wmsysbar));
+    ami_setsizg(helpwf, wx, wy);
+    /* The entry and the button are made once here and moved by the
+       layout after. The list is made by the layout, which is where its
+       rectangle is known and where it is made again on every search. */
+    ami_editboxg(helpwf, 1, 1, 2, 2, HELPFIND);
+    ami_buttong(helpwf, 1, 1, 2, 2, "Close", HELPCLOSE);
+    helplay();
+
+}
+
+/* An event with the help window's id on it. The main loop hands them
+   here and goes on; nothing about the sheet is touched. */
+static void helpevent(ami_evtrec* er)
+
+{
+
+    char srch[100];
+
+    switch (er->etype) {
+
+        case ami_etterm:   /* the window was closed, not the program */
+        case ami_etbutton: helpclose(); break;
+
+        case ami_etresize:
+        case ami_etredraw: helplay(); break;
+
+        case ami_etlstbox: /* a topic was picked */
+            if (er->lstbsl >= 1 && er->lstbsl <= helpmatches)
+                helpsel = helpmatch[er->lstbsl-1];
+            helptext();
+            break;
+
+        case ami_etedtbox: /* the search was entered */
+            ami_getwidgettext(helpwf, HELPFIND, srch, sizeof(srch));
+            helpfill(srch);
+            helptext();
+            break;
+
+        default: break;
+
+    }
+
+}
+
+/*******************************************************************************
+
 Menu
 
 *******************************************************************************/
@@ -1751,6 +2142,11 @@ int main(int argc, char* argv[])
     do {
 
         ami_event(stdin, &er);
+        /* Every event names the window it came from, so the help window
+           is serviced from this same loop: hand it anything of its own
+           and go on. A terminate for it closes it, not the program,
+           which the loop condition below allows for. */
+        if (er.winid == HELPWIN) { helpevent(&er); continue; }
         if (diag) switch (er.etype) { /* the events the bars send */
 
             case ami_etmouba:
@@ -2074,11 +2470,7 @@ int main(int argc, char* argv[])
                     }
 
                     case AMI_SMHELPTOPIC:
-                        ami_alert("Spreadsheet",
-                            "Type to enter, = starts a formula. Enter goes "
-                            "down, tab goes right, escape abandons. Formulas "
-                            "take + - * / ( ) and SUM AVG MIN MAX COUNT over "
-                            "a range, as =SUM(A1:A10).");
+                        helpopen();
                         break;
 
                     case AMI_SMABOUT:
@@ -2112,8 +2504,10 @@ int main(int argc, char* argv[])
 
         }
 
-    } while (er.etype != ami_etterm);
+    /* a terminate for the help window ended that window, not this */
+    } while (er.etype != ami_etterm || er.winid == HELPWIN);
     done:
+    helpclose();
 
     return (0);
 
