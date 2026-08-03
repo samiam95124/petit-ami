@@ -67,12 +67,13 @@
 #include <sys/types.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <localdefs.h>
 #include <graphics.h>
 #include <network.h>
 #include <services.h>
-#include <config.h>
 #include <option.h>
 
 #define MAXSTR    500  /* the usual string */
@@ -88,16 +89,29 @@
 #define FOLDWIN   2 /* the folder pane */
 #define LISTWIN   3 /* the message list pane */
 #define READWIN   4 /* a message, opened to be read */
+#define SRVWIN    5 /* the server form */
 
 /* the scroll bars, which are widgets of the pane they are in */
 #define SBLIST    1 /* the message list */
 #define SBREAD    1 /* the reader */
+
+/* the widgets of the server form, numbered within its own window */
+#define SRVIMAP   1 /* the imap server */
+#define SRVIPORT  2 /* and its port */
+#define SRVSMTP   3 /* the sending server */
+#define SRVSPORT  4 /* and its port */
+#define SRVUSER   5 /* the user name */
+#define SRVPASS   6 /* the password */
+#define SRVLIMIT  7 /* messages fetched per folder */
+#define SRVOK     8 /* save and close */
+#define SRVCAN    9 /* close and keep what was there */
 
 /* menu ids of our own, after the standard ones */
 #define MENUMAIL  (AMI_SMMAX+1) /* the mail menu itself */
 #define MENUFETCH (AMI_SMMAX+2) /* fetch new mail */
 #define MENUFOLD  (AMI_SMMAX+3) /* fetch the folder list again */
 #define MENUCHECK (AMI_SMMAX+4) /* check that mail could be sent */
+#define MENUSRV   (AMI_SMMAX+5) /* the server form */
 
 #define WHEELROWS 3 /* rows the wheel moves per notch */
 
@@ -143,7 +157,7 @@ static long    msgtop;          /* the first message shown */
 static char imapsrv[MAXSTR] = "imap.gmail.com";
 static long imapport = 993;
 static char smtpsrv[MAXSTR] = "smtp.gmail.com";
-static long smtpport = 587;
+static long smtpport = 465;
 static char username[MAXSTR];
 static char password[MAXSTR];
 static char store[MAXSTR];      /* the directory the mail is kept in */
@@ -155,6 +169,7 @@ static long diag;               /* report the conversation to stderr */
 static FILE* foldwf;            /* the folder pane */
 static FILE* listwf;            /* the message list pane */
 static FILE* readwf;            /* the reader, NULL when closed */
+static FILE* srvwf;             /* the server form, NULL when closed */
 static long  chrh;              /* the height of a line, in pixels */
 static long  rowh;              /* the height of a message line */
 static long  foldw;             /* the width of the folder pane */
@@ -234,130 +249,99 @@ static void copystr(char* d, const char* s, long n)
 
 /*******************************************************************************
 
-The configuration
+The account
 
-The account is not asked for on the command line, since a password on a
-command line is a password in everybody's process list. It comes from the
-Petit-Ami configuration database, under a branch of its own, which means
-it can sit beside the program, in the user's path, or in the current
-directory, and the same program serves whichever is there.
+The account is the program's own business and is kept in the program's
+own file, in the mail store, written only by the form under Mail/Server.
+It is not on the command line, since a password on a command line is a
+password in everybody's process list, and it is not in the Petit-Ami
+configuration, which is a general facility shared by everything and no
+place for one program's password.
+
+The file is written readable by its owner and nobody else, and it is one
+setting to a line, so it can be read and corrected with any editor.
 
 *******************************************************************************/
 
-/* The value of one setting, or NULL if it was not given. The value the
-   config package hands back is everything after the first space of the
-   line, so a file whose settings are lined up in a column arrives with
-   the alignment still on the front of the value. Take it off: a store
-   path with three spaces before it is not a path, and a password with
-   three spaces before it is not the password. */
-static char* cfgstr(ami_valptr root, const char* name)
+/* where the account is kept */
+static void acctfile(char* fn, long fnl)
 
 {
 
-    ami_valptr vp = ami_schlst((string)name, root);
-    char*      v;
-
-    if (!vp || !vp->value) return (NULL);
-    v = vp->value;
-    while (*v == ' ' || *v == '\t') v++;
-    trim(v); /* and anything trailing */
-    if (!*v) return (NULL);
-
-    return (v);
+    snprintf(fn, fnl, "%s/account", store);
 
 }
 
-/* Warn if the file the password came from can be read by others.
-
-   Which file that is has to be worked out, since the configuration is
-   merged from up to six of them and what comes out does not say where it
-   came from. So each is read on its own and asked whether it is the one
-   holding the password. A warning and not a refusal: the configuration
-   is a general facility and the password may not be in a file at all. */
-static void checkperm(void)
+static void readaccount(void)
 
 {
 
-    char path[MAXSTR];
-    char fn[MAXSTR];
-    long i;
+    char  fn[MAXSTR*2];
+    FILE* f;
+    char  line[MAXSTR*2];
 
-    for (i = 0; i < 6; i++) {
+    acctfile(fn, sizeof(fn));
+    f = fopen(fn, "r");
+    if (!f) return; /* there is none yet, which is not an error */
+    while (fgets(line, sizeof(line), f)) {
 
-        ami_valptr   one = NULL;
-        ami_valptr   mp;
-        struct stat  sb;
+        char* p = line;
+        char* v;
 
-        switch (i/2) {
-
-            case 0: ami_getpgm(path, MAXSTR); break;
-            case 1: ami_getusr(path, MAXSTR); break;
-            default: ami_getcur(path, MAXSTR); break;
-
-        }
-        ami_maknam(fn, MAXSTR, path, i%2? ".petit_ami": "petit_ami", "cfg");
-        ami_configfile(fn, &one); /* this file alone */
-        if (!one) continue; /* it is not there */
-        mp = ami_schlst("mail", one);
-        if (mp && mp->sublist && cfgstr(mp->sublist, "pass") &&
-            !stat(fn, &sb) && (sb.st_mode & (S_IRWXG | S_IRWXO))) {
-
-            char msg[MAXSTR*2];
-
-            snprintf(msg, sizeof(msg),
-                     "%s holds the mail password and can be read by "
-                     "others.\nRun chmod 600 on it.", fn);
-            fail(msg);
-
-            return;
-
-        }
+        trim(p);
+        if (!*p || *p == '#') continue;
+        v = p;
+        while (*v && *v != ' ' && *v != '\t') v++;
+        if (*v) *v++ = 0;
+        while (*v == ' ' || *v == '\t') v++;
+        if (!strcasecmp(p, "imap")) copystr(imapsrv, v, MAXSTR);
+        else if (!strcasecmp(p, "imapport")) imapport = atol(v);
+        else if (!strcasecmp(p, "smtp")) copystr(smtpsrv, v, MAXSTR);
+        else if (!strcasecmp(p, "smtpport")) smtpport = atol(v);
+        else if (!strcasecmp(p, "user")) copystr(username, v, MAXSTR);
+        else if (!strcasecmp(p, "pass")) copystr(password, v, MAXSTR);
+        else if (!strcasecmp(p, "limit")) limit = atol(v);
 
     }
+    fclose(f);
 
 }
 
-static void readconfig(void)
+static void writeaccount(void)
 
 {
 
-    ami_valptr root = NULL;
-    ami_valptr mp;
-    char*      v;
-    char       path[MAXSTR-16]; /* room for the name put on the end */
+    char  fn[MAXSTR*2];
+    FILE* f;
+    int   fd;
 
-    ami_config(&root); /* the whole database, from wherever it is */
-    mp = ami_schlst("mail", root);
-    if (!mp) {
+    acctfile(fn, sizeof(fn));
+    /* Made by hand rather than by fopen, so that it is never readable by
+       anyone else even for the moment between being made and being
+       given its permissions. */
+    fd = open(fn, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) { fail("The account could not be saved"); return; }
+    f = fdopen(fd, "w");
+    if (!f) { close(fd); fail("The account could not be saved"); return; }
+    fprintf(f, "# Mail account. Written by the Server form in mail.\n");
+    fprintf(f, "imap %s\n", imapsrv);
+    fprintf(f, "imapport %ld\n", imapport);
+    fprintf(f, "smtp %s\n", smtpsrv);
+    fprintf(f, "smtpport %ld\n", smtpport);
+    fprintf(f, "user %s\n", username);
+    fprintf(f, "pass %s\n", password);
+    fprintf(f, "limit %ld\n", limit);
+    fclose(f);
+    chmod(fn, S_IRUSR | S_IWUSR); /* and for a file that was already there */
 
-        fail("There is no mail branch in the Petit-Ami configuration.\n"
-             "It gives the server, the user name and the password. See "
-             "the head of mail.c for what it holds.");
-        exit(1);
+}
 
-    }
-    mp = mp->sublist; /* the settings are under the branch */
-    if ((v = cfgstr(mp, "imap"))) copystr(imapsrv, v, MAXSTR);
-    if ((v = cfgstr(mp, "imapport"))) imapport = atol(v);
-    if ((v = cfgstr(mp, "smtp"))) copystr(smtpsrv, v, MAXSTR);
-    if ((v = cfgstr(mp, "smtpport"))) smtpport = atol(v);
-    if ((v = cfgstr(mp, "user"))) copystr(username, v, MAXSTR);
-    if ((v = cfgstr(mp, "pass"))) copystr(password, v, MAXSTR);
-    if ((v = cfgstr(mp, "store"))) copystr(store, v, MAXSTR);
-    if ((v = cfgstr(mp, "limit"))) limit = atol(v);
-    if (!*store) { /* where the mail is kept, if it was not said */
+/* is there enough to talk to a server with? */
+static int haveaccount(void)
 
-        ami_getusr(path, sizeof(path));
-        snprintf(store, MAXSTR, "%s/.amimail", path);
+{
 
-    }
-    if (!*username || !*password) {
-
-        fail("The mail configuration gives no user or no password.");
-        exit(1);
-
-    }
-    checkperm();
+    return (*imapsrv && *username && *password);
 
 }
 
@@ -1211,6 +1195,9 @@ static char* imliteral(long n)
 
 }
 
+/* what the server said to the last command, for when it said no */
+static char imanswer[MAXLINE];
+
 /* Read to the answer to the command with this tag, handing every
    untagged line to the caller. Gives TRUE if the server said OK. */
 static int imwait(const char* tag, void (*line)(const char*))
@@ -1220,11 +1207,18 @@ static int imwait(const char* tag, void (*line)(const char*))
     char line1[MAXLINE];
     long tl = strlen(tag);
 
+    imanswer[0] = 0;
     while (imline(line1, sizeof(line1))) {
 
         if (!strncmp(line1, tag, tl) && line1[tl] == ' ') {
 
             const char* r = line1+tl+1;
+
+            /* Keep it. A server that refuses a command usually says why,
+               and what it says is worth more to the user than anything
+               this program could make up: Gmail answers a login with the
+               wrong sort of password by naming the right sort. */
+            copystr(imanswer, r, MAXLINE);
 
             return (!strncasecmp(r, "OK", 2));
 
@@ -1232,6 +1226,7 @@ static int imwait(const char* tag, void (*line)(const char*))
         if (line) (*line)(line1);
 
     }
+    copystr(imanswer, "The server stopped answering.", MAXLINE);
 
     return (FALSE); /* the connection went away */
 
@@ -1391,9 +1386,26 @@ static int imapopen(void)
     }
     if (!imwait(tag, NULL)) {
 
-        fail("The server would not accept the user name and password.\n"
-             "For Gmail this must be an application password, from an "
-             "account with two step verification turned on.");
+        char msg[MAXSTR*3];
+        char said[MAXSTR];
+
+        /* the server's own words, with the NO or BAD and any bracketed
+           code taken off the front, since those mean nothing to a reader */
+        copystr(said, imanswer, MAXSTR);
+        {
+
+            char* p = said;
+
+            if (!strncasecmp(p, "NO ", 3)) p += 3;
+            else if (!strncasecmp(p, "BAD ", 4)) p += 4;
+            if (*p == '[') { while (*p && *p != ']') p++; if (*p) p++; }
+            while (*p == ' ') p++;
+            memmove(said, p, strlen(p)+1);
+
+        }
+        snprintf(msg, sizeof(msg),
+                 "%s would not accept the login.\n%s", imapsrv, said);
+        fail(msg);
         fclose(imap);
         imap = NULL;
 
@@ -1761,10 +1773,15 @@ static void status(const char* s)
 
 {
 
+    long y = ami_maxyg(stdout)-chrh-2;
+
+    /* Along the bottom. The menu bar is drawn into the top of the
+       client area, not above it, so anything written at the top of this
+       window is written under the menu. */
     ami_fcolor(stdout, ami_white);
-    ami_frect(stdout, 1, 1, ami_maxxg(stdout), chrh+4);
+    ami_frect(stdout, 1, y-2, ami_maxxg(stdout), ami_maxyg(stdout));
     ami_fcolor(stdout, ami_black);
-    ami_cursorg(stdout, 4, 2);
+    ami_cursorg(stdout, 6, y);
     fprintf(stdout, "%s", s);
 
 }
@@ -2109,6 +2126,200 @@ static void closeread(void)
 
 /*******************************************************************************
 
+The server form
+
+Everything needed to reach an account, in one window: where the servers
+are, who to log in as, and how much of a folder to take at a time. It is
+a window of the program's own like the reader, so it is filled in with
+the rest of the program still in view, and it is serviced from the same
+event loop.
+
+The password is shown as it is typed. There is no widget in the library
+that hides what is entered, which is the one thing a form like this
+would want.
+
+*******************************************************************************/
+
+/* the fields, in the order they appear */
+static const struct {
+
+    long  id;
+    char* label;
+    char* note;
+
+} srvfld[] = {
+
+    { SRVIMAP,  "Mail server",    "where the mail is read from" },
+    { SRVIPORT, "Port",           "993 for the secure one, which is usual" },
+    { SRVSMTP,  "Sending server", "where mail would be sent from" },
+    { SRVSPORT, "Port",           "465 for the secure one" },
+    { SRVUSER,  "User",           "the whole address, as someone@gmail.com" },
+    { SRVPASS,  "Password",       "for Gmail, an application password" },
+    { SRVLIMIT, "Messages",       "how many of each folder to fetch" },
+
+};
+#define SRVFLDS ((long)(sizeof(srvfld)/sizeof(srvfld[0])))
+
+static void srvlay(void)
+
+{
+
+    long chrw = ami_strsiz(srvwf, "0");
+    long labw = ami_strsiz(srvwf, "Sending server  ");
+    long ew, eh, bw, bh;
+    long y;
+    long i;
+
+    ami_editboxsizg(srvwf, "0", &ew, &eh);
+    ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
+    fprintf(srvwf, "\f");
+    ami_fcolor(srvwf, ami_black);
+    y = chrh;
+    for (i = 0; i < SRVFLDS; i++) {
+
+        ami_cursorg(srvwf, chrw*2, y+(eh-chrh)/2);
+        fprintf(srvwf, "%s", srvfld[i].label);
+        ami_poswidgetg(srvwf, srvfld[i].id, chrw*2+labw, y);
+        ami_sizwidgetg(srvwf, srvfld[i].id, chrw*30, eh);
+        /* what the field is for, beside it, since a form that only says
+           "Port" leaves the reader to guess which port */
+        ami_cursorg(srvwf, chrw*2+labw+chrw*32, y+(eh-chrh)/2);
+        fprintf(srvwf, "%s", srvfld[i].note);
+        y += eh+chrh/2;
+
+    }
+    y += chrh/2;
+    ami_poswidgetg(srvwf, SRVOK, chrw*2+labw, y);
+    ami_sizwidgetg(srvwf, SRVOK, bw, bh);
+    ami_poswidgetg(srvwf, SRVCAN, chrw*2+labw+bw+chrw*2, y);
+    ami_sizwidgetg(srvwf, SRVCAN, bw, bh);
+
+}
+
+/* fill the form in from what the program is using now */
+static void srvload(void)
+
+{
+
+    char num[40];
+
+    ami_putwidgettext(srvwf, SRVIMAP, imapsrv);
+    sprintf(num, "%ld", imapport);
+    ami_putwidgettext(srvwf, SRVIPORT, num);
+    ami_putwidgettext(srvwf, SRVSMTP, smtpsrv);
+    sprintf(num, "%ld", smtpport);
+    ami_putwidgettext(srvwf, SRVSPORT, num);
+    ami_putwidgettext(srvwf, SRVUSER, username);
+    ami_putwidgettext(srvwf, SRVPASS, password);
+    sprintf(num, "%ld", limit);
+    ami_putwidgettext(srvwf, SRVLIMIT, num);
+
+}
+
+/* take what was typed and keep it */
+static void srvsave(void)
+
+{
+
+    char s[MAXSTR];
+
+    ami_getwidgettext(srvwf, SRVIMAP, s, sizeof(s));
+    trim(s);
+    copystr(imapsrv, s, MAXSTR);
+    ami_getwidgettext(srvwf, SRVIPORT, s, sizeof(s));
+    if (atol(s) > 0) imapport = atol(s);
+    ami_getwidgettext(srvwf, SRVSMTP, s, sizeof(s));
+    trim(s);
+    copystr(smtpsrv, s, MAXSTR);
+    ami_getwidgettext(srvwf, SRVSPORT, s, sizeof(s));
+    if (atol(s) > 0) smtpport = atol(s);
+    ami_getwidgettext(srvwf, SRVUSER, s, sizeof(s));
+    trim(s);
+    copystr(username, s, MAXSTR);
+    /* the password is taken as typed, since a space may be part of it */
+    ami_getwidgettext(srvwf, SRVPASS, s, sizeof(s));
+    copystr(password, s, MAXSTR);
+    ami_getwidgettext(srvwf, SRVLIMIT, s, sizeof(s));
+    if (atol(s) > 0) limit = atol(s);
+    writeaccount();
+
+}
+
+static void srvclose(void)
+
+{
+
+    if (srvwf) { fclose(srvwf); srvwf = NULL; }
+
+}
+
+static void srvopen(void)
+
+{
+
+    long wx, wy;
+    long ew, eh, bw, bh;
+    long i;
+
+    if (srvwf) { ami_front(srvwf); return; }
+    ami_openwin(&stdin, &srvwf, NULL, SRVWIN);
+    ami_title(srvwf, "Mail server");
+    ami_buffer(srvwf, FALSE);
+    ami_auto(srvwf, FALSE);
+    ami_curvis(srvwf, FALSE);
+    ami_font(srvwf, AMI_FONT_SIGN);
+    ami_setpoints(srvwf, 11.0);
+    ami_binvis(srvwf);
+    ami_editboxsizg(srvwf, "0", &ew, &eh);
+    ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
+    ami_winclientg(srvwf, ami_strsiz(srvwf, "0")*88,
+                   (eh+chrh/2)*SRVFLDS+bh+chrh*3, &wx, &wy,
+                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsizg(srvwf, wx, wy);
+    ami_setposg(srvwf, 120, 120);
+    /* made here, placed by the layout, which runs again on a resize */
+    for (i = 0; i < SRVFLDS; i++)
+        ami_editboxg(srvwf, 1, 1, 2, 2, srvfld[i].id);
+    ami_buttong(srvwf, 1, 1, 2, 2, "Save", SRVOK);
+    ami_buttong(srvwf, 1, 1, 2, 2, "Cancel", SRVCAN);
+    srvlay();
+    srvload();
+
+}
+
+/* an event with the form's window id on it */
+static void srvevent(ami_evtrec* er)
+
+{
+
+    switch (er->etype) {
+
+        case ami_etterm: srvclose(); break;
+
+        case ami_etredraw:
+        case ami_etresize: srvlay(); break;
+
+        case ami_etbutton:
+            if (er->butid == SRVOK) {
+
+                srvsave();
+                srvclose();
+                status(haveaccount()?
+                       "Account saved. Mail/Get Mail reads the server.":
+                       "The server, the user and the password are all "
+                       "needed before mail can be fetched.");
+
+            } else srvclose();
+            break;
+
+        default: break;
+
+    }
+
+}
+
+/*******************************************************************************
+
 Layout
 
 The panes are placed on the main window and moved when it is resized.
@@ -2121,8 +2332,8 @@ static void layout(void)
 
 {
 
-    long top = chrh+8; /* under the status line */
-    long h = ami_maxyg(stdout)-top;
+    long top = chrh*2; /* under the menu bar, which is drawn in the client */
+    long h = ami_maxyg(stdout)-top-chrh-6; /* and above the status line */
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
@@ -2195,7 +2406,9 @@ static void setupmenu(void)
                 &sm, ml);
     /* as in the spreadsheet, the branch is hung on after the standard
        menu is built, since building it clears the branch link */
-    newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Fetch New Mail");
+    newmenu(&mp, FALSE, FALSE, OFF, MENUSRV, "Server...");
+    appendmenu(&ma->branch, mp);
+    newmenu(&mp, FALSE, FALSE, ON, MENUFETCH, "Get Mail");
     appendmenu(&ma->branch, mp);
     newmenu(&mp, FALSE, FALSE, ON, MENUFOLD, "Refresh Folder List");
     appendmenu(&ma->branch, mp);
@@ -2305,14 +2518,17 @@ int main(int argc, char* argv[])
     ami_buffer(stdout, FALSE);
     chrh = ami_chrsizy(stdout);
     rowh = chrh+8;
-    readconfig();
     { /* the store, if it is not there yet: makpth is an error if it is */
 
+        char        path[MAXSTR-16];
         struct stat sb;
 
+        ami_getusr(path, sizeof(path));
+        snprintf(store, MAXSTR, "%s/.amimail", path);
         if (stat(store, &sb)) ami_makpth(store);
 
     }
+    readaccount(); /* if there is one; the program comes up either way */
     setupmenu();
     ami_winclientg(stdout, ami_strsiz(stdout, "0")*130, chrh*46, &wx, &wy,
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
@@ -2348,8 +2564,11 @@ int main(int argc, char* argv[])
     if (foldct) showfolder(0);
     drawfolders();
     drawlist();
-    status(foldct? "": "Nothing fetched yet. Mail/Fetch New Mail reads "
-                       "the server.");
+    if (!haveaccount())
+        status("No account yet. Mail/Server asks for one.");
+    else if (!foldct) status("Nothing fetched yet. Mail/Get Mail reads the "
+                             "server.");
+    else status("");
     if (dofetch) fetchall();
     do {
 
@@ -2357,6 +2576,7 @@ int main(int argc, char* argv[])
         /* Every event names the window it came from. The reader is a
            window of its own and the panes are windows of their own, so
            this one loop serves them all. */
+        if (er.winid == SRVWIN) { srvevent(&er); continue; }
         if (er.winid == READWIN) {
 
             switch (er.etype) {
@@ -2485,9 +2705,20 @@ int main(int argc, char* argv[])
             case ami_etmenus:
                 switch (er.menuid) {
 
-                    case MENUFETCH: fetchall(); break;
+                    case MENUSRV: srvopen(); break;
+
+                    case MENUFETCH:
+                        if (!haveaccount()) {
+
+                            status("No account yet. Mail/Server asks for "
+                                   "one.");
+                            srvopen();
+
+                        } else fetchall();
+                        break;
 
                     case MENUFOLD:
+                        if (!haveaccount()) { srvopen(); break; }
                         if (getfolders()) {
 
                             imapclose();
@@ -2498,12 +2729,16 @@ int main(int argc, char* argv[])
                         }
                         break;
 
-                    case MENUCHECK: smtpcheck(); break;
+                    case MENUCHECK:
+                        if (!haveaccount()) { srvopen(); break; }
+                        smtpcheck();
+                        break;
 
                     case AMI_SMHELPTOPIC:
                         ami_alert("Mail",
-                                  "Pick a folder at the left, then a message. "
-                                  "Mail/Fetch New Mail reads the server.");
+                                  "Mail/Server sets the account. Mail/Get "
+                                  "Mail reads it. Then pick a folder at the "
+                                  "left and a message on the right.");
                         break;
 
                     case AMI_SMABOUT:
@@ -2521,8 +2756,10 @@ int main(int argc, char* argv[])
         }
 
     /* a terminate for the reader closed the reader, not the program */
-    } while (er.etype != ami_etterm || er.winid == READWIN);
+    } while (er.etype != ami_etterm ||
+             er.winid == READWIN || er.winid == SRVWIN);
     done:
+    srvclose();
     closeread();
     imapclose();
 
