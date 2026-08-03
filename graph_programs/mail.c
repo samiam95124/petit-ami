@@ -1466,13 +1466,6 @@ static void popdraw(void)
     ami_fcolor(popwf, ami_black);
     for (i = 0; i < 2; i++) {
 
-        if (i == poprow) {
-
-            ami_fcolor(popwf, ami_cyan);
-            ami_frect(popwf, 2, 3+i*poprowh, w-3, 3+(i+1)*poprowh-1);
-            ami_fcolor(popwf, ami_black);
-
-        }
         ami_cursorg(popwf, 8, 3+i*poprowh+(poprowh-chrh)/2);
         fprintf(popwf, "%s", poplab[i]);
 
@@ -3629,18 +3622,24 @@ int main(int argc, char* argv[])
 
             switch (er.etype) {
 
+                /* The menu does nothing at all until a button goes
+                   down: it notes where the mouse is and no more. It
+                   drew itself again on every move to follow the pointer
+                   with a highlight, and that redraw was what made it
+                   disappear the moment the mouse set off towards an
+                   entry. A menu that waits for the click is what every
+                   other program does anyway. */
                 case ami_etmoumovg: {
 
                     long r = (er.moupyg-3)/(poprowh? poprowh: 1);
 
-                    if (r < 0) r = 0;
-                    if (r > 1) r = 1;
-                    if (r != poprow) { poprow = r; popdraw(); }
+                    poprow = r >= 0 && r < 2? r: -1;
                     break;
 
                 }
                 case ami_etmouba: /* a button down on an entry takes it */
                     if (poprow >= 0) popact(poprow);
+                    else popclose(); /* down on the edge: put it away */
                     break;
                 case ami_etmoubd: break; /* the opening click coming up */
                 case ami_etcan:
@@ -3653,18 +3652,15 @@ int main(int argc, char* argv[])
         }
         if (er.winid == LISTWIN) {
 
-            /* An open menu stays open until something is picked or the
-               next button goes down somewhere else. A button coming up
-               is not a reason to close: the button that opened it comes
-               up a moment later, which shut the menu the instant it was
-               made and made it look as though it had never opened. */
-            if (popwf && er.etype != ami_etmoumovg &&
-                         er.etype != ami_etmoubd) {
-
-                popclose();
-                if (er.etype == ami_etmouba) continue;
-
-            }
+            /* An open menu is cancelled by the next click, and by
+               nothing else, which is what every other program does.
+               Closing on anything that was not a mouse move looked
+               reasonable and was not: the button that opened it comes
+               up a moment later, and the mouse leaving this pane for
+               the menu sends this pane a nohover -- so the menu was
+               destroyed either as it was born or the moment the mouse
+               set off towards it. */
+            if (popwf && er.etype == ami_etmouba) { popclose(); continue; }
             switch (er.etype) {
 
                 case ami_etmoumovg: mpx = er.moupxg; mpy = er.moupyg; break;
