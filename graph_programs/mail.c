@@ -395,7 +395,7 @@ static long b64dec(const char* s, long n, char* d, long dn)
     long acc = 0, bits = 0, o = 0;
     long i;
 
-    for (i = 0; i < n; i++) {
+    for (i = 0; i < n && o < dn-1; i++) {
 
         long v = b64val(s[i]);
 
@@ -405,7 +405,7 @@ static long b64dec(const char* s, long n, char* d, long dn)
         if (bits >= 8) {
 
             bits -= 8;
-            if (o < dn-1) d[o++] = (acc>>bits) & 0xff;
+            d[o++] = (acc>>bits) & 0xff;
 
         }
 
@@ -667,7 +667,7 @@ static void detag(const char* s, char* d, long dn)
 }
 
 /* decode one part according to what its headers say it is */
-static char* decodepart(const char* part, long len, int* ishtml)
+static char* decodepart(const char* part, long len, int* ishtml, long want)
 
 {
 
@@ -677,6 +677,7 @@ static char* decodepart(const char* part, long len, int* ishtml)
     char* out;
     const char* body;
     long  bl;
+    long  room;
 
     memcpy(raw, part, len);
     raw[len] = 0;
@@ -685,21 +686,51 @@ static char* decodepart(const char* part, long len, int* ishtml)
     *ishtml = !strncasecmp(typ, "text/html", 9);
     body = bodyof(raw);
     bl = len-(body-raw);
-    out = getmem(bl+2);
-    if (!strcasecmp(enc, "base64")) b64dec(body, bl, out, bl+2);
+    /* Only as much as the caller has a use for. The list wants a few
+       hundred characters to show beside the subject; decoding a
+       megabyte of base64 to throw all but four hundred bytes of it away
+       is what made opening a folder of large messages slow. The reader
+       asks for the whole thing by wanting nothing in particular. */
+    room = bl+2;
+    if (want > 0 && want+2 < room) room = want+2;
+    out = getmem(room);
+    if (!strcasecmp(enc, "base64")) b64dec(body, bl, out, room);
     else if (!strcasecmp(enc, "quoted-printable"))
-        qpdec(body, bl, out, bl+2, FALSE);
-    else { memcpy(out, body, bl); out[bl] = 0; }
+        qpdec(body, bl, out, room, FALSE);
+    else {
+
+        if (bl > room-1) bl = room-1;
+        memcpy(out, body, bl);
+        out[bl] = 0;
+
+    }
     free(raw);
 
     return (out);
 
 }
 
+/* What a part says it is. Only the head of it is looked at: a part can
+   be an attachment of twenty megabytes, and its headers are in the
+   first few lines of it. */
+static void parttype(const char* part, long len, char* typ, long tn)
+
+{
+
+    char hdr[4000];
+    long n = len;
+
+    if (n > (long)sizeof(hdr)-1) n = sizeof(hdr)-1;
+    memcpy(hdr, part, n);
+    hdr[n] = 0;
+    findheader(hdr, "Content-Type", typ, tn);
+
+}
+
 /* Find the text of a message: the plain text part if there is one, the
    html one with its tags taken out if there is not. Multipart messages
    are walked into, since the plain part is nearly always inside one. */
-static char* textof(const char* msg, long len)
+static char* textof(const char* msg, long len, long want)
 
 {
 
@@ -715,7 +746,7 @@ static char* textof(const char* msg, long len)
     if (strncasecmp(typ, "multipart/", 10)) { /* one part, the whole thing */
 
         int   ishtml;
-        char* t = decodepart(msg, len, &ishtml);
+        char* t = decodepart(msg, len, &ishtml, want);
 
         if (ishtml) {
 
@@ -733,10 +764,11 @@ static char* textof(const char* msg, long len)
     hdrparam(typ, "boundary", bound, sizeof(bound));
     if (!*bound) { /* multipart with no boundary: take it as it lies */
 
-        char* t = getmem(len+1);
+        long  n = want > 0 && want < len? want: len;
+        char* t = getmem(n+1);
 
-        memcpy(t, msg, len);
-        t[len] = 0;
+        memcpy(t, msg, n);
+        t[n] = 0;
 
         return (t);
 
@@ -751,13 +783,30 @@ static char* textof(const char* msg, long len)
         const char* e;
         int         ishtml;
         char*       t;
+        char        ptyp[MAXSTR];
 
         if (s[0] == '-' && s[1] == '-') break; /* the end separator */
         while (*s == '\r') s++;
         if (*s == '\n') s++;
         e = strstr(s, sep);
         if (!e) e = msg+len;
-        t = decodepart(s, e-s, &ishtml);
+        parttype(s, e-s, ptyp, sizeof(ptyp));
+        if (!strncasecmp(ptyp, "multipart/", 10)) {
+
+            /* A part can be a multipart itself, and usually is: mail
+               with an attachment is a multipart/mixed holding a
+               multipart/alternative holding the text. Taken as a part
+               rather than gone into, the reader is shown the separators
+               and the part headers as though they were the message. */
+            t = textof(s, e-s, want);
+            ishtml = FALSE; /* whatever it found, it found the best of */
+
+        } else if (*ptyp && strncasecmp(ptyp, "text/", 5)) {
+
+            p = e; /* an attachment, a picture, something not to read */
+            continue;
+
+        } else t = decodepart(s, e-s, &ishtml, want);
         if (!best || (besthtml && !ishtml)) { /* plain beats html */
 
             free(best);
@@ -1020,7 +1069,8 @@ static void indexmsg(const char* msg, long len, long off)
         copystr(m->subject, "(no subject)", sizeof(m->subject));
     findheader(msg, "Date", date, sizeof(date));
     m->date = parsedate(date, m->when, sizeof(m->when));
-    text = textof(msg, len);
+    /* only what the list will show: see decodepart */
+    text = textof(msg, len, SNIPPET*2);
     snipof(text, m->snip, sizeof(m->snip));
     free(text);
 
@@ -1052,7 +1102,9 @@ static void indexfolder(long fold)
     char* buf;
     long  n;
     long  i, start;
+    struct timespec t0;
 
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
     msgct = 0;
     msgtop = 0;
     msgsel = -1;
@@ -1106,6 +1158,16 @@ static void indexfolder(long fold)
     free(buf);
     qsort(msgs, msgct, sizeof(msgrec), bydate);
     folders[fold].msgs = msgct;
+    if (diag) {
+
+        struct timespec t1;
+
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        fprintf(stderr, "index: %s, %ld bytes, %ld messages, %.0fms\n",
+                folders[fold].show, n, msgct,
+                (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
+
+    }
 
 }
 
@@ -1752,15 +1814,71 @@ static void status(const char* s)
 
 }
 
+/* How many characters of this string fit in the width, found by
+   halving. Taking a character off and measuring the whole string again
+   until it fits measures the string as many times as there are
+   characters to lose, and every measurement walks the string: a few
+   hundred characters cost a few hundred measurements, and a message
+   list redraws every row of forty on every click. Halving costs the
+   logarithm of that -- eight or nine measurements instead of four
+   hundred. */
+/* the width of an average character of the font in use, for guessing
+   with; measured once, since the font does not change under us */
+static long avgchrw(FILE* f)
+
+{
+
+    static long w;
+
+    if (!w) w = ami_strsiz(f, "abcdefghijklmnopqrstuvwxyz")/26;
+    if (w < 1) w = 1;
+
+    return (w);
+
+}
+
+static long fitchars(FILE* f, char* s, long w)
+
+{
+
+    long n = strlen(s);
+    long lo = 0, hi;
+    long cap;
+    char c;
+
+    /* Cut it down before measuring it. Measuring costs a walk of the
+       whole string, so the four hundred characters of a snippet are
+       walked by every measurement even though sixty of them will fit.
+       Three times the average character's worth is far more than can
+       fit and costs nothing to work out. */
+    cap = w/avgchrw(f)*3+8;
+    if (n > cap) { s[cap] = 0; n = cap; }
+    hi = n;
+    if (ami_strsiz(f, s) <= w) return (n); /* it all fits */
+    while (lo < hi) {
+
+        long mid = (lo+hi+1)/2;
+
+        c = s[mid];
+        s[mid] = 0;
+        if (ami_strsiz(f, s) <= w) lo = mid; else hi = mid-1;
+        s[mid] = c;
+
+    }
+
+    return (lo);
+
+}
+
 /* cut a string to fit a width, with an ellipsis if it had to be cut */
 static void clipstr(FILE* f, char* s, long w)
 
 {
 
-    long n = strlen(s);
+    long n = fitchars(f, s, w);
 
-    if (ami_strsiz(f, s) <= w) return;
-    while (n && ami_strsiz(f, s) > w) s[--n] = 0;
+    if (n >= (long)strlen(s)) return; /* nothing to cut */
+    s[n] = 0;
     if (n > 3) strcpy(s+n-3, "...");
 
 }
@@ -1858,6 +1976,44 @@ static void drawmsg(long i, long y)
 
 }
 
+/* Draw one row where it belongs, background and all. Moving from one
+   message to the next changes two rows out of thirty, and drawing a row
+   costs a few text writes, so drawing the two beats drawing the lot: a
+   redraw of the whole list is over a tenth of a second, which is what
+   made stepping down a folder feel slow. */
+static void drawrow(long i)
+
+{
+
+    long y;
+
+    if (!listwf || i < msgtop || i >= msgct) return;
+    y = 4+(i-msgtop)*rowh;
+    if (y+rowh > ami_maxyg(listwf)) return; /* not on the screen */
+    ami_fcolor(listwf, ami_white);
+    ami_frect(listwf, 0, y-2, ami_maxxg(listwf)-sbw, y+rowh-4);
+    ami_fcolor(listwf, ami_black);
+    drawmsg(i, y);
+    ami_fcolor(listwf, ami_white);
+    ami_line(listwf, 0, y+rowh-3, ami_maxxg(listwf)-sbw, y+rowh-3);
+    ami_fcolor(listwf, ami_black);
+
+}
+
+/* move the mark from one message to another, without drawing the rest */
+static void selectmsg(long i)
+
+{
+
+    long was = msgsel;
+
+    if (i == msgsel) return;
+    msgsel = i;
+    if (was >= 0) drawrow(was);
+    drawrow(i);
+
+}
+
 static void setlistbar(void)
 
 {
@@ -1877,8 +2033,10 @@ static void drawlist(void)
 
     long i;
     long y = 4;
+    struct timespec t0, t1;
 
     if (!listwf) return;
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
     fprintf(listwf, "\f");
     ami_fcolor(listwf, ami_black);
     if (foldsel < 0) {
@@ -1909,6 +2067,13 @@ static void drawlist(void)
 
     }
     setlistbar();
+    if (diag) {
+
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        fprintf(stderr, "list: %ld rows %.0fms\n", i-msgtop,
+                (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
+
+    }
 
 }
 
@@ -1947,17 +2112,18 @@ static void wrapread(void)
         do {
 
             char  part[MAXLINE];
-            long  cut = strlen(line);
+            long  cut;
 
             copystr(part, line, sizeof(part));
-            if (ami_strsiz(readwf, part) > w) {
+            cut = fitchars(readwf, part, w);
+            if (cut < (long)strlen(part)) {
 
-                long b;
+                long b = cut;
 
-                while (cut && ami_strsiz(readwf, part) > w) part[--cut] = 0;
-                b = cut;
+                /* back up to the last space, so words stay whole */
                 while (b && part[b-1] != ' ') b--;
-                if (b > 1) { cut = b; part[cut] = 0; }
+                if (b > 1) cut = b;
+                part[cut] = 0;
 
             }
             if (readlines >= readmax) {
@@ -2028,14 +2194,18 @@ static void openmsg(long i)
     char  title[MAXSTR];
     long  wx, wy;
     long  n;
+    struct timespec t0, t1, t2, t3, t4;
 
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
     raw = getmsg(foldsel, i);
     if (!raw) { fail("The message could not be read back"); return; }
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t1);
     findheader(raw, "From", from, sizeof(from));
     findheader(raw, "To", to, sizeof(to));
     findheader(raw, "Subject", subj, sizeof(subj));
     findheader(raw, "Date", date, sizeof(date));
-    text = textof(raw, strlen(raw));
+    text = textof(raw, strlen(raw), 0); /* all of it, to be read */
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t2);
     free(readtext);
     n = strlen(from)+strlen(to)+strlen(subj)+strlen(date)+strlen(text)+200;
     readtext = getmem(n);
@@ -2070,7 +2240,20 @@ static void openmsg(long i)
     ami_title(readwf, title);
     ami_front(readwf);
     wrapread();
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t3);
     drawread();
+    if (diag) {
+
+        clock_gettime(CLOCK_MONOTONIC, &t4);
+        fprintf(stderr, "open: %ld bytes, read %.0fms decode %.0fms "
+                        "wrap %.0fms (%ld lines) draw %.0fms\n", msgs[i].len,
+                (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6,
+                (t2.tv_sec-t1.tv_sec)*1e3+(t2.tv_nsec-t1.tv_nsec)/1e6,
+                (t3.tv_sec-t2.tv_sec)*1e3+(t3.tv_nsec-t2.tv_nsec)/1e6,
+                readlines,
+                (t4.tv_sec-t3.tv_sec)*1e3+(t4.tv_nsec-t3.tv_nsec)/1e6);
+
+    }
 
 }
 
@@ -2309,8 +2492,10 @@ static void layout(void)
     if (foldw > ami_maxxg(stdout)/2) foldw = ami_maxxg(stdout)/2;
     ami_setposg(foldwf, 1, top);
     ami_setsizg(foldwf, foldw, h);
+    ami_sizbufg(foldwf, foldw, h);
     ami_setposg(listwf, foldw+2, top);
     ami_setsizg(listwf, ami_maxxg(stdout)-foldw-2, h);
+    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-2, h);
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
@@ -2647,7 +2832,11 @@ int main(int argc, char* argv[])
     /* A pane is part of the main window, not a window of its own: no
        frame, no title bar, no sizing bars. */
     ami_frame(foldwf, FALSE);
-    ami_buffer(foldwf, FALSE);
+    /* Buffered, so that the library repaints what other windows have
+       covered without the program being asked. Unbuffered, every time
+       the reader window moved across the list the program redrew every
+       row of it, which is an eighth of a second of drawing for nothing. */
+    ami_buffer(foldwf, TRUE);
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
@@ -2655,7 +2844,7 @@ int main(int argc, char* argv[])
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
-    ami_buffer(listwf, FALSE);
+    ami_buffer(listwf, TRUE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
@@ -2734,7 +2923,7 @@ int main(int argc, char* argv[])
                     i = (mpy-4-chrh*2)/(chrh+4);
                     if (i >= 0 && i < foldct) showfolder(i);
                     break;
-                case ami_etredraw: drawfolders(); break;
+                case ami_etredraw: break; /* buffered, as the list is */
                 default: break;
 
             }
@@ -2763,8 +2952,7 @@ int main(int argc, char* argv[])
                     } else if (er.amoubn == 1) {
 
                         i = msgtop+(mpy-4)/rowh;
-                        if (i >= 0 && i < msgct) { msgsel = i; drawlist();
-                                                   openmsg(i); }
+                        if (i >= 0 && i < msgct) { selectmsg(i); openmsg(i); }
 
                     }
                     break;
@@ -2794,7 +2982,11 @@ int main(int argc, char* argv[])
                     drawlist();
                     fromdrag = FALSE;
                     break;
-                case ami_etredraw: drawlist(); break;
+                /* Nothing on a redraw: the pane is buffered, so the
+                   library puts back what was covered. Drawing it again
+                   here is the whole list redrawn every time another
+                   window passes over it. */
+                case ami_etredraw: break;
                 default: break;
 
             }
@@ -2805,6 +2997,20 @@ int main(int argc, char* argv[])
 
             case ami_etresize:
             case ami_etredraw:
+                /* The window manager sends several of these as it maps
+                   and decorates the window, and each one costs a redraw
+                   of every row. Only the ones that change the size are
+                   worth anything. */
+                {
+
+                    static long lastx, lasty;
+
+                    if (ami_maxxg(stdout) == lastx &&
+                        ami_maxyg(stdout) == lasty) break;
+                    lastx = ami_maxxg(stdout);
+                    lasty = ami_maxyg(stdout);
+
+                }
                 layout();
                 status("");
                 drawfolders();
