@@ -187,7 +187,11 @@ static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
 static long  foldy[MAXFOLDER];  /* where each folder was drawn, for clicks */
+static long  winw, winh;        /* the main window, as last told to us */
+static long  lastw, lasth;      /* and what it was when last laid out */
 static long  listx, listy;      /* where the list pane sits on the window */
+static long  listw, listh;      /* and how big it was made */
+static long  foldh;             /* the folder pane's height */
 static long  fromx;             /* where the sender column ends */
 static long  datex;             /* where the date column begins */
 static long  mpx, mpy;          /* the mouse, in pixels of its own window */
@@ -2337,7 +2341,7 @@ static void drawfolders(void)
         if (pass) { /* the rule, then the second heading */
 
             y += chrh/2;
-            divider(foldwf, 6, y, ami_maxxg(foldwf)-8, y);
+            divider(foldwf, 6, y, foldw-8, y);
             y += chrh;
 
         }
@@ -2356,7 +2360,7 @@ static void drawfolders(void)
             if (i == foldsel) { /* the one being shown */
 
                 ami_fcolor(foldwf, ami_cyan);
-                ami_frect(foldwf, 2, y-2, ami_maxxg(foldwf)-2, y+chrh);
+                ami_frect(foldwf, 2, y-2, foldw-2, y+chrh);
                 ami_fcolor(foldwf, ami_black);
 
             }
@@ -2368,12 +2372,12 @@ static void drawfolders(void)
                                             sizeof(cnt));
             cw = *cnt? ami_strsiz(foldwf, cnt)+8: 0;
             ami_bold(foldwf, i == foldsel);
-            clipstr(foldwf, nm, ami_maxxg(foldwf)-16-cw);
+            clipstr(foldwf, nm, foldw-16-cw);
             ami_cursorg(foldwf, 8, y);
             fprintf(foldwf, "%s", nm);
             if (*cnt) {
 
-                ami_cursorg(foldwf, ami_maxxg(foldwf)-8-
+                ami_cursorg(foldwf, foldw-8-
                                     ami_strsiz(foldwf, cnt), y);
                 fprintf(foldwf, "%s", cnt);
 
@@ -2407,7 +2411,7 @@ static void drawmsg(long i, long y)
 {
 
     msgrec* m = &msgs[i];
-    long    w = ami_maxxg(listwf)-sbw;
+    long    w = listw-sbw;
     long    x;
     char    s[MAXSTR+SNIPPET];
     long    subw;
@@ -2471,13 +2475,13 @@ static void drawrow(long i)
 
     if (!listwf || i < msgtop || i >= msgct) return;
     y = 4+(i-msgtop)*rowh;
-    if (y+rowh > ami_maxyg(listwf)) return; /* not on the screen */
+    if (y+rowh > listh) return; /* not on the screen */
     ami_fcolor(listwf, ami_white);
-    ami_frect(listwf, 0, y-2, ami_maxxg(listwf)-sbw, y+rowh-4);
+    ami_frect(listwf, 0, y-2, listw-sbw, y+rowh-4);
     ami_fcolor(listwf, ami_black);
     drawmsg(i, y);
     ami_fcolor(listwf, ami_white);
-    ami_line(listwf, 0, y+rowh-3, ami_maxxg(listwf)-sbw, y+rowh-3);
+    ami_line(listwf, 0, y+rowh-3, listw-sbw, y+rowh-3);
     ami_fcolor(listwf, ami_black);
 
 }
@@ -2502,7 +2506,7 @@ static long listvis(void)
 
 {
 
-    long n = (ami_maxyg(listwf)-4)/rowh;
+    long n = (listh-4)/rowh;
 
     return (n < 1? 1: n);
 
@@ -2615,9 +2619,9 @@ static void drawlist(void)
     }
     /* the column dividers first, full height, so the rows overprint
        their own pieces and the empty part of the list is ruled too */
-    divider(listwf, fromx, 0, fromx, ami_maxyg(listwf));
-    divider(listwf, datex-8, 0, datex-8, ami_maxyg(listwf));
-    for (i = msgtop; i < msgct && y+rowh <= ami_maxyg(listwf); i++) {
+    divider(listwf, fromx, 0, fromx, listh);
+    divider(listwf, datex-8, 0, datex-8, listh);
+    for (i = msgtop; i < msgct && y+rowh <= listh; i++) {
 
         drawmsg(i, y);
         y += rowh;
@@ -2863,7 +2867,10 @@ static void openmsg(long i)
     if (!readwf) {
 
         ami_openwin(&stdin, &readwf, NULL, READWIN);
-        ami_buffer(readwf, TRUE);
+        /* unbuffered, as the panes are: ami_scrollg moves the picture
+           either way, since the library keeps a screen structure for a
+           window whether it is buffered or not */
+        ami_buffer(readwf, FALSE);
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
@@ -2872,7 +2879,6 @@ static void openmsg(long i)
         ami_winclientg(readwf, ami_strsiz(readwf, "0")*84, chrh*40, &wx, &wy,
                        BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
         ami_setsizg(readwf, wx, wy);
-        ami_sizbufg(readwf, wx, wy);
         /* down and to the right, so it does not sit on top of the list
            it was opened from */
         ami_setposg(readwf, 80, 80);
@@ -3127,34 +3133,41 @@ static void layout(void)
 {
 
     long top = chrh*2; /* under the menu bar, which is drawn in the client */
-    long h = ami_maxyg(stdout)-top;
+    long h = winh-top;
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
     fprintf(stdout, "\f");
 
     foldw = ami_strsiz(stdout, "0")*22;
-    if (foldw > ami_maxxg(stdout)/2) foldw = ami_maxxg(stdout)/2;
+    if (foldw > winw/2) foldw = winw/2;
+    foldh = h;
     ami_setposg(foldwf, 1, top);
     ami_setsizg(foldwf, foldw, h);
-    ami_sizbufg(foldwf, foldw, h); /* the buffer follows the pane */
     /* the gap between the panes holds the divider between the sections */
     listx = foldw+8;
     listy = top;
+    listw = winw-foldw-8;
+    listh = h;
     ami_setposg(listwf, listx, listy);
-    ami_setsizg(listwf, ami_maxxg(stdout)-foldw-8, h);
-    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-8, h);
+    ami_setsizg(listwf, listw, listh);
     divider(stdout, foldw+4, top, foldw+4, top+h);
     /* the columns of the list, kept here so the rows and their dividers
        agree on where the columns are */
+    /* The columns are worked out from the width this program just gave
+       the pane, not from what the pane answers. A window does not know
+       its new size until the resize comes back to it, so asking it
+       straight after setting it gives the size it used to be -- and
+       every column, count and row then lands where the pane used to
+       end. */
     fromx = ami_strsiz(listwf, "0")*18;
-    datex = ami_maxxg(listwf)-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
+    datex = listw-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
-    ami_poswidgetg(listwf, SBLIST, ami_maxxg(listwf)-sbw, 1);
-    ami_sizwidgetg(listwf, SBLIST, sbw, ami_maxyg(listwf));
-    listrows = ami_maxyg(listwf)/rowh;
+    ami_poswidgetg(listwf, SBLIST, listw-sbw, 1);
+    ami_sizwidgetg(listwf, SBLIST, sbw, listh);
+    listrows = listh/rowh;
     if (listrows < 1) listrows = 1;
 
 }
@@ -3487,10 +3500,12 @@ int main(int argc, char* argv[])
     /* A pane is part of the main window, not a window of its own: no
        frame, no title bar, no sizing bars. */
     ami_frame(foldwf, FALSE);
-    /* Buffered, so the library puts back what other windows have covered
-       instead of the program redrawing every row each time one passes
-       over it. */
-    ami_buffer(foldwf, TRUE);
+    /* Unbuffered. Buffering saves the program redrawing what other
+       windows cover, but a buffered pane came apart on a resize -- the
+       menu broke into pieces, the list drew at the bottom of nothing,
+       the counts went -- and a pane that is right is worth more than a
+       pane that is quick. */
+    ami_buffer(foldwf, FALSE);
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
@@ -3498,7 +3513,7 @@ int main(int argc, char* argv[])
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
-    ami_buffer(listwf, TRUE);
+    ami_buffer(listwf, FALSE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
@@ -3506,6 +3521,10 @@ int main(int argc, char* argv[])
     ami_binvis(listwf);
     ami_scrollvertsizg(listwf, &sbw, &wy);
     ami_scrollvertg(listwf, 1, 1, sbw, chrh*10, SBLIST); /* moved by layout */
+    winw = ami_maxxg(stdout);
+    winh = ami_maxyg(stdout);
+    lastw = winw;
+    lasth = winh;
     layout();
     /* Start from the store, not from the server. Whatever was fetched
        before can be read without a network at all, which is the point of
@@ -3536,28 +3555,8 @@ int main(int argc, char* argv[])
             switch (er.etype) {
 
                 case ami_etterm: closeread(); break;
-                case ami_etredraw: break; /* buffered: the library has it */
-                case ami_etresize: {
-
-                    /* the buffer follows the window, or everything after
-                       is worked out from the size it used to be */
-                    static long prevw;
-                    long        oldpage = readpage();
-
-                    ami_sizbufg(readwf, er.rszxg, er.rszyg);
-                    if (ami_maxxg(readwf) == prevw) {
-
-                        /* height only: the wrap is unchanged, so what
-                           the growth exposes is all there is to draw */
-                        readclamp();
-                        readrows(readtop+oldpage, readtop+readpage()-1);
-                        readbar();
-
-                    } else { wrapread(); drawread(); }
-                    prevw = ami_maxxg(readwf);
-                    break;
-
-                }
+                case ami_etredraw:
+                case ami_etresize: wrapread(); drawread(); break;
                 case ami_etmouba:
                     if (er.amoubn == 4) { readtop -= WHEELROWS; showread(); }
                     else if (er.amoubn == 5)
@@ -3611,7 +3610,7 @@ int main(int argc, char* argv[])
                     break;
 
                 }
-                case ami_etredraw: break; /* buffered, as the list is */
+                case ami_etredraw: drawfolders(); break;
                 default: break;
 
             }
@@ -3716,8 +3715,7 @@ int main(int argc, char* argv[])
                     showlist();
                     fromdrag = FALSE;
                     break;
-                /* nothing on a redraw: the pane is buffered */
-                case ami_etredraw: break;
+                case ami_etredraw: drawlist(); break;
                 default: break;
 
             }
@@ -3734,40 +3732,27 @@ int main(int argc, char* argv[])
                    worth anything. */
                 {
 
-                    static long lastx, lasty;
-                    long oldw, oldvis, vis;
-
-                    if (ami_maxxg(stdout) == lastx &&
-                        ami_maxyg(stdout) == lasty) break;
-                    lastx = ami_maxxg(stdout);
-                    lasty = ami_maxyg(stdout);
-                    oldw = listwf? ami_maxxg(listwf): 0;
-                    oldvis = listwf? listvis(): 0;
-                    layout();
-                    drawfolders();
-                    /* The panes are buffered, and a buffered surface
-                       keeps its picture across a resize: the border
-                       moves and what the move exposes is all there is
-                       to draw. Only a width change relays the rows,
-                       since the date column sits against the right. */
-                    if (ami_maxxg(listwf) == oldw) {
-
-                        divider(listwf, fromx, 0, fromx,
-                                ami_maxyg(listwf));
-                        divider(listwf, datex-8, 0, datex-8,
-                                ami_maxyg(listwf));
-                        vis = listvis();
-                        for (i = msgtop+oldvis; i < msgtop+vis &&
-                             i < msgct; i++) drawrow(i);
-                        setlistbar();
-
-                    } else drawlist();
+                    /* The size comes from the event, not from asking the
+                       window. A window does not know its new size until
+                       the resize has come back to it, so asking it here
+                       gives the size it had before -- and the layout
+                       then decides nothing changed and leaves the panes
+                       the size they were, with the newly exposed space
+                       painted by nobody. The window manager sends
+                       several of these while it maps and decorates the
+                       window; only the ones that change anything are
+                       worth the work. */
+                    if (er.etype == ami_etresize)
+                        { winw = er.rszxg; winh = er.rszyg; }
+                    else { winw = ami_maxxg(stdout); winh = ami_maxyg(stdout); }
+                    if (winw == lastw && winh == lasth) break;
+                    lastw = winw;
+                    lasth = winh;
 
                 }
-                break;
-
-            case ami_ettim: /* one step of a fetch, if one is running */
-                if (er.timnum == TIMFETCH) fetchstep();
+                layout();
+                drawfolders();
+                drawlist();
                 break;
 
             case ami_etmenus:
