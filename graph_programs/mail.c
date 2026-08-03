@@ -90,6 +90,7 @@
 #define LISTWIN   3 /* the message list pane */
 #define READWIN   4 /* a message, opened to be read */
 #define SRVWIN    5 /* the server form */
+#define POPWIN    6 /* the message menu, on the second mouse button */
 
 /* the scroll bars, which are widgets of the pane they are in */
 #define SBLIST    1 /* the message list */
@@ -133,6 +134,7 @@ typedef struct {
     char file[MAXSTR*2]; /* the mbox file it is kept in */
     long msgs;          /* messages in the file */
     long noselect;      /* the server says it holds no messages */
+    long local;         /* ours alone: a folder with no server side */
 
 } foldrec;
 
@@ -144,6 +146,7 @@ typedef struct {
     long len;             /* how long it is */
     char from[MAXSTR];    /* who it is from, shown */
     char subject[MAXSTR]; /* the subject line */
+    char addr[100];       /* the sender's address, for matching */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
     long date;            /* the date, for sorting */
@@ -183,6 +186,7 @@ static long  rowh;              /* the height of a message line */
 static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
+static long  listx, listy;      /* where the list pane sits on the window */
 static long  fromx;             /* where the sender column ends */
 static long  datex;             /* where the date column begins */
 static long  mpx, mpy;          /* the mouse, in pixels of its own window */
@@ -1074,6 +1078,7 @@ static void indexmsg(const char* msg, long len, long off)
     m->len = len;
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
+    addrof(from, m->addr, sizeof(m->addr));
     if (!findheader(msg, "Subject", m->subject, sizeof(m->subject)))
         copystr(m->subject, "(no subject)", sizeof(m->subject));
     findheader(msg, "Date", date, sizeof(date));
@@ -1255,6 +1260,312 @@ static void countfolders(void)
 
     for (i = 0; i < foldct; i++)
         folders[i].msgs = countfolder(folders[i].file);
+
+}
+
+/*******************************************************************************
+
+Local folders
+
+A local folder is a mailbox of the program's own: a file in the store
+with no counterpart on the server, holding messages moved into it by
+hand. The server is never told. This is the local-first model: the
+server keeps what it keeps, and how the mail is organized here is this
+program's business, done with file operations and nothing else.
+
+Local folders are listed under the server's folders, below a rule, and
+their files are named local_* so the two kinds can never be confused.
+
+*******************************************************************************/
+
+/* the file a local folder of this name lives in */
+static void localfile(const char* show, char* fn, long fnl)
+
+{
+
+    char nm[MAXSTR/2];
+    long i;
+
+    copystr(nm, show, sizeof(nm));
+    for (i = 0; nm[i]; i++)
+        if (nm[i] == '/' || nm[i] == '\\' || nm[i] == ' ' ||
+            nm[i] == '[' || nm[i] == ']' || nm[i] == '"') nm[i] = '_';
+    snprintf(fn, fnl, "%s/local_%s.mbox", store, nm);
+
+}
+
+/* Find a local folder by its shown name, or make one. Making one is
+   writing its name file, so it comes back after a restart, and putting
+   it in the list, which keeps locals after the server's folders. */
+static long localfolder(const char* show)
+
+{
+
+    long     i;
+    foldrec* f;
+    char     fn[MAXSTR*2+8];
+    FILE*    sf;
+
+    for (i = 0; i < foldct; i++)
+        if (folders[i].local && !strcmp(folders[i].show, show)) return (i);
+    if (foldct >= MAXFOLDER) return (-1);
+    f = &folders[foldct++];
+    copystr(f->name, show, MAXSTR);
+    copystr(f->show, show, MAXSTR);
+    localfile(show, f->file, sizeof(f->file));
+    f->noselect = FALSE;
+    f->local = TRUE;
+    f->msgs = 0;
+    /* the name beside the file, as the server folders keep theirs */
+    snprintf(fn, sizeof(fn), "%s.state", f->file);
+    sf = fopen(fn, "w");
+    if (sf) { fprintf(sf, "0 0 %s\n", show); fclose(sf); }
+
+    return (foldct-1);
+
+}
+
+/* Move messages out of a folder's file and into another's. The set says
+   which, by index in the folder's message list. The blocks are moved
+   whole and verbatim -- separator line to trailing blank -- so nothing
+   is reencoded, requoted or otherwise touched on the way. */
+static long movelocal(long fold, const char* dstfile, const char* set)
+
+{
+
+    FILE* f;
+    FILE* out;
+    FILE* dst;
+    char  tmp[MAXSTR*2+8];
+    char* buf;
+    long  n;
+    long  i, start, blkstart;
+    long  moved = 0;
+
+    f = fopen(folders[fold].file, "r");
+    if (!f) return (0);
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buf = getmem(n+1);
+    n = fread(buf, 1, n, f);
+    buf[n] = 0;
+    fclose(f);
+    snprintf(tmp, sizeof(tmp), "%s/movetmp", store);
+    out = fopen(tmp, "w");
+    dst = fopen(dstfile, "a");
+    if (!out || !dst) {
+
+        if (out) fclose(out);
+        if (dst) fclose(dst);
+        free(buf);
+        fail("The move could not open its files");
+
+        return (0);
+
+    }
+    /* walk the separators exactly as the indexing does, so the blocks
+       here are the messages there */
+    start = -1;
+    blkstart = 0;
+    for (i = 0; i < n; i++) {
+
+        int atsep = !strncmp(buf+i, "From ", 5) &&
+                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
+                                (buf[i-2] == '\n' ||
+                                 (buf[i-2] == '\r' && i >= 3 &&
+                                  buf[i-3] == '\n'))));
+
+        if (atsep) {
+
+            if (start >= 0) { /* the block that just ended */
+
+                long m;
+
+                for (m = 0; m < msgct; m++) if (msgs[m].off == start) break;
+                if (m < msgct && set[m]) {
+
+                    fwrite(buf+blkstart, 1, i-blkstart, dst);
+                    moved++;
+
+                } else fwrite(buf+blkstart, 1, i-blkstart, out);
+
+            }
+            blkstart = i;
+            while (i < n && buf[i] != '\n') i++;
+            start = i+1;
+
+        }
+        while (i < n && buf[i] != '\n') i++;
+
+    }
+    if (start >= 0) { /* the last block */
+
+        long m;
+
+        for (m = 0; m < msgct; m++) if (msgs[m].off == start) break;
+        if (m < msgct && set[m]) {
+
+            fwrite(buf+blkstart, 1, n-blkstart, dst);
+            moved++;
+
+        } else fwrite(buf+blkstart, 1, n-blkstart, out);
+
+    }
+    free(buf);
+    fclose(dst);
+    fclose(out);
+    rename(tmp, folders[fold].file);
+
+    return (moved);
+
+}
+
+/*******************************************************************************
+
+The message menu
+
+The second mouse button on a message opens a small menu beside it. The
+menu is a window like everything else here, serviced from the same event
+loop by its id, and everything it offers is local: the server is not
+touched, not even asked.
+
+*******************************************************************************/
+
+static FILE* popwf;      /* the menu, NULL when closed */
+static long  popmsg;     /* the message it is for */
+static long  poprow = -1; /* the entry under the mouse */
+static long  poprowh;    /* the height of an entry */
+static char  poplab[2][MAXSTR]; /* the entries' faces */
+
+static void popclose(void)
+
+{
+
+    if (popwf) { fclose(popwf); popwf = NULL; }
+    poprow = -1;
+
+}
+
+static void popdraw(void)
+
+{
+
+    long i;
+    long w = ami_maxxg(popwf);
+    long h = ami_maxyg(popwf);
+
+    fprintf(popwf, "\f");
+    /* the edge, so it reads as a card over the list */
+    ami_fcolorc(popwf, 120, 120, 120);
+    ami_line(popwf, 0, 0, w-1, 0);
+    ami_line(popwf, 0, h-1, w-1, h-1);
+    ami_line(popwf, 0, 0, 0, h-1);
+    ami_line(popwf, w-1, 0, w-1, h-1);
+    ami_fcolor(popwf, ami_black);
+    for (i = 0; i < 2; i++) {
+
+        if (i == poprow) {
+
+            ami_fcolor(popwf, ami_cyan);
+            ami_frect(popwf, 2, 3+i*poprowh, w-3, 3+(i+1)*poprowh-1);
+            ami_fcolor(popwf, ami_black);
+
+        }
+        ami_cursorg(popwf, 8, 3+i*poprowh+(poprowh-chrh)/2);
+        fprintf(popwf, "%s", poplab[i]);
+
+    }
+
+}
+
+/* open the menu for a message, beside the mouse */
+static void popopen(long i, long x, long y)
+
+{
+
+    long w, h;
+    char nm[60];
+
+    popclose();
+    popmsg = i;
+    copystr(nm, msgs[i].from, sizeof(nm));
+    snprintf(poplab[0], sizeof(poplab[0]), "Move to Trash");
+    snprintf(poplab[1], sizeof(poplab[1]), "Folder for %s", nm);
+    poprowh = chrh+10;
+    w = ami_strsiz(listwf, poplab[0]);
+    if (ami_strsiz(listwf, poplab[1]) > w) w = ami_strsiz(listwf, poplab[1]);
+    w += 20;
+    h = poprowh*2+6;
+    /* The menu is a child of the main window, not of the list: a child
+       is clipped by its parent, and a menu opened near the bottom of
+       the list would be cut off by it. The mouse position arrives in
+       the list's coordinates, so it is shifted by where the list sits. */
+    x += listx;
+    y += listy;
+    if (x+w > ami_maxxg(stdout)) x = ami_maxxg(stdout)-w;
+    if (y+h > ami_maxyg(stdout)) y = ami_maxyg(stdout)-h;
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    ami_openwin(&stdin, &popwf, stdout, POPWIN);
+    ami_frame(popwf, FALSE);
+    ami_auto(popwf, FALSE);
+    ami_curvis(popwf, FALSE);
+    ami_font(popwf, AMI_FONT_SIGN);
+    ami_setpoints(popwf, 11.0);
+    ami_binvis(popwf);
+    ami_setsizg(popwf, w, h);
+    ami_setposg(popwf, x, y);
+    /* in front of the panes: it is a sibling of them, and a menu behind
+       the list it belongs to is a menu nobody can see */
+    ami_front(popwf);
+    popdraw();
+
+}
+
+/* what was picked: 0 is trash, 1 is a folder for the sender */
+static void popact(long row)
+
+{
+
+    char* set;
+    long  dst;
+    long  moved;
+    long  i = popmsg;
+    char  msg[MAXSTR];
+    char  who[60];
+
+    popclose();
+    if (foldsel < 0 || i < 0 || i >= msgct) return;
+    set = getmem(msgct);
+    memset(set, 0, msgct);
+    if (row == 0) { /* this one message, to the local trash */
+
+        set[i] = TRUE;
+        dst = localfolder("Trash");
+        copystr(who, "Trash", sizeof(who));
+
+    } else { /* everything here from this sender, to a folder of theirs */
+
+        long m;
+
+        for (m = 0; m < msgct; m++)
+            if (!strcmp(msgs[m].addr, msgs[i].addr)) set[m] = TRUE;
+        copystr(who, msgs[i].from, sizeof(who));
+        dst = localfolder(who);
+
+    }
+    if (dst < 0) { free(set); fail("No room for another folder"); return; }
+    moved = movelocal(foldsel, folders[dst].file, set);
+    free(set);
+    msgsel = -1;
+    indexfolder(foldsel);
+    countfolders();
+    drawlist();
+    drawfolders();
+    snprintf(msg, sizeof(msg), "%ld message%s moved to %s -- locally; the "
+             "server is not touched", moved, moved == 1? "": "s", who);
+    status(msg);
 
 }
 
@@ -1463,7 +1774,7 @@ static void listline(const char* line)
    connected has thrown that away. The name is recovered from the file
    name, which is the folder name with the awkward characters replaced,
    so it comes back readable if not always exact. */
-static void storefolders(void)
+static void storefolders(int localpass)
 
 {
 
@@ -1478,15 +1789,22 @@ static void storefolders(void)
         foldrec* f;
         char     nm[MAXSTR/2];
         long     n;
+        int      isloc;
 
         copystr(nm, fp->name, sizeof(nm));
         n = strlen(nm);
         if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
+        /* The two kinds are loaded in separate passes, server folders
+           first, so the locals always sit at the end of the list, below
+           the rule the folder pane draws between the sections. */
+        isloc = !strncmp(nm, "local_", 6);
+        if (isloc != localpass) continue;
         f = &folders[foldct++];
-        copystr(f->name, nm, MAXSTR);
-        copystr(f->show, nm, MAXSTR);
+        copystr(f->name, isloc? nm+6: nm, MAXSTR);
+        copystr(f->show, isloc? nm+6: nm, MAXSTR);
         snprintf(f->file, sizeof(f->file), "%s/%s.mbox", store, nm);
         f->noselect = FALSE;
+        f->local = isloc;
         { /* the real name, if the state file beside it kept one */
 
             char  sn[MAXSTR*2+8];
@@ -1883,21 +2201,15 @@ static long scaleback(long pos, long travel)
 
 }
 
-/* say something in the main window, above the panes */
+/* There is no status line any more: everything it said is said in the
+   window itself -- the folder counts climb while a fetch runs, the list
+   says what an empty folder is, and the forms speak for themselves. The
+   calls remain as markers of where a quieter program once spoke. */
 static void status(const char* s)
 
 {
 
-    long y = ami_maxyg(stdout)-chrh-2;
-
-    /* Along the bottom. The menu bar is drawn into the top of the
-       client area, not above it, so anything written at the top of this
-       window is written under the menu. */
-    ami_fcolor(stdout, ami_white);
-    ami_frect(stdout, 1, y-2, ami_maxxg(stdout), ami_maxyg(stdout));
-    ami_fcolor(stdout, ami_black);
-    ami_cursorg(stdout, 6, y);
-    fprintf(stdout, "%s", s);
+    (void)s;
 
 }
 
@@ -2034,6 +2346,9 @@ static void drawfolders(void)
             ami_fcolor(foldwf, ami_black);
 
         }
+        /* ours begin below a rule, so the two kinds cannot be mistaken */
+        if (folders[i].local && i && !folders[i-1].local)
+            divider(foldwf, 6, y-3, ami_maxxg(foldwf)-8, y-3);
         copystr(nm, folders[i].show, MAXSTR);
         /* the count against the right, and the name given what is left,
            so that a long name is cut rather than run under the count */
@@ -2787,7 +3102,7 @@ static void layout(void)
 {
 
     long top = chrh*2; /* under the menu bar, which is drawn in the client */
-    long h = ami_maxyg(stdout)-top-chrh-6; /* and above the status line */
+    long h = ami_maxyg(stdout)-top;
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
@@ -2799,7 +3114,9 @@ static void layout(void)
     ami_setsizg(foldwf, foldw, h);
     ami_sizbufg(foldwf, foldw, h); /* the buffer follows the pane */
     /* the gap between the panes holds the divider between the sections */
-    ami_setposg(listwf, foldw+8, top);
+    listx = foldw+8;
+    listy = top;
+    ami_setposg(listwf, listx, listy);
     ami_setsizg(listwf, ami_maxxg(stdout)-foldw-8, h);
     ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-8, h);
     divider(stdout, foldw+4, top, foldw+4, top+h);
@@ -2917,17 +3234,9 @@ static void fetchsay(void)
 
 {
 
-    char msg[MAXSTR+80];
-
-    if (fetchfold < 0 || fetchfold >= foldct)
-        snprintf(msg, sizeof(msg), "%ld message%s", fetchgot,
-                 fetchgot == 1? "": "s");
-    else if (uidct)
-        snprintf(msg, sizeof(msg), "%s: %ld of %ld -- %ld message%s so far",
-                 folders[fetchfold].show, fetchi, uidct, fetchgot,
-                 fetchgot == 1? "": "s");
-    else snprintf(msg, sizeof(msg), "Opening %s", folders[fetchfold].show);
-    status(msg);
+    /* the folder pane is the progress display: its count climbs as the
+       messages land */
+    drawfolders();
 
 }
 
@@ -2944,6 +3253,7 @@ static int fetchnext(void)
     while (++fetchfold < foldct) {
 
         if (folders[fetchfold].noselect) continue;
+        if (folders[fetchfold].local) continue; /* nothing to fetch from */
         fetchi = 0;
         uidct = 0;
         fetchsay();
@@ -3025,6 +3335,7 @@ static void fetchstep(void)
     mboxwrite(folders[fetchfold].file, msg, n);
     free(msg);
     fetchgot++;
+    folders[fetchfold].msgs++; /* the pane's count is the progress */
     imwait(tag, NULL); /* the ) and the answer */
     if (uid > fetchlast) fetchlast = uid;
     fetchsay();
@@ -3044,6 +3355,7 @@ static void fetchall(void)
     foldct = 0;
     foldsel = -1;
     if (!getfolders()) { status(""); imapclose(); return; }
+    storefolders(TRUE); /* the locals rejoin, after the server's */
     countfolders();
     drawfolders();
     fetching = TRUE;
@@ -3065,6 +3377,7 @@ static void showfolder(long i)
 
     if (i < 0 || i >= foldct) return;
     foldsel = i;
+    popclose();
     closeread();
     indexfolder(i);
     drawfolders();
@@ -3174,7 +3487,8 @@ int main(int argc, char* argv[])
        keeping it in files, and starting this way means the program comes
        up at once and comes up on a train. The server is asked only when
        the user asks for it. */
-    storefolders();
+    storefolders(FALSE);
+    storefolders(TRUE);
     countfolders();
     if (foldct) showfolder(0);
     drawfolders();
@@ -3198,13 +3512,27 @@ int main(int argc, char* argv[])
 
                 case ami_etterm: closeread(); break;
                 case ami_etredraw: break; /* buffered: the library has it */
-                case ami_etresize:
+                case ami_etresize: {
+
                     /* the buffer follows the window, or everything after
                        is worked out from the size it used to be */
+                    static long prevw;
+                    long        oldpage = readpage();
+
                     ami_sizbufg(readwf, er.rszxg, er.rszyg);
-                    wrapread();
-                    drawread();
+                    if (ami_maxxg(readwf) == prevw) {
+
+                        /* height only: the wrap is unchanged, so what
+                           the growth exposes is all there is to draw */
+                        readclamp();
+                        readrows(readtop+oldpage, readtop+readpage()-1);
+                        readbar();
+
+                    } else { wrapread(); drawread(); }
+                    prevw = ami_maxxg(readwf);
                     break;
+
+                }
                 case ami_etmouba:
                     if (er.amoubn == 4) { readtop -= WHEELROWS; showread(); }
                     else if (er.amoubn == 5)
@@ -3255,8 +3583,41 @@ int main(int argc, char* argv[])
             continue;
 
         }
+        if (er.winid == POPWIN) {
+
+            switch (er.etype) {
+
+                case ami_etmoumovg: {
+
+                    long r = (er.moupyg-3)/(poprowh? poprowh: 1);
+
+                    if (r < 0) r = 0;
+                    if (r > 1) r = 1;
+                    if (r != poprow) { poprow = r; popdraw(); }
+                    break;
+
+                }
+                case ami_etmouba:
+                    if (er.amoubn == 1 && poprow >= 0) popact(poprow);
+                    break;
+                case ami_etcan:
+                case ami_etterm: popclose(); break;
+                default: break;
+
+            }
+            continue;
+
+        }
         if (er.winid == LISTWIN) {
 
+            /* anything but the mouse moving closes an open menu; a click
+               that closes it is spent on the closing */
+            if (popwf && er.etype != ami_etmoumovg) {
+
+                popclose();
+                if (er.etype == ami_etmouba) continue;
+
+            }
             switch (er.etype) {
 
                 case ami_etmoumovg: mpx = er.moupxg; mpy = er.moupyg; break;
@@ -3275,6 +3636,17 @@ int main(int argc, char* argv[])
 
                         i = msgtop+(mpy-4)/rowh;
                         if (i >= 0 && i < msgct) { selectmsg(i); openmsg(i); }
+
+                    } else if (er.amoubn == 2 || er.amoubn == 3) {
+
+                        /* the second button: the message menu */
+                        i = msgtop+(mpy-4)/rowh;
+                        if (i >= 0 && i < msgct) {
+
+                            selectmsg(i);
+                            popopen(i, mpx, mpy);
+
+                        }
 
                     }
                     break;
@@ -3320,17 +3692,35 @@ int main(int argc, char* argv[])
                 {
 
                     static long lastx, lasty;
+                    long oldw, oldvis, vis;
 
                     if (ami_maxxg(stdout) == lastx &&
                         ami_maxyg(stdout) == lasty) break;
                     lastx = ami_maxxg(stdout);
                     lasty = ami_maxyg(stdout);
+                    oldw = listwf? ami_maxxg(listwf): 0;
+                    oldvis = listwf? listvis(): 0;
+                    layout();
+                    drawfolders();
+                    /* The panes are buffered, and a buffered surface
+                       keeps its picture across a resize: the border
+                       moves and what the move exposes is all there is
+                       to draw. Only a width change relays the rows,
+                       since the date column sits against the right. */
+                    if (ami_maxxg(listwf) == oldw) {
+
+                        divider(listwf, fromx, 0, fromx,
+                                ami_maxyg(listwf));
+                        divider(listwf, datex-8, 0, datex-8,
+                                ami_maxyg(listwf));
+                        vis = listvis();
+                        for (i = msgtop+oldvis; i < msgtop+vis &&
+                             i < msgct; i++) drawrow(i);
+                        setlistbar();
+
+                    } else drawlist();
 
                 }
-                layout();
-                status("");
-                drawfolders();
-                drawlist();
                 break;
 
             case ami_ettim: /* one step of a fetch, if one is running */
@@ -3354,7 +3744,10 @@ int main(int argc, char* argv[])
 
                     case MENUFOLD:
                         if (!haveaccount()) { srvopen(); break; }
+                        foldct = 0;
+                        foldsel = -1;
                         if (getfolders()) {
+                            storefolders(TRUE);
 
                             imapclose();
                             drawfolders();
@@ -3395,6 +3788,7 @@ int main(int argc, char* argv[])
              er.winid == READWIN || er.winid == SRVWIN);
     done:
     if (fetching) ami_killtimer(stdout, TIMFETCH);
+    popclose();
     srvclose();
     closeread();
     imapclose();
