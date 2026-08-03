@@ -2744,6 +2744,15 @@ static int ivclose(pclose_t closedc, int fd)
         opnfil[fd]->ssl = NULL;
         opnfil[fd]->cert = NULL;
         opnfil[fd]->sfn = -1;
+        /* And it is no longer secure, nor a network file. The operating
+           system hands out the lowest free descriptor, so the number
+           this file had is very likely the number the next open file
+           gets. Reads and writes are routed by sec alone: left set, an
+           ordinary file that inherits this descriptor is read through
+           SSL_read with the ssl pointer just cleared above, which is a
+           crash in openssl on the first read of a plain file. */
+        opnfil[fd]->sec = FALSE;
+        opnfil[fd]->net = FALSE;
         pthread_mutex_unlock(&opnfil[fd]->lock); /* release lock */
         if (fr.sec) {
 

@@ -14640,20 +14640,33 @@ static void buffer_ivf(FILE* f, long e)
         win->screens[win->curdsp-1]->maxy = win->gmaxy;
         xwc.width = win->gmaxxg; /* set XWindow width and height */
         xwc.height = win->gmaxyg;
-        XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-        XWUNLOCK();
-        /* change saved size to match */
-        win->xmwr.w = xwc.width;
-        win->xmwr.h = xwc.height;
+        /* Only if it is a change. A configure that asks for the size the
+           window already has is not an error and not refused -- it
+           simply produces no ConfigureNotify, and the wait below is then
+           for an event that will never be sent, which hangs the program
+           for good. A window that has been opened and not resized is
+           already the size buffering wants to restore, so this is the
+           ordinary case rather than a corner of one. */
+        if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
+
+            XWLOCK();
+            XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+            XWUNLOCK();
+            /* change saved size to match */
+            win->xmwr.w = xwc.width;
+            win->xmwr.h = xwc.height;
 #ifdef WAITWMR
-        /* wait for the next configure for this window (any size -- the WM may
-           clamp the request; see note above). Adopt the granted size. */
-        do { peekxevt(&xe); /* peek next event */
-        } while (xe.type != ConfigureNotify || xe.xany.window != win->xmwhan);
-        win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
-        win->xmwr.h = xe.xconfigure.height;
+            /* wait for the next configure for this window (any size -- the WM
+               may clamp the request; see note above). Adopt the granted
+               size. */
+            do { peekxevt(&xe); /* peek next event */
+            } while (xe.type != ConfigureNotify ||
+                     xe.xany.window != win->xmwhan);
+            win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
+            win->xmwr.h = xe.xconfigure.height;
 #endif
+
+        }
         restore(win); /* restore buffer to screen */
 
     } else if (win->bufmod) { /* perform buffer off actions */

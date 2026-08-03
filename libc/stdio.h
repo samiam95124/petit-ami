@@ -133,6 +133,14 @@ extern "C" {
 
 #define BUFSIZ 512 /* standard buffer size */
 
+/* where an fseek() is measured from. These belong to stdio.h by the C
+   standard, and fseek() is declared below, so a program that includes
+   this header and no other has to have them from here. */
+
+#define SEEK_SET 0 /* from the start of the file */
+#define SEEK_CUR 1 /* from where it is now */
+#define SEEK_END 2 /* from the end of the file */
+
 /* this switch allows getc() and putc() to be macros. This is the way LIBC does
    it, and the ability is included here for possible compatability issues */
 //#define USEMACRO 1 /* use macros for getc and putc */
