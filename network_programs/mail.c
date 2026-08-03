@@ -1,0 +1,2531 @@
+/*******************************************************************************
+*                                                                              *
+*                                MAIL READER                                   *
+*                                                                              *
+*                       Copyright (C) 2026 Scott A. Franco                     *
+*                                                                              *
+* Reads mail from an IMAP server and shows it, in the manner of the web mail   *
+* readers: the folders down the left, the messages of the chosen folder on     *
+* the right, one line each, with the sender, the subject, the start of the     *
+* message and when it arrived.                                                 *
+*                                                                              *
+* Nothing on the server is changed. The folder is opened with EXAMINE, which   *
+* the protocol defines as read only, and the message is asked for with         *
+* BODY.PEEK[], which is the form that does not mark it read. Either alone      *
+* would do; both are used because a mail reader that quietly marks a thousand  *
+* messages read is a mail reader nobody will trust twice.                      *
+*                                                                              *
+* What comes off the server is written to a file as it arrived, headers and    *
+* all, in mbox format: the message is not taken apart to be stored, only to    *
+* be shown. Everything the reader displays it finds by searching that file     *
+* again, so the file is the truth and the display is a view of it. A file      *
+* that this program wrote can be read by any other mail program, and one       *
+* written by another mail program can be read by this.                         *
+*                                                                              *
+* The mail is kept in a directory of its own, ~/.amimail by default, one       *
+* .mbox file per folder and a small state file beside it recording how far     *
+* the folder was read, so that fetching again fetches only what is new.        *
+*                                                                              *
+* Usage:                                                                       *
+*                                                                              *
+*     mail [--fetch|-f] [--diag|-d] [--limit=<n>]                              *
+*                                                                              *
+* --fetch fetches on startup rather than waiting for Mail/Fetch. --diag        *
+* reports the conversation with the server to stderr, with the password        *
+* held back.                                                                   *
+*                                                                              *
+* The account is given in the Petit-Ami configuration, under a branch of its   *
+* own, which puts it in petit_ami.cfg beside the program, in the user's path,  *
+* or in the current directory, as config defines:                              *
+*                                                                              *
+*     begin mail                                                               *
+*         imap     imap.gmail.com                                              *
+*         imapport 993                                                         *
+*         smtp     smtp.gmail.com                                              *
+*         smtpport 465                                                         *
+*         user     someone@gmail.com                                           *
+*         pass     abcdefghijklmnop                                            *
+*         limit    200                                                         *
+*         store    /home/someone/.amimail                                      *
+*     end                                                                      *
+*                                                                              *
+* For Gmail the password is not the account password but an application        *
+* password, which Google issues per program to an account that has two step    *
+* verification turned on. Since that file then holds a password, this warns    *
+* if it is one that anybody but its owner can read.                            *
+*                                                                              *
+*******************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <ctype.h>
+#include <time.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <limits.h>
+#include <stdarg.h>
+
+#include <localdefs.h>
+#include <graphics.h>
+#include <network.h>
+#include <services.h>
+#include <config.h>
+#include <option.h>
+
+#define MAXSTR    500  /* the usual string */
+#define MAXLINE   4000 /* longest protocol or message line taken whole */
+#define MAXFOLDER 200  /* folders on the server */
+#define MAXMSG    20000 /* messages indexed in one folder */
+#define SNIPPET   400  /* characters of the message kept for the list */
+#define DEFLIMIT  200  /* messages fetched from a folder, most recent first */
+
+/* the windows: the panes are children of the main window, the reader is a
+   window of its own */
+#define MAINWIN   1 /* the main window, which is stdout */
+#define FOLDWIN   2 /* the folder pane */
+#define LISTWIN   3 /* the message list pane */
+#define READWIN   4 /* a message, opened to be read */
+
+/* the scroll bars, which are widgets of the pane they are in */
+#define SBLIST    1 /* the message list */
+#define SBREAD    1 /* the reader */
+
+/* menu ids of our own, after the standard ones */
+#define MENUMAIL  (AMI_SMMAX+1) /* the mail menu itself */
+#define MENUFETCH (AMI_SMMAX+2) /* fetch new mail */
+#define MENUFOLD  (AMI_SMMAX+3) /* fetch the folder list again */
+#define MENUCHECK (AMI_SMMAX+4) /* check that mail could be sent */
+
+#define WHEELROWS 3 /* rows the wheel moves per notch */
+
+#define OFF 0
+#define ON  1
+
+/* a folder on the server, and the file it is kept in */
+typedef struct {
+
+    char name[MAXSTR];  /* the name the server knows it by */
+    char show[MAXSTR];  /* the name shown, without the [Gmail]/ part */
+    char file[MAXSTR*2]; /* the mbox file it is kept in */
+    long msgs;          /* messages in the file */
+    long noselect;      /* the server says it holds no messages */
+
+} foldrec;
+
+/* A message, as found in the mbox file. The file is the message; this is
+   only what the list needs to draw a line without reading it again. */
+typedef struct {
+
+    long off;             /* where the message starts in the file */
+    long len;             /* how long it is */
+    char from[MAXSTR];    /* who it is from, shown */
+    char subject[MAXSTR]; /* the subject line */
+    char snip[SNIPPET];   /* the start of the message */
+    char when[40];        /* the date, shown the way mail readers show it */
+    long date;            /* the date, for sorting */
+
+} msgrec;
+
+static foldrec folders[MAXFOLDER];
+static long    foldct;
+static long    foldsel = -1;    /* the folder being shown */
+
+static msgrec* msgs;            /* the messages of that folder */
+static long    msgct;
+static long    msgmax;
+static long    msgsel = -1;     /* the message being read */
+static long    msgtop;          /* the first message shown */
+
+/* the account */
+static char imapsrv[MAXSTR] = "imap.gmail.com";
+static long imapport = 993;
+static char smtpsrv[MAXSTR] = "smtp.gmail.com";
+static long smtpport = 587;
+static char username[MAXSTR];
+static char password[MAXSTR];
+static char store[MAXSTR];      /* the directory the mail is kept in */
+static long limit = DEFLIMIT;   /* messages fetched from a folder */
+
+static long diag;               /* report the conversation to stderr */
+
+/* the windows and their measurements */
+static FILE* foldwf;            /* the folder pane */
+static FILE* listwf;            /* the message list pane */
+static FILE* readwf;            /* the reader, NULL when closed */
+static long  chrh;              /* the height of a line, in pixels */
+static long  rowh;              /* the height of a message line */
+static long  foldw;             /* the width of the folder pane */
+static long  sbw;               /* scroll bar thickness */
+static long  listrows;          /* message lines the list holds */
+static long  mpx, mpy;          /* the mouse, in pixels of its own window */
+
+/* the reader */
+static char* readtext;          /* the message being read, decoded */
+static long  readtop;           /* the first line of it shown */
+static char** readline;         /* it, wrapped to the window */
+static long  readlines;
+static long  readmax;
+
+/* the connection to the server */
+static FILE* imap;
+static long  imaptag;
+
+static void drawlist(void);     /* forward */
+static void drawfolders(void);
+static void showfolder(long i);
+static void drawread(void);
+static void layout(void);
+
+/*******************************************************************************
+
+Odds and ends
+
+*******************************************************************************/
+
+/* say something went wrong, in a way the user can see */
+static void fail(const char* what)
+
+{
+
+    ami_alert("Mail", (char*)what);
+
+}
+
+static void* getmem(long n)
+
+{
+
+    void* p = malloc(n);
+
+    if (!p) { fail("Out of memory"); exit(1); }
+
+    return (p);
+
+}
+
+/* trim the blanks and the line ending off both ends of a string */
+static void trim(char* s)
+
+{
+
+    char* p = s;
+    long  n;
+
+    while (*p == ' ' || *p == '\t') p++;
+    if (p != s) memmove(s, p, strlen(p)+1);
+    n = strlen(s);
+    while (n && (s[n-1] == '\r' || s[n-1] == '\n' ||
+                 s[n-1] == ' ' || s[n-1] == '\t')) s[--n] = 0;
+
+}
+
+/* copy with a limit, always terminated */
+static void copystr(char* d, const char* s, long n)
+
+{
+
+    strncpy(d, s, n-1);
+    d[n-1] = 0;
+
+}
+
+/*******************************************************************************
+
+The configuration
+
+The account is not asked for on the command line, since a password on a
+command line is a password in everybody's process list. It comes from the
+Petit-Ami configuration database, under a branch of its own, which means
+it can sit beside the program, in the user's path, or in the current
+directory, and the same program serves whichever is there.
+
+*******************************************************************************/
+
+/* The value of one setting, or NULL if it was not given. The value the
+   config package hands back is everything after the first space of the
+   line, so a file whose settings are lined up in a column arrives with
+   the alignment still on the front of the value. Take it off: a store
+   path with three spaces before it is not a path, and a password with
+   three spaces before it is not the password. */
+static char* cfgstr(ami_valptr root, const char* name)
+
+{
+
+    ami_valptr vp = ami_schlst((string)name, root);
+    char*      v;
+
+    if (!vp || !vp->value) return (NULL);
+    v = vp->value;
+    while (*v == ' ' || *v == '\t') v++;
+    trim(v); /* and anything trailing */
+    if (!*v) return (NULL);
+
+    return (v);
+
+}
+
+/* Warn if the file the password came from can be read by others.
+
+   Which file that is has to be worked out, since the configuration is
+   merged from up to six of them and what comes out does not say where it
+   came from. So each is read on its own and asked whether it is the one
+   holding the password. A warning and not a refusal: the configuration
+   is a general facility and the password may not be in a file at all. */
+static void checkperm(void)
+
+{
+
+    char path[MAXSTR];
+    char fn[MAXSTR];
+    long i;
+
+    for (i = 0; i < 6; i++) {
+
+        ami_valptr   one = NULL;
+        ami_valptr   mp;
+        struct stat  sb;
+
+        switch (i/2) {
+
+            case 0: ami_getpgm(path, MAXSTR); break;
+            case 1: ami_getusr(path, MAXSTR); break;
+            default: ami_getcur(path, MAXSTR); break;
+
+        }
+        ami_maknam(fn, MAXSTR, path, i%2? ".petit_ami": "petit_ami", "cfg");
+        ami_configfile(fn, &one); /* this file alone */
+        if (!one) continue; /* it is not there */
+        mp = ami_schlst("mail", one);
+        if (mp && mp->sublist && cfgstr(mp->sublist, "pass") &&
+            !stat(fn, &sb) && (sb.st_mode & (S_IRWXG | S_IRWXO))) {
+
+            char msg[MAXSTR*2];
+
+            snprintf(msg, sizeof(msg),
+                     "%s holds the mail password and can be read by "
+                     "others.\nRun chmod 600 on it.", fn);
+            fail(msg);
+
+            return;
+
+        }
+
+    }
+
+}
+
+static void readconfig(void)
+
+{
+
+    ami_valptr root = NULL;
+    ami_valptr mp;
+    char*      v;
+    char       path[MAXSTR-16]; /* room for the name put on the end */
+
+    ami_config(&root); /* the whole database, from wherever it is */
+    mp = ami_schlst("mail", root);
+    if (!mp) {
+
+        fail("There is no mail branch in the Petit-Ami configuration.\n"
+             "It gives the server, the user name and the password. See "
+             "the head of mail.c for what it holds.");
+        exit(1);
+
+    }
+    mp = mp->sublist; /* the settings are under the branch */
+    if ((v = cfgstr(mp, "imap"))) copystr(imapsrv, v, MAXSTR);
+    if ((v = cfgstr(mp, "imapport"))) imapport = atol(v);
+    if ((v = cfgstr(mp, "smtp"))) copystr(smtpsrv, v, MAXSTR);
+    if ((v = cfgstr(mp, "smtpport"))) smtpport = atol(v);
+    if ((v = cfgstr(mp, "user"))) copystr(username, v, MAXSTR);
+    if ((v = cfgstr(mp, "pass"))) copystr(password, v, MAXSTR);
+    if ((v = cfgstr(mp, "store"))) copystr(store, v, MAXSTR);
+    if ((v = cfgstr(mp, "limit"))) limit = atol(v);
+    if (!*store) { /* where the mail is kept, if it was not said */
+
+        ami_getusr(path, sizeof(path));
+        snprintf(store, MAXSTR, "%s/.amimail", path);
+
+    }
+    if (!*username || !*password) {
+
+        fail("The mail configuration gives no user or no password.");
+        exit(1);
+
+    }
+    checkperm();
+
+}
+
+/*******************************************************************************
+
+Headers
+
+Mail headers are folded: a header too long for a line is continued on the
+next line, which begins with a space. And anything that is not plain
+ascii is encoded, by RFC 2047, as =?charset?B?...?= or =?charset?Q?...?=.
+Both are undone here, since a subject line shown with its encoding still
+on it is not a subject line anybody can read.
+
+*******************************************************************************/
+
+static long b64val(int c)
+
+{
+
+    if (c >= 'A' && c <= 'Z') return (c-'A');
+    if (c >= 'a' && c <= 'z') return (c-'a'+26);
+    if (c >= '0' && c <= '9') return (c-'0'+52);
+    if (c == '+') return (62);
+    if (c == '/') return (63);
+
+    return (-1);
+
+}
+
+/* decode base64 into the buffer, giving the length */
+static long b64dec(const char* s, long n, char* d, long dn)
+
+{
+
+    long acc = 0, bits = 0, o = 0;
+    long i;
+
+    for (i = 0; i < n; i++) {
+
+        long v = b64val(s[i]);
+
+        if (v < 0) continue; /* whitespace, padding, anything else */
+        acc = (acc<<6) | v;
+        bits += 6;
+        if (bits >= 8) {
+
+            bits -= 8;
+            if (o < dn-1) d[o++] = (acc>>bits) & 0xff;
+
+        }
+
+    }
+    d[o] = 0;
+
+    return (o);
+
+}
+
+/* decode quoted printable into the buffer, giving the length. In a header
+   word an underscore stands for a space; in a body it does not. */
+static long qpdec(const char* s, long n, char* d, long dn, int inhdr)
+
+{
+
+    long i, o = 0;
+
+    for (i = 0; i < n && o < dn-1; i++) {
+
+        if (s[i] == '=' && i+2 < n && isxdigit((unsigned char)s[i+1]) &&
+                                      isxdigit((unsigned char)s[i+2])) {
+
+            char h[3];
+
+            h[0] = s[i+1]; h[1] = s[i+2]; h[2] = 0;
+            d[o++] = (char)strtol(h, NULL, 16);
+            i += 2;
+
+        } else if (s[i] == '=' && i+1 < n && s[i+1] == '\n') i++; /* soft */
+        else if (s[i] == '=' && i+2 < n && s[i+1] == '\r' && s[i+2] == '\n')
+            i += 2; /* a soft break, which joins the lines */
+        else if (inhdr && s[i] == '_') d[o++] = ' ';
+        else d[o++] = s[i];
+
+    }
+    d[o] = 0;
+
+    return (o);
+
+}
+
+/* Undo the RFC 2047 encoding of a header. Only the bytes are recovered:
+   a character set that is not ascii or utf8 is left as its bytes, which
+   is what the display can show anyway. */
+static void hdrdecode(char* s)
+
+{
+
+    char  out[MAXSTR];
+    char* p = s;
+    long  o = 0;
+
+    while (*p && o < (long)sizeof(out)-1) {
+
+        if (p[0] == '=' && p[1] == '?') {
+
+            char* cs = p+2;
+            char* enc;
+            char* txt;
+            char* end;
+
+            enc = strchr(cs, '?');
+            if (!enc) { out[o++] = *p++; continue; }
+            txt = strchr(enc+1, '?');
+            if (!txt) { out[o++] = *p++; continue; }
+            end = strstr(txt+1, "?=");
+            if (!end) { out[o++] = *p++; continue; }
+            /* the encoding is the one character between the question marks */
+            if (enc[1] == 'B' || enc[1] == 'b')
+                o += b64dec(txt+1, end-(txt+1), out+o, sizeof(out)-o);
+            else if (enc[1] == 'Q' || enc[1] == 'q')
+                o += qpdec(txt+1, end-(txt+1), out+o, sizeof(out)-o, TRUE);
+            else { out[o++] = *p++; continue; }
+            p = end+2;
+            /* Space between two encoded words is not part of the text and
+               is dropped, which is what puts the words back together. */
+            if (*p == ' ' && p[1] == '=' && p[2] == '?') p++;
+
+        } else out[o++] = *p++;
+
+    }
+    out[o] = 0;
+    copystr(s, out, MAXSTR);
+
+}
+
+/* Find a header in a message and give its value, unfolded and decoded.
+   The message is the whole thing, headers then a blank line then the
+   body, which is how it is stored. */
+static int findheader(const char* msg, const char* name, char* val, long vn)
+
+{
+
+    const char* p = msg;
+    long        nl = strlen(name);
+
+    *val = 0;
+    while (*p && !(p[0] == '\n' && (p[1] == '\n' || (p[1] == '\r' &&
+                                                     p[2] == '\n')))) {
+
+        if (!strncasecmp(p, name, nl) && p[nl] == ':') {
+
+            const char* v = p+nl+1;
+            long        o = 0;
+
+            while (*v == ' ' || *v == '\t') v++;
+            /* take it, and any line after it that begins with a blank,
+               which is the same header continued */
+            while (*v && o < vn-1) {
+
+                if (*v == '\n') {
+
+                    if (v[1] != ' ' && v[1] != '\t') break; /* it ends */
+                    while (*v == '\n' || *v == '\r' ||
+                           *v == ' ' || *v == '\t') v++;
+                    val[o++] = ' '; /* the fold becomes one space */
+
+                } else if (*v == '\r') v++;
+                else val[o++] = *v++;
+
+            }
+            val[o] = 0;
+            trim(val);
+            hdrdecode(val);
+
+            return (TRUE);
+
+        }
+        /* on to the next header */
+        while (*p && *p != '\n') p++;
+        if (*p) p++;
+
+    }
+
+    return (FALSE);
+
+}
+
+/* where the body starts: after the blank line that ends the headers */
+static const char* bodyof(const char* msg)
+
+{
+
+    const char* p = msg;
+
+    while (*p) {
+
+        if (p[0] == '\n' && p[1] == '\n') return (p+2);
+        if (p[0] == '\n' && p[1] == '\r' && p[2] == '\n') return (p+3);
+        p++;
+
+    }
+
+    return (p); /* no body at all */
+
+}
+
+/*******************************************************************************
+
+Making a message readable
+
+Mail is not text any more. It is nearly always MIME, often several
+copies of the same message in different forms, and what is wanted is the
+plain text one. This finds it, decodes it, and where there is no plain
+text one at all it takes the html and strips the tags, which is not
+pretty but is better than showing the markup.
+
+*******************************************************************************/
+
+/* the value of a parameter of a header, as charset= or boundary= */
+static void hdrparam(const char* hdr, const char* name, char* val, long vn)
+
+{
+
+    const char* p = hdr;
+    long        nl = strlen(name);
+
+    *val = 0;
+    while ((p = strchr(p, ';'))) {
+
+        p++;
+        while (*p == ' ' || *p == '\t') p++;
+        if (!strncasecmp(p, name, nl) && p[nl] == '=') {
+
+            const char* v = p+nl+1;
+            long        o = 0;
+            char        q = 0;
+
+            if (*v == '"') q = *v++;
+            while (*v && o < vn-1 && (q? *v != q: (*v != ';' && *v != ' ')))
+                val[o++] = *v++;
+            val[o] = 0;
+
+            return;
+
+        }
+
+    }
+
+}
+
+/* take the tags out of html, leaving what was between them */
+static void detag(const char* s, char* d, long dn)
+
+{
+
+    long o = 0;
+    int  sp = FALSE;
+
+    while (*s && o < dn-1) {
+
+        if (*s == '<') { /* a tag, and maybe a whole part */
+
+            if (!strncasecmp(s, "<br", 3) || !strncasecmp(s, "</p", 3) ||
+                !strncasecmp(s, "</div", 5) || !strncasecmp(s, "</tr", 4)) {
+
+                if (o < dn-1) d[o++] = '\n';
+
+            }
+            if (!strncasecmp(s, "<style", 6) || !strncasecmp(s, "<script", 7)) {
+
+                const char* e = strchr(s+1, '>');
+
+                /* everything in these is for the machine, not the reader */
+                while (*s && strncasecmp(s, "</", 2)) s++;
+                while (*s && *s != '>') s++;
+                if (*s) s++;
+                if (!e) break;
+                continue;
+
+            }
+            while (*s && *s != '>') s++;
+            if (*s) s++;
+            sp = TRUE;
+
+        } else if (*s == '&') { /* an entity, of the few worth knowing */
+
+            if (!strncasecmp(s, "&nbsp;", 6)) { d[o++] = ' '; s += 6; }
+            else if (!strncasecmp(s, "&amp;", 5)) { d[o++] = '&'; s += 5; }
+            else if (!strncasecmp(s, "&lt;", 4)) { d[o++] = '<'; s += 4; }
+            else if (!strncasecmp(s, "&gt;", 4)) { d[o++] = '>'; s += 4; }
+            else if (!strncasecmp(s, "&quot;", 6)) { d[o++] = '"'; s += 6; }
+            else if (!strncasecmp(s, "&#39;", 5)) { d[o++] = '\''; s += 5; }
+            else d[o++] = *s++;
+
+        } else {
+
+            if (sp && *s != '\n' && o && d[o-1] != '\n' && d[o-1] != ' ')
+                d[o++] = ' ';
+            sp = FALSE;
+            if (o < dn-1) d[o++] = *s++; else s++;
+
+        }
+
+    }
+    d[o] = 0;
+
+}
+
+/* decode one part according to what its headers say it is */
+static char* decodepart(const char* part, long len, int* ishtml)
+
+{
+
+    char  enc[MAXSTR];
+    char  typ[MAXSTR];
+    char* raw = getmem(len+1);
+    char* out;
+    const char* body;
+    long  bl;
+
+    memcpy(raw, part, len);
+    raw[len] = 0;
+    findheader(raw, "Content-Transfer-Encoding", enc, sizeof(enc));
+    findheader(raw, "Content-Type", typ, sizeof(typ));
+    *ishtml = !strncasecmp(typ, "text/html", 9);
+    body = bodyof(raw);
+    bl = len-(body-raw);
+    out = getmem(bl+2);
+    if (!strcasecmp(enc, "base64")) b64dec(body, bl, out, bl+2);
+    else if (!strcasecmp(enc, "quoted-printable"))
+        qpdec(body, bl, out, bl+2, FALSE);
+    else { memcpy(out, body, bl); out[bl] = 0; }
+    free(raw);
+
+    return (out);
+
+}
+
+/* Find the text of a message: the plain text part if there is one, the
+   html one with its tags taken out if there is not. Multipart messages
+   are walked into, since the plain part is nearly always inside one. */
+static char* textof(const char* msg, long len)
+
+{
+
+    char  typ[MAXSTR];
+    char  bound[MAXSTR];
+    char* best = NULL;
+    int   besthtml = TRUE;
+    char  sep[MAXSTR+8];
+    const char* p;
+    long  sl;
+
+    findheader(msg, "Content-Type", typ, sizeof(typ));
+    if (strncasecmp(typ, "multipart/", 10)) { /* one part, the whole thing */
+
+        int   ishtml;
+        char* t = decodepart(msg, len, &ishtml);
+
+        if (ishtml) {
+
+            char* d = getmem(strlen(t)+1);
+
+            detag(t, d, strlen(t)+1);
+            free(t);
+            t = d;
+
+        }
+
+        return (t);
+
+    }
+    hdrparam(typ, "boundary", bound, sizeof(bound));
+    if (!*bound) { /* multipart with no boundary: take it as it lies */
+
+        char* t = getmem(len+1);
+
+        memcpy(t, msg, len);
+        t[len] = 0;
+
+        return (t);
+
+    }
+    snprintf(sep, sizeof(sep), "--%s", bound);
+    sl = strlen(sep);
+    /* every part between the separators, keeping the best one found */
+    p = msg;
+    while ((p = strstr(p, sep))) {
+
+        const char* s = p+sl;
+        const char* e;
+        int         ishtml;
+        char*       t;
+
+        if (s[0] == '-' && s[1] == '-') break; /* the end separator */
+        while (*s == '\r') s++;
+        if (*s == '\n') s++;
+        e = strstr(s, sep);
+        if (!e) e = msg+len;
+        t = decodepart(s, e-s, &ishtml);
+        if (!best || (besthtml && !ishtml)) { /* plain beats html */
+
+            free(best);
+            best = t;
+            besthtml = ishtml;
+            if (!ishtml) break; /* nothing beats plain text */
+
+        } else free(t);
+        p = e;
+
+    }
+    if (!best) { best = getmem(1); *best = 0; }
+    if (besthtml) {
+
+        char* d = getmem(strlen(best)+1);
+
+        detag(best, d, strlen(best)+1);
+        free(best);
+        best = d;
+
+    }
+
+    return (best);
+
+}
+
+/*******************************************************************************
+
+Dates
+
+The date on a message is RFC 5322: "Fri, 1 Aug 2025 13:06:22 -0700". It is
+shown the way mail readers show it, which is the time for something that
+came today and the date for anything older, because that is the part the
+reader wants.
+
+*******************************************************************************/
+
+static const char* months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+/* pull a date apart, giving the time it stands for, and how to show it */
+static long parsedate(const char* s, char* show, long sn)
+
+{
+
+    char      mon[10];
+    long      day = 0, year = 0, hour = 0, min = 0, sec = 0;
+    long      i;
+    struct tm tm;
+    time_t    t;
+    time_t    now = time(NULL);
+
+    *show = 0;
+    while (*s == ' ') s++;
+    if (isalpha((unsigned char)*s)) { /* the day name, which tells us nothing */
+
+        while (*s && *s != ',') s++;
+        if (*s == ',') s++;
+
+    }
+    mon[0] = 0;
+    if (sscanf(s, " %ld %9s %ld %ld:%ld:%ld", &day, mon, &year,
+               &hour, &min, &sec) < 3) return (0);
+    for (i = 0; i < 12; i++) if (!strncasecmp(mon, months[i], 3)) break;
+    if (i >= 12) return (0);
+    if (year < 100) year += year < 70? 2000: 1900;
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_mday = day;
+    tm.tm_mon = i;
+    tm.tm_year = year-1900;
+    tm.tm_hour = hour;
+    tm.tm_min = min;
+    tm.tm_sec = sec;
+    tm.tm_isdst = -1;
+    t = mktime(&tm);
+    if (t == (time_t)-1) return (0);
+    /* today gets the time, anything older gets the date */
+    if (now-t < 12*60*60) {
+
+        long h12 = hour%12;
+
+        if (!h12) h12 = 12;
+        snprintf(show, sn, "%ld:%02ld %s", h12, min, hour < 12? "AM": "PM");
+
+    } else if (now-t < 300L*24*60*60)
+        snprintf(show, sn, "%s %ld", months[i], day);
+    else snprintf(show, sn, "%s %ld, %ld", months[i], day, year);
+
+    return ((long)t);
+
+}
+
+/*******************************************************************************
+
+The mbox file
+
+A message is stored as it arrived, with a line before it saying who it is
+from and when it got here. That line is the only thing added, and it is
+how every message after the first is found: a line beginning "From " at
+the start of a line begins a message. A line in the message that would
+look like one has a > put in front of it, which is what mail programs
+have always done and what they all undo on the way out.
+
+*******************************************************************************/
+
+/* the address out of a From header: what is inside the angle brackets if
+   there are any, the whole thing if not */
+static void addrof(const char* from, char* addr, long an)
+
+{
+
+    const char* p = strchr(from, '<');
+    long        o = 0;
+
+    if (p) {
+
+        p++;
+        while (*p && *p != '>' && o < an-1) addr[o++] = *p++;
+
+    } else while (*from && *from != ' ' && o < an-1) addr[o++] = *from++;
+    addr[o] = 0;
+    if (!o) copystr(addr, "unknown", an);
+
+}
+
+/* The name to show for a sender. "Scott Franco <x@y.com>" shows as the
+   name, "x@y.com" shows as the address: what the sender called
+   themselves if they said, what they are if they did not. */
+static void nameof(const char* from, char* name, long nn)
+
+{
+
+    const char* p = strchr(from, '<');
+    long        o = 0;
+
+    if (p && p != from) { /* there is a name before the address */
+
+        const char* q = from;
+
+        while (*q == ' ' || *q == '"') q++;
+        while (q < p && o < nn-1) name[o++] = *q++;
+        while (o && (name[o-1] == ' ' || name[o-1] == '"')) o--;
+        name[o] = 0;
+        if (o) return;
+
+    }
+    addrof(from, name, nn);
+
+}
+
+/* write one message to the folder's mbox file */
+static void mboxwrite(const char* file, const char* msg, long len)
+
+{
+
+    FILE* f = fopen(file, "a");
+    char  from[MAXSTR];
+    char  addr[MAXSTR];
+    char  date[MAXSTR];
+    char  show[40];
+    long  when;
+    const char* p;
+    const char* e;
+
+    if (!f) { fail("Cannot write to the mail store"); return; }
+    findheader(msg, "From", from, sizeof(from));
+    addrof(from, addr, sizeof(addr));
+    findheader(msg, "Date", date, sizeof(date));
+    when = parsedate(date, show, sizeof(show));
+    if (!when) when = (long)time(NULL);
+    {
+
+        time_t t = when;
+
+        fprintf(f, "From %s %s", addr, ctime(&t)); /* ctime ends the line */
+
+    }
+    /* the message, with any line that looks like a separator marked */
+    p = msg;
+    e = msg+len;
+    while (p < e) {
+
+        const char* q = p;
+
+        while (q < e && *q != '\n') q++;
+        if (!strncmp(p, "From ", 5) || (*p == '>' && strstr(p, "From ") == p+1))
+            fputc('>', f);
+        fwrite(p, 1, q-p, f);
+        fputc('\n', f);
+        p = q < e? q+1: e;
+
+    }
+    fputc('\n', f); /* a blank line ends a message, always */
+    fclose(f);
+
+}
+
+/*******************************************************************************
+
+Indexing a folder
+
+The file is read and every message in it noted: where it is, who it is
+from, its subject, when it came, and the start of its text. That is all
+the list needs. The message itself is read again from the file when it is
+opened, so nothing is held twice.
+
+*******************************************************************************/
+
+/* the start of the message, for the list: the first text, run together */
+static void snipof(const char* text, char* snip, long sn)
+
+{
+
+    long o = 0;
+
+    while (*text && o < sn-1) {
+
+        if (*text == '\n' || *text == '\r' || *text == '\t') {
+
+            /* line breaks become one space, since the line is one line */
+            if (o && snip[o-1] != ' ') snip[o++] = ' ';
+            text++;
+
+        } else if (*text == ' ') {
+
+            if (o && snip[o-1] != ' ') snip[o++] = ' ';
+            text++;
+
+        } else snip[o++] = *text++;
+
+    }
+    while (o && snip[o-1] == ' ') o--;
+    snip[o] = 0;
+
+}
+
+/* note one message found in the file */
+static void indexmsg(const char* msg, long len, long off)
+
+{
+
+    msgrec* m;
+    char    from[MAXSTR];
+    char    date[MAXSTR];
+    char*   text;
+
+    if (msgct >= msgmax) {
+
+        msgmax = msgmax? msgmax*2: 256;
+        msgs = realloc(msgs, msgmax*sizeof(msgrec));
+        if (!msgs) { fail("Out of memory"); exit(1); }
+
+    }
+    m = &msgs[msgct++];
+    m->off = off;
+    m->len = len;
+    findheader(msg, "From", from, sizeof(from));
+    nameof(from, m->from, sizeof(m->from));
+    if (!findheader(msg, "Subject", m->subject, sizeof(m->subject)))
+        copystr(m->subject, "(no subject)", sizeof(m->subject));
+    findheader(msg, "Date", date, sizeof(date));
+    m->date = parsedate(date, m->when, sizeof(m->when));
+    text = textof(msg, len);
+    snipof(text, m->snip, sizeof(m->snip));
+    free(text);
+
+}
+
+/* newest first, which is the order every mail reader shows */
+static int bydate(const void* a, const void* b)
+
+{
+
+    const msgrec* x = a;
+    const msgrec* y = b;
+
+    if (x->date < y->date) return (1);
+    if (x->date > y->date) return (-1);
+
+    return (0);
+
+}
+
+/* Read a folder's file and note every message in it. The separator is a
+   line beginning "From " that follows a blank line, or the first line of
+   the file; anything else beginning "From " is part of a message. */
+static void indexfolder(long fold)
+
+{
+
+    FILE* f;
+    char* buf;
+    long  n;
+    long  i, start;
+
+    msgct = 0;
+    msgtop = 0;
+    msgsel = -1;
+    if (fold < 0) return;
+    f = fopen(folders[fold].file, "r");
+    if (!f) return; /* nothing fetched yet, which is not an error */
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buf = getmem(n+1);
+    n = fread(buf, 1, n, f);
+    buf[n] = 0;
+    fclose(f);
+    start = -1;
+    for (i = 0; i < n; i++) {
+
+        int atsep = !strncmp(buf+i, "From ", 5) &&
+                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
+                                (buf[i-2] == '\n' ||
+                                 (buf[i-2] == '\r' && i >= 3 &&
+                                  buf[i-3] == '\n'))));
+
+        if (atsep) {
+
+            long e = i;
+
+            if (start >= 0) {
+
+                /* the message runs to the blank line before this one */
+                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
+                    e--;
+                indexmsg(buf+start, e-start, start);
+
+            }
+            /* the message itself begins after the separator line */
+            while (i < n && buf[i] != '\n') i++;
+            start = i+1;
+
+        }
+        while (i < n && buf[i] != '\n') i++;
+
+    }
+    if (start >= 0 && start < n) {
+
+        long e = n;
+
+        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
+        indexmsg(buf+start, e-start, start);
+
+    }
+    free(buf);
+    qsort(msgs, msgct, sizeof(msgrec), bydate);
+    folders[fold].msgs = msgct;
+
+}
+
+/* read one message back out of the file, whole */
+static char* getmsg(long fold, long i)
+
+{
+
+    FILE* f;
+    char* buf;
+
+    if (fold < 0 || i < 0 || i >= msgct) return (NULL);
+    f = fopen(folders[fold].file, "r");
+    if (!f) return (NULL);
+    buf = getmem(msgs[i].len+1);
+    fseek(f, msgs[i].off, SEEK_SET);
+    msgs[i].len = fread(buf, 1, msgs[i].len, f);
+    buf[msgs[i].len] = 0;
+    fclose(f);
+
+    return (buf);
+
+}
+
+/*******************************************************************************
+
+Talking to the IMAP server
+
+The protocol is lines. A command is given a tag, and everything the
+server says back is either untagged, beginning with *, which is data, or
+tagged with our tag, which is the answer and ends the command. What makes
+it more than that is the literal: a length in braces at the end of a
+line, followed by exactly that many bytes, which may be anything at all
+including newlines. That is how a message arrives.
+
+*******************************************************************************/
+
+/* send a command, with a tag of its own, and say what the tag was */
+static void imsend(char* tag, long tn, const char* fmt, ...)
+
+{
+
+    va_list ap;
+    char    cmd[MAXLINE];
+
+    snprintf(tag, tn, "a%03ld", ++imaptag);
+    va_start(ap, fmt);
+    vsnprintf(cmd, sizeof(cmd), fmt, ap);
+    va_end(ap);
+    if (diag) fprintf(stderr, "> %s %s\n", tag, cmd);
+    fprintf(imap, "%s %s\r\n", tag, cmd);
+    fflush(imap);
+
+}
+
+/* get one line back, without its line ending */
+static int imline(char* buf, long bn)
+
+{
+
+    if (!fgets(buf, bn, imap)) return (FALSE);
+    trim(buf);
+    if (diag) fprintf(stderr, "< %s\n", buf);
+
+    return (TRUE);
+
+}
+
+/* Is there a literal at the end of this line, and how long? A literal is
+   the count in braces, last thing on the line. */
+static long literalof(const char* line)
+
+{
+
+    const char* p = strrchr(line, '{');
+
+    if (!p || !strchr(p, '}')) return (-1);
+    if (strchr(p, '}')[1]) return (-1); /* the brace is not last */
+
+    return (atol(p+1));
+
+}
+
+/* read exactly n bytes, which is what a literal is */
+static char* imliteral(long n)
+
+{
+
+    char* buf = getmem(n+1);
+    long  got = 0;
+
+    while (got < n) {
+
+        long r = fread(buf+got, 1, n-got, imap);
+
+        if (r <= 0) break;
+        got += r;
+
+    }
+    buf[got] = 0;
+
+    return (buf);
+
+}
+
+/* Read to the answer to the command with this tag, handing every
+   untagged line to the caller. Gives TRUE if the server said OK. */
+static int imwait(const char* tag, void (*line)(const char*))
+
+{
+
+    char line1[MAXLINE];
+    long tl = strlen(tag);
+
+    while (imline(line1, sizeof(line1))) {
+
+        if (!strncmp(line1, tag, tl) && line1[tl] == ' ') {
+
+            const char* r = line1+tl+1;
+
+            return (!strncasecmp(r, "OK", 2));
+
+        }
+        if (line) (*line)(line1);
+
+    }
+
+    return (FALSE); /* the connection went away */
+
+}
+
+/* the folder list, gathered from the LIST replies */
+static void listline(const char* line)
+
+{
+
+    const char* p;
+    const char* q;
+    char        name[MAXSTR];
+    long        o = 0;
+    foldrec*    f;
+
+    if (strncmp(line, "* LIST", 6)) return;
+    /* * LIST (\HasNoChildren) "/" "INBOX" -- the name is last, and quoted
+       unless it has nothing in it needing quotes */
+    p = strrchr(line, '"');
+    if (p && p != line) { /* quoted: find the quote that opens it */
+
+        q = p-1;
+        while (q > line && *q != '"') q--;
+        if (*q != '"') return;
+        q++;
+        while (q < p && o < MAXSTR-1) name[o++] = *q++;
+
+    } else { /* not quoted: the last blank separated word */
+
+        q = strrchr(line, ' ');
+        if (!q) return;
+        q++;
+        while (*q && o < MAXSTR-1) name[o++] = *q++;
+
+    }
+    name[o] = 0;
+    if (!o || foldct >= MAXFOLDER) return;
+    f = &folders[foldct++];
+    copystr(f->name, name, MAXSTR);
+    /* the name to show: Gmail puts its own folders under [Gmail]/, which
+       is a fact about Gmail and not something the reader needs to see */
+    if (!strncmp(name, "[Gmail]/", 8)) copystr(f->show, name+8, MAXSTR);
+    else copystr(f->show, name, MAXSTR);
+    f->noselect = strstr(line, "\\Noselect") != NULL;
+    /* the file it goes in, with anything awkward in the name taken out */
+    {
+
+        char fn[MAXSTR/2];
+        long i;
+
+        copystr(fn, name, sizeof(fn));
+        for (i = 0; fn[i]; i++)
+            if (fn[i] == '/' || fn[i] == '\\' || fn[i] == ' ' ||
+                fn[i] == '[' || fn[i] == ']') fn[i] = '_';
+        snprintf(f->file, sizeof(f->file), "%s/%s.mbox", store, fn);
+
+    }
+
+}
+
+/* The folders that are already in the store, for when the server cannot
+   be reached. The whole point of keeping the mail in files is that it can
+   be read without a server, so a program that shows nothing until it has
+   connected has thrown that away. The name is recovered from the file
+   name, which is the folder name with the awkward characters replaced,
+   so it comes back readable if not always exact. */
+static void storefolders(void)
+
+{
+
+    ami_filptr lp = NULL;
+    ami_filptr fp;
+    char       what[MAXSTR*2];
+
+    snprintf(what, sizeof(what), "%s/*.mbox", store);
+    ami_list(what, &lp);
+    for (fp = lp; fp && foldct < MAXFOLDER; fp = fp->next) {
+
+        foldrec* f;
+        char     nm[MAXSTR/2];
+        long     n;
+
+        copystr(nm, fp->name, sizeof(nm));
+        n = strlen(nm);
+        if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
+        f = &folders[foldct++];
+        copystr(f->name, nm, MAXSTR);
+        copystr(f->show, nm, MAXSTR);
+        snprintf(f->file, sizeof(f->file), "%s/%s.mbox", store, nm);
+        f->noselect = FALSE;
+        { /* the real name, if the state file beside it kept one */
+
+            char  sn[MAXSTR*2+8];
+            char  real[MAXSTR];
+            long  v, u;
+            FILE* sf;
+
+            snprintf(sn, sizeof(sn), "%s.state", f->file);
+            sf = fopen(sn, "r");
+            if (sf) {
+
+                if (fscanf(sf, "%ld %ld %499[^\n]", &v, &u, real) == 3) {
+
+                    trim(real);
+                    copystr(f->name, real, MAXSTR);
+                    if (!strncmp(real, "[Gmail]/", 8))
+                        copystr(f->show, real+8, MAXSTR);
+                    else copystr(f->show, real, MAXSTR);
+
+                }
+                fclose(sf);
+
+            }
+
+        }
+
+    }
+
+}
+
+/* connect and log in */
+static int imapopen(void)
+
+{
+
+    unsigned long addr;
+    char          tag[20];
+    char          line[MAXLINE];
+
+    if (imap) return (TRUE); /* already there */
+    ami_addrnet(imapsrv, &addr);
+    imap = ami_opennet(addr, imapport, TRUE);
+    if (!imap) { fail("Cannot reach the mail server"); return (FALSE); }
+    if (!imline(line, sizeof(line))) { /* the greeting */
+
+        fail("The mail server said nothing");
+        fclose(imap);
+        imap = NULL;
+
+        return (FALSE);
+
+    }
+    /* The password is sent in the clear inside the TLS connection, which
+       is what LOGIN is and what every mail program does. It is never
+       written to the diagnostic. */
+    if (diag) fprintf(stderr, "> a%03ld LOGIN %s <password>\n",
+                      imaptag+1, username);
+    {
+
+        long sav = diag;
+
+        diag = FALSE;
+        imsend(tag, sizeof(tag), "LOGIN \"%s\" \"%s\"", username, password);
+        diag = sav;
+
+    }
+    if (!imwait(tag, NULL)) {
+
+        fail("The server would not accept the user name and password.\n"
+             "For Gmail this must be an application password, from an "
+             "account with two step verification turned on.");
+        fclose(imap);
+        imap = NULL;
+
+        return (FALSE);
+
+    }
+
+    return (TRUE);
+
+}
+
+static void imapclose(void)
+
+{
+
+    char tag[20];
+
+    if (!imap) return;
+    imsend(tag, sizeof(tag), "LOGOUT");
+    imwait(tag, NULL);
+    fclose(imap);
+    imap = NULL;
+
+}
+
+/* ask the server what folders there are */
+static int getfolders(void)
+
+{
+
+    char tag[20];
+
+    if (!imapopen()) return (FALSE);
+    foldct = 0;
+    imsend(tag, sizeof(tag), "LIST \"\" \"*\"");
+    if (!imwait(tag, listline)) { fail("The server would not list the "
+                                       "folders"); return (FALSE); }
+
+    return (TRUE);
+
+}
+
+/* what the last fetch of this folder reached */
+static void readstate(long fold, long* validity, long* lastuid)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+
+    *validity = 0;
+    *lastuid = 0;
+    snprintf(fn, sizeof(fn), "%s.state", folders[fold].file);
+    f = fopen(fn, "r");
+    if (!f) return;
+    if (fscanf(f, "%ld %ld", validity, lastuid) != 2)
+        { *validity = 0; *lastuid = 0; }
+    fclose(f);
+
+}
+
+static void writestate(long fold, long validity, long lastuid)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+
+    snprintf(fn, sizeof(fn), "%s.state", folders[fold].file);
+    f = fopen(fn, "w");
+    if (!f) return;
+    /* The name goes down with it. The file it is kept in has the
+       awkward characters taken out of the name, which cannot be undone,
+       so without this a folder read back from the store on its own
+       shows as _Gmail__Sent_Mail rather than Sent Mail. */
+    fprintf(f, "%ld %ld %s\n", validity, lastuid, folders[fold].name);
+    fclose(f);
+
+}
+
+/* what EXAMINE says about the folder, gathered from its untagged lines */
+static long exists, uidvalidity;
+
+static void examline(const char* line)
+
+{
+
+    const char* p;
+
+    if (sscanf(line, "* %ld EXISTS", &exists) == 1) return;
+    p = strstr(line, "[UIDVALIDITY ");
+    if (p) uidvalidity = atol(p+13);
+
+}
+
+/* the uids of the messages asked for, gathered from the FETCH replies */
+static long* uidlist;
+static long  uidct;
+static long  uidmax;
+
+static void uidline(const char* line)
+
+{
+
+    const char* p = strstr(line, "UID ");
+
+    if (strncmp(line, "* ", 2) || !strstr(line, "FETCH") || !p) return;
+    if (uidct >= uidmax) {
+
+        uidmax = uidmax? uidmax*2: 256;
+        uidlist = realloc(uidlist, uidmax*sizeof(long));
+        if (!uidlist) { fail("Out of memory"); exit(1); }
+
+    }
+    uidlist[uidct++] = atol(p+4);
+
+}
+
+/* Fetch what is new in one folder. The folder is opened with EXAMINE,
+   which is the read only form, and the messages are asked for with
+   BODY.PEEK[], which is the form that does not mark them read. */
+static long fetchfolder(long fold, void (*note)(const char*))
+
+{
+
+    char tag[20];
+    char line[MAXLINE];
+    long validity, lastuid;
+    long lo, hi;
+    long i;
+    long got = 0;
+    char what[MAXSTR+40];
+
+    if (folders[fold].noselect) return (0);
+    snprintf(what, sizeof(what), "Reading %s", folders[fold].show);
+    if (note) (*note)(what);
+    exists = 0;
+    uidvalidity = 0;
+    imsend(tag, sizeof(tag), "EXAMINE \"%s\"", folders[fold].name);
+    if (!imwait(tag, examline)) return (0); /* gone, or not a folder */
+    if (!exists) return (0);
+    readstate(fold, &validity, &lastuid);
+    if (validity != uidvalidity) lastuid = 0; /* the folder was rebuilt */
+    /* the most recent messages, however many were asked for */
+    hi = exists;
+    lo = hi-limit+1;
+    if (lo < 1) lo = 1;
+    uidct = 0;
+    imsend(tag, sizeof(tag), "FETCH %ld:%ld (UID)", lo, hi);
+    if (!imwait(tag, uidline)) return (0);
+    for (i = 0; i < uidct; i++) {
+
+        long  uid = uidlist[i];
+        long  n;
+        char* msg;
+
+        if (uid <= lastuid) continue; /* already have it */
+        snprintf(what, sizeof(what), "%s: %ld of %ld",
+                 folders[fold].show, i+1, uidct);
+        if (note) (*note)(what);
+        imsend(tag, sizeof(tag), "UID FETCH %ld (BODY.PEEK[])", uid);
+        /* the reply is a line ending in a literal, then the message,
+           then the rest of the reply and the tagged answer */
+        if (!imline(line, sizeof(line))) break;
+        n = literalof(line);
+        if (n < 0) { imwait(tag, NULL); continue; } /* no message came */
+        msg = imliteral(n);
+        mboxwrite(folders[fold].file, msg, n);
+        free(msg);
+        got++;
+        imwait(tag, NULL); /* the ) and the answer */
+        if (uid > lastuid) lastuid = uid;
+
+    }
+    writestate(fold, uidvalidity, lastuid);
+
+    return (got);
+
+}
+
+/*******************************************************************************
+
+Talking to the SMTP server
+
+Nothing is sent yet: this program reads mail. What is here is the part
+that proves the account could send -- connect, say hello, start TLS if
+the port is the one that needs it, log in, and say goodbye -- so that the
+sending half has somewhere to stand when it is written.
+
+*******************************************************************************/
+
+/* read a reply, which may be several lines, and give its code */
+static long smtpresp(FILE* f)
+
+{
+
+    char line[MAXLINE];
+    long code = 0;
+
+    while (fgets(line, sizeof(line), f)) {
+
+        trim(line);
+        if (diag) fprintf(stderr, "< %s\n", line);
+        code = atol(line);
+        if (strlen(line) < 4 || line[3] != '-') break; /* the last line */
+
+    }
+
+    return (code);
+
+}
+
+static void smtpsend(FILE* f, const char* fmt, ...)
+
+{
+
+    va_list ap;
+    char    cmd[MAXLINE];
+
+    va_start(ap, fmt);
+    vsnprintf(cmd, sizeof(cmd), fmt, ap);
+    va_end(ap);
+    if (diag) fprintf(stderr, "> %s\n", cmd);
+    fprintf(f, "%s\r\n", cmd);
+    fflush(f);
+
+}
+
+/* base64 encode, which is how a password is given to SMTP */
+static void b64enc(const char* s, long n, char* d, long dn)
+
+{
+
+    static const char* tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                             "abcdefghijklmnopqrstuvwxyz0123456789+/";
+    long i, o = 0;
+
+    for (i = 0; i < n; i += 3) {
+
+        long v = (unsigned char)s[i];
+        long r = n-i;
+
+        v = v<<8 | (r > 1? (unsigned char)s[i+1]: 0);
+        v = v<<8 | (r > 2? (unsigned char)s[i+2]: 0);
+        if (o < dn-4) {
+
+            d[o++] = tab[(v>>18)&0x3f];
+            d[o++] = tab[(v>>12)&0x3f];
+            d[o++] = r > 1? tab[(v>>6)&0x3f]: '=';
+            d[o++] = r > 2? tab[v&0x3f]: '=';
+
+        }
+
+    }
+    d[o] = 0;
+
+}
+
+/* Prove the account can send, without sending anything. */
+static void smtpcheck(void)
+
+{
+
+    unsigned long addr;
+    FILE* f;
+    char  b64[MAXSTR*2];
+    char  msg[MAXSTR*2];
+    long  code;
+
+    ami_addrnet(smtpsrv, &addr);
+    /* 465 is TLS from the first byte; 587 begins in the clear and turns
+       it on with STARTTLS, which this cannot do through the library's
+       socket, so 465 is the one to use */
+    f = ami_opennet(addr, smtpport, TRUE);
+    if (!f) { fail("Cannot reach the sending server"); return; }
+    if (smtpresp(f)/100 != 2)
+        { fail("The sending server did not greet us"); fclose(f); return; }
+    smtpsend(f, "EHLO localhost");
+    if (smtpresp(f)/100 != 2)
+        { fail("The sending server refused EHLO"); fclose(f); return; }
+    smtpsend(f, "AUTH LOGIN");
+    if (smtpresp(f) != 334) {
+
+        fail("The sending server would not start a login.\n"
+             "On port 587 the login begins in the clear and needs "
+             "STARTTLS; try port 465 instead.");
+        fclose(f);
+
+        return;
+
+    }
+    b64enc(username, strlen(username), b64, sizeof(b64));
+    smtpsend(f, "%s", b64);
+    if (smtpresp(f) != 334)
+        { fail("The sending server refused the user name"); fclose(f);
+          return; }
+    b64enc(password, strlen(password), b64, sizeof(b64));
+    if (diag) fprintf(stderr, "> <password>\n");
+    fprintf(f, "%s\r\n", b64);
+    fflush(f);
+    code = smtpresp(f);
+    smtpsend(f, "QUIT");
+    smtpresp(f);
+    fclose(f);
+    if (code/100 == 2)
+        snprintf(msg, sizeof(msg),
+                 "Mail could be sent from this account.\n"
+                 "%s accepted the login on port %ld. Nothing was sent.",
+                 smtpsrv, smtpport);
+    else
+        snprintf(msg, sizeof(msg),
+                 "%s would not accept the login on port %ld.\n"
+                 "For Gmail this must be an application password.",
+                 smtpsrv, smtpport);
+    fail(msg);
+
+}
+
+/*******************************************************************************
+
+The display
+
+Three windows. The folders are a pane down the left, the messages a pane
+on the right, and a message opened to be read gets a window of its own.
+They are all serviced from the one event loop: every event names the
+window it came from, so there is nothing to arrange.
+
+*******************************************************************************/
+
+/* The scroll bar runs from 0 to LONG_MAX. The arithmetic is integer on
+   purpose: LONG_MAX does not survive a trip through a double -- it
+   rounds up to 2^63 and comes back negative -- and the bar answers an
+   out of range position with an error. */
+static long fullscale(long num, long den)
+
+{
+
+    if (den < 1 || num <= 0) return (0);
+    if (num >= den) return (LONG_MAX);
+
+    return (LONG_MAX/den*num); /* num < den, so this cannot overflow */
+
+}
+
+/* Set while a bar's own position event is being answered. The bar has
+   been echoed where the user put it; setting it again from the view
+   would drag the thumb back to the nearest whole line, which on a bar
+   with little travel is most of the way back where it started. */
+static int fromdrag;
+
+/* and back, from a bar position to a line number */
+static long scaleback(long pos, long travel)
+
+{
+
+    if (travel < 1 || pos <= 0) return (0);
+    if (pos >= LONG_MAX) return (travel);
+
+    return ((long)((double)travel*((double)pos/LONG_MAX)+0.5));
+
+}
+
+/* say something in the main window, above the panes */
+static void status(const char* s)
+
+{
+
+    ami_fcolor(stdout, ami_white);
+    ami_frect(stdout, 1, 1, ami_maxxg(stdout), chrh+4);
+    ami_fcolor(stdout, ami_black);
+    ami_cursorg(stdout, 4, 2);
+    fprintf(stdout, "%s", s);
+
+}
+
+/* cut a string to fit a width, with an ellipsis if it had to be cut */
+static void clipstr(FILE* f, char* s, long w)
+
+{
+
+    long n = strlen(s);
+
+    if (ami_strsiz(f, s) <= w) return;
+    while (n && ami_strsiz(f, s) > w) s[--n] = 0;
+    if (n > 3) strcpy(s+n-3, "...");
+
+}
+
+static void drawfolders(void)
+
+{
+
+    long i;
+    long y = 4;
+
+    if (!foldwf) return;
+    fprintf(foldwf, "\f");
+    ami_bold(foldwf, TRUE);
+    ami_fcolor(foldwf, ami_black);
+    ami_cursorg(foldwf, 6, y);
+    fprintf(foldwf, "Folders");
+    ami_bold(foldwf, FALSE);
+    y += chrh*2;
+    for (i = 0; i < foldct; i++) {
+
+        char nm[MAXSTR];
+
+        if (i == foldsel) { /* the one being shown, marked as gmail does */
+
+            ami_fcolor(foldwf, ami_cyan);
+            ami_frect(foldwf, 2, y-2, ami_maxxg(foldwf)-2, y+chrh);
+            ami_fcolor(foldwf, ami_black);
+
+        }
+        copystr(nm, folders[i].show, MAXSTR);
+        ami_bold(foldwf, i == foldsel);
+        clipstr(foldwf, nm, ami_maxxg(foldwf)-16);
+        ami_cursorg(foldwf, 8, y);
+        fprintf(foldwf, "%s", nm);
+        ami_bold(foldwf, FALSE);
+        y += chrh+4;
+
+    }
+
+}
+
+/* One line of the message list: who it is from, then the subject, then
+   as much of the message as is left over, then when it came. This is the
+   layout the web readers use and it is the right one: the eye runs down
+   the senders, and the subject and the start of the text read as one
+   sentence. */
+static void drawmsg(long i, long y)
+
+{
+
+    msgrec* m = &msgs[i];
+    long    w = ami_maxxg(listwf)-sbw;
+    long    fromw = ami_strsiz(listwf, "0")*18;
+    long    datew = ami_strsiz(listwf, "Sep 30, 2025 ");
+    long    x;
+    char    s[MAXSTR+SNIPPET];
+    long    subw;
+
+    if (i == msgsel) {
+
+        ami_fcolor(listwf, ami_cyan);
+        ami_frect(listwf, 0, y-2, w, y+rowh-4);
+        ami_fcolor(listwf, ami_black);
+
+    }
+    /* the sender */
+    copystr(s, m->from, MAXSTR);
+    clipstr(listwf, s, fromw-8);
+    ami_bold(listwf, TRUE);
+    ami_cursorg(listwf, 6, y);
+    fprintf(listwf, "%s", s);
+    /* the subject, then the start of the message after it */
+    x = fromw;
+    subw = w-datew-x-8;
+    copystr(s, m->subject, MAXSTR);
+    clipstr(listwf, s, subw);
+    ami_cursorg(listwf, x, y);
+    fprintf(listwf, "%s", s);
+    x += ami_strsiz(listwf, s);
+    ami_bold(listwf, FALSE);
+    if (*m->snip && x < w-datew-ami_strsiz(listwf, "  ")) {
+
+        snprintf(s, sizeof(s), " - %s", m->snip);
+        clipstr(listwf, s, w-datew-x-8);
+        ami_fcolor(listwf, ami_black);
+        ami_cursorg(listwf, x, y);
+        fprintf(listwf, "%s", s);
+
+    }
+    /* the date, against the right */
+    copystr(s, m->when, sizeof(m->when));
+    ami_cursorg(listwf, w-ami_strsiz(listwf, s)-8, y);
+    fprintf(listwf, "%s", s);
+
+}
+
+static void setlistbar(void)
+
+{
+
+    long max = msgct-listrows;
+
+    if (fromdrag) return;
+    if (max < 1) max = 1;
+    ami_scrollsiz(listwf, SBLIST, fullscale(listrows, msgct));
+    ami_scrollpos(listwf, SBLIST, fullscale(msgtop, max));
+
+}
+
+static void drawlist(void)
+
+{
+
+    long i;
+    long y = 4;
+
+    if (!listwf) return;
+    fprintf(listwf, "\f");
+    ami_fcolor(listwf, ami_black);
+    if (foldsel < 0) {
+
+        ami_cursorg(listwf, 8, y);
+        fprintf(listwf, "Pick a folder.");
+    
+        return;
+
+    }
+    if (!msgct) {
+
+        ami_cursorg(listwf, 8, y);
+        fprintf(listwf, "Nothing in %s yet. Mail/Fetch reads the server.",
+                folders[foldsel].show);
+    
+        return;
+
+    }
+    for (i = msgtop; i < msgct && y+rowh <= ami_maxyg(listwf); i++) {
+
+        drawmsg(i, y);
+        /* a line between, as a list of anything wants */
+        ami_fcolor(listwf, ami_white);
+        ami_line(listwf, 0, y+rowh-3, ami_maxxg(listwf)-sbw, y+rowh-3);
+        ami_fcolor(listwf, ami_black);
+        y += rowh;
+
+    }
+    setlistbar();
+
+}
+
+/*******************************************************************************
+
+Reading one message
+
+*******************************************************************************/
+
+/* wrap the message to the window it is being read in */
+static void wrapread(void)
+
+{
+
+    const char* p;
+    long        w = ami_maxxg(readwf)-16-sbw;
+    long        i;
+
+    for (i = 0; i < readlines; i++) free(readline[i]);
+    readlines = 0;
+    if (!readtext) return;
+    p = readtext;
+    while (*p) {
+
+        const char* e = p;
+        char        line[MAXLINE];
+        long        n;
+
+        while (*e && *e != '\n') e++;
+        n = e-p;
+        if (n >= (long)sizeof(line)) n = sizeof(line)-1;
+        memcpy(line, p, n);
+        line[n] = 0;
+        while (n && (line[n-1] == '\r' || line[n-1] == ' ')) line[--n] = 0;
+        /* a line too long for the window is broken at a space */
+        do {
+
+            char  part[MAXLINE];
+            long  cut = strlen(line);
+
+            copystr(part, line, sizeof(part));
+            if (ami_strsiz(readwf, part) > w) {
+
+                long b;
+
+                while (cut && ami_strsiz(readwf, part) > w) part[--cut] = 0;
+                b = cut;
+                while (b && part[b-1] != ' ') b--;
+                if (b > 1) { cut = b; part[cut] = 0; }
+
+            }
+            if (readlines >= readmax) {
+
+                readmax = readmax? readmax*2: 200;
+                readline = realloc(readline, readmax*sizeof(char*));
+                if (!readline) { fail("Out of memory"); exit(1); }
+
+            }
+            readline[readlines] = getmem(strlen(part)+1);
+            strcpy(readline[readlines++], part);
+            memmove(line, line+cut, strlen(line+cut)+1);
+            while (*line == ' ') memmove(line, line+1, strlen(line));
+
+        } while (*line);
+        p = *e? e+1: e;
+
+    }
+
+}
+
+static void drawread(void)
+
+{
+
+    long y = 4;
+    long i;
+    long max;
+    long page;
+
+    if (!readwf) return;
+    fprintf(readwf, "\f");
+    ami_fcolor(readwf, ami_black);
+    page = (ami_maxyg(readwf)-8)/chrh;
+    if (page < 1) page = 1;
+    if (readtop > readlines-page) readtop = readlines-page;
+    if (readtop < 0) readtop = 0;
+    for (i = readtop; i < readlines && y+chrh <= ami_maxyg(readwf); i++) {
+
+        if (*readline[i]) {
+
+            ami_cursorg(readwf, 8, y);
+            fprintf(readwf, "%s", readline[i]);
+
+        }
+        y += chrh;
+
+    }
+    if (!fromdrag) {
+
+        max = readlines-page;
+        if (max < 1) max = 1;
+        ami_scrollsiz(readwf, SBREAD, fullscale(page, readlines));
+        ami_scrollpos(readwf, SBREAD, fullscale(readtop, max));
+
+    }
+
+}
+
+/* open a message to be read: the headers worth showing, then the text */
+static void openmsg(long i)
+
+{
+
+    char* raw;
+    char* text;
+    char  from[MAXSTR], to[MAXSTR], subj[MAXSTR], date[MAXSTR];
+    char  title[MAXSTR];
+    long  wx, wy;
+    long  n;
+
+    raw = getmsg(foldsel, i);
+    if (!raw) { fail("The message could not be read back"); return; }
+    findheader(raw, "From", from, sizeof(from));
+    findheader(raw, "To", to, sizeof(to));
+    findheader(raw, "Subject", subj, sizeof(subj));
+    findheader(raw, "Date", date, sizeof(date));
+    text = textof(raw, strlen(raw));
+    free(readtext);
+    n = strlen(from)+strlen(to)+strlen(subj)+strlen(date)+strlen(text)+200;
+    readtext = getmem(n);
+    snprintf(readtext, n,
+             "From:    %s\nTo:      %s\nDate:    %s\nSubject: %s\n"
+             "\n"
+             "%s", from, to, date, subj, text);
+    free(text);
+    free(raw);
+    readtop = 0;
+    if (!readwf) {
+
+        ami_openwin(&stdin, &readwf, NULL, READWIN);
+        ami_buffer(readwf, FALSE);
+        ami_auto(readwf, FALSE);
+        ami_curvis(readwf, FALSE);
+        ami_font(readwf, AMI_FONT_TERM);
+        ami_setpoints(readwf, 11.0);
+        ami_binvis(readwf);
+        ami_winclientg(readwf, ami_strsiz(readwf, "0")*84, chrh*40, &wx, &wy,
+                       BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+        ami_setsizg(readwf, wx, wy);
+        /* down and to the right, so it does not sit on top of the list
+           it was opened from */
+        ami_setposg(readwf, 80, 80);
+        ami_scrollvertsizg(readwf, &sbw, &wy);
+        ami_scrollvertg(readwf, ami_maxxg(readwf)-sbw, 1, sbw,
+                        ami_maxyg(readwf), SBREAD);
+
+    }
+    copystr(title, *subj? subj: "(no subject)", MAXSTR);
+    ami_title(readwf, title);
+    ami_front(readwf);
+    wrapread();
+    drawread();
+
+}
+
+static void closeread(void)
+
+{
+
+    long i;
+
+    if (!readwf) return;
+    fclose(readwf);
+    readwf = NULL;
+    for (i = 0; i < readlines; i++) free(readline[i]);
+    readlines = 0;
+    free(readtext);
+    readtext = NULL;
+
+}
+
+/*******************************************************************************
+
+Layout
+
+The panes are placed on the main window and moved when it is resized.
+The folder pane takes a fixed width, since folder names are short and a
+folder list that grows with the window is wasted space.
+
+*******************************************************************************/
+
+static void layout(void)
+
+{
+
+    long top = chrh+8; /* under the status line */
+    long h = ami_maxyg(stdout)-top;
+
+    /* the main window shows between and around the panes, so it is
+       cleared here rather than left as whatever was under it */
+    fprintf(stdout, "\f");
+
+    foldw = ami_strsiz(stdout, "0")*22;
+    if (foldw > ami_maxxg(stdout)/2) foldw = ami_maxxg(stdout)/2;
+    ami_setposg(foldwf, 1, top);
+    ami_setsizg(foldwf, foldw, h);
+    ami_setposg(listwf, foldw+2, top);
+    ami_setsizg(listwf, ami_maxxg(stdout)-foldw-2, h);
+    /* The bar down the right of the message list is moved and sized, not
+       made again: a widget id is taken until the widget is killed, so
+       making it a second time is an error, and a resize would raise it. */
+    ami_poswidgetg(listwf, SBLIST, ami_maxxg(listwf)-sbw, 1);
+    ami_sizwidgetg(listwf, SBLIST, sbw, ami_maxyg(listwf));
+    listrows = ami_maxyg(listwf)/rowh;
+    if (listrows < 1) listrows = 1;
+
+}
+
+/*******************************************************************************
+
+The menu
+
+*******************************************************************************/
+
+static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
+                    long id, char* face)
+
+{
+
+    *mp = malloc(sizeof(ami_menurec));
+    if (!*mp) { fail("Out of memory"); exit(1); }
+    (*mp)->next = NULL;
+    (*mp)->branch = NULL;
+    (*mp)->onoff = onoff;
+    (*mp)->oneof = FALSE;
+    (*mp)->bar = bar;
+    (*mp)->id = id;
+    (*mp)->face = malloc(strlen(face)+1);
+    if (!(*mp)->face) { fail("Out of memory"); exit(1); }
+    strcpy((*mp)->face, face);
+
+}
+
+static void appendmenu(ami_menuptr* list, ami_menuptr m)
+
+{
+
+    ami_menuptr lp;
+
+    if (!*list) *list = m;
+    else { lp = *list; while (lp->next) lp = lp->next; lp->next = m; }
+
+}
+
+static void setupmenu(void)
+
+{
+
+    ami_menuptr ml = NULL;
+    ami_menuptr ma;
+    ami_menuptr mp;
+    ami_menuptr sm = NULL;
+
+    newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Mail");
+    appendmenu(&ml, ma);
+    ami_stdmenu(BIT(AMI_SMEXIT) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
+                &sm, ml);
+    /* as in the spreadsheet, the branch is hung on after the standard
+       menu is built, since building it clears the branch link */
+    newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Fetch New Mail");
+    appendmenu(&ma->branch, mp);
+    newmenu(&mp, FALSE, FALSE, ON, MENUFOLD, "Refresh Folder List");
+    appendmenu(&ma->branch, mp);
+    newmenu(&mp, FALSE, FALSE, ON, MENUCHECK, "Check Sending");
+    appendmenu(&ma->branch, mp);
+    ami_menu(stdout, sm);
+
+}
+
+/*******************************************************************************
+
+Fetching
+
+*******************************************************************************/
+
+/* fetch every folder, saying where it has got to as it goes */
+static void fetchall(void)
+
+{
+
+    long i;
+    long got = 0;
+    char msg[MAXSTR];
+
+    status("Connecting...");
+    if (!imapopen()) { status(""); return; }
+    /* the server's list, which replaces the one read off the store: the
+       server is the authority on what folders there are */
+    foldct = 0;
+    foldsel = -1;
+    if (!getfolders()) { status(""); return; }
+    drawfolders();
+    for (i = 0; i < foldct; i++) got += fetchfolder(i, status);
+    imapclose();
+    snprintf(msg, sizeof(msg), "%ld new message%s", got, got == 1? "": "s");
+    status(msg);
+    if (foldsel < 0 && foldct) showfolder(0);
+    else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
+    drawfolders();
+
+}
+
+/* show a folder */
+static void showfolder(long i)
+
+{
+
+    if (i < 0 || i >= foldct) return;
+    foldsel = i;
+    closeread();
+    indexfolder(i);
+    drawfolders();
+    drawlist();
+
+}
+
+/*******************************************************************************
+
+Main
+
+*******************************************************************************/
+
+/* The command line. The account is not here: a password on a command
+   line is a password in everybody's process list. */
+static long dofetch;   /* fetch on startup */
+
+static ami_optrec opttbl[] = {
+
+    { "fetch", &dofetch, NULL,   NULL, NULL },
+    { "f",     &dofetch, NULL,   NULL, NULL },
+    { "diag",  &diag,    NULL,   NULL, NULL },
+    { "d",     &diag,    NULL,   NULL, NULL },
+    { "limit", NULL,     &limit, NULL, NULL },
+    { NULL,    NULL,     NULL,   NULL, NULL }
+
+};
+
+int main(int argc, char* argv[])
+
+{
+
+    ami_evtrec er;
+    char       msg[MAXSTR];
+    long       i;
+    long       argi = 1;
+    long       argcl = argc;
+    long       wx, wy;
+
+    /* the command line, by the option package, which knows what an
+       option looks like on the system it is running on */
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
+    if (argcl > 1) {
+
+        fprintf(stderr, "Usage: mail [--fetch|-f] [--diag|-d] "
+                        "[--limit=<n>]\n");
+
+        return (1);
+
+    }
+    ami_title(stdout, "Mail");
+    ami_autohold(FALSE);
+    ami_curvis(stdout, FALSE);
+    ami_auto(stdout, FALSE);
+    ami_font(stdout, AMI_FONT_SIGN);
+    ami_setpoints(stdout, 11.0);
+    ami_binvis(stdout);
+    ami_buffer(stdout, FALSE);
+    chrh = ami_chrsizy(stdout);
+    rowh = chrh+8;
+    readconfig();
+    { /* the store, if it is not there yet: makpth is an error if it is */
+
+        struct stat sb;
+
+        if (stat(store, &sb)) ami_makpth(store);
+
+    }
+    setupmenu();
+    ami_winclientg(stdout, ami_strsiz(stdout, "0")*130, chrh*46, &wx, &wy,
+                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsizg(stdout, wx, wy);
+    /* the two panes */
+    ami_openwin(&stdin, &foldwf, stdout, FOLDWIN);
+    /* A pane is part of the main window, not a window of its own: no
+       frame, no title bar, no sizing bars. */
+    ami_frame(foldwf, FALSE);
+    ami_buffer(foldwf, FALSE);
+    ami_auto(foldwf, FALSE);
+    ami_curvis(foldwf, FALSE);
+    ami_font(foldwf, AMI_FONT_SIGN);
+    ami_setpoints(foldwf, 11.0);
+    ami_binvis(foldwf);
+    ami_openwin(&stdin, &listwf, stdout, LISTWIN);
+    ami_frame(listwf, FALSE);
+    ami_buffer(listwf, FALSE);
+    ami_auto(listwf, FALSE);
+    ami_curvis(listwf, FALSE);
+    ami_font(listwf, AMI_FONT_SIGN);
+    ami_setpoints(listwf, 11.0);
+    ami_binvis(listwf);
+    ami_scrollvertsizg(listwf, &sbw, &wy);
+    ami_scrollvertg(listwf, 1, 1, sbw, chrh*10, SBLIST); /* moved by layout */
+    layout();
+    /* Start from the store, not from the server. Whatever was fetched
+       before can be read without a network at all, which is the point of
+       keeping it in files, and starting this way means the program comes
+       up at once and comes up on a train. The server is asked only when
+       the user asks for it. */
+    storefolders();
+    if (foldct) showfolder(0);
+    drawfolders();
+    drawlist();
+    status(foldct? "": "Nothing fetched yet. Mail/Fetch New Mail reads "
+                       "the server.");
+    if (dofetch) fetchall();
+    do {
+
+        ami_event(stdin, &er);
+        /* Every event names the window it came from. The reader is a
+           window of its own and the panes are windows of their own, so
+           this one loop serves them all. */
+        if (er.winid == READWIN) {
+
+            switch (er.etype) {
+
+                case ami_etterm: closeread(); break;
+                case ami_etredraw:
+                case ami_etresize: wrapread(); drawread(); break;
+                case ami_etmouba:
+                    if (er.amoubn == 4) { readtop -= WHEELROWS; drawread(); }
+                    else if (er.amoubn == 5)
+                        { readtop += WHEELROWS; drawread(); }
+                    break;
+                case ami_etsclull: readtop--; drawread(); break;
+                case ami_etscldrl: readtop++; drawread(); break;
+                case ami_etsclulp: readtop -= 20; drawread(); break;
+                case ami_etscldrp: readtop += 20; drawread(); break;
+                case ami_etsclpos:
+                    /* echo the bar where the user put it and do not set
+                       it again from the view, which would drag the
+                       thumb back to the nearest whole line */
+                    ami_scrollpos(readwf, SBREAD, er.sclpos);
+                    readtop = scaleback(er.sclpos, readlines-1);
+                    fromdrag = TRUE;
+                    drawread();
+                    fromdrag = FALSE;
+                    break;
+                case ami_etup: readtop--; drawread(); break;
+                case ami_etdown: readtop++; drawread(); break;
+                case ami_etpagu: readtop -= 20; drawread(); break;
+                case ami_etpagd: readtop += 20; drawread(); break;
+                case ami_etcan: closeread(); break;
+                default: break;
+
+            }
+            continue;
+
+        }
+        if (er.winid == FOLDWIN) {
+
+            switch (er.etype) {
+
+                case ami_etmoumovg: mpx = er.moupxg; mpy = er.moupyg; break;
+                case ami_etmouba:
+                    if (er.amoubn != 1) break;
+                    /* which folder the click landed on */
+                    i = (mpy-4-chrh*2)/(chrh+4);
+                    if (i >= 0 && i < foldct) showfolder(i);
+                    break;
+                case ami_etredraw: drawfolders(); break;
+                default: break;
+
+            }
+            continue;
+
+        }
+        if (er.winid == LISTWIN) {
+
+            switch (er.etype) {
+
+                case ami_etmoumovg: mpx = er.moupxg; mpy = er.moupyg; break;
+                case ami_etmouba:
+                    if (er.amoubn == 4) {
+
+                        msgtop -= WHEELROWS;
+                        if (msgtop < 0) msgtop = 0;
+                        drawlist();
+
+                    } else if (er.amoubn == 5) {
+
+                        msgtop += WHEELROWS;
+                        if (msgtop > msgct-listrows) msgtop = msgct-listrows;
+                        if (msgtop < 0) msgtop = 0;
+                        drawlist();
+
+                    } else if (er.amoubn == 1) {
+
+                        i = msgtop+(mpy-4)/rowh;
+                        if (i >= 0 && i < msgct) { msgsel = i; drawlist();
+                                                   openmsg(i); }
+
+                    }
+                    break;
+                case ami_etsclull: case ami_etup:
+                    if (msgtop) { msgtop--; drawlist(); }
+                    break;
+                case ami_etscldrl: case ami_etdown:
+                    if (msgtop < msgct-listrows) { msgtop++; drawlist(); }
+                    break;
+                case ami_etsclulp: case ami_etpagu:
+                    msgtop -= listrows;
+                    if (msgtop < 0) msgtop = 0;
+                    drawlist();
+                    break;
+                case ami_etscldrp: case ami_etpagd:
+                    msgtop += listrows;
+                    if (msgtop > msgct-listrows) msgtop = msgct-listrows;
+                    if (msgtop < 0) msgtop = 0;
+                    drawlist();
+                    break;
+                case ami_etsclpos:
+                    ami_scrollpos(listwf, SBLIST, er.sclpos);
+                    msgtop = scaleback(er.sclpos, msgct-listrows);
+                    if (msgtop > msgct-listrows) msgtop = msgct-listrows;
+                    if (msgtop < 0) msgtop = 0;
+                    fromdrag = TRUE;
+                    drawlist();
+                    fromdrag = FALSE;
+                    break;
+                case ami_etredraw: drawlist(); break;
+                default: break;
+
+            }
+            continue;
+
+        }
+        switch (er.etype) {
+
+            case ami_etresize:
+            case ami_etredraw:
+                layout();
+                status("");
+                drawfolders();
+                drawlist();
+                break;
+
+            case ami_etmenus:
+                switch (er.menuid) {
+
+                    case MENUFETCH: fetchall(); break;
+
+                    case MENUFOLD:
+                        if (getfolders()) {
+
+                            imapclose();
+                            drawfolders();
+                            snprintf(msg, sizeof(msg), "%ld folders", foldct);
+                            status(msg);
+
+                        }
+                        break;
+
+                    case MENUCHECK: smtpcheck(); break;
+
+                    case AMI_SMHELPTOPIC:
+                        ami_alert("Mail",
+                                  "Pick a folder at the left, then a message. "
+                                  "Mail/Fetch New Mail reads the server.");
+                        break;
+
+                    case AMI_SMABOUT:
+                        ami_alert("Mail",
+                                  "A mail reader on Petit-Ami graphics");
+                        break;
+
+                    case AMI_SMEXIT: goto done;
+
+                }
+                break;
+
+            default: break;
+
+        }
+
+    /* a terminate for the reader closed the reader, not the program */
+    } while (er.etype != ami_etterm || er.winid == READWIN);
+    done:
+    closeread();
+    imapclose();
+
+    return (0);
+
+}
