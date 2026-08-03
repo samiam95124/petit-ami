@@ -1,27 +1,27 @@
 /*******************************************************************************
 *                                                                              *
-*                     WINDOW MANAGER RESIZE, NOT REPORTED                      *
+*                       BUFFERED, AND FOLLOWING THE BUFFER                     *
 *                                                                              *
-* Opens a window with a child pane in it and prints every event that comes.    *
-* Resize the window with the program's own call and an ami_etresize arrives.   *
-* Resize it by dragging its frame and nothing arrives at all -- yet the pane   *
-* has been resized and cleared by then, so the program cannot know it has to   *
-* paint what the drag exposed.                                                 *
+* Shows what a window answers about its own size in the two modes, which is    *
+* easy to get wrong: a window comes up buffered, and in buffered mode          *
+* ami_maxxg reports the BUFFER, not the window on screen. Resizing the window  *
+* does not change the buffer, so the answer does not change either. That is    *
+* the mode working, not the window failing to notice.                          *
 *                                                                              *
-* Run it, then drag the window's right or bottom edge:                         *
+* The resize event is the window saying how big the display now is, so that    *
+* the program can choose: leave the buffer as it is and let the window be a    *
+* window onto it, or follow it with ami_sizbufg, after which ami_maxxg         *
+* reports the new size. The manual calls the second one buffer follow mode.    *
 *                                                                              *
-*     bin/wmresize                                                             *
+* Run it and drag the window's frame:                                          *
 *                                                                              *
-* Every event is printed with its size fields and what the window answers      *
-* when asked its own size. What to look for is a line appearing when the       *
-* drag happens. The program also draws a band down the right and along the     *
-* bottom of the pane, so the exposed space shows plainly: white where the      *
-* program has painted, background where it has not.                            *
+*     bin/wmresize            buffered, buffer left alone                      *
+*     bin/wmresize follow     buffered, buffer follows the window              *
+*     bin/wmresize nobuf      unbuffered, where maxxg is the window            *
 *                                                                              *
-* Options:                                                                     *
-*                                                                              *
-*     self     resize once from the program after two seconds, for contrast:   *
-*              that one is reported                                            *
+* Every event is printed with the size it carries beside what the window       *
+* answers when asked. In the first, the two part company after a resize and    *
+* stay parted. In the other two they agree.                                    *
 *                                                                              *
 *******************************************************************************/
 
@@ -57,12 +57,17 @@ int main(int argc, char* argv[])
     long       w, h;
     long       i;
     long       n = 0;
-    int        self = FALSE;
+    int        follow = FALSE;
+    int        nobuf = FALSE;
 
-    for (i = 1; i < argc; i++)
-        if (!strcmp(argv[i], "self")) self = TRUE;
+    for (i = 1; i < argc; i++) {
 
+        if (!strcmp(argv[i], "follow")) follow = TRUE;
+        else if (!strcmp(argv[i], "nobuf")) nobuf = TRUE;
+
+    }
     ami_autohold(FALSE);
+    if (nobuf) ami_buffer(stdout, FALSE);
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_winclientg(stdout, 700, 500, &wx, &wy,
@@ -83,13 +88,9 @@ int main(int argc, char* argv[])
     ami_setsizg(pane, w, h);
     paint(pane, w, h);
 
-    if (self) { /* one resize of our own, which is reported */
-
-        ami_setsizg(stdout, wx+150, wy+100);
-        fprintf(stderr, "asked for %ld by %ld from the program\n",
-                wx+150, wy+100);
-
-    }
+    fprintf(stderr, "%s\n", nobuf? "unbuffered: maxxg is the window":
+                            follow? "buffered, following the buffer":
+                                    "buffered, buffer left alone");
     do {
 
         ami_event(stdin, &er);
@@ -104,9 +105,16 @@ int main(int argc, char* argv[])
            a negative size. */
         if (er.etype == ami_etresize && er.winid == 1) {
 
+            /* Follow the buffer, or do not. Following throws the old
+               buffer away and makes one the size of the window, after
+               which maxxg agrees with the event. Not following leaves
+               the program with the surface it had, which the window
+               shows as much of as it can. */
+            if (follow) ami_sizbufg(stdout, er.rszxg, er.rszyg);
             w = er.rszxg-40;
             h = er.rszyg-80;
             ami_setsizg(pane, w, h);
+            if (follow) ami_sizbufg(pane, w, h);
             paint(pane, w, h);
 
         }
