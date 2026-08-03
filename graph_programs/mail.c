@@ -1283,7 +1283,11 @@ static void listline(const char* line)
        is a fact about Gmail and not something the reader needs to see */
     if (!strncmp(name, "[Gmail]/", 8)) copystr(f->show, name+8, MAXSTR);
     else copystr(f->show, name, MAXSTR);
-    f->noselect = strstr(line, "\\Noselect") != NULL;
+    /* A folder marked \\Noselect is a place to hang other folders under
+       and holds no messages -- Gmail's [Gmail] is one. It is not a
+       folder to a reader, so it is not listed as one. */
+    if (strstr(line, "\\Noselect")) { foldct--; return; }
+    f->noselect = FALSE;
     /* the file it goes in, with anything awkward in the name taken out */
     {
 
@@ -1506,8 +1510,16 @@ static void examline(const char* line)
 {
 
     const char* p;
+    char        what[40];
+    long        n;
 
-    if (sscanf(line, "* %ld EXISTS", &exists) == 1) return;
+    /* The word is checked, not assumed. sscanf gives the number of
+       assignments it made before it gave up, so "* 0 RECENT" against
+       "* %ld EXISTS" assigns the 0 and answers 1 just as a real EXISTS
+       does -- and RECENT comes straight after EXISTS, so the count was
+       being thrown away and every folder looked empty. */
+    if (sscanf(line, "* %ld %39s", &n, what) == 2 &&
+        !strcasecmp(what, "EXISTS")) exists = n;
     p = strstr(line, "[UIDVALIDITY ");
     if (p) uidvalidity = atol(p+13);
 

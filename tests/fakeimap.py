@@ -106,14 +106,23 @@ def serve(conn):
         if up.startswith("LOGIN"):
             send("%s OK LOGIN done\r\n" % tag)
         elif up.startswith("LIST"):
+            send('* LIST (\\HasChildren \\Noselect) "/" "[Gmail]"\r\n')
             for name in FOLDERS:
                 send('* LIST (\\HasNoChildren) "/" "%s"\r\n' % name)
             send("%s OK LIST done\r\n" % tag)
         elif up.startswith("EXAMINE") or up.startswith("SELECT"):
             name = cmd.split(" ", 1)[1].strip().strip('"')
             sel = FOLDERS.get(name, [])
+            # As Gmail answers, in Gmail's order. RECENT after EXISTS
+            # matters: a client that parses EXISTS loosely will take the
+            # RECENT count for it and think the folder is empty.
+            send("* FLAGS (\\Answered \\Flagged \\Draft \\Deleted \\Seen)\r\n")
+            send("* OK [PERMANENTFLAGS ()] Flags permitted.\r\n")
+            send("* OK [UIDVALIDITY 42] UIDs valid.\r\n")
             send("* %d EXISTS\r\n" % len(sel))
-            send("* OK [UIDVALIDITY 42] UIDs valid\r\n")
+            send("* 0 RECENT\r\n")
+            send("* OK [UIDNEXT %d] Predicted next UID.\r\n" % (len(sel)+1))
+            send("* OK [HIGHESTMODSEQ 6020170]\r\n")
             send("%s OK [READ-ONLY] EXAMINE done\r\n" % tag)
         elif up.startswith("UID FETCH"):
             uid = int(cmd.split()[2])
