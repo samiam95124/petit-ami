@@ -1789,22 +1789,26 @@ The topic list
 
 *******************************************************************************/
 
-/* does the topic hold the text, in either case? An empty search matches
-   everything, which is what an empty search box should mean. */
-static int helphas(const helprec* h, const char* what)
+/* How many times does the topic hold the text, in either case? A count
+   rather than a yes or no, because the list shows it: a topic the word
+   is the subject of holds it many times, and one that merely mentions
+   it in passing holds it once, and the reader can tell them apart
+   without opening either. */
+static long helpcount(const helprec* h, const char* what)
 
 {
 
     const char* p;
     long        n = strlen(what);
+    long        c = 0;
 
-    if (!n) return (TRUE);
+    if (!n) return (0); /* an empty search matches everything, uncounted */
     for (p = h->title; *p; p++)
-        if (!strncasecmp(p, what, n)) return (TRUE);
+        if (!strncasecmp(p, what, n)) c++;
     for (p = h->text; *p; p++)
-        if (!strncasecmp(p, what, n)) return (TRUE);
+        if (!strncasecmp(p, what, n)) c++;
 
-    return (FALSE);
+    return (c);
 
 }
 
@@ -1817,14 +1821,24 @@ static void helpfill(const char* what)
 {
 
     ami_strptr sl = NULL, sp, lp = NULL;
-    long       i;
+    long       i, c;
+    char       lab[300];
 
+    /* the strings are ours until the list box has them; it copies */
     helpmatches = 0;
-    for (i = 0; i < helptopicct; i++) if (helphas(&helptopics[i], what)) {
+    for (i = 0; i < helptopicct; i++) {
 
+        c = helpcount(&helptopics[i], what);
+        if (*what && !c) continue; /* not this one */
+        /* the count goes beside the title, so that a topic the word is
+           the subject of can be told from one that mentions it once */
+        if (*what) snprintf(lab, sizeof(lab), "%s (%ld)",
+                            helptopics[i].title, c);
+        else snprintf(lab, sizeof(lab), "%s", helptopics[i].title);
         sp = malloc(sizeof(ami_strrec));
         if (!sp) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
-        sp->str = helptopics[i].title;
+        sp->str = strdup(lab);
+        if (!sp->str) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
         sp->next = NULL;
         if (lp) lp->next = sp; else sl = sp;
         lp = sp;
@@ -1837,14 +1851,15 @@ static void helpfill(const char* what)
 
         sl = malloc(sizeof(ami_strrec));
         if (!sl) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
-        sl->str = "(no topic matches)";
+        sl->str = strdup("(no topic matches)");
+        if (!sl->str) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
         sl->next = NULL;
 
     }
     if (helplistup) ami_killwidget(helpwf, HELPLIST);
     ami_listboxg(helpwf, helpx0, helpy0, helpx1, helpy1, sl, HELPLIST);
     helplistup = TRUE;
-    while (sl) { sp = sl->next; free(sl); sl = sp; }
+    while (sl) { sp = sl->next; free(sl->str); free(sl); sl = sp; }
     /* the topic shown is only still shown if the search kept it */
     if (helpsel >= 0) {
 
@@ -2286,7 +2301,7 @@ static void setupmenu(void)
 
     newmenu(&sh, FALSE, FALSE, OFF, MENUSHEET, "Sheet");
     appendmenu(&ml, sh);
-    ami_stdmenu(BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) | BIT(AMI_SMCLOSE) |
+    ami_stdmenu(BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) |
                 BIT(AMI_SMSAVE) | BIT(AMI_SMSAVEAS) | BIT(AMI_SMEXIT) |
                 BIT(AMI_SMUNDO) | BIT(AMI_SMCUT) | BIT(AMI_SMPASTE) |
                 BIT(AMI_SMDELETE) | BIT(AMI_SMFIND) | BIT(AMI_SMGOTO) |
@@ -2691,13 +2706,6 @@ int main(int argc, char* argv[])
 
                     case AMI_SMEXIT:
                         goto done;
-
-                    case AMI_SMCLOSE: /* put the sheet away */
-                        clearsheet();
-                        filename[0] = 0;
-                        layout();
-                        drawall();
-                        break;
 
                     case AMI_SMUNDO: /* the last cell change back */
                         if (undval) {
