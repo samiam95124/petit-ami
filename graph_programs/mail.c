@@ -186,6 +186,7 @@ static long  rowh;              /* the height of a message line */
 static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
+static long  foldy[MAXFOLDER];  /* where each folder was drawn, for clicks */
 static long  listx, listy;      /* where the list pane sits on the window */
 static long  fromx;             /* where the sender column ends */
 static long  datex;             /* where the date column begins */
@@ -1490,8 +1491,8 @@ static void popopen(long i, long x, long y)
     popclose();
     popmsg = i;
     copystr(nm, msgs[i].from, sizeof(nm));
-    snprintf(poplab[0], sizeof(poplab[0]), "Move to Trash");
-    snprintf(poplab[1], sizeof(poplab[1]), "Folder for %s", nm);
+    snprintf(poplab[0], sizeof(poplab[0]), "Move to local Trash");
+    snprintf(poplab[1], sizeof(poplab[1]), "Local folder for %s", nm);
     poprowh = chrh+10;
     w = ami_strsiz(listwf, poplab[0]);
     if (ami_strsiz(listwf, poplab[1]) > w) w = ami_strsiz(listwf, poplab[1]);
@@ -2325,52 +2326,83 @@ static void drawfolders(void)
     long i;
     long y = 4;
     long cw;
+    long pass;
     char cnt[40];
 
     if (!foldwf) return;
     fprintf(foldwf, "\f");
-    ami_bold(foldwf, TRUE);
     ami_fcolor(foldwf, ami_black);
-    ami_cursorg(foldwf, 6, y);
-    fprintf(foldwf, "Folders");
-    ami_bold(foldwf, FALSE);
-    y += chrh*2;
-    for (i = 0; i < foldct; i++) {
+    /* Two lists with a rule between them: what the server has, and what
+       is ours alone. They are separate lists and not one list marked
+       up, because a local Trash and the server's Trash are two
+       different folders that happen to share a name, and a reader has
+       to be able to tell at a glance which is which. */
+    for (pass = 0; pass < 2; pass++) {
 
-        char nm[MAXSTR];
+        long shown = 0;
 
-        if (i == foldsel) { /* the one being shown, marked as gmail does */
+        if (pass) { /* the rule, then the second heading */
 
-            ami_fcolor(foldwf, ami_cyan);
-            ami_frect(foldwf, 2, y-2, ami_maxxg(foldwf)-2, y+chrh);
-            ami_fcolor(foldwf, ami_black);
-
-        }
-        /* ours begin below a rule, so the two kinds cannot be mistaken */
-        if (folders[i].local && i && !folders[i-1].local)
-            divider(foldwf, 6, y-3, ami_maxxg(foldwf)-8, y-3);
-        copystr(nm, folders[i].show, MAXSTR);
-        /* the count against the right, and the name given what is left,
-           so that a long name is cut rather than run under the count */
-        cnt[0] = 0;
-        if (folders[i].msgs > 0) commas(folders[i].msgs, cnt, sizeof(cnt));
-        cw = *cnt? ami_strsiz(foldwf, cnt)+8: 0;
-        ami_bold(foldwf, i == foldsel);
-        clipstr(foldwf, nm, ami_maxxg(foldwf)-16-cw);
-        ami_cursorg(foldwf, 8, y);
-        fprintf(foldwf, "%s", nm);
-        if (*cnt) {
-
-            ami_cursorg(foldwf, ami_maxxg(foldwf)-8-ami_strsiz(foldwf, cnt), y);
-            fprintf(foldwf, "%s", cnt);
+            y += chrh/2;
+            divider(foldwf, 6, y, ami_maxxg(foldwf)-8, y);
+            y += chrh;
 
         }
+        ami_bold(foldwf, TRUE);
+        ami_cursorg(foldwf, 6, y);
+        fprintf(foldwf, "%s", pass? "Local Folders": "Server Folders");
         ami_bold(foldwf, FALSE);
-        y += chrh+4;
+        y += chrh*2;
+        for (i = 0; i < foldct; i++) {
+
+            char nm[MAXSTR];
+
+            if ((folders[i].local != 0) != (pass != 0)) continue;
+            shown++;
+            foldy[i] = y; /* where it landed, for the click to find */
+            if (i == foldsel) { /* the one being shown */
+
+                ami_fcolor(foldwf, ami_cyan);
+                ami_frect(foldwf, 2, y-2, ami_maxxg(foldwf)-2, y+chrh);
+                ami_fcolor(foldwf, ami_black);
+
+            }
+            copystr(nm, folders[i].show, MAXSTR);
+            /* the count against the right, and the name given what is
+               left, so a long name is cut rather than run under it */
+            cnt[0] = 0;
+            if (folders[i].msgs > 0) commas(folders[i].msgs, cnt,
+                                            sizeof(cnt));
+            cw = *cnt? ami_strsiz(foldwf, cnt)+8: 0;
+            ami_bold(foldwf, i == foldsel);
+            clipstr(foldwf, nm, ami_maxxg(foldwf)-16-cw);
+            ami_cursorg(foldwf, 8, y);
+            fprintf(foldwf, "%s", nm);
+            if (*cnt) {
+
+                ami_cursorg(foldwf, ami_maxxg(foldwf)-8-
+                                    ami_strsiz(foldwf, cnt), y);
+                fprintf(foldwf, "%s", cnt);
+
+            }
+            ami_bold(foldwf, FALSE);
+            y += chrh+4;
+
+        }
+        if (!shown) { /* say so rather than leave a gap */
+
+            ami_fcolorc(foldwf, 130, 130, 130);
+            ami_cursorg(foldwf, 8, y);
+            fprintf(foldwf, "%s", pass? "(none yet)": "(not fetched)");
+            ami_fcolor(foldwf, ami_black);
+            y += chrh+4;
+
+        }
 
     }
 
 }
+
 
 /* One line of the message list: who it is from, then the subject, then
    as much of the message as is left over, then when it came. This is the
@@ -3570,12 +3602,22 @@ int main(int argc, char* argv[])
             switch (er.etype) {
 
                 case ami_etmoumovg: mpx = er.moupxg; mpy = er.moupyg; break;
-                case ami_etmouba:
+                case ami_etmouba: {
+
+                    long best = -1;
+
                     if (er.amoubn != 1) break;
-                    /* which folder the click landed on */
-                    i = (mpy-4-chrh*2)/(chrh+4);
-                    if (i >= 0 && i < foldct) showfolder(i);
+                    /* Which folder the click landed on, found from where
+                       each was drawn rather than by counting rows: the
+                       two headings and the rule between the lists make
+                       row arithmetic wrong. */
+                    for (i = 0; i < foldct; i++)
+                        if (mpy >= foldy[i]-2 && mpy < foldy[i]+chrh+2)
+                            best = i;
+                    if (best >= 0) showfolder(best);
                     break;
+
+                }
                 case ami_etredraw: break; /* buffered, as the list is */
                 default: break;
 
@@ -3597,9 +3639,10 @@ int main(int argc, char* argv[])
                     break;
 
                 }
-                case ami_etmouba:
-                    if (er.amoubn == 1 && poprow >= 0) popact(poprow);
+                case ami_etmouba: /* a button down on an entry takes it */
+                    if (poprow >= 0) popact(poprow);
                     break;
+                case ami_etmoubd: break; /* the opening click coming up */
                 case ami_etcan:
                 case ami_etterm: popclose(); break;
                 default: break;
@@ -3610,9 +3653,13 @@ int main(int argc, char* argv[])
         }
         if (er.winid == LISTWIN) {
 
-            /* anything but the mouse moving closes an open menu; a click
-               that closes it is spent on the closing */
-            if (popwf && er.etype != ami_etmoumovg) {
+            /* An open menu stays open until something is picked or the
+               next button goes down somewhere else. A button coming up
+               is not a reason to close: the button that opened it comes
+               up a moment later, which shut the menu the instant it was
+               made and made it look as though it had never opened. */
+            if (popwf && er.etype != ami_etmoumovg &&
+                         er.etype != ami_etmoubd) {
 
                 popclose();
                 if (er.etype == ami_etmouba) continue;
