@@ -96,6 +96,7 @@
 #define COLDIG   9    /* column width in digits of the display font */
 #define HDRDIG   4    /* row header width in digits */
 #define MAXNEST  32   /* deepest formula evaluation, catches cycles */
+#define WHEELROWS 3   /* rows the view moves per notch of the wheel */
 
 /* the scroll bars */
 #define SBVERT   1 /* vertical scroll bar widget id */
@@ -1796,7 +1797,14 @@ int main(int argc, char* argv[])
                 mpy = er.moupyg;
                 break;
 
-            case ami_etmouba: /* a click picks a cell */
+            case ami_etmouba: /* a click picks a cell, the wheel scrolls */
+                /* The wheel arrives as buttons 4 and 5, which is how X
+                   delivers it: a notch is a press and a release of a
+                   button that is not there. Scroll the view by a few
+                   rows without moving the current cell, as the bars
+                   do, which is what a sheet does under the wheel. */
+                if (er.amoubn == 4) { scrollto(orgx, orgy-WHEELROWS, 0); break; }
+                if (er.amoubn == 5) { scrollto(orgx, orgy+WHEELROWS, 0); break; }
                 if (er.amoubn != 1) break;
                 if (mpx < gridx0 || mpy < gridy0 ||
                     mpx > gridx1 || mpy > gridy1) break;
