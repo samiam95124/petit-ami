@@ -76,6 +76,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h> /* strncasecmp, for the help search */
 #include <ctype.h>
 #include <math.h>
 #include <limits.h>
@@ -96,10 +97,24 @@
 #define COLDIG   9    /* column width in digits of the display font */
 #define HDRDIG   4    /* row header width in digits */
 #define MAXNEST  32   /* deepest formula evaluation, catches cycles */
+#define WHEELROWS 3   /* rows the view moves per notch of the wheel */
 
 /* the scroll bars */
 #define SBVERT   1 /* vertical scroll bar widget id */
 #define SBHORIZ  2 /* horizontal scroll bar widget id */
+
+/* The help window is a window of the program's own, id 2; the sheet is
+   always window 1. Its widgets are numbered in it, and widget numbers
+   belong to their window, so these do not collide with the bars above. */
+#define HELPWIN   2 /* the help window */
+#define HELPFIND  1 /* the search entry */
+#define HELPLIST  2 /* the topic list */
+#define HELPCLOSE 3 /* the close button */
+
+/* The help text is a file, not something built into the program, so
+   that it can be as long as it deserves and can be changed without a
+   compiler. It is markdown of the plain kind; see the file itself. */
+#define HELPFILE  "spreadsheet.md"
 
 /* Menu ids of our own, after the standard ones. They hang under one
    Sheet entry of our own, which the standard menu places between its
@@ -107,7 +122,6 @@
 #define MENUSHEET  (AMI_SMMAX+1) /* the sheet menu itself */
 #define MENUWIDER  (AMI_SMMAX+2) /* wider columns */
 #define MENUNARROW (AMI_SMMAX+3) /* narrower columns */
-#define MENUCLEAR  (AMI_SMMAX+4) /* clear the sheet */
 #define MENURECALC (AMI_SMMAX+5) /* recalculate */
 
 /* a cell holds what the user typed; the value is derived */
@@ -1111,10 +1125,18 @@ static void loadsheet(const char* fn)
         if (!strncmp(p, "<table:table-row", 16)) { /* a row, maybe repeated */
 
             char* e = strchr(p, '>');
+            long  rep = 1;
 
-            y++;
+            if (!e) break;
+            *e = 0; /* the element alone, for the attribute search */
+            /* a run of like rows is written once and counted, which is
+               how the empty rows between entries arrive */
+            if (xmlatt(p, "table:number-rows-repeated", att, sizeof(att)))
+                rep = atol(att);
+            *e = '>';
+            y += rep;
             x = 0;
-            p = e? e: p+16;
+            p = e;
 
         } else if (!strncmp(p, "<table:table-cell", 17)) {
 
@@ -1122,8 +1144,10 @@ static void loadsheet(const char* fn)
             char* close;
             long  rep = 1;
             long  empty = TRUE;
+            int   selfend; /* the element closes itself: it holds nothing */
 
             if (!e) break;
+            selfend = e > p && e[-1] == '/';
             *e = 0; /* the element alone, for the attribute search */
             if (xmlatt(p, "table:number-columns-repeated", att, sizeof(att)))
                 rep = atol(att);
@@ -1152,8 +1176,13 @@ static void loadsheet(const char* fn)
 
             }
             *e = '>';
-            if (empty) { /* text, if it holds any */
+            if (empty && !selfend) { /* text, if it holds any */
 
+                /* An element that closes itself holds nothing. Looking
+                   for its closing tag found the next cell's instead, and
+                   the empty cell took that cell's text -- which is how a
+                   value appeared in the cells before it, and how a row
+                   took the text of a row below. */
                 close = strstr(e, "</table:table-cell>");
                 if (!close) close = e+1;
                 xmltext(e, close, txt, sizeof(txt));
@@ -1375,17 +1404,27 @@ static void drawcell(long x, long y)
     } else { /* text to the left, running on if it must */
 
         long w = spillwid(x, y);
+        long ex;
 
-        if (ami_strsiz(stdout, s) > colw-4 && w > colw) {
+        /* clipped first, so what follows measures the text as it will
+           actually be drawn */
+        clipstr(s, w-4);
+        tw = ami_strsiz(stdout, s);
+        ex = px+2+tw; /* where the text ends */
+        if (ex > px+w-2) ex = px+w-2; /* never past the run */
+        if (ex > px+colw-1) {
 
-            /* clear the run, which takes the grid lines under it, as a
-               sheet does where text crosses a cell edge */
+            /* Clear as far as the text reaches, which takes the grid
+               lines under it, as a sheet does where text crosses a cell
+               edge. Only that far: clearing the whole run erased the
+               lines of every empty cell after the text as well. */
             ami_fcolor(stdout, ami_white);
-            ami_frect(stdout, px+colw-1, py-1, px+w-2, py+rowh-2);
+            /* between the lines above and below, which stay: the run
+               crosses the cell edges beside it, not the rows */
+            ami_frect(stdout, px+colw-1, py, ex, py+rowh-2);
 
         }
         ami_fcolor(stdout, ami_black);
-        clipstr(s, w-4);
         ami_cursorg(stdout, px+2, py+2);
 
     }
@@ -1529,6 +1568,688 @@ static void scrollto(long nx, long ny, long frombar)
 
 /*******************************************************************************
 
+Help topics
+
+A window of the program's own, not a dialog. A dialog stops the program
+and runs a loop of its own until it is answered; help is not a question,
+so it opens beside the sheet and stays up while the sheet is worked on.
+
+That takes no machinery. There is one event queue for the program, and
+every event names the window it came from, so the main loop tells the
+help window's events from the sheet's by their window id and hands them
+here. Nothing is nested, and no thread is needed -- though one could be
+put in charge of this window just as well, since its state is all here.
+
+Widgets are numbered within their window, so the search entry, the topic
+list and the close button are 1, 2 and 3 here even though the sheet's
+scroll bars are 1 and 2 there.
+
+*******************************************************************************/
+
+/* A topic is a title and the text under it, both pointing into the
+   block the help file was read into. */
+typedef struct { char* title; char* text; } helprec;
+
+/* The wrapped text, one entry per line as it appears on the screen. The
+   text is wrapped once, when the topic is picked or the window resized,
+   and drawn from there, which is what makes it scrollable. */
+typedef struct { char* s; int bold; long ind; } helpline;
+
+static FILE*     helpwf;      /* the help window, NULL when closed */
+static char*     helpbuf;     /* the help file, read whole */
+static helprec*  helptopics;  /* the topics in it */
+static long      helptopicct;
+static long*     helpmatch;   /* the topics the search matched */
+static long      helpmatches; /* how many of them */
+static long      helpsel;     /* the topic shown, -1 for none */
+static long      helpx0, helpy0; /* the topic list, in pixels */
+static long      helpx1, helpy1;
+static int       helplistup;  /* the list box has been made */
+static helpline* helplines;   /* the topic, wrapped to the pane */
+static long      helplinect;
+static long      helplinemax;
+static long      helptop;     /* first wrapped line shown */
+static long      helppage;    /* wrapped lines the pane holds */
+static char*     helpprog;    /* argv[0], to find the help file by */
+
+static void helpout(const char* s, int bold, long ind); /* forward */
+
+/*******************************************************************************
+
+Reading the help file
+
+The file is markdown, of the plain kind: a line beginning with a single
+# names a topic and everything after it belongs to that topic until the
+next one or the end of the file. Within a topic a blank line separates
+paragraphs, ## is a heading inside the topic and - is a list item.
+
+Keeping the text in a file rather than in the program means the help can
+be rewritten, corrected or translated without a compiler, and it can be
+as long as it deserves to be. The file is read whole and the titles and
+texts point into it, so a topic costs two pointers.
+
+*******************************************************************************/
+
+/* is this the start of a topic: one #, then a space, then a title? */
+static int helphead(const char* p)
+
+{
+
+    return (*p == '#' && p[1] != '#');
+
+}
+
+/* Find and read the help file. It is looked for beside the program
+   first, since that is where an installed program's own files belong,
+   then in the source directory it is kept in, then where the program
+   was run from. The first one found is the one used. */
+static int helpread(void)
+
+{
+
+    char  path[600];
+    char  dir[500];
+    char* e;
+    FILE* f = NULL;
+    long  i, n;
+
+    /* the directory the program was run from, with its slash */
+    dir[0] = 0;
+    if (helpprog) {
+
+        snprintf(dir, sizeof(dir), "%s", helpprog);
+        e = strrchr(dir, '/');
+        if (e) e[1] = 0; else dir[0] = 0;
+
+    }
+    for (i = 0; i < 4 && !f; i++) {
+
+        switch (i) {
+
+            /* beside the program, then the source beside that, which is
+               where it sits in a build tree, then the two the same way
+               from wherever the program was run */
+            case 0: snprintf(path, sizeof(path), "%s%s", dir, HELPFILE);
+                    break;
+            case 1: snprintf(path, sizeof(path), "%s../graph_programs/%s",
+                             dir, HELPFILE); break;
+            case 2: snprintf(path, sizeof(path), "%s", HELPFILE); break;
+            default: snprintf(path, sizeof(path), "graph_programs/%s",
+                              HELPFILE); break;
+
+        }
+        f = fopen(path, "r");
+        if (diag) fprintf(stderr, "help: %s: %s\n", path, f? "found": "no");
+
+    }
+    if (!f) return (FALSE);
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    helpbuf = malloc(n+1);
+    if (!helpbuf) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+    n = fread(helpbuf, 1, n, f);
+    helpbuf[n] = 0;
+    fclose(f);
+
+    return (TRUE);
+
+}
+
+/* Break the file into topics. The heads are found first and the block
+   cut afterwards, in that order: cutting as it went would overwrite the
+   newline that the test for the next head stands on, and every other
+   topic would be passed over. */
+static void helpsplit(void)
+
+{
+
+    char*  p;
+    char** head; /* the # of each topic */
+    long   n, i;
+
+    /* count the heads, then take them, walking by lines both times */
+    n = 0;
+    for (p = helpbuf; *p; ) {
+
+        if (helphead(p)) n++;
+        while (*p && *p != '\n') p++;
+        if (*p) p++;
+
+    }
+    head = malloc((n+1)*sizeof(char*));
+    helptopics = malloc((n+1)*sizeof(helprec));
+    helpmatch = malloc((n+1)*sizeof(long));
+    if (!head || !helptopics || !helpmatch)
+        { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+    n = 0;
+    for (p = helpbuf; *p; ) {
+
+        if (helphead(p)) head[n++] = p;
+        while (*p && *p != '\n') p++;
+        if (*p) p++;
+
+    }
+    helptopicct = n;
+    /* the title is the rest of the head line, the text is what follows */
+    for (i = 0; i < n; i++) {
+
+        char* t = head[i]+1;
+        char* e;
+
+        while (*t == ' ') t++;
+        helptopics[i].title = t;
+        e = t;
+        while (*e && *e != '\n') e++;
+        if (*e) *e++ = 0; /* end the title */
+        while (*e == '\n') e++; /* and the blank line under it */
+        helptopics[i].text = e;
+
+    }
+    /* Now the cutting: each text ends where the next topic begins. The
+       last ends at the end of the file, which is already a zero. */
+    for (i = 0; i+1 < n; i++) *head[i+1] = 0;
+
+}
+
+/* load the help, once, and say so if there is none */
+static void helpload(void)
+
+{
+
+    static char nofile[400];
+
+    if (helptopics) return; /* already loaded */
+    if (helpread()) helpsplit();
+    if (!helptopicct) { /* no file, or a file with no topics in it */
+
+        snprintf(nofile, sizeof(nofile),
+                 "The help file %s was not found, or holds no topics.\n"
+                 "\n"
+                 "It is looked for beside the program and in the "
+                 "graph_programs directory of the source. Help is kept in "
+                 "a file so that it can be changed without rebuilding the "
+                 "program; if the file is missing, only the help is.",
+                 HELPFILE);
+        helptopics = malloc(sizeof(helprec));
+        helpmatch = malloc(sizeof(long));
+        if (!helptopics || !helpmatch)
+            { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        helptopics[0].title = "No help file";
+        helptopics[0].text = nofile;
+        helptopicct = 1;
+
+    }
+
+}
+
+/*******************************************************************************
+
+The topic list
+
+*******************************************************************************/
+
+/* How many times does the topic hold the text, in either case? A count
+   rather than a yes or no, because the list shows it: a topic the word
+   is the subject of holds it many times, and one that merely mentions
+   it in passing holds it once, and the reader can tell them apart
+   without opening either. */
+static long helpcount(const helprec* h, const char* what)
+
+{
+
+    const char* p;
+    long        n = strlen(what);
+    long        c = 0;
+
+    if (!n) return (0); /* an empty search matches everything, uncounted */
+    for (p = h->title; *p; p++)
+        if (!strncasecmp(p, what, n)) c++;
+    for (p = h->text; *p; p++)
+        if (!strncasecmp(p, what, n)) c++;
+
+    return (c);
+
+}
+
+/* Build the list of topics matching the search and put it in the list
+   box. The list box is made again rather than changed, since a list box
+   is given its contents when it is made; it copies them, so the list
+   built here is ours to free. */
+static void helpfill(const char* what)
+
+{
+
+    ami_strptr sl = NULL, sp, lp = NULL;
+    long       i, c;
+    char       lab[300];
+
+    /* the strings are ours until the list box has them; it copies */
+    helpmatches = 0;
+    for (i = 0; i < helptopicct; i++) {
+
+        c = helpcount(&helptopics[i], what);
+        if (*what && !c) continue; /* not this one */
+        /* the count goes beside the title, so that a topic the word is
+           the subject of can be told from one that mentions it once */
+        if (*what) snprintf(lab, sizeof(lab), "%s (%ld)",
+                            helptopics[i].title, c);
+        else snprintf(lab, sizeof(lab), "%s", helptopics[i].title);
+        sp = malloc(sizeof(ami_strrec));
+        if (!sp) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        sp->str = strdup(lab);
+        if (!sp->str) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        sp->next = NULL;
+        if (lp) lp->next = sp; else sl = sp;
+        lp = sp;
+        helpmatch[helpmatches++] = i;
+
+    }
+    /* a search that matches nothing still needs a list, or there would
+       be no box to type the next search against */
+    if (!sl) {
+
+        sl = malloc(sizeof(ami_strrec));
+        if (!sl) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        sl->str = strdup("(no topic matches)");
+        if (!sl->str) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+        sl->next = NULL;
+
+    }
+    if (helplistup) ami_killwidget(helpwf, HELPLIST);
+    ami_listboxg(helpwf, helpx0, helpy0, helpx1, helpy1, sl, HELPLIST);
+    helplistup = TRUE;
+    while (sl) { sp = sl->next; free(sl->str); free(sl); sl = sp; }
+    /* the topic shown is only still shown if the search kept it */
+    if (helpsel >= 0) {
+
+        for (i = 0; i < helpmatches; i++) if (helpmatch[i] == helpsel) break;
+        if (i >= helpmatches) helpsel = -1;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Laying the topic out
+
+The text is wrapped to the pane once and kept as lines, so that drawing
+it, scrolling it and knowing how much of it there is are all the same
+small piece of work. It is wrapped again when the window is resized,
+which is the only thing that can change the answer.
+
+*******************************************************************************/
+
+/* keep one finished line */
+static void helpout(const char* s, int bold, long ind)
+
+{
+
+    if (helplinect >= helplinemax) {
+
+        helplinemax = helplinemax? helplinemax*2: 100;
+        helplines = realloc(helplines, helplinemax*sizeof(helpline));
+        if (!helplines) { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+
+    }
+    helplines[helplinect].s = strdup(s);
+    if (!helplines[helplinect].s)
+        { ami_alert("spreadsheet", "Out of memory"); exit(1); }
+    helplines[helplinect].bold = bold;
+    helplines[helplinect].ind = ind;
+    helplinect++;
+
+}
+
+/* Wrap one paragraph, which arrives as a single string with its line
+   breaks already turned into spaces. The break goes at the last word
+   that still fits, and fitting is measured with the font rather than
+   counted in characters, since the font is not fixed pitch. */
+static void helpwrap(const char* s, int bold, long ind, long w)
+
+{
+
+    char line[500];
+    char try[500];
+    long n;
+
+    ami_bold(helpwf, bold);
+    while (*s) {
+
+        const char* q = s;
+
+        n = 0;
+        line[0] = 0;
+        while (*q) { /* as many whole words as fit */
+
+            const char* e = q;
+            long        m;
+
+            while (*e && *e != ' ') e++; /* the next word */
+            m = e-s;
+            if (m >= (long)sizeof(try)) break;
+            memcpy(try, s, m);
+            try[m] = 0;
+            if (n && ami_strsiz(helpwf, try) > w-ind) break;
+            strcpy(line, try);
+            n = m;
+            q = e;
+            while (*q == ' ') q++;
+            if (!*e) break;
+
+        }
+        if (!n) { /* one word wider than the pane: put it down anyway */
+
+            while (*q && *q != ' ') q++;
+            n = q-s;
+            if (n >= (long)sizeof(line)) n = sizeof(line)-1;
+            memcpy(line, s, n);
+            line[n] = 0;
+
+        }
+        helpout(line, bold, ind);
+        s += n;
+        while (*s == ' ') s++;
+
+    }
+    ami_bold(helpwf, FALSE);
+
+}
+
+/* Wrap the topic being shown to the pane. The markdown is read here: a
+   blank line ends a paragraph, ## is a heading within the topic, and -
+   is a list item, which is wrapped with its later lines lined up under
+   the first word rather than under the dash. */
+static void helplay1(long w)
+
+{
+
+    const char* p;
+    char        para[4000];
+    long        pl = 0;
+    int         bold = FALSE;
+    long        ind = 0;
+    long        i;
+
+    for (i = 0; i < helplinect; i++) free(helplines[i].s);
+    helplinect = 0;
+    helptop = 0;
+    if (helpsel < 0) { helpout("Pick a topic.", FALSE, 0); return; }
+    /* the title of the topic, in bold, and a line under it */
+    helpout(helptopics[helpsel].title, TRUE, 0);
+    helpout("", FALSE, 0);
+    p = helptopics[helpsel].text;
+    while (1) {
+
+        const char* e = p;
+        long        n;
+
+        while (*e && *e != '\n') e++;
+        n = e-p;
+        while (n && (p[n-1] == ' ' || p[n-1] == '\r')) n--; /* trailing */
+        if (!n || *p == '#' || *p == '-' || *p == '*' || !*p) {
+
+            /* the line before is finished, whatever this one is */
+            if (pl) { para[pl] = 0; helpwrap(para, bold, ind, w); pl = 0; }
+            bold = FALSE;
+            ind = 0;
+
+        }
+        if (!*p) break;
+        if (!n) helpout("", FALSE, 0); /* a blank line stays blank */
+        else if (*p == '#') { /* a heading inside the topic */
+
+            const char* t = p;
+
+            while (*t == '#') t++;
+            while (*t == ' ') t++;
+            bold = TRUE;
+            n -= t-p;
+            if (n > (long)sizeof(para)-1) n = sizeof(para)-1;
+            memcpy(para, t, n);
+            pl = n;
+
+        } else if (*p == '-' || *p == '*') { /* a list item */
+
+            ind = ami_strsiz(helpwf, "00");
+            if (n > (long)sizeof(para)-1) n = sizeof(para)-1;
+            memcpy(para, p, n);
+            pl = n;
+
+        } else { /* ordinary text, joined to the line before it */
+
+            if (pl && pl < (long)sizeof(para)-1) para[pl++] = ' ';
+            if (pl+n > (long)sizeof(para)-1) n = sizeof(para)-1-pl;
+            memcpy(para+pl, p, n);
+            pl += n;
+
+        }
+        p = *e? e+1: e;
+
+    }
+
+}
+
+/* draw the topic from the line it is scrolled to */
+static void helpdraw(void)
+
+{
+
+    long chrh = ami_chrsizy(helpwf);
+    long x = helpx1+ami_strsiz(helpwf, "00");
+    long y = helpy0;
+    long i;
+
+    /* down to and including the line the count is written on, which is
+       under the pane: leave it out and each count is written over the
+       one before it */
+    ami_fcolor(helpwf, ami_white);
+    ami_frect(helpwf, x, helpy0, ami_maxxg(helpwf), helpy1+chrh);
+    ami_fcolor(helpwf, ami_black);
+    helppage = (helpy1-helpy0)/chrh;
+    if (helppage < 1) helppage = 1;
+    if (helptop > helplinect-helppage) helptop = helplinect-helppage;
+    if (helptop < 0) helptop = 0;
+    for (i = helptop; i < helplinect && y+chrh <= helpy1; i++) {
+
+        if (*helplines[i].s) {
+
+            ami_bold(helpwf, helplines[i].bold);
+            ami_cursorg(helpwf, x+helplines[i].ind, y);
+            fprintf(helpwf, "%s", helplines[i].s);
+            ami_bold(helpwf, FALSE);
+
+        }
+        y += chrh;
+
+    }
+    /* say there is more, since a pane with no bar gives no other sign */
+    if (helplinect > helppage) {
+
+        char more[80];
+
+        if (helptop+helppage >= helplinect) strcpy(more, "-- end --");
+        else sprintf(more, "-- %ld more line%s, wheel or page keys --",
+                     helplinect-helptop-helppage,
+                     helplinect-helptop-helppage == 1? "": "s");
+        ami_fcolor(helpwf, ami_blue);
+        ami_cursorg(helpwf, x, helpy1);
+        fprintf(helpwf, "%s", more);
+        ami_fcolor(helpwf, ami_black);
+
+    }
+
+}
+
+/* wrap and draw, which is what everything that changes the topic wants */
+static void helptext(void)
+
+{
+
+    helplay1(ami_maxxg(helpwf)-ami_strsiz(helpwf, "00")-
+             (helpx1+ami_strsiz(helpwf, "00")));
+    helpdraw();
+
+}
+
+/* scroll the topic by so many lines */
+static void helpscroll(long by)
+
+{
+
+    long was = helptop;
+
+    helptop += by;
+    if (helptop > helplinect-helppage) helptop = helplinect-helppage;
+    if (helptop < 0) helptop = 0;
+    if (helptop != was) helpdraw();
+
+}
+
+/* place the widgets and work out the panes, on opening and on resize */
+static void helplay(void)
+
+{
+
+    long chrh = ami_chrsizy(helpwf);
+    long chrw = ami_strsiz(helpwf, "0");
+    long lw   = chrw*30;  /* the topic list */
+    long bw, bh, ew, eh;
+
+    ami_buttonsizg(helpwf, "Close", &bw, &bh);
+    ami_editboxsizg(helpwf, "0", &ew, &eh);
+    /* the search entry along the top of the list column */
+    helpx0 = chrw*2;
+    helpy0 = chrh*2+eh;
+    helpx1 = helpx0+lw;
+    helpy1 = ami_maxyg(helpwf)-bh-chrh*2;
+    if (helpy1 < helpy0+chrh) helpy1 = helpy0+chrh;
+    ami_poswidgetg(helpwf, HELPFIND, helpx0+ami_strsiz(helpwf, "Search: "),
+                   chrh);
+    ami_sizwidgetg(helpwf, HELPFIND,
+                   lw-ami_strsiz(helpwf, "Search: "), eh);
+    ami_poswidgetg(helpwf, HELPCLOSE, ami_maxxg(helpwf)-bw-chrw*2,
+                   ami_maxyg(helpwf)-bh-chrh/2);
+    ami_sizwidgetg(helpwf, HELPCLOSE, bw, bh);
+    /* The list is moved and sized rather than made again, so that the
+       topic picked in it stays picked across a resize. Only a change
+       of contents needs it made again, which is what helpfill is for. */
+    if (helplistup) {
+
+        ami_poswidgetg(helpwf, HELPLIST, helpx0, helpy0);
+        ami_sizwidgetg(helpwf, HELPLIST, helpx1-helpx0, helpy1-helpy0);
+
+    } else helpfill("");
+    /* the frame, the label, and the topic */
+    fprintf(helpwf, "\f");
+    ami_fcolor(helpwf, ami_black);
+    ami_cursorg(helpwf, helpx0, chrh);
+    fprintf(helpwf, "Search:");
+    helptext();
+
+}
+
+/* close the help window, if it is open */
+static void helpclose(void)
+
+{
+
+    long i;
+
+    if (!helpwf) return;
+    fclose(helpwf);
+    helpwf = NULL;
+    helplistup = FALSE;
+    for (i = 0; i < helplinect; i++) free(helplines[i].s);
+    helplinect = 0;
+
+}
+
+/* Open the help window. A second open just brings the one already up to
+   the front, as help does everywhere. */
+static void helpopen(void)
+
+{
+
+    long wx, wy;
+
+    if (helpwf) { ami_front(helpwf); return; }
+    helpload();
+    helpsel = -1;
+    helptop = 0;
+    ami_openwin(&stdin, &helpwf, NULL, HELPWIN);
+    ami_title(helpwf, "Spreadsheet help");
+    /* Unbuffered, so the window's measurements are the window's. A
+       buffered window answers maxxg with the buffer, which is not what
+       the layout wants here: this window has nothing to keep. */
+    ami_buffer(helpwf, FALSE);
+    ami_auto(helpwf, FALSE);
+    ami_curvis(helpwf, FALSE);
+    ami_font(helpwf, AMI_FONT_SIGN);
+    ami_setpoints(helpwf, 12.0);
+    ami_binvis(helpwf);
+    ami_winclientg(helpwf, ami_strsiz(helpwf, "0")*86, ami_chrsizy(helpwf)*26,
+                   &wx, &wy, BIT(ami_wmframe) | BIT(ami_wmsize) |
+                             BIT(ami_wmsysbar));
+    ami_setsizg(helpwf, wx, wy);
+    /* The entry and the button are made once here and moved by the
+       layout after. The list is made by the layout, which is where its
+       rectangle is known and where it is made again on every search. */
+    ami_editboxg(helpwf, 1, 1, 2, 2, HELPFIND);
+    ami_buttong(helpwf, 1, 1, 2, 2, "Close", HELPCLOSE);
+    helplay();
+
+}
+
+/* An event with the help window's id on it. The main loop hands them
+   here and goes on; nothing about the sheet is touched. */
+static void helpevent(ami_evtrec* er)
+
+{
+
+    char srch[100];
+
+    switch (er->etype) {
+
+        case ami_etterm:   /* the window was closed, not the program */
+        case ami_etbutton: helpclose(); break;
+
+        case ami_etresize:
+        case ami_etredraw: helplay(); break;
+
+        case ami_etmouba: /* the wheel, as buttons 4 and 5 */
+            if (er->amoubn == 4) helpscroll(-WHEELROWS);
+            else if (er->amoubn == 5) helpscroll(WHEELROWS);
+            break;
+
+        case ami_etpagu: helpscroll(-(helppage-1)); break;
+        case ami_etpagd: helpscroll(helppage-1); break;
+        case ami_etup:   helpscroll(-1); break;
+        case ami_etdown: helpscroll(1); break;
+        case ami_ethome: helpscroll(-helplinect); break;
+        case ami_etend:  helpscroll(helplinect); break;
+
+        case ami_etlstbox: /* a topic was picked */
+            if (er->lstbsl >= 1 && er->lstbsl <= helpmatches)
+                helpsel = helpmatch[er->lstbsl-1];
+            helptext();
+            break;
+
+        case ami_etedtbox: /* the search was entered */
+            ami_getwidgettext(helpwf, HELPFIND, srch, sizeof(srch));
+            helpfill(srch);
+            helptext();
+            break;
+
+        default: break;
+
+    }
+
+}
+
+/*******************************************************************************
+
 Menu
 
 *******************************************************************************/
@@ -1580,7 +2301,7 @@ static void setupmenu(void)
 
     newmenu(&sh, FALSE, FALSE, OFF, MENUSHEET, "Sheet");
     appendmenu(&ml, sh);
-    ami_stdmenu(BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) | BIT(AMI_SMCLOSE) |
+    ami_stdmenu(BIT(AMI_SMNEW) | BIT(AMI_SMOPEN) |
                 BIT(AMI_SMSAVE) | BIT(AMI_SMSAVEAS) | BIT(AMI_SMEXIT) |
                 BIT(AMI_SMUNDO) | BIT(AMI_SMCUT) | BIT(AMI_SMPASTE) |
                 BIT(AMI_SMDELETE) | BIT(AMI_SMFIND) | BIT(AMI_SMGOTO) |
@@ -1595,8 +2316,6 @@ static void setupmenu(void)
     newmenu(&mp, FALSE, FALSE, ON, MENUNARROW, "Narrower Columns");
     appendmenu(&sh->branch, mp);
     newmenu(&mp, FALSE, FALSE, ON, MENURECALC, "Recalculate");
-    appendmenu(&sh->branch, mp);
-    newmenu(&mp, FALSE, FALSE, OFF, MENUCLEAR, "Clear Sheet");
     appendmenu(&sh->branch, mp);
     ami_menu(stdout, sm);
 
@@ -1697,6 +2416,7 @@ int main(int argc, char* argv[])
     char  fn[500];
     long  x, y;
 
+    helpprog = argv[0]; /* the help file is looked for beside the program */
     if (argc > 1 && !strcmp(argv[1], "-d")) { /* report what happens */
 
         diag = TRUE;
@@ -1705,6 +2425,9 @@ int main(int argc, char* argv[])
 
     }
     ami_title(stdout, "Spreadsheet");
+    /* File/Exit means exit: without this the window is held open after
+       main returns, waiting to be closed a second time */
+    ami_autohold(FALSE);
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_font(stdout, AMI_FONT_TERM); /* a fixed pitch font suits a grid */
@@ -1725,6 +2448,11 @@ int main(int argc, char* argv[])
     do {
 
         ami_event(stdin, &er);
+        /* Every event names the window it came from, so the help window
+           is serviced from this same loop: hand it anything of its own
+           and go on. A terminate for it closes it, not the program,
+           which the loop condition below allows for. */
+        if (er.winid == HELPWIN) { helpevent(&er); continue; }
         if (diag) switch (er.etype) { /* the events the bars send */
 
             case ami_etmouba:
@@ -1771,7 +2499,14 @@ int main(int argc, char* argv[])
                 mpy = er.moupyg;
                 break;
 
-            case ami_etmouba: /* a click picks a cell */
+            case ami_etmouba: /* a click picks a cell, the wheel scrolls */
+                /* The wheel arrives as buttons 4 and 5, which is how X
+                   delivers it: a notch is a press and a release of a
+                   button that is not there. Scroll the view by a few
+                   rows without moving the current cell, as the bars
+                   do, which is what a sheet does under the wheel. */
+                if (er.amoubn == 4) { scrollto(orgx, orgy-WHEELROWS, 0); break; }
+                if (er.amoubn == 5) { scrollto(orgx, orgy+WHEELROWS, 0); break; }
                 if (er.amoubn != 1) break;
                 if (mpx < gridx0 || mpy < gridy0 ||
                     mpx > gridx1 || mpy > gridy1) break;
@@ -1972,13 +2707,6 @@ int main(int argc, char* argv[])
                     case AMI_SMEXIT:
                         goto done;
 
-                    case AMI_SMCLOSE: /* put the sheet away */
-                        clearsheet();
-                        filename[0] = 0;
-                        layout();
-                        drawall();
-                        break;
-
                     case AMI_SMUNDO: /* the last cell change back */
                         if (undval) {
 
@@ -2041,11 +2769,7 @@ int main(int argc, char* argv[])
                     }
 
                     case AMI_SMHELPTOPIC:
-                        ami_alert("Spreadsheet",
-                            "Type to enter, = starts a formula. Enter goes "
-                            "down, tab goes right, escape abandons. Formulas "
-                            "take + - * / ( ) and SUM AVG MIN MAX COUNT over "
-                            "a range, as =SUM(A1:A10).");
+                        helpopen();
                         break;
 
                     case AMI_SMABOUT:
@@ -2072,11 +2796,6 @@ int main(int argc, char* argv[])
                         drawall();
                         break;
 
-                    case MENUCLEAR:
-                        clearsheet();
-                        drawall();
-                        break;
-
                 }
                 break;
 
@@ -2084,8 +2803,10 @@ int main(int argc, char* argv[])
 
         }
 
-    } while (er.etype != ami_etterm);
+    /* a terminate for the help window ended that window, not this */
+    } while (er.etype != ami_etterm || er.winid == HELPWIN);
     done:
+    helpclose();
 
     return (0);
 
