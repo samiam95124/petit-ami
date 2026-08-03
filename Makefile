@@ -1551,8 +1551,8 @@ getpageg: $(GLIBSD) network_programs/getpage.c
 
 # Mail reader. Graphical, and uses the network, so it takes the graphics
 # bundle, which carries the network module with it.
-mail: $(GLIBSD) network_programs/mail.c
-	$(CC) $(CFLAGS) network_programs/mail.c $(GLIBS) -o bin/mail
+mail: $(GLIBSD) graph_programs/mail.c
+	$(CC) $(CFLAGS) graph_programs/mail.c $(GLIBS) -o bin/mail
 
 #
 # Get remote email
