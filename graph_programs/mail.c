@@ -2520,6 +2520,27 @@ static void listclamp(void)
 
 static void setlistbar(void);   /* forward */
 
+/* Draw only the rows a redraw rectangle touches, and the dividers down
+   it. A resize brings two of these -- the strip down the right and the
+   strip along the bottom -- and they are the whole of what needs
+   painting, since the buffer keeps what was already there. */
+static void listrect(long y1, long y2)
+
+{
+
+    long i;
+    long first = msgtop+(y1-4)/rowh;
+    long last  = msgtop+(y2-4)/rowh;
+
+    if (first < msgtop) first = msgtop;
+    if (last >= msgct) last = msgct-1;
+    divider(listwf, fromx, y1, fromx, y2);
+    divider(listwf, datex-8, y1, datex-8, y2);
+    for (i = first; i <= last; i++) drawrow(i);
+    setlistbar();
+
+}
+
 /* Move the list to where it is now supposed to be, by moving what is
    already on the screen. Going down a row brings one row into view;
    drawing thirty of them to show one is what made a wheel notch cost an
@@ -2594,7 +2615,11 @@ static void drawlist(void)
 
     if (!listwf) return;
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
-    fprintf(listwf, "\f");
+    /* No clearing of the whole pane first. Every row paints its own
+       ground before its text, so a clear only puts up a blank that the
+       drawing immediately covers -- and a blank surface followed by a
+       redraw is a flash the reader can see. What is cleared is what the
+       rows will not reach, below the last of them. */
     ami_fcolor(listwf, ami_black);
     if (foldsel < 0) {
 
@@ -2619,8 +2644,17 @@ static void drawlist(void)
     divider(listwf, datex-8, 0, datex-8, ami_maxyg(listwf));
     for (i = msgtop; i < msgct && y+rowh <= ami_maxyg(listwf); i++) {
 
-        drawmsg(i, y);
+        drawrow(i);
         y += rowh;
+
+    }
+    if (y < ami_maxyg(listwf)) { /* the room the rows did not fill */
+
+        ami_fcolor(listwf, ami_white);
+        ami_frect(listwf, 0, y, ami_maxxg(listwf), ami_maxyg(listwf));
+        ami_fcolor(listwf, ami_black);
+        divider(listwf, fromx, y, fromx, ami_maxyg(listwf));
+        divider(listwf, datex-8, y, datex-8, ami_maxyg(listwf));
 
     }
     listshown = msgtop;
@@ -3524,6 +3558,19 @@ int main(int argc, char* argv[])
     do {
 
         ami_event(stdin, &er);
+        if (diag) switch (er.etype) {
+
+            case ami_etresize:
+                fprintf(stderr, "resize win %ld: %ldx%ld\n", er.winid,
+                        er.rszxg, er.rszyg);
+                break;
+            case ami_etredraw:
+                fprintf(stderr, "redraw win %ld: %ld,%ld to %ld,%ld\n",
+                        er.winid, er.rsx, er.rsy, er.rex, er.rey);
+                break;
+            default: break;
+
+        }
         /* Every event names the window it came from. The reader is a
            window of its own and the panes are windows of their own, so
            this one loop serves them all. */
@@ -3589,6 +3636,10 @@ int main(int argc, char* argv[])
 
                 }
                 case ami_etredraw: drawfolders(); break;
+                case ami_etresize:
+                    ami_sizbufg(foldwf, er.rszxg, er.rszyg);
+                    drawfolders();
+                    break;
                 default: break;
 
             }
@@ -3693,7 +3744,29 @@ int main(int argc, char* argv[])
                     showlist();
                     fromdrag = FALSE;
                     break;
-                case ami_etredraw: drawlist(); break;
+                case ami_etredraw: /* only what was exposed */
+                    if (foldsel >= 0 && msgct) listrect(er.rsy, er.rey);
+                    else drawlist();
+                    break;
+
+                case ami_etresize: {
+
+                    /* The columns are measured from the right edge, so a
+                       change of width moves all of them and the rows
+                       have to be laid again. A change of height moves
+                       nothing: the rows that come into view arrive as a
+                       redraw of their own. */
+                    static long prevw;
+
+                    ami_sizbufg(listwf, er.rszxg, er.rszyg);
+                    datex = er.rszxg-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
+                    listrows = er.rszyg/rowh;
+                    if (listrows < 1) listrows = 1;
+                    if (er.rszxg != prevw) drawlist();
+                    prevw = er.rszxg;
+                    break;
+
+                }
                 default: break;
 
             }
@@ -3703,23 +3776,20 @@ int main(int argc, char* argv[])
         switch (er.etype) {
 
             case ami_etresize:
-            case ami_etredraw:
-                /* The window manager sends several of these as it maps
-                   and decorates the window, and each one costs a redraw
-                   of every row. Only the ones that change the size are
-                   worth anything. */
-                /* Buffer follow mode: the buffer is made the size the
-                   window now is, and everything after is laid out and
-                   drawn from that. Without this the buffer stays the
-                   size it was, the window answers with the buffer, and
-                   the program lays itself out for a window that is no
-                   longer there -- leaving what the resize exposed
-                   painted by nobody. */
-                if (er.etype == ami_etresize)
-                    ami_sizbufg(stdout, er.rszxg, er.rszyg);
+                /* Buffer follow mode. The buffer is made the size the
+                   window now is, which leaves what was already drawn
+                   where it was, and the panes are placed again. Nothing
+                   is drawn here: the redraws that follow say what the
+                   resize exposed, and the panes report their own. */
+                ami_sizbufg(stdout, er.rszxg, er.rszyg);
                 layout();
-                drawfolders();
-                drawlist();
+                break;
+
+            case ami_etredraw:
+                /* What this window shows between its panes is the one
+                   divider, so that is all a redraw of it costs. */
+                divider(stdout, foldw+4, chrh*2, foldw+4,
+                        ami_maxyg(stdout));
                 break;
 
             case ami_etmenus:
