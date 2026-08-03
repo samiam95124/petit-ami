@@ -115,6 +115,8 @@
 
 #define WHEELROWS 3 /* rows the wheel moves per notch */
 
+#define TIMFETCH  1 /* the timer that steps a fetch along */
+
 #define OFF 0
 #define ON  1
 
@@ -191,6 +193,8 @@ static long  imaptag;
 static void drawlist(void);     /* forward */
 static void drawfolders(void);
 static void showfolder(long i);
+static void indexfolder(long fold);
+static void status(const char* s);
 static void drawread(void);
 static void layout(void);
 
@@ -1548,68 +1552,6 @@ static void uidline(const char* line)
 
 }
 
-/* Fetch what is new in one folder. The folder is opened with EXAMINE,
-   which is the read only form, and the messages are asked for with
-   BODY.PEEK[], which is the form that does not mark them read. */
-static long fetchfolder(long fold, void (*note)(const char*))
-
-{
-
-    char tag[20];
-    char line[MAXLINE];
-    long validity, lastuid;
-    long lo, hi;
-    long i;
-    long got = 0;
-    char what[MAXSTR+40];
-
-    if (folders[fold].noselect) return (0);
-    snprintf(what, sizeof(what), "Reading %s", folders[fold].show);
-    if (note) (*note)(what);
-    exists = 0;
-    uidvalidity = 0;
-    imsend(tag, sizeof(tag), "EXAMINE \"%s\"", folders[fold].name);
-    if (!imwait(tag, examline)) return (0); /* gone, or not a folder */
-    if (!exists) return (0);
-    readstate(fold, &validity, &lastuid);
-    if (validity != uidvalidity) lastuid = 0; /* the folder was rebuilt */
-    /* the most recent messages, however many were asked for */
-    hi = exists;
-    lo = hi-limit+1;
-    if (lo < 1) lo = 1;
-    uidct = 0;
-    imsend(tag, sizeof(tag), "FETCH %ld:%ld (UID)", lo, hi);
-    if (!imwait(tag, uidline)) return (0);
-    for (i = 0; i < uidct; i++) {
-
-        long  uid = uidlist[i];
-        long  n;
-        char* msg;
-
-        if (uid <= lastuid) continue; /* already have it */
-        snprintf(what, sizeof(what), "%s: %ld of %ld",
-                 folders[fold].show, i+1, uidct);
-        if (note) (*note)(what);
-        imsend(tag, sizeof(tag), "UID FETCH %ld (BODY.PEEK[])", uid);
-        /* the reply is a line ending in a literal, then the message,
-           then the rest of the reply and the tagged answer */
-        if (!imline(line, sizeof(line))) break;
-        n = literalof(line);
-        if (n < 0) { imwait(tag, NULL); continue; } /* no message came */
-        msg = imliteral(n);
-        mboxwrite(folders[fold].file, msg, n);
-        free(msg);
-        got++;
-        imwait(tag, NULL); /* the ) and the answer */
-        if (uid > lastuid) lastuid = uid;
-
-    }
-    writestate(fold, uidvalidity, lastuid);
-
-    return (got);
-
-}
-
 /*******************************************************************************
 
 Talking to the SMTP server
@@ -2448,30 +2390,173 @@ Fetching
 
 *******************************************************************************/
 
-/* fetch every folder, saying where it has got to as it goes */
+/*******************************************************************************
+
+Fetching, a message at a time
+
+A fetch of a real mailbox is thousands of messages and takes as long as
+it takes. Done in one loop it would hold the event loop shut for all of
+that time, and a window that is not in its event loop is a window that
+shows nothing: the library puts its drawing on the wire in ami_event and
+nowhere else, so a progress line written from inside such a loop is
+written to a screen that never repaints. The window would sit there,
+frozen and blank, for hours.
+
+So the fetch is a state machine, stepped by a timer. Each tick takes one
+message and returns, which keeps the event loop turning: the count
+appears as it climbs, the window redraws, the folders can be clicked
+through while it runs, and it can be stopped.
+
+*******************************************************************************/
+
+static int  fetching;    /* a fetch is under way */
+static long fetchfold;   /* the folder being read */
+static long fetchi;      /* which of that folder's uids is next */
+static long fetchgot;    /* messages taken, this fetch */
+static long fetchlast;   /* the highest uid taken from this folder */
+static long fetchseen;   /* the highest uid taken before this fetch */
+
+/* say where the fetch has got to */
+static void fetchsay(void)
+
+{
+
+    char msg[MAXSTR+80];
+
+    if (fetchfold < 0 || fetchfold >= foldct)
+        snprintf(msg, sizeof(msg), "%ld message%s", fetchgot,
+                 fetchgot == 1? "": "s");
+    else if (uidct)
+        snprintf(msg, sizeof(msg), "%s: %ld of %ld -- %ld message%s so far",
+                 folders[fetchfold].show, fetchi, uidct, fetchgot,
+                 fetchgot == 1? "": "s");
+    else snprintf(msg, sizeof(msg), "Opening %s", folders[fetchfold].show);
+    status(msg);
+
+}
+
+/* Move to the next folder worth reading, and ask it what it holds.
+   Gives FALSE when there are no folders left. */
+static int fetchnext(void)
+
+{
+
+    char tag[20];
+    long validity;
+    long lo, hi;
+
+    while (++fetchfold < foldct) {
+
+        if (folders[fetchfold].noselect) continue;
+        fetchi = 0;
+        uidct = 0;
+        fetchsay();
+        exists = 0;
+        uidvalidity = 0;
+        imsend(tag, sizeof(tag), "EXAMINE \"%s\"",
+               folders[fetchfold].name);
+        if (!imwait(tag, examline)) continue; /* gone, or not a folder */
+        if (!exists) continue; /* nothing in it */
+        readstate(fetchfold, &validity, &fetchseen);
+        /* a folder that was rebuilt on the server has new uids for the
+           same messages, so what was taken before means nothing */
+        if (validity != uidvalidity) fetchseen = 0;
+        fetchlast = fetchseen;
+        /* the most recent messages, as many as were asked for */
+        hi = exists;
+        lo = hi-limit+1;
+        if (lo < 1) lo = 1;
+        imsend(tag, sizeof(tag), "FETCH %ld:%ld (UID)", lo, hi);
+        if (!imwait(tag, uidline)) continue;
+        if (uidct) return (TRUE);
+
+    }
+
+    return (FALSE);
+
+}
+
+/* the fetch is over, however it ended */
+static void fetchend(void)
+
+{
+
+    char msg[MAXSTR];
+
+    ami_killtimer(stdout, TIMFETCH);
+    fetching = FALSE;
+    imapclose();
+    snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
+             fetchgot == 1? "": "s");
+    status(msg);
+    if (foldsel < 0 && foldct) showfolder(0);
+    else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
+    drawfolders();
+
+}
+
+/* One step: one message, or the move to the next folder. Called from
+   the event loop on every tick of the timer, so that everything between
+   the steps -- drawing, clicking, closing -- still works. */
+static void fetchstep(void)
+
+{
+
+    char  tag[20];
+    char  line[MAXLINE];
+    long  uid;
+    long  n;
+    char* msg;
+
+    if (!fetching) return;
+    while (fetchi >= uidct) { /* this folder is done */
+
+        if (fetchfold >= 0 && fetchfold < foldct && uidct)
+            writestate(fetchfold, uidvalidity, fetchlast);
+        if (!fetchnext()) { fetchend(); return; }
+
+    }
+    uid = uidlist[fetchi++];
+    if (uid <= fetchseen) { fetchsay(); return; } /* already have it */
+    imsend(tag, sizeof(tag), "UID FETCH %ld (BODY.PEEK[])", uid);
+    /* the reply is a line ending in a literal, then the message itself,
+       then the rest of the reply and the tagged answer */
+    if (!imline(line, sizeof(line))) { fetchend(); return; }
+    n = literalof(line);
+    if (n < 0) { imwait(tag, NULL); return; } /* no message came */
+    msg = imliteral(n);
+    mboxwrite(folders[fetchfold].file, msg, n);
+    free(msg);
+    fetchgot++;
+    imwait(tag, NULL); /* the ) and the answer */
+    if (uid > fetchlast) fetchlast = uid;
+    fetchsay();
+
+}
+
+/* start one */
 static void fetchall(void)
 
 {
 
-    long i;
-    long got = 0;
-    char msg[MAXSTR];
-
+    if (fetching) return; /* one at a time */
     status("Connecting...");
     if (!imapopen()) { status(""); return; }
     /* the server's list, which replaces the one read off the store: the
        server is the authority on what folders there are */
     foldct = 0;
     foldsel = -1;
-    if (!getfolders()) { status(""); return; }
+    if (!getfolders()) { status(""); imapclose(); return; }
     drawfolders();
-    for (i = 0; i < foldct; i++) got += fetchfolder(i, status);
-    imapclose();
-    snprintf(msg, sizeof(msg), "%ld new message%s", got, got == 1? "": "s");
-    status(msg);
-    if (foldsel < 0 && foldct) showfolder(0);
-    else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
-    drawfolders();
+    fetching = TRUE;
+    fetchfold = -1;
+    fetchi = 0;
+    uidct = 0;
+    fetchgot = 0;
+    /* Every hundredth of a second, which is far faster than a message
+       can be fetched over a network: the timer sets the pace only when
+       the network is quicker than the eye. */
+    ami_timer(stdout, TIMFETCH, 100, TRUE);
 
 }
 
@@ -2726,6 +2811,10 @@ int main(int argc, char* argv[])
                 drawlist();
                 break;
 
+            case ami_ettim: /* one step of a fetch, if one is running */
+                if (er.timnum == TIMFETCH) fetchstep();
+                break;
+
             case ami_etmenus:
                 switch (er.menuid) {
 
@@ -2783,6 +2872,7 @@ int main(int argc, char* argv[])
     } while (er.etype != ami_etterm ||
              er.winid == READWIN || er.winid == SRVWIN);
     done:
+    if (fetching) ami_killtimer(stdout, TIMFETCH);
     srvclose();
     closeread();
     imapclose();
