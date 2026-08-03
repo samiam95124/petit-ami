@@ -182,6 +182,7 @@ static long  mpx, mpy;          /* the mouse, in pixels of its own window */
 /* the reader */
 static char* readtext;          /* the message being read, decoded */
 static long  readtop;           /* the first line of it shown */
+static long  readshown;         /* the first line actually on the screen */
 static char** readline;         /* it, wrapped to the window */
 static long  readlines;
 static long  readmax;
@@ -2126,6 +2127,11 @@ static void wrapread(void)
                 part[cut] = 0;
 
             }
+            /* Always take at least one character. A window too narrow
+               for a single character would otherwise take none, and a
+               loop that takes nothing off the front of the line never
+               reaches the end of it. */
+            if (cut < 1) { cut = 1; part[1] = 0; }
             if (readlines >= readmax) {
 
                 readmax = readmax? readmax*2: 200;
@@ -2145,39 +2151,120 @@ static void wrapread(void)
 
 }
 
+/* how many lines of the message the window holds */
+static long readpage(void)
+
+{
+
+    long page = (ami_maxyg(readwf)-8)/chrh;
+
+    return (page < 1? 1: page);
+
+}
+
+/* keep the top of the message inside the message */
+static void readclamp(void)
+
+{
+
+    long page = readpage();
+
+    if (readtop > readlines-page) readtop = readlines-page;
+    if (readtop < 0) readtop = 0;
+
+}
+
+/* put the bar where the text is */
+static void readbar(void)
+
+{
+
+    long page = readpage();
+    long max = readlines-page;
+
+    if (fromdrag) return;
+    if (max < 1) max = 1;
+    ami_scrollsiz(readwf, SBREAD, fullscale(page, readlines));
+    ami_scrollpos(readwf, SBREAD, fullscale(readtop, max));
+
+}
+
+/* draw the lines from a to b, having cleared the room they go in */
+static void readrows(long a, long b)
+
+{
+
+    long i;
+
+    if (a < readtop) a = readtop;
+    if (b > readlines-1) b = readlines-1;
+    if (a > b) return;
+    ami_fcolor(readwf, ami_white);
+    ami_frect(readwf, 0, 4+(a-readtop)*chrh, ami_maxxg(readwf),
+              4+(b-readtop+1)*chrh);
+    ami_fcolor(readwf, ami_black);
+    for (i = a; i <= b; i++) if (*readline[i]) {
+
+        ami_cursorg(readwf, 8, 4+(i-readtop)*chrh);
+        fprintf(readwf, "%s", readline[i]);
+
+    }
+
+}
+
 static void drawread(void)
 
 {
 
-    long y = 4;
-    long i;
-    long max;
-    long page;
-
     if (!readwf) return;
     fprintf(readwf, "\f");
     ami_fcolor(readwf, ami_black);
-    page = (ami_maxyg(readwf)-8)/chrh;
-    if (page < 1) page = 1;
-    if (readtop > readlines-page) readtop = readlines-page;
-    if (readtop < 0) readtop = 0;
-    for (i = readtop; i < readlines && y+chrh <= ami_maxyg(readwf); i++) {
+    readclamp();
+    readrows(readtop, readtop+readpage()-1);
+    readshown = readtop;
+    readbar();
 
-        if (*readline[i]) {
+}
 
-            ami_cursorg(readwf, 8, y);
-            fprintf(readwf, "%s", readline[i]);
+/* Move the text to where it is now supposed to be. A step of a line or
+   two moves the pixels that are already on the screen and draws only
+   the lines that come into view -- a message page is thirty odd lines
+   of text and drawing one of them is a thirtieth of the work of drawing
+   them all. Anything further than a screen is drawn afresh, since none
+   of what is up would be kept anyway. */
+static void showread(void)
+
+{
+
+    long page;
+    long d;
+
+    if (!readwf) return;
+    readclamp();
+    page = readpage();
+    d = readtop-readshown;
+    if (!d) { readbar(); return; } /* it did not move */
+    if (d >= page || d <= -page) { drawread(); return; } /* nothing kept */
+    /* Positive moves the picture up, which is what going down the
+       message does, and leaves the strip at the bottom to be filled. */
+    {
+
+        struct timespec t0, t1;
+
+        if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
+        ami_scrollg(readwf, 0, d*chrh);
+        readshown = readtop;
+        if (d > 0) readrows(readtop+page-d, readtop+page-1); /* at the foot */
+        else readrows(readtop, readtop-d-1);                 /* at the head */
+        readbar();
+        if (diag) {
+
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            fprintf(stderr, "scroll: %ld line%s %.1fms\n", d < 0? -d: d,
+                    d == 1 || d == -1? "": "s",
+                    (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
 
         }
-        y += chrh;
-
-    }
-    if (!fromdrag) {
-
-        max = readlines-page;
-        if (max < 1) max = 1;
-        ami_scrollsiz(readwf, SBREAD, fullscale(page, readlines));
-        ami_scrollpos(readwf, SBREAD, fullscale(readtop, max));
 
     }
 
@@ -2492,10 +2579,8 @@ static void layout(void)
     if (foldw > ami_maxxg(stdout)/2) foldw = ami_maxxg(stdout)/2;
     ami_setposg(foldwf, 1, top);
     ami_setsizg(foldwf, foldw, h);
-    ami_sizbufg(foldwf, foldw, h);
     ami_setposg(listwf, foldw+2, top);
     ami_setsizg(listwf, ami_maxxg(stdout)-foldw-2, h);
-    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-2, h);
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
@@ -2832,11 +2917,7 @@ int main(int argc, char* argv[])
     /* A pane is part of the main window, not a window of its own: no
        frame, no title bar, no sizing bars. */
     ami_frame(foldwf, FALSE);
-    /* Buffered, so that the library repaints what other windows have
-       covered without the program being asked. Unbuffered, every time
-       the reader window moved across the list the program redrew every
-       row of it, which is an eighth of a second of drawing for nothing. */
-    ami_buffer(foldwf, TRUE);
+    ami_buffer(foldwf, FALSE);
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
@@ -2844,7 +2925,7 @@ int main(int argc, char* argv[])
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
-    ami_buffer(listwf, TRUE);
+    ami_buffer(listwf, FALSE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
@@ -2883,14 +2964,14 @@ int main(int argc, char* argv[])
                 case ami_etredraw:
                 case ami_etresize: wrapread(); drawread(); break;
                 case ami_etmouba:
-                    if (er.amoubn == 4) { readtop -= WHEELROWS; drawread(); }
+                    if (er.amoubn == 4) { readtop -= WHEELROWS; showread(); }
                     else if (er.amoubn == 5)
-                        { readtop += WHEELROWS; drawread(); }
+                        { readtop += WHEELROWS; showread(); }
                     break;
-                case ami_etsclull: readtop--; drawread(); break;
-                case ami_etscldrl: readtop++; drawread(); break;
-                case ami_etsclulp: readtop -= 20; drawread(); break;
-                case ami_etscldrp: readtop += 20; drawread(); break;
+                case ami_etsclull: readtop--; showread(); break;
+                case ami_etscldrl: readtop++; showread(); break;
+                case ami_etsclulp: readtop -= readpage()-1; showread(); break;
+                case ami_etscldrp: readtop += readpage()-1; showread(); break;
                 case ami_etsclpos:
                     /* echo the bar where the user put it and do not set
                        it again from the view, which would drag the
@@ -2898,13 +2979,15 @@ int main(int argc, char* argv[])
                     ami_scrollpos(readwf, SBREAD, er.sclpos);
                     readtop = scaleback(er.sclpos, readlines-1);
                     fromdrag = TRUE;
-                    drawread();
+                    showread();
                     fromdrag = FALSE;
                     break;
-                case ami_etup: readtop--; drawread(); break;
-                case ami_etdown: readtop++; drawread(); break;
-                case ami_etpagu: readtop -= 20; drawread(); break;
-                case ami_etpagd: readtop += 20; drawread(); break;
+                case ami_etup: readtop--; showread(); break;
+                case ami_etdown: readtop++; showread(); break;
+                case ami_etpagu: readtop -= readpage()-1; showread(); break;
+                case ami_etpagd: readtop += readpage()-1; showread(); break;
+                case ami_ethome: readtop = 0; showread(); break;
+                case ami_etend: readtop = readlines; showread(); break;
                 case ami_etcan: closeread(); break;
                 default: break;
 
@@ -2923,7 +3006,7 @@ int main(int argc, char* argv[])
                     i = (mpy-4-chrh*2)/(chrh+4);
                     if (i >= 0 && i < foldct) showfolder(i);
                     break;
-                case ami_etredraw: break; /* buffered, as the list is */
+                case ami_etredraw: drawfolders(); break;
                 default: break;
 
             }
@@ -2982,11 +3065,7 @@ int main(int argc, char* argv[])
                     drawlist();
                     fromdrag = FALSE;
                     break;
-                /* Nothing on a redraw: the pane is buffered, so the
-                   library puts back what was covered. Drawing it again
-                   here is the whole list redrawn every time another
-                   window passes over it. */
-                case ami_etredraw: break;
+                case ami_etredraw: drawlist(); break;
                 default: break;
 
             }
