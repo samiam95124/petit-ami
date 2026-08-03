@@ -154,6 +154,7 @@ static long    msgct;
 static long    msgmax;
 static long    msgsel = -1;     /* the message being read */
 static long    msgtop;          /* the first message shown */
+static long    listshown;       /* the first one actually on the screen */
 
 /* the account */
 static char imapsrv[MAXSTR] = "imap.gmail.com";
@@ -2015,6 +2016,81 @@ static void selectmsg(long i)
 
 }
 
+/* How many rows the list shows. The last one is only drawn if it fits
+   whole, which is what the drawing loop does. */
+static long listvis(void)
+
+{
+
+    long n = (ami_maxyg(listwf)-4)/rowh;
+
+    return (n < 1? 1: n);
+
+}
+
+/* keep the top of the list inside the list */
+static void listclamp(void)
+
+{
+
+    if (msgtop > msgct-listvis()) msgtop = msgct-listvis();
+    if (msgtop < 0) msgtop = 0;
+
+}
+
+static void setlistbar(void);   /* forward */
+
+/* Move the list to where it is now supposed to be, by moving what is
+   already on the screen. Going down a row brings one row into view;
+   drawing thirty of them to show one is what made a wheel notch cost an
+   eighth of a second. */
+static void showlist(void)
+
+{
+
+    long vis;
+    long d;
+
+    if (!listwf || foldsel < 0 || !msgct) { drawlist(); return; }
+    listclamp();
+    vis = listvis();
+    d = msgtop-listshown;
+    if (!d) { setlistbar(); return; }
+    if (d >= vis || d <= -vis) { drawlist(); return; } /* nothing kept */
+    {
+
+        struct timespec t0, t1;
+
+        if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
+        ami_scrollg(listwf, 0, d*rowh);
+        listshown = msgtop;
+        if (diag) {
+
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            fprintf(stderr, "listscroll: %ld row%s %.1fms\n", d < 0? -d: d,
+                    d == 1 || d == -1? "": "s",
+                    (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
+
+        }
+
+    }
+    if (d > 0) { /* the new rows come in at the foot */
+
+        long i;
+
+        for (i = msgtop+vis-d; i < msgtop+vis; i++) drawrow(i);
+
+    } else { /* and at the head */
+
+        long i;
+
+        for (i = msgtop; i < msgtop-d; i++) drawrow(i);
+
+    }
+    setlistbar();
+
+}
+
 static void setlistbar(void)
 
 {
@@ -2067,6 +2143,7 @@ static void drawlist(void)
         y += rowh;
 
     }
+    listshown = msgtop;
     setlistbar();
     if (diag) {
 
@@ -3034,15 +3111,12 @@ int main(int argc, char* argv[])
                     if (er.amoubn == 4) {
 
                         msgtop -= WHEELROWS;
-                        if (msgtop < 0) msgtop = 0;
-                        drawlist();
+                        showlist();
 
                     } else if (er.amoubn == 5) {
 
                         msgtop += WHEELROWS;
-                        if (msgtop > msgct-listrows) msgtop = msgct-listrows;
-                        if (msgtop < 0) msgtop = 0;
-                        drawlist();
+                        showlist();
 
                     } else if (er.amoubn == 1) {
 
@@ -3052,29 +3126,26 @@ int main(int argc, char* argv[])
                     }
                     break;
                 case ami_etsclull: case ami_etup:
-                    if (msgtop) { msgtop--; drawlist(); }
+                    msgtop--;
+                    showlist();
                     break;
                 case ami_etscldrl: case ami_etdown:
-                    if (msgtop < msgct-listrows) { msgtop++; drawlist(); }
+                    msgtop++;
+                    showlist();
                     break;
                 case ami_etsclulp: case ami_etpagu:
-                    msgtop -= listrows;
-                    if (msgtop < 0) msgtop = 0;
-                    drawlist();
+                    msgtop -= listvis()-1;
+                    showlist();
                     break;
                 case ami_etscldrp: case ami_etpagd:
-                    msgtop += listrows;
-                    if (msgtop > msgct-listrows) msgtop = msgct-listrows;
-                    if (msgtop < 0) msgtop = 0;
-                    drawlist();
+                    msgtop += listvis()-1;
+                    showlist();
                     break;
                 case ami_etsclpos:
                     ami_scrollpos(listwf, SBLIST, er.sclpos);
-                    msgtop = scaleback(er.sclpos, msgct-listrows);
-                    if (msgtop > msgct-listrows) msgtop = msgct-listrows;
-                    if (msgtop < 0) msgtop = 0;
+                    msgtop = scaleback(er.sclpos, msgct-listvis());
                     fromdrag = TRUE;
-                    drawlist();
+                    showlist();
                     fromdrag = FALSE;
                     break;
                 /* nothing on a redraw: the pane is buffered */
