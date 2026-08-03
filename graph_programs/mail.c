@@ -113,7 +113,12 @@
 #define MENUCHECK (AMI_SMMAX+4) /* check that mail could be sent */
 #define MENUSRV   (AMI_SMMAX+5) /* the server form */
 
-#define WHEELROWS 3 /* rows the wheel moves per notch */
+/* What a notch of the wheel moves. One message, because a message is a
+   thing and a notch is a step, and the list is read by stepping through
+   it. Text is not read that way, so the reader keeps three: a message of
+   any length would be tedious at one line a notch. */
+#define WHEELMSGS 1 /* messages the wheel moves per notch, in the list */
+#define WHEELROWS 3 /* lines it moves per notch, in the reader */
 
 #define TIMFETCH  1 /* the timer that steps a fetch along */
 
@@ -3110,12 +3115,12 @@ int main(int argc, char* argv[])
                 case ami_etmouba:
                     if (er.amoubn == 4) {
 
-                        msgtop -= WHEELROWS;
+                        msgtop -= WHEELMSGS;
                         showlist();
 
                     } else if (er.amoubn == 5) {
 
-                        msgtop += WHEELROWS;
+                        msgtop += WHEELMSGS;
                         showlist();
 
                     } else if (er.amoubn == 1) {
