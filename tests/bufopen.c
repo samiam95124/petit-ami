@@ -14,6 +14,8 @@
 *     noframe   turn the child's frame off, as a pane would                    *
 *     toplevel  make the first window a top level one rather than a child      *
 *     presize   size the window before buffering, so the configure is a change  *
+*     samesize  ask for the size the window already has, twice                  *
+*     samepos   ask for the place the window is already in, twice               *
 *                                                                              *
 * Build:                                                                       *
 *                                                                              *
@@ -42,6 +44,8 @@ int main(int argc, char* argv[])
     int   noframe = FALSE;
     int   toplevel = FALSE;
     int   presize = FALSE;
+    int   samesize = FALSE;
+    int   samepos = FALSE;
 
     for (i = 1; i < argc; i++) {
 
@@ -49,6 +53,8 @@ int main(int argc, char* argv[])
         else if (!strcmp(argv[i], "noframe")) noframe = TRUE;
         else if (!strcmp(argv[i], "toplevel")) toplevel = TRUE;
         else if (!strcmp(argv[i], "presize")) presize = TRUE;
+        else if (!strcmp(argv[i], "samesize")) samesize = TRUE;
+        else if (!strcmp(argv[i], "samepos")) samepos = TRUE;
 
     }
     ami_autohold(FALSE);
@@ -79,6 +85,24 @@ int main(int argc, char* argv[])
         fprintf(stderr, "buffer on\n");
         ami_buffer(w1, TRUE);
         fprintf(stderr, "buffer on done\n");
+
+    }
+    if (samesize) { /* the size it already has, twice */
+
+        fprintf(stderr, "size 500x400\n");
+        ami_setsizg(w1, 500, 400);
+        fprintf(stderr, "size 500x400 again\n");
+        ami_setsizg(w1, 500, 400);
+        fprintf(stderr, "same size done\n");
+
+    }
+    if (samepos) { /* the place it is already in, twice */
+
+        fprintf(stderr, "position 60,60\n");
+        ami_setposg(w1, 60, 60);
+        fprintf(stderr, "position 60,60 again\n");
+        ami_setposg(w1, 60, 60);
+        fprintf(stderr, "same position done\n");
 
     }
     ami_setsizg(w1, 300, 200);
