@@ -311,18 +311,30 @@ static void writeaccount(void)
 
 {
 
-    char  fn[MAXSTR*2];
-    FILE* f;
-    int   fd;
+    char   fn[MAXSTR*2];
+    FILE*  f;
+    mode_t um;
 
     acctfile(fn, sizeof(fn));
-    /* Made by hand rather than by fopen, so that it is never readable by
-       anyone else even for the moment between being made and being
-       given its permissions. */
-    fd = open(fn, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-    if (fd < 0) { fail("The account could not be saved"); return; }
-    f = fdopen(fd, "w");
-    if (!f) { close(fd); fail("The account could not be saved"); return; }
+    /* The mask is set around the open so that the file is never readable
+       by anyone else, not even for the moment between being made and
+       being given its permissions. Done this way rather than with open
+       and fdopen because it is one call, and because it is the same on
+       every system this runs on. */
+    um = umask(S_IRWXG | S_IRWXO);
+    f = fopen(fn, "w");
+    umask(um);
+    if (!f) {
+
+        char msg[MAXSTR*4];
+
+        snprintf(msg, sizeof(msg), "%s could not be written:\n%s",
+                 fn, strerror(errno));
+        fail(msg);
+
+        return;
+
+    }
     fprintf(f, "# Mail account. Written by the Server form in mail.\n");
     fprintf(f, "imap %s\n", imapsrv);
     fprintf(f, "imapport %ld\n", imapport);
