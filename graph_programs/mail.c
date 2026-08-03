@@ -1178,6 +1178,84 @@ static void indexfolder(long fold)
 
 }
 
+/* How many messages are in a folder's file. The file is only counted,
+   not taken apart: the separators are found and nothing else, so a
+   mailbox of sixty megabytes costs a read rather than a parse. The
+   folder being shown is counted exactly by the indexing, which knows;
+   this is for all the others, which the list never touches. */
+static long countfolder(const char* file)
+
+{
+
+    FILE*  f = fopen(file, "r");
+    static const char from[] = "From ";
+    char   buf[65536];
+    long   n = 0;
+    long   got;
+    int    atbol = TRUE;    /* this character starts a line */
+    int    blank = TRUE;    /* the line before it held nothing */
+    int    matching = FALSE; /* a separator is being matched here */
+    long   hold = 0;        /* how much of it has matched */
+
+    if (!f) return (0);
+    while ((got = fread(buf, 1, sizeof(buf), f)) > 0) {
+
+        long i;
+
+        for (i = 0; i < got; i++) {
+
+            char c = buf[i];
+
+            if (c == '\r') continue; /* whatever the line endings are */
+            if (c == '\n') {
+
+                blank = atbol; /* nothing came between the two line ends */
+                atbol = TRUE;
+                matching = FALSE;
+
+                continue;
+
+            }
+            if (atbol) { /* a separator can only begin a line */
+
+                matching = blank;
+                hold = 0;
+                atbol = FALSE;
+
+            }
+            /* The match runs on past the start of the line, which is
+               what the first try of this got wrong: it asked to be at
+               the start of a line for every character of "From " and so
+               never matched more than the F. */
+            if (matching) {
+
+                if (c == from[hold]) { if (++hold == 5) { n++;
+                                                          matching = FALSE; } }
+                else matching = FALSE;
+
+            }
+
+        }
+
+    }
+    fclose(f);
+
+    return (n);
+
+}
+
+/* count every folder that has not been counted */
+static void countfolders(void)
+
+{
+
+    long i;
+
+    for (i = 0; i < foldct; i++)
+        folders[i].msgs = countfolder(folders[i].file);
+
+}
+
 /* read one message back out of the file, whole */
 static char* getmsg(long fold, long i)
 
@@ -1877,6 +1955,27 @@ static long fitchars(FILE* f, char* s, long w)
 
 }
 
+/* A number written the way a mail reader writes it, in threes: eleven
+   thousand messages reads as 11,421 and not as 11421. */
+static void commas(long n, char* s, long sl)
+
+{
+
+    char b[40];
+    long i, o = 0, l;
+
+    snprintf(b, sizeof(b), "%ld", n);
+    l = strlen(b);
+    for (i = 0; i < l && o < sl-2; i++) {
+
+        if (i && (l-i)%3 == 0) s[o++] = ',';
+        s[o++] = b[i];
+
+    }
+    s[o] = 0;
+
+}
+
 /* cut a string to fit a width, with an ellipsis if it had to be cut */
 static void clipstr(FILE* f, char* s, long w)
 
@@ -1896,6 +1995,8 @@ static void drawfolders(void)
 
     long i;
     long y = 4;
+    long cw;
+    char cnt[40];
 
     if (!foldwf) return;
     fprintf(foldwf, "\f");
@@ -1917,10 +2018,21 @@ static void drawfolders(void)
 
         }
         copystr(nm, folders[i].show, MAXSTR);
+        /* the count against the right, and the name given what is left,
+           so that a long name is cut rather than run under the count */
+        cnt[0] = 0;
+        if (folders[i].msgs > 0) commas(folders[i].msgs, cnt, sizeof(cnt));
+        cw = *cnt? ami_strsiz(foldwf, cnt)+8: 0;
         ami_bold(foldwf, i == foldsel);
-        clipstr(foldwf, nm, ami_maxxg(foldwf)-16);
+        clipstr(foldwf, nm, ami_maxxg(foldwf)-16-cw);
         ami_cursorg(foldwf, 8, y);
         fprintf(foldwf, "%s", nm);
+        if (*cnt) {
+
+            ami_cursorg(foldwf, ami_maxxg(foldwf)-8-ami_strsiz(foldwf, cnt), y);
+            fprintf(foldwf, "%s", cnt);
+
+        }
         ami_bold(foldwf, FALSE);
         y += chrh+4;
 
@@ -2844,6 +2956,7 @@ static void fetchend(void)
     snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
              fetchgot == 1? "": "s");
     status(msg);
+    countfolders();
     if (foldsel < 0 && foldct) showfolder(0);
     else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
     drawfolders();
@@ -2902,6 +3015,7 @@ static void fetchall(void)
     foldct = 0;
     foldsel = -1;
     if (!getfolders()) { status(""); imapclose(); return; }
+    countfolders();
     drawfolders();
     fetching = TRUE;
     fetchfold = -1;
@@ -3028,6 +3142,7 @@ int main(int argc, char* argv[])
        up at once and comes up on a train. The server is asked only when
        the user asks for it. */
     storefolders();
+    countfolders();
     if (foldct) showfolder(0);
     drawfolders();
     drawlist();
