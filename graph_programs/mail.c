@@ -183,6 +183,8 @@ static long  rowh;              /* the height of a message line */
 static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
+static long  fromx;             /* where the sender column ends */
+static long  datex;             /* where the date column begins */
 static long  mpx, mpy;          /* the mouse, in pixels of its own window */
 
 /* the reader */
@@ -1955,6 +1957,19 @@ static long fitchars(FILE* f, char* s, long w)
 
 }
 
+/* The dividers between the parts of the display, all drawn alike: a
+   quiet grey, so they mark the columns off without shouting over the
+   text the way black rules would. */
+static void divider(FILE* f, long x1, long y1, long x2, long y2)
+
+{
+
+    ami_fcolorc(f, 180, 180, 180);
+    ami_line(f, x1, y1, x2, y2);
+    ami_fcolor(f, ami_black);
+
+}
+
 /* A number written the way a mail reader writes it, in threes: eleven
    thousand messages reads as 11,421 and not as 11421. */
 static void commas(long n, char* s, long sl)
@@ -2051,8 +2066,6 @@ static void drawmsg(long i, long y)
 
     msgrec* m = &msgs[i];
     long    w = ami_maxxg(listwf)-sbw;
-    long    fromw = ami_strsiz(listwf, "0")*18;
-    long    datew = ami_strsiz(listwf, "Sep 30, 2025 ");
     long    x;
     char    s[MAXSTR+SNIPPET];
     long    subw;
@@ -2066,23 +2079,23 @@ static void drawmsg(long i, long y)
     }
     /* the sender */
     copystr(s, m->from, MAXSTR);
-    clipstr(listwf, s, fromw-8);
+    clipstr(listwf, s, fromx-14);
     ami_bold(listwf, TRUE);
     ami_cursorg(listwf, 6, y);
     fprintf(listwf, "%s", s);
     /* the subject, then the start of the message after it */
-    x = fromw;
-    subw = w-datew-x-8;
+    x = fromx+8;
+    subw = datex-x-8;
     copystr(s, m->subject, MAXSTR);
     clipstr(listwf, s, subw);
     ami_cursorg(listwf, x, y);
     fprintf(listwf, "%s", s);
     x += ami_strsiz(listwf, s);
     ami_bold(listwf, FALSE);
-    if (*m->snip && x < w-datew-ami_strsiz(listwf, "  ")) {
+    if (*m->snip && x < datex-ami_strsiz(listwf, "  ")) {
 
         snprintf(s, sizeof(s), " - %s", m->snip);
-        clipstr(listwf, s, w-datew-x-8);
+        clipstr(listwf, s, datex-x-8);
         ami_fcolor(listwf, ami_black);
         ami_cursorg(listwf, x, y);
         fprintf(listwf, "%s", s);
@@ -2092,6 +2105,12 @@ static void drawmsg(long i, long y)
     copystr(s, m->when, sizeof(m->when));
     ami_cursorg(listwf, w-ami_strsiz(listwf, s)-8, y);
     fprintf(listwf, "%s", s);
+    /* This row's piece of the column dividers. Drawn with the row so
+       that a row drawn on its own -- the selection moving, a scroll
+       filling in -- keeps the line whole. A vertical line survives a
+       vertical scroll, so the pieces always join. */
+    divider(listwf, fromx, y-2, fromx, y+rowh-4);
+    divider(listwf, datex-8, y-2, datex-8, y+rowh-4);
 
 }
 
@@ -2250,13 +2269,13 @@ static void drawlist(void)
         return;
 
     }
+    /* the column dividers first, full height, so the rows overprint
+       their own pieces and the empty part of the list is ruled too */
+    divider(listwf, fromx, 0, fromx, ami_maxyg(listwf));
+    divider(listwf, datex-8, 0, datex-8, ami_maxyg(listwf));
     for (i = msgtop; i < msgct && y+rowh <= ami_maxyg(listwf); i++) {
 
         drawmsg(i, y);
-        /* a line between, as a list of anything wants */
-        ami_fcolor(listwf, ami_white);
-        ami_line(listwf, 0, y+rowh-3, ami_maxxg(listwf)-sbw, y+rowh-3);
-        ami_fcolor(listwf, ami_black);
         y += rowh;
 
     }
@@ -2775,9 +2794,15 @@ static void layout(void)
     ami_setposg(foldwf, 1, top);
     ami_setsizg(foldwf, foldw, h);
     ami_sizbufg(foldwf, foldw, h); /* the buffer follows the pane */
-    ami_setposg(listwf, foldw+2, top);
-    ami_setsizg(listwf, ami_maxxg(stdout)-foldw-2, h);
-    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-2, h);
+    /* the gap between the panes holds the divider between the sections */
+    ami_setposg(listwf, foldw+8, top);
+    ami_setsizg(listwf, ami_maxxg(stdout)-foldw-8, h);
+    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-8, h);
+    divider(stdout, foldw+4, top, foldw+4, top+h);
+    /* the columns of the list, kept here so the rows and their dividers
+       agree on where the columns are */
+    fromx = ami_strsiz(listwf, "0")*18;
+    datex = ami_maxxg(listwf)-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
