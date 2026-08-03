@@ -1965,7 +1965,9 @@ static void divider(FILE* f, long x1, long y1, long x2, long y2)
 {
 
     ami_fcolorc(f, 180, 180, 180);
+    ami_linewidth(f, 2);
     ami_line(f, x1, y1, x2, y2);
+    ami_linewidth(f, 1);
     ami_fcolor(f, ami_black);
 
 }
@@ -2077,10 +2079,12 @@ static void drawmsg(long i, long y)
         ami_fcolor(listwf, ami_black);
 
     }
-    /* the sender */
+    /* The sender. Bold goes on before the fit is measured: bold is
+       wider than regular, so a name measured regular and drawn bold
+       runs past the divider it was cut to. */
+    ami_bold(listwf, TRUE);
     copystr(s, m->from, MAXSTR);
     clipstr(listwf, s, fromx-14);
-    ami_bold(listwf, TRUE);
     ami_cursorg(listwf, 6, y);
     fprintf(listwf, "%s", s);
     /* the subject, then the start of the message after it */
@@ -3132,10 +3136,14 @@ int main(int argc, char* argv[])
 
     }
     readaccount(); /* if there is one; the program comes up either way */
-    setupmenu();
     ami_winclientg(stdout, ami_strsiz(stdout, "0")*130, chrh*46, &wx, &wy,
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(stdout, wx, wy);
+    /* The menu is built once the window is its final size. Built before,
+       the menu strip follows the resize but its newly exposed right end
+       is never painted, and sits there as a black box until something
+       makes the window resize again. */
+    setupmenu();
     /* the two panes */
     ami_openwin(&stdin, &foldwf, stdout, FOLDWIN);
     /* A pane is part of the main window, not a window of its own: no
