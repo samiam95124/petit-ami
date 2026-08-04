@@ -651,7 +651,13 @@ record is a line and has to stay one.
 
 *******************************************************************************/
 
-#define IDXHEAD "ami-mail-index 1"
+/* The line every index file begins with. The number is the version of
+   what follows, and moving it throws away every index written before:
+   version 1 held dates read without the sender's timezone, so mail from
+   a server keeping UTC sorted hours into the future. An index that is
+   wrong is worse than none, since nothing would ever go back and look
+   at the mailbox again. */
+#define IDXHEAD "ami-mail-index 2"
 
 static void idxfile(long fold, char* fn, long fnl)
 
@@ -1990,20 +1996,103 @@ static long parsedate(const char* s, char* show, long sn)
     tm.tm_hour = hour;
     tm.tm_min = min;
     tm.tm_sec = sec;
-    tm.tm_isdst = -1;
-    t = mktime(&tm);
+    /* The zone the sender wrote it in. Without it every message from a
+       server keeping UTC -- which is most of them -- was read as though
+       its clock were ours, and landed hours in the future: mail sent at
+       eight in the evening in London sorted above mail sent here five
+       minutes ago, and a message answered to yourself came back ten rows
+       down the list instead of at the top of it. */
+    {
+
+        const char* z = s;
+        long        off = 0;   /* seconds east of UTC */
+        int         got = FALSE;
+
+        /* the offset comes after the time, as +hhmm or a name */
+        /* four of them: the day, the month, the year and the time, which
+           is one word however many parts it has. Stepping over six --
+           which the first try of this did -- steps over the zone as
+           well, and every message goes back to being read in our own
+           time, which is the fault this is here to fix. */
+        for (i = 0; i < 4 && *z; i++) {
+
+            while (*z == ' ') z++;
+            while (*z && *z != ' ') z++;
+
+        }
+        while (*z == ' ') z++;
+        if (*z == '+' || *z == '-') {
+
+            long hh = 0, mm = 0;
+
+            if (sscanf(z+1, "%2ld%2ld", &hh, &mm) == 2) {
+
+                off = (hh*60+mm)*60;
+                if (*z == '-') off = -off;
+                got = TRUE;
+
+            }
+
+        } else if (isalpha((unsigned char)*z)) {
+
+            static const struct { const char* nm; long off; } zones[] = {
+
+                { "UT", 0 }, { "GMT", 0 }, { "Z", 0 },
+                { "EST", -5 }, { "EDT", -4 }, { "CST", -6 }, { "CDT", -5 },
+                { "MST", -7 }, { "MDT", -6 }, { "PST", -8 }, { "PDT", -7 },
+                { NULL, 0 }
+
+            };
+            long k;
+
+            for (k = 0; zones[k].nm; k++)
+                if (!strncasecmp(z, zones[k].nm, strlen(zones[k].nm))) {
+
+                    off = zones[k].off*3600;
+                    got = TRUE;
+
+                    break;
+
+                }
+
+        }
+        /* timegm reads the fields as UTC, which they are once the
+           sender's offset is taken off them */
+        if (got) {
+
+            tm.tm_isdst = 0;
+            t = timegm(&tm)-off;
+
+        } else { /* no zone: the best that can be done is our own */
+
+            tm.tm_isdst = -1;
+            t = mktime(&tm);
+
+        }
+
+    }
     if (t == (time_t)-1) return (0);
-    /* today gets the time, anything older gets the date */
-    if (now-t < 12*60*60) {
+    /* Shown in our own time, whatever time the sender kept: a message is
+       filed by when it arrived here. */
+    {
 
-        long h12 = hour%12;
+        struct tm lt;
 
-        if (!h12) h12 = 12;
-        snprintf(show, sn, "%ld:%02ld %s", h12, min, hour < 12? "AM": "PM");
+        localtime_r(&t, &lt);
+        if (now-t < 12*60*60) {
 
-    } else if (now-t < 300L*24*60*60)
-        snprintf(show, sn, "%s %ld", months[i], day);
-    else snprintf(show, sn, "%s %ld, %ld", months[i], day, year);
+            long h12 = lt.tm_hour%12;
+
+            if (!h12) h12 = 12;
+            snprintf(show, sn, "%ld:%02d %s", h12, lt.tm_min,
+                     lt.tm_hour < 12? "AM": "PM");
+
+        } else if (now-t < 300L*24*60*60)
+            snprintf(show, sn, "%s %d", months[lt.tm_mon], lt.tm_mday);
+        else snprintf(show, sn, "%s %d, %d", months[lt.tm_mon], lt.tm_mday,
+                      lt.tm_year+1900);
+
+    }
 
     return ((long)t);
 
