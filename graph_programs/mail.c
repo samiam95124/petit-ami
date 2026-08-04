@@ -5147,11 +5147,11 @@ static void layout(void)
 
 {
 
-    long top = chrh*2+banh; /* under the menu bar and the banner */
+    long top = 1+banh; /* under the banner, which is under the menu */
     long h = ami_maxyg(stdout)-top-stath; /* the strip has the foot of it */
 
     /* The banner is as wide as the window and stays where it is put. */
-    ami_setposg(banwf, 1, chrh*2);
+    ami_setposg(banwf, 1, 1);
     ami_setsizg(banwf, ami_maxxg(stdout), banh);
     ami_sizbufg(banwf, ami_maxxg(stdout), banh);
 
@@ -7107,7 +7107,7 @@ int main(int argc, char* argv[])
                    stand on: when they move down to make room for it,
                    what they leave is the main window's again, and the
                    main window has to paint it. */
-                divider(stdout, foldw+4, chrh*2+banh, foldw+4,
+                divider(stdout, foldw+4, 1+banh, foldw+4,
                         ami_maxyg(stdout)-stath);
                 drawstatus();
                 break;
