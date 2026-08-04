@@ -70,6 +70,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <openssl/evp.h>
+
 #include <localdefs.h>
 #include <graphics.h>
 #include <network.h>
@@ -118,6 +120,8 @@
    thing and a notch is a step, and the list is read by stepping through
    it. Text is not read that way, so the reader keeps three: a message of
    any length would be tedious at one line a notch. */
+#define DIGLEN    65 /* a sha-256 as hex, and its terminator */
+
 #define WHEELMSGS 1 /* messages the wheel moves per notch, in the list */
 #define WHEELROWS 3 /* lines it moves per notch, in the reader */
 
@@ -147,6 +151,7 @@ typedef struct {
     char from[MAXSTR];    /* who it is from, shown */
     char subject[MAXSTR]; /* the subject line */
     char addr[100];       /* the sender's address, for matching */
+    char dig[DIGLEN];     /* what the message is, wherever it came from */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
     long date;            /* the date, for sorting */
@@ -262,6 +267,242 @@ static void copystr(char* d, const char* s, long n)
 
     strncpy(d, s, n-1);
     d[n-1] = 0;
+
+}
+
+/*******************************************************************************
+
+Digests
+
+Every message gets a SHA-256 of the bytes it is stored as. It is what
+lets this program know a message it already has, whoever sends it and
+whatever folder it arrives in: mail moved between folders keeps its
+digest, mail fetched twice has the same digest, and mail from a second
+server that is the same mail has the same digest. UIDs cannot do any of
+that -- they belong to one folder on one server and mean nothing
+anywhere else.
+
+The digest covers the message and not the separator line above it, since
+that line is this program's own and carries a time that is not the
+message's.
+
+The digests of a folder are kept in a file beside its mailbox, one to a
+line, with the size the mailbox had when they were taken on the first
+line. A mailbox that has grown since is read again and the file rebuilt,
+so the two cannot drift apart without being noticed.
+
+*******************************************************************************/
+
+/* the SHA-256 of a block, as hex */
+static void digestof(const char* data, long len, char* hex)
+
+{
+
+    unsigned char md[EVP_MAX_MD_SIZE];
+    unsigned int  n = 0;
+    EVP_MD_CTX*   c = EVP_MD_CTX_new();
+    long          i;
+
+    if (!c) { fail("Out of memory"); exit(1); }
+    EVP_DigestInit_ex(c, EVP_sha256(), NULL);
+    EVP_DigestUpdate(c, data, len);
+    EVP_DigestFinal_ex(c, md, &n);
+    EVP_MD_CTX_free(c);
+    for (i = 0; i < (long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
+    hex[n*2] = 0;
+
+}
+
+/* The digests this store holds, in a table of their own. Kept as a plain
+   open hash: the whole point is that asking whether a message is already
+   here costs nothing, so a search of every folder will not do. */
+#define DIGBKT 4096
+
+typedef struct digent {
+
+    char           dig[DIGLEN];
+    struct digent* next;
+
+} digent;
+
+static digent* digtab[DIGBKT];
+static long    digct;
+
+static long dighash(const char* d)
+
+{
+
+    long h = 0;
+    long i;
+
+    /* the digest is already spread evenly, so any few of its characters
+       make as good a bucket as all of them */
+    for (i = 0; i < 8; i++) h = h*31+d[i];
+
+    return ((h & 0x7fffffff) % DIGBKT);
+
+}
+
+static int hasdigest(const char* d)
+
+{
+
+    digent* p;
+
+    for (p = digtab[dighash(d)]; p; p = p->next)
+        if (!strcmp(p->dig, d)) return (TRUE);
+
+    return (FALSE);
+
+}
+
+static void adddigest(const char* d)
+
+{
+
+    digent* p;
+    long    b;
+
+    if (hasdigest(d)) return;
+    b = dighash(d);
+    p = getmem(sizeof(digent));
+    copystr(p->dig, d, DIGLEN);
+    p->next = digtab[b];
+    digtab[b] = p;
+    digct++;
+
+}
+
+/* the file a folder's digests are kept in */
+static void digfile(long fold, char* fn, long fnl)
+
+{
+
+    snprintf(fn, fnl, "%s.dig", folders[fold].file);
+
+}
+
+/* Take the digests of every message in a folder's mailbox, writing them
+   beside it and adding them to the table. The mailbox is walked exactly
+   as the indexing walks it, so the two agree on what a message is. */
+static long digestfolder(long fold)
+
+{
+
+    FILE* f;
+    FILE* out;
+    char  fn[MAXSTR*2+8];
+    char* buf;
+    long  n;
+    long  i, start, blkstart;
+    long  got = 0;
+    char  hex[DIGLEN];
+
+    f = fopen(folders[fold].file, "r");
+    if (!f) return (0);
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buf = getmem(n+1);
+    n = fread(buf, 1, n, f);
+    buf[n] = 0;
+    fclose(f);
+    digfile(fold, fn, sizeof(fn));
+    out = fopen(fn, "w");
+    if (out) fprintf(out, "%ld\n", n); /* the size these were taken at */
+    start = -1;
+    blkstart = 0;
+    for (i = 0; i < n; i++) {
+
+        int atsep = !strncmp(buf+i, "From ", 5) &&
+                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
+                                (buf[i-2] == '\n' ||
+                                 (buf[i-2] == '\r' && i >= 3 &&
+                                  buf[i-3] == '\n'))));
+
+        if (atsep) {
+
+            if (start >= 0) { /* the message that just ended */
+
+                long e = i;
+
+                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
+                    e--;
+                digestof(buf+start, e-start, hex);
+                adddigest(hex);
+                if (out) fprintf(out, "%s\n", hex);
+                got++;
+
+            }
+            blkstart = i;
+            while (i < n && buf[i] != '\n') i++;
+            start = i+1;
+
+        }
+        while (i < n && buf[i] != '\n') i++;
+
+    }
+    if (start >= 0 && start < n) { /* the last one */
+
+        long e = n;
+
+        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
+        digestof(buf+start, e-start, hex);
+        adddigest(hex);
+        if (out) fprintf(out, "%s\n", hex);
+        got++;
+
+    }
+    (void)blkstart;
+    free(buf);
+    if (out) fclose(out);
+
+    return (got);
+
+}
+
+/* Load a folder's digests, taking them afresh if the file is missing or
+   was written when the mailbox was a different size. */
+static void loaddigests(long fold)
+
+{
+
+    char        fn[MAXSTR*2+8];
+    FILE*       f;
+    struct stat sb;
+    char        line[DIGLEN+8];
+    long        was = -1;
+
+    if (stat(folders[fold].file, &sb)) return; /* no mailbox */
+    digfile(fold, fn, sizeof(fn));
+    f = fopen(fn, "r");
+    if (f && fgets(line, sizeof(line), f)) was = atol(line);
+    if (!f || was != (long)sb.st_size) { /* stale, or never taken */
+
+        if (f) fclose(f);
+        digestfolder(fold);
+
+        return;
+
+    }
+    while (fgets(line, sizeof(line), f)) {
+
+        trim(line);
+        if (strlen(line) == DIGLEN-1) adddigest(line);
+
+    }
+    fclose(f);
+
+}
+
+/* every folder in the store, so that a fetch knows what is already here */
+static void loadalldigests(void)
+
+{
+
+    long i;
+
+    for (i = 0; i < foldct; i++) loaddigests(i);
 
 }
 
@@ -1077,6 +1318,7 @@ static void indexmsg(const char* msg, long len, long off)
     m = &msgs[msgct++];
     m->off = off;
     m->len = len;
+    digestof(msg, len, m->dig);
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
     addrof(from, m->addr, sizeof(m->addr));
@@ -1417,6 +1659,11 @@ static long movelocal(long fold, const char* dstfile, const char* set)
     fclose(dst);
     fclose(out);
     rename(tmp, folders[fold].file);
+    /* Both mailboxes changed under their digest files, which are taken
+       again from what is there rather than patched, so they cannot drift
+       from it. The digests themselves do not change: a message moved is
+       the same message. */
+    digestfolder(fold);
 
     return (moved);
 
@@ -3240,15 +3487,18 @@ static void setupmenu(void)
     ami_menuptr mp;
     ami_menuptr sm = NULL;
 
+    /* No File menu. All it held was Exit, which the window's own close
+       box does, in the corner every window has it in. Get Mail is what
+       this program is for, so it stands on the bar rather than inside
+       something. */
+    newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Get Mail");
+    appendmenu(&ml, mp);
     newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Mail");
     appendmenu(&ml, ma);
-    ami_stdmenu(BIT(AMI_SMEXIT) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
-                &sm, ml);
+    ami_stdmenu(BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT), &sm, ml);
     /* as in the spreadsheet, the branch is hung on after the standard
        menu is built, since building it clears the branch link */
     newmenu(&mp, FALSE, FALSE, OFF, MENUSRV, "Server...");
-    appendmenu(&ma->branch, mp);
-    newmenu(&mp, FALSE, FALSE, ON, MENUFETCH, "Get Mail");
     appendmenu(&ma->branch, mp);
     newmenu(&mp, FALSE, FALSE, ON, MENUFOLD, "Refresh Folder List");
     appendmenu(&ma->branch, mp);
@@ -3287,6 +3537,7 @@ static int  fetching;    /* a fetch is under way */
 static long fetchfold;   /* the folder being read */
 static long fetchi;      /* which of that folder's uids is next */
 static long fetchgot;    /* messages taken, this fetch */
+static long fetchdup;    /* and passed over as already here */
 static long fetchlast;   /* the highest uid taken from this folder */
 static long fetchseen;   /* the highest uid taken before this fetch */
 
@@ -3353,6 +3604,8 @@ static void fetchend(void)
     ami_killtimer(stdout, TIMFETCH);
     fetching = FALSE;
     imapclose();
+    if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
+                      fetchgot, fetchdup);
     snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
              fetchgot == 1? "": "s");
     status(msg);
@@ -3393,6 +3646,43 @@ static void fetchstep(void)
     n = literalof(line);
     if (n < 0) { imwait(tag, NULL); return; } /* no message came */
     msg = imliteral(n);
+    {
+
+        char hex[DIGLEN];
+
+        /* What the message is, rather than where the server filed it.
+           A message already in this store is not written again, whatever
+           folder it is in and whichever server it came from -- which is
+           what happens when mail is moved here, or fetched twice, or
+           arrives in two folders that are views of the same mail, as
+           All Mail is of everything. */
+        digestof(msg, n, hex);
+        if (hasdigest(hex)) {
+
+            free(msg);
+            imwait(tag, NULL);
+            if (uid > fetchlast) fetchlast = uid;
+            fetchdup++;
+            fetchsay();
+
+            return;
+
+        }
+        adddigest(hex);
+        /* and beside the mailbox, so the next run knows it without
+           reading every message again */
+        {
+
+            char  fn[MAXSTR*2+8];
+            FILE* df;
+
+            digfile(fetchfold, fn, sizeof(fn));
+            df = fopen(fn, "a");
+            if (df) { fprintf(df, "%s\n", hex); fclose(df); }
+
+        }
+
+    }
     mboxwrite(folders[fetchfold].file, msg, n);
     free(msg);
     fetchgot++;
@@ -3424,6 +3714,9 @@ static void fetchall(void)
     fetchi = 0;
     uidct = 0;
     fetchgot = 0;
+    fetchdup = 0;
+    /* what is already here, so that none of it is taken twice */
+    loadalldigests();
     /* Every hundredth of a second, which is far faster than a message
        can be fetched over a network: the timer sets the pace only when
        the network is quicker than the eye. */
