@@ -5212,6 +5212,25 @@ static void fetchall(int relist)
        flicker every time the timer came round. Get Mail asks; the timer
        only fetches. */
     if (!foldct) relist = TRUE; /* unless nothing is known yet */
+    if (!relist) { /* an account nothing is known of has to be asked */
+
+        long k;
+
+        for (k = 0; k < srvct && !relist; k++) {
+
+            long m;
+
+            if (!*servers[k].imap || !*servers[k].user) continue;
+            for (m = 0; m < foldct; m++) if (folders[m].srv == k) break;
+            /* A newly added account has no folders here, and a look
+               that only walks the folders it knows would never touch it
+               -- so it would never get any, and never be looked at
+               again. One that has none is asked. */
+            if (m >= foldct) relist = TRUE;
+
+        }
+
+    }
     if (!relist) {
 
         status("Looking...");
