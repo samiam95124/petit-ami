@@ -4039,9 +4039,12 @@ static void fetchsay(void)
 
 {
 
-    /* the folder pane is the progress display: its count climbs as the
-       messages land */
-    drawfolders();
+    static long said;
+
+    /* The folder pane is the progress display, its counts climbing as
+       the messages land -- but not for every one of them: redrawing the
+       pane a hundred times a second is a flicker, not a display. */
+    if (++said >= 10) { said = 0; drawfolders(); }
 
 }
 
@@ -4108,6 +4111,7 @@ static void fetchend(void)
     imapclose();
     if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
                       fetchgot, fetchdup);
+    drawfolders(); /* the counts as they finally stand */
     snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
              fetchgot == 1? "": "s");
     status(msg);
@@ -4196,13 +4200,48 @@ static void fetchstep(void)
 }
 
 /* start one */
-static void fetchall(void)
+static void fetchall(int relist)
 
 {
 
-    if (fetching) return; /* one at a time */
     long i;
+    char wasname[MAXSTR];
+    long wassrv = -1;
 
+    if (fetching) return; /* one at a time */
+    /* Keep which folder is being read: rebuilding the list throws the
+       selection away, and a fetch that moved the reader back to the
+       first folder every quarter minute would be unusable. */
+    wasname[0] = 0;
+    if (foldsel >= 0 && foldsel < foldct) {
+
+        copystr(wasname, folders[foldsel].name, MAXSTR);
+        wassrv = folders[foldsel].srv;
+
+    }
+    /* A look on the timer does not ask the servers what folders they
+       have. Folders do not come and go by the quarter minute, the asking
+       costs a connection and a round trip to each of them, and
+       rebuilding the list redraws the pane -- which is what made it
+       flicker every time the timer came round. Get Mail asks; the timer
+       only fetches. */
+    if (!foldct) relist = TRUE; /* unless nothing is known yet */
+    if (!relist) {
+
+        status("Looking...");
+        fetching = TRUE;
+        fetchsrv = -2;
+        fetchfold = -1;
+        fetchi = 0;
+        uidct = 0;
+        fetchgot = 0;
+        fetchdup = 0;
+        loadalldigests();
+        ami_timer(stdout, TIMFETCH, 100, TRUE);
+
+        return;
+
+    }
     status("Connecting...");
     /* Every server's folders, in the order they are configured, then the
        local ones. The list on the server is the authority on what
@@ -4219,6 +4258,13 @@ static void fetchall(void)
     }
     storefolders(TRUE); /* the locals rejoin, after the servers' */
     countfolders();
+    if (*wasname) { /* put the reader back on the folder it was reading */
+
+        for (i = 0; i < foldct; i++)
+            if (folders[i].srv == wassrv &&
+                !strcmp(folders[i].name, wasname)) { foldsel = i; break; }
+
+    }
     drawfolders();
     fetching = TRUE;
     fetchsrv = -2; /* no server open yet */
@@ -4363,7 +4409,7 @@ int main(int argc, char* argv[])
     else if (!foldct) status("Nothing fetched yet. Mail/Get Mail reads the "
                              "server.");
     else status("");
-    if (dofetch) fetchall();
+    if (dofetch) fetchall(TRUE);
     /* Look again every so often while the program is up. The timer is
        in hundred microsecond counts, so a second is ten thousand. */
     if (pollsec > 0) ami_timer(stdout, TIMPOLL, pollsec*10000, TRUE);
@@ -4610,7 +4656,7 @@ int main(int argc, char* argv[])
                 /* and the periodic look at the servers, which does
                    nothing while a fetch is already under way */
                 else if (er.timnum == TIMPOLL && !fetching && haveaccount())
-                    fetchall();
+                    fetchall(FALSE); /* look, but do not relist */
                 break;
 
             case ami_etmenus:
@@ -4625,7 +4671,7 @@ int main(int argc, char* argv[])
                                    "one.");
                             srvopen();
 
-                        } else fetchall();
+                        } else fetchall(TRUE);
                         break;
 
                     case MENUFOLD: { /* every server's list, again */
