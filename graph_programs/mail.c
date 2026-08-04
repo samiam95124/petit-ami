@@ -759,6 +759,39 @@ static int idxread(char* line, msgrec* m)
 
 }
 
+/* Room for one more in the index being built.
+
+   A folder is read into here and put in place in one move, and never
+   added to where it stands. It was added to where it stood, and that is
+   what crashed the program: growing an array moves it, the display's
+   list IS the array, and a display drawing the folder that was being
+   read went on drawing the block that had just been freed underneath
+   it. Reading a folder while looking at it is the ordinary case, not a
+   corner of one.
+
+   The fetch is different and adds in place, but the fetch does it
+   holding the lock and points the display at the array again
+   afterwards, which is the same protection by another road. */
+static msgrec* bidx;
+static long    bct;
+static long    bmax;
+
+static msgrec* bldroom(void)
+
+{
+
+    if (bct >= bmax) {
+
+        bmax = bmax? bmax*2: 256;
+        bidx = realloc(bidx, bmax*sizeof(msgrec));
+        if (!bidx) { fail("Out of memory"); exit(1); }
+
+    }
+
+    return (&bidx[bct++]);
+
+}
+
 /* room for one more in a folder's index */
 static msgrec* idxroom(long fold)
 
@@ -782,16 +815,16 @@ static msgrec* idxroom(long fold)
    reaches furthest into it. The file is written in the order messages
    arrive but sorted in memory, so it is the highest end and not the
    last line. */
-static long idxend(long fold)
+static long idxend(void)
 
 {
 
     long i;
     long e = 0;
 
-    for (i = 0; i < folders[fold].idxct; i++) {
+    for (i = 0; i < bct; i++) {
 
-        long x = folders[fold].idx[i].off+folders[fold].idx[i].len;
+        long x = bidx[i].off+bidx[i].len;
 
         if (x > e) e = x;
 
@@ -834,12 +867,11 @@ static int idxfits(long fold)
     char*       ln;
 
     if (stat(folders[fold].file, &sb)) return (FALSE); /* no mailbox */
-    e = idxend(fold);
-    if (!e) return (folders[fold].idxct == 0); /* nothing named, nothing to fit */
+    e = idxend();
+    if (!e) return (bct == 0); /* nothing named, nothing to fit */
     if (e > (long)sb.st_size) return (FALSE);  /* the mailbox lost bytes */
-    for (i = 0; i < folders[fold].idxct; i++)
-        if (folders[fold].idx[i].off+folders[fold].idx[i].len == e)
-            { off = folders[fold].idx[i].off; break; }
+    for (i = 0; i < bct; i++)
+        if (bidx[i].off+bidx[i].len == e) { off = bidx[i].off; break; }
     if (off <= 0) return (FALSE);
     f = fopen(folders[fold].file, "r");
     if (!f) return (FALSE);
@@ -868,7 +900,7 @@ static void idxload(long fold)
     char* line;
     long  lsz = MAXSTR*4+SNIPPET*2+400;
 
-    folders[fold].idxct = 0;
+    bct = 0;
     folders[fold].idxok = FALSE;
     idxfile(fold, fn, sizeof(fn));
     f = fopen(fn, "r");
@@ -883,13 +915,13 @@ static void idxload(long fold)
         trim(line);
         if (!*line) continue;
         if (!idxread(line, &m)) continue; /* a line that says nothing */
-        *idxroom(fold) = m;
+        *bldroom() = m;
 
     }
     free(line);
     fclose(f);
     folders[fold].idxok = idxfits(fold);
-    if (!folders[fold].idxok) folders[fold].idxct = 0; /* it will be taken again */
+    if (!folders[fold].idxok) bct = 0; /* it will be taken again */
 
 }
 
@@ -906,7 +938,7 @@ static void idxsave(long fold)
     f = fopen(fn, "w");
     if (!f) return; /* an index that cannot be kept is worked out again */
     fprintf(f, "%s\n", IDXHEAD);
-    for (i = 0; i < folders[fold].idxct; i++) idxwrite(f, &folders[fold].idx[i]);
+    for (i = 0; i < bct; i++) idxwrite(f, &bidx[i]);
     fclose(f);
     /* the digests file it replaces, which held one of these ten fields */
     digfile(fold, fn, sizeof(fn));
@@ -2417,14 +2449,27 @@ static void idxdone(long fold)
 
 {
 
-    qsort(folders[fold].idx, folders[fold].idxct, sizeof(msgrec), bydate);
+    msgrec* was;
+
+    /* Sorted here, where nothing else can see it. Sorting the array the
+       display is drawing moves the rows out from under it. */
+    qsort(bidx, bct, sizeof(msgrec), bydate);
     dlock();
-    folders[fold].msgs = folders[fold].idxct;
+    was = folders[fold].idx;
+    folders[fold].idx = bidx;
+    folders[fold].idxct = bct;
+    folders[fold].idxmax = bmax;
+    folders[fold].msgs = bct;
     folders[fold].idxok = TRUE;
     folders[fold].dirty = FALSE;
     idxfold = fold;
-    useidx();
+    useidx(); /* the display's list is the new array from here on */
     dunlock();
+    /* the array it had is nobody's now */
+    free(was);
+    bidx = NULL;
+    bct = 0;
+    bmax = 0;
     rehashall();
 
 }
@@ -2454,10 +2499,10 @@ static void indexfolder(long fold)
 
     if (fold < 0) return;
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
-    if (!folders[fold].idxok) idxload(fold);
-    had = folders[fold].idxct;
-    from = folders[fold].idxok? idxend(fold): 0;
-    if (!folders[fold].idxok) folders[fold].idxct = 0;
+    bct = 0;
+    idxload(fold);
+    had = bct;
+    from = folders[fold].idxok? idxend(): 0;
     f = fopen(folders[fold].file, "r");
     if (!f) { /* nothing fetched yet, which is not an error */
 
@@ -2507,7 +2552,7 @@ static void indexfolder(long fold)
                 digend(&dg, hex);
                 hold[holdn] = 0;
                 fillrec(&m, hold, holdn, endpos-start, start, hex);
-                *idxroom(fold) = m;
+                *bldroom() = m;
                 digstart(&dg);
 
             }
@@ -2517,7 +2562,7 @@ static void indexfolder(long fold)
             /* Say how far along, and give up if the reader has asked for
                another folder: there is no sense reading four gigabytes
                nobody is waiting for. */
-            if (!(folders[fold].idxct%256)) {
+            if (!(bct%256)) {
 
                 wrkpos = pos-from;
                 wrkmax = size-from;
@@ -2553,7 +2598,7 @@ static void indexfolder(long fold)
         digend(&dg, hex);
         hold[holdn] = 0;
         fillrec(&m, hold, holdn, endpos-start, start, hex);
-        *idxroom(fold) = m;
+        *bldroom() = m;
 
     } else if (dg.c) { digend(&dg, hex); }
     free(hold);
@@ -2565,8 +2610,7 @@ static void indexfolder(long fold)
 
         long i;
 
-        for (i = had; i < folders[fold].idxct; i++)
-            idxappend(fold, &folders[fold].idx[i]);
+        for (i = had; i < bct; i++) idxappend(fold, &bidx[i]);
 
     }
     idxdone(fold);
@@ -4074,15 +4118,19 @@ static void sendmail(const char* to, const char* cc, const char* subject,
        sent is ours as much as what is received. */
     {
 
-        long fold = localfolder("Sent");
+        long fold;
+        char hex[DIGLEN];
+        long off, stored = 0;
 
+        digestof(msg, o, hex);
+        /* The whole of it with the display shut out: making the folder
+           adds to the table the display draws from, and the message
+           itself grows the array the display's list IS. */
+        dlock();
+        fold = localfolder("Sent");
         if (fold >= 0) {
 
-            char hex[DIGLEN];
-            long off, stored = 0;
 
-            digestof(msg, o, hex);
-            dlock();
             off = mboxwrite(folders[fold].file, msg, o, &stored);
             if (off >= 0) {
 
@@ -4096,11 +4144,11 @@ static void sendmail(const char* to, const char* cc, const char* subject,
                 useidx();
 
             }
-            dunlock();
-            wrkfolds = TRUE;
-            wrklist = TRUE;
 
         }
+        dunlock();
+        wrkfolds = TRUE;
+        wrklist = TRUE;
 
     }
     free(msg);
