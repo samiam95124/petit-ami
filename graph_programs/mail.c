@@ -66,6 +66,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <netdb.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <fcntl.h>
@@ -365,6 +367,7 @@ static void copystr(char* d, const char* s, long dl);
    and over, and the reader wants to be told once. */
 static char failsaid[MAXSTR*3];
 static char sentsaid[MAXSTR]; /* and what went right */
+static long sendfail;         /* and whether it was a send that failed */
 static long failwait;
 static long fetchasked; /* somebody asked for this fetch and is waiting */
 
@@ -2200,6 +2203,7 @@ static void dlock(void);
 static void dunlock(void);
 static void serveindex(void);
 static void servesend(void);
+static int reachable(const char* host, long port, long secs);
 static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
                     long id, char* face);
 static void appendmenu(ami_menuptr* list, ami_menuptr m);
@@ -2211,6 +2215,7 @@ static long wrkmax;          /* and how big it is */
 static long wrkfolds;        /* the folder pane wants redrawing */
 static long wrklist;         /* and so does the message list */
 static long wrkstop;         /* drop what you are doing */
+static long wrkbusy;         /* it has something in hand just now */
 
 /* Which folder the display wants read, which folder the list it is
    showing was read from, and how many messages were in it then. The last
@@ -3460,6 +3465,17 @@ static int imapopen(void)
     char          line[MAXLINE];
 
     if (imap) return (TRUE); /* already there */
+    if (!reachable(imapsrv, imapport, 10)) {
+
+        char msg[MAXSTR*2];
+
+        snprintf(msg, sizeof(msg), "Cannot reach %s on port %ld.", imapsrv,
+                 imapport);
+        fail(msg);
+
+        return (FALSE);
+
+    }
     ami_addrnet(imapsrv, &addr);
     imap = ami_opennet(addr, imapport, TRUE);
     if (!imap) { fail("Cannot reach the mail server"); return (FALSE); }
@@ -3894,6 +3910,15 @@ static void sendmail(const char* to, const char* cc, const char* subject,
         return;
 
     }
+    if (!reachable(ssrv, sport, 10)) {
+
+        snprintf(err, errl, "Cannot reach %s on port %ld.\n"
+                 "Check the sending server and its port in Config/Servers. "
+                 "Gmail sends on 465.", ssrv, sport);
+
+        return;
+
+    }
     ami_addrnet(ssrv, &addr);
     /* 465 is TLS from the first byte; 587 begins in the clear and turns
        it on with STARTTLS, which this cannot do through the library's
@@ -4092,6 +4117,17 @@ static void smtpcheck(void)
     char  msg[MAXSTR*2];
     long  code;
 
+    if (!reachable(smtpsrv, smtpport, 10)) {
+
+        char msg[MAXSTR*2];
+
+        snprintf(msg, sizeof(msg), "Cannot reach %s on port %ld.\n"
+                 "Gmail sends on 465.", smtpsrv, smtpport);
+        fail(msg);
+
+        return;
+
+    }
     ami_addrnet(smtpsrv, &addr);
     /* 465 is TLS from the first byte; 587 begins in the clear and turns
        it on with STARTTLS, which this cannot do through the library's
@@ -4764,6 +4800,71 @@ static long  banh;     /* how tall it is */
 static long  picw;     /* the picture, at the size it was made */
 static long  pich;
 static long  havepic;
+
+/* Can this server be reached at all?
+
+   The library treats a connection it cannot make as an error, and an
+   error stops the program: ami_opennet does not come back to say no. A
+   mail program meets servers that are down -- a wrong port in a form, a
+   host that has moved, a network that is not there -- and it must go on
+   meeting them, so the connection is tried here first with a plain
+   socket, and the library is only asked for one that is going to work.
+
+   The try is made without blocking and given a few seconds, since the
+   whole point is not to hang on a host that is not answering. */
+static int reachable(const char* host, long port, long secs)
+
+{
+
+    struct addrinfo  hints;
+    struct addrinfo* res = NULL;
+    struct addrinfo* p;
+    char             portstr[16];
+    int              ok = FALSE;
+
+    if (!host || !*host) return (FALSE);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET; /* which is what the library speaks */
+    hints.ai_socktype = SOCK_STREAM;
+    snprintf(portstr, sizeof(portstr), "%ld", port);
+    if (getaddrinfo(host, portstr, &hints, &res)) return (FALSE);
+    for (p = res; p && !ok; p = p->ai_next) {
+
+        int            sk = socket(p->ai_family, SOCK_STREAM, 0);
+        int            fl;
+        struct timeval tv;
+        fd_set         wr;
+
+        if (sk < 0) continue;
+        fl = fcntl(sk, F_GETFL, 0);
+        fcntl(sk, F_SETFL, fl|O_NONBLOCK);
+        if (!connect(sk, p->ai_addr, p->ai_addrlen)) ok = TRUE;
+        else if (errno == EINPROGRESS) {
+
+            FD_ZERO(&wr);
+            FD_SET(sk, &wr);
+            tv.tv_sec = secs;
+            tv.tv_usec = 0;
+            if (select(sk+1, NULL, &wr, NULL, &tv) > 0) {
+
+                int       e = 0;
+                socklen_t el = sizeof(e);
+
+                if (!getsockopt(sk, SOL_SOCKET, SO_ERROR, &e, &el) && !e)
+                    ok = TRUE;
+
+            }
+
+        }
+        close(sk);
+
+    }
+    freeaddrinfo(res);
+    if (!ok && diag) fprintf(stderr, "! cannot reach %s port %ld\n", host, port);
+
+    return (ok);
+
+}
 
 /* Something kept beside the program: the categories, the help, the
    picture. Looked for where the program is, then where the source is,
@@ -7013,6 +7114,7 @@ The menu
 
 *******************************************************************************/
 
+static int reachable(const char* host, long port, long secs);
 static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
                     long id, char* face)
 
@@ -7576,7 +7678,13 @@ static void servesend(void)
     sendmail(to, cc, sub, body? body: "", inreply, refs, err, sizeof(err));
     free(body);
     wrkwhat[0] = 0;
-    if (*err) { copystr(failsaid, err, sizeof(failsaid)); failwait = TRUE; }
+    if (*err) {
+
+        copystr(failsaid, err, sizeof(failsaid));
+        failwait = TRUE;
+        sendfail = TRUE;
+
+    }
     else copystr(sentsaid, "Message sent, and a copy put in Sent.",
                  sizeof(sentsaid));
     wrkfolds = TRUE;
@@ -7630,6 +7738,7 @@ static void mailwork(void)
 
     while (TRUE) {
 
+        wrkbusy = TRUE;
         servesend();
         serveindex();
         if (wrkgo) {
@@ -7640,6 +7749,7 @@ static void mailwork(void)
             wrkgo = FALSE;
 
         }
+        wrkbusy = FALSE;
         usleep(50000); /* a twentieth of a second, unnoticeable at a start */
 
     }
@@ -7765,7 +7875,10 @@ static void fetchpick(void)
            down fails every one of them: an hour away from it would be
            an hour of boxes to dismiss. Those are left to the diagnostic
            and to the account being set aside. */
-        if (fetchasked || !fetching) ami_alert("Mail", failsaid);
+        /* A failure to send is always somebody waiting: they pressed
+           Send and are owed an answer. */
+        if (fetchasked || !fetching || sendfail) ami_alert("Mail", failsaid);
+        sendfail = FALSE;
 
     }
     if (done) {
@@ -7806,8 +7919,16 @@ static void fetchpick(void)
     }
     /* The timer runs while there is anything to watch, and stops when
        there is not: a tick ten times a second forever is a program that
-       never lets the machine alone. */
-    if (timerrun && !fetching && !wrkgo && idxwant < 0 && !*wrkwhat) {
+       never lets the machine alone. Everything the worker might be in
+       the middle of has to be in this test, and something waiting to be
+       said counts as well as something being done. Sending was not:
+       the tick after Send found no fetch running and stopped the timer
+       before the worker had even picked the message up, so what came
+       back -- that it had gone, or why it had not -- was never looked
+       at, and a message that never left looked exactly like one that
+       did. */
+    if (timerrun && !fetching && !wrkgo && !wrkbusy && idxwant < 0 &&
+        !sendwant && !failwait && !*sentsaid && !*wrkwhat) {
 
         ami_killtimer(stdout, TIMFETCH);
         timerrun = FALSE;
