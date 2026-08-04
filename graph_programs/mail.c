@@ -266,12 +266,31 @@ static void srvdir(long srv, char* dn, long dnl);
 static void safename(const char* nm, char* fn, long fnl);
 static void drawread(void);
 static void layout(void);
+static void drawfolders(void);
+static void drawlist(void);
 
 /*******************************************************************************
 
 Odds and ends
 
 *******************************************************************************/
+
+/* A colour named the way everybody names one, in parts of 255.
+
+   The library takes each part as a fraction of the whole range of a
+   long, not as a byte: 245 out of LONG_MAX is not a light grey, it is
+   black, and every "quiet grey" in this program was black until this
+   was noticed. Written once, here, so it cannot be got wrong twice. */
+static long rgb(long c)
+
+{
+
+    if (c < 0) c = 0;
+    if (c > 255) c = 255;
+
+    return (c*(LONG_MAX/255));
+
+}
 
 /* say something went wrong, in a way the user can see */
 /* A fetch the timer started is a fetch nobody asked for, and a server
@@ -280,12 +299,31 @@ Odds and ends
    hour away and there is an hour of boxes to dismiss. Failures nobody
    asked for go to the status line, where they can be read and ignored. */
 static long quietfail;
+static long wrkgo;      /* a fetch is running on the other thread */
+
+static void copystr(char* d, const char* s, long dl);
+
+/* Something the worker ran into. It cannot put a box on the screen --
+   nothing on that thread may call the graphics at all -- so it leaves
+   the words here and the main thread shows them on its next tick. Only
+   one is kept: a fetch that has gone wrong goes wrong the same way over
+   and over, and the reader wants to be told once. */
+static char failsaid[MAXSTR*3];
+static long failwait;
+static long fetchasked; /* somebody asked for this fetch and is waiting */
 
 static void fail(const char* what)
 
 {
 
-    if (quietfail) { status((char*)what); return; }
+    if (wrkgo || quietfail) { /* a fetch is running, or nobody asked */
+
+        copystr(failsaid, what, sizeof(failsaid));
+        failwait = TRUE;
+
+        return;
+
+    }
     ami_alert("Mail", (char*)what);
 
 }
@@ -1966,6 +2004,11 @@ static long countfolder(const char* file)
 
 }
 
+static char wrkwhat[MAXSTR]; /* what the worker is doing, for the strip */
+static long wrkpos;
+static long wrkmax;
+static long wrkfolds;        /* the folder pane wants redrawing */
+
 /* count every folder that has not been counted */
 static void countfolders(void)
 
@@ -1973,8 +2016,19 @@ static void countfolders(void)
 
     long i;
 
-    for (i = 0; i < foldct; i++)
+    for (i = 0; i < foldct; i++) {
+
+        /* Counting a mailbox means reading every byte of it, and there
+           can be gigabytes: it is one of the waits the strip at the foot
+           exists for. */
+        snprintf(wrkwhat, sizeof(wrkwhat), "Counting %s", folders[i].show);
+        wrkpos = i;
+        wrkmax = foldct;
         folders[i].msgs = countfolder(folders[i].file);
+        wrkfolds = TRUE;
+
+    }
+    wrkpos = foldct;
 
 }
 
@@ -2263,7 +2317,7 @@ static void popdraw(void)
 
     fprintf(popwf, "\f");
     /* the edge, so it reads as a card over the list */
-    ami_fcolorc(popwf, 120, 120, 120);
+    ami_fcolorc(popwf, rgb(120), rgb(120), rgb(120));
     ami_line(popwf, 0, 0, w-1, 0);
     ami_line(popwf, 0, h-1, w-1, h-1);
     ami_line(popwf, 0, 0, 0, h-1);
@@ -2468,6 +2522,76 @@ static void imsend(char* tag, long tn, const char* fmt, ...)
 }
 
 static long netquiet; /* the last read got nothing at all */
+
+/*******************************************************************************
+
+Two threads
+
+The fetching is done on a thread of its own, and the display is left to
+the main one. It has to be: a read from a server can take as long as the
+server feels like taking, and while it did that on the display thread
+the window did not repaint and the mouse did nothing. Timeouts bounded
+that wait; they did not remove it.
+
+The division is simple, and it is worth stating plainly because the
+whole of the locking depends on it.
+
+    The worker owns the network. It opens connections, reads messages,
+    appends them to the mailboxes, writes the digests and the markers,
+    and moves the folder counts up. It draws nothing and calls no
+    graphics function at all.
+
+    The main thread owns the display. Everything it does, it does while
+    handling an event, and it looks at the worker's progress on a timer
+    -- ten times a second, which is faster than the eye and slower than
+    the flicker that redrawing per message would be.
+
+One lock guards what they share: the folder table and the files under
+the store. The main thread holds it for as long as it is handling an
+event and drops it while it waits for the next one, so every click,
+redraw and menu choice is already covered without a lock of its own.
+The worker takes it around the commit of each message -- the append, the
+digest, the count -- which is short, and around anything that rebuilds
+the folder table.
+
+Because the lock is not recursive, it is taken in exactly those two
+places and nowhere else. No helper takes it, so no helper can be called
+from a path that already holds it and deadlock.
+
+*******************************************************************************/
+
+static long datlock;   /* what the two of them share */
+
+static void dlock(void)
+
+{
+
+    if (datlock) ami_lock(datlock);
+
+}
+
+static void dunlock(void)
+
+{
+
+    if (datlock) ami_unlock(datlock);
+
+}
+
+/* What the worker is doing, for the main thread to draw. Nothing here
+   is drawn by the worker; it is left, and picked up. */
+static long wrkstart;  /* the thread has been made */
+static long wrkstop;   /* drop what you are doing */
+static long wrkdone;   /* it finished, and nobody has noticed yet */
+static long wrkrelist; /* this fetch is to ask what folders there are */
+static long wrkcount;  /* and this one is only to count the store */
+/* What is being worked on, for the strip at the foot. The words change
+   once a folder and the numbers change once a message, so the two are
+   kept apart: the main thread reads a string that is not being rewritten
+   under it, and puts the numbers -- which are single words, and cannot
+   be read half-written -- against it itself. wrkwhat, wrkpos, wrkmax and
+   wrkfolds are declared with the counting, which wanted them first. */
+static long wrklist;   /* and so does the message list */
 
 /* get one line back, without its line ending */
 static int imline(char* buf, long bn)
@@ -3211,11 +3335,137 @@ static long scaleback(long pos, long travel)
    window itself -- the folder counts climb while a fetch runs, the list
    says what an empty folder is, and the forms speak for themselves. The
    calls remain as markers of where a quieter program once spoke. */
+static long fitchars(FILE* f, char* s, long w);
+static void commas(long n, char* s, long sl);
+static void divider(FILE* f, long x1, long y1, long x2, long y2);
+static long progw; /* how wide the bar is */
+static long progh; /* and how tall */
+
+/*******************************************************************************
+
+The status bar
+
+Anything that takes longer than an instant says so. The line at the foot
+of the window carries what is being done and, when the work has a known
+size, a bar showing how far along it is.
+
+The measure is the event horizon: about a thirtieth of a second, the
+point at which a delay stops being instantaneous and becomes a wait. A
+program that goes quiet across a wait cannot be told from one that has
+fallen over -- which is exactly what a fetch of seventy thousand
+messages looked like before there was a thread to fetch on and a line to
+say so.
+
+*******************************************************************************/
+
+static char statsaid[MAXSTR]; /* what the line says now */
+static long stath;            /* how tall the strip is */
+static long statmax;          /* the size of the job, or none if not known */
+static long statpos;          /* and how far into it */
+
+/* the strip's own drawing, text and all */
+/* The strip is a band at the foot of the main window, in the room the
+   panes are laid out to leave.
+
+   Everything in it is drawn -- the band, the words and the bar -- and
+   nothing in it is a widget. A bar drawn beside the words it belongs to
+   is four lines of code, needs no window of its own, and is placed by
+   the same arithmetic as everything else in the strip. Everything in it is drawn -- the band,
+   the words and the bar -- and nothing in it is a widget.
+
+   The bar was a widget to begin with, and it cost two days to learn why
+   it should not be. A widget is a window of its own, placed in its own
+   right, and in a window carrying a menu what is placed and what is
+   drawn do not land in the same place. Drawing a bar is four lines of
+   code and puts it exactly where the words beside it are. */
+static void drawstatus(void)
+
+{
+
+    long y = ami_maxyg(stdout)-stath;         /* at the foot */
+    long bx = ami_maxxg(stdout)-progw-8;
+    long by = y+(stath-progh)/2;
+
+    /* the band, laid down as one line as thick as the strip: a filled
+       rectangle does not paint in this window, a line does */
+    ami_fcolorc(stdout, rgb(245), rgb(245), rgb(245));
+    ami_linewidth(stdout, stath);
+    ami_line(stdout, 1, y+stath/2, ami_maxxg(stdout), y+stath/2);
+    ami_linewidth(stdout, 1);
+    ami_fcolor(stdout, ami_black);
+    divider(stdout, 1, y, ami_maxxg(stdout), y);
+    if (*statsaid) {
+
+        char t[MAXSTR];
+
+        copystr(t, statsaid, sizeof(t));
+        /* it shares the strip with the bar, and never writes over it */
+        fitchars(stdout, t, bx-16);
+        ami_cursorg(stdout, 8, y+(stath-chrh)/2+1);
+        ami_fcolorc(stdout, rgb(80), rgb(80), rgb(80));
+        fprintf(stdout, "%s", t);
+        ami_fcolor(stdout, ami_black);
+
+    }
+    /* the bar: what is done, then what is left, then a line round both */
+    if (statmax > 0) {
+
+        long w = progw*statpos/statmax;
+
+        if (w > 0) {
+
+            ami_fcolorc(stdout, rgb(120), rgb(60), rgb(130));
+            ami_linewidth(stdout, progh-2);
+            ami_line(stdout, bx+1, by+progh/2, bx+w, by+progh/2);
+
+        }
+        if (w < progw) {
+
+            ami_fcolorc(stdout, rgb(225), rgb(225), rgb(225));
+            ami_linewidth(stdout, progh-2);
+            ami_line(stdout, bx+w+1, by+progh/2, bx+progw, by+progh/2);
+
+        }
+        ami_linewidth(stdout, 1);
+        ami_fcolorc(stdout, rgb(150), rgb(150), rgb(150));
+        ami_rect(stdout, bx, by, bx+progw, by+progh);
+        ami_fcolor(stdout, ami_black);
+
+    }
+
+}
+
 static void status(const char* s)
 
 {
 
-    (void)s;
+    if (!s) s = "";
+    if (!strcmp(s, statsaid)) return; /* it already says that */
+    copystr(statsaid, s, sizeof(statsaid));
+    drawstatus();
+
+}
+
+/* How far along, from nothing to all of it. The widget takes the whole
+   range of a long, so the fraction is worked out in that range rather
+   than in percent, which would step the bar in hundredths. */
+static void statprog(long pos, long max)
+
+{
+
+    if (max <= 0) { /* no size to it: there is no bar */
+
+        if (statmax) { statmax = 0; statpos = 0; drawstatus(); }
+
+        return;
+
+    }
+    if (pos < 0) pos = 0;
+    if (pos > max) pos = max;
+    if (statmax == max && statpos == pos) return; /* it is already there */
+    statmax = max;
+    statpos = pos;
+    drawstatus();
 
 }
 
@@ -3282,7 +3532,7 @@ static void divider(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
-    ami_fcolorc(f, 180, 180, 180);
+    ami_fcolorc(f, rgb(180), rgb(180), rgb(180));
     ami_linewidth(f, 2);
     ami_line(f, x1, y1, x2, y2);
     ami_linewidth(f, 1);
@@ -3411,7 +3661,7 @@ static void drawfolders(void)
 
             ami_fcolor(foldwf, ami_white);
             ami_frect(foldwf, 0, y-2, w, y+chrh);
-            ami_fcolorc(foldwf, 130, 130, 130);
+            ami_fcolorc(foldwf, rgb(130), rgb(130), rgb(130));
             ami_cursorg(foldwf, 8, y);
             fprintf(foldwf, "%s", srv >= 0? "(not fetched)": "(none yet)");
             ami_fcolor(foldwf, ami_black);
@@ -3465,7 +3715,7 @@ static void drawmsg(long i, long y)
        it is there to be glanced past, not read */
     copystr(s, m->cat, sizeof(s));
     clipstr(listwf, s, catx-fromx-16);
-    ami_fcolorc(listwf, 110, 110, 110);
+    ami_fcolorc(listwf, rgb(110), rgb(110), rgb(110));
     ami_cursorg(listwf, fromx+8, y);
     fprintf(listwf, "%s", s);
     ami_fcolor(listwf, ami_black);
@@ -4080,7 +4330,7 @@ static void srvlay(void)
 
         snprintf(n, sizeof(n), "account %ld of %ld", srvedit+1,
                  srvct > srvedit? srvct: srvedit+1);
-        ami_fcolorc(srvwf, 110, 110, 110);
+        ami_fcolorc(srvwf, rgb(110), rgb(110), rgb(110));
         ami_cursorg(srvwf, chrw*2, y+bh+chrh/2);
         fprintf(srvwf, "%s", n);
         ami_fcolor(srvwf, ami_black);
@@ -4292,7 +4542,11 @@ static void layout(void)
 {
 
     long top = chrh*2; /* under the menu bar, which is drawn in the client */
-    long h = ami_maxyg(stdout)-top;
+    long h = ami_maxyg(stdout)-top-stath; /* the strip has the foot of it */
+
+    if (diag) fprintf(stderr, "layout: buf %ldx%ld stath %ld progh %ld "
+                      "panes %ld tall\n", ami_maxxg(stdout), ami_maxyg(stdout),
+                      stath, progh, h);
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
@@ -4326,6 +4580,16 @@ static void layout(void)
     ami_sizwidgetg(listwf, SBLIST, sbw, ami_maxyg(listwf));
     listrows = ami_maxyg(listwf)/rowh;
     if (listrows < 1) listrows = 1;
+    /* The panes are cleared and drawn again, since this is the one thing
+       that moves what is in them: a pane that has changed height has the
+       old rows where the new ones are not, and a buffer keeps whatever
+       nothing has drawn over. Once per layout, which is once per resize
+       -- not once per redraw, which is what made a resize flash. */
+    fprintf(foldwf, "\f");
+    fprintf(listwf, "\f");
+    drawfolders();
+    drawlist();
+    drawstatus();
 
 }
 
@@ -5180,16 +5444,14 @@ static int serverquiet(long srv)
 }
 
 /* say where the fetch has got to */
+/* The folder pane is the progress display, its counts climbing as the
+   messages land. The worker does not draw it -- it says that it wants
+   drawing, and the main thread does it on the next tick. */
 static void fetchsay(void)
 
 {
 
-    static long said;
-
-    /* The folder pane is the progress display, its counts climbing as
-       the messages land -- but not for every one of them: redrawing the
-       pane a hundred times a second is a flicker, not a display. */
-    if (++said >= 10) { said = 0; drawfolders(); }
+    wrkfolds = TRUE;
 
 }
 
@@ -5261,7 +5523,16 @@ static int fetchnext(void)
             imapclose();
             fetchsrv = folders[fold].srv;
             if (fetchsrv < 0) continue;
+            snprintf(wrkwhat, sizeof(wrkwhat), "Connecting to %s",
+                     servers[folders[fold].srv].name);
+            wrkpos = 0;
+            wrkmax = 0;
+            /* The server's name and password are copied out of the
+               table the config window writes, so the copy is made with
+               that window shut out of it. */
+            dlock();
             useserver(fetchsrv);
+            dunlock();
             if (!imapopen()) { serverfailed(fetchsrv); fetchsrv = -2; continue; }
             serverspoke(fetchsrv);
 
@@ -5269,6 +5540,10 @@ static int fetchnext(void)
         fetchi = 0;
         uidct = 0;
         fetchsay();
+        snprintf(wrkwhat, sizeof(wrkwhat), "%s: %s",
+                 fetchsrv >= 0? servers[fetchsrv].name: "", folders[fold].show);
+        wrkpos = 0;
+        wrkmax = 0;
         exists = 0;
         uidvalidity = 0;
         fetchcur = fold; /* the folder this step is working on */
@@ -5287,6 +5562,7 @@ static int fetchnext(void)
         if (lo < 1) lo = 1;
         imsend(tag, sizeof(tag), "FETCH %ld:%ld (UID)", lo, hi);
         if (!imwait(tag, uidline)) continue;
+        wrkmax = uidct; /* what this folder is offering */
         if (uidct) return (TRUE);
 
     }
@@ -5295,26 +5571,19 @@ static int fetchnext(void)
 
 }
 
-/* the fetch is over, however it ended */
+/* The fetch is over, however it ended. This runs on the worker, so it
+   puts the connection down and says so; what the reader sees of the end
+   is drawn by the main thread when it notices. */
 static void fetchend(void)
 
 {
 
-    char msg[MAXSTR];
-
-    ami_killtimer(stdout, TIMFETCH);
-    fetching = FALSE;
     imapclose();
     if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
                       fetchgot, fetchdup);
-    drawfolders(); /* the counts as they finally stand */
-    snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
-             fetchgot == 1? "": "s");
-    status(msg);
-    countfolders();
-    if (foldsel < 0 && foldct) showfolder(0);
-    else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
-    drawfolders();
+    wrkfolds = TRUE;
+    wrklist = TRUE;
+    wrkdone = TRUE;
 
 }
 
@@ -5331,7 +5600,7 @@ static void fetchstep(void)
     long  n;
     char* msg;
 
-    if (!fetching) return;
+    if (wrkdone) return;
     while (fetchi >= uidct) { /* this folder is done */
 
         if (fetchcur >= 0 && fetchcur < foldct && uidct)
@@ -5341,6 +5610,7 @@ static void fetchstep(void)
 
     }
     uid = uidlist[fetchi++];
+    wrkpos = fetchi;
     /* Already here if it falls inside the stretch this folder has been
        read of. Below that stretch is mail older than anything taken so
        far, which is exactly what asking for more of a folder is for. */
@@ -5394,24 +5664,32 @@ static void fetchstep(void)
 
         }
         adddigest(hex);
-        /* and beside the mailbox, so the next run knows it without
-           reading every message again */
+        /* The message goes into the store and the count goes up
+           together, with the display shut out of both. This is the one
+           place the worker writes what the main thread reads: half a
+           message in a mailbox is what a reader would find if it indexed
+           a folder in the middle of an append, and a count that did not
+           match what is in the file is what it would draw. */
+        dlock();
         {
 
             char  fn[MAXSTR*2+8];
             FILE* df;
 
+            /* beside the mailbox, so the next run knows it without
+               reading every message again */
             digfile(fetchcur, fn, sizeof(fn));
             df = fopen(fn, "a");
             if (df) { fprintf(df, "%s\n", hex); fclose(df); }
 
         }
+        mboxwrite(folders[fetchcur].file, msg, n);
+        folders[fetchcur].msgs++; /* the pane's count is the progress */
+        dunlock();
 
     }
-    mboxwrite(folders[fetchcur].file, msg, n);
     free(msg);
     fetchgot++;
-    folders[fetchcur].msgs++; /* the pane's count is the progress */
     imwait(tag, NULL); /* the ) and the answer */
     if (uid > fetchlast) fetchlast = uid;
     if (!fetchnewlow || uid < fetchnewlow) fetchnewlow = uid;
@@ -5420,25 +5698,131 @@ static void fetchstep(void)
 }
 
 /* start one */
-static void fetchall(int relist)
+/* The worker's half of a fetch: everything with a network in it, and
+   everything slow enough to be worth keeping off the display. It runs
+   on the fetch thread from beginning to end and draws nothing. */
+static void fetchrun(void)
 
 {
 
     long i;
-    char wasname[MAXSTR];
-    long wassrv = -1;
 
-    if (fetching) return; /* one at a time */
-    /* Keep which folder is being read: rebuilding the list throws the
-       selection away, and a fetch that moved the reader back to the
-       first folder every quarter minute would be unusable. */
-    wasname[0] = 0;
-    if (foldsel >= 0 && foldsel < foldct) {
+    if (wrkrelist) {
 
-        copystr(wasname, folders[foldsel].name, MAXSTR);
-        wassrv = folders[foldsel].srv;
+        char wasname[MAXSTR];
+        long wassrv = -1;
+
+        /* Asking every server what folders it has, and rebuilding the
+           table from the answers. The table is what the display reads,
+           so the rebuild is done with the display shut out: a pane drawn
+           halfway through would be drawn off a list with some servers in
+           it and some not.
+
+           This is the one place the display can be held up for as long
+           as a server takes to answer, and it is why the timer never
+           asks: Get Mail asks, and Get Mail is somebody waiting. */
+        dlock();
+        wasname[0] = 0;
+        /* Keep which folder is being read: rebuilding the list throws
+           the selection away, and a fetch that moved the reader back to
+           the first folder every quarter minute would be unusable. */
+        if (foldsel >= 0 && foldsel < foldct) {
+
+            copystr(wasname, folders[foldsel].name, MAXSTR);
+            wassrv = folders[foldsel].srv;
+
+        }
+        foldct = 0;
+        foldsel = -1;
+        for (i = 0; i < srvct; i++) {
+
+            if (!*servers[i].imap || !*servers[i].user) continue;
+            /* If the server cannot be reached -- or is one being left
+               alone after it stopped answering -- keep what the store
+               knows of its folders rather than leaving the section
+               empty: an account that is merely unreachable has not
+               stopped having folders. */
+            if (serverquiet(i)) { storefolders(i); continue; }
+            snprintf(wrkwhat, sizeof(wrkwhat), "Asking %s what folders it has",
+                     servers[i].name);
+            wrkpos = 0;
+            wrkmax = 0;
+            if (!getfolders(i))
+                { imapclose(); serverfailed(i); storefolders(i); continue; }
+            imapclose(); /* one at a time: the connection is per server */
+
+        }
+        storefolders(-1); /* the locals rejoin, after the servers' */
+        if (*wasname) /* put the reader back on the folder it was reading */
+            for (i = 0; i < foldct; i++)
+                if (folders[i].srv == wassrv &&
+                    !strcmp(folders[i].name, wasname)) { foldsel = i; break; }
+        dunlock();
+        wrkfolds = TRUE;
+        wrklist = TRUE;
 
     }
+    /* Counting a folder means reading every byte of its mailbox, and
+       there are gigabytes of them. It is done off the lock: a count is
+       one word, so a pane drawn while they are climbing draws either the
+       old number or the new one, never half of either -- and the numbers
+       climbing IS the display saying what is going on. */
+    copystr(wrkwhat, "Counting what is here", sizeof(wrkwhat));
+    countfolders();
+    wrkfolds = TRUE;
+    if (wrkcount) return; /* counting was the whole job */
+    /* what is already here, so that none of it is taken twice */
+    loadalldigests();
+    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
+                      digct, foldct);
+    fetchsrv = -2; /* no server open yet */
+    fetchorder();
+    fetchfold = -1;
+    fetchcur = -1;
+    fetchi = 0;
+    uidct = 0;
+    fetchgot = 0;
+    fetchdup = 0;
+    /* Straight through, one message after another, with the reads
+       blocking as reads do. There is no state machine any more and no
+       timer setting the pace: that apparatus existed only to give the
+       display a turn between messages, and the display has a thread of
+       its own now. */
+    while (!wrkdone && !wrkstop) fetchstep();
+
+}
+
+/* The fetch thread. It is made once and lives as long as the program:
+   the services thread table has no way to give an entry back, so a
+   thread per fetch would run it out inside an hour of quarter-minute
+   looks. It waits for work rather than being made for it. */
+static void mailwork(void)
+
+{
+
+    while (TRUE) {
+
+        if (wrkgo) {
+
+            wrkdone = FALSE;
+            fetchrun();
+            wrkdone = TRUE; /* however it ended */
+            wrkgo = FALSE;
+
+        }
+        usleep(50000); /* a twentieth of a second, unnoticeable at a start */
+
+    }
+
+}
+
+/* start one */
+static void fetchall(int relist)
+
+{
+
+    if (fetching) return; /* one at a time */
+    if (!haveaccount()) return;
     /* A look on the timer does not ask the servers what folders they
        have. Folders do not come and go by the quarter minute, the asking
        costs a connection and a round trip to each of them, and
@@ -5455,6 +5839,7 @@ static void fetchall(int relist)
             long m;
 
             if (!*servers[k].imap || !*servers[k].user) continue;
+            if (serverquiet(k)) continue; /* not while it is not answering */
             for (m = 0; m < foldct; m++) if (folders[m].srv == k) break;
             /* A newly added account has no folders here, and a look
                that only walks the folders it knows would never touch it
@@ -5465,68 +5850,115 @@ static void fetchall(int relist)
         }
 
     }
-    if (!relist) {
-
-        status("Looking...");
-        fetching = TRUE;
-        fetchsrv = -2;
-        fetchorder();
-        fetchfold = -1;
-        fetchcur = -1;
-        fetchi = 0;
-        uidct = 0;
-        fetchgot = 0;
-        fetchdup = 0;
-        loadalldigests();
-        ami_timer(stdout, TIMFETCH, 100, TRUE);
-
-        return;
-
-    }
-    status("Connecting...");
-    /* Every server's folders, in the order they are configured, then the
-       local ones. The list on the server is the authority on what
-       folders that server has, so it replaces what was read off the
-       store. */
-    foldct = 0;
-    foldsel = -1;
-    for (i = 0; i < srvct; i++) {
-
-        if (!*servers[i].imap || !*servers[i].user) continue;
-        /* If the server cannot be reached, keep what the store knows of
-           its folders rather than leaving the section empty: an account
-           that is merely unreachable has not stopped having folders. */
-        if (!getfolders(i)) { imapclose(); storefolders(i); continue; }
-        imapclose(); /* one at a time: the connection is per server */
-
-    }
-    storefolders(-1); /* the locals rejoin, after the servers' */
-    countfolders();
-    if (*wasname) { /* put the reader back on the folder it was reading */
-
-        for (i = 0; i < foldct; i++)
-            if (folders[i].srv == wassrv &&
-                !strcmp(folders[i].name, wasname)) { foldsel = i; break; }
-
-    }
-    drawfolders();
+    if (!wrkstart) { ami_newthread(mailwork); wrkstart = TRUE; }
     fetching = TRUE;
-    fetchsrv = -2; /* no server open yet */
-    fetchorder();
-    fetchfold = -1;
-    fetchcur = -1;
-    fetchi = 0;
-    uidct = 0;
-    fetchgot = 0;
-    fetchdup = 0;
-    /* what is already here, so that none of it is taken twice */
-    loadalldigests();
-    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
-                      digct, foldct);
-    /* Every hundredth of a second, which is far faster than a message
-       can be fetched over a network: the timer sets the pace only when
-       the network is quicker than the eye. */
-    ami_timer(stdout, TIMFETCH, 100, TRUE);
+    fetchasked = !quietfail; /* the timer sets that flag; a menu does not */
+    failwait = FALSE;
+    wrkrelist = relist;
+    wrkcount = FALSE;
+    wrkdone = FALSE;
+    wrkgo = TRUE; /* and it is off */
+    /* Ten times a second, to pick up what the worker has done and draw
+       it. Faster than the eye and slower than the flicker that drawing
+       per message would be. */
+    ami_timer(stdout, TIMFETCH, 1000, TRUE);
+
+}
+
+/* Count the store without fetching anything. The counts are what the
+   folder pane shows, and finding them means reading every mailbox
+   through -- gigabytes, at startup, in front of somebody waiting for a
+   window. It goes to the worker like everything else slow. */
+static void countlater(void)
+
+{
+
+    if (fetching) return;
+    if (!wrkstart) { ami_newthread(mailwork); wrkstart = TRUE; }
+    fetching = TRUE;
+    fetchasked = FALSE; /* nobody asked to be told about counting */
+    wrkrelist = FALSE;
+    wrkcount = TRUE;
+    wrkdone = FALSE;
+    wrkgo = TRUE;
+    ami_timer(stdout, TIMFETCH, 1000, TRUE);
+
+}
+
+static void showfolder(long i);
+
+/* What the worker has done, drawn. This is the main thread's whole part
+   in a fetch: it looks ten times a second, draws what has changed, and
+   tidies up when the worker says it has finished. */
+static void fetchpick(void)
+
+{
+
+    long folds = wrkfolds;
+    long list  = wrklist;
+    long done  = wrkdone && !wrkgo;
+
+    wrkfolds = FALSE;
+    wrklist = FALSE;
+    if (folds) drawfolders();
+    if (*wrkwhat) { /* what it is doing, and how far into it */
+
+        char t[MAXSTR*2];
+        char a[40], b[40];
+
+        if (wrkmax > 0) {
+
+            commas(wrkpos, a, sizeof(a));
+            commas(wrkmax, b, sizeof(b));
+            snprintf(t, sizeof(t), "%s - %s of %s", wrkwhat, a, b);
+
+        } else copystr(t, wrkwhat, sizeof(t));
+        status(t);
+        statprog(wrkpos, wrkmax);
+
+    }
+    if (failwait) {
+
+        failwait = FALSE;
+        /* A look on the timer is nobody waiting, and a server that is
+           down fails every one of them: an hour away from it would be
+           an hour of boxes to dismiss. Those are left to the diagnostic
+           and to the account being set aside. */
+        if (fetchasked) ami_alert("Mail", failsaid);
+
+    }
+    if (done) {
+
+        char t[MAXSTR];
+
+        ami_killtimer(stdout, TIMFETCH);
+        fetching = FALSE;
+        *wrkwhat = 0;
+        statprog(0, 0); /* the bar empties: there is nothing running */
+        if (wrkcount) status("");
+        else {
+
+            char a[40], b[40];
+
+            commas(fetchgot, a, sizeof(a));
+            commas(fetchdup, b, sizeof(b));
+            snprintf(t, sizeof(t), "%s new, %s already here", a, b);
+            status(t);
+
+        }
+
+    }
+    /* Indexing a folder means reading its whole mailbox, so it is done
+       when the list has actually changed under the reader -- at the end,
+       and after a rebuild moved the selection -- and not on every tick
+       of a fetch that may run for hours. */
+    if (list || done) {
+
+        if (foldsel < 0 && foldct) showfolder(0);
+        else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
+        drawfolders();
+
+    }
 
 }
 
@@ -5610,9 +6042,25 @@ int main(int argc, char* argv[])
     }
     readaccount(); /* if there is one; the program comes up either way */
     migratestore(); /* mailboxes from before accounts had names */
-    ami_winclientg(stdout, ami_strsiz(stdout, "0")*130, chrh*46, &wx, &wy,
-                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    ami_setsizg(stdout, wx, wy);
+    {
+
+        long cw = ami_strsiz(stdout, "0")*130; /* the room wanted inside */
+        long ch = chrh*46;
+
+        ami_winclientg(stdout, cw, ch, &wx, &wy,
+                       BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+        ami_setsizg(stdout, wx, wy);
+        /* The buffer is NOT sized here. It follows the window, and the
+           only thing that knows what the window actually became is the
+           resize the window manager sends back -- which may be nothing
+           like what was asked for. Sizing it here to what was asked for
+           puts the buffer ahead of the window instead of behind it, and
+           then every measurement is of a window that does not exist:
+           the status strip is drawn at the foot of a buffer taller than
+           the window, where nobody can see it. The resize that arrives
+           at startup does the sizing, as every later one does. */
+
+    }
     /* The menu is built once the window is its final size. Built before,
        the menu strip follows the resize but its newly exposed right end
        is never painted, and sits there as a black box until something
@@ -5636,6 +6084,13 @@ int main(int argc, char* argv[])
     ami_font(listwf, AMI_FONT_SIGN);
     ami_setpoints(listwf, 11.0);
     ami_binvis(listwf);
+    /* The strip at the foot, and the bar in it. Its natural height is
+       what the strip is built around; its width is set here, since a bar
+       as wide as a window says less than a short one does. */
+    /* the strip along the foot, and the bar drawn in it */
+    progh = chrh-2;
+    progw = ami_strsiz(stdout, "0")*20;
+    stath = chrh+8;
     ami_scrollvertsizg(listwf, &sbw, &wy);
     ami_scrollvertg(listwf, 1, 1, sbw, chrh*10, SBLIST); /* moved by layout */
     layout();
@@ -5644,8 +6099,8 @@ int main(int argc, char* argv[])
        keeping it in files, and starting this way means the program comes
        up at once and comes up on a train. The server is asked only when
        the user asks for it. */
+    datlock = ami_initlock(); /* before there is a second thread to want it */
     storeall();
-    countfolders();
     if (foldct) showfolder(0);
     drawfolders();
     drawlist();
@@ -5654,13 +6109,25 @@ int main(int argc, char* argv[])
     else if (!foldct) status("Nothing fetched yet. Mail/Get Mail reads the "
                              "server.");
     else status("");
-    if (dofetch) fetchall(TRUE);
+    /* The counts come from reading every mailbox through, which on a
+       store of gigabytes is not something to do in front of somebody
+       waiting for a window. The worker does it, and the pane fills in
+       as it goes. */
+    if (dofetch) fetchall(TRUE); else countlater();
     /* Look again every so often while the program is up. The timer is
        in hundred microsecond counts, so a second is ten thousand. */
     if (pollsec > 0) ami_timer(stdout, TIMPOLL, pollsec*10000, TRUE);
+    /* Held for as long as this thread is doing anything, dropped while
+       it waits for the next event. Every click, redraw, menu choice and
+       tick is covered by it without a lock of its own, and the worker
+       gets its turn in the gap -- which is nearly all of the time, since
+       waiting for an event is nearly all this thread does. */
+    dlock();
     do {
 
+        dunlock();
         ami_event(stdin, &er);
+        dlock();
         if (diag) switch (er.etype) {
 
             case ami_etresize:
@@ -5890,15 +6357,21 @@ int main(int argc, char* argv[])
                 break;
 
             case ami_etredraw:
-                /* What this window shows between its panes is the one
-                   divider, so that is all a redraw of it costs. */
+                /* What this window shows for itself is the divider
+                   between the panes and the strip at the foot, so that
+                   is all a redraw of it costs. */
+                /* The band under the menu is ground the panes used to
+                   stand on: when they move down to make room for it,
+                   what they leave is the main window's again, and the
+                   main window has to paint it. */
                 divider(stdout, foldw+4, chrh*2, foldw+4,
-                        ami_maxyg(stdout));
+                        ami_maxyg(stdout)-stath);
+                drawstatus();
                 break;
 
             case ami_ettim:
                 /* one step of a fetch, if one is running */
-                if (er.timnum == TIMFETCH) fetchstep();
+                if (er.timnum == TIMFETCH) fetchpick();
                 /* and the periodic look at the servers, which does
                    nothing while a fetch is already under way */
                 else if (er.timnum == TIMPOLL && !fetching && haveaccount()) {
@@ -5949,6 +6422,20 @@ int main(int argc, char* argv[])
 
                     case MENUCHECK:
                         if (!haveaccount()) { srvopen(); break; }
+                        /* It sends over the same name and password the
+                           fetch is using, and setting them up under a
+                           fetch that is halfway through a login is how
+                           one account's password goes to another
+                           account's server. It waits. */
+                        if (fetching) {
+
+                            ami_alert("Mail", "Not while mail is being "
+                                      "fetched. Try again when it has "
+                                      "finished.");
+
+                            break;
+
+                        }
                         smtpcheck();
                         break;
 
@@ -5972,12 +6459,21 @@ int main(int argc, char* argv[])
     } while (er.etype != ami_etterm || er.winid == READWIN ||
              er.winid == SRVWIN || er.winid == HELPWIN);
     done:
+    /* The lock is held here, so the worker is not in the middle of
+       writing a message: what is in the store is whole. It is told to
+       stop and is not waited for -- it may be in a read that has forty
+       five seconds left to run, and nobody should wait that long to
+       close a window. Nor is its connection closed from here: it is the
+       worker's, and closing it under a thread reading it is how a tidy
+       exit turns into a crash. Every message is written and closed as it
+       arrives, so there is nothing outstanding to lose. */
+    wrkstop = TRUE;
     if (fetching) ami_killtimer(stdout, TIMFETCH);
     popclose();
     helpclose();
     srvclose();
     closeread();
-    imapclose();
+    dunlock();
 
     return (0);
 

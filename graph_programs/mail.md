@@ -66,6 +66,30 @@ A look on the timer does not ask the servers what folders they have.
 Folders do not come and go by the quarter minute, and asking costs a
 connection to each server. Get Mail asks; the timer only fetches.
 
+# What it is doing
+
+The line at the foot of the window says what is being worked on and how
+far into it, with a bar beside the words when the work has a known size:
+which account is being connected to, which folder is being read and how
+many of its messages have arrived, or which mailbox is being counted.
+
+It is there because anything that takes longer than an instant has to
+say so. A program that goes quiet across a wait cannot be told from one
+that has fallen over.
+
+## While it fetches
+
+The fetching is done on a thread of its own, so the window answers while
+it goes on. Folders can be read, messages opened, the window resized,
+and the mail keeps arriving behind it.
+
+A server that stops answering is given up on after forty five seconds
+and then left alone for a while -- fifteen seconds, then thirty, up to a
+quarter of an hour -- so that a server which has had enough of us is not
+asked again immediately. Nothing is lost by any of it: every folder
+remembers the stretch it has taken and every message is known by its
+digest, so the next look carries on from where the last one stopped.
+
 # Folders
 
 Down the left, in sections: one for each account's folders, then one for
