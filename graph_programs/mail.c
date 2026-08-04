@@ -2147,6 +2147,50 @@ static long  poprow = -1; /* the entry under the mouse */
 static long  poprowh;    /* the height of an entry */
 static char  poplab[2][MAXSTR]; /* the entries' faces */
 
+/* The part of an address that says who sent it, for gathering their
+   mail together. That is the domain and not the whole address: LinkedIn
+   writes from messages-noreply@, notifications-noreply@, inmail-hit-
+   reply@ and linkedin@em.linkedin.com, and a reader who asks for a
+   folder of LinkedIn mail means all of it.
+
+   Not for the domains people have their own addresses at, though. Two
+   friends at gmail.com are two people, and sweeping every message from
+   gmail.com into one folder is not what anybody meant. */
+static void senderkey(const char* addr, char* key, long kl)
+
+{
+
+    static const char* personal[] = {
+
+        "gmail.com", "googlemail.com", "yahoo.com", "hotmail.com",
+        "outlook.com", "live.com", "icloud.com", "me.com", "aol.com",
+        "protonmail.com", "proton.me", "gmx.com", "mail.com", NULL
+
+    };
+    const char* at = strchr(addr, '@');
+    long        i;
+
+    if (!at || !at[1]) { copystr(key, addr, kl); return; }
+    for (i = 0; personal[i]; i++)
+        if (!strcasecmp(at+1, personal[i]))
+            { copystr(key, addr, kl); return; } /* a person, not a sender */
+    copystr(key, at+1, kl);
+
+}
+
+/* does this message come from that sender? */
+static int fromsender(const msgrec* m, const char* key)
+
+{
+
+    char k[100];
+
+    senderkey(m->addr, k, sizeof(k));
+
+    return (!strcasecmp(k, key));
+
+}
+
 static void popclose(void)
 
 {
@@ -2193,7 +2237,26 @@ static void popopen(long i, long x, long y)
     popmsg = i;
     copystr(nm, msgs[i].from, sizeof(nm));
     snprintf(poplab[0], sizeof(poplab[0]), "Move to local Trash");
-    snprintf(poplab[1], sizeof(poplab[1]), "Local folder for %s", nm);
+    {
+
+        char key[100];
+        long n;
+
+        /* Say what it will gather, since the sender's name and what
+           their mail comes from are not always the same word. */
+        senderkey(msgs[i].addr, key, sizeof(key));
+        n = 0;
+        {
+
+            long m;
+
+            for (m = 0; m < msgct; m++) if (fromsender(&msgs[m], key)) n++;
+
+        }
+        snprintf(poplab[1], sizeof(poplab[1]),
+                 "Local folder for %s (%ld here)", key, n);
+
+    }
     poprowh = chrh+10;
     w = ami_strsiz(listwf, poplab[0]);
     if (ami_strsiz(listwf, poplab[1]) > w) w = ami_strsiz(listwf, poplab[1]);
@@ -2250,9 +2313,11 @@ static void popact(long row)
     } else { /* everything here from this sender, to a folder of theirs */
 
         long m;
+        char key[100];
 
+        senderkey(msgs[i].addr, key, sizeof(key));
         for (m = 0; m < msgct; m++)
-            if (!strcmp(msgs[m].addr, msgs[i].addr)) set[m] = TRUE;
+            if (fromsender(&msgs[m], key)) set[m] = TRUE;
         copystr(who, msgs[i].from, sizeof(who));
         dst = localfolder(who);
 
