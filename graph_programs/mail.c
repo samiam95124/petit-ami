@@ -158,6 +158,7 @@ typedef struct {
     char show[MAXSTR];  /* the name shown, without the [Gmail]/ part */
     char file[MAXSTR*2]; /* the mbox file it is kept in */
     long msgs;          /* messages in the file */
+    long dirty;         /* something has been put in it since it was read */
     long noselect;      /* the server says it holds no messages */
     long local;         /* ours alone: a folder with no server side */
     long srv;           /* which server it belongs to, -1 if local */
@@ -173,7 +174,6 @@ typedef struct {
     char from[MAXSTR];    /* who it is from, shown */
     char subject[MAXSTR]; /* the subject line */
     char addr[100];       /* the sender's address, for matching */
-    char dig[DIGLEN];     /* what the message is, wherever it came from */
     char cat[32];         /* what kind of mail it is */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
@@ -1808,7 +1808,18 @@ static void snipof(const char* text, char* snip, long sn)
 }
 
 /* note one message found in the file */
-static void indexmsg(const char* msg, long len, long off)
+/* The index being built. It is built to one side and put in place in one
+   move, because it is built on the fetch thread and the display is
+   reading the one it already has the whole time. */
+static msgrec* bmsgs;
+static long    bct;
+static long    bmax;
+
+/* One message. What is passed is as much of it as was kept -- the
+   headers and the beginning of the body, which is all the list shows --
+   while len is the length of the whole thing, which is what reading it
+   later will need. */
+static void indexmsg(const char* msg, long have, long len, long off)
 
 {
 
@@ -1817,17 +1828,16 @@ static void indexmsg(const char* msg, long len, long off)
     char    date[MAXSTR];
     char*   text;
 
-    if (msgct >= msgmax) {
+    if (bct >= bmax) {
 
-        msgmax = msgmax? msgmax*2: 256;
-        msgs = realloc(msgs, msgmax*sizeof(msgrec));
-        if (!msgs) { fail("Out of memory"); exit(1); }
+        bmax = bmax? bmax*2: 256;
+        bmsgs = realloc(bmsgs, bmax*sizeof(msgrec));
+        if (!bmsgs) { fail("Out of memory"); exit(1); }
 
     }
-    m = &msgs[msgct++];
+    m = &bmsgs[bct++];
     m->off = off;
     m->len = len;
-    digestof(msg, len, m->dig);
     classify(msg, m->cat, sizeof(m->cat));
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
@@ -1837,7 +1847,7 @@ static void indexmsg(const char* msg, long len, long off)
     findheader(msg, "Date", date, sizeof(date));
     m->date = parsedate(date, m->when, sizeof(m->when));
     /* only what the list will show: see decodepart */
-    text = textof(msg, len, SNIPPET*2);
+    text = textof(msg, have, SNIPPET*2);
     snipof(text, m->snip, sizeof(m->snip));
     free(text);
 
@@ -1861,88 +1871,175 @@ static int bydate(const void* a, const void* b)
 /* Read a folder's file and note every message in it. The separator is a
    line beginning "From " that follows a blank line, or the first line of
    the file; anything else beginning "From " is part of a message. */
+/*******************************************************************************
+
+What the worker is doing
+
+None of this is drawn by the worker -- it draws nothing at all. It is
+left here and picked up by the display on its next tick. The words
+change once a folder and the numbers change once a message, so the two
+are kept apart: the display reads a string that is not being rewritten
+under it, and puts the numbers -- single words, which cannot be read
+half-written -- against it itself.
+
+*******************************************************************************/
+
+static void dlock(void);
+static void dunlock(void);
+static void serveindex(void);
+static void kickworker(void);
+
+static char wrkwhat[MAXSTR]; /* what is being worked on */
+static long wrkpos;          /* how far into it */
+static long wrkmax;          /* and how big it is */
+static long wrkfolds;        /* the folder pane wants redrawing */
+static long wrklist;         /* and so does the message list */
+static long wrkstop;         /* drop what you are doing */
+
+/* Which folder the display wants read, which folder the list it is
+   showing was read from, and how many messages were in it then. The last
+   two are how a fetch knows whether the open folder needs reading again:
+   if nothing landed in it, the list on the screen is still right, and
+   reading four gigabytes to find that out is four gigabytes wasted. */
+static long idxwant = -1;
+static long idxfold = -1;
+static long idxdoing = -1;   /* the folder being read just now */
+
+/* How much of a message is kept for the list: the headers and the start
+   of the body, which is all it shows. A mailbox of four gigabytes was
+   being read into one allocation of four gigabytes and every message in
+   it decoded in full to find forty characters of snippet. */
+#define MSGCAP 65536
+
 static void indexfolder(long fold)
 
 {
 
-    FILE* f;
-    char* buf;
-    long  n;
-    long  i, start;
+    FILE*  f;
+    char*  hold;
+    char   line[MAXLINE];
+    long   holdn = 0;
+    long   start = -1;    /* where the message being read began */
+    long   endpos = 0;    /* and where its last line of substance ended */
+    long   pos = 0;       /* where in the file the next line begins */
+    long   size = 0;
+    int    blank = TRUE;  /* the line before this one held nothing */
     struct timespec t0;
 
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
-    msgct = 0;
-    msgtop = 0;
-    msgsel = -1;
+    bct = 0;
     if (fold < 0) return;
     f = fopen(folders[fold].file, "r");
-    if (!f) return; /* nothing fetched yet, which is not an error */
+    if (!f) { /* nothing fetched yet, which is not an error */
+
+        dlock();
+        msgct = 0;
+        msgtop = 0;
+        msgsel = -1;
+        dunlock();
+
+        return;
+
+    }
     fseek(f, 0, SEEK_END);
-    n = ftell(f);
+    size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    buf = getmem(n+1);
-    n = fread(buf, 1, n, f);
-    buf[n] = 0;
-    fclose(f);
-    start = -1;
-    for (i = 0; i < n; i++) {
+    hold = getmem(MSGCAP+1);
+    /* Read through a line at a time. A separator is a line beginning
+       "From " with nothing on the line before it, which is what the
+       storing side writes and what it escapes in the messages
+       themselves. */
+    while (fgets(line, sizeof(line), f)) {
 
-        int atsep = !strncmp(buf+i, "From ", 5) &&
-                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
-                                (buf[i-2] == '\n' ||
-                                 (buf[i-2] == '\r' && i >= 3 &&
-                                  buf[i-3] == '\n'))));
+        long ll = strlen(line);
+        int  sep = blank && !strncmp(line, "From ", 5);
 
-        if (atsep) {
-
-            long e = i;
+        if (sep) {
 
             if (start >= 0) {
 
-                /* the message runs to the blank line before this one */
-                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
-                    e--;
-                indexmsg(buf+start, e-start, start);
+                hold[holdn] = 0;
+                indexmsg(hold, holdn, endpos-start, start);
 
             }
-            /* the message itself begins after the separator line */
-            while (i < n && buf[i] != '\n') i++;
-            start = i+1;
+            start = pos+ll; /* the message begins after the separator */
+            endpos = start;
+            holdn = 0;
+            /* Say how far along, and give up on this one if the reader
+               has asked for another folder in the meantime: there is no
+               sense reading four gigabytes nobody is waiting for. */
+            if (!(bct%256)) {
+
+                wrkpos = pos;
+                wrkmax = size;
+                if (idxwant >= 0 && idxwant != fold) break;
+                if (wrkstop) break;
+
+            }
+
+        } else if (start >= 0) {
+
+            if (holdn < MSGCAP) {
+
+                long take = ll;
+
+                if (take > MSGCAP-holdn) take = MSGCAP-holdn;
+                memcpy(hold+holdn, line, take);
+                holdn += take;
+
+            }
 
         }
-        while (i < n && buf[i] != '\n') i++;
+        blank = ll && (line[0] == '\n' || (line[0] == '\r' && ll <= 2));
+        if (!blank) endpos = pos+ll; /* messages do not end in blank lines */
+        pos += ll;
 
     }
-    if (start >= 0 && start < n) {
+    if (start >= 0 && !wrkstop) {
 
-        long e = n;
-
-        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
-        indexmsg(buf+start, e-start, start);
+        hold[holdn] = 0;
+        indexmsg(hold, holdn, endpos-start, start);
 
     }
-    free(buf);
-    qsort(msgs, msgct, sizeof(msgrec), bydate);
-    folders[fold].msgs = msgct;
+    free(hold);
+    fclose(f);
+    qsort(bmsgs, bct, sizeof(msgrec), bydate);
+    /* Put it in place in one move, with the display shut out for the
+       length of a pointer swap. What was the list becomes the ground the
+       next index is built on, so nothing is allocated twice. */
+    {
+
+        msgrec* t = msgs;
+        long    tm = msgmax;
+
+        dlock();
+        msgs = bmsgs;
+        msgct = bct;
+        msgmax = bmax;
+        msgtop = 0;
+        msgsel = -1;
+        folders[fold].msgs = msgct;
+        idxfold = fold;
+        folders[fold].dirty = FALSE;
+        dunlock();
+        bmsgs = t;
+        bmax = tm;
+        bct = 0;
+
+    }
     if (diag) {
 
         struct timespec t1;
 
         clock_gettime(CLOCK_MONOTONIC, &t1);
         fprintf(stderr, "index: %s, %ld bytes, %ld messages, %.0fms\n",
-                folders[fold].show, n, msgct,
-                (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
+                folders[fold].name, size, msgct,
+                (t1.tv_sec-t0.tv_sec)*1000.0+(t1.tv_nsec-t0.tv_nsec)/1000000.0);
 
     }
 
 }
 
-/* How many messages are in a folder's file. The file is only counted,
-   not taken apart: the separators are found and nothing else, so a
-   mailbox of sixty megabytes costs a read rather than a parse. The
-   folder being shown is counted exactly by the indexing, which knows;
-   this is for all the others, which the list never touches. */
 static long countfolder(const char* file)
 
 {
@@ -2459,8 +2556,20 @@ static void popact(long row)
     moved = movelocal(foldsel, folders[dst].file, set);
     free(set);
     msgsel = -1;
-    indexfolder(foldsel);
-    countfolders();
+    /* The counts are worked out rather than counted again: what left
+       this folder arrived in that one, and counting means reading every
+       mailbox in the store through -- gigabytes, to learn a number
+       already known. The folder itself is read again by the worker,
+       since its file has just changed under the list. */
+    folders[foldsel].msgs -= moved;
+    if (folders[foldsel].msgs < 0) folders[foldsel].msgs = 0;
+    folders[dst].msgs += moved;
+    folders[foldsel].dirty = TRUE;
+    folders[dst].dirty = TRUE;
+    msgct = 0;
+    idxfold = -1;
+    idxwant = foldsel;
+    kickworker();
     drawlist();
     drawfolders();
     snprintf(msg, sizeof(msg), "%ld message%s moved to %s -- locally; the "
@@ -2578,20 +2687,11 @@ static void dunlock(void)
 
 }
 
-/* What the worker is doing, for the main thread to draw. Nothing here
-   is drawn by the worker; it is left, and picked up. */
 static long wrkstart;  /* the thread has been made */
-static long wrkstop;   /* drop what you are doing */
+static long timerrun;  /* the timer that watches it is going */
 static long wrkdone;   /* it finished, and nobody has noticed yet */
 static long wrkrelist; /* this fetch is to ask what folders there are */
 static long wrkcount;  /* and this one is only to count the store */
-/* What is being worked on, for the strip at the foot. The words change
-   once a folder and the numbers change once a message, so the two are
-   kept apart: the main thread reads a string that is not being rewritten
-   under it, and puts the numbers -- which are single words, and cannot
-   be read half-written -- against it itself. wrkwhat, wrkpos, wrkmax and
-   wrkfolds are declared with the counting, which wanted them first. */
-static long wrklist;   /* and so does the message list */
 
 /* get one line back, without its line ending */
 static int imline(char* buf, long bn)
@@ -3926,9 +4026,16 @@ static void drawlist(void)
     if (!msgct) {
 
         ami_cursorg(listwf, 8, y);
-        fprintf(listwf, "Nothing in %s yet. Mail/Fetch reads the server.",
-                folders[foldsel].show);
-    
+        /* An empty list means one of two things and they are not alike:
+           there is nothing in the folder, or there is and it has not
+           been read yet. Four gigabytes takes half a minute to read, and
+           for that half minute the reader should not be told the folder
+           is empty. */
+        if (idxwant == foldsel || idxdoing == foldsel)
+            fprintf(listwf, "Reading %s...", folders[foldsel].show);
+        else fprintf(listwf, "Nothing in %s yet. Mail/Fetch reads the "
+                     "server.", folders[foldsel].show);
+
         return;
 
     }
@@ -5685,6 +5792,7 @@ static void fetchstep(void)
         }
         mboxwrite(folders[fetchcur].file, msg, n);
         folders[fetchcur].msgs++; /* the pane's count is the progress */
+        folders[fetchcur].dirty = TRUE;
         dunlock();
 
     }
@@ -5788,7 +5896,34 @@ static void fetchrun(void)
        timer setting the pace: that apparatus existed only to give the
        display a turn between messages, and the display has a thread of
        its own now. */
-    while (!wrkdone && !wrkstop) fetchstep();
+    while (!wrkdone && !wrkstop) { serveindex(); fetchstep(); }
+
+}
+
+/* Read whatever folder the display has asked for. Called from the idle
+   loop and from between messages of a fetch, so that opening a folder
+   answers while mail is arriving. */
+static void serveindex(void)
+
+{
+
+    while (idxwant >= 0 && !wrkstop) {
+
+        long f = idxwant;
+
+        idxwant = -1;
+        idxdoing = f;
+        snprintf(wrkwhat, sizeof(wrkwhat), "Reading %s", folders[f].show);
+        wrkpos = 0;
+        wrkmax = 0;
+        indexfolder(f);
+        idxdoing = -1;
+        wrkwhat[0] = 0;
+        wrkpos = 0;
+        wrkmax = 0;
+        wrklist = TRUE;
+
+    }
 
 }
 
@@ -5802,6 +5937,7 @@ static void mailwork(void)
 
     while (TRUE) {
 
+        serveindex();
         if (wrkgo) {
 
             wrkdone = FALSE;
@@ -5813,6 +5949,21 @@ static void mailwork(void)
         usleep(50000); /* a twentieth of a second, unnoticeable at a start */
 
     }
+
+}
+
+/* Set the worker going, and the timer that watches it. Everything that
+   wants work done goes through here. */
+static void kickworker(void)
+
+{
+
+    if (!wrkstart) { ami_newthread(mailwork); wrkstart = TRUE; }
+    /* Ten times a second, to pick up what the worker has done and draw
+       it. Faster than the eye and slower than the flicker that drawing
+       per message would be. */
+    ami_timer(stdout, TIMFETCH, 1000, TRUE);
+    timerrun = TRUE;
 
 }
 
@@ -5850,7 +6001,6 @@ static void fetchall(int relist)
         }
 
     }
-    if (!wrkstart) { ami_newthread(mailwork); wrkstart = TRUE; }
     fetching = TRUE;
     fetchasked = !quietfail; /* the timer sets that flag; a menu does not */
     failwait = FALSE;
@@ -5858,10 +6008,7 @@ static void fetchall(int relist)
     wrkcount = FALSE;
     wrkdone = FALSE;
     wrkgo = TRUE; /* and it is off */
-    /* Ten times a second, to pick up what the worker has done and draw
-       it. Faster than the eye and slower than the flicker that drawing
-       per message would be. */
-    ami_timer(stdout, TIMFETCH, 1000, TRUE);
+    kickworker();
 
 }
 
@@ -5874,14 +6021,13 @@ static void countlater(void)
 {
 
     if (fetching) return;
-    if (!wrkstart) { ami_newthread(mailwork); wrkstart = TRUE; }
     fetching = TRUE;
     fetchasked = FALSE; /* nobody asked to be told about counting */
     wrkrelist = FALSE;
     wrkcount = TRUE;
     wrkdone = FALSE;
     wrkgo = TRUE;
-    ami_timer(stdout, TIMFETCH, 1000, TRUE);
+    kickworker();
 
 }
 
@@ -5931,7 +6077,6 @@ static void fetchpick(void)
 
         char t[MAXSTR];
 
-        ami_killtimer(stdout, TIMFETCH);
         fetching = FALSE;
         *wrkwhat = 0;
         statprog(0, 0); /* the bar empties: there is nothing running */
@@ -5948,15 +6093,39 @@ static void fetchpick(void)
         }
 
     }
-    /* Indexing a folder means reading its whole mailbox, so it is done
-       when the list has actually changed under the reader -- at the end,
-       and after a rebuild moved the selection -- and not on every tick
-       of a fetch that may run for hours. */
-    if (list || done) {
+    if (list) { drawlist(); drawfolders(); } /* the worker read a folder */
+    if (done) {
 
+        /* Reading a folder means reading its whole mailbox, so it is
+           asked for only when the mailbox has actually changed under the
+           reader: a fetch that put nothing in the folder being read
+           leaves what is on the screen right, and finding that out by
+           reading four gigabytes is four gigabytes wasted. */
+        /* A folder is read again only when something has been put in
+           it. A count cannot be the test: the counter that walks a
+           mailbox and the reader that indexes one do not agree to the
+           message on this store -- sixteen apart in four gigabytes --
+           and a folder whose two numbers differ would be read again,
+           and again, for as long as the program was left running. */
         if (foldsel < 0 && foldct) showfolder(0);
-        else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
+        else if (foldsel >= 0 && idxwant != foldsel && idxdoing != foldsel &&
+                 (idxfold != foldsel || folders[foldsel].dirty)) {
+
+            folders[foldsel].dirty = FALSE;
+            idxwant = foldsel;
+            kickworker();
+
+        }
         drawfolders();
+
+    }
+    /* The timer runs while there is anything to watch, and stops when
+       there is not: a tick ten times a second forever is a program that
+       never lets the machine alone. */
+    if (timerrun && !fetching && !wrkgo && idxwant < 0 && !*wrkwhat) {
+
+        ami_killtimer(stdout, TIMFETCH);
+        timerrun = FALSE;
 
     }
 
@@ -5971,7 +6140,17 @@ static void showfolder(long i)
     foldsel = i;
     popclose();
     closeread();
-    indexfolder(i);
+    /* The reading is asked for, not done: a mailbox of four gigabytes
+       takes as long as four gigabytes takes, and doing it here is the
+       window going dead on a click. The list is emptied so that what is
+       on the screen is not the folder before this one, and it fills when
+       the reading is done. */
+    msgct = 0;
+    msgtop = 0;
+    msgsel = -1;
+    idxfold = -1;
+    if (idxdoing != i) idxwant = i; /* it is already being read */
+    kickworker();
     drawfolders();
     drawlist();
 
