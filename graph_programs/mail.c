@@ -249,6 +249,8 @@ static void drawfolders(void);
 static void showfolder(long i);
 static void indexfolder(long fold);
 static void status(const char* s);
+static void srvdir(long srv, char* dn, long dnl);
+static void safename(const char* nm, char* fn, long fnl);
 static void drawread(void);
 static void layout(void);
 
@@ -569,11 +571,11 @@ static void loaddigests(long fold)
 
 }
 
-/* The mailboxes of a store written before accounts had names carry no
-   name, and would show up as belonging to no server. Give them the
-   first account's, once, by renaming them and what goes with them. A
-   store already named is left alone, since every name it holds matches
-   an account. */
+/* Move a flat store into directories. Everything used to live in one
+   place, named for its account or with local_ in front of it; each
+   account has a directory of its own now, and what is ours has one
+   called local. Done once, on startup, so that nothing has to be
+   fetched again. */
 static void migratestore(void)
 
 {
@@ -581,42 +583,74 @@ static void migratestore(void)
     ami_filptr lp = NULL;
     ami_filptr fp;
     char       what[MAXSTR*2];
-    long       i;
 
-    if (!srvct) return; /* no account to attribute them to */
-    snprintf(what, sizeof(what), "%s/*.mbox", store);
+    snprintf(what, sizeof(what), "%.400s/*.mbox", store);
     ami_list(what, &lp);
     for (fp = lp; fp; fp = fp->next) {
 
         char nm[MAXSTR];
+        char dn[MAXSTR];
         char old[MAXSTR*2], new[MAXSTR*2];
-        long n;
-        int  named = FALSE;
+        long n, i;
+        long srv = -2;
+        const char* leaf = NULL;
+        static const char* ext[] = { "", ".state", ".dig" };
+        long e;
 
         copystr(nm, fp->name, sizeof(nm));
         n = strlen(nm);
         if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
-        if (!strncmp(nm, "local_", 6)) continue; /* ours, and unnamed */
-        for (i = 0; i < srvct; i++) {
+        if (!strncmp(nm, "local_", 6)) { srv = -1; leaf = nm+6; }
+        else for (i = 0; i < srvct; i++) { /* named for an account? */
 
             long k = strlen(servers[i].name);
 
             if (!strncmp(nm, servers[i].name, k) && nm[k] == '_')
-                { named = TRUE; break; }
+                { srv = i; leaf = nm+k+1; break; }
 
         }
-        if (named) continue;
-        /* the mailbox, and the two files that walk with it */
-        {
+        /* and a store older still, from before accounts had names at
+           all: it belongs to the first of them */
+        if (srv == -2 && srvct) { srv = 0; leaf = nm; }
+        if (srv == -2) continue;
+        srvdir(srv, dn, sizeof(dn));
+        { /* the shown name, if the state file says what it really is */
 
-            static const char* ext[] = { "", ".state", ".dig" };
-            long e;
+            char  sn[MAXSTR*2+8];
+            char  real[MAXSTR];
+            char  lf[MAXSTR];
+            long  v, u;
+            FILE* sf;
 
+            copystr(lf, leaf, sizeof(lf));
+            /* [Gmail]/All Mail was written _Gmail__All_Mail when the
+               awkward characters were taken out of it. Inside the
+               account's own directory that front half says nothing, and
+               a store whose state files have been lost has nothing else
+               to go on. */
+            if (!strncmp(lf, "_Gmail__", 8))
+                memmove(lf, lf+8, strlen(lf+8)+1);
+            snprintf(sn, sizeof(sn), "%.400s/%.150s.mbox.state", store, nm);
+            sf = fopen(sn, "r");
+            if (sf) {
+
+                if (fscanf(sf, "%ld %ld %499[^\n]", &v, &u, real) == 3) {
+
+                    trim(real);
+                    if (!strncmp(real, "[Gmail]/", 8))
+                        safename(real+8, lf, sizeof(lf));
+                    else safename(real, lf, sizeof(lf));
+
+                }
+                fclose(sf);
+
+            }
             for (e = 0; e < 3; e++) {
 
-                snprintf(old, sizeof(old), "%s/%s.mbox%s", store, nm, ext[e]);
-                snprintf(new, sizeof(new), "%.400s/%.60s_%.150s.mbox%.8s",
-                         store, servers[0].name, nm, ext[e]);
+                snprintf(old, sizeof(old), "%.400s/%.150s.mbox%.8s",
+                         store, nm, ext[e]);
+                snprintf(new, sizeof(new), "%.400s/%.150s.mbox%.8s",
+                         dn, lf, ext[e]);
                 rename(old, new); /* what is not there does not move */
 
             }
@@ -627,44 +661,18 @@ static void migratestore(void)
 
 }
 
-/* Rename what an account owns, when the account is renamed. The
-   mailboxes carry their account's name, so they have to move with it or
-   be fetched again for nothing. */
+/* Renaming an account renames its directory, so that everything it
+   holds goes with it rather than being fetched again. */
 static void renamestore(const char* was, const char* now)
 
 {
 
-    ami_filptr lp = NULL;
-    ami_filptr fp;
-    char       what[MAXSTR*2];
-    long       wl = strlen(was);
+    char old[MAXSTR*2], new[MAXSTR*2];
 
-    if (!wl || !strcmp(was, now)) return;
-    snprintf(what, sizeof(what), "%s/*.mbox", store);
-    ami_list(what, &lp);
-    for (fp = lp; fp; fp = fp->next) {
-
-        char nm[MAXSTR];
-        char old[MAXSTR*2], new[MAXSTR*2];
-        long n;
-        static const char* ext[] = { "", ".state", ".dig" };
-        long e;
-
-        copystr(nm, fp->name, sizeof(nm));
-        n = strlen(nm);
-        if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
-        if (strncmp(nm, was, wl) || nm[wl] != '_') continue; /* not its */
-        for (e = 0; e < 3; e++) {
-
-            snprintf(old, sizeof(old), "%.400s/%.150s.mbox%.8s",
-                     store, nm, ext[e]);
-            snprintf(new, sizeof(new), "%.400s/%.60s_%.150s.mbox%.8s",
-                     store, now, nm+wl+1, ext[e]);
-            rename(old, new); /* what is not there does not move */
-
-        }
-
-    }
+    if (!*was || !strcmp(was, now)) return;
+    snprintf(old, sizeof(old), "%.400s/%.60s", store, was);
+    snprintf(new, sizeof(new), "%.400s/%.60s", store, now);
+    rename(old, new);
 
 }
 
@@ -1932,6 +1940,36 @@ their files are named local_* so the two kinds can never be confused.
 
 *******************************************************************************/
 
+/* The directory an account's mailboxes live in, or the one the local
+   folders do. Each account gets its own, so that two accounts with an
+   INBOX each keep them apart without decorating the names, and the
+   directory is made if it is not there. */
+static void srvdir(long srv, char* dn, long dnl)
+
+{
+
+    struct stat sb;
+
+    snprintf(dn, dnl, "%.400s/%.60s", store,
+             srv >= 0 && srv < srvct? servers[srv].name: "local");
+    if (stat(dn, &sb)) ami_makpth(dn);
+
+}
+
+/* a name with the awkward characters taken out, fit to be a file name */
+static void safename(const char* nm, char* fn, long fnl)
+
+{
+
+    long i;
+
+    snprintf(fn, fnl, "%s", nm);
+    for (i = 0; fn[i]; i++)
+        if (fn[i] == '/' || fn[i] == '\\' || fn[i] == ' ' ||
+            fn[i] == '[' || fn[i] == ']' || fn[i] == '"') fn[i] = '_';
+
+}
+
 /* the file a local folder of this name lives in */
 static void localfile(const char* show, char* fn, long fnl)
 
@@ -1944,7 +1982,14 @@ static void localfile(const char* show, char* fn, long fnl)
     for (i = 0; nm[i]; i++)
         if (nm[i] == '/' || nm[i] == '\\' || nm[i] == ' ' ||
             nm[i] == '[' || nm[i] == ']' || nm[i] == '"') nm[i] = '_';
-    snprintf(fn, fnl, "%s/local_%s.mbox", store, nm);
+    {
+
+        char dn[MAXSTR];
+
+        srvdir(-1, dn, sizeof(dn));
+        snprintf(fn, fnl, "%.400s/%.150s.mbox", dn, nm);
+
+    }
 
 }
 
@@ -2420,12 +2465,44 @@ static void listline(const char* line)
         char fn[MAXSTR/2];
         long i;
 
-        snprintf(fn, sizeof(fn), "%.60s_%.180s",
-                 listsrv >= 0? servers[listsrv].name: "mail", name);
-        for (i = 0; fn[i]; i++)
-            if (fn[i] == '/' || fn[i] == '\\' || fn[i] == ' ' ||
-                fn[i] == '[' || fn[i] == ']') fn[i] = '_';
-        snprintf(f->file, sizeof(f->file), "%s/%s.mbox", store, fn);
+        char  dn[MAXSTR];
+        char  sn[MAXSTR*2+8];
+        FILE* sf;
+
+        (void)i;
+        /* Named for what it is called rather than for the path the
+           server files it under: inside the account's own directory the
+           [Gmail]/ in front of a Gmail folder says nothing that the
+           directory has not said already. */
+        safename(f->show, fn, sizeof(fn));
+        srvdir(listsrv, dn, sizeof(dn));
+        snprintf(f->file, sizeof(f->file), "%.400s/%.150s.mbox", dn, fn);
+        /* Unless another folder has that name already. Two folders
+           whose shown names come out the same would otherwise share one
+           mailbox and merge their mail, which is worse than an ugly
+           name, so the second keeps its full one. */
+        snprintf(sn, sizeof(sn), "%s.state", f->file);
+        sf = fopen(sn, "r");
+        if (sf) {
+
+            char real[MAXSTR];
+            long v, u;
+
+            if (fscanf(sf, "%ld %ld %499[^\n]", &v, &u, real) == 3) {
+
+                trim(real);
+                if (strcmp(real, name)) { /* somebody else's */
+
+                    safename(name, fn, sizeof(fn));
+                    snprintf(f->file, sizeof(f->file), "%.400s/%.150s.mbox",
+                             dn, fn);
+
+                }
+
+            }
+            fclose(sf);
+
+        }
 
     }
 
@@ -2437,52 +2514,47 @@ static void listline(const char* line)
    connected has thrown that away. The name is recovered from the file
    name, which is the folder name with the awkward characters replaced,
    so it comes back readable if not always exact. */
-static void storefolders(int localpass)
+/* Read one directory of the store into the folder list: an account's,
+   or the one holding what is ours. The folders of a directory are its
+   mailboxes, and each keeps its real name in the state file beside it,
+   since a file name has had the awkward characters taken out of it. */
+static void storefolders(long srv)
 
 {
 
     ami_filptr lp = NULL;
     ami_filptr fp;
+    char       dn[MAXSTR];
     char       what[MAXSTR*2];
 
-    snprintf(what, sizeof(what), "%s/*.mbox", store);
+    srvdir(srv, dn, sizeof(dn));
+    snprintf(what, sizeof(what), "%.400s/*.mbox", dn);
     ami_list(what, &lp);
     for (fp = lp; fp && foldct < MAXFOLDER; fp = fp->next) {
 
         foldrec* f;
         char     nm[MAXSTR/2];
         long     n;
-        int      isloc;
 
         copystr(nm, fp->name, sizeof(nm));
         n = strlen(nm);
         if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
-        /* The two kinds are loaded in separate passes, server folders
-           first, so the locals always sit at the end of the list, below
-           the rule the folder pane draws between the sections. */
-        isloc = !strncmp(nm, "local_", 6);
-        if (isloc != localpass) continue;
         f = &folders[foldct++];
-        copystr(f->name, isloc? nm+6: nm, MAXSTR);
-        copystr(f->show, isloc? nm+6: nm, MAXSTR);
-        snprintf(f->file, sizeof(f->file), "%s/%s.mbox", store, nm);
-        f->noselect = FALSE;
-        f->local = isloc;
-        f->srv = -1;
-        if (!isloc) { /* which server's file is this? */
+        copystr(f->name, nm, MAXSTR);
+        copystr(f->show, nm, MAXSTR);
+        { /* the file name had its spaces taken out; put them back for
+             the reader, until a fetch writes the real name beside it */
 
             long k;
 
-            for (k = 0; k < srvct; k++) {
-
-                long n = strlen(servers[k].name);
-
-                if (!strncmp(nm, servers[k].name, n) && nm[n] == '_')
-                    { f->srv = k; break; }
-
-            }
+            for (k = 0; f->show[k]; k++) if (f->show[k] == '_')
+                f->show[k] = ' ';
 
         }
+        snprintf(f->file, sizeof(f->file), "%.400s/%.150s.mbox", dn, nm);
+        f->noselect = FALSE;
+        f->local = srv < 0;
+        f->srv = srv;
         { /* the real name, if the state file beside it kept one */
 
             char  sn[MAXSTR*2+8];
@@ -2510,6 +2582,19 @@ static void storefolders(int localpass)
         }
 
     }
+
+}
+
+/* every account's folders, then the local ones, which is the order the
+   pane shows them in */
+static void storeall(void)
+
+{
+
+    long i;
+
+    for (i = 0; i < srvct; i++) storefolders(i);
+    storefolders(-1);
 
 }
 
@@ -4324,7 +4409,7 @@ static void fetchall(int relist)
         imapclose(); /* one at a time: the connection is per server */
 
     }
-    storefolders(TRUE); /* the locals rejoin, after the servers' */
+    storefolders(-1); /* the locals rejoin, after the servers' */
     countfolders();
     if (*wasname) { /* put the reader back on the folder it was reading */
 
@@ -4466,8 +4551,7 @@ int main(int argc, char* argv[])
        keeping it in files, and starting this way means the program comes
        up at once and comes up on a train. The server is asked only when
        the user asks for it. */
-    storefolders(FALSE);
-    storefolders(TRUE);
+    storeall();
     countfolders();
     if (foldct) showfolder(0);
     drawfolders();
@@ -4757,7 +4841,7 @@ int main(int argc, char* argv[])
                             imapclose();
 
                         }
-                        storefolders(TRUE);
+                        storefolders(-1);
                         countfolders();
                         drawfolders();
                         break;
