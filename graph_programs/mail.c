@@ -630,7 +630,7 @@ static void migratestore(void)
             char  sn[MAXSTR*2+8];
             char  real[MAXSTR];
             char  lf[MAXSTR];
-            long  v, u;
+            long  v, u, u2;
             FILE* sf;
 
             copystr(lf, leaf, sizeof(lf));
@@ -645,7 +645,10 @@ static void migratestore(void)
             sf = fopen(sn, "r");
             if (sf) {
 
-                if (fscanf(sf, "%ld %ld %499[^\n]", &v, &u, real) == 3) {
+                if (fscanf(sf, "%ld %ld %ld %499[^\n]", &v, &u, &u2,
+                           real) == 4 ||
+                    (rewind(sf), fscanf(sf, "%ld %ld %499[^\n]",
+                                        &v, &u, real) == 3)) {
 
                     trim(real);
                     if (!strncmp(real, "[Gmail]/", 8))
@@ -2709,14 +2712,17 @@ static void storefolders(long srv)
 
             char  sn[MAXSTR*2+8];
             char  real[MAXSTR];
-            long  v, u;
+            long  v, u, u2;
             FILE* sf;
 
             snprintf(sn, sizeof(sn), "%s.state", f->file);
             sf = fopen(sn, "r");
             if (sf) {
 
-                if (fscanf(sf, "%ld %ld %499[^\n]", &v, &u, real) == 3) {
+                if (fscanf(sf, "%ld %ld %ld %499[^\n]", &v, &u, &u2,
+                           real) == 4 ||
+                    (rewind(sf), fscanf(sf, "%ld %ld %499[^\n]",
+                                        &v, &u, real) == 3)) {
 
                     trim(real);
                     copystr(f->name, real, MAXSTR);
@@ -2850,25 +2856,58 @@ static int getfolders(long srv)
 }
 
 /* what the last fetch of this folder reached */
-static void readstate(long fold, long* validity, long* lastuid)
+/* What a folder has been read of: the stretch of uids already here,
+   from the oldest taken to the newest. Only the newest was remembered
+   before, with everything below it assumed present -- which is true
+   while a fetch always takes the newest so many and works upward, and
+   false the moment somebody asks for more of the folder than they asked
+   for last time. Those older messages are all below the mark, so every
+   one of them was skipped and raising the limit did nothing at all. */
+static void readstate(long fold, long* validity, long* lowuid,
+                      long* lastuid)
 
 {
 
     char  fn[MAXSTR*2+8];
     FILE* f;
+    char  line[MAXSTR];
+    long  a, b, c;
 
     *validity = 0;
+    *lowuid = 0;
     *lastuid = 0;
     snprintf(fn, sizeof(fn), "%s.state", folders[fold].file);
     f = fopen(fn, "r");
     if (!f) return;
-    if (fscanf(f, "%ld %ld", validity, lastuid) != 2)
-        { *validity = 0; *lastuid = 0; }
+    if (fgets(line, sizeof(line), f)) {
+
+        if (sscanf(line, "%ld %ld %ld", &a, &b, &c) == 3 && c >= b) {
+
+            /* validity, the oldest taken, the newest */
+            *validity = a;
+            *lowuid = b;
+            *lastuid = c;
+
+        } else if (sscanf(line, "%ld %ld", &a, &b) == 2) {
+
+            /* the older form, which knew only the newest. Nothing can be
+               said about what is below it, so nothing is assumed: the
+               stretch is empty and an older message is fetched again
+               rather than passed over. The digests will know it if it
+               is already here. */
+            *validity = a;
+            *lowuid = 0;
+            *lastuid = 0;
+            (void)b;
+
+        }
+
+    }
     fclose(f);
 
 }
 
-static void writestate(long fold, long validity, long lastuid)
+static void writestate(long fold, long validity, long lowuid, long lastuid)
 
 {
 
@@ -2882,7 +2921,8 @@ static void writestate(long fold, long validity, long lastuid)
        awkward characters taken out of the name, which cannot be undone,
        so without this a folder read back from the store on its own
        shows as _Gmail__Sent_Mail rather than Sent Mail. */
-    fprintf(f, "%ld %ld %s\n", validity, lastuid, folders[fold].name);
+    fprintf(f, "%ld %ld %ld %s\n", validity, lowuid, lastuid,
+            folders[fold].name);
     fclose(f);
 
 }
@@ -5019,7 +5059,10 @@ static long fetchi;      /* which of that folder's uids is next */
 static long fetchgot;    /* messages taken, this fetch */
 static long fetchdup;    /* and passed over as already here */
 static long fetchlast;   /* the highest uid taken from this folder */
-static long fetchseen;   /* the highest uid taken before this fetch */
+static long fetchseen;   /* the highest taken before this fetch */
+static long fetchlow;    /* and the lowest, which together say what is
+                            already here rather than only how far up */
+static long fetchnewlow; /* the lowest this fetch has reached */
 
 /* say where the fetch has got to */
 static void fetchsay(void)
@@ -5114,11 +5157,12 @@ static int fetchnext(void)
         imsend(tag, sizeof(tag), "EXAMINE \"%s\"", folders[fold].name);
         if (!imwait(tag, examline)) continue; /* gone, or not a folder */
         if (!exists) continue; /* nothing in it */
-        readstate(fold, &validity, &fetchseen);
+        readstate(fold, &validity, &fetchlow, &fetchseen);
         /* a folder that was rebuilt on the server has new uids for the
            same messages, so what was taken before means nothing */
-        if (validity != uidvalidity) fetchseen = 0;
+        if (validity != uidvalidity) { fetchlow = 0; fetchseen = 0; }
         fetchlast = fetchseen;
+        fetchnewlow = 0;
         /* the most recent messages, as many as were asked for */
         hi = exists;
         lo = hi-limit+1;
@@ -5173,12 +5217,18 @@ static void fetchstep(void)
     while (fetchi >= uidct) { /* this folder is done */
 
         if (fetchcur >= 0 && fetchcur < foldct && uidct)
-            writestate(fetchcur, uidvalidity, fetchlast);
+            writestate(fetchcur, uidvalidity,
+                       fetchlow? fetchlow: fetchnewlow, fetchlast);
         if (!fetchnext()) { fetchend(); return; }
 
     }
     uid = uidlist[fetchi++];
-    if (uid <= fetchseen) { fetchsay(); return; } /* already have it */
+    /* Already here if it falls inside the stretch this folder has been
+       read of. Below that stretch is mail older than anything taken so
+       far, which is exactly what asking for more of a folder is for. */
+    if (fetchlow && uid >= fetchlow && uid <= fetchseen)
+        { if (!fetchnewlow || uid < fetchnewlow) fetchnewlow = uid;
+          fetchsay(); return; }
     imsend(tag, sizeof(tag), "UID FETCH %ld (BODY.PEEK[])", uid);
     /* the reply is a line ending in a literal, then the message itself,
        then the rest of the reply and the tagged answer */
@@ -5202,6 +5252,7 @@ static void fetchstep(void)
             free(msg);
             imwait(tag, NULL);
             if (uid > fetchlast) fetchlast = uid;
+            if (!fetchnewlow || uid < fetchnewlow) fetchnewlow = uid;
             fetchdup++;
             fetchsay();
 
@@ -5229,6 +5280,7 @@ static void fetchstep(void)
     folders[fetchcur].msgs++; /* the pane's count is the progress */
     imwait(tag, NULL); /* the ) and the answer */
     if (uid > fetchlast) fetchlast = uid;
+    if (!fetchnewlow || uid < fetchnewlow) fetchnewlow = uid;
     fetchsay();
 
 }
