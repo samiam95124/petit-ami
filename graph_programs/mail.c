@@ -106,8 +106,13 @@
 #define SRVUSER   5 /* the user name */
 #define SRVPASS   6 /* the password */
 #define SRVLIMIT  7 /* messages fetched per folder */
-#define SRVOK     8 /* save and close */
-#define SRVCAN    9 /* close and keep what was there */
+#define SRVNAME   8 /* what this account is called */
+#define SRVPOLL   9 /* seconds between looks at the servers */
+#define SRVOK    10 /* save and close */
+#define SRVCAN   11 /* close and keep what was there */
+#define SRVNEXT  12 /* show the next account */
+#define SRVNEW   13 /* start another one */
+#define SRVDEL   14 /* take this one away */
 
 /* menu ids of our own, after the standard ones */
 #define MENUMAIL  (AMI_SMMAX+1) /* the mail menu itself */
@@ -121,11 +126,14 @@
    it. Text is not read that way, so the reader keeps three: a message of
    any length would be tedious at one line a notch. */
 #define DIGLEN    65 /* a sha-256 as hex, and its terminator */
+#define MAXSRV    8  /* servers this program will gather from */
+#define DEFPOLL   15 /* seconds between looks at the servers */
 
 #define WHEELMSGS 1 /* messages the wheel moves per notch, in the list */
 #define WHEELROWS 3 /* lines it moves per notch, in the reader */
 
 #define TIMFETCH  1 /* the timer that steps a fetch along */
+#define TIMPOLL   2 /* and the one that starts one now and then */
 
 #define OFF 0
 #define ON  1
@@ -139,6 +147,7 @@ typedef struct {
     long msgs;          /* messages in the file */
     long noselect;      /* the server says it holds no messages */
     long local;         /* ours alone: a folder with no server side */
+    long srv;           /* which server it belongs to, -1 if local */
 
 } foldrec;
 
@@ -171,6 +180,29 @@ static long    msgtop;          /* the first message shown */
 static long    listshown;       /* the first one actually on the screen */
 
 /* the account */
+/* An account on a server. There may be several: mail is gathered from
+   all of them, and where it goes locally is not their business -- the
+   local folders are one set, shared, since a folder called Bills is
+   about bills and not about which company carried the letter. */
+typedef struct {
+
+    char name[64];     /* what its owner calls it: google, work, old */
+    char imap[MAXSTR]; /* where the mail is read from */
+    long imapport;
+    char smtp[MAXSTR]; /* and where it would be sent from */
+    long smtpport;
+    char user[MAXSTR];
+    char pass[MAXSTR];
+    long limit;        /* messages taken from each of its folders */
+
+} srvrec;
+
+static srvrec servers[MAXSRV];
+static long   srvct;    /* how many there are */
+static long   srvedit;  /* the one the form is showing */
+static long   pollsec = DEFPOLL; /* how often to look, in seconds */
+
+/* the one being talked to just now, which the protocol routines use */
 static char imapsrv[MAXSTR] = "imap.gmail.com";
 static long imapport = 993;
 static char smtpsrv[MAXSTR] = "smtp.gmail.com";
@@ -537,6 +569,64 @@ static void loaddigests(long fold)
 
 }
 
+/* The mailboxes of a store written before accounts had names carry no
+   name, and would show up as belonging to no server. Give them the
+   first account's, once, by renaming them and what goes with them. A
+   store already named is left alone, since every name it holds matches
+   an account. */
+static void migratestore(void)
+
+{
+
+    ami_filptr lp = NULL;
+    ami_filptr fp;
+    char       what[MAXSTR*2];
+    long       i;
+
+    if (!srvct) return; /* no account to attribute them to */
+    snprintf(what, sizeof(what), "%s/*.mbox", store);
+    ami_list(what, &lp);
+    for (fp = lp; fp; fp = fp->next) {
+
+        char nm[MAXSTR];
+        char old[MAXSTR*2], new[MAXSTR*2];
+        long n;
+        int  named = FALSE;
+
+        copystr(nm, fp->name, sizeof(nm));
+        n = strlen(nm);
+        if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
+        if (!strncmp(nm, "local_", 6)) continue; /* ours, and unnamed */
+        for (i = 0; i < srvct; i++) {
+
+            long k = strlen(servers[i].name);
+
+            if (!strncmp(nm, servers[i].name, k) && nm[k] == '_')
+                { named = TRUE; break; }
+
+        }
+        if (named) continue;
+        /* the mailbox, and the two files that walk with it */
+        {
+
+            static const char* ext[] = { "", ".state", ".dig" };
+            long e;
+
+            for (e = 0; e < 3; e++) {
+
+                snprintf(old, sizeof(old), "%s/%s.mbox%s", store, nm, ext[e]);
+                snprintf(new, sizeof(new), "%.400s/%.60s_%.150s.mbox%.8s",
+                         store, servers[0].name, nm, ext[e]);
+                rename(old, new); /* what is not there does not move */
+
+            }
+
+        }
+
+    }
+
+}
+
 /* every folder in the store, so that a fetch knows what is already here */
 static void loadalldigests(void)
 
@@ -573,13 +663,51 @@ static void acctfile(char* fn, long fnl)
 
 }
 
+/* Make the one being talked to be this one. The protocol routines work
+   from these, so setting them is how a server is chosen. */
+static void useserver(long i)
+
+{
+
+    if (i < 0 || i >= srvct) return;
+    copystr(imapsrv, servers[i].imap, MAXSTR);
+    imapport = servers[i].imapport;
+    copystr(smtpsrv, servers[i].smtp, MAXSTR);
+    smtpport = servers[i].smtpport;
+    copystr(username, servers[i].user, MAXSTR);
+    copystr(password, servers[i].pass, MAXSTR);
+    limit = servers[i].limit;
+
+}
+
+/* an account with nothing in it, ready to be filled in */
+static void blankserver(srvrec* r)
+
+{
+
+    memset(r, 0, sizeof(srvrec));
+    copystr(r->name, "new", sizeof(r->name));
+    copystr(r->imap, "imap.gmail.com", MAXSTR);
+    r->imapport = 993;
+    copystr(r->smtp, "smtp.gmail.com", MAXSTR);
+    r->smtpport = 465;
+    r->limit = DEFLIMIT;
+
+}
+
+/* Read the accounts. Each is a block: "server <name>" to "end", and
+   anything outside a block is a setting of the program's own. The old
+   one account form, which had no blocks at all, is still read: its
+   settings arrive before any server line and make up the first one. */
 static void readaccount(void)
 
 {
 
-    char  fn[MAXSTR*2];
-    FILE* f;
-    char  line[MAXSTR*2];
+    char    fn[MAXSTR*2];
+    FILE*   f;
+    char    line[MAXSTR*2];
+    srvrec* r = NULL;
+    int     old = FALSE;
 
     acctfile(fn, sizeof(fn));
     f = fopen(fn, "r");
@@ -595,16 +723,40 @@ static void readaccount(void)
         while (*v && *v != ' ' && *v != '\t') v++;
         if (*v) *v++ = 0;
         while (*v == ' ' || *v == '\t') v++;
-        if (!strcasecmp(p, "imap")) copystr(imapsrv, v, MAXSTR);
-        else if (!strcasecmp(p, "imapport")) imapport = atol(v);
-        else if (!strcasecmp(p, "smtp")) copystr(smtpsrv, v, MAXSTR);
-        else if (!strcasecmp(p, "smtpport")) smtpport = atol(v);
-        else if (!strcasecmp(p, "user")) copystr(username, v, MAXSTR);
-        else if (!strcasecmp(p, "pass")) copystr(password, v, MAXSTR);
-        else if (!strcasecmp(p, "limit")) limit = atol(v);
+        if (!strcasecmp(p, "server")) { /* a new account begins */
+
+            if (srvct >= MAXSRV) break;
+            r = &servers[srvct++];
+            blankserver(r);
+            copystr(r->name, v, sizeof(r->name));
+            old = FALSE;
+
+            continue;
+
+        }
+        if (!strcasecmp(p, "end")) { r = NULL; continue; }
+        if (!strcasecmp(p, "poll")) { pollsec = atol(v); continue; }
+        if (!r) { /* the old form: settings before any server line */
+
+            if (srvct >= MAXSRV) break;
+            r = &servers[srvct++];
+            blankserver(r);
+            copystr(r->name, "mail", sizeof(r->name));
+            old = TRUE;
+
+        }
+        if (!strcasecmp(p, "imap")) copystr(r->imap, v, MAXSTR);
+        else if (!strcasecmp(p, "imapport")) r->imapport = atol(v);
+        else if (!strcasecmp(p, "smtp")) copystr(r->smtp, v, MAXSTR);
+        else if (!strcasecmp(p, "smtpport")) r->smtpport = atol(v);
+        else if (!strcasecmp(p, "user")) copystr(r->user, v, MAXSTR);
+        else if (!strcasecmp(p, "pass")) copystr(r->pass, v, MAXSTR);
+        else if (!strcasecmp(p, "limit")) r->limit = atol(v);
+        (void)old;
 
     }
     fclose(f);
+    if (srvct) useserver(0);
 
 }
 
@@ -615,13 +767,12 @@ static void writeaccount(void)
     char   fn[MAXSTR*2];
     FILE*  f;
     mode_t um;
+    long   i;
 
     acctfile(fn, sizeof(fn));
     /* The mask is set around the open so that the file is never readable
        by anyone else, not even for the moment between being made and
-       being given its permissions. Done this way rather than with open
-       and fdopen because it is one call, and because it is the same on
-       every system this runs on. */
+       being given its permissions. */
     um = umask(S_IRWXG | S_IRWXO);
     f = fopen(fn, "w");
     umask(um);
@@ -636,16 +787,23 @@ static void writeaccount(void)
         return;
 
     }
-    fprintf(f, "# Mail account. Written by the Server form in mail.\n");
-    fprintf(f, "imap %s\n", imapsrv);
-    fprintf(f, "imapport %ld\n", imapport);
-    fprintf(f, "smtp %s\n", smtpsrv);
-    fprintf(f, "smtpport %ld\n", smtpport);
-    fprintf(f, "user %s\n", username);
-    fprintf(f, "pass %s\n", password);
-    fprintf(f, "limit %ld\n", limit);
+    fprintf(f, "# Mail accounts. Written by the Config form in mail.\n");
+    fprintf(f, "poll %ld\n", pollsec);
+    for (i = 0; i < srvct; i++) {
+
+        fprintf(f, "\nserver %s\n", servers[i].name);
+        fprintf(f, "imap %s\n", servers[i].imap);
+        fprintf(f, "imapport %ld\n", servers[i].imapport);
+        fprintf(f, "smtp %s\n", servers[i].smtp);
+        fprintf(f, "smtpport %ld\n", servers[i].smtpport);
+        fprintf(f, "user %s\n", servers[i].user);
+        fprintf(f, "pass %s\n", servers[i].pass);
+        fprintf(f, "limit %ld\n", servers[i].limit);
+        fprintf(f, "end\n");
+
+    }
     fclose(f);
-    chmod(fn, S_IRUSR | S_IWUSR); /* and for a file that was already there */
+    chmod(fn, S_IRUSR | S_IWUSR);
 
 }
 
@@ -654,7 +812,13 @@ static int haveaccount(void)
 
 {
 
-    return (*imapsrv && *username && *password);
+    long i;
+
+    for (i = 0; i < srvct; i++)
+        if (*servers[i].imap && *servers[i].user && *servers[i].pass)
+            return (TRUE);
+
+    return (FALSE);
 
 }
 
@@ -2156,6 +2320,8 @@ static int imwait(const char* tag, void (*line)(const char*))
 }
 
 /* the folder list, gathered from the LIST replies */
+static long listsrv = -1; /* the server whose folders are arriving */
+
 static void listline(const char* line)
 
 {
@@ -2199,13 +2365,17 @@ static void listline(const char* line)
        folder to a reader, so it is not listed as one. */
     if (strstr(line, "\\Noselect")) { foldct--; return; }
     f->noselect = FALSE;
-    /* the file it goes in, with anything awkward in the name taken out */
+    f->local = FALSE;
+    f->srv = listsrv; /* the server whose list this is */
+    /* The file it goes in, named for its server as well as itself: two
+       servers may each have an INBOX, and they are not the same mail. */
     {
 
         char fn[MAXSTR/2];
         long i;
 
-        copystr(fn, name, sizeof(fn));
+        snprintf(fn, sizeof(fn), "%.60s_%.180s",
+                 listsrv >= 0? servers[listsrv].name: "mail", name);
         for (i = 0; fn[i]; i++)
             if (fn[i] == '/' || fn[i] == '\\' || fn[i] == ' ' ||
                 fn[i] == '[' || fn[i] == ']') fn[i] = '_';
@@ -2252,6 +2422,21 @@ static void storefolders(int localpass)
         snprintf(f->file, sizeof(f->file), "%s/%s.mbox", store, nm);
         f->noselect = FALSE;
         f->local = isloc;
+        f->srv = -1;
+        if (!isloc) { /* which server's file is this? */
+
+            long k;
+
+            for (k = 0; k < srvct; k++) {
+
+                long n = strlen(servers[k].name);
+
+                if (!strncmp(nm, servers[k].name, n) && nm[n] == '_')
+                    { f->srv = k; break; }
+
+            }
+
+        }
         { /* the real name, if the state file beside it kept one */
 
             char  sn[MAXSTR*2+8];
@@ -2366,14 +2551,15 @@ static void imapclose(void)
 }
 
 /* ask the server what folders there are */
-static int getfolders(void)
+static int getfolders(long srv)
 
 {
 
     char tag[20];
 
+    useserver(srv);
+    listsrv = srv;
     if (!imapopen()) return (FALSE);
-    foldct = 0;
     imsend(tag, sizeof(tag), "LIST \"\" \"*\"");
     if (!imwait(tag, listline)) { fail("The server would not list the "
                                        "folders"); return (FALSE); }
@@ -2772,61 +2958,72 @@ static void drawfolders(void)
     long i;
     long y = 4;
     long cw;
-    long pass;
+    long sec;
     char cnt[40];
+    char head[120];
 
     if (!foldwf) return;
     fprintf(foldwf, "\f");
     ami_fcolor(foldwf, ami_black);
-    /* Two lists with a rule between them: what the server has, and what
-       is ours alone. They are separate lists and not one list marked
-       up, because a local Trash and the server's Trash are two
-       different folders that happen to share a name, and a reader has
-       to be able to tell at a glance which is which. */
-    for (pass = 0; pass < 2; pass++) {
+    /* A section for each server, then one for the folders that are ours
+       alone. They are separate lists rather than one list marked up,
+       because two servers may each have an INBOX and a local Trash is
+       not the server's Trash: which is which has to be plain at a
+       glance. */
+    for (sec = 0; sec <= srvct; sec++) {
 
         long shown = 0;
+        long srv = sec < srvct? sec: -1;
 
-        if (pass) { /* the rule, then the second heading */
+        if (sec) { /* a rule between the sections */
 
             y += chrh/2;
-            divider(foldwf, 6, y, foldw-8, y);
+            divider(foldwf, 6, y, ami_maxxg(foldwf)-8, y);
             y += chrh;
 
         }
+        if (srv >= 0) snprintf(head, sizeof(head), "%s Server Folders",
+                               servers[srv].name);
+        else copystr(head, "Local Folders", sizeof(head));
         ami_bold(foldwf, TRUE);
         ami_cursorg(foldwf, 6, y);
-        fprintf(foldwf, "%s", pass? "Local Folders": "Server Folders");
+        {
+
+            char h[120];
+
+            copystr(h, head, sizeof(h));
+            clipstr(foldwf, h, ami_maxxg(foldwf)-12);
+            fprintf(foldwf, "%s", h);
+
+        }
         ami_bold(foldwf, FALSE);
         y += chrh*2;
         for (i = 0; i < foldct; i++) {
 
             char nm[MAXSTR];
 
-            if ((folders[i].local != 0) != (pass != 0)) continue;
+            if (folders[i].srv != srv) continue;
             shown++;
             foldy[i] = y; /* where it landed, for the click to find */
-            if (i == foldsel) { /* the one being shown */
+            if (i == foldsel) {
 
                 ami_fcolor(foldwf, ami_cyan);
-                ami_frect(foldwf, 2, y-2, foldw-2, y+chrh);
+                ami_frect(foldwf, 2, y-2, ami_maxxg(foldwf)-2, y+chrh);
                 ami_fcolor(foldwf, ami_black);
 
             }
             copystr(nm, folders[i].show, MAXSTR);
-            /* the count against the right, and the name given what is
-               left, so a long name is cut rather than run under it */
             cnt[0] = 0;
             if (folders[i].msgs > 0) commas(folders[i].msgs, cnt,
                                             sizeof(cnt));
             cw = *cnt? ami_strsiz(foldwf, cnt)+8: 0;
             ami_bold(foldwf, i == foldsel);
-            clipstr(foldwf, nm, foldw-16-cw);
+            clipstr(foldwf, nm, ami_maxxg(foldwf)-16-cw);
             ami_cursorg(foldwf, 8, y);
             fprintf(foldwf, "%s", nm);
             if (*cnt) {
 
-                ami_cursorg(foldwf, foldw-8-
+                ami_cursorg(foldwf, ami_maxxg(foldwf)-8-
                                     ami_strsiz(foldwf, cnt), y);
                 fprintf(foldwf, "%s", cnt);
 
@@ -2839,7 +3036,7 @@ static void drawfolders(void)
 
             ami_fcolorc(foldwf, 130, 130, 130);
             ami_cursorg(foldwf, 8, y);
-            fprintf(foldwf, "%s", pass? "(none yet)": "(not fetched)");
+            fprintf(foldwf, "%s", srv >= 0? "(not fetched)": "(none yet)");
             ami_fcolor(foldwf, ami_black);
             y += chrh+4;
 
@@ -3440,6 +3637,7 @@ static const struct {
 
 } srvfld[] = {
 
+    { SRVNAME,  "Name",           "what to call this account here" },
     { SRVIMAP,  "Mail server",    "where the mail is read from" },
     { SRVIPORT, "Port",           "993 for the secure one, which is usual" },
     { SRVSMTP,  "Sending server", "where mail would be sent from" },
@@ -3447,6 +3645,7 @@ static const struct {
     { SRVUSER,  "User",           "the whole address, as someone@gmail.com" },
     { SRVPASS,  "Password",       "for Gmail, an application password" },
     { SRVLIMIT, "Messages",       "how many of each folder to fetch" },
+    { SRVPOLL,  "Look every",     "seconds between looks at the servers" },
 
 };
 #define SRVFLDS ((long)(sizeof(srvfld)/sizeof(srvfld[0])))
@@ -3484,6 +3683,25 @@ static void srvlay(void)
     ami_sizwidgetg(srvwf, SRVOK, bw, bh);
     ami_poswidgetg(srvwf, SRVCAN, chrw*2+labw+bw+chrw*2, y);
     ami_sizwidgetg(srvwf, SRVCAN, bw, bh);
+    ami_poswidgetg(srvwf, SRVNEXT, chrw*2+labw+(bw+chrw*2)*2, y);
+    ami_sizwidgetg(srvwf, SRVNEXT, bw, bh);
+    ami_poswidgetg(srvwf, SRVNEW, chrw*2+labw+(bw+chrw*2)*3, y);
+    ami_sizwidgetg(srvwf, SRVNEW, bw, bh);
+    ami_poswidgetg(srvwf, SRVDEL, chrw*2+labw+(bw+chrw*2)*4, y);
+    ami_sizwidgetg(srvwf, SRVDEL, bw, bh);
+    /* which of them is being shown, since the fields do not say */
+    {
+
+        char n[80];
+
+        snprintf(n, sizeof(n), "account %ld of %ld", srvedit+1,
+                 srvct > srvedit? srvct: srvedit+1);
+        ami_fcolorc(srvwf, 110, 110, 110);
+        ami_cursorg(srvwf, chrw*2, y+bh+chrh/2);
+        fprintf(srvwf, "%s", n);
+        ami_fcolor(srvwf, ami_black);
+
+    }
 
 }
 
@@ -3494,15 +3712,24 @@ static void srvload(void)
 
     char num[40];
 
-    ami_putwidgettext(srvwf, SRVIMAP, imapsrv);
-    sprintf(num, "%ld", imapport);
+    if (srvedit >= srvct) { /* one that does not exist yet */
+
+        if (srvct < MAXSRV) { blankserver(&servers[srvct]); srvedit = srvct; }
+        else srvedit = 0;
+
+    }
+    ami_putwidgettext(srvwf, SRVNAME, servers[srvedit].name);
+    sprintf(num, "%ld", pollsec);
+    ami_putwidgettext(srvwf, SRVPOLL, num);
+    ami_putwidgettext(srvwf, SRVIMAP, servers[srvedit].imap);
+    sprintf(num, "%ld", servers[srvedit].imapport);
     ami_putwidgettext(srvwf, SRVIPORT, num);
-    ami_putwidgettext(srvwf, SRVSMTP, smtpsrv);
-    sprintf(num, "%ld", smtpport);
+    ami_putwidgettext(srvwf, SRVSMTP, servers[srvedit].smtp);
+    sprintf(num, "%ld", servers[srvedit].smtpport);
     ami_putwidgettext(srvwf, SRVSPORT, num);
-    ami_putwidgettext(srvwf, SRVUSER, username);
-    ami_putwidgettext(srvwf, SRVPASS, password);
-    sprintf(num, "%ld", limit);
+    ami_putwidgettext(srvwf, SRVUSER, servers[srvedit].user);
+    ami_putwidgettext(srvwf, SRVPASS, servers[srvedit].pass);
+    sprintf(num, "%ld", servers[srvedit].limit);
     ami_putwidgettext(srvwf, SRVLIMIT, num);
 
 }
@@ -3512,27 +3739,40 @@ static void srvsave(void)
 
 {
 
-    char s[MAXSTR];
+    char    s[MAXSTR];
+    srvrec* r;
 
+    if (srvedit >= MAXSRV) return;
+    if (srvedit >= srvct) srvct = srvedit+1; /* a new one is kept */
+    r = &servers[srvedit];
+    ami_getwidgettext(srvwf, SRVNAME, s, sizeof(s));
+    trim(s);
+    if (*s) copystr(r->name, s, sizeof(r->name));
     ami_getwidgettext(srvwf, SRVIMAP, s, sizeof(s));
     trim(s);
-    copystr(imapsrv, s, MAXSTR);
+    copystr(r->imap, s, MAXSTR);
     ami_getwidgettext(srvwf, SRVIPORT, s, sizeof(s));
-    if (atol(s) > 0) imapport = atol(s);
+    if (atol(s) > 0) r->imapport = atol(s);
     ami_getwidgettext(srvwf, SRVSMTP, s, sizeof(s));
     trim(s);
-    copystr(smtpsrv, s, MAXSTR);
+    copystr(r->smtp, s, MAXSTR);
     ami_getwidgettext(srvwf, SRVSPORT, s, sizeof(s));
-    if (atol(s) > 0) smtpport = atol(s);
+    if (atol(s) > 0) r->smtpport = atol(s);
     ami_getwidgettext(srvwf, SRVUSER, s, sizeof(s));
     trim(s);
-    copystr(username, s, MAXSTR);
+    copystr(r->user, s, MAXSTR);
     /* the password is taken as typed, since a space may be part of it */
     ami_getwidgettext(srvwf, SRVPASS, s, sizeof(s));
-    copystr(password, s, MAXSTR);
+    copystr(r->pass, s, MAXSTR);
     ami_getwidgettext(srvwf, SRVLIMIT, s, sizeof(s));
-    if (atol(s) > 0) limit = atol(s);
+    if (atol(s) > 0) r->limit = atol(s);
+    ami_getwidgettext(srvwf, SRVPOLL, s, sizeof(s));
+    if (atol(s) >= 0) pollsec = atol(s);
     writeaccount();
+    useserver(0);
+    /* the periodic look follows whatever was just set */
+    ami_killtimer(stdout, TIMPOLL);
+    if (pollsec > 0) ami_timer(stdout, TIMPOLL, pollsec*10000, TRUE);
 
 }
 
@@ -3563,8 +3803,8 @@ static void srvopen(void)
     ami_binvis(srvwf);
     ami_editboxsizg(srvwf, "0", &ew, &eh);
     ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
-    ami_winclientg(srvwf, ami_strsiz(srvwf, "0")*88,
-                   (eh+chrh/2)*SRVFLDS+bh+chrh*3, &wx, &wy,
+    ami_winclientg(srvwf, ami_strsiz(srvwf, "0")*96,
+                   (eh+chrh/2)*SRVFLDS+bh+chrh*6, &wx, &wy,
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(srvwf, wx, wy);
     ami_setposg(srvwf, 120, 120);
@@ -3573,6 +3813,9 @@ static void srvopen(void)
         ami_editboxg(srvwf, 1, 1, 2, 2, srvfld[i].id);
     ami_buttong(srvwf, 1, 1, 2, 2, "Save", SRVOK);
     ami_buttong(srvwf, 1, 1, 2, 2, "Cancel", SRVCAN);
+    ami_buttong(srvwf, 1, 1, 2, 2, "Next", SRVNEXT);
+    ami_buttong(srvwf, 1, 1, 2, 2, "Add", SRVNEW);
+    ami_buttong(srvwf, 1, 1, 2, 2, "Remove", SRVDEL);
     srvlay();
     srvload();
 
@@ -3591,7 +3834,37 @@ static void srvevent(ami_evtrec* er)
         case ami_etresize: srvlay(); break;
 
         case ami_etbutton:
-            if (er->butid == SRVOK) {
+            if (er->butid == SRVNEXT) { /* show the one after this */
+
+                srvsave();
+                srvedit = srvct? (srvedit+1)%srvct: 0;
+                srvlay();
+                srvload();
+
+            } else if (er->butid == SRVNEW) { /* another account */
+
+                srvsave();
+                if (srvct < MAXSRV) srvedit = srvct;
+                srvlay();
+                srvload();
+
+            } else if (er->butid == SRVDEL) { /* take this one away */
+
+                long i;
+
+                if (srvedit < srvct) {
+
+                    for (i = srvedit; i+1 < srvct; i++)
+                        servers[i] = servers[i+1];
+                    srvct--;
+
+                }
+                if (srvedit >= srvct) srvedit = srvct? srvct-1: 0;
+                writeaccount();
+                srvlay();
+                srvload();
+
+            } else if (er->butid == SRVOK) {
 
                 srvsave();
                 srvclose();
@@ -3712,12 +3985,12 @@ static void setupmenu(void)
        something. */
     newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Get Mail");
     appendmenu(&ml, mp);
-    newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Mail");
+    newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Config");
     appendmenu(&ml, ma);
     ami_stdmenu(BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT), &sm, ml);
     /* as in the spreadsheet, the branch is hung on after the standard
        menu is built, since building it clears the branch link */
-    newmenu(&mp, FALSE, FALSE, OFF, MENUSRV, "Server...");
+    newmenu(&mp, FALSE, FALSE, OFF, MENUSRV, "Servers...");
     appendmenu(&ma->branch, mp);
     newmenu(&mp, FALSE, FALSE, ON, MENUFOLD, "Refresh Folder List");
     appendmenu(&ma->branch, mp);
@@ -3753,6 +4026,7 @@ through while it runs, and it can be stopped.
 *******************************************************************************/
 
 static int  fetching;    /* a fetch is under way */
+static long fetchsrv;    /* the server being read */
 static long fetchfold;   /* the folder being read */
 static long fetchi;      /* which of that folder's uids is next */
 static long fetchgot;    /* messages taken, this fetch */
@@ -3785,6 +4059,15 @@ static int fetchnext(void)
 
         if (folders[fetchfold].noselect) continue;
         if (folders[fetchfold].local) continue; /* nothing to fetch from */
+        if (folders[fetchfold].srv != fetchsrv) { /* a different server */
+
+            imapclose();
+            fetchsrv = folders[fetchfold].srv;
+            if (fetchsrv < 0) continue;
+            useserver(fetchsrv);
+            if (!imapopen()) continue;
+
+        }
         fetchi = 0;
         uidct = 0;
         fetchsay();
@@ -3918,17 +4201,27 @@ static void fetchall(void)
 {
 
     if (fetching) return; /* one at a time */
+    long i;
+
     status("Connecting...");
-    if (!imapopen()) { status(""); return; }
-    /* the server's list, which replaces the one read off the store: the
-       server is the authority on what folders there are */
+    /* Every server's folders, in the order they are configured, then the
+       local ones. The list on the server is the authority on what
+       folders that server has, so it replaces what was read off the
+       store. */
     foldct = 0;
     foldsel = -1;
-    if (!getfolders()) { status(""); imapclose(); return; }
-    storefolders(TRUE); /* the locals rejoin, after the server's */
+    for (i = 0; i < srvct; i++) {
+
+        if (!*servers[i].imap || !*servers[i].user) continue;
+        if (!getfolders(i)) { imapclose(); continue; }
+        imapclose(); /* one at a time: the connection is per server */
+
+    }
+    storefolders(TRUE); /* the locals rejoin, after the servers' */
     countfolders();
     drawfolders();
     fetching = TRUE;
+    fetchsrv = -2; /* no server open yet */
     fetchfold = -1;
     fetchi = 0;
     uidct = 0;
@@ -4024,6 +4317,7 @@ int main(int argc, char* argv[])
 
     }
     readaccount(); /* if there is one; the program comes up either way */
+    migratestore(); /* mailboxes from before accounts had names */
     ami_winclientg(stdout, ami_strsiz(stdout, "0")*130, chrh*46, &wx, &wy,
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(stdout, wx, wy);
@@ -4070,6 +4364,9 @@ int main(int argc, char* argv[])
                              "server.");
     else status("");
     if (dofetch) fetchall();
+    /* Look again every so often while the program is up. The timer is
+       in hundred microsecond counts, so a second is ten thousand. */
+    if (pollsec > 0) ami_timer(stdout, TIMPOLL, pollsec*10000, TRUE);
     do {
 
         ami_event(stdin, &er);
@@ -4307,8 +4604,13 @@ int main(int argc, char* argv[])
                         ami_maxyg(stdout));
                 break;
 
-            case ami_ettim: /* one step of a fetch, if one is running */
+            case ami_ettim:
+                /* one step of a fetch, if one is running */
                 if (er.timnum == TIMFETCH) fetchstep();
+                /* and the periodic look at the servers, which does
+                   nothing while a fetch is already under way */
+                else if (er.timnum == TIMPOLL && !fetching && haveaccount())
+                    fetchall();
                 break;
 
             case ami_etmenus:
@@ -4326,20 +4628,27 @@ int main(int argc, char* argv[])
                         } else fetchall();
                         break;
 
-                    case MENUFOLD:
+                    case MENUFOLD: { /* every server's list, again */
+
+                        long k;
+
                         if (!haveaccount()) { srvopen(); break; }
                         foldct = 0;
                         foldsel = -1;
-                        if (getfolders()) {
-                            storefolders(TRUE);
+                        for (k = 0; k < srvct; k++) {
 
+                            if (!*servers[k].imap || !*servers[k].user)
+                                continue;
+                            getfolders(k);
                             imapclose();
-                            drawfolders();
-                            snprintf(msg, sizeof(msg), "%ld folders", foldct);
-                            status(msg);
 
                         }
+                        storefolders(TRUE);
+                        countfolders();
+                        drawfolders();
                         break;
+
+                    }
 
                     case MENUCHECK:
                         if (!haveaccount()) { srvopen(); break; }
