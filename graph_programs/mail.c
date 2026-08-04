@@ -2145,7 +2145,7 @@ static FILE* popwf;      /* the menu, NULL when closed */
 static long  popmsg;     /* the message it is for */
 static long  poprow = -1; /* the entry under the mouse */
 static long  poprowh;    /* the height of an entry */
-static char  poplab[2][MAXSTR]; /* the entries' faces */
+static char  poplab[3][MAXSTR]; /* the entries' faces */
 
 /* The part of an address that says who sent it, for gathering their
    mail together. That is the domain and not the whole address: LinkedIn
@@ -2216,7 +2216,7 @@ static void popdraw(void)
     ami_line(popwf, 0, 0, 0, h-1);
     ami_line(popwf, w-1, 0, w-1, h-1);
     ami_fcolor(popwf, ami_black);
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
 
         ami_cursorg(popwf, 8, 3+i*poprowh+(poprowh-chrh)/2);
         fprintf(popwf, "%s", poplab[i]);
@@ -2255,13 +2255,30 @@ static void popopen(long i, long x, long y)
         }
         snprintf(poplab[1], sizeof(poplab[1]),
                  "Local folder for %s (%ld here)", key, n);
+        /* And by the name they show, which is not the same thing: a
+           domain gathers eight sorts of Facebook notice into one folder,
+           and a name keeps a person who writes through LinkedIn out of
+           the LinkedIn folder. Both are offered, with what each would
+           take, because which is wanted depends on the sender. */
+        n = 0;
+        {
+
+            long m;
+
+            for (m = 0; m < msgct; m++)
+                if (!strcmp(msgs[m].from, msgs[i].from)) n++;
+
+        }
+        snprintf(poplab[2], sizeof(poplab[2]),
+                 "Local folder for \"%s\" (%ld here)", nm, n);
 
     }
     poprowh = chrh+10;
     w = ami_strsiz(listwf, poplab[0]);
     if (ami_strsiz(listwf, poplab[1]) > w) w = ami_strsiz(listwf, poplab[1]);
+    if (ami_strsiz(listwf, poplab[2]) > w) w = ami_strsiz(listwf, poplab[2]);
     w += 20;
-    h = poprowh*2+6;
+    h = poprowh*3+6;
     /* The menu is a child of the main window, not of the list: a child
        is clipped by its parent, and a menu opened near the bottom of
        the list would be cut off by it. The mouse position arrives in
@@ -2310,7 +2327,7 @@ static void popact(long row)
         dst = localfolder("Trash");
         copystr(who, "Trash", sizeof(who));
 
-    } else { /* everything here from this sender, to a folder of theirs */
+    } else if (row == 1) { /* everything from that place */
 
         long m;
         char key[100];
@@ -2318,6 +2335,15 @@ static void popact(long row)
         senderkey(msgs[i].addr, key, sizeof(key));
         for (m = 0; m < msgct; m++)
             if (fromsender(&msgs[m], key)) set[m] = TRUE;
+        copystr(who, msgs[i].from, sizeof(who));
+        dst = localfolder(who);
+
+    } else { /* everything from that name */
+
+        long m;
+
+        for (m = 0; m < msgct; m++)
+            if (!strcmp(msgs[m].from, msgs[i].from)) set[m] = TRUE;
         copystr(who, msgs[i].from, sizeof(who));
         dst = localfolder(who);
 
@@ -4736,7 +4762,7 @@ int main(int argc, char* argv[])
 
                     long r = (er.moupyg-3)/(poprowh? poprowh: 1);
 
-                    poprow = r >= 0 && r < 2? r: -1;
+                    poprow = r >= 0 && r < 3? r: -1;
                     break;
 
                 }
