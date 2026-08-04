@@ -6260,9 +6260,23 @@ static void srvopen(void)
     ami_binvis(srvwf);
     ami_editboxsizg(srvwf, "0", &ew, &eh);
     ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
-    ami_winclientg(srvwf, ami_strsiz(srvwf, "0")*96,
-                   (eh+chrh/2)*SRVFLDS+bh+chrh*6, &wx, &wy,
-                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    {
+
+        /* Wide enough for whichever is wider: the fields with their
+           notes beside them, or the row of buttons under them. The row
+           was running off the edge, and the last button with it -- a
+           form that will not show what it offers. */
+        long chrw = ami_strsiz(srvwf, "0");
+        long labw = ami_strsiz(srvwf, "Sending server  ");
+        long need = chrw*2+labw+(bw+chrw*2)*4+bw+chrw*2;
+        long want = chrw*96;
+
+        if (need > want) want = need;
+        ami_winclientg(srvwf, want, (eh+chrh/2)*SRVFLDS+bh*2+chrh*8, &wx, &wy,
+                       BIT(ami_wmframe) | BIT(ami_wmsize) |
+                       BIT(ami_wmsysbar));
+
+    }
     ami_setsizg(srvwf, wx, wy);
     ami_setposg(srvwf, 120, 120);
     /* made here, placed by the layout, which runs again on a resize */
