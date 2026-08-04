@@ -65,6 +65,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <fcntl.h>
@@ -139,6 +140,7 @@
 #define DIGLEN    65 /* a sha-256 as hex, and its terminator */
 #define MAXSRV    8  /* servers this program will gather from */
 #define DEFPOLL   15 /* seconds between looks at the servers */
+#define NETWAIT   45 /* seconds to wait on a server before giving up */
 
 #define WHEELMSGS 1 /* messages the wheel moves per notch, in the list */
 #define WHEELROWS 3 /* lines it moves per notch, in the reader */
@@ -2462,7 +2464,15 @@ static int imline(char* buf, long bn)
 
 {
 
-    if (!fgets(buf, bn, imap)) return (FALSE);
+    if (!fgets(buf, bn, imap)) {
+
+        /* nothing came, and something should have: the server has gone
+           quiet or the connection has died under us */
+        if (diag) fprintf(stderr, "! no answer from %s\n", imapsrv);
+
+        return (FALSE);
+
+    }
     trim(buf);
     if (diag) fprintf(stderr, "< %s\n", buf);
 
@@ -2767,6 +2777,29 @@ static int imapopen(void)
     ami_addrnet(imapsrv, &addr);
     imap = ami_opennet(addr, imapport, TRUE);
     if (!imap) { fail("Cannot reach the mail server"); return (FALSE); }
+    { /* a read that never comes back must not stop the program
+
+         A server that stops answering -- and one will, over tens of
+         thousands of messages -- leaves a read waiting for data that is
+         never sent. Every read here is on the same thread as the
+         display, so the whole program stops with it: the window does
+         not repaint and the mouse does nothing, which looks like a
+         crash and is not. A timeout turns that into an error the
+         program can act on. */
+
+        struct timeval tv;
+        int            fd = fileno(imap);
+        int            on = 1;
+
+        tv.tv_sec = NETWAIT;
+        tv.tv_usec = 0;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        /* and let the system notice a connection that has gone away
+           rather than waiting on one that will never speak again */
+        setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+
+    }
     if (!imline(line, sizeof(line))) { /* the greeting */
 
         fail("The mail server said nothing");
@@ -5232,7 +5265,22 @@ static void fetchstep(void)
     imsend(tag, sizeof(tag), "UID FETCH %ld (BODY.PEEK[])", uid);
     /* the reply is a line ending in a literal, then the message itself,
        then the rest of the reply and the tagged answer */
-    if (!imline(line, sizeof(line))) { fetchend(); return; }
+    if (!imline(line, sizeof(line))) {
+
+        /* The server stopped answering. What has been taken is written
+           and kept -- the marker for this folder goes down with the
+           stretch reached -- and the fetch ends rather than reading a
+           socket that is not going to speak. The next look picks it up
+           from there. */
+        if (fetchcur >= 0 && fetchcur < foldct)
+            writestate(fetchcur, uidvalidity,
+                       fetchlow? fetchlow: fetchnewlow, fetchlast);
+        status("The server stopped answering. What arrived is kept.");
+        fetchend();
+
+        return;
+
+    }
     n = literalof(line);
     if (n < 0) { imwait(tag, NULL); return; } /* no message came */
     msg = imliteral(n);
