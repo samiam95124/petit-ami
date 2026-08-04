@@ -2964,17 +2964,22 @@ static void drawfolders(void)
     long y = 4;
     long cw;
     long sec;
+    long w;
     char cnt[40];
     char head[120];
 
     if (!foldwf) return;
-    fprintf(foldwf, "\f");
+    w = ami_maxxg(foldwf);
+    /* No clearing of the pane first. Every line paints its own ground
+       before its text, so a clear only puts up a blank that the drawing
+       covers again -- and a pane that goes blank and comes back is a
+       blink, which during a fetch happens over and over. What is
+       cleared is the room below the last line, which nothing else
+       reaches. */
     ami_fcolor(foldwf, ami_black);
-    /* A section for each server, then one for the folders that are ours
-       alone. They are separate lists rather than one list marked up,
-       because two servers may each have an INBOX and a local Trash is
-       not the server's Trash: which is which has to be plain at a
-       glance. */
+    /* a section for each server, then one for the folders that are ours
+       alone, since two servers may each have an INBOX and a local Trash
+       is not the server's Trash */
     for (sec = 0; sec <= srvct; sec++) {
 
         long shown = 0;
@@ -2983,24 +2988,23 @@ static void drawfolders(void)
         if (sec) { /* a rule between the sections */
 
             y += chrh/2;
-            divider(foldwf, 6, y, ami_maxxg(foldwf)-8, y);
+            ami_fcolor(foldwf, ami_white);
+            ami_frect(foldwf, 0, y-2, w, y+2);
+            ami_fcolor(foldwf, ami_black);
+            divider(foldwf, 6, y, w-8, y);
             y += chrh;
 
         }
         if (srv >= 0) snprintf(head, sizeof(head), "%s Server Folders",
                                servers[srv].name);
         else copystr(head, "Local Folders", sizeof(head));
+        clipstr(foldwf, head, w-12);
+        ami_fcolor(foldwf, ami_white);
+        ami_frect(foldwf, 0, y-2, w, y+chrh+2);
+        ami_fcolor(foldwf, ami_black);
         ami_bold(foldwf, TRUE);
         ami_cursorg(foldwf, 6, y);
-        {
-
-            char h[120];
-
-            copystr(h, head, sizeof(h));
-            clipstr(foldwf, h, ami_maxxg(foldwf)-12);
-            fprintf(foldwf, "%s", h);
-
-        }
+        fprintf(foldwf, "%s", head);
         ami_bold(foldwf, FALSE);
         y += chrh*2;
         for (i = 0; i < foldct; i++) {
@@ -3008,28 +3012,26 @@ static void drawfolders(void)
             char nm[MAXSTR];
 
             if (folders[i].srv != srv) continue;
+            if (folders[i].local != (srv < 0)) continue;
             shown++;
             foldy[i] = y; /* where it landed, for the click to find */
-            if (i == foldsel) {
-
-                ami_fcolor(foldwf, ami_cyan);
-                ami_frect(foldwf, 2, y-2, ami_maxxg(foldwf)-2, y+chrh);
-                ami_fcolor(foldwf, ami_black);
-
-            }
+            /* its own ground: the mark if it is the one being read,
+               white if it is not */
+            ami_fcolor(foldwf, i == foldsel? ami_cyan: ami_white);
+            ami_frect(foldwf, 2, y-2, w-2, y+chrh);
+            ami_fcolor(foldwf, ami_black);
             copystr(nm, folders[i].show, MAXSTR);
             cnt[0] = 0;
             if (folders[i].msgs > 0) commas(folders[i].msgs, cnt,
                                             sizeof(cnt));
             cw = *cnt? ami_strsiz(foldwf, cnt)+8: 0;
             ami_bold(foldwf, i == foldsel);
-            clipstr(foldwf, nm, ami_maxxg(foldwf)-16-cw);
+            clipstr(foldwf, nm, w-16-cw);
             ami_cursorg(foldwf, 8, y);
             fprintf(foldwf, "%s", nm);
             if (*cnt) {
 
-                ami_cursorg(foldwf, ami_maxxg(foldwf)-8-
-                                    ami_strsiz(foldwf, cnt), y);
+                ami_cursorg(foldwf, w-8-ami_strsiz(foldwf, cnt), y);
                 fprintf(foldwf, "%s", cnt);
 
             }
@@ -3039,6 +3041,8 @@ static void drawfolders(void)
         }
         if (!shown) { /* say so rather than leave a gap */
 
+            ami_fcolor(foldwf, ami_white);
+            ami_frect(foldwf, 0, y-2, w, y+chrh);
             ami_fcolorc(foldwf, 130, 130, 130);
             ami_cursorg(foldwf, 8, y);
             fprintf(foldwf, "%s", srv >= 0? "(not fetched)": "(none yet)");
@@ -3046,6 +3050,13 @@ static void drawfolders(void)
             y += chrh+4;
 
         }
+
+    }
+    if (y < ami_maxyg(foldwf)) { /* the room the sections did not fill */
+
+        ami_fcolor(foldwf, ami_white);
+        ami_frect(foldwf, 0, y, w, ami_maxyg(foldwf));
+        ami_fcolor(foldwf, ami_black);
 
     }
 
