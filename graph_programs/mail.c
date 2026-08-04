@@ -1928,6 +1928,11 @@ static long localfolder(const char* show)
     localfile(show, f->file, sizeof(f->file));
     f->noselect = FALSE;
     f->local = TRUE;
+    /* Belonging to no server, which is the whole of what a local folder
+       is. Left unsaid it inherits whatever was in the slot, and the
+       folder appears under a server's heading -- which is exactly the
+       thing a local folder is not. */
+    f->srv = -1;
     f->msgs = 0;
     /* the name beside the file, as the server folders keep theirs */
     snprintf(fn, sizeof(fn), "%s.state", f->file);
