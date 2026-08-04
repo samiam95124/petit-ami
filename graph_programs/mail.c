@@ -66,6 +66,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <netdb.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <fcntl.h>
@@ -95,6 +97,9 @@
 #define SRVWIN    5 /* the server form */
 #define POPWIN    6 /* the message menu, on the second mouse button */
 #define HELPWIN   7 /* the help window */
+#define BANWIN    8 /* the banner across the top */
+#define CMPWIN    9 /* the compose window */
+#define BANPIC    1 /* the picture in it */
 
 /* its widgets, numbered within it */
 #define HELPFIND  1 /* the search entry */
@@ -125,10 +130,23 @@
 #define SRVNEXT  12 /* show the next account */
 #define SRVNEW   13 /* start another one */
 #define SRVDEL   14 /* take this one away */
+#define SRVSEND  15 /* mail is sent from this account */
+
+/* the compose window's widgets */
+#define CMPTO     1 /* who it is to */
+#define CMPCC     2 /* and who else */
+#define CMPSUB    3 /* what it is about */
+#define CMPSEND   4 /* send it */
+#define CMPCAN    5 /* and think better of it */
+#define CMPSB     6 /* the bar down the side of the body */
 
 /* menu ids of our own, after the standard ones */
 #define MENUMAIL  (AMI_SMMAX+1) /* the mail menu itself */
 #define MENUFETCH (AMI_SMMAX+2) /* fetch new mail */
+#define MENUCOMP  (AMI_SMMAX+6) /* write a message */
+#define MENUREPLY (AMI_SMMAX+7) /* answer the message being read */
+#define MENUREPALL (AMI_SMMAX+8) /* and everybody it went to */
+#define MENUFWD   (AMI_SMMAX+9) /* pass it on */
 #define MENUFOLD  (AMI_SMMAX+3) /* fetch the folder list again */
 #define MENUCHECK (AMI_SMMAX+4) /* check that mail could be sent */
 #define MENUSRV   (AMI_SMMAX+5) /* the server form */
@@ -152,17 +170,6 @@
 #define ON  1
 
 /* a folder on the server, and the file it is kept in */
-typedef struct {
-
-    char name[MAXSTR];  /* the name the server knows it by */
-    char show[MAXSTR];  /* the name shown, without the [Gmail]/ part */
-    char file[MAXSTR*2]; /* the mbox file it is kept in */
-    long msgs;          /* messages in the file */
-    long noselect;      /* the server says it holds no messages */
-    long local;         /* ours alone: a folder with no server side */
-    long srv;           /* which server it belongs to, -1 if local */
-
-} foldrec;
 
 /* A message, as found in the mbox file. The file is the message; this is
    only what the list needs to draw a line without reading it again. */
@@ -181,13 +188,48 @@ typedef struct {
 
 } msgrec;
 
+typedef struct {
+
+    char name[MAXSTR];  /* the name the server knows it by */
+    char show[MAXSTR];  /* the name shown, without the [Gmail]/ part */
+    char file[MAXSTR*2]; /* the mbox file it is kept in */
+    long msgs;          /* messages in the file */
+    long dirty;         /* something has been put in it since it was read */
+    msgrec* idx;        /* every message in it, read from the index file */
+    long idxct;         /* how many */
+    long idxmax;        /* and how many the array has room for */
+    long idxok;         /* the index has been read and is good */
+    long wantidx;       /* it wants reading, when the worker gets to it */
+    long noselect;      /* the server says it holds no messages */
+    long local;         /* ours alone: a folder with no server side */
+    long srv;           /* which server it belongs to, -1 if local */
+
+} foldrec;
+
 static foldrec folders[MAXFOLDER];
 static long    foldct;
 static long    foldsel = -1;    /* the folder being shown */
 
 static msgrec* msgs;            /* the messages of that folder */
 static long    msgct;
-static long    msgmax;
+
+/* The list the display draws is the selected folder's index -- not a
+   copy of it, and not one built for the purpose. This points the two at
+   each other, and is called wherever either can move: the array is
+   grown as mail arrives, and growing it can move it. Every caller holds
+   the lock, which is what makes that safe. */
+static void useidx(void)
+
+{
+
+    if (foldsel >= 0 && foldsel < foldct) {
+
+        msgs = folders[foldsel].idx;
+        msgct = folders[foldsel].idxct;
+
+    } else { msgs = NULL; msgct = 0; }
+
+}
 static long    msgsel = -1;     /* the message being read */
 static long    msgtop;          /* the first message shown */
 static long    listshown;       /* the first one actually on the screen */
@@ -214,6 +256,21 @@ static srvrec servers[MAXSRV];
 static long   srvct;    /* how many there are */
 static long   srvedit;  /* the one the form is showing */
 static long   pollsec = DEFPOLL; /* how often to look, in seconds */
+/* Which account mail is sent from. One of them, and only one: a message
+   goes out over one connection with one name on it, so the box that
+   says which is a choice among the accounts, not a setting each of them
+   carries. */
+static long   sendsrv;
+
+/* A message waiting to go. The sending is network, and network is the
+   worker's, so what is written is left here and taken by it. */
+static long   sendwant;
+static char   outto[MAXSTR];
+static char   outcc[MAXSTR];
+static char   outsub[MAXSTR];
+static char*  outbody;
+static char   outinreply[MAXSTR];
+static char   outrefs[MAXSTR*2];
 
 /* the one being talked to just now, which the protocol routines use */
 static char imapsrv[MAXSTR] = "imap.gmail.com";
@@ -266,12 +323,31 @@ static void srvdir(long srv, char* dn, long dnl);
 static void safename(const char* nm, char* fn, long fnl);
 static void drawread(void);
 static void layout(void);
+static void drawfolders(void);
+static void drawlist(void);
 
 /*******************************************************************************
 
 Odds and ends
 
 *******************************************************************************/
+
+/* A colour named the way everybody names one, in parts of 255.
+
+   The library takes each part as a fraction of the whole range of a
+   long, not as a byte: 245 out of LONG_MAX is not a light grey, it is
+   black, and every "quiet grey" in this program was black until this
+   was noticed. Written once, here, so it cannot be got wrong twice. */
+static long rgb(long c)
+
+{
+
+    if (c < 0) c = 0;
+    if (c > 255) c = 255;
+
+    return (c*(LONG_MAX/255));
+
+}
 
 /* say something went wrong, in a way the user can see */
 /* A fetch the timer started is a fetch nobody asked for, and a server
@@ -280,12 +356,33 @@ Odds and ends
    hour away and there is an hour of boxes to dismiss. Failures nobody
    asked for go to the status line, where they can be read and ignored. */
 static long quietfail;
+static long wrkgo;      /* a fetch is running on the other thread */
+
+static void copystr(char* d, const char* s, long dl);
+
+/* Something the worker ran into. It cannot put a box on the screen --
+   nothing on that thread may call the graphics at all -- so it leaves
+   the words here and the main thread shows them on its next tick. Only
+   one is kept: a fetch that has gone wrong goes wrong the same way over
+   and over, and the reader wants to be told once. */
+static char failsaid[MAXSTR*3];
+static char sentsaid[MAXSTR]; /* and what went right */
+static long sendfail;         /* and whether it was a send that failed */
+static long failwait;
+static long fetchasked; /* somebody asked for this fetch and is waiting */
 
 static void fail(const char* what)
 
 {
 
-    if (quietfail) { status((char*)what); return; }
+    if (wrkgo || quietfail) { /* a fetch is running, or nobody asked */
+
+        copystr(failsaid, what, sizeof(failsaid));
+        failwait = TRUE;
+
+        return;
+
+    }
     ami_alert("Mail", (char*)what);
 
 }
@@ -417,7 +514,8 @@ static void digestbytes(const char* data, long len, char* hex)
 
 typedef struct digent {
 
-    char           dig[DIGLEN];
+    long           fold; /* the folder holding the message */
+    long           rec;  /* and which of its messages it is */
     struct digent* next;
 
 } digent;
@@ -440,37 +538,135 @@ static long dighash(const char* d)
 
 }
 
-static int hasdigest(const char* d)
+/* What a digest names: a message, in a folder, at a place in its file.
+   The table holds no digests of its own -- it holds where to find them,
+   so that knowing a message is here also says where here is. That is
+   what makes it worth anything to an audit: not "something with this
+   digest was seen once" but "this message is in that file at that
+   offset". */
+static const char* digof(const digent* p)
+
+{
+
+    return (folders[p->fold].idx[p->rec].dig);
+
+}
+
+/* the message this digest names, or none */
+static int finddigest(const char* d, long* fold, long* rec)
 
 {
 
     digent* p;
 
     for (p = digtab[dighash(d)]; p; p = p->next)
-        if (!strcmp(p->dig, d)) return (TRUE);
+        if (!strcmp(digof(p), d)) {
+
+            if (fold) *fold = p->fold;
+            if (rec) *rec = p->rec;
+
+            return (TRUE);
+
+        }
 
     return (FALSE);
 
 }
 
-static void adddigest(const char* d)
+static int hasdigest(const char* d)
+
+{
+
+    return (finddigest(d, NULL, NULL));
+
+}
+
+static void adddigest(long fold, long rec)
 
 {
 
     digent* p;
     long    b;
+    const char* d = folders[fold].idx[rec].dig;
 
     if (hasdigest(d)) return;
     b = dighash(d);
     p = getmem(sizeof(digent));
-    copystr(p->dig, d, DIGLEN);
+    p->fold = fold;
+    p->rec = rec;
     p->next = digtab[b];
     digtab[b] = p;
     digct++;
 
 }
 
+/* Take the table again over every folder's index. Sorting a folder moves
+   its messages about and the table names them by where they sit, so it
+   is taken again whenever an index is rebuilt rather than added to. */
+static void rehashall(void)
+
+{
+
+    long i, j;
+
+    for (i = 0; i < DIGBKT; i++) {
+
+        digent* p = digtab[i];
+
+        while (p) { digent* n = p->next; free(p); p = n; }
+        digtab[i] = NULL;
+
+    }
+    digct = 0;
+    for (i = 0; i < foldct; i++)
+        for (j = 0; j < folders[i].idxct; j++) adddigest(i, j);
+
+}
+
 /* the file a folder's digests are kept in */
+/*******************************************************************************
+
+The index file
+
+One beside each mailbox, holding a line for every message in it: where
+it is in the file and how long it is, what it is (its digest), who it is
+from, what it is about, when it came and the start of what it says --
+everything the list shows and everything the store is searched by.
+
+It is written as it is filled, a line at a time, and read back at
+startup. Reading it costs a few megabytes; working it out again from the
+mailbox costs reading and parsing every byte of mail there is, which on
+this store is five gigabytes and half a minute of somebody's attention.
+
+The file needs no stamp saying how far it goes. The messages it names
+say that themselves: the furthest of them ends where the indexed part of
+the mailbox ends, and anything after that in the mailbox is new. A
+mailbox that is shorter than that, or that does not have a separator
+where the index says a message begins, has been rewritten under the
+index, and the index is thrown away and taken again.
+
+Fields are separated by tabs. Anything that could hold a tab or a line
+end -- a subject, a snippet -- is written with those escaped, since a
+record is a line and has to stay one.
+
+*******************************************************************************/
+
+/* The line every index file begins with. The number is the version of
+   what follows, and moving it throws away every index written before:
+   version 1 held dates read without the sender's timezone, so mail from
+   a server keeping UTC sorted hours into the future. An index that is
+   wrong is worse than none, since nothing would ever go back and look
+   at the mailbox again. */
+#define IDXHEAD "ami-mail-index 2"
+
+static void idxfile(long fold, char* fn, long fnl)
+
+{
+
+    snprintf(fn, fnl, "%s.idx", folders[fold].file);
+
+}
+
 static void digfile(long fold, char* fn, long fnl)
 
 {
@@ -479,115 +675,316 @@ static void digfile(long fold, char* fn, long fnl)
 
 }
 
-/* Take the digests of every message in a folder's mailbox, writing them
-   beside it and adding them to the table. The mailbox is walked exactly
-   as the indexing walks it, so the two agree on what a message is. */
-static long digestfolder(long fold)
+/* a field, with what would break the line taken out of it */
+static void idxput(FILE* f, const char* s)
 
 {
 
-    FILE* f;
-    FILE* out;
-    char  fn[MAXSTR*2+8];
-    char* buf;
-    long  n;
-    long  i, start, blkstart;
-    long  got = 0;
-    char  hex[DIGLEN];
+    fputc('\t', f);
+    while (*s) {
 
-    f = fopen(folders[fold].file, "r");
-    if (!f) return (0);
-    fseek(f, 0, SEEK_END);
-    n = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    buf = getmem(n+1);
-    n = fread(buf, 1, n, f);
-    buf[n] = 0;
-    fclose(f);
-    digfile(fold, fn, sizeof(fn));
-    out = fopen(fn, "w");
-    if (out) fprintf(out, "%ld\n", n); /* the size these were taken at */
-    start = -1;
-    blkstart = 0;
-    for (i = 0; i < n; i++) {
+        switch (*s) {
 
-        int atsep = !strncmp(buf+i, "From ", 5) &&
-                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
-                                (buf[i-2] == '\n' ||
-                                 (buf[i-2] == '\r' && i >= 3 &&
-                                  buf[i-3] == '\n'))));
-
-        if (atsep) {
-
-            if (start >= 0) { /* the message that just ended */
-
-                long e = i;
-
-                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
-                    e--;
-                digestof(buf+start, e-start, hex);
-                adddigest(hex);
-                if (out) fprintf(out, "%s\n", hex);
-                got++;
-
-            }
-            blkstart = i;
-            while (i < n && buf[i] != '\n') i++;
-            start = i+1;
+            case '\\': fputs("\\\\", f); break;
+            case '\t': fputs("\\t", f); break;
+            case '\n': fputs("\\n", f); break;
+            case '\r': break;
+            default:   fputc(*s, f); break;
 
         }
-        while (i < n && buf[i] != '\n') i++;
+        s++;
 
     }
-    if (start >= 0 && start < n) { /* the last one */
-
-        long e = n;
-
-        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
-        digestof(buf+start, e-start, hex);
-        adddigest(hex);
-        if (out) fprintf(out, "%s\n", hex);
-        got++;
-
-    }
-    (void)blkstart;
-    free(buf);
-    if (out) fclose(out);
-
-    return (got);
 
 }
 
-/* Load a folder's digests, taking them afresh if the file is missing or
-   was written when the mailbox was a different size. */
-static void loaddigests(long fold)
+/* and back again: the next field of the line, up to the tab */
+static char* idxget(char* p, char* d, long dl)
 
 {
 
-    char        fn[MAXSTR*2+8];
-    FILE*       f;
-    struct stat sb;
-    char        line[DIGLEN+8];
-    long        was = -1;
+    long i = 0;
 
-    if (stat(folders[fold].file, &sb)) return; /* no mailbox */
-    digfile(fold, fn, sizeof(fn));
-    f = fopen(fn, "r");
-    if (f && fgets(line, sizeof(line), f)) was = atol(line);
-    if (!f || was != (long)sb.st_size) { /* stale, or never taken */
+    if (!p) { if (dl) *d = 0; return (NULL); }
+    if (*p == '\t') p++;
+    while (*p && *p != '\t') {
 
-        if (f) fclose(f);
-        digestfolder(fold);
+        char c = *p++;
 
-        return;
+        if (c == '\\' && *p) {
+
+            c = *p++;
+            if (c == 't') c = '\t';
+            else if (c == 'n') c = '\n';
+
+        }
+        if (i < dl-1) d[i++] = c;
 
     }
-    while (fgets(line, sizeof(line), f)) {
+    if (dl) d[i] = 0;
+
+    return (p);
+
+}
+
+static void idxwrite(FILE* f, const msgrec* m)
+
+{
+
+    fprintf(f, "%ld\t%ld\t%ld", m->off, m->len, m->date);
+    idxput(f, m->dig);
+    idxput(f, m->cat);
+    idxput(f, m->when);
+    idxput(f, m->addr);
+    idxput(f, m->from);
+    idxput(f, m->subject);
+    idxput(f, m->snip);
+    fputc('\n', f);
+
+}
+
+static int idxread(char* line, msgrec* m)
+
+{
+
+    char* p = line;
+    char  num[40];
+
+    p = idxget(p, num, sizeof(num)); m->off = atol(num);
+    p = idxget(p, num, sizeof(num)); m->len = atol(num);
+    p = idxget(p, num, sizeof(num)); m->date = atol(num);
+    p = idxget(p, m->dig, sizeof(m->dig));
+    p = idxget(p, m->cat, sizeof(m->cat));
+    p = idxget(p, m->when, sizeof(m->when));
+    p = idxget(p, m->addr, sizeof(m->addr));
+    p = idxget(p, m->from, sizeof(m->from));
+    p = idxget(p, m->subject, sizeof(m->subject));
+    p = idxget(p, m->snip, sizeof(m->snip));
+
+    return (p && m->len > 0 && strlen(m->dig) == DIGLEN-1);
+
+}
+
+/* Room for one more in the index being built.
+
+   A folder is read into here and put in place in one move, and never
+   added to where it stands. It was added to where it stood, and that is
+   what crashed the program: growing an array moves it, the display's
+   list IS the array, and a display drawing the folder that was being
+   read went on drawing the block that had just been freed underneath
+   it. Reading a folder while looking at it is the ordinary case, not a
+   corner of one.
+
+   The fetch is different and adds in place, but the fetch does it
+   holding the lock and points the display at the array again
+   afterwards, which is the same protection by another road. */
+static msgrec* bidx;
+static long    bct;
+static long    bmax;
+
+static msgrec* bldroom(void)
+
+{
+
+    if (bct >= bmax) {
+
+        bmax = bmax? bmax*2: 256;
+        bidx = realloc(bidx, bmax*sizeof(msgrec));
+        if (!bidx) { fail("Out of memory"); exit(1); }
+
+    }
+
+    return (&bidx[bct++]);
+
+}
+
+/* room for one more in a folder's index */
+static msgrec* idxroom(long fold)
+
+{
+
+    foldrec* fo = &folders[fold];
+
+    if (fo->idxct >= fo->idxmax) {
+
+        fo->idxmax = fo->idxmax? fo->idxmax*2: 256;
+        fo->idx = realloc(fo->idx, fo->idxmax*sizeof(msgrec));
+        if (!fo->idx) { fail("Out of memory"); exit(1); }
+
+    }
+
+    return (&fo->idx[fo->idxct++]);
+
+}
+
+/* Where the mailbox has been indexed up to: the end of the message that
+   reaches furthest into it. The file is written in the order messages
+   arrive but sorted in memory, so it is the highest end and not the
+   last line. */
+static long idxend(void)
+
+{
+
+    long i;
+    long e = 0;
+
+    for (i = 0; i < bct; i++) {
+
+        long x = bidx[i].off+bidx[i].len;
+
+        if (x > e) e = x;
+
+    }
+
+    return (e);
+
+}
+
+/*******************************************************************************
+
+Reading a folder
+
+An index file is read if there is one and it still fits the mailbox, and
+whatever the mailbox holds beyond what the index names is read from the
+mailbox itself and added. So a folder that has not changed costs reading
+a few hundred kilobytes; one that has had a hundred messages put in it
+costs those hundred; and only a folder with no index at all, or one
+whose mailbox has been rewritten under it, costs reading the whole
+thing.
+
+*******************************************************************************/
+
+/* Does the index still describe this mailbox? The messages it names say
+   how far it goes; the mailbox must be at least that long, and must
+   have a separator line where the index says the last message begins.
+   Anything else means the mailbox has been rewritten -- by a move, by a
+   hand, by another program -- and the index is not to be trusted. */
+static int idxfits(long fold)
+
+{
+
+    struct stat sb;
+    long        e;
+    long        off = -1;
+    long        i;
+    FILE*       f;
+    char        buf[300];
+    long        back, n;
+    char*       ln;
+
+    if (stat(folders[fold].file, &sb)) return (FALSE); /* no mailbox */
+    e = idxend();
+    if (!e) return (bct == 0); /* nothing named, nothing to fit */
+    if (e > (long)sb.st_size) return (FALSE);  /* the mailbox lost bytes */
+    for (i = 0; i < bct; i++)
+        if (bidx[i].off+bidx[i].len == e) { off = bidx[i].off; break; }
+    if (off <= 0) return (FALSE);
+    f = fopen(folders[fold].file, "r");
+    if (!f) return (FALSE);
+    back = off > (long)sizeof(buf)-1? (long)sizeof(buf)-1: off;
+    fseek(f, off-back, SEEK_SET);
+    n = fread(buf, 1, back, f);
+    fclose(f);
+    if (n <= 0) return (FALSE);
+    buf[n] = 0;
+    /* the separator is the line that ends where the message begins */
+    ln = buf+n;
+    if (ln > buf && ln[-1] == '\n') ln--;
+    while (ln > buf && ln[-1] != '\n') ln--;
+
+    return (!strncmp(ln, "From ", 5));
+
+}
+
+/* read the index file, if there is one */
+static void idxload(long fold)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+    char* line;
+    long  lsz = MAXSTR*4+SNIPPET*2+400;
+
+    bct = 0;
+    folders[fold].idxok = FALSE;
+    idxfile(fold, fn, sizeof(fn));
+    f = fopen(fn, "r");
+    if (!f) return;
+    line = getmem(lsz);
+    if (!fgets(line, lsz, f) || strncmp(line, IDXHEAD, strlen(IDXHEAD)))
+        { free(line); fclose(f); return; } /* not one of ours */
+    while (fgets(line, lsz, f)) {
+
+        msgrec m;
 
         trim(line);
-        if (strlen(line) == DIGLEN-1) adddigest(line);
+        if (!*line) continue;
+        if (!idxread(line, &m)) continue; /* a line that says nothing */
+        *bldroom() = m;
 
     }
+    free(line);
+    fclose(f);
+    folders[fold].idxok = idxfits(fold);
+    if (!folders[fold].idxok) bct = 0; /* it will be taken again */
+
+}
+
+/* write the whole of it */
+static void idxsave(long fold)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+    long  i;
+
+    idxfile(fold, fn, sizeof(fn));
+    f = fopen(fn, "w");
+    if (!f) return; /* an index that cannot be kept is worked out again */
+    fprintf(f, "%s\n", IDXHEAD);
+    for (i = 0; i < bct; i++) idxwrite(f, &bidx[i]);
+    fclose(f);
+    /* the digests file it replaces, which held one of these ten fields */
+    digfile(fold, fn, sizeof(fn));
+    remove(fn);
+
+}
+
+/* Throw an index away, file and all. The mailbox under it has been
+   rewritten -- by a move, or by a hand -- so every offset in it is
+   wrong. What is in it cannot be patched: a message moved is the same
+   message, but it is not in the same place. */
+static void idxdrop(long fold)
+
+{
+
+    char fn[MAXSTR*2+8];
+
+    idxfile(fold, fn, sizeof(fn));
+    remove(fn);
+    folders[fold].idxct = 0;
+    folders[fold].idxok = FALSE;
+    folders[fold].wantidx = TRUE;
+
+}
+
+/* and add to it as messages arrive */
+static void idxappend(long fold, const msgrec* m)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+    int   made;
+
+    idxfile(fold, fn, sizeof(fn));
+    made = access(fn, F_OK) != 0;
+    f = fopen(fn, "a");
+    if (!f) return;
+    if (made) fprintf(f, "%s\n", IDXHEAD);
+    idxwrite(f, m);
     fclose(f);
 
 }
@@ -615,7 +1012,7 @@ static void migratestore(void)
         long n, i;
         long srv = -2;
         const char* leaf = NULL;
-        static const char* ext[] = { "", ".state", ".dig" };
+        static const char* ext[] = { "", ".state", ".dig", ".idx" };
         long e;
 
         copystr(nm, fp->name, sizeof(nm));
@@ -669,7 +1066,7 @@ static void migratestore(void)
                 fclose(sf);
 
             }
-            for (e = 0; e < 3; e++) {
+            for (e = 0; e < 4; e++) {
 
                 snprintf(old, sizeof(old), "%.400s/%.150s.mbox%.8s",
                          store, nm, ext[e]);
@@ -730,15 +1127,6 @@ static void renamestore(const char* was, const char* now)
 }
 
 /* every folder in the store, so that a fetch knows what is already here */
-static void loadalldigests(void)
-
-{
-
-    long i;
-
-    for (i = 0; i < foldct; i++) loaddigests(i);
-
-}
 
 /*******************************************************************************
 
@@ -838,6 +1226,7 @@ static void readaccount(void)
         }
         if (!strcasecmp(p, "end")) { r = NULL; continue; }
         if (!strcasecmp(p, "poll")) { pollsec = atol(v); continue; }
+        if (!strcasecmp(p, "sendfrom")) { sendsrv = atol(v); continue; }
         if (!r) { /* the old form: settings before any server line */
 
             if (srvct >= MAXSRV) break;
@@ -891,6 +1280,7 @@ static void writeaccount(void)
     }
     fprintf(f, "# Mail accounts. Written by the Config form in mail.\n");
     fprintf(f, "poll %ld\n", pollsec);
+    fprintf(f, "sendfrom %ld\n", sendsrv);
     for (i = 0; i < srvct; i++) {
 
         fprintf(f, "\nserver %s\n", servers[i].name);
@@ -1606,20 +1996,103 @@ static long parsedate(const char* s, char* show, long sn)
     tm.tm_hour = hour;
     tm.tm_min = min;
     tm.tm_sec = sec;
-    tm.tm_isdst = -1;
-    t = mktime(&tm);
+    /* The zone the sender wrote it in. Without it every message from a
+       server keeping UTC -- which is most of them -- was read as though
+       its clock were ours, and landed hours in the future: mail sent at
+       eight in the evening in London sorted above mail sent here five
+       minutes ago, and a message answered to yourself came back ten rows
+       down the list instead of at the top of it. */
+    {
+
+        const char* z = s;
+        long        off = 0;   /* seconds east of UTC */
+        int         got = FALSE;
+
+        /* the offset comes after the time, as +hhmm or a name */
+        /* four of them: the day, the month, the year and the time, which
+           is one word however many parts it has. Stepping over six --
+           which the first try of this did -- steps over the zone as
+           well, and every message goes back to being read in our own
+           time, which is the fault this is here to fix. */
+        for (i = 0; i < 4 && *z; i++) {
+
+            while (*z == ' ') z++;
+            while (*z && *z != ' ') z++;
+
+        }
+        while (*z == ' ') z++;
+        if (*z == '+' || *z == '-') {
+
+            long hh = 0, mm = 0;
+
+            if (sscanf(z+1, "%2ld%2ld", &hh, &mm) == 2) {
+
+                off = (hh*60+mm)*60;
+                if (*z == '-') off = -off;
+                got = TRUE;
+
+            }
+
+        } else if (isalpha((unsigned char)*z)) {
+
+            static const struct { const char* nm; long off; } zones[] = {
+
+                { "UT", 0 }, { "GMT", 0 }, { "Z", 0 },
+                { "EST", -5 }, { "EDT", -4 }, { "CST", -6 }, { "CDT", -5 },
+                { "MST", -7 }, { "MDT", -6 }, { "PST", -8 }, { "PDT", -7 },
+                { NULL, 0 }
+
+            };
+            long k;
+
+            for (k = 0; zones[k].nm; k++)
+                if (!strncasecmp(z, zones[k].nm, strlen(zones[k].nm))) {
+
+                    off = zones[k].off*3600;
+                    got = TRUE;
+
+                    break;
+
+                }
+
+        }
+        /* timegm reads the fields as UTC, which they are once the
+           sender's offset is taken off them */
+        if (got) {
+
+            tm.tm_isdst = 0;
+            t = timegm(&tm)-off;
+
+        } else { /* no zone: the best that can be done is our own */
+
+            tm.tm_isdst = -1;
+            t = mktime(&tm);
+
+        }
+
+    }
     if (t == (time_t)-1) return (0);
-    /* today gets the time, anything older gets the date */
-    if (now-t < 12*60*60) {
+    /* Shown in our own time, whatever time the sender kept: a message is
+       filed by when it arrived here. */
+    {
 
-        long h12 = hour%12;
+        struct tm lt;
 
-        if (!h12) h12 = 12;
-        snprintf(show, sn, "%ld:%02ld %s", h12, min, hour < 12? "AM": "PM");
+        localtime_r(&t, &lt);
+        if (now-t < 12*60*60) {
 
-    } else if (now-t < 300L*24*60*60)
-        snprintf(show, sn, "%s %ld", months[i], day);
-    else snprintf(show, sn, "%s %ld, %ld", months[i], day, year);
+            long h12 = lt.tm_hour%12;
+
+            if (!h12) h12 = 12;
+            snprintf(show, sn, "%ld:%02d %s", h12, lt.tm_min,
+                     lt.tm_hour < 12? "AM": "PM");
+
+        } else if (now-t < 300L*24*60*60)
+            snprintf(show, sn, "%s %d", months[lt.tm_mon], lt.tm_mday);
+        else snprintf(show, sn, "%s %d, %d", months[lt.tm_mon], lt.tm_mday,
+                      lt.tm_year+1900);
+
+    }
 
     return ((long)t);
 
@@ -1684,11 +2157,18 @@ static void nameof(const char* from, char* name, long nn)
 }
 
 /* write one message to the folder's mbox file */
-static void mboxwrite(const char* file, const char* msg, long len)
+/* Store a message, and say where it went: the offset the message itself
+   begins at, past the separator line, and the length it came out as --
+   which is not the length it went in as, since storing escapes any line
+   that could be mistaken for a separator. Those two are what the index
+   needs to find it again. */
+static long mboxwrite(const char* file, const char* msg, long len,
+                      long* stored)
 
 {
 
     FILE* f = fopen(file, "a");
+    long  off;
     char  from[MAXSTR];
     char  addr[MAXSTR];
     char  date[MAXSTR];
@@ -1697,7 +2177,7 @@ static void mboxwrite(const char* file, const char* msg, long len)
     const char* p;
     const char* e;
 
-    if (!f) { fail("Cannot write to the mail store"); return; }
+    if (!f) { fail("Cannot write to the mail store"); return (-1); }
     findheader(msg, "From", from, sizeof(from));
     addrof(from, addr, sizeof(addr));
     findheader(msg, "Date", date, sizeof(date));
@@ -1710,6 +2190,7 @@ static void mboxwrite(const char* file, const char* msg, long len)
         fprintf(f, "From %s %s", addr, ctime(&t)); /* ctime ends the line */
 
     }
+    off = ftell(f); /* the message itself starts here */
     /* the message, with any line that looks like a separator marked */
     p = msg;
     e = msg+len;
@@ -1725,8 +2206,11 @@ static void mboxwrite(const char* file, const char* msg, long len)
         p = q < e? q+1: e;
 
     }
+    if (stored) *stored = ftell(f)-off;
     fputc('\n', f); /* a blank line ends a message, always */
     fclose(f);
+
+    return (off);
 
 }
 
@@ -1770,26 +2254,26 @@ static void snipof(const char* text, char* snip, long sn)
 }
 
 /* note one message found in the file */
-static void indexmsg(const char* msg, long len, long off)
+/* The index being built. It is built to one side and put in place in one
+   move, because it is built on the fetch thread and the display is
+   reading the one it already has the whole time. */
+
+/* One message. What is passed is as much of it as was kept -- the
+   headers and the beginning of the body, which is all the list shows --
+   while len is the length of the whole thing, which is what reading it
+   later will need. */
+static void fillrec(msgrec* m, const char* msg, long have, long len,
+                    long off, const char* dig)
 
 {
 
-    msgrec* m;
     char    from[MAXSTR];
     char    date[MAXSTR];
     char*   text;
 
-    if (msgct >= msgmax) {
-
-        msgmax = msgmax? msgmax*2: 256;
-        msgs = realloc(msgs, msgmax*sizeof(msgrec));
-        if (!msgs) { fail("Out of memory"); exit(1); }
-
-    }
-    m = &msgs[msgct++];
     m->off = off;
     m->len = len;
-    digestof(msg, len, m->dig);
+    copystr(m->dig, dig, DIGLEN);
     classify(msg, m->cat, sizeof(m->cat));
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
@@ -1799,7 +2283,7 @@ static void indexmsg(const char* msg, long len, long off)
     findheader(msg, "Date", date, sizeof(date));
     m->date = parsedate(date, m->when, sizeof(m->when));
     /* only what the list will show: see decodepart */
-    text = textof(msg, len, SNIPPET*2);
+    text = textof(msg, have, SNIPPET*2);
     snipof(text, m->snip, sizeof(m->snip));
     free(text);
 
@@ -1823,180 +2307,434 @@ static int bydate(const void* a, const void* b)
 /* Read a folder's file and note every message in it. The separator is a
    line beginning "From " that follows a blank line, or the first line of
    the file; anything else beginning "From " is part of a message. */
+/*******************************************************************************
+
+What the worker is doing
+
+None of this is drawn by the worker -- it draws nothing at all. It is
+left here and picked up by the display on its next tick. The words
+change once a folder and the numbers change once a message, so the two
+are kept apart: the display reads a string that is not being rewritten
+under it, and puts the numbers -- single words, which cannot be read
+half-written -- against it itself.
+
+*******************************************************************************/
+
+static void dlock(void);
+static void dunlock(void);
+static void serveindex(void);
+static void servesend(void);
+static int reachable(const char* host, long port, long secs);
+static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
+                    long id, char* face);
+static void appendmenu(ami_menuptr* list, ami_menuptr m);
+static void kickworker(void);
+
+static char wrkwhat[MAXSTR]; /* what is being worked on */
+static long wrkpos;          /* how far into it */
+static long wrkmax;          /* and how big it is */
+static long wrkfolds;        /* the folder pane wants redrawing */
+static long wrklist;         /* and so does the message list */
+static long wrkstop;         /* drop what you are doing */
+static long wrkbusy;         /* it has something in hand just now */
+
+/* Which folder the display wants read, which folder the list it is
+   showing was read from, and how many messages were in it then. The last
+   two are how a fetch knows whether the open folder needs reading again:
+   if nothing landed in it, the list on the screen is still right, and
+   reading four gigabytes to find that out is four gigabytes wasted. */
+static long idxwant = -1;
+static long idxfold = -1;
+static long idxdoing = -1;   /* the folder being read just now */
+
+/* How much of a message is kept for what the list shows: the headers
+   and the start of the body. A mailbox of four gigabytes was being read
+   into one allocation of four gigabytes and every message decoded in
+   full to find forty characters of snippet. */
+#define MSGCAP 65536
+
+/* The digest of a message, taken as the message goes past rather than
+   from a copy of it. It has to agree exactly with digestof(), which
+   works on a whole message in memory: escapes undone, and every newline
+   at the end taken off. The escape is undone at the start of a line
+   only, and the trailing newlines are held back and only given to the
+   digest if something follows them. */
+/* How much of a run of line ends can be held back. The canonical form
+   drops every one of them at the end of a message, so none can be given
+   to the digest until something with content follows -- and a blank line
+   is line ends and nothing else, so a blank line does not settle the
+   question, it lengthens it. Half a kilobyte is more consecutive blank
+   lines than mail has; a message ending in more would be digested a
+   line end too long, and would not match one digested whole. */
+#define PENDMAX 512
+
+typedef struct {
+
+    EVP_MD_CTX* c;
+    char        pend[PENDMAX]; /* line ends held back */
+    long        pendn;
+
+} digrun;
+
+static void digstart(digrun* d)
+
+{
+
+    d->c = EVP_MD_CTX_new();
+    if (!d->c) { fail("Out of memory"); exit(1); }
+    EVP_DigestInit_ex(d->c, EVP_sha256(), NULL);
+    d->pendn = 0;
+
+}
+
+/* one line of it, or one piece of a line too long to come in one */
+static void digline(digrun* d, const char* p, long n, int atbol)
+
+{
+
+    long t;
+
+    if (atbol && n && *p == '>') { /* a line the storing escaped? */
+
+        long j = 0;
+
+        while (j < n && p[j] == '>') j++;
+        if (j+5 <= n && !strncmp(p+j, "From ", 5)) { p++; n--; } /* one off */
+
+    }
+    t = n;
+    while (t && (p[t-1] == '\n' || p[t-1] == '\r')) t--;
+    if (!t) { /* nothing but line ends: hold them with the rest */
+
+        if (d->pendn+n <= PENDMAX) { memcpy(d->pend+d->pendn, p, n);
+                                     d->pendn += n; }
+        else { /* further than can be held: give up holding */
+
+            EVP_DigestUpdate(d->c, d->pend, d->pendn);
+            EVP_DigestUpdate(d->c, p, n);
+            d->pendn = 0;
+
+        }
+
+        return;
+
+    }
+    /* something with content in it: whatever was held really was in the
+       middle of the message after all */
+    if (d->pendn) { EVP_DigestUpdate(d->c, d->pend, d->pendn); d->pendn = 0; }
+    EVP_DigestUpdate(d->c, p, t);
+    if (n-t > 0 && n-t <= PENDMAX) { memcpy(d->pend, p+t, n-t); d->pendn = n-t; }
+
+}
+
+static void digend(digrun* d, char* hex)
+
+{
+
+    unsigned char md[EVP_MAX_MD_SIZE];
+    unsigned int  n = 0;
+    long          i;
+
+    EVP_DigestFinal_ex(d->c, md, &n);
+    EVP_MD_CTX_free(d->c);
+    d->c = NULL;
+    for (i = 0; i < (long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
+    hex[n*2] = 0;
+
+}
+
+/*******************************************************************************
+
+Keeping the indexes across a rebuild of the folder list
+
+Asking the servers what folders they have builds the list again from
+their answers, which throws away everything the old list held --
+including every folder's index. Reading them all back means reading
+every mailbox in the store, and losing them means the digests go with
+them: a fetch straight after a Get Mail would find nothing already here
+and store the whole store a second time. It did, once, and doubled a
+test mailbox before the counts gave it away.
+
+So the indexes are set aside before the list is taken again, and each
+one is given back to whichever folder ends up with its mailbox. What no
+folder claims is let go: its mailbox is not there any more.
+
+*******************************************************************************/
+
+typedef struct {
+
+    char    file[MAXSTR*2];
+    msgrec* idx;
+    long    ct;
+    long    max;
+    long    ok;
+
+} idxkeep;
+
+static idxkeep* kept;
+static long     keptct;
+
+static void idxsetaside(void)
+
+{
+
+    long i;
+
+    free(kept);
+    kept = getmem(sizeof(idxkeep)*(foldct? foldct: 1));
+    keptct = 0;
+    for (i = 0; i < foldct; i++) {
+
+        if (!folders[i].idx) continue;
+        copystr(kept[keptct].file, folders[i].file, MAXSTR*2);
+        kept[keptct].idx = folders[i].idx;
+        kept[keptct].ct = folders[i].idxct;
+        kept[keptct].max = folders[i].idxmax;
+        kept[keptct].ok = folders[i].idxok;
+        keptct++;
+        folders[i].idx = NULL; /* it belongs to the kept list now */
+        folders[i].idxct = 0;
+        folders[i].idxmax = 0;
+        folders[i].idxok = FALSE;
+
+    }
+
+}
+
+static void idxgiveback(void)
+
+{
+
+    long i, j;
+
+    for (i = 0; i < foldct; i++)
+        for (j = 0; j < keptct; j++)
+            if (kept[j].idx && !strcmp(kept[j].file, folders[i].file)) {
+
+                folders[i].idx = kept[j].idx;
+                folders[i].idxct = kept[j].ct;
+                folders[i].idxmax = kept[j].max;
+                folders[i].idxok = kept[j].ok;
+                kept[j].idx = NULL;
+                break;
+
+            }
+    for (j = 0; j < keptct; j++) free(kept[j].idx); /* nobody wanted it */
+    free(kept);
+    kept = NULL;
+    keptct = 0;
+    rehashall(); /* the table names messages by folder, and folders moved */
+
+}
+
+/* A folder has been read, however it was read: from its index file, or
+   from the mailbox, or both. It is put in order, the display is pointed
+   at it, and the table that finds a message by its digest is taken
+   again -- which has to happen on every path, including the one where
+   the index was complete and nothing was read at all. It was missing
+   from exactly that path once, and the whole store lost its dedup: a
+   second fetch stored every message it already had. */
+static void idxdone(long fold)
+
+{
+
+    msgrec* was;
+
+    /* Sorted here, where nothing else can see it. Sorting the array the
+       display is drawing moves the rows out from under it. */
+    qsort(bidx, bct, sizeof(msgrec), bydate);
+    dlock();
+    was = folders[fold].idx;
+    folders[fold].idx = bidx;
+    folders[fold].idxct = bct;
+    folders[fold].idxmax = bmax;
+    folders[fold].msgs = bct;
+    folders[fold].idxok = TRUE;
+    folders[fold].dirty = FALSE;
+    idxfold = fold;
+    useidx(); /* the display's list is the new array from here on */
+    dunlock();
+    /* the array it had is nobody's now */
+    free(was);
+    bidx = NULL;
+    bct = 0;
+    bmax = 0;
+    rehashall();
+
+}
+
+/* Read a folder: its index file if there is a good one, and whatever
+   the mailbox holds past the end of what that names. */
 static void indexfolder(long fold)
 
 {
 
-    FILE* f;
-    char* buf;
-    long  n;
-    long  i, start;
+    FILE*  f;
+    char*  hold;
+    char   line[MAXLINE];
+    char   hex[DIGLEN];
+    digrun dg;
+    long   holdn = 0;
+    long   start = -1;    /* where the message being read began */
+    long   endpos = 0;    /* and where its last line of substance ended */
+    long   pos = 0;       /* where in the file the next piece begins */
+    long   size = 0;
+    long   from = 0;      /* where the reading of the mailbox begins */
+    long   had;           /* how many were already known */
+    int    blank = TRUE;  /* the line before this one held nothing */
+    int    atbol = TRUE;  /* and this piece begins a line */
+    int    stopped = FALSE;
     struct timespec t0;
 
-    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
-    msgct = 0;
-    msgtop = 0;
-    msgsel = -1;
     if (fold < 0) return;
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
+    bct = 0;
+    idxload(fold);
+    had = bct;
+    from = folders[fold].idxok? idxend(): 0;
     f = fopen(folders[fold].file, "r");
-    if (!f) return; /* nothing fetched yet, which is not an error */
+    if (!f) { /* nothing fetched yet, which is not an error */
+
+        dlock();
+        folders[fold].idxct = 0;
+        folders[fold].msgs = 0;
+        idxfold = fold;
+        useidx();
+        dunlock();
+
+        return;
+
+    }
     fseek(f, 0, SEEK_END);
-    n = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    buf = getmem(n+1);
-    n = fread(buf, 1, n, f);
-    buf[n] = 0;
-    fclose(f);
-    start = -1;
-    for (i = 0; i < n; i++) {
+    size = ftell(f);
+    fseek(f, from, SEEK_SET);
+    pos = from;
+    if (size <= from) { /* the index already names all of it */
 
-        int atsep = !strncmp(buf+i, "From ", 5) &&
-                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
-                                (buf[i-2] == '\n' ||
-                                 (buf[i-2] == '\r' && i >= 3 &&
-                                  buf[i-3] == '\n'))));
+        fclose(f);
+        idxdone(fold);
+        if (diag) fprintf(stderr, "index: %s, %ld known, nothing new\n",
+                          folders[fold].name, folders[fold].idxct);
 
-        if (atsep) {
+        return;
 
-            long e = i;
+    }
+    hold = getmem(MSGCAP+1);
+    digstart(&dg);
+    /* Read through a piece at a time. A separator is a line beginning
+       "From " with nothing on the line before it, which is what the
+       storing writes and what it escapes in the messages themselves. A
+       line longer than the buffer comes in pieces, and only the first
+       piece of one begins a line: everything that asks what a line
+       starts with has to ask that first. */
+    while (fgets(line, sizeof(line), f)) {
+
+        long ll = strlen(line);
+        int  sep = atbol && blank && !strncmp(line, "From ", 5);
+
+        if (sep) {
 
             if (start >= 0) {
 
-                /* the message runs to the blank line before this one */
-                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
-                    e--;
-                indexmsg(buf+start, e-start, start);
+                msgrec m;
+
+                digend(&dg, hex);
+                hold[holdn] = 0;
+                fillrec(&m, hold, holdn, endpos-start, start, hex);
+                *bldroom() = m;
+                digstart(&dg);
 
             }
-            /* the message itself begins after the separator line */
-            while (i < n && buf[i] != '\n') i++;
-            start = i+1;
+            start = pos+ll; /* the message begins after the separator */
+            endpos = start;
+            holdn = 0;
+            /* Say how far along, and give up if the reader has asked for
+               another folder: there is no sense reading four gigabytes
+               nobody is waiting for. */
+            if (!(bct%256)) {
+
+                wrkpos = pos-from;
+                wrkmax = size-from;
+                if ((idxwant >= 0 && idxwant != fold) || wrkstop)
+                    { stopped = TRUE; break; }
+
+            }
+
+        } else if (start >= 0) {
+
+            digline(&dg, line, ll, atbol);
+            if (holdn < MSGCAP) {
+
+                long take = ll;
+
+                if (take > MSGCAP-holdn) take = MSGCAP-holdn;
+                memcpy(hold+holdn, line, take);
+                holdn += take;
+
+            }
 
         }
-        while (i < n && buf[i] != '\n') i++;
+        atbol = ll && line[ll-1] == '\n';
+        if (atbol) blank = ll == 1 || (ll == 2 && line[0] == '\r');
+        if (!blank || !atbol) endpos = pos+ll; /* messages do not end blank */
+        pos += ll;
 
     }
-    if (start >= 0 && start < n) {
+    if (start >= 0 && !stopped) { /* the last one */
 
-        long e = n;
+        msgrec m;
 
-        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
-        indexmsg(buf+start, e-start, start);
+        digend(&dg, hex);
+        hold[holdn] = 0;
+        fillrec(&m, hold, holdn, endpos-start, start, hex);
+        *bldroom() = m;
+
+    } else if (dg.c) { digend(&dg, hex); }
+    free(hold);
+    fclose(f);
+    /* What was read is written down: the whole file if it was worked out
+       from nothing, the new lines only if it was added to. */
+    if (!from) idxsave(fold);
+    else {
+
+        long i;
+
+        for (i = had; i < bct; i++) idxappend(fold, &bidx[i]);
 
     }
-    free(buf);
-    qsort(msgs, msgct, sizeof(msgrec), bydate);
-    folders[fold].msgs = msgct;
+    idxdone(fold);
     if (diag) {
 
         struct timespec t1;
 
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        fprintf(stderr, "index: %s, %ld bytes, %ld messages, %.0fms\n",
-                folders[fold].show, n, msgct,
-                (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
+        fprintf(stderr, "index: %s, %ld new of %ld, read from %ld of %ld, "
+                "%.0fms\n", folders[fold].name, folders[fold].idxct-had,
+                folders[fold].idxct, from, size,
+                (t1.tv_sec-t0.tv_sec)*1000.0+(t1.tv_nsec-t0.tv_nsec)/1000000.0);
 
     }
 
 }
 
-/* How many messages are in a folder's file. The file is only counted,
-   not taken apart: the separators are found and nothing else, so a
-   mailbox of sixty megabytes costs a read rather than a parse. The
-   folder being shown is counted exactly by the indexing, which knows;
-   this is for all the others, which the list never touches. */
-static long countfolder(const char* file)
-
-{
-
-    FILE*  f = fopen(file, "r");
-    static const char from[] = "From ";
-    char   buf[65536];
-    long   n = 0;
-    long   got;
-    int    atbol = TRUE;    /* this character starts a line */
-    int    blank = TRUE;    /* the line before it held nothing */
-    int    matching = FALSE; /* a separator is being matched here */
-    long   hold = 0;        /* how much of it has matched */
-
-    if (!f) return (0);
-    while ((got = fread(buf, 1, sizeof(buf), f)) > 0) {
-
-        long i;
-
-        for (i = 0; i < got; i++) {
-
-            char c = buf[i];
-
-            if (c == '\r') continue; /* whatever the line endings are */
-            if (c == '\n') {
-
-                blank = atbol; /* nothing came between the two line ends */
-                atbol = TRUE;
-                matching = FALSE;
-
-                continue;
-
-            }
-            if (atbol) { /* a separator can only begin a line */
-
-                matching = blank;
-                hold = 0;
-                atbol = FALSE;
-
-            }
-            /* The match runs on past the start of the line, which is
-               what the first try of this got wrong: it asked to be at
-               the start of a line for every character of "From " and so
-               never matched more than the F. */
-            if (matching) {
-
-                if (c == from[hold]) { if (++hold == 5) { n++;
-                                                          matching = FALSE; } }
-                else matching = FALSE;
-
-            }
-
-        }
-
-    }
-    fclose(f);
-
-    return (n);
-
-}
-
-/* count every folder that has not been counted */
+/* How many messages a folder holds comes from its index, so asking is
+   free and nothing reads a mailbox to answer it. A folder with no index
+   yet asks for one. */
 static void countfolders(void)
 
 {
 
     long i;
 
-    for (i = 0; i < foldct; i++)
-        folders[i].msgs = countfolder(folders[i].file);
+    for (i = 0; i < foldct; i++) {
+
+        folders[i].msgs = folders[i].idxct;
+        if (!folders[i].idxok) folders[i].wantidx = TRUE;
+
+    }
 
 }
 
-/*******************************************************************************
-
-Local folders
-
-A local folder is a mailbox of the program's own: a file in the store
-with no counterpart on the server, holding messages moved into it by
-hand. The server is never told. This is the local-first model: the
-server keeps what it keeps, and how the mail is organized here is this
-program's business, done with file operations and nothing else.
-
-Local folders are listed under the server's folders, below a rule, and
-their files are named local_* so the two kinds can never be confused.
-
-*******************************************************************************/
-
-/* The directory an account's mailboxes live in, or the one the local
-   folders do. Each account gets its own, so that two accounts with an
-   INBOX each keep them apart without decorating the names, and the
-   directory is made if it is not there. */
 static void srvdir(long srv, char* dn, long dnl)
 
 {
@@ -2173,11 +2911,11 @@ static long movelocal(long fold, const char* dstfile, const char* set)
     fclose(dst);
     fclose(out);
     rename(tmp, folders[fold].file);
-    /* Both mailboxes changed under their digest files, which are taken
-       again from what is there rather than patched, so they cannot drift
-       from it. The digests themselves do not change: a message moved is
-       the same message. */
-    digestfolder(fold);
+    /* This mailbox has been written out again without the messages that
+       left it, so everything after the first of them sits somewhere
+       else. The index is thrown away and taken again from what is
+       actually there. */
+    idxdrop(fold);
 
     return (moved);
 
@@ -2263,7 +3001,7 @@ static void popdraw(void)
 
     fprintf(popwf, "\f");
     /* the edge, so it reads as a card over the list */
-    ami_fcolorc(popwf, 120, 120, 120);
+    ami_fcolorc(popwf, rgb(120), rgb(120), rgb(120));
     ami_line(popwf, 0, 0, w-1, 0);
     ami_line(popwf, 0, h-1, w-1, h-1);
     ami_line(popwf, 0, 0, 0, h-1);
@@ -2405,8 +3143,20 @@ static void popact(long row)
     moved = movelocal(foldsel, folders[dst].file, set);
     free(set);
     msgsel = -1;
-    indexfolder(foldsel);
-    countfolders();
+    /* The counts are worked out rather than counted again: what left
+       this folder arrived in that one, and counting means reading every
+       mailbox in the store through -- gigabytes, to learn a number
+       already known. The folder itself is read again by the worker,
+       since its file has just changed under the list. */
+    folders[foldsel].msgs -= moved;
+    if (folders[foldsel].msgs < 0) folders[foldsel].msgs = 0;
+    folders[dst].msgs += moved;
+    folders[foldsel].dirty = TRUE;
+    folders[dst].dirty = TRUE;
+    msgct = 0;
+    idxfold = -1;
+    idxwant = foldsel;
+    kickworker();
     drawlist();
     drawfolders();
     snprintf(msg, sizeof(msg), "%ld message%s moved to %s -- locally; the "
@@ -2468,6 +3218,67 @@ static void imsend(char* tag, long tn, const char* fmt, ...)
 }
 
 static long netquiet; /* the last read got nothing at all */
+
+/*******************************************************************************
+
+Two threads
+
+The fetching is done on a thread of its own, and the display is left to
+the main one. It has to be: a read from a server can take as long as the
+server feels like taking, and while it did that on the display thread
+the window did not repaint and the mouse did nothing. Timeouts bounded
+that wait; they did not remove it.
+
+The division is simple, and it is worth stating plainly because the
+whole of the locking depends on it.
+
+    The worker owns the network. It opens connections, reads messages,
+    appends them to the mailboxes, writes the digests and the markers,
+    and moves the folder counts up. It draws nothing and calls no
+    graphics function at all.
+
+    The main thread owns the display. Everything it does, it does while
+    handling an event, and it looks at the worker's progress on a timer
+    -- ten times a second, which is faster than the eye and slower than
+    the flicker that redrawing per message would be.
+
+One lock guards what they share: the folder table and the files under
+the store. The main thread holds it for as long as it is handling an
+event and drops it while it waits for the next one, so every click,
+redraw and menu choice is already covered without a lock of its own.
+The worker takes it around the commit of each message -- the append, the
+digest, the count -- which is short, and around anything that rebuilds
+the folder table.
+
+Because the lock is not recursive, it is taken in exactly those two
+places and nowhere else. No helper takes it, so no helper can be called
+from a path that already holds it and deadlock.
+
+*******************************************************************************/
+
+static long datlock;   /* what the two of them share */
+
+static void dlock(void)
+
+{
+
+    if (datlock) ami_lock(datlock);
+
+}
+
+static void dunlock(void)
+
+{
+
+    if (datlock) ami_unlock(datlock);
+
+}
+
+static long wrkstart;  /* the thread has been made */
+static long timerrun;  /* the timer that watches it is going */
+static long wrkdone;   /* it finished, and nobody has noticed yet */
+static long wrkrelist; /* this fetch is to ask what folders there are */
+static long wrkcount;  /* and this one is only to count the store */
 
 /* get one line back, without its line ending */
 static int imline(char* buf, long bn)
@@ -2787,6 +3598,17 @@ static int imapopen(void)
     char          line[MAXLINE];
 
     if (imap) return (TRUE); /* already there */
+    if (!reachable(imapsrv, imapport, 10)) {
+
+        char msg[MAXSTR*2];
+
+        snprintf(msg, sizeof(msg), "Cannot reach %s on port %ld.", imapsrv,
+                 imapport);
+        fail(msg);
+
+        return (FALSE);
+
+    }
     ami_addrnet(imapsrv, &addr);
     imap = ami_opennet(addr, imapport, TRUE);
     if (!imap) { fail("Cannot reach the mail server"); return (FALSE); }
@@ -3104,6 +3926,324 @@ static void b64enc(const char* s, long n, char* d, long dn)
 }
 
 /* Prove the account can send, without sending anything. */
+/*******************************************************************************
+
+Sending
+
+The one thing this program does that reaches out rather than reads. It
+speaks just enough SMTP: a connection, a greeting, a login, who it is
+from, who it is to, and the message itself.
+
+A copy of everything sent is put in a local folder called Sent. That is
+the same rule the rest of the program is built to -- what is here is
+here, in a file, not on somebody's server -- and it means a sent message
+can be read, searched and counted like any other.
+
+*******************************************************************************/
+
+/* Split a list of addresses on commas, giving each in turn. Quoted
+   display names can hold commas, so the split ignores anything inside
+   quotes or angle brackets. */
+static const char* nextaddr(const char* p, char* d, long dl)
+
+{
+
+    long i = 0;
+    int  quote = FALSE;
+    int  angle = FALSE;
+
+    if (!p || !*p) { if (dl) *d = 0; return (NULL); }
+    while (*p == ' ' || *p == ',') p++;
+    while (*p && (quote || angle || *p != ',')) {
+
+        if (*p == '"') quote = !quote;
+        if (*p == '<') angle = TRUE;
+        if (*p == '>') angle = FALSE;
+        if (i < dl-1) d[i++] = *p;
+        p++;
+
+    }
+    if (dl) d[i] = 0;
+    trim(d);
+
+    return (*p? p+1: NULL);
+
+}
+
+/* Something that will do as a message id: the time, a count within the
+   second, and the sending account's domain. */
+static void makemsgid(char* d, long dl)
+
+{
+
+    static long ct;
+    const char* at = sendsrv >= 0 && sendsrv < srvct?
+                     strchr(servers[sendsrv].user, '@'): NULL;
+
+    snprintf(d, dl, "<%ld.%ld.amimail@%s>", (long)time(NULL), ++ct,
+             at? at+1: "localhost");
+
+}
+
+/* the date, as a message header wants it */
+static void makedate(char* d, long dl)
+
+{
+
+    time_t    t = time(NULL);
+    struct tm lt;
+
+    localtime_r(&t, &lt);
+    strftime(d, dl, "%a, %d %b %Y %H:%M:%S %z", &lt);
+
+}
+
+/* Send one message. Gives an empty string if it went, and what went
+   wrong if it did not. The whole of it happens on the fetch thread, so
+   that a server taking its time over a message does not stop the
+   display. */
+static void sendmail(const char* to, const char* cc, const char* subject,
+                     const char* body, const char* inreply,
+                     const char* refs, char* err, long errl)
+
+{
+
+    unsigned long addr;
+    FILE*  f;
+    char   b64[MAXSTR*2];
+    char   one[MAXSTR];
+    char   ssrv[MAXSTR];  /* the sending account's own details, taken
+                             here rather than from whatever the fetch
+                             has open: the two run at once */
+    char   suser[MAXSTR];
+    char   spass[MAXSTR];
+    long   sport;
+    char   msgid[MAXSTR];
+    char   date[MAXSTR];
+    char*  msg;
+    long   msgl;
+    long   o = 0;
+    long   code;
+    const char* p;
+    long   sent = 0;
+
+    *err = 0;
+    if (sendsrv < 0 || sendsrv >= srvct) sendsrv = 0;
+    dlock();
+    copystr(ssrv, servers[sendsrv].smtp, MAXSTR);
+    sport = servers[sendsrv].smtpport;
+    copystr(suser, servers[sendsrv].user, MAXSTR);
+    copystr(spass, servers[sendsrv].pass, MAXSTR);
+    dunlock();
+    if (!*ssrv || !*suser) {
+
+        copystr(err, "No account is set to send from. Config/Servers has a "
+                "box for it, and a sending server to fill in.", errl);
+
+        return;
+
+    }
+    if (!reachable(ssrv, sport, 10)) {
+
+        snprintf(err, errl, "Cannot reach %s on port %ld.\n"
+                 "Check the sending server and its port in Config/Servers. "
+                 "Gmail sends on 465.", ssrv, sport);
+
+        return;
+
+    }
+    ami_addrnet(ssrv, &addr);
+    /* 465 is TLS from the first byte; 587 begins in the clear and turns
+       it on with STARTTLS, which this cannot do through the library's
+       socket, so 465 is the one to use */
+    f = ami_opennet(addr, sport, TRUE);
+    if (!f) { snprintf(err, errl, "Cannot reach %s.", ssrv); return; }
+    {
+
+        struct timeval tv;
+        int            fd = fileno(f);
+
+        tv.tv_sec = NETWAIT;
+        tv.tv_usec = 0;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    }
+    if (smtpresp(f)/100 != 2)
+        { copystr(err, "The sending server did not greet us.", errl);
+          fclose(f); return; }
+    smtpsend(f, "EHLO localhost");
+    if (smtpresp(f)/100 != 2)
+        { copystr(err, "The sending server refused EHLO.", errl);
+          fclose(f); return; }
+    smtpsend(f, "AUTH LOGIN");
+    if (smtpresp(f) != 334)
+        { copystr(err, "The sending server would not start a login.", errl);
+          fclose(f); return; }
+    b64enc(suser, strlen(suser), b64, sizeof(b64));
+    smtpsend(f, "%s", b64);
+    if (smtpresp(f) != 334)
+        { copystr(err, "The sending server refused the user name.", errl);
+          fclose(f); return; }
+    b64enc(spass, strlen(spass), b64, sizeof(b64));
+    if (diag) fprintf(stderr, "> <password>\n");
+    fprintf(f, "%s\r\n", b64);
+    fflush(f);
+    if (smtpresp(f)/100 != 2) {
+
+        copystr(err, "The sending server would not accept the login.\n"
+                "For Gmail this must be an application password.", errl);
+        fclose(f);
+
+        return;
+
+    }
+    smtpsend(f, "MAIL FROM:<%s>", suser);
+    if (smtpresp(f)/100 != 2)
+        { copystr(err, "The sending server would not take the sender.", errl);
+          fclose(f); return; }
+    /* everybody it is going to, whether they are shown or not */
+    for (p = to; (p = nextaddr(p, one, sizeof(one))) || *one; ) {
+
+        char just[MAXSTR];
+
+        if (*one) {
+
+            addrof(one, just, sizeof(just));
+            smtpsend(f, "RCPT TO:<%s>", *just? just: one);
+            if (smtpresp(f)/100 == 2) sent++;
+
+        }
+        if (!p) break;
+
+    }
+    for (p = cc; p && (p = nextaddr(p, one, sizeof(one))) || (cc && *one); ) {
+
+        char just[MAXSTR];
+
+        if (*one) {
+
+            addrof(one, just, sizeof(just));
+            smtpsend(f, "RCPT TO:<%s>", *just? just: one);
+            if (smtpresp(f)/100 == 2) sent++;
+
+        }
+        if (!p) break;
+
+    }
+    if (!sent) {
+
+        copystr(err, "Nobody the message is addressed to was accepted.", errl);
+        smtpsend(f, "QUIT");
+        smtpresp(f);
+        fclose(f);
+
+        return;
+
+    }
+    smtpsend(f, "DATA");
+    if (smtpresp(f) != 354)
+        { copystr(err, "The sending server would not take the message.", errl);
+          fclose(f); return; }
+    makemsgid(msgid, sizeof(msgid));
+    makedate(date, sizeof(date));
+    /* The message itself, headers and all, kept so that the same bytes
+       can be put in the Sent folder as went down the wire. */
+    msgl = strlen(body)+MAXSTR*8;
+    msg = getmem(msgl);
+    o += snprintf(msg+o, msgl-o, "From: %s\r\n", suser);
+    o += snprintf(msg+o, msgl-o, "To: %s\r\n", to);
+    if (cc && *cc) o += snprintf(msg+o, msgl-o, "Cc: %s\r\n", cc);
+    o += snprintf(msg+o, msgl-o, "Subject: %s\r\n", subject);
+    o += snprintf(msg+o, msgl-o, "Date: %s\r\n", date);
+    o += snprintf(msg+o, msgl-o, "Message-ID: %s\r\n", msgid);
+    if (inreply && *inreply) {
+
+        o += snprintf(msg+o, msgl-o, "In-Reply-To: %s\r\n", inreply);
+        o += snprintf(msg+o, msgl-o, "References: %s%s%s\r\n",
+                      refs && *refs? refs: "", refs && *refs? " ": "",
+                      inreply);
+
+    }
+    o += snprintf(msg+o, msgl-o, "MIME-Version: 1.0\r\n");
+    o += snprintf(msg+o, msgl-o,
+                  "Content-Type: text/plain; charset=UTF-8\r\n");
+    o += snprintf(msg+o, msgl-o, "\r\n");
+    /* the body, with every line ending as the wire wants it and any
+       line of a single dot made safe */
+    for (p = body; *p; ) {
+
+        const char* q = p;
+
+        while (*q && *q != '\n') q++;
+        if (q-p == 1 && *p == '.') o += snprintf(msg+o, msgl-o, ".");
+        if (o+(q-p)+3 < msgl) {
+
+            memcpy(msg+o, p, q-p);
+            o += q-p;
+            o += snprintf(msg+o, msgl-o, "\r\n");
+
+        }
+        p = *q? q+1: q;
+
+    }
+    msg[o] = 0;
+    fwrite(msg, 1, o, f);
+    fprintf(f, "\r\n.\r\n");
+    fflush(f);
+    code = smtpresp(f);
+    smtpsend(f, "QUIT");
+    smtpresp(f);
+    fclose(f);
+    if (code/100 != 2) {
+
+        snprintf(err, errl, "The sending server would not take the message.");
+        free(msg);
+
+        return;
+
+    }
+    /* And a copy here, which is the point of the whole program: what is
+       sent is ours as much as what is received. */
+    {
+
+        long fold;
+        char hex[DIGLEN];
+        long off, stored = 0;
+
+        digestof(msg, o, hex);
+        /* The whole of it with the display shut out: making the folder
+           adds to the table the display draws from, and the message
+           itself grows the array the display's list IS. */
+        dlock();
+        fold = localfolder("Sent");
+        if (fold >= 0) {
+
+
+            off = mboxwrite(folders[fold].file, msg, o, &stored);
+            if (off >= 0) {
+
+                msgrec* m = idxroom(fold);
+
+                fillrec(m, msg, o, stored, off, hex);
+                adddigest(fold, folders[fold].idxct-1);
+                idxappend(fold, m);
+                folders[fold].msgs = folders[fold].idxct;
+                folders[fold].dirty = TRUE;
+                useidx();
+
+            }
+
+        }
+        dunlock();
+        wrkfolds = TRUE;
+        wrklist = TRUE;
+
+    }
+    free(msg);
+
+}
+
 static void smtpcheck(void)
 
 {
@@ -3114,6 +4254,17 @@ static void smtpcheck(void)
     char  msg[MAXSTR*2];
     long  code;
 
+    if (!reachable(smtpsrv, smtpport, 10)) {
+
+        char msg[MAXSTR*2];
+
+        snprintf(msg, sizeof(msg), "Cannot reach %s on port %ld.\n"
+                 "Gmail sends on 465.", smtpsrv, smtpport);
+        fail(msg);
+
+        return;
+
+    }
     ami_addrnet(smtpsrv, &addr);
     /* 465 is TLS from the first byte; 587 begins in the clear and turns
        it on with STARTTLS, which this cannot do through the library's
@@ -3211,11 +4362,837 @@ static long scaleback(long pos, long travel)
    window itself -- the folder counts climb while a fetch runs, the list
    says what an empty folder is, and the forms speak for themselves. The
    calls remain as markers of where a quieter program once spoke. */
+static long fitchars(FILE* f, char* s, long w);
+static void commas(long n, char* s, long sl);
+static void divider(FILE* f, long x1, long y1, long x2, long y2);
+static long progw; /* how wide the bar is */
+static long progh; /* and how tall */
+
+/*******************************************************************************
+
+Writing a message
+
+A window with the three fields a message needs and a body to type in.
+The fields are edit boxes, which the library gives us; the body is not,
+since there is no widget for more than one line of text, so it is kept
+and drawn here.
+
+The body is a list of lines and a place in one of them, which is the
+model the editor in this kit uses and the simplest one that behaves the
+way a person expects. Everything that types into it comes to the window
+as an event: a click on an edit box takes the keys away, and a click on
+the body gives them back, which is what the library does with focus and
+what makes the two kinds of field live together.
+
+*******************************************************************************/
+
+#define CMPMAX  20000 /* the longest line worth calling a line */
+
+static FILE*  cmpwf;            /* the window, when it is open */
+static char** cmpline;          /* the body, a line at a time */
+static long   cmpct;            /* how many lines */
+static long   cmpmax;           /* room for how many */
+static long   cmpcl, cmpcc;     /* the caret: which line, which column */
+static long   cmptop;           /* the first line shown */
+static long   cmprows;          /* how many fit */
+static long   cmpy0;            /* where the body starts down the window */
+static long   cmpsbw;           /* the bar beside it */
+static long   cmpfocus;         /* the body has the keys */
+static long   cmpmx, cmpmy;     /* where the mouse is in the window */
+static char   cmpinreply[MAXSTR]; /* what this answers, if it answers */
+static char   cmprefs[MAXSTR*2];
+
+/* The message on show in the reader, in the pieces a reply is made of.
+   Kept when it is opened, since the reply is written from the headers
+   and the text rather than from the file again. */
+static char   redfrom[MAXSTR];
+static char   redto[MAXSTR];
+static char   redcc[MAXSTR];
+static char   redsubj[MAXSTR];
+static char   reddate[MAXSTR];
+static char   redid[MAXSTR];
+static char   redrefs[MAXSTR*2];
+static char*  redtext;
+
+/* room for one more line */
+static void cmproom(long n)
+
+{
+
+    if (n < cmpmax) return;
+    cmpmax = cmpmax? cmpmax*2: 64;
+    while (cmpmax <= n) cmpmax *= 2;
+    cmpline = realloc(cmpline, cmpmax*sizeof(char*));
+    if (!cmpline) { fail("Out of memory"); exit(1); }
+
+}
+
+static void cmpclear(void)
+
+{
+
+    long i;
+
+    for (i = 0; i < cmpct; i++) free(cmpline[i]);
+    cmpct = 0;
+    cmpcl = 0;
+    cmpcc = 0;
+    cmptop = 0;
+
+}
+
+/* put a line in, at a place */
+static void cmpput(long at, const char* text)
+
+{
+
+    long i;
+
+    cmproom(cmpct+1);
+    for (i = cmpct; i > at; i--) cmpline[i] = cmpline[i-1];
+    cmpline[at] = getmem(strlen(text)+1);
+    strcpy(cmpline[at], text);
+    cmpct++;
+
+}
+
+static void cmptake(long at)
+
+{
+
+    long i;
+
+    if (at < 0 || at >= cmpct) return;
+    free(cmpline[at]);
+    for (i = at; i < cmpct-1; i++) cmpline[i] = cmpline[i+1];
+    cmpct--;
+
+}
+
+/* the whole of it, as one string, which is what sending wants */
+static char* cmptext(void)
+
+{
+
+    long  n = 1;
+    long  i;
+    char* t;
+
+    for (i = 0; i < cmpct; i++) n += strlen(cmpline[i])+1;
+    t = getmem(n);
+    *t = 0;
+    for (i = 0; i < cmpct; i++) { strcat(t, cmpline[i]); strcat(t, "\n"); }
+
+    return (t);
+
+}
+
+/*******************************************************************************
+
+The compose window: laying it out, drawing it, and answering it
+
+*******************************************************************************/
+
+static void cmpclose(void)
+
+{
+
+    if (!cmpwf) return;
+    ami_killwidget(cmpwf, CMPTO);
+    ami_killwidget(cmpwf, CMPCC);
+    ami_killwidget(cmpwf, CMPSUB);
+    ami_killwidget(cmpwf, CMPSEND);
+    ami_killwidget(cmpwf, CMPCAN);
+    ami_killwidget(cmpwf, CMPSB);
+    fclose(cmpwf); /* which is how a window is closed here */
+    cmpwf = NULL;
+    cmpclear();
+
+}
+
+/* how many lines of the body are on show */
+static long cmpvis(void)
+
+{
+
+    long n = (ami_maxyg(cmpwf)-cmpy0-8)/chrh;
+
+    return (n < 1? 1: n);
+
+}
+
+static void cmpbar(void)
+
+{
+
+    if (cmpct > cmpvis())
+        ami_scrollsiz(cmpwf, CMPSB, fullscale(cmpvis(), cmpct));
+    else ami_scrollsiz(cmpwf, CMPSB, INT_MAX);
+    ami_scrollpos(cmpwf, CMPSB, fullscale(cmptop, cmpct-1));
+
+}
+
+/* the body, and the caret in it */
+static void cmpdraw(void)
+
+{
+
+    long i;
+    long y;
+
+    if (!cmpwf) return;
+    ami_fcolor(cmpwf, ami_white);
+    ami_frect(cmpwf, 1, cmpy0, ami_maxxg(cmpwf)-cmpsbw-2, ami_maxyg(cmpwf));
+    ami_fcolor(cmpwf, ami_black);
+    cmprows = cmpvis();
+    if (cmpcl < cmptop) cmptop = cmpcl;
+    if (cmpcl >= cmptop+cmprows) cmptop = cmpcl-cmprows+1;
+    if (cmptop < 0) cmptop = 0;
+    y = cmpy0+4;
+    for (i = cmptop; i < cmpct && i < cmptop+cmprows; i++) {
+
+        ami_cursorg(cmpwf, 8, y);
+        fprintf(cmpwf, "%s", cmpline[i]);
+        if (i == cmpcl && cmpfocus) { /* the caret, where the typing goes */
+
+            char  upto[CMPMAX];
+            long  x;
+
+            copystr(upto, cmpline[i], sizeof(upto));
+            if (cmpcc < (long)strlen(upto)) upto[cmpcc] = 0;
+            x = 8+ami_strsiz(cmpwf, upto);
+            ami_fcolorc(cmpwf, rgb(200), rgb(40), rgb(40));
+            ami_linewidth(cmpwf, 2);
+            ami_line(cmpwf, x, y, x, y+chrh);
+            ami_linewidth(cmpwf, 1);
+            ami_fcolor(cmpwf, ami_black);
+
+        }
+        y += chrh;
+
+    }
+    cmpbar();
+
+}
+
+static void cmplay(void)
+
+{
+
+    long chrw = ami_strsiz(cmpwf, "0");
+    long labw = ami_strsiz(cmpwf, "Subject  ");
+    long ew, eh, bw, bh;
+    long y;
+    static const char* lab[] = { "To", "Cc", "Subject" };
+    static const long  wid[] = { CMPTO, CMPCC, CMPSUB };
+    long i;
+
+    ami_editboxsizg(cmpwf, "0", &ew, &eh);
+    ami_buttonsizg(cmpwf, "Cancel", &bw, &bh);
+    fprintf(cmpwf, "\f");
+    ami_fcolor(cmpwf, ami_black);
+    y = chrh/2;
+    for (i = 0; i < 3; i++) {
+
+        ami_cursorg(cmpwf, chrw, y+(eh-chrh)/2);
+        fprintf(cmpwf, "%s", lab[i]);
+        ami_poswidgetg(cmpwf, wid[i], chrw+labw, y);
+        ami_sizwidgetg(cmpwf, wid[i], ami_maxxg(cmpwf)-labw-chrw*2, eh);
+        y += eh+chrh/4;
+
+    }
+    y += chrh/4;
+    ami_poswidgetg(cmpwf, CMPSEND, chrw+labw, y);
+    ami_sizwidgetg(cmpwf, CMPSEND, bw, bh);
+    ami_poswidgetg(cmpwf, CMPCAN, chrw+labw+bw+chrw*2, y);
+    ami_sizwidgetg(cmpwf, CMPCAN, bw, bh);
+    y += bh+chrh/2;
+    /* the line that says the message begins here */
+    divider(cmpwf, 1, y, ami_maxxg(cmpwf), y);
+    cmpy0 = y+2;
+    ami_poswidgetg(cmpwf, CMPSB, ami_maxxg(cmpwf)-cmpsbw, cmpy0);
+    ami_sizwidgetg(cmpwf, CMPSB, cmpsbw, ami_maxyg(cmpwf)-cmpy0);
+    cmpdraw();
+
+}
+
+/* Open it, with whatever is already known filled in: a reply comes with
+   everything but the words. */
+static void cmpopen(const char* to, const char* cc, const char* subject,
+                    const char* body, const char* inreply, const char* refs)
+
+{
+
+    long wx, wy;
+    const char* p;
+
+    if (cmpwf) { ami_front(cmpwf); return; } /* one at a time */
+    ami_openwin(&stdin, &cmpwf, NULL, CMPWIN);
+    ami_title(cmpwf, "Write a message");
+    ami_auto(cmpwf, FALSE);
+    ami_curvis(cmpwf, FALSE);
+    ami_font(cmpwf, AMI_FONT_SIGN);
+    ami_setpoints(cmpwf, 11.0);
+    ami_binvis(cmpwf);
+    ami_winclientg(cmpwf, ami_strsiz(cmpwf, "0")*90, chrh*34, &wx, &wy,
+                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsizg(cmpwf, wx, wy);
+    {
+
+        long ew, eh, bw, bh;
+
+        ami_editboxsizg(cmpwf, "0", &ew, &eh);
+        ami_buttonsizg(cmpwf, "Cancel", &bw, &bh);
+        ami_editboxg(cmpwf, 1, 1, 100, 1+eh, CMPTO);
+        ami_editboxg(cmpwf, 1, 1, 100, 1+eh, CMPCC);
+        ami_editboxg(cmpwf, 1, 1, 100, 1+eh, CMPSUB);
+        ami_buttong(cmpwf, 1, 1, 1+bw, 1+bh, "Send", CMPSEND);
+        ami_buttong(cmpwf, 1, 1, 1+bw, 1+bh, "Cancel", CMPCAN);
+        ami_scrollvertsizg(cmpwf, &cmpsbw, &eh);
+        ami_scrollvertg(cmpwf, 1, 1, cmpsbw, chrh*10, CMPSB);
+
+    }
+    ami_putwidgettext(cmpwf, CMPTO, (char*)(to? to: ""));
+    ami_putwidgettext(cmpwf, CMPCC, (char*)(cc? cc: ""));
+    ami_putwidgettext(cmpwf, CMPSUB, (char*)(subject? subject: ""));
+    copystr(cmpinreply, inreply? inreply: "", sizeof(cmpinreply));
+    copystr(cmprefs, refs? refs: "", sizeof(cmprefs));
+    /* the body, broken where its lines break */
+    cmpclear();
+    for (p = body? body: ""; ; ) {
+
+        const char* q = p;
+        char        one[CMPMAX];
+        long        n;
+
+        while (*q && *q != '\n') q++;
+        n = q-p;
+        if (n > CMPMAX-1) n = CMPMAX-1;
+        memcpy(one, p, n);
+        one[n] = 0;
+        while (n && (one[n-1] == '\r')) one[--n] = 0;
+        cmpput(cmpct, one);
+        if (!*q) break;
+        p = q+1;
+
+    }
+    if (!cmpct) cmpput(0, "");
+    cmpcl = 0;
+    cmpcc = 0;
+    cmpfocus = TRUE;
+    cmplay();
+
+}
+
+/* one character into the line the caret is on */
+static void cmpins(char c)
+
+{
+
+    char* l = cmpline[cmpcl];
+    long  n = strlen(l);
+    char* d;
+
+    if (n+2 > CMPMAX) return;
+    d = getmem(n+2);
+    memcpy(d, l, cmpcc);
+    d[cmpcc] = c;
+    strcpy(d+cmpcc+1, l+cmpcc);
+    free(cmpline[cmpcl]);
+    cmpline[cmpcl] = d;
+    cmpcc++;
+
+}
+
+/* the line broken where the caret is */
+static void cmpsplit(void)
+
+{
+
+    char* l = cmpline[cmpcl];
+    char* rest = getmem(strlen(l+cmpcc)+1);
+
+    strcpy(rest, l+cmpcc);
+    l[cmpcc] = 0;
+    cmpput(cmpcl+1, rest);
+    free(rest);
+    cmpcl++;
+    cmpcc = 0;
+
+}
+
+/* and joined to the one after it */
+static void cmpjoin(long at)
+
+{
+
+    char* a;
+    char* b;
+    char* d;
+
+    if (at < 0 || at+1 >= cmpct) return;
+    a = cmpline[at];
+    b = cmpline[at+1];
+    d = getmem(strlen(a)+strlen(b)+1);
+    strcpy(d, a);
+    strcat(d, b);
+    free(cmpline[at]);
+    cmpline[at] = d;
+    cmptake(at+1);
+
+}
+
+/* Everything typed into the body. The fields beside it are edit boxes
+   and answer for themselves; this is the part with no widget to do it. */
+static void cmpkey(ami_evtrec* er)
+
+{
+
+    long n = (long)strlen(cmpline[cmpcl]);
+
+    switch (er->etype) {
+
+        case ami_etchar:
+            if (er->echar >= ' ' && er->echar < 0x7f) cmpins(er->echar);
+            break;
+        case ami_etenter: cmpsplit(); break;
+        case ami_ettab: { long i; for (i = 0; i < 4; i++) cmpins(' '); break; }
+        case ami_etdelcb: /* backspace: within the line, or the break above */
+            if (cmpcc > 0) {
+
+                char* l = cmpline[cmpcl];
+
+                memmove(l+cmpcc-1, l+cmpcc, strlen(l+cmpcc)+1);
+                cmpcc--;
+
+            } else if (cmpcl > 0) {
+
+                cmpcc = strlen(cmpline[cmpcl-1]);
+                cmpjoin(cmpcl-1);
+                cmpcl--;
+
+            }
+            break;
+        case ami_etdelcf:
+            if (cmpcc < n) {
+
+                char* l = cmpline[cmpcl];
+
+                memmove(l+cmpcc, l+cmpcc+1, strlen(l+cmpcc+1)+1);
+
+            } else cmpjoin(cmpcl);
+            break;
+        case ami_etdell:
+            if (cmpct > 1) { cmptake(cmpcl); if (cmpcl >= cmpct) cmpcl = cmpct-1; }
+            else { free(cmpline[0]); cmpline[0] = getmem(1); *cmpline[0] = 0; }
+            cmpcc = 0;
+            break;
+        case ami_etleft:
+            if (cmpcc > 0) cmpcc--;
+            else if (cmpcl > 0) { cmpcl--; cmpcc = strlen(cmpline[cmpcl]); }
+            break;
+        case ami_etright:
+            if (cmpcc < n) cmpcc++;
+            else if (cmpcl < cmpct-1) { cmpcl++; cmpcc = 0; }
+            break;
+        case ami_etup: if (cmpcl > 0) cmpcl--; break;
+        case ami_etdown: if (cmpcl < cmpct-1) cmpcl++; break;
+        case ami_etpagu: cmpcl -= cmpvis()-1; if (cmpcl < 0) cmpcl = 0; break;
+        case ami_etpagd:
+            cmpcl += cmpvis()-1;
+            if (cmpcl > cmpct-1) cmpcl = cmpct-1;
+            break;
+        case ami_ethomel: case ami_ethomes: cmpcc = 0; break;
+        case ami_etendl: case ami_etends: cmpcc = strlen(cmpline[cmpcl]); break;
+        case ami_ethome: cmpcl = 0; cmpcc = 0; break;
+        case ami_etend:
+            cmpcl = cmpct-1;
+            cmpcc = strlen(cmpline[cmpcl]);
+            break;
+        default: return;
+
+    }
+    /* the caret cannot stand past the end of the line it is on */
+    n = (long)strlen(cmpline[cmpcl]);
+    if (cmpcc > n) cmpcc = n;
+    cmpdraw();
+
+}
+
+/* Send what has been written. The sending itself is network and slow,
+   so it is handed to the fetch thread; this only gathers it up. */
+static void cmpdosend(void)
+
+{
+
+    char  to[MAXSTR], cc[MAXSTR], sub[MAXSTR];
+    char* body;
+
+    ami_getwidgettext(cmpwf, CMPTO, to, sizeof(to));
+    ami_getwidgettext(cmpwf, CMPCC, cc, sizeof(cc));
+    ami_getwidgettext(cmpwf, CMPSUB, sub, sizeof(sub));
+    trim(to);
+    if (!*to) { fail("There is nobody to send it to."); return; }
+    body = cmptext();
+    /* No lock here: this runs while the display is handling an event,
+       and the display holds the lock for the whole of that. Taking it
+       again is a thread waiting for itself, which is what the library
+       calls a deadlock avoided and what it stops the program for. */
+    copystr(outto, to, sizeof(outto));
+    copystr(outcc, cc, sizeof(outcc));
+    copystr(outsub, sub, sizeof(outsub));
+    free(outbody);
+    outbody = body;
+    copystr(outinreply, cmpinreply, sizeof(outinreply));
+    copystr(outrefs, cmprefs, sizeof(outrefs));
+    sendwant = TRUE;
+    kickworker();
+    status("Sending...");
+    cmpclose();
+
+}
+
+static void cmpevent(ami_evtrec* er)
+
+{
+
+    switch (er->etype) {
+
+        case ami_etterm: cmpclose(); break;
+        case ami_etresize:
+            ami_sizbufg(cmpwf, er->rszxg, er->rszyg);
+            cmplay();
+            break;
+        case ami_etredraw: cmplay(); break;
+        case ami_etbutton:
+            if (er->butid == CMPSEND) cmpdosend();
+            else if (er->butid == CMPCAN) cmpclose();
+            break;
+        case ami_etmouba:
+            /* A click in the body is what gives the keys back to the
+               window after an edit box has had them, and it puts the
+               caret where it was clicked. */
+            if (er->amoubn == 1 && cmpmy >= cmpy0) {
+
+                long l = cmptop+(cmpmy-cmpy0-4)/chrh;
+
+                cmpfocus = TRUE;
+                if (l < 0) l = 0;
+                if (l > cmpct-1) l = cmpct-1;
+                cmpcl = l;
+                { /* the column the click landed nearest */
+
+                    char upto[CMPMAX];
+                    long i;
+
+                    copystr(upto, cmpline[cmpcl], sizeof(upto));
+                    for (i = 0; upto[i]; i++) {
+
+                        char c = upto[i+1];
+
+                        upto[i+1] = 0;
+                        if (8+ami_strsiz(cmpwf, upto) > cmpmx) break;
+                        upto[i+1] = c;
+
+                    }
+                    cmpcc = i;
+
+                }
+                cmpdraw();
+
+            } else if (er->amoubn == 1) cmpfocus = FALSE;
+            break;
+        case ami_etmoumovg: cmpmx = er->moupxg; cmpmy = er->moupyg; break;
+        case ami_etsclull: cmptop--; if (cmptop < 0) cmptop = 0; cmpdraw(); break;
+        case ami_etscldrl: cmptop++; cmpdraw(); break;
+        case ami_etsclulp: cmptop -= cmpvis()-1; cmpdraw(); break;
+        case ami_etscldrp: cmptop += cmpvis()-1; cmpdraw(); break;
+        case ami_etsclpos:
+            cmptop = scaleback(er->sclpos, cmpct-1);
+            cmpdraw();
+            break;
+        default: cmpkey(er); break;
+
+    }
+
+}
+
+/*******************************************************************************
+
+The banner
+
+A band across the top under the menu: the program's name at the left in
+large type, and at the right the picture that goes with it. It is a
+window of its own, like the panes, so it is placed and drawn in one
+space and answers for its own redrawing.
+
+The picture is a bitmap beside the program, since that is the one form
+the library reads. It is loaded once; if it is not found the banner is
+the name alone, which is a banner still.
+
+*******************************************************************************/
+
+static FILE* banwf;    /* the banner is a pane, like the others */
+static long  banh;     /* how tall it is */
+static long  picw;     /* the picture, at the size it was made */
+static long  pich;
+static long  havepic;
+
+/* Can this server be reached at all?
+
+   The library treats a connection it cannot make as an error, and an
+   error stops the program: ami_opennet does not come back to say no. A
+   mail program meets servers that are down -- a wrong port in a form, a
+   host that has moved, a network that is not there -- and it must go on
+   meeting them, so the connection is tried here first with a plain
+   socket, and the library is only asked for one that is going to work.
+
+   The try is made without blocking and given a few seconds, since the
+   whole point is not to hang on a host that is not answering. */
+static int reachable(const char* host, long port, long secs)
+
+{
+
+    struct addrinfo  hints;
+    struct addrinfo* res = NULL;
+    struct addrinfo* p;
+    char             portstr[16];
+    int              ok = FALSE;
+
+    if (!host || !*host) return (FALSE);
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET; /* which is what the library speaks */
+    hints.ai_socktype = SOCK_STREAM;
+    snprintf(portstr, sizeof(portstr), "%ld", port);
+    if (getaddrinfo(host, portstr, &hints, &res)) return (FALSE);
+    for (p = res; p && !ok; p = p->ai_next) {
+
+        int            sk = socket(p->ai_family, SOCK_STREAM, 0);
+        int            fl;
+        struct timeval tv;
+        fd_set         wr;
+
+        if (sk < 0) continue;
+        fl = fcntl(sk, F_GETFL, 0);
+        fcntl(sk, F_SETFL, fl|O_NONBLOCK);
+        if (!connect(sk, p->ai_addr, p->ai_addrlen)) ok = TRUE;
+        else if (errno == EINPROGRESS) {
+
+            FD_ZERO(&wr);
+            FD_SET(sk, &wr);
+            tv.tv_sec = secs;
+            tv.tv_usec = 0;
+            if (select(sk+1, NULL, &wr, NULL, &tv) > 0) {
+
+                int       e = 0;
+                socklen_t el = sizeof(e);
+
+                if (!getsockopt(sk, SOL_SOCKET, SO_ERROR, &e, &el) && !e)
+                    ok = TRUE;
+
+            }
+
+        }
+        close(sk);
+
+    }
+    freeaddrinfo(res);
+    if (!ok && diag) fprintf(stderr, "! cannot reach %s port %ld\n", host, port);
+
+    return (ok);
+
+}
+
+/* Something kept beside the program: the categories, the help, the
+   picture. Looked for where the program is, then where the source is,
+   so that it works run from anywhere and from the build directory. */
+static int resfile(const char* leaf, char* path, long pl)
+
+{
+
+    char  dir[MAXSTR];
+    char* e;
+    FILE* f;
+    long  i;
+
+    dir[0] = 0;
+    if (mailprog) {
+
+        snprintf(dir, sizeof(dir), "%s", mailprog);
+        e = strrchr(dir, '/');
+        if (e) e[1] = 0; else dir[0] = 0;
+
+    }
+    for (i = 0; i < 4; i++) {
+
+        if (i == 0) snprintf(path, pl, "%s%s", dir, leaf);
+        else if (i == 1) snprintf(path, pl, "%s../graph_programs/%s", dir, leaf);
+        else if (i == 2) snprintf(path, pl, "%s", leaf);
+        else snprintf(path, pl, "graph_programs/%s", leaf);
+        f = fopen(path, "r");
+        if (f) { fclose(f); return (TRUE); }
+
+    }
+
+    return (FALSE);
+
+}
+
+static void drawbanner(void)
+
+{
+
+    long y;
+
+    if (!banwf) return;
+    ami_bcolorc(banwf, rgb(255), rgb(255), rgb(255));
+    fprintf(banwf, "\f");
+    /* the name, at the left, set in the middle of the band */
+    ami_fcolorc(banwf, rgb(40), rgb(40), rgb(60));
+    ami_cursorg(banwf, 16, (banh-ami_chrsizy(banwf))/2);
+    fprintf(banwf, "Ami Mail");
+    ami_fcolor(banwf, ami_black);
+    /* and the picture at the right, at the size it was made */
+    if (havepic)
+        ami_picture(banwf, BANPIC, ami_maxxg(banwf)-picw-16, (banh-pich)/2,
+                    ami_maxxg(banwf)-16, (banh-pich)/2+pich);
+    /* Two lines under it, which is what says the banner is not part of
+       what is below it. */
+    y = banh-4;
+    ami_fcolorc(banwf, rgb(120), rgb(120), rgb(140));
+    ami_linewidth(banwf, 2);
+    ami_line(banwf, 1, y, ami_maxxg(banwf), y);
+    ami_line(banwf, 1, y+4, ami_maxxg(banwf), y+4);
+    ami_linewidth(banwf, 1);
+    ami_fcolor(banwf, ami_black);
+
+}
+
+/*******************************************************************************
+
+The status bar
+
+Anything that takes longer than an instant says so. The line at the foot
+of the window carries what is being done and, when the work has a known
+size, a bar showing how far along it is.
+
+The measure is the event horizon: about a thirtieth of a second, the
+point at which a delay stops being instantaneous and becomes a wait. A
+program that goes quiet across a wait cannot be told from one that has
+fallen over -- which is exactly what a fetch of seventy thousand
+messages looked like before there was a thread to fetch on and a line to
+say so.
+
+*******************************************************************************/
+
+static char statsaid[MAXSTR]; /* what the line says now */
+static long stath;            /* how tall the strip is */
+static long statmax;          /* the size of the job, or none if not known */
+static long statpos;          /* and how far into it */
+
+/* the strip's own drawing, text and all */
+/* The strip is a band at the foot of the main window, in the room the
+   panes are laid out to leave.
+
+   Everything in it is drawn -- the band, the words and the bar -- and
+   nothing in it is a widget. A bar drawn beside the words it belongs to
+   is four lines of code, needs no window of its own, and is placed by
+   the same arithmetic as everything else in the strip. Everything in it is drawn -- the band,
+   the words and the bar -- and nothing in it is a widget.
+
+   The bar was a widget to begin with, and it cost two days to learn why
+   it should not be. A widget is a window of its own, placed in its own
+   right, and in a window carrying a menu what is placed and what is
+   drawn do not land in the same place. Drawing a bar is four lines of
+   code and puts it exactly where the words beside it are. */
+static void drawstatus(void)
+
+{
+
+    long y = ami_maxyg(stdout)-stath;         /* at the foot */
+    long bx = ami_maxxg(stdout)-progw-8;
+    long by = y+(stath-progh)/2;
+
+    /* the band, laid down as one line as thick as the strip: a filled
+       rectangle does not paint in this window, a line does */
+    ami_fcolorc(stdout, rgb(245), rgb(245), rgb(245));
+    ami_linewidth(stdout, stath);
+    ami_line(stdout, 1, y+stath/2, ami_maxxg(stdout), y+stath/2);
+    ami_linewidth(stdout, 1);
+    ami_fcolor(stdout, ami_black);
+    divider(stdout, 1, y, ami_maxxg(stdout), y);
+    if (*statsaid) {
+
+        char t[MAXSTR];
+
+        copystr(t, statsaid, sizeof(t));
+        /* it shares the strip with the bar, and never writes over it */
+        fitchars(stdout, t, bx-16);
+        ami_cursorg(stdout, 8, y+(stath-chrh)/2+1);
+        ami_fcolorc(stdout, rgb(80), rgb(80), rgb(80));
+        fprintf(stdout, "%s", t);
+        ami_fcolor(stdout, ami_black);
+
+    }
+    /* the bar: what is done, then what is left, then a line round both */
+    if (statmax > 0) {
+
+        long w = progw*statpos/statmax;
+
+        if (w > 0) {
+
+            ami_fcolorc(stdout, rgb(120), rgb(60), rgb(130));
+            ami_linewidth(stdout, progh-2);
+            ami_line(stdout, bx+1, by+progh/2, bx+w, by+progh/2);
+
+        }
+        if (w < progw) {
+
+            ami_fcolorc(stdout, rgb(225), rgb(225), rgb(225));
+            ami_linewidth(stdout, progh-2);
+            ami_line(stdout, bx+w+1, by+progh/2, bx+progw, by+progh/2);
+
+        }
+        ami_linewidth(stdout, 1);
+        ami_fcolorc(stdout, rgb(150), rgb(150), rgb(150));
+        ami_rect(stdout, bx, by, bx+progw, by+progh);
+        ami_fcolor(stdout, ami_black);
+
+    }
+
+}
+
 static void status(const char* s)
 
 {
 
-    (void)s;
+    if (!s) s = "";
+    if (!strcmp(s, statsaid)) return; /* it already says that */
+    copystr(statsaid, s, sizeof(statsaid));
+    drawstatus();
+
+}
+
+/* How far along, from nothing to all of it. The widget takes the whole
+   range of a long, so the fraction is worked out in that range rather
+   than in percent, which would step the bar in hundredths. */
+static void statprog(long pos, long max)
+
+{
+
+    if (max <= 0) { /* no size to it: there is no bar */
+
+        if (statmax) { statmax = 0; statpos = 0; drawstatus(); }
+
+        return;
+
+    }
+    if (pos < 0) pos = 0;
+    if (pos > max) pos = max;
+    if (statmax == max && statpos == pos) return; /* it is already there */
+    statmax = max;
+    statpos = pos;
+    drawstatus();
 
 }
 
@@ -3282,7 +5259,7 @@ static void divider(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
-    ami_fcolorc(f, 180, 180, 180);
+    ami_fcolorc(f, rgb(180), rgb(180), rgb(180));
     ami_linewidth(f, 2);
     ami_line(f, x1, y1, x2, y2);
     ami_linewidth(f, 1);
@@ -3411,7 +5388,7 @@ static void drawfolders(void)
 
             ami_fcolor(foldwf, ami_white);
             ami_frect(foldwf, 0, y-2, w, y+chrh);
-            ami_fcolorc(foldwf, 130, 130, 130);
+            ami_fcolorc(foldwf, rgb(130), rgb(130), rgb(130));
             ami_cursorg(foldwf, 8, y);
             fprintf(foldwf, "%s", srv >= 0? "(not fetched)": "(none yet)");
             ami_fcolor(foldwf, ami_black);
@@ -3465,7 +5442,7 @@ static void drawmsg(long i, long y)
        it is there to be glanced past, not read */
     copystr(s, m->cat, sizeof(s));
     clipstr(listwf, s, catx-fromx-16);
-    ami_fcolorc(listwf, 110, 110, 110);
+    ami_fcolorc(listwf, rgb(110), rgb(110), rgb(110));
     ami_cursorg(listwf, fromx+8, y);
     fprintf(listwf, "%s", s);
     ami_fcolor(listwf, ami_black);
@@ -3676,9 +5653,16 @@ static void drawlist(void)
     if (!msgct) {
 
         ami_cursorg(listwf, 8, y);
-        fprintf(listwf, "Nothing in %s yet. Mail/Fetch reads the server.",
-                folders[foldsel].show);
-    
+        /* An empty list means one of two things and they are not alike:
+           there is nothing in the folder, or there is and it has not
+           been read yet. Four gigabytes takes half a minute to read, and
+           for that half minute the reader should not be told the folder
+           is empty. */
+        if (idxwant == foldsel || idxdoing == foldsel)
+            fprintf(listwf, "Reading %s...", folders[foldsel].show);
+        else fprintf(listwf, "Nothing in %s yet. Mail/Fetch reads the "
+                     "server.", folders[foldsel].show);
+
         return;
 
     }
@@ -3722,6 +5706,23 @@ Reading one message
 *******************************************************************************/
 
 /* wrap the message to the window it is being read in */
+/* one more line for the reader to show */
+static void readput(const char* s)
+
+{
+
+    if (readlines >= readmax) {
+
+        readmax = readmax? readmax*2: 200;
+        readline = realloc(readline, readmax*sizeof(char*));
+        if (!readline) { fail("Out of memory"); exit(1); }
+
+    }
+    readline[readlines] = getmem(strlen(s)+1);
+    strcpy(readline[readlines++], s);
+
+}
+
 static void wrapread(void)
 
 {
@@ -3746,6 +5747,20 @@ static void wrapread(void)
         memcpy(line, p, n);
         line[n] = 0;
         while (n && (line[n-1] == '\r' || line[n-1] == ' ')) line[--n] = 0;
+        if (!*line) {
+
+            /* A blank line is a line and nothing more. It cannot go
+               round the breaking loop below: nothing fits in no width,
+               so that loop takes its one character from past the end of
+               the string -- and what is past the end is whatever the
+               line before left in the buffer. Every blank line in every
+               message was followed by a ghost of the line above it. */
+            readput("");
+            p = *e? e+1: e;
+
+            continue;
+
+        }
         /* a line too long for the window is broken at a space */
         do {
 
@@ -3769,15 +5784,7 @@ static void wrapread(void)
                loop that takes nothing off the front of the line never
                reaches the end of it. */
             if (cut < 1) { cut = 1; part[1] = 0; }
-            if (readlines >= readmax) {
-
-                readmax = readmax? readmax*2: 200;
-                readline = realloc(readline, readmax*sizeof(char*));
-                if (!readline) { fail("Out of memory"); exit(1); }
-
-            }
-            readline[readlines] = getmem(strlen(part)+1);
-            strcpy(readline[readlines++], part);
+            readput(part);
             memmove(line, line+cut, strlen(line+cut)+1);
             while (*line == ' ') memmove(line, line+1, strlen(line));
 
@@ -3908,6 +5915,157 @@ static void showread(void)
 }
 
 /* open a message to be read: the headers worth showing, then the text */
+/* Quote what is being answered, the way mail has quoted since there was
+   mail: the sender and the date, then the text with a > before every
+   line of it. */
+static char* quoted(const char* who, const char* when, const char* text,
+                    int mark)
+
+{
+
+    long  n = strlen(text)*2+MAXSTR*2+64;
+    char* d = getmem(n);
+    long  o = 0;
+    const char* p;
+
+    if (mark) o += snprintf(d+o, n-o, "On %s, %s wrote:\n", when, who);
+    for (p = text; *p; ) {
+
+        const char* q = p;
+
+        while (*q && *q != '\n') q++;
+        if (o+(q-p)+4 < n) {
+
+            if (mark) { d[o++] = '>'; if (q > p) d[o++] = ' '; }
+            memcpy(d+o, p, q-p);
+            o += q-p;
+            d[o++] = '\n';
+
+        }
+        p = *q? q+1: q;
+
+    }
+    d[o] = 0;
+
+    return (d);
+
+}
+
+/* Answer it, answer everybody on it, or pass it on. */
+static void answer(long what)
+
+{
+
+    char  subj[MAXSTR*2];
+    char  to[MAXSTR*2];
+    char  cc[MAXSTR*2];
+    char* body;
+    char  who[MAXSTR];
+
+    if (!readwf) return;
+    nameof(redfrom, who, sizeof(who));
+    if (!*who) copystr(who, redfrom, sizeof(who));
+    *cc = 0;
+    if (what == MENUFWD) {
+
+        snprintf(subj, sizeof(subj), "%s%s",
+                 strncasecmp(redsubj, "Fwd:", 4)? "Fwd: ": "", redsubj);
+        *to = 0;
+        body = quoted(who, reddate, redtext? redtext: "", FALSE);
+        {   /* what is passed on says what it was */
+
+            char* d = getmem(strlen(body)+MAXSTR*4);
+
+            sprintf(d, "\n---------- Forwarded message ----------\n"
+                    "From: %s\nDate: %s\nSubject: %s\nTo: %s\n\n%s",
+                    redfrom, reddate, redsubj, redto, body);
+            free(body);
+            body = d;
+
+        }
+
+    } else {
+
+        snprintf(subj, sizeof(subj), "%s%s",
+                 strncasecmp(redsubj, "Re:", 3)? "Re: ": "", redsubj);
+        /* the answer goes to whoever wrote it */
+        addrof(redfrom, to, sizeof(to));
+        if (!*to) copystr(to, redfrom, sizeof(to));
+        if (what == MENUREPALL) {
+
+            /* and to everybody it was sent to, less ourselves: answering
+               everybody does not mean answering yourself */
+            char  mine[MAXSTR];
+            char  one[MAXSTR];
+            const char* p;
+            long  o = 0;
+
+            copystr(mine, sendsrv >= 0 && sendsrv < srvct?
+                    servers[sendsrv].user: "", sizeof(mine));
+            for (p = redto; p || *one; ) {
+
+                char just[MAXSTR];
+
+                p = nextaddr(p, one, sizeof(one));
+                if (*one) {
+
+                    addrof(one, just, sizeof(just));
+                    if (!*just) copystr(just, one, sizeof(just));
+                    if (strcasecmp(just, mine) && strcasecmp(just, to) &&
+                        o+strlen(just)+3 < sizeof(cc))
+                        o += snprintf(cc+o, sizeof(cc)-o, "%s%s",
+                                      o? ", ": "", just);
+
+                }
+                if (!p) break;
+
+            }
+            for (p = redcc; p || *one; ) {
+
+                char just[MAXSTR];
+
+                p = nextaddr(p, one, sizeof(one));
+                if (*one) {
+
+                    addrof(one, just, sizeof(just));
+                    if (!*just) copystr(just, one, sizeof(just));
+                    if (strcasecmp(just, mine) && strcasecmp(just, to) &&
+                        o+strlen(just)+3 < sizeof(cc))
+                        o += snprintf(cc+o, sizeof(cc)-o, "%s%s",
+                                      o? ", ": "", just);
+
+                }
+                if (!p) break;
+
+            }
+
+        }
+        body = quoted(who, reddate, redtext? redtext: "", TRUE);
+        {   /* a line to write on, above what is being answered */
+
+            char* d = getmem(strlen(body)+4);
+
+            sprintf(d, "\n\n%s", body);
+            free(body);
+            body = d;
+
+        }
+
+    }
+    /* A reply belongs to the conversation it answers and says so; a
+       forward is a new message to somebody who was not in it, and
+       putting it in the thread would file it under a conversation they
+       have never seen. */
+    if (what == MENUFWD) cmpopen(to, cc, subj, body, "", "");
+    else cmpopen(to, cc, subj, body, redid, redrefs);
+    free(body);
+    /* the caret where the writing goes, which is the top */
+    cmpcl = 0;
+    cmpcc = 0;
+    cmpdraw();
+
+}
+
 static void openmsg(long i)
 
 {
@@ -3929,6 +6087,17 @@ static void openmsg(long i)
     findheader(raw, "Subject", subj, sizeof(subj));
     findheader(raw, "Date", date, sizeof(date));
     text = textof(raw, strlen(raw), 0); /* all of it, to be read */
+    /* what a reply to this would be made of */
+    copystr(redfrom, from, sizeof(redfrom));
+    copystr(redto, to, sizeof(redto));
+    copystr(redsubj, subj, sizeof(redsubj));
+    copystr(reddate, date, sizeof(reddate));
+    if (!findheader(raw, "Cc", redcc, sizeof(redcc))) *redcc = 0;
+    if (!findheader(raw, "Message-ID", redid, sizeof(redid))) *redid = 0;
+    if (!findheader(raw, "References", redrefs, sizeof(redrefs))) *redrefs = 0;
+    free(redtext);
+    redtext = getmem(strlen(text)+1);
+    strcpy(redtext, text);
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t2);
     free(readtext);
     n = strlen(from)+strlen(to)+strlen(subj)+strlen(date)+strlen(text)+200;
@@ -3943,6 +6112,20 @@ static void openmsg(long i)
     if (!readwf) {
 
         ami_openwin(&stdin, &readwf, NULL, READWIN);
+        {   /* what can be done with a message that is being read */
+
+            ami_menuptr mp;
+            ami_menuptr ml = NULL;
+
+            newmenu(&mp, FALSE, FALSE, OFF, MENUREPLY, "Reply");
+            appendmenu(&ml, mp);
+            newmenu(&mp, FALSE, FALSE, OFF, MENUREPALL, "Reply All");
+            appendmenu(&ml, mp);
+            newmenu(&mp, FALSE, FALSE, OFF, MENUFWD, "Forward");
+            appendmenu(&ml, mp);
+            ami_menu(readwf, ml);
+
+        }
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
@@ -4063,6 +6246,22 @@ static void srvlay(void)
 
     }
     y += chrh/2;
+    /* One account sends, and only one: a message goes out over one
+       connection with one name on it. Checking the box here is choosing
+       among the accounts, so checking it for one clears it for the rest
+       -- which is what the box does when it is clicked, not something
+       the reader has to remember to do. */
+    {
+
+        long cw, ch;
+
+        ami_checkboxsizg(srvwf, "Send mail from this account", &cw, &ch);
+        ami_poswidgetg(srvwf, SRVSEND, chrw*2+labw, y);
+        ami_sizwidgetg(srvwf, SRVSEND, cw, ch);
+        ami_selectwidget(srvwf, SRVSEND, srvedit == sendsrv);
+        y += ch+chrh/2;
+
+    }
     ami_poswidgetg(srvwf, SRVOK, chrw*2+labw, y);
     ami_sizwidgetg(srvwf, SRVOK, bw, bh);
     ami_poswidgetg(srvwf, SRVCAN, chrw*2+labw+bw+chrw*2, y);
@@ -4080,7 +6279,7 @@ static void srvlay(void)
 
         snprintf(n, sizeof(n), "account %ld of %ld", srvedit+1,
                  srvct > srvedit? srvct: srvedit+1);
-        ami_fcolorc(srvwf, 110, 110, 110);
+        ami_fcolorc(srvwf, rgb(110), rgb(110), rgb(110));
         ami_cursorg(srvwf, chrw*2, y+bh+chrh/2);
         fprintf(srvwf, "%s", n);
         ami_fcolor(srvwf, ami_black);
@@ -4198,9 +6397,23 @@ static void srvopen(void)
     ami_binvis(srvwf);
     ami_editboxsizg(srvwf, "0", &ew, &eh);
     ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
-    ami_winclientg(srvwf, ami_strsiz(srvwf, "0")*96,
-                   (eh+chrh/2)*SRVFLDS+bh+chrh*6, &wx, &wy,
-                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    {
+
+        /* Wide enough for whichever is wider: the fields with their
+           notes beside them, or the row of buttons under them. The row
+           was running off the edge, and the last button with it -- a
+           form that will not show what it offers. */
+        long chrw = ami_strsiz(srvwf, "0");
+        long labw = ami_strsiz(srvwf, "Sending server  ");
+        long need = chrw*2+labw+(bw+chrw*2)*4+bw+chrw*2;
+        long want = chrw*96;
+
+        if (need > want) want = need;
+        ami_winclientg(srvwf, want, (eh+chrh/2)*SRVFLDS+bh*2+chrh*8, &wx, &wy,
+                       BIT(ami_wmframe) | BIT(ami_wmsize) |
+                       BIT(ami_wmsysbar));
+
+    }
     ami_setsizg(srvwf, wx, wy);
     ami_setposg(srvwf, 120, 120);
     /* made here, placed by the layout, which runs again on a resize */
@@ -4211,6 +6424,7 @@ static void srvopen(void)
     ami_buttong(srvwf, 1, 1, 2, 2, "Next", SRVNEXT);
     ami_buttong(srvwf, 1, 1, 2, 2, "Add", SRVNEW);
     ami_buttong(srvwf, 1, 1, 2, 2, "Remove", SRVDEL);
+    ami_checkboxg(srvwf, 1, 1, 2, 2, "Send mail from this account", SRVSEND);
     srvlay();
     srvload();
 
@@ -4227,6 +6441,19 @@ static void srvevent(ami_evtrec* er)
 
         case ami_etredraw:
         case ami_etresize: srvlay(); break;
+
+        case ami_etchkbox:
+            if (er->ckbxid == SRVSEND) {
+
+                /* Ticking it names this account; unticking it would
+                   leave nothing able to send, so the box goes back on
+                   and says so by staying on. */
+                sendsrv = srvedit;
+                ami_selectwidget(srvwf, SRVSEND, TRUE);
+                writeaccount();
+
+            }
+            break;
 
         case ami_etbutton:
             if (er->butid == SRVNEXT) { /* show the one after this */
@@ -4291,8 +6518,17 @@ static void layout(void)
 
 {
 
-    long top = chrh*2; /* under the menu bar, which is drawn in the client */
-    long h = ami_maxyg(stdout)-top;
+    long top = 1+banh; /* under the banner, which is under the menu */
+    long h = ami_maxyg(stdout)-top-stath; /* the strip has the foot of it */
+
+    /* The banner is as wide as the window and stays where it is put. */
+    ami_setposg(banwf, 1, 1);
+    ami_setsizg(banwf, ami_maxxg(stdout), banh);
+    ami_sizbufg(banwf, ami_maxxg(stdout), banh);
+
+    if (diag) fprintf(stderr, "layout: buf %ldx%ld stath %ld progh %ld "
+                      "panes %ld tall\n", ami_maxxg(stdout), ami_maxyg(stdout),
+                      stath, progh, h);
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
@@ -4326,6 +6562,17 @@ static void layout(void)
     ami_sizwidgetg(listwf, SBLIST, sbw, ami_maxyg(listwf));
     listrows = ami_maxyg(listwf)/rowh;
     if (listrows < 1) listrows = 1;
+    /* The panes are cleared and drawn again, since this is the one thing
+       that moves what is in them: a pane that has changed height has the
+       old rows where the new ones are not, and a buffer keeps whatever
+       nothing has drawn over. Once per layout, which is once per resize
+       -- not once per redraw, which is what made a resize flash. */
+    fprintf(foldwf, "\f");
+    fprintf(listwf, "\f");
+    drawfolders();
+    drawlist();
+    drawstatus();
+    drawbanner();
 
 }
 
@@ -5018,6 +7265,7 @@ The menu
 
 *******************************************************************************/
 
+static int reachable(const char* host, long port, long secs);
 static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
                     long id, char* face)
 
@@ -5061,6 +7309,8 @@ static void setupmenu(void)
        box does, in the corner every window has it in. Get Mail is what
        this program is for, so it stands on the bar rather than inside
        something. */
+    newmenu(&mp, FALSE, FALSE, OFF, MENUCOMP, "Compose");
+    appendmenu(&ml, mp);
     newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Get Mail");
     appendmenu(&ml, mp);
     newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Config");
@@ -5180,16 +7430,14 @@ static int serverquiet(long srv)
 }
 
 /* say where the fetch has got to */
+/* The folder pane is the progress display, its counts climbing as the
+   messages land. The worker does not draw it -- it says that it wants
+   drawing, and the main thread does it on the next tick. */
 static void fetchsay(void)
 
 {
 
-    static long said;
-
-    /* The folder pane is the progress display, its counts climbing as
-       the messages land -- but not for every one of them: redrawing the
-       pane a hundred times a second is a flicker, not a display. */
-    if (++said >= 10) { said = 0; drawfolders(); }
+    wrkfolds = TRUE;
 
 }
 
@@ -5261,7 +7509,16 @@ static int fetchnext(void)
             imapclose();
             fetchsrv = folders[fold].srv;
             if (fetchsrv < 0) continue;
+            snprintf(wrkwhat, sizeof(wrkwhat), "Connecting to %s",
+                     servers[folders[fold].srv].name);
+            wrkpos = 0;
+            wrkmax = 0;
+            /* The server's name and password are copied out of the
+               table the config window writes, so the copy is made with
+               that window shut out of it. */
+            dlock();
             useserver(fetchsrv);
+            dunlock();
             if (!imapopen()) { serverfailed(fetchsrv); fetchsrv = -2; continue; }
             serverspoke(fetchsrv);
 
@@ -5269,6 +7526,10 @@ static int fetchnext(void)
         fetchi = 0;
         uidct = 0;
         fetchsay();
+        snprintf(wrkwhat, sizeof(wrkwhat), "%s: %s",
+                 fetchsrv >= 0? servers[fetchsrv].name: "", folders[fold].show);
+        wrkpos = 0;
+        wrkmax = 0;
         exists = 0;
         uidvalidity = 0;
         fetchcur = fold; /* the folder this step is working on */
@@ -5287,6 +7548,7 @@ static int fetchnext(void)
         if (lo < 1) lo = 1;
         imsend(tag, sizeof(tag), "FETCH %ld:%ld (UID)", lo, hi);
         if (!imwait(tag, uidline)) continue;
+        wrkmax = uidct; /* what this folder is offering */
         if (uidct) return (TRUE);
 
     }
@@ -5295,26 +7557,37 @@ static int fetchnext(void)
 
 }
 
-/* the fetch is over, however it ended */
+/* The fetch is over, however it ended. This runs on the worker, so it
+   puts the connection down and says so; what the reader sees of the end
+   is drawn by the main thread when it notices. */
 static void fetchend(void)
 
 {
 
-    char msg[MAXSTR];
+    long i;
 
-    ami_killtimer(stdout, TIMFETCH);
-    fetching = FALSE;
     imapclose();
+    /* What arrived was put at the end of each folder's index as it came.
+       The list is shown newest first, so the folders that took anything
+       are put in order -- and the table that finds a message by its
+       digest is taken again, since it names them by where they sit and
+       sorting has moved them. */
+    for (i = 0; i < foldct; i++) if (folders[i].dirty) {
+
+        dlock();
+        qsort(folders[i].idx, folders[i].idxct, sizeof(msgrec), bydate);
+        folders[i].dirty = FALSE;
+        useidx();
+        dunlock();
+        wrklist = TRUE;
+
+    }
+    rehashall();
     if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
                       fetchgot, fetchdup);
-    drawfolders(); /* the counts as they finally stand */
-    snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
-             fetchgot == 1? "": "s");
-    status(msg);
-    countfolders();
-    if (foldsel < 0 && foldct) showfolder(0);
-    else if (foldsel >= 0) { indexfolder(foldsel); drawlist(); }
-    drawfolders();
+    wrkfolds = TRUE;
+    wrklist = TRUE;
+    wrkdone = TRUE;
 
 }
 
@@ -5331,7 +7604,7 @@ static void fetchstep(void)
     long  n;
     char* msg;
 
-    if (!fetching) return;
+    if (wrkdone) return;
     while (fetchi >= uidct) { /* this folder is done */
 
         if (fetchcur >= 0 && fetchcur < foldct && uidct)
@@ -5341,6 +7614,7 @@ static void fetchstep(void)
 
     }
     uid = uidlist[fetchi++];
+    wrkpos = fetchi;
     /* Already here if it falls inside the stretch this folder has been
        read of. Below that stretch is mail older than anything taken so
        far, which is exactly what asking for more of a folder is for. */
@@ -5393,25 +7667,38 @@ static void fetchstep(void)
             return;
 
         }
-        adddigest(hex);
-        /* and beside the mailbox, so the next run knows it without
-           reading every message again */
+        /* The message goes into the store, into the folder's index and
+           into the table that finds it, with the display shut out of all
+           three. This is the one place the worker writes what the main
+           thread reads: half a message in a mailbox is what a reader
+           would find if it read a folder in the middle of an append. */
+        dlock();
         {
 
-            char  fn[MAXSTR*2+8];
-            FILE* df;
+            long    off, stored = 0;
+            msgrec* m;
 
-            digfile(fetchcur, fn, sizeof(fn));
-            df = fopen(fn, "a");
-            if (df) { fprintf(df, "%s\n", hex); fclose(df); }
+            off = mboxwrite(folders[fetchcur].file, msg, n, &stored);
+            if (off >= 0) {
+
+                m = idxroom(fetchcur);
+                fillrec(m, msg, n, stored, off, hex);
+                adddigest(fetchcur, folders[fetchcur].idxct-1);
+                /* written down as it arrives, so that a program stopped
+                   halfway keeps what it had */
+                idxappend(fetchcur, m);
+                folders[fetchcur].msgs = folders[fetchcur].idxct;
+                folders[fetchcur].dirty = TRUE;
+                useidx(); /* the array may have moved as it grew */
+
+            }
 
         }
+        dunlock();
 
     }
-    mboxwrite(folders[fetchcur].file, msg, n);
     free(msg);
     fetchgot++;
-    folders[fetchcur].msgs++; /* the pane's count is the progress */
     imwait(tag, NULL); /* the ) and the answer */
     if (uid > fetchlast) fetchlast = uid;
     if (!fetchnewlow || uid < fetchnewlow) fetchnewlow = uid;
@@ -5420,25 +7707,228 @@ static void fetchstep(void)
 }
 
 /* start one */
-static void fetchall(int relist)
+/* The worker's half of a fetch: everything with a network in it, and
+   everything slow enough to be worth keeping off the display. It runs
+   on the fetch thread from beginning to end and draws nothing. */
+static void fetchrun(void)
 
 {
 
     long i;
-    char wasname[MAXSTR];
-    long wassrv = -1;
 
-    if (fetching) return; /* one at a time */
-    /* Keep which folder is being read: rebuilding the list throws the
-       selection away, and a fetch that moved the reader back to the
-       first folder every quarter minute would be unusable. */
-    wasname[0] = 0;
-    if (foldsel >= 0 && foldsel < foldct) {
+    if (wrkrelist) {
 
-        copystr(wasname, folders[foldsel].name, MAXSTR);
-        wassrv = folders[foldsel].srv;
+        char wasname[MAXSTR];
+        long wassrv = -1;
+
+        /* Asking every server what folders it has, and rebuilding the
+           table from the answers. The table is what the display reads,
+           so the rebuild is done with the display shut out: a pane drawn
+           halfway through would be drawn off a list with some servers in
+           it and some not.
+
+           This is the one place the display can be held up for as long
+           as a server takes to answer, and it is why the timer never
+           asks: Get Mail asks, and Get Mail is somebody waiting. */
+        dlock();
+        wasname[0] = 0;
+        /* Keep which folder is being read: rebuilding the list throws
+           the selection away, and a fetch that moved the reader back to
+           the first folder every quarter minute would be unusable. */
+        if (foldsel >= 0 && foldsel < foldct) {
+
+            copystr(wasname, folders[foldsel].name, MAXSTR);
+            wassrv = folders[foldsel].srv;
+
+        }
+        idxsetaside();
+        foldct = 0;
+        foldsel = -1;
+        for (i = 0; i < srvct; i++) {
+
+            if (!*servers[i].imap || !*servers[i].user) continue;
+            /* If the server cannot be reached -- or is one being left
+               alone after it stopped answering -- keep what the store
+               knows of its folders rather than leaving the section
+               empty: an account that is merely unreachable has not
+               stopped having folders. */
+            if (serverquiet(i)) { storefolders(i); continue; }
+            snprintf(wrkwhat, sizeof(wrkwhat), "Asking %s what folders it has",
+                     servers[i].name);
+            wrkpos = 0;
+            wrkmax = 0;
+            if (!getfolders(i))
+                { imapclose(); serverfailed(i); storefolders(i); continue; }
+            imapclose(); /* one at a time: the connection is per server */
+
+        }
+        storefolders(-1); /* the locals rejoin, after the servers' */
+        idxgiveback();    /* and every folder gets its index back */
+        if (*wasname) /* put the reader back on the folder it was reading */
+            for (i = 0; i < foldct; i++)
+                if (folders[i].srv == wassrv &&
+                    !strcmp(folders[i].name, wasname)) { foldsel = i; break; }
+        dunlock();
+        wrkfolds = TRUE;
+        wrklist = TRUE;
 
     }
+    /* Every folder that has not been read is read, and what they hold is
+       what the store holds: the counts, and the digests that say whether
+       an arriving message is already here. Reading is an index file
+       each; only a folder without one costs anything, and only once. */
+    countfolders();
+    serveindex();
+    wrkfolds = TRUE;
+    if (wrkcount) return; /* reading the store was the whole job */
+    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
+                      digct, foldct);
+    fetchsrv = -2; /* no server open yet */
+    fetchorder();
+    fetchfold = -1;
+    fetchcur = -1;
+    fetchi = 0;
+    uidct = 0;
+    fetchgot = 0;
+    fetchdup = 0;
+    /* Straight through, one message after another, with the reads
+       blocking as reads do. There is no state machine any more and no
+       timer setting the pace: that apparatus existed only to give the
+       display a turn between messages, and the display has a thread of
+       its own now. */
+    while (!wrkdone && !wrkstop) { servesend(); serveindex(); fetchstep(); }
+
+}
+
+/* Send whatever the compose window has left to be sent. Between
+   messages of a fetch as well as when nothing else is happening, so a
+   message written during a long fetch goes now rather than after it. */
+static void servesend(void)
+
+{
+
+    char to[MAXSTR], cc[MAXSTR], sub[MAXSTR], inreply[MAXSTR];
+    char refs[MAXSTR*2];
+    char err[MAXSTR*3];
+    char* body;
+
+    if (!sendwant) return;
+    dlock();
+    sendwant = FALSE;
+    copystr(to, outto, sizeof(to));
+    copystr(cc, outcc, sizeof(cc));
+    copystr(sub, outsub, sizeof(sub));
+    copystr(inreply, outinreply, sizeof(inreply));
+    copystr(refs, outrefs, sizeof(refs));
+    body = outbody;
+    outbody = NULL;
+    dunlock();
+    snprintf(wrkwhat, sizeof(wrkwhat), "Sending to %s", to);
+    wrkpos = 0;
+    wrkmax = 0;
+    sendmail(to, cc, sub, body? body: "", inreply, refs, err, sizeof(err));
+    free(body);
+    wrkwhat[0] = 0;
+    if (*err) {
+
+        copystr(failsaid, err, sizeof(failsaid));
+        failwait = TRUE;
+        sendfail = TRUE;
+
+    }
+    else copystr(sentsaid, "Message sent, and a copy put in Sent.",
+                 sizeof(sentsaid));
+    wrkfolds = TRUE;
+
+}
+
+/* Read whatever folder the display has asked for. Called from the idle
+   loop and from between messages of a fetch, so that opening a folder
+   answers while mail is arriving. */
+static void serveindex(void)
+
+{
+
+    long i;
+
+    while (!wrkstop) {
+
+        long f = idxwant;
+
+        if (f < 0) { /* nobody is waiting; read whatever wants reading */
+
+            for (i = 0; i < foldct; i++) if (folders[i].wantidx) break;
+            if (i >= foldct) break;
+            f = i;
+
+        }
+        idxwant = -1;
+        folders[f].wantidx = FALSE;
+        idxdoing = f;
+        snprintf(wrkwhat, sizeof(wrkwhat), "Reading %s", folders[f].show);
+        wrkpos = 0;
+        wrkmax = 0;
+        indexfolder(f);
+        idxdoing = -1;
+        wrkwhat[0] = 0;
+        wrkpos = 0;
+        wrkmax = 0;
+        wrklist = TRUE;
+
+    }
+
+}
+
+/* The fetch thread. It is made once and lives as long as the program:
+   the services thread table has no way to give an entry back, so a
+   thread per fetch would run it out inside an hour of quarter-minute
+   looks. It waits for work rather than being made for it. */
+static void mailwork(void)
+
+{
+
+    while (TRUE) {
+
+        wrkbusy = TRUE;
+        servesend();
+        serveindex();
+        if (wrkgo) {
+
+            wrkdone = FALSE;
+            fetchrun();
+            wrkdone = TRUE; /* however it ended */
+            wrkgo = FALSE;
+
+        }
+        wrkbusy = FALSE;
+        usleep(50000); /* a twentieth of a second, unnoticeable at a start */
+
+    }
+
+}
+
+/* Set the worker going, and the timer that watches it. Everything that
+   wants work done goes through here. */
+static void kickworker(void)
+
+{
+
+    if (!wrkstart) { ami_newthread(mailwork); wrkstart = TRUE; }
+    /* Ten times a second, to pick up what the worker has done and draw
+       it. Faster than the eye and slower than the flicker that drawing
+       per message would be. */
+    ami_timer(stdout, TIMFETCH, 1000, TRUE);
+    timerrun = TRUE;
+
+}
+
+/* start one */
+static void fetchall(int relist)
+
+{
+
+    if (fetching) return; /* one at a time */
+    if (!haveaccount()) return;
     /* A look on the timer does not ask the servers what folders they
        have. Folders do not come and go by the quarter minute, the asking
        costs a connection and a round trip to each of them, and
@@ -5455,6 +7945,7 @@ static void fetchall(int relist)
             long m;
 
             if (!*servers[k].imap || !*servers[k].user) continue;
+            if (serverquiet(k)) continue; /* not while it is not answering */
             for (m = 0; m < foldct; m++) if (folders[m].srv == k) break;
             /* A newly added account has no folders here, and a look
                that only walks the folders it knows would never touch it
@@ -5465,68 +7956,135 @@ static void fetchall(int relist)
         }
 
     }
-    if (!relist) {
-
-        status("Looking...");
-        fetching = TRUE;
-        fetchsrv = -2;
-        fetchorder();
-        fetchfold = -1;
-        fetchcur = -1;
-        fetchi = 0;
-        uidct = 0;
-        fetchgot = 0;
-        fetchdup = 0;
-        loadalldigests();
-        ami_timer(stdout, TIMFETCH, 100, TRUE);
-
-        return;
-
-    }
-    status("Connecting...");
-    /* Every server's folders, in the order they are configured, then the
-       local ones. The list on the server is the authority on what
-       folders that server has, so it replaces what was read off the
-       store. */
-    foldct = 0;
-    foldsel = -1;
-    for (i = 0; i < srvct; i++) {
-
-        if (!*servers[i].imap || !*servers[i].user) continue;
-        /* If the server cannot be reached, keep what the store knows of
-           its folders rather than leaving the section empty: an account
-           that is merely unreachable has not stopped having folders. */
-        if (!getfolders(i)) { imapclose(); storefolders(i); continue; }
-        imapclose(); /* one at a time: the connection is per server */
-
-    }
-    storefolders(-1); /* the locals rejoin, after the servers' */
-    countfolders();
-    if (*wasname) { /* put the reader back on the folder it was reading */
-
-        for (i = 0; i < foldct; i++)
-            if (folders[i].srv == wassrv &&
-                !strcmp(folders[i].name, wasname)) { foldsel = i; break; }
-
-    }
-    drawfolders();
     fetching = TRUE;
-    fetchsrv = -2; /* no server open yet */
-    fetchorder();
-    fetchfold = -1;
-    fetchcur = -1;
-    fetchi = 0;
-    uidct = 0;
-    fetchgot = 0;
-    fetchdup = 0;
-    /* what is already here, so that none of it is taken twice */
-    loadalldigests();
-    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
-                      digct, foldct);
-    /* Every hundredth of a second, which is far faster than a message
-       can be fetched over a network: the timer sets the pace only when
-       the network is quicker than the eye. */
-    ami_timer(stdout, TIMFETCH, 100, TRUE);
+    fetchasked = !quietfail; /* the timer sets that flag; a menu does not */
+    failwait = FALSE;
+    wrkrelist = relist;
+    wrkcount = FALSE;
+    wrkdone = FALSE;
+    wrkgo = TRUE; /* and it is off */
+    kickworker();
+
+}
+
+/* Count the store without fetching anything. The counts are what the
+   folder pane shows, and finding them means reading every mailbox
+   through -- gigabytes, at startup, in front of somebody waiting for a
+   window. It goes to the worker like everything else slow. */
+static void countlater(void)
+
+{
+
+    if (fetching) return;
+    fetching = TRUE;
+    fetchasked = FALSE; /* nobody asked to be told about counting */
+    wrkrelist = FALSE;
+    wrkcount = TRUE;
+    wrkdone = FALSE;
+    wrkgo = TRUE;
+    kickworker();
+
+}
+
+static void showfolder(long i);
+
+/* What the worker has done, drawn. This is the main thread's whole part
+   in a fetch: it looks ten times a second, draws what has changed, and
+   tidies up when the worker says it has finished. */
+static void fetchpick(void)
+
+{
+
+    long folds = wrkfolds;
+    long list  = wrklist;
+    long done  = wrkdone && !wrkgo;
+
+    wrkfolds = FALSE;
+    wrklist = FALSE;
+    if (folds) drawfolders();
+    if (*wrkwhat) { /* what it is doing, and how far into it */
+
+        char t[MAXSTR*2];
+        char a[40], b[40];
+
+        if (wrkmax > 0) {
+
+            commas(wrkpos, a, sizeof(a));
+            commas(wrkmax, b, sizeof(b));
+            snprintf(t, sizeof(t), "%s - %s of %s", wrkwhat, a, b);
+
+        } else copystr(t, wrkwhat, sizeof(t));
+        status(t);
+        statprog(wrkpos, wrkmax);
+
+    }
+    if (*sentsaid) { status(sentsaid); *sentsaid = 0; }
+    if (failwait) {
+
+        failwait = FALSE;
+        /* A look on the timer is nobody waiting, and a server that is
+           down fails every one of them: an hour away from it would be
+           an hour of boxes to dismiss. Those are left to the diagnostic
+           and to the account being set aside. */
+        /* A failure to send is always somebody waiting: they pressed
+           Send and are owed an answer. */
+        if (fetchasked || !fetching || sendfail) ami_alert("Mail", failsaid);
+        sendfail = FALSE;
+
+    }
+    if (done) {
+
+        char t[MAXSTR];
+
+        fetching = FALSE;
+        *wrkwhat = 0;
+        statprog(0, 0); /* the bar empties: there is nothing running */
+        if (wrkcount) status("");
+        else {
+
+            char a[40], b[40];
+
+            commas(fetchgot, a, sizeof(a));
+            commas(fetchdup, b, sizeof(b));
+            snprintf(t, sizeof(t), "%s new, %s already here", a, b);
+            status(t);
+
+        }
+
+    }
+    if (list) { drawlist(); drawfolders(); } /* the worker read a folder */
+    if (done) {
+
+        /* Reading a folder means reading its whole mailbox, so it is
+           asked for only when the mailbox has actually changed under the
+           reader: a fetch that put nothing in the folder being read
+           leaves what is on the screen right, and finding that out by
+           reading four gigabytes is four gigabytes wasted. */
+        /* Nothing is read again here. What arrived went into the
+           folder's index as it was stored, so the list is already right;
+           the worker has put it in order and the drawing above has shown
+           it. */
+        if (foldsel < 0 && foldct) showfolder(0);
+        drawfolders();
+
+    }
+    /* The timer runs while there is anything to watch, and stops when
+       there is not: a tick ten times a second forever is a program that
+       never lets the machine alone. Everything the worker might be in
+       the middle of has to be in this test, and something waiting to be
+       said counts as well as something being done. Sending was not:
+       the tick after Send found no fetch running and stopped the timer
+       before the worker had even picked the message up, so what came
+       back -- that it had gone, or why it had not -- was never looked
+       at, and a message that never left looked exactly like one that
+       did. */
+    if (timerrun && !fetching && !wrkgo && !wrkbusy && idxwant < 0 &&
+        !sendwant && !failwait && !*sentsaid && !*wrkwhat) {
+
+        ami_killtimer(stdout, TIMFETCH);
+        timerrun = FALSE;
+
+    }
 
 }
 
@@ -5539,7 +8097,22 @@ static void showfolder(long i)
     foldsel = i;
     popclose();
     closeread();
-    indexfolder(i);
+    msgtop = 0;
+    msgsel = -1;
+    /* If the folder has been read, showing it is showing what is already
+       here -- the list is its index, not a copy of it, and nothing is
+       read at all. Only a folder that has never been read costs
+       anything, and that is asked for rather than done: a mailbox of
+       four gigabytes takes as long as four gigabytes takes, and doing it
+       here is the window going dead on a click. */
+    useidx();
+    if (!folders[i].idxok) {
+
+        msgct = 0;
+        if (idxdoing != i) idxwant = i; /* it is already being read */
+        kickworker();
+
+    }
     drawfolders();
     drawlist();
 
@@ -5610,9 +8183,25 @@ int main(int argc, char* argv[])
     }
     readaccount(); /* if there is one; the program comes up either way */
     migratestore(); /* mailboxes from before accounts had names */
-    ami_winclientg(stdout, ami_strsiz(stdout, "0")*130, chrh*46, &wx, &wy,
-                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    ami_setsizg(stdout, wx, wy);
+    {
+
+        long cw = ami_strsiz(stdout, "0")*130; /* the room wanted inside */
+        long ch = chrh*46;
+
+        ami_winclientg(stdout, cw, ch, &wx, &wy,
+                       BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+        ami_setsizg(stdout, wx, wy);
+        /* The buffer is NOT sized here. It follows the window, and the
+           only thing that knows what the window actually became is the
+           resize the window manager sends back -- which may be nothing
+           like what was asked for. Sizing it here to what was asked for
+           puts the buffer ahead of the window instead of behind it, and
+           then every measurement is of a window that does not exist:
+           the status strip is drawn at the foot of a buffer taller than
+           the window, where nobody can see it. The resize that arrives
+           at startup does the sizing, as every later one does. */
+
+    }
     /* The menu is built once the window is its final size. Built before,
        the menu strip follows the resize but its newly exposed right end
        is never painted, and sits there as a black box until something
@@ -5636,6 +8225,37 @@ int main(int argc, char* argv[])
     ami_font(listwf, AMI_FONT_SIGN);
     ami_setpoints(listwf, 11.0);
     ami_binvis(listwf);
+    /* The strip at the foot, and the bar in it. Its natural height is
+       what the strip is built around; its width is set here, since a bar
+       as wide as a window says less than a short one does. */
+    /* the banner across the top: its own window, so that it is placed
+       and drawn in one space and answers for its own redrawing */
+    ami_openwin(&stdin, &banwf, stdout, BANWIN);
+    ami_frame(banwf, FALSE);
+    ami_auto(banwf, FALSE);
+    ami_curvis(banwf, FALSE);
+    ami_font(banwf, AMI_FONT_SIGN);
+    ami_setpoints(banwf, 24.0);
+    {
+
+        char path[MAXSTR];
+
+        if (resfile("mail.bmp", path, sizeof(path))) {
+
+            ami_loadpict(banwf, BANPIC, path);
+            picw = ami_pictsizx(banwf, BANPIC);
+            pich = ami_pictsizy(banwf, BANPIC);
+            havepic = picw > 0 && pich > 0;
+
+        }
+
+    }
+    /* as tall as the picture wants, or as the name does */
+    banh = havepic? pich+16: ami_chrsizy(banwf)+16;
+    /* the strip along the foot, and the bar drawn in it */
+    progh = chrh-2;
+    progw = ami_strsiz(stdout, "0")*20;
+    stath = chrh+8;
     ami_scrollvertsizg(listwf, &sbw, &wy);
     ami_scrollvertg(listwf, 1, 1, sbw, chrh*10, SBLIST); /* moved by layout */
     layout();
@@ -5644,8 +8264,8 @@ int main(int argc, char* argv[])
        keeping it in files, and starting this way means the program comes
        up at once and comes up on a train. The server is asked only when
        the user asks for it. */
+    datlock = ami_initlock(); /* before there is a second thread to want it */
     storeall();
-    countfolders();
     if (foldct) showfolder(0);
     drawfolders();
     drawlist();
@@ -5654,13 +8274,25 @@ int main(int argc, char* argv[])
     else if (!foldct) status("Nothing fetched yet. Mail/Get Mail reads the "
                              "server.");
     else status("");
-    if (dofetch) fetchall(TRUE);
+    /* The counts come from reading every mailbox through, which on a
+       store of gigabytes is not something to do in front of somebody
+       waiting for a window. The worker does it, and the pane fills in
+       as it goes. */
+    if (dofetch) fetchall(TRUE); else countlater();
     /* Look again every so often while the program is up. The timer is
        in hundred microsecond counts, so a second is ten thousand. */
     if (pollsec > 0) ami_timer(stdout, TIMPOLL, pollsec*10000, TRUE);
+    /* Held for as long as this thread is doing anything, dropped while
+       it waits for the next event. Every click, redraw, menu choice and
+       tick is covered by it without a lock of its own, and the worker
+       gets its turn in the gap -- which is nearly all of the time, since
+       waiting for an event is nearly all this thread does. */
+    dlock();
     do {
 
+        dunlock();
         ami_event(stdin, &er);
+        dlock();
         if (diag) switch (er.etype) {
 
             case ami_etresize:
@@ -5678,11 +8310,16 @@ int main(int argc, char* argv[])
            window of its own and the panes are windows of their own, so
            this one loop serves them all. */
         if (er.winid == HELPWIN) { helpevent(&er); continue; }
+        if (er.winid == CMPWIN) { cmpevent(&er); continue; }
         if (er.winid == SRVWIN) { srvevent(&er); continue; }
         if (er.winid == READWIN) {
 
             switch (er.etype) {
 
+                case ami_etmenus:
+                    if (er.menuid == MENUREPLY || er.menuid == MENUREPALL ||
+                        er.menuid == MENUFWD) answer(er.menuid);
+                    break;
                 case ami_etterm: closeread(); break;
                 case ami_etredraw:
                 case ami_etresize: wrapread(); drawread(); break;
@@ -5715,6 +8352,15 @@ int main(int argc, char* argv[])
                 default: break;
 
             }
+            continue;
+
+        }
+        if (er.winid == BANWIN) {
+
+            if (er.etype == ami_etredraw) drawbanner();
+            else if (er.etype == ami_etresize)
+                { ami_sizbufg(banwf, er.rszxg, er.rszyg); drawbanner(); }
+
             continue;
 
         }
@@ -5890,15 +8536,21 @@ int main(int argc, char* argv[])
                 break;
 
             case ami_etredraw:
-                /* What this window shows between its panes is the one
-                   divider, so that is all a redraw of it costs. */
-                divider(stdout, foldw+4, chrh*2, foldw+4,
-                        ami_maxyg(stdout));
+                /* What this window shows for itself is the divider
+                   between the panes and the strip at the foot, so that
+                   is all a redraw of it costs. */
+                /* The band under the menu is ground the panes used to
+                   stand on: when they move down to make room for it,
+                   what they leave is the main window's again, and the
+                   main window has to paint it. */
+                divider(stdout, foldw+4, 1+banh, foldw+4,
+                        ami_maxyg(stdout)-stath);
+                drawstatus();
                 break;
 
             case ami_ettim:
                 /* one step of a fetch, if one is running */
-                if (er.timnum == TIMFETCH) fetchstep();
+                if (er.timnum == TIMFETCH) fetchpick();
                 /* and the periodic look at the servers, which does
                    nothing while a fetch is already under way */
                 else if (er.timnum == TIMPOLL && !fetching && haveaccount()) {
@@ -5915,6 +8567,11 @@ int main(int argc, char* argv[])
 
                     case MENUSRV: srvopen(); break;
 
+                    case MENUCOMP:
+                        if (!haveaccount()) { srvopen(); break; }
+                        cmpopen("", "", "", "", "", "");
+                        break;
+
                     case MENUFETCH:
                         if (!haveaccount()) {
 
@@ -5930,6 +8587,7 @@ int main(int argc, char* argv[])
                         long k;
 
                         if (!haveaccount()) { srvopen(); break; }
+                        idxsetaside(); /* the indexes outlive the list */
                         foldct = 0;
                         foldsel = -1;
                         for (k = 0; k < srvct; k++) {
@@ -5941,7 +8599,9 @@ int main(int argc, char* argv[])
 
                         }
                         storefolders(-1);
+                        idxgiveback();
                         countfolders();
+                        kickworker();
                         drawfolders();
                         break;
 
@@ -5949,6 +8609,20 @@ int main(int argc, char* argv[])
 
                     case MENUCHECK:
                         if (!haveaccount()) { srvopen(); break; }
+                        /* It sends over the same name and password the
+                           fetch is using, and setting them up under a
+                           fetch that is halfway through a login is how
+                           one account's password goes to another
+                           account's server. It waits. */
+                        if (fetching) {
+
+                            ami_alert("Mail", "Not while mail is being "
+                                      "fetched. Try again when it has "
+                                      "finished.");
+
+                            break;
+
+                        }
                         smtpcheck();
                         break;
 
@@ -5970,14 +8644,25 @@ int main(int argc, char* argv[])
 
     /* a terminate for the reader closed the reader, not the program */
     } while (er.etype != ami_etterm || er.winid == READWIN ||
-             er.winid == SRVWIN || er.winid == HELPWIN);
+             er.winid == SRVWIN || er.winid == HELPWIN ||
+             er.winid == CMPWIN);
     done:
+    /* The lock is held here, so the worker is not in the middle of
+       writing a message: what is in the store is whole. It is told to
+       stop and is not waited for -- it may be in a read that has forty
+       five seconds left to run, and nobody should wait that long to
+       close a window. Nor is its connection closed from here: it is the
+       worker's, and closing it under a thread reading it is how a tidy
+       exit turns into a crash. Every message is written and closed as it
+       arrives, so there is nothing outstanding to lose. */
+    wrkstop = TRUE;
     if (fetching) ami_killtimer(stdout, TIMFETCH);
     popclose();
     helpclose();
     srvclose();
     closeread();
-    imapclose();
+    cmpclose();
+    dunlock();
 
     return (0);
 
