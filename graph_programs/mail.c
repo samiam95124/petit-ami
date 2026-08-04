@@ -152,6 +152,7 @@ typedef struct {
     char subject[MAXSTR]; /* the subject line */
     char addr[100];       /* the sender's address, for matching */
     char dig[DIGLEN];     /* what the message is, wherever it came from */
+    char cat[32];         /* what kind of mail it is */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
     long date;            /* the date, for sorting */
@@ -180,6 +181,7 @@ static char store[MAXSTR];      /* the directory the mail is kept in */
 static long limit = DEFLIMIT;   /* messages fetched from a folder */
 
 static long diag;               /* report the conversation to stderr */
+static char* mailprog;          /* argv[0], to find the rules by */
 
 /* the windows and their measurements */
 static FILE* foldwf;            /* the folder pane */
@@ -194,6 +196,7 @@ static long  listrows;          /* message lines the list holds */
 static long  foldy[MAXFOLDER];  /* where each folder was drawn, for clicks */
 static long  listx, listy;      /* where the list pane sits on the window */
 static long  fromx;             /* where the sender column ends */
+static long  catx;              /* and where the category column ends */
 static long  datex;             /* where the date column begins */
 static long  mpx, mpy;          /* the mouse, in pixels of its own window */
 
@@ -293,8 +296,47 @@ so the two cannot drift apart without being noticed.
 
 *******************************************************************************/
 
-/* the SHA-256 of a block, as hex */
+static void digestbytes(const char* data, long len, char* hex); /* forward */
+
+/* The SHA-256 of a message, taken over one canonical form of it so that
+   the same message gives the same digest wherever it is seen. What
+   arrives from the server and what is written to the mailbox are not the
+   same bytes: storing escapes any line that begins "From " with a >, so
+   that it cannot be mistaken for a separator, and drops the newlines
+   that trail the message. Undo both before taking the digest, and the
+   message as received and the message as stored agree -- which is the
+   whole point of having one. */
 static void digestof(const char* data, long len, char* hex)
+
+{
+
+    char* norm = malloc(len+1);
+    long  i, o = 0;
+    int   atbol = TRUE;
+
+    if (!norm) { fail("Out of memory"); exit(1); }
+    for (i = 0; i < len; i++) {
+
+        if (atbol && data[i] == '>') { /* a line the storing escaped? */
+
+            long j = i;
+
+            while (j < len && data[j] == '>') j++;
+            if (j+5 <= len && !strncmp(data+j, "From ", 5)) i++; /* one off */
+
+        }
+        norm[o++] = data[i];
+        atbol = data[i] == '\n';
+
+    }
+    while (o && (norm[o-1] == '\n' || norm[o-1] == '\r')) o--;
+    digestbytes(norm, o, hex);
+    free(norm);
+
+}
+
+/* the SHA-256 of a block of bytes, as hex */
+static void digestbytes(const char* data, long len, char* hex)
 
 {
 
@@ -821,6 +863,169 @@ static const char* bodyof(const char* msg)
 
 /*******************************************************************************
 
+What kind of mail this is
+
+Every message is given a category when it is indexed. The rules are in a
+file, not in this program: mail.cat, read at startup, one rule to a line
+-- a category and what it matches -- with the first match naming the
+message. Nothing about kinds of mail is written into the code, so the
+categories can be changed, added to or thrown away without a compiler.
+
+The rule that earns its keep is the last one. Machine-sent mail says so
+in its headers: List-Unsubscribe, List-Id, Precedence: bulk. Mail with
+none of those, having matched nothing more particular, was written by a
+person -- which is the division that actually matters in a mailbox, and
+the one headers get right nearly always.
+
+*******************************************************************************/
+
+typedef struct catrule {
+
+    char            cat[32];   /* what it is called */
+    char            kind[12];  /* from, to, subject, header, bulk, always */
+    char            match[200]; /* what it looks for */
+    struct catrule* next;
+
+} catrule;
+
+static catrule* catrules;
+static long     catct;
+
+/* read the rules, once */
+static void loadcats(void)
+
+{
+
+    static const char* where[] = { "%smail.cat", "%s../graph_programs/mail.cat",
+                                   "mail.cat", "graph_programs/mail.cat" };
+    char     path[MAXSTR];
+    char     dir[MAXSTR];
+    char*    e;
+    FILE*    f = NULL;
+    char     line[MAXSTR];
+    catrule* last = NULL;
+    long     i;
+
+    if (catrules) return;
+    dir[0] = 0;
+    if (mailprog) {
+
+        snprintf(dir, sizeof(dir), "%s", mailprog);
+        e = strrchr(dir, '/');
+        if (e) e[1] = 0; else dir[0] = 0;
+
+    }
+    for (i = 0; i < 4 && !f; i++) {
+
+        if (i < 2) snprintf(path, sizeof(path), where[i], dir);
+        else snprintf(path, sizeof(path), "%s", where[i]);
+        f = fopen(path, "r");
+
+    }
+    if (!f) return; /* no rules: everything will be "other" */
+    while (fgets(line, sizeof(line), f)) {
+
+        char*    p = line;
+        char*    k;
+        char*    m;
+        catrule* r;
+
+        trim(p);
+        if (!*p || *p == '#') continue;
+        k = p;
+        while (*k && *k != ' ' && *k != '\t') k++;
+        if (*k) *k++ = 0;
+        while (*k == ' ' || *k == '\t') k++;
+        m = k;
+        while (*m && *m != ' ' && *m != '\t') m++;
+        if (*m) *m++ = 0;
+        while (*m == ' ' || *m == '\t') m++;
+        r = getmem(sizeof(catrule));
+        copystr(r->cat, p, sizeof(r->cat));
+        copystr(r->kind, k, sizeof(r->kind));
+        copystr(r->match, m, sizeof(r->match));
+        r->next = NULL;
+        if (last) last->next = r; else catrules = r;
+        last = r;
+        catct++;
+
+    }
+    fclose(f);
+
+}
+
+/* does this text hold that, in any case? */
+static int holds(const char* hay, const char* needle)
+
+{
+
+    long n = strlen(needle);
+    const char* p;
+
+    if (!n) return (FALSE);
+    for (p = hay; *p; p++) if (!strncasecmp(p, needle, n)) return (TRUE);
+
+    return (FALSE);
+
+}
+
+/* Does the message carry the marks of having been sent to a list? This
+   is the structural test, and the one that tells a person from a
+   machine without knowing anything about either. */
+static int isbulk(const char* msg)
+
+{
+
+    char v[MAXSTR];
+
+    if (findheader(msg, "List-Unsubscribe", v, sizeof(v))) return (TRUE);
+    if (findheader(msg, "List-Id", v, sizeof(v))) return (TRUE);
+    if (findheader(msg, "Precedence", v, sizeof(v)) &&
+        (holds(v, "bulk") || holds(v, "list"))) return (TRUE);
+    if (findheader(msg, "Auto-Submitted", v, sizeof(v)) &&
+        !holds(v, "no")) return (TRUE);
+
+    return (FALSE);
+
+}
+
+/* what kind of mail this message is */
+static void classify(const char* msg, char* cat, long cl)
+
+{
+
+    catrule* r;
+    char     from[MAXSTR], to[MAXSTR], subj[MAXSTR], v[MAXSTR];
+
+    copystr(cat, "other", cl);
+    loadcats();
+    findheader(msg, "From", from, sizeof(from));
+    findheader(msg, "Subject", subj, sizeof(subj));
+    findheader(msg, "To", to, sizeof(to));
+    for (r = catrules; r; r = r->next) {
+
+        int hit = FALSE;
+
+        if (!strcasecmp(r->kind, "from")) hit = holds(from, r->match);
+        else if (!strcasecmp(r->kind, "subject")) hit = holds(subj, r->match);
+        else if (!strcasecmp(r->kind, "to")) {
+
+            hit = holds(to, r->match);
+            if (!hit && findheader(msg, "Cc", v, sizeof(v)))
+                hit = holds(v, r->match);
+
+        } else if (!strcasecmp(r->kind, "header"))
+            hit = findheader(msg, r->match, v, sizeof(v));
+        else if (!strcasecmp(r->kind, "bulk")) hit = isbulk(msg);
+        else if (!strcasecmp(r->kind, "always")) hit = TRUE;
+        if (hit) { copystr(cat, r->cat, cl); return; }
+
+    }
+
+}
+
+/*******************************************************************************
+
 Making a message readable
 
 Mail is not text any more. It is nearly always MIME, often several
@@ -1319,6 +1524,7 @@ static void indexmsg(const char* msg, long len, long off)
     m->off = off;
     m->len = len;
     digestof(msg, len, m->dig);
+    classify(msg, m->cat, sizeof(m->cat));
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
     addrof(from, m->addr, sizeof(m->addr));
@@ -2674,8 +2880,16 @@ static void drawmsg(long i, long y)
     clipstr(listwf, s, fromx-14);
     ami_cursorg(listwf, 6, y);
     fprintf(listwf, "%s", s);
+    /* what kind of mail it is, in its own column and in a quieter grey:
+       it is there to be glanced past, not read */
+    copystr(s, m->cat, sizeof(s));
+    clipstr(listwf, s, catx-fromx-16);
+    ami_fcolorc(listwf, 110, 110, 110);
+    ami_cursorg(listwf, fromx+8, y);
+    fprintf(listwf, "%s", s);
+    ami_fcolor(listwf, ami_black);
     /* the subject, then the start of the message after it */
-    x = fromx+8;
+    x = catx+8;
     subw = datex-x-8;
     copystr(s, m->subject, MAXSTR);
     clipstr(listwf, s, subw);
@@ -2701,6 +2915,7 @@ static void drawmsg(long i, long y)
        filling in -- keeps the line whole. A vertical line survives a
        vertical scroll, so the pieces always join. */
     divider(listwf, fromx, y-2, fromx, y+rowh-4);
+    divider(listwf, catx, y-2, catx, y+rowh-4);
     divider(listwf, datex-8, y-2, datex-8, y+rowh-4);
 
 }
@@ -2782,6 +2997,7 @@ static void listrect(long y1, long y2)
     if (first < msgtop) first = msgtop;
     if (last >= msgct) last = msgct-1;
     divider(listwf, fromx, y1, fromx, y2);
+    divider(listwf, catx, y1, catx, y2);
     divider(listwf, datex-8, y1, datex-8, y2);
     for (i = first; i <= last; i++) drawrow(i);
     setlistbar();
@@ -2888,6 +3104,7 @@ static void drawlist(void)
     /* the column dividers first, full height, so the rows overprint
        their own pieces and the empty part of the list is ruled too */
     divider(listwf, fromx, 0, fromx, ami_maxyg(listwf));
+    divider(listwf, catx, 0, catx, ami_maxyg(listwf));
     divider(listwf, datex-8, 0, datex-8, ami_maxyg(listwf));
     for (i = msgtop; i < msgct && y+rowh <= ami_maxyg(listwf); i++) {
 
@@ -2901,6 +3118,7 @@ static void drawlist(void)
         ami_frect(listwf, 0, y, ami_maxxg(listwf), ami_maxyg(listwf));
         ami_fcolor(listwf, ami_black);
         divider(listwf, fromx, y, fromx, ami_maxyg(listwf));
+        divider(listwf, catx, y, catx, ami_maxyg(listwf));
         divider(listwf, datex-8, y, datex-8, ami_maxyg(listwf));
 
     }
@@ -3431,6 +3649,7 @@ static void layout(void)
     /* the columns of the list, kept here so the rows and their dividers
        agree on where the columns are */
     fromx = ami_strsiz(listwf, "0")*18;
+    catx = fromx+ami_strsiz(listwf, "promotions  ");
     datex = ami_maxxg(listwf)-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
@@ -3717,6 +3936,8 @@ static void fetchall(void)
     fetchdup = 0;
     /* what is already here, so that none of it is taken twice */
     loadalldigests();
+    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
+                      digct, foldct);
     /* Every hundredth of a second, which is far faster than a message
        can be fetched over a network: the timer sets the pace only when
        the network is quicker than the eye. */
@@ -3773,6 +3994,7 @@ int main(int argc, char* argv[])
 
     /* the command line, by the option package, which knows what an
        option looks like on the system it is running on */
+    mailprog = argv[0]; /* the rules are looked for beside the program */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);
     if (argcl > 1) {
 
@@ -4083,6 +4305,10 @@ int main(int argc, char* argv[])
                    divider, so that is all a redraw of it costs. */
                 divider(stdout, foldw+4, chrh*2, foldw+4,
                         ami_maxyg(stdout));
+                break;
+
+            case ami_ettim: /* one step of a fetch, if one is running */
+                if (er.timnum == TIMFETCH) fetchstep();
                 break;
 
             case ami_etmenus:
