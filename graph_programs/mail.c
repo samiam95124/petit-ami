@@ -70,6 +70,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <openssl/evp.h>
+
 #include <localdefs.h>
 #include <graphics.h>
 #include <network.h>
@@ -118,6 +120,8 @@
    thing and a notch is a step, and the list is read by stepping through
    it. Text is not read that way, so the reader keeps three: a message of
    any length would be tedious at one line a notch. */
+#define DIGLEN    65 /* a sha-256 as hex, and its terminator */
+
 #define WHEELMSGS 1 /* messages the wheel moves per notch, in the list */
 #define WHEELROWS 3 /* lines it moves per notch, in the reader */
 
@@ -147,6 +151,8 @@ typedef struct {
     char from[MAXSTR];    /* who it is from, shown */
     char subject[MAXSTR]; /* the subject line */
     char addr[100];       /* the sender's address, for matching */
+    char dig[DIGLEN];     /* what the message is, wherever it came from */
+    char cat[32];         /* what kind of mail it is */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
     long date;            /* the date, for sorting */
@@ -175,6 +181,7 @@ static char store[MAXSTR];      /* the directory the mail is kept in */
 static long limit = DEFLIMIT;   /* messages fetched from a folder */
 
 static long diag;               /* report the conversation to stderr */
+static char* mailprog;          /* argv[0], to find the rules by */
 
 /* the windows and their measurements */
 static FILE* foldwf;            /* the folder pane */
@@ -187,12 +194,9 @@ static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
 static long  foldy[MAXFOLDER];  /* where each folder was drawn, for clicks */
-static long  winw, winh;        /* the main window, as last told to us */
-static long  lastw, lasth;      /* and what it was when last laid out */
 static long  listx, listy;      /* where the list pane sits on the window */
-static long  listw, listh;      /* and how big it was made */
-static long  foldh;             /* the folder pane's height */
 static long  fromx;             /* where the sender column ends */
+static long  catx;              /* and where the category column ends */
 static long  datex;             /* where the date column begins */
 static long  mpx, mpy;          /* the mouse, in pixels of its own window */
 
@@ -266,6 +270,281 @@ static void copystr(char* d, const char* s, long n)
 
     strncpy(d, s, n-1);
     d[n-1] = 0;
+
+}
+
+/*******************************************************************************
+
+Digests
+
+Every message gets a SHA-256 of the bytes it is stored as. It is what
+lets this program know a message it already has, whoever sends it and
+whatever folder it arrives in: mail moved between folders keeps its
+digest, mail fetched twice has the same digest, and mail from a second
+server that is the same mail has the same digest. UIDs cannot do any of
+that -- they belong to one folder on one server and mean nothing
+anywhere else.
+
+The digest covers the message and not the separator line above it, since
+that line is this program's own and carries a time that is not the
+message's.
+
+The digests of a folder are kept in a file beside its mailbox, one to a
+line, with the size the mailbox had when they were taken on the first
+line. A mailbox that has grown since is read again and the file rebuilt,
+so the two cannot drift apart without being noticed.
+
+*******************************************************************************/
+
+static void digestbytes(const char* data, long len, char* hex); /* forward */
+
+/* The SHA-256 of a message, taken over one canonical form of it so that
+   the same message gives the same digest wherever it is seen. What
+   arrives from the server and what is written to the mailbox are not the
+   same bytes: storing escapes any line that begins "From " with a >, so
+   that it cannot be mistaken for a separator, and drops the newlines
+   that trail the message. Undo both before taking the digest, and the
+   message as received and the message as stored agree -- which is the
+   whole point of having one. */
+static void digestof(const char* data, long len, char* hex)
+
+{
+
+    char* norm = malloc(len+1);
+    long  i, o = 0;
+    int   atbol = TRUE;
+
+    if (!norm) { fail("Out of memory"); exit(1); }
+    for (i = 0; i < len; i++) {
+
+        if (atbol && data[i] == '>') { /* a line the storing escaped? */
+
+            long j = i;
+
+            while (j < len && data[j] == '>') j++;
+            if (j+5 <= len && !strncmp(data+j, "From ", 5)) i++; /* one off */
+
+        }
+        norm[o++] = data[i];
+        atbol = data[i] == '\n';
+
+    }
+    while (o && (norm[o-1] == '\n' || norm[o-1] == '\r')) o--;
+    digestbytes(norm, o, hex);
+    free(norm);
+
+}
+
+/* the SHA-256 of a block of bytes, as hex */
+static void digestbytes(const char* data, long len, char* hex)
+
+{
+
+    unsigned char md[EVP_MAX_MD_SIZE];
+    unsigned int  n = 0;
+    EVP_MD_CTX*   c = EVP_MD_CTX_new();
+    long          i;
+
+    if (!c) { fail("Out of memory"); exit(1); }
+    EVP_DigestInit_ex(c, EVP_sha256(), NULL);
+    EVP_DigestUpdate(c, data, len);
+    EVP_DigestFinal_ex(c, md, &n);
+    EVP_MD_CTX_free(c);
+    for (i = 0; i < (long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
+    hex[n*2] = 0;
+
+}
+
+/* The digests this store holds, in a table of their own. Kept as a plain
+   open hash: the whole point is that asking whether a message is already
+   here costs nothing, so a search of every folder will not do. */
+#define DIGBKT 4096
+
+typedef struct digent {
+
+    char           dig[DIGLEN];
+    struct digent* next;
+
+} digent;
+
+static digent* digtab[DIGBKT];
+static long    digct;
+
+static long dighash(const char* d)
+
+{
+
+    long h = 0;
+    long i;
+
+    /* the digest is already spread evenly, so any few of its characters
+       make as good a bucket as all of them */
+    for (i = 0; i < 8; i++) h = h*31+d[i];
+
+    return ((h & 0x7fffffff) % DIGBKT);
+
+}
+
+static int hasdigest(const char* d)
+
+{
+
+    digent* p;
+
+    for (p = digtab[dighash(d)]; p; p = p->next)
+        if (!strcmp(p->dig, d)) return (TRUE);
+
+    return (FALSE);
+
+}
+
+static void adddigest(const char* d)
+
+{
+
+    digent* p;
+    long    b;
+
+    if (hasdigest(d)) return;
+    b = dighash(d);
+    p = getmem(sizeof(digent));
+    copystr(p->dig, d, DIGLEN);
+    p->next = digtab[b];
+    digtab[b] = p;
+    digct++;
+
+}
+
+/* the file a folder's digests are kept in */
+static void digfile(long fold, char* fn, long fnl)
+
+{
+
+    snprintf(fn, fnl, "%s.dig", folders[fold].file);
+
+}
+
+/* Take the digests of every message in a folder's mailbox, writing them
+   beside it and adding them to the table. The mailbox is walked exactly
+   as the indexing walks it, so the two agree on what a message is. */
+static long digestfolder(long fold)
+
+{
+
+    FILE* f;
+    FILE* out;
+    char  fn[MAXSTR*2+8];
+    char* buf;
+    long  n;
+    long  i, start, blkstart;
+    long  got = 0;
+    char  hex[DIGLEN];
+
+    f = fopen(folders[fold].file, "r");
+    if (!f) return (0);
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    buf = getmem(n+1);
+    n = fread(buf, 1, n, f);
+    buf[n] = 0;
+    fclose(f);
+    digfile(fold, fn, sizeof(fn));
+    out = fopen(fn, "w");
+    if (out) fprintf(out, "%ld\n", n); /* the size these were taken at */
+    start = -1;
+    blkstart = 0;
+    for (i = 0; i < n; i++) {
+
+        int atsep = !strncmp(buf+i, "From ", 5) &&
+                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
+                                (buf[i-2] == '\n' ||
+                                 (buf[i-2] == '\r' && i >= 3 &&
+                                  buf[i-3] == '\n'))));
+
+        if (atsep) {
+
+            if (start >= 0) { /* the message that just ended */
+
+                long e = i;
+
+                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
+                    e--;
+                digestof(buf+start, e-start, hex);
+                adddigest(hex);
+                if (out) fprintf(out, "%s\n", hex);
+                got++;
+
+            }
+            blkstart = i;
+            while (i < n && buf[i] != '\n') i++;
+            start = i+1;
+
+        }
+        while (i < n && buf[i] != '\n') i++;
+
+    }
+    if (start >= 0 && start < n) { /* the last one */
+
+        long e = n;
+
+        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
+        digestof(buf+start, e-start, hex);
+        adddigest(hex);
+        if (out) fprintf(out, "%s\n", hex);
+        got++;
+
+    }
+    (void)blkstart;
+    free(buf);
+    if (out) fclose(out);
+
+    return (got);
+
+}
+
+/* Load a folder's digests, taking them afresh if the file is missing or
+   was written when the mailbox was a different size. */
+static void loaddigests(long fold)
+
+{
+
+    char        fn[MAXSTR*2+8];
+    FILE*       f;
+    struct stat sb;
+    char        line[DIGLEN+8];
+    long        was = -1;
+
+    if (stat(folders[fold].file, &sb)) return; /* no mailbox */
+    digfile(fold, fn, sizeof(fn));
+    f = fopen(fn, "r");
+    if (f && fgets(line, sizeof(line), f)) was = atol(line);
+    if (!f || was != (long)sb.st_size) { /* stale, or never taken */
+
+        if (f) fclose(f);
+        digestfolder(fold);
+
+        return;
+
+    }
+    while (fgets(line, sizeof(line), f)) {
+
+        trim(line);
+        if (strlen(line) == DIGLEN-1) adddigest(line);
+
+    }
+    fclose(f);
+
+}
+
+/* every folder in the store, so that a fetch knows what is already here */
+static void loadalldigests(void)
+
+{
+
+    long i;
+
+    for (i = 0; i < foldct; i++) loaddigests(i);
 
 }
 
@@ -579,6 +858,169 @@ static const char* bodyof(const char* msg)
     }
 
     return (p); /* no body at all */
+
+}
+
+/*******************************************************************************
+
+What kind of mail this is
+
+Every message is given a category when it is indexed. The rules are in a
+file, not in this program: mail.cat, read at startup, one rule to a line
+-- a category and what it matches -- with the first match naming the
+message. Nothing about kinds of mail is written into the code, so the
+categories can be changed, added to or thrown away without a compiler.
+
+The rule that earns its keep is the last one. Machine-sent mail says so
+in its headers: List-Unsubscribe, List-Id, Precedence: bulk. Mail with
+none of those, having matched nothing more particular, was written by a
+person -- which is the division that actually matters in a mailbox, and
+the one headers get right nearly always.
+
+*******************************************************************************/
+
+typedef struct catrule {
+
+    char            cat[32];   /* what it is called */
+    char            kind[12];  /* from, to, subject, header, bulk, always */
+    char            match[200]; /* what it looks for */
+    struct catrule* next;
+
+} catrule;
+
+static catrule* catrules;
+static long     catct;
+
+/* read the rules, once */
+static void loadcats(void)
+
+{
+
+    static const char* where[] = { "%smail.cat", "%s../graph_programs/mail.cat",
+                                   "mail.cat", "graph_programs/mail.cat" };
+    char     path[MAXSTR];
+    char     dir[MAXSTR];
+    char*    e;
+    FILE*    f = NULL;
+    char     line[MAXSTR];
+    catrule* last = NULL;
+    long     i;
+
+    if (catrules) return;
+    dir[0] = 0;
+    if (mailprog) {
+
+        snprintf(dir, sizeof(dir), "%s", mailprog);
+        e = strrchr(dir, '/');
+        if (e) e[1] = 0; else dir[0] = 0;
+
+    }
+    for (i = 0; i < 4 && !f; i++) {
+
+        if (i < 2) snprintf(path, sizeof(path), where[i], dir);
+        else snprintf(path, sizeof(path), "%s", where[i]);
+        f = fopen(path, "r");
+
+    }
+    if (!f) return; /* no rules: everything will be "other" */
+    while (fgets(line, sizeof(line), f)) {
+
+        char*    p = line;
+        char*    k;
+        char*    m;
+        catrule* r;
+
+        trim(p);
+        if (!*p || *p == '#') continue;
+        k = p;
+        while (*k && *k != ' ' && *k != '\t') k++;
+        if (*k) *k++ = 0;
+        while (*k == ' ' || *k == '\t') k++;
+        m = k;
+        while (*m && *m != ' ' && *m != '\t') m++;
+        if (*m) *m++ = 0;
+        while (*m == ' ' || *m == '\t') m++;
+        r = getmem(sizeof(catrule));
+        copystr(r->cat, p, sizeof(r->cat));
+        copystr(r->kind, k, sizeof(r->kind));
+        copystr(r->match, m, sizeof(r->match));
+        r->next = NULL;
+        if (last) last->next = r; else catrules = r;
+        last = r;
+        catct++;
+
+    }
+    fclose(f);
+
+}
+
+/* does this text hold that, in any case? */
+static int holds(const char* hay, const char* needle)
+
+{
+
+    long n = strlen(needle);
+    const char* p;
+
+    if (!n) return (FALSE);
+    for (p = hay; *p; p++) if (!strncasecmp(p, needle, n)) return (TRUE);
+
+    return (FALSE);
+
+}
+
+/* Does the message carry the marks of having been sent to a list? This
+   is the structural test, and the one that tells a person from a
+   machine without knowing anything about either. */
+static int isbulk(const char* msg)
+
+{
+
+    char v[MAXSTR];
+
+    if (findheader(msg, "List-Unsubscribe", v, sizeof(v))) return (TRUE);
+    if (findheader(msg, "List-Id", v, sizeof(v))) return (TRUE);
+    if (findheader(msg, "Precedence", v, sizeof(v)) &&
+        (holds(v, "bulk") || holds(v, "list"))) return (TRUE);
+    if (findheader(msg, "Auto-Submitted", v, sizeof(v)) &&
+        !holds(v, "no")) return (TRUE);
+
+    return (FALSE);
+
+}
+
+/* what kind of mail this message is */
+static void classify(const char* msg, char* cat, long cl)
+
+{
+
+    catrule* r;
+    char     from[MAXSTR], to[MAXSTR], subj[MAXSTR], v[MAXSTR];
+
+    copystr(cat, "other", cl);
+    loadcats();
+    findheader(msg, "From", from, sizeof(from));
+    findheader(msg, "Subject", subj, sizeof(subj));
+    findheader(msg, "To", to, sizeof(to));
+    for (r = catrules; r; r = r->next) {
+
+        int hit = FALSE;
+
+        if (!strcasecmp(r->kind, "from")) hit = holds(from, r->match);
+        else if (!strcasecmp(r->kind, "subject")) hit = holds(subj, r->match);
+        else if (!strcasecmp(r->kind, "to")) {
+
+            hit = holds(to, r->match);
+            if (!hit && findheader(msg, "Cc", v, sizeof(v)))
+                hit = holds(v, r->match);
+
+        } else if (!strcasecmp(r->kind, "header"))
+            hit = findheader(msg, r->match, v, sizeof(v));
+        else if (!strcasecmp(r->kind, "bulk")) hit = isbulk(msg);
+        else if (!strcasecmp(r->kind, "always")) hit = TRUE;
+        if (hit) { copystr(cat, r->cat, cl); return; }
+
+    }
 
 }
 
@@ -1081,6 +1523,8 @@ static void indexmsg(const char* msg, long len, long off)
     m = &msgs[msgct++];
     m->off = off;
     m->len = len;
+    digestof(msg, len, m->dig);
+    classify(msg, m->cat, sizeof(m->cat));
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
     addrof(from, m->addr, sizeof(m->addr));
@@ -1421,6 +1865,11 @@ static long movelocal(long fold, const char* dstfile, const char* set)
     fclose(dst);
     fclose(out);
     rename(tmp, folders[fold].file);
+    /* Both mailboxes changed under their digest files, which are taken
+       again from what is there rather than patched, so they cannot drift
+       from it. The digests themselves do not change: a message moved is
+       the same message. */
+    digestfolder(fold);
 
     return (moved);
 
@@ -2411,7 +2860,7 @@ static void drawmsg(long i, long y)
 {
 
     msgrec* m = &msgs[i];
-    long    w = listw-sbw;
+    long    w = ami_maxxg(listwf)-sbw;
     long    x;
     char    s[MAXSTR+SNIPPET];
     long    subw;
@@ -2431,8 +2880,16 @@ static void drawmsg(long i, long y)
     clipstr(listwf, s, fromx-14);
     ami_cursorg(listwf, 6, y);
     fprintf(listwf, "%s", s);
+    /* what kind of mail it is, in its own column and in a quieter grey:
+       it is there to be glanced past, not read */
+    copystr(s, m->cat, sizeof(s));
+    clipstr(listwf, s, catx-fromx-16);
+    ami_fcolorc(listwf, 110, 110, 110);
+    ami_cursorg(listwf, fromx+8, y);
+    fprintf(listwf, "%s", s);
+    ami_fcolor(listwf, ami_black);
     /* the subject, then the start of the message after it */
-    x = fromx+8;
+    x = catx+8;
     subw = datex-x-8;
     copystr(s, m->subject, MAXSTR);
     clipstr(listwf, s, subw);
@@ -2458,6 +2915,7 @@ static void drawmsg(long i, long y)
        filling in -- keeps the line whole. A vertical line survives a
        vertical scroll, so the pieces always join. */
     divider(listwf, fromx, y-2, fromx, y+rowh-4);
+    divider(listwf, catx, y-2, catx, y+rowh-4);
     divider(listwf, datex-8, y-2, datex-8, y+rowh-4);
 
 }
@@ -2475,13 +2933,13 @@ static void drawrow(long i)
 
     if (!listwf || i < msgtop || i >= msgct) return;
     y = 4+(i-msgtop)*rowh;
-    if (y+rowh > listh) return; /* not on the screen */
+    if (y+rowh > ami_maxyg(listwf)) return; /* not on the screen */
     ami_fcolor(listwf, ami_white);
-    ami_frect(listwf, 0, y-2, listw-sbw, y+rowh-4);
+    ami_frect(listwf, 0, y-2, ami_maxxg(listwf)-sbw, y+rowh-4);
     ami_fcolor(listwf, ami_black);
     drawmsg(i, y);
     ami_fcolor(listwf, ami_white);
-    ami_line(listwf, 0, y+rowh-3, listw-sbw, y+rowh-3);
+    ami_line(listwf, 0, y+rowh-3, ami_maxxg(listwf)-sbw, y+rowh-3);
     ami_fcolor(listwf, ami_black);
 
 }
@@ -2506,7 +2964,7 @@ static long listvis(void)
 
 {
 
-    long n = (listh-4)/rowh;
+    long n = (ami_maxyg(listwf)-4)/rowh;
 
     return (n < 1? 1: n);
 
@@ -2523,6 +2981,28 @@ static void listclamp(void)
 }
 
 static void setlistbar(void);   /* forward */
+
+/* Draw only the rows a redraw rectangle touches, and the dividers down
+   it. A resize brings two of these -- the strip down the right and the
+   strip along the bottom -- and they are the whole of what needs
+   painting, since the buffer keeps what was already there. */
+static void listrect(long y1, long y2)
+
+{
+
+    long i;
+    long first = msgtop+(y1-4)/rowh;
+    long last  = msgtop+(y2-4)/rowh;
+
+    if (first < msgtop) first = msgtop;
+    if (last >= msgct) last = msgct-1;
+    divider(listwf, fromx, y1, fromx, y2);
+    divider(listwf, catx, y1, catx, y2);
+    divider(listwf, datex-8, y1, datex-8, y2);
+    for (i = first; i <= last; i++) drawrow(i);
+    setlistbar();
+
+}
 
 /* Move the list to where it is now supposed to be, by moving what is
    already on the screen. Going down a row brings one row into view;
@@ -2598,7 +3078,11 @@ static void drawlist(void)
 
     if (!listwf) return;
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
-    fprintf(listwf, "\f");
+    /* No clearing of the whole pane first. Every row paints its own
+       ground before its text, so a clear only puts up a blank that the
+       drawing immediately covers -- and a blank surface followed by a
+       redraw is a flash the reader can see. What is cleared is what the
+       rows will not reach, below the last of them. */
     ami_fcolor(listwf, ami_black);
     if (foldsel < 0) {
 
@@ -2619,12 +3103,23 @@ static void drawlist(void)
     }
     /* the column dividers first, full height, so the rows overprint
        their own pieces and the empty part of the list is ruled too */
-    divider(listwf, fromx, 0, fromx, listh);
-    divider(listwf, datex-8, 0, datex-8, listh);
-    for (i = msgtop; i < msgct && y+rowh <= listh; i++) {
+    divider(listwf, fromx, 0, fromx, ami_maxyg(listwf));
+    divider(listwf, catx, 0, catx, ami_maxyg(listwf));
+    divider(listwf, datex-8, 0, datex-8, ami_maxyg(listwf));
+    for (i = msgtop; i < msgct && y+rowh <= ami_maxyg(listwf); i++) {
 
-        drawmsg(i, y);
+        drawrow(i);
         y += rowh;
+
+    }
+    if (y < ami_maxyg(listwf)) { /* the room the rows did not fill */
+
+        ami_fcolor(listwf, ami_white);
+        ami_frect(listwf, 0, y, ami_maxxg(listwf), ami_maxyg(listwf));
+        ami_fcolor(listwf, ami_black);
+        divider(listwf, fromx, y, fromx, ami_maxyg(listwf));
+        divider(listwf, catx, y, catx, ami_maxyg(listwf));
+        divider(listwf, datex-8, y, datex-8, ami_maxyg(listwf));
 
     }
     listshown = msgtop;
@@ -2867,10 +3362,6 @@ static void openmsg(long i)
     if (!readwf) {
 
         ami_openwin(&stdin, &readwf, NULL, READWIN);
-        /* unbuffered, as the panes are: ami_scrollg moves the picture
-           either way, since the library keeps a screen structure for a
-           window whether it is buffered or not */
-        ami_buffer(readwf, FALSE);
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
@@ -3133,41 +3624,39 @@ static void layout(void)
 {
 
     long top = chrh*2; /* under the menu bar, which is drawn in the client */
-    long h = winh-top;
+    long h = ami_maxyg(stdout)-top;
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
     fprintf(stdout, "\f");
 
     foldw = ami_strsiz(stdout, "0")*22;
-    if (foldw > winw/2) foldw = winw/2;
-    foldh = h;
+    if (foldw > ami_maxxg(stdout)/2) foldw = ami_maxxg(stdout)/2;
     ami_setposg(foldwf, 1, top);
+    /* The buffer follows the window. Sizing the window alone leaves the
+       buffer the size it was, and a buffered window answers with its
+       buffer -- so everything drawn from its measurements would be laid
+       out for the pane it used to be. */
     ami_setsizg(foldwf, foldw, h);
+    ami_sizbufg(foldwf, foldw, h);
     /* the gap between the panes holds the divider between the sections */
     listx = foldw+8;
     listy = top;
-    listw = winw-foldw-8;
-    listh = h;
     ami_setposg(listwf, listx, listy);
-    ami_setsizg(listwf, listw, listh);
+    ami_setsizg(listwf, ami_maxxg(stdout)-foldw-8, h);
+    ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-8, h);
     divider(stdout, foldw+4, top, foldw+4, top+h);
     /* the columns of the list, kept here so the rows and their dividers
        agree on where the columns are */
-    /* The columns are worked out from the width this program just gave
-       the pane, not from what the pane answers. A window does not know
-       its new size until the resize comes back to it, so asking it
-       straight after setting it gives the size it used to be -- and
-       every column, count and row then lands where the pane used to
-       end. */
     fromx = ami_strsiz(listwf, "0")*18;
-    datex = listw-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
+    catx = fromx+ami_strsiz(listwf, "promotions  ");
+    datex = ami_maxxg(listwf)-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
-    ami_poswidgetg(listwf, SBLIST, listw-sbw, 1);
-    ami_sizwidgetg(listwf, SBLIST, sbw, listh);
-    listrows = listh/rowh;
+    ami_poswidgetg(listwf, SBLIST, ami_maxxg(listwf)-sbw, 1);
+    ami_sizwidgetg(listwf, SBLIST, sbw, ami_maxyg(listwf));
+    listrows = ami_maxyg(listwf)/rowh;
     if (listrows < 1) listrows = 1;
 
 }
@@ -3217,15 +3706,18 @@ static void setupmenu(void)
     ami_menuptr mp;
     ami_menuptr sm = NULL;
 
+    /* No File menu. All it held was Exit, which the window's own close
+       box does, in the corner every window has it in. Get Mail is what
+       this program is for, so it stands on the bar rather than inside
+       something. */
+    newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Get Mail");
+    appendmenu(&ml, mp);
     newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Mail");
     appendmenu(&ml, ma);
-    ami_stdmenu(BIT(AMI_SMEXIT) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
-                &sm, ml);
+    ami_stdmenu(BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT), &sm, ml);
     /* as in the spreadsheet, the branch is hung on after the standard
        menu is built, since building it clears the branch link */
     newmenu(&mp, FALSE, FALSE, OFF, MENUSRV, "Server...");
-    appendmenu(&ma->branch, mp);
-    newmenu(&mp, FALSE, FALSE, ON, MENUFETCH, "Get Mail");
     appendmenu(&ma->branch, mp);
     newmenu(&mp, FALSE, FALSE, ON, MENUFOLD, "Refresh Folder List");
     appendmenu(&ma->branch, mp);
@@ -3264,6 +3756,7 @@ static int  fetching;    /* a fetch is under way */
 static long fetchfold;   /* the folder being read */
 static long fetchi;      /* which of that folder's uids is next */
 static long fetchgot;    /* messages taken, this fetch */
+static long fetchdup;    /* and passed over as already here */
 static long fetchlast;   /* the highest uid taken from this folder */
 static long fetchseen;   /* the highest uid taken before this fetch */
 
@@ -3330,6 +3823,8 @@ static void fetchend(void)
     ami_killtimer(stdout, TIMFETCH);
     fetching = FALSE;
     imapclose();
+    if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
+                      fetchgot, fetchdup);
     snprintf(msg, sizeof(msg), "%ld new message%s", fetchgot,
              fetchgot == 1? "": "s");
     status(msg);
@@ -3370,6 +3865,43 @@ static void fetchstep(void)
     n = literalof(line);
     if (n < 0) { imwait(tag, NULL); return; } /* no message came */
     msg = imliteral(n);
+    {
+
+        char hex[DIGLEN];
+
+        /* What the message is, rather than where the server filed it.
+           A message already in this store is not written again, whatever
+           folder it is in and whichever server it came from -- which is
+           what happens when mail is moved here, or fetched twice, or
+           arrives in two folders that are views of the same mail, as
+           All Mail is of everything. */
+        digestof(msg, n, hex);
+        if (hasdigest(hex)) {
+
+            free(msg);
+            imwait(tag, NULL);
+            if (uid > fetchlast) fetchlast = uid;
+            fetchdup++;
+            fetchsay();
+
+            return;
+
+        }
+        adddigest(hex);
+        /* and beside the mailbox, so the next run knows it without
+           reading every message again */
+        {
+
+            char  fn[MAXSTR*2+8];
+            FILE* df;
+
+            digfile(fetchfold, fn, sizeof(fn));
+            df = fopen(fn, "a");
+            if (df) { fprintf(df, "%s\n", hex); fclose(df); }
+
+        }
+
+    }
     mboxwrite(folders[fetchfold].file, msg, n);
     free(msg);
     fetchgot++;
@@ -3401,6 +3933,11 @@ static void fetchall(void)
     fetchi = 0;
     uidct = 0;
     fetchgot = 0;
+    fetchdup = 0;
+    /* what is already here, so that none of it is taken twice */
+    loadalldigests();
+    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
+                      digct, foldct);
     /* Every hundredth of a second, which is far faster than a message
        can be fetched over a network: the timer sets the pace only when
        the network is quicker than the eye. */
@@ -3457,6 +3994,7 @@ int main(int argc, char* argv[])
 
     /* the command line, by the option package, which knows what an
        option looks like on the system it is running on */
+    mailprog = argv[0]; /* the rules are looked for beside the program */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);
     if (argcl > 1) {
 
@@ -3473,7 +4011,6 @@ int main(int argc, char* argv[])
     ami_font(stdout, AMI_FONT_SIGN);
     ami_setpoints(stdout, 11.0);
     ami_binvis(stdout);
-    ami_buffer(stdout, FALSE);
     chrh = ami_chrsizy(stdout);
     rowh = chrh+8;
     { /* the store, if it is not there yet: makpth is an error if it is */
@@ -3500,12 +4037,7 @@ int main(int argc, char* argv[])
     /* A pane is part of the main window, not a window of its own: no
        frame, no title bar, no sizing bars. */
     ami_frame(foldwf, FALSE);
-    /* Unbuffered. Buffering saves the program redrawing what other
-       windows cover, but a buffered pane came apart on a resize -- the
-       menu broke into pieces, the list drew at the bottom of nothing,
-       the counts went -- and a pane that is right is worth more than a
-       pane that is quick. */
-    ami_buffer(foldwf, FALSE);
+
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
@@ -3513,7 +4045,6 @@ int main(int argc, char* argv[])
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
-    ami_buffer(listwf, FALSE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
@@ -3521,10 +4052,6 @@ int main(int argc, char* argv[])
     ami_binvis(listwf);
     ami_scrollvertsizg(listwf, &sbw, &wy);
     ami_scrollvertg(listwf, 1, 1, sbw, chrh*10, SBLIST); /* moved by layout */
-    winw = ami_maxxg(stdout);
-    winh = ami_maxyg(stdout);
-    lastw = winw;
-    lasth = winh;
     layout();
     /* Start from the store, not from the server. Whatever was fetched
        before can be read without a network at all, which is the point of
@@ -3546,6 +4073,19 @@ int main(int argc, char* argv[])
     do {
 
         ami_event(stdin, &er);
+        if (diag) switch (er.etype) {
+
+            case ami_etresize:
+                fprintf(stderr, "resize win %ld: %ldx%ld\n", er.winid,
+                        er.rszxg, er.rszyg);
+                break;
+            case ami_etredraw:
+                fprintf(stderr, "redraw win %ld: %ld,%ld to %ld,%ld\n",
+                        er.winid, er.rsx, er.rsy, er.rex, er.rey);
+                break;
+            default: break;
+
+        }
         /* Every event names the window it came from. The reader is a
            window of its own and the panes are windows of their own, so
            this one loop serves them all. */
@@ -3611,6 +4151,10 @@ int main(int argc, char* argv[])
 
                 }
                 case ami_etredraw: drawfolders(); break;
+                case ami_etresize:
+                    ami_sizbufg(foldwf, er.rszxg, er.rszyg);
+                    drawfolders();
+                    break;
                 default: break;
 
             }
@@ -3715,7 +4259,29 @@ int main(int argc, char* argv[])
                     showlist();
                     fromdrag = FALSE;
                     break;
-                case ami_etredraw: drawlist(); break;
+                case ami_etredraw: /* only what was exposed */
+                    if (foldsel >= 0 && msgct) listrect(er.rsy, er.rey);
+                    else drawlist();
+                    break;
+
+                case ami_etresize: {
+
+                    /* The columns are measured from the right edge, so a
+                       change of width moves all of them and the rows
+                       have to be laid again. A change of height moves
+                       nothing: the rows that come into view arrive as a
+                       redraw of their own. */
+                    static long prevw;
+
+                    ami_sizbufg(listwf, er.rszxg, er.rszyg);
+                    datex = er.rszxg-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
+                    listrows = er.rszyg/rowh;
+                    if (listrows < 1) listrows = 1;
+                    if (er.rszxg != prevw) drawlist();
+                    prevw = er.rszxg;
+                    break;
+
+                }
                 default: break;
 
             }
@@ -3725,34 +4291,24 @@ int main(int argc, char* argv[])
         switch (er.etype) {
 
             case ami_etresize:
-            case ami_etredraw:
-                /* The window manager sends several of these as it maps
-                   and decorates the window, and each one costs a redraw
-                   of every row. Only the ones that change the size are
-                   worth anything. */
-                {
-
-                    /* The size comes from the event, not from asking the
-                       window. A window does not know its new size until
-                       the resize has come back to it, so asking it here
-                       gives the size it had before -- and the layout
-                       then decides nothing changed and leaves the panes
-                       the size they were, with the newly exposed space
-                       painted by nobody. The window manager sends
-                       several of these while it maps and decorates the
-                       window; only the ones that change anything are
-                       worth the work. */
-                    if (er.etype == ami_etresize)
-                        { winw = er.rszxg; winh = er.rszyg; }
-                    else { winw = ami_maxxg(stdout); winh = ami_maxyg(stdout); }
-                    if (winw == lastw && winh == lasth) break;
-                    lastw = winw;
-                    lasth = winh;
-
-                }
+                /* Buffer follow mode. The buffer is made the size the
+                   window now is, which leaves what was already drawn
+                   where it was, and the panes are placed again. Nothing
+                   is drawn here: the redraws that follow say what the
+                   resize exposed, and the panes report their own. */
+                ami_sizbufg(stdout, er.rszxg, er.rszyg);
                 layout();
-                drawfolders();
-                drawlist();
+                break;
+
+            case ami_etredraw:
+                /* What this window shows between its panes is the one
+                   divider, so that is all a redraw of it costs. */
+                divider(stdout, foldw+4, chrh*2, foldw+4,
+                        ami_maxyg(stdout));
+                break;
+
+            case ami_ettim: /* one step of a fetch, if one is running */
+                if (er.timnum == TIMFETCH) fetchstep();
                 break;
 
             case ami_etmenus:

@@ -13010,6 +13010,14 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
                     XWLOCK();
                     XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
+                    /* The subclient with it. Only the master was being
+                       configured, so the strip's own idea of how wide it
+                       is never changed -- and the repaint that follows
+                       draws to that width, stopping short of the new
+                       edge and leaving what the widening exposed
+                       unpainted. */
+                    XConfigureWindow(padisplay, mwin->xwhan, CWWidth|CWHeight,
+                                     &xwc);
                     XWUNLOCK();
 #ifdef WAITWMR
                     /* wait for the next configure for this window (any size --
@@ -13022,6 +13030,8 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                     /* change saved size to match */
                     mwin->xmwr.w = xwc.width;
                     mwin->xmwr.h = xwc.height;
+                    mwin->xwr.w = xwc.width; /* the subclient's too */
+                    mwin->xwr.h = xwc.height;
 
                 }
 

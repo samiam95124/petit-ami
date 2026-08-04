@@ -1,0 +1,117 @@
+#
+# What kind of mail this is.
+#
+# One rule to a line: a category, then what it matches. The first rule
+# that matches a message names it, so put the particular before the
+# general. Anything matching nothing is "other".
+#
+# The match is one of:
+#
+#     from <text>     the From header holds the text
+#     to <text>       the To or Cc header holds it
+#     subject <text>  the subject holds it
+#     header <name>   the message has that header at all
+#     bulk            it has any of the marks of mail sent to a list:
+#                     List-Unsubscribe, List-Id, or Precedence: bulk
+#     always          anything, for a last rule
+#
+# Text is matched anywhere in the field and without regard to case.
+#
+# This file is read at startup and can be changed without rebuilding
+# anything. It is the whole of what the program knows about kinds of
+# mail: there is no list hidden in the code.
+#
+
+# ---- the one that matters most --------------------------------------
+#
+# Mail from a person, which is what a mailbox is for. It is recognised
+# by what it does NOT have: no unsubscribe link, no list id, none of the
+# machinery of bulk sending. That rule is at the bottom, since it can
+# only be applied after the others have had their say.
+
+# ---- social ----------------------------------------------------------
+
+social      from facebookmail.com
+social      from redditmail.com
+social      from quora.com
+social      from linkedin.com
+social      from twitter.com
+social      from instagram.com
+social      from nextdoor.com
+social      from pinterest.com
+
+# ---- money -----------------------------------------------------------
+
+banking     from usaa.com
+banking     from sofi.com
+banking     from chase.com
+banking     from bankofamerica.com
+banking     from paypal.com
+banking     from intuit.com
+banking     subject statement is ready
+banking     subject your bill
+
+# ---- work ------------------------------------------------------------
+
+jobs        from indeed.com
+jobs        from experteer.com
+jobs        from experis.com
+jobs        from linkedin.com
+jobs        from amazon.jobs
+jobs        from gem.com
+jobs        from hiive.com
+jobs        subject opportunity for
+jobs        subject software engineer
+jobs        subject firmware engineer
+
+# ---- things bought and delivered --------------------------------------
+
+orders      from aliexpress.com
+orders      from amazon.com
+orders      from ebay.com
+orders      from usps.com
+orders      from informeddelivery.usps.com
+orders      subject your order
+orders      subject has shipped
+orders      subject tracking
+
+# ---- what the account itself says -------------------------------------
+
+security    from accounts.google.com
+security    subject security alert
+security    subject verify your
+security    subject password
+
+# ---- reading ----------------------------------------------------------
+
+news        from economist.com
+news        from wsj.com
+news        from nytimes.com
+news        from theepochtimes.com
+news        from academia-mail.com
+news        from xda-developers.com
+news        from weather.com
+news        from threadloom-newsletter.com
+
+# ---- entertainment ----------------------------------------------------
+
+media       from hulumail.com
+media       from imdb.com
+media       from tubitv.com
+media       from livenation.com
+media       from fox.com
+media       from youtube.com
+media       from netflix.com
+
+# ---- the rest of the machine mail --------------------------------------
+#
+# Anything still unnamed that carries the marks of bulk sending is an
+# advertisement, near enough.
+
+promotions  bulk
+
+# ---- and what is left ---------------------------------------------------
+#
+# No unsubscribe link, no list id, no bulk marks: a person wrote it.
+
+personal    always
