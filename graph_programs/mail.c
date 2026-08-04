@@ -678,12 +678,41 @@ static void renamestore(const char* was, const char* now)
 
 {
 
-    char old[MAXSTR*2], new[MAXSTR*2];
+    char        old[MAXSTR*2], new[MAXSTR*2];
+    struct stat sb;
 
     if (!*was || !strcmp(was, now)) return;
     snprintf(old, sizeof(old), "%.400s/%.60s", store, was);
     snprintf(new, sizeof(new), "%.400s/%.60s", store, now);
-    rename(old, new);
+    if (stat(old, &sb)) return; /* nothing there to move */
+    if (!rename(old, new)) return; /* the whole directory went */
+    /* It would not: renaming a directory onto one that already exists
+       fails, and the new name's directory may well have been made
+       already by anything that asked where the account's mail goes. So
+       move what is in it, one file at a time, and take the empty
+       directory away after. Failing quietly here is what left an
+       account renamed with its mail still under the old name and every
+       folder reading (not fetched). */
+    {
+
+        ami_filptr lp = NULL;
+        ami_filptr fp;
+        char       what[MAXSTR*2];
+
+        snprintf(what, sizeof(what), "%.400s/*", old);
+        ami_list(what, &lp);
+        for (fp = lp; fp; fp = fp->next) {
+
+            char a[MAXSTR*2], b[MAXSTR*2];
+
+            snprintf(a, sizeof(a), "%.400s/%.150s", old, fp->name);
+            snprintf(b, sizeof(b), "%.400s/%.150s", new, fp->name);
+            rename(a, b);
+
+        }
+        rmdir(old); /* which does nothing unless it is empty */
+
+    }
 
 }
 
@@ -5190,7 +5219,10 @@ static void fetchall(int relist)
     for (i = 0; i < srvct; i++) {
 
         if (!*servers[i].imap || !*servers[i].user) continue;
-        if (!getfolders(i)) { imapclose(); continue; }
+        /* If the server cannot be reached, keep what the store knows of
+           its folders rather than leaving the section empty: an account
+           that is merely unreachable has not stopped having folders. */
+        if (!getfolders(i)) { imapclose(); storefolders(i); continue; }
         imapclose(); /* one at a time: the connection is per server */
 
     }
