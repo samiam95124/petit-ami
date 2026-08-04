@@ -204,11 +204,51 @@ checking this store against a server will need.
 The account file holds a password and is written so that only its owner
 can read it.
 
-# What is not here yet
+# Writing and sending
 
-Sending. Config/Check Sending proves an account could send -- it
-connects, says hello, logs in and says goodbye -- so that the sending
-half has somewhere to stand when it is written. Nothing is sent.
+Compose opens a window with the three fields a message needs and a space
+to write in. Send sends it; Cancel throws it away.
+
+The fields are edit boxes and the body is not, since there is no widget
+for more than one line of text: it is kept and drawn here, and typing
+into it works the way typing works -- the arrows, Home and End, Page Up
+and Page Down, Enter to break a line, Backspace and Delete to mend one.
+A click on a field takes the keys, and a click on the body gives them
+back.
+
+Sending happens on the same thread as fetching, so a message written
+while mail is coming in goes at once rather than after, and the window
+answers throughout.
+
+## Which account sends
+
+One of them. Config/Servers has a box on each account saying it is the
+one that sends, and ticking it for an account unticks the rest: a
+message leaves over one connection with one name on it, so this is a
+choice among the accounts rather than something each of them carries.
+
+## A copy is kept
+
+Everything sent goes into a local folder called Sent, in the same form
+as everything received, indexed the same way. What is sent is ours as
+much as what arrives.
+
+## Answering
+
+A message being read has Reply, Reply All and Forward on its own menu.
+
+Reply goes to whoever wrote it. Reply All goes to them and to everybody
+else the message was addressed to, less yourself. Both carry the subject
+with Re: in front of it, quote what is being answered under a line
+saying who wrote it and when, and put the caret above the quoting where
+the writing goes. Both are threaded: the answer says which message it
+answers, so a mail reader at the other end files it in the conversation.
+
+Forward carries the message under a line saying where it came from, with
+its own subject marked Fwd:, and is not threaded -- it is a new message
+to somebody who was not in the conversation.
+
+# What is not here yet
 
 Deleting from a server. That is the one change to a server this program
 will make, and it will not be made until the mail here has been checked

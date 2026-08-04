@@ -96,6 +96,7 @@
 #define POPWIN    6 /* the message menu, on the second mouse button */
 #define HELPWIN   7 /* the help window */
 #define BANWIN    8 /* the banner across the top */
+#define CMPWIN    9 /* the compose window */
 #define BANPIC    1 /* the picture in it */
 
 /* its widgets, numbered within it */
@@ -127,10 +128,23 @@
 #define SRVNEXT  12 /* show the next account */
 #define SRVNEW   13 /* start another one */
 #define SRVDEL   14 /* take this one away */
+#define SRVSEND  15 /* mail is sent from this account */
+
+/* the compose window's widgets */
+#define CMPTO     1 /* who it is to */
+#define CMPCC     2 /* and who else */
+#define CMPSUB    3 /* what it is about */
+#define CMPSEND   4 /* send it */
+#define CMPCAN    5 /* and think better of it */
+#define CMPSB     6 /* the bar down the side of the body */
 
 /* menu ids of our own, after the standard ones */
 #define MENUMAIL  (AMI_SMMAX+1) /* the mail menu itself */
 #define MENUFETCH (AMI_SMMAX+2) /* fetch new mail */
+#define MENUCOMP  (AMI_SMMAX+6) /* write a message */
+#define MENUREPLY (AMI_SMMAX+7) /* answer the message being read */
+#define MENUREPALL (AMI_SMMAX+8) /* and everybody it went to */
+#define MENUFWD   (AMI_SMMAX+9) /* pass it on */
 #define MENUFOLD  (AMI_SMMAX+3) /* fetch the folder list again */
 #define MENUCHECK (AMI_SMMAX+4) /* check that mail could be sent */
 #define MENUSRV   (AMI_SMMAX+5) /* the server form */
@@ -240,6 +254,21 @@ static srvrec servers[MAXSRV];
 static long   srvct;    /* how many there are */
 static long   srvedit;  /* the one the form is showing */
 static long   pollsec = DEFPOLL; /* how often to look, in seconds */
+/* Which account mail is sent from. One of them, and only one: a message
+   goes out over one connection with one name on it, so the box that
+   says which is a choice among the accounts, not a setting each of them
+   carries. */
+static long   sendsrv;
+
+/* A message waiting to go. The sending is network, and network is the
+   worker's, so what is written is left here and taken by it. */
+static long   sendwant;
+static char   outto[MAXSTR];
+static char   outcc[MAXSTR];
+static char   outsub[MAXSTR];
+static char*  outbody;
+static char   outinreply[MAXSTR];
+static char   outrefs[MAXSTR*2];
 
 /* the one being talked to just now, which the protocol routines use */
 static char imapsrv[MAXSTR] = "imap.gmail.com";
@@ -335,6 +364,7 @@ static void copystr(char* d, const char* s, long dl);
    one is kept: a fetch that has gone wrong goes wrong the same way over
    and over, and the reader wants to be told once. */
 static char failsaid[MAXSTR*3];
+static char sentsaid[MAXSTR]; /* and what went right */
 static long failwait;
 static long fetchasked; /* somebody asked for this fetch and is waiting */
 
@@ -1155,6 +1185,7 @@ static void readaccount(void)
         }
         if (!strcasecmp(p, "end")) { r = NULL; continue; }
         if (!strcasecmp(p, "poll")) { pollsec = atol(v); continue; }
+        if (!strcasecmp(p, "sendfrom")) { sendsrv = atol(v); continue; }
         if (!r) { /* the old form: settings before any server line */
 
             if (srvct >= MAXSRV) break;
@@ -1208,6 +1239,7 @@ static void writeaccount(void)
     }
     fprintf(f, "# Mail accounts. Written by the Config form in mail.\n");
     fprintf(f, "poll %ld\n", pollsec);
+    fprintf(f, "sendfrom %ld\n", sendsrv);
     for (i = 0; i < srvct; i++) {
 
         fprintf(f, "\nserver %s\n", servers[i].name);
@@ -2167,6 +2199,10 @@ half-written -- against it itself.
 static void dlock(void);
 static void dunlock(void);
 static void serveindex(void);
+static void servesend(void);
+static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
+                    long id, char* face);
+static void appendmenu(ami_menuptr* list, ami_menuptr m);
 static void kickworker(void);
 
 static char wrkwhat[MAXSTR]; /* what is being worked on */
@@ -3741,6 +3777,311 @@ static void b64enc(const char* s, long n, char* d, long dn)
 }
 
 /* Prove the account can send, without sending anything. */
+/*******************************************************************************
+
+Sending
+
+The one thing this program does that reaches out rather than reads. It
+speaks just enough SMTP: a connection, a greeting, a login, who it is
+from, who it is to, and the message itself.
+
+A copy of everything sent is put in a local folder called Sent. That is
+the same rule the rest of the program is built to -- what is here is
+here, in a file, not on somebody's server -- and it means a sent message
+can be read, searched and counted like any other.
+
+*******************************************************************************/
+
+/* Split a list of addresses on commas, giving each in turn. Quoted
+   display names can hold commas, so the split ignores anything inside
+   quotes or angle brackets. */
+static const char* nextaddr(const char* p, char* d, long dl)
+
+{
+
+    long i = 0;
+    int  quote = FALSE;
+    int  angle = FALSE;
+
+    if (!p || !*p) { if (dl) *d = 0; return (NULL); }
+    while (*p == ' ' || *p == ',') p++;
+    while (*p && (quote || angle || *p != ',')) {
+
+        if (*p == '"') quote = !quote;
+        if (*p == '<') angle = TRUE;
+        if (*p == '>') angle = FALSE;
+        if (i < dl-1) d[i++] = *p;
+        p++;
+
+    }
+    if (dl) d[i] = 0;
+    trim(d);
+
+    return (*p? p+1: NULL);
+
+}
+
+/* Something that will do as a message id: the time, a count within the
+   second, and the sending account's domain. */
+static void makemsgid(char* d, long dl)
+
+{
+
+    static long ct;
+    const char* at = sendsrv >= 0 && sendsrv < srvct?
+                     strchr(servers[sendsrv].user, '@'): NULL;
+
+    snprintf(d, dl, "<%ld.%ld.amimail@%s>", (long)time(NULL), ++ct,
+             at? at+1: "localhost");
+
+}
+
+/* the date, as a message header wants it */
+static void makedate(char* d, long dl)
+
+{
+
+    time_t    t = time(NULL);
+    struct tm lt;
+
+    localtime_r(&t, &lt);
+    strftime(d, dl, "%a, %d %b %Y %H:%M:%S %z", &lt);
+
+}
+
+/* Send one message. Gives an empty string if it went, and what went
+   wrong if it did not. The whole of it happens on the fetch thread, so
+   that a server taking its time over a message does not stop the
+   display. */
+static void sendmail(const char* to, const char* cc, const char* subject,
+                     const char* body, const char* inreply,
+                     const char* refs, char* err, long errl)
+
+{
+
+    unsigned long addr;
+    FILE*  f;
+    char   b64[MAXSTR*2];
+    char   one[MAXSTR];
+    char   ssrv[MAXSTR];  /* the sending account's own details, taken
+                             here rather than from whatever the fetch
+                             has open: the two run at once */
+    char   suser[MAXSTR];
+    char   spass[MAXSTR];
+    long   sport;
+    char   msgid[MAXSTR];
+    char   date[MAXSTR];
+    char*  msg;
+    long   msgl;
+    long   o = 0;
+    long   code;
+    const char* p;
+    long   sent = 0;
+
+    *err = 0;
+    if (sendsrv < 0 || sendsrv >= srvct) sendsrv = 0;
+    dlock();
+    copystr(ssrv, servers[sendsrv].smtp, MAXSTR);
+    sport = servers[sendsrv].smtpport;
+    copystr(suser, servers[sendsrv].user, MAXSTR);
+    copystr(spass, servers[sendsrv].pass, MAXSTR);
+    dunlock();
+    if (!*ssrv || !*suser) {
+
+        copystr(err, "No account is set to send from. Config/Servers has a "
+                "box for it, and a sending server to fill in.", errl);
+
+        return;
+
+    }
+    ami_addrnet(ssrv, &addr);
+    /* 465 is TLS from the first byte; 587 begins in the clear and turns
+       it on with STARTTLS, which this cannot do through the library's
+       socket, so 465 is the one to use */
+    f = ami_opennet(addr, sport, TRUE);
+    if (!f) { snprintf(err, errl, "Cannot reach %s.", ssrv); return; }
+    {
+
+        struct timeval tv;
+        int            fd = fileno(f);
+
+        tv.tv_sec = NETWAIT;
+        tv.tv_usec = 0;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+    }
+    if (smtpresp(f)/100 != 2)
+        { copystr(err, "The sending server did not greet us.", errl);
+          fclose(f); return; }
+    smtpsend(f, "EHLO localhost");
+    if (smtpresp(f)/100 != 2)
+        { copystr(err, "The sending server refused EHLO.", errl);
+          fclose(f); return; }
+    smtpsend(f, "AUTH LOGIN");
+    if (smtpresp(f) != 334)
+        { copystr(err, "The sending server would not start a login.", errl);
+          fclose(f); return; }
+    b64enc(suser, strlen(suser), b64, sizeof(b64));
+    smtpsend(f, "%s", b64);
+    if (smtpresp(f) != 334)
+        { copystr(err, "The sending server refused the user name.", errl);
+          fclose(f); return; }
+    b64enc(spass, strlen(spass), b64, sizeof(b64));
+    if (diag) fprintf(stderr, "> <password>\n");
+    fprintf(f, "%s\r\n", b64);
+    fflush(f);
+    if (smtpresp(f)/100 != 2) {
+
+        copystr(err, "The sending server would not accept the login.\n"
+                "For Gmail this must be an application password.", errl);
+        fclose(f);
+
+        return;
+
+    }
+    smtpsend(f, "MAIL FROM:<%s>", suser);
+    if (smtpresp(f)/100 != 2)
+        { copystr(err, "The sending server would not take the sender.", errl);
+          fclose(f); return; }
+    /* everybody it is going to, whether they are shown or not */
+    for (p = to; (p = nextaddr(p, one, sizeof(one))) || *one; ) {
+
+        char just[MAXSTR];
+
+        if (*one) {
+
+            addrof(one, just, sizeof(just));
+            smtpsend(f, "RCPT TO:<%s>", *just? just: one);
+            if (smtpresp(f)/100 == 2) sent++;
+
+        }
+        if (!p) break;
+
+    }
+    for (p = cc; p && (p = nextaddr(p, one, sizeof(one))) || (cc && *one); ) {
+
+        char just[MAXSTR];
+
+        if (*one) {
+
+            addrof(one, just, sizeof(just));
+            smtpsend(f, "RCPT TO:<%s>", *just? just: one);
+            if (smtpresp(f)/100 == 2) sent++;
+
+        }
+        if (!p) break;
+
+    }
+    if (!sent) {
+
+        copystr(err, "Nobody the message is addressed to was accepted.", errl);
+        smtpsend(f, "QUIT");
+        smtpresp(f);
+        fclose(f);
+
+        return;
+
+    }
+    smtpsend(f, "DATA");
+    if (smtpresp(f) != 354)
+        { copystr(err, "The sending server would not take the message.", errl);
+          fclose(f); return; }
+    makemsgid(msgid, sizeof(msgid));
+    makedate(date, sizeof(date));
+    /* The message itself, headers and all, kept so that the same bytes
+       can be put in the Sent folder as went down the wire. */
+    msgl = strlen(body)+MAXSTR*8;
+    msg = getmem(msgl);
+    o += snprintf(msg+o, msgl-o, "From: %s\r\n", suser);
+    o += snprintf(msg+o, msgl-o, "To: %s\r\n", to);
+    if (cc && *cc) o += snprintf(msg+o, msgl-o, "Cc: %s\r\n", cc);
+    o += snprintf(msg+o, msgl-o, "Subject: %s\r\n", subject);
+    o += snprintf(msg+o, msgl-o, "Date: %s\r\n", date);
+    o += snprintf(msg+o, msgl-o, "Message-ID: %s\r\n", msgid);
+    if (inreply && *inreply) {
+
+        o += snprintf(msg+o, msgl-o, "In-Reply-To: %s\r\n", inreply);
+        o += snprintf(msg+o, msgl-o, "References: %s%s%s\r\n",
+                      refs && *refs? refs: "", refs && *refs? " ": "",
+                      inreply);
+
+    }
+    o += snprintf(msg+o, msgl-o, "MIME-Version: 1.0\r\n");
+    o += snprintf(msg+o, msgl-o,
+                  "Content-Type: text/plain; charset=UTF-8\r\n");
+    o += snprintf(msg+o, msgl-o, "\r\n");
+    /* the body, with every line ending as the wire wants it and any
+       line of a single dot made safe */
+    for (p = body; *p; ) {
+
+        const char* q = p;
+
+        while (*q && *q != '\n') q++;
+        if (q-p == 1 && *p == '.') o += snprintf(msg+o, msgl-o, ".");
+        if (o+(q-p)+3 < msgl) {
+
+            memcpy(msg+o, p, q-p);
+            o += q-p;
+            o += snprintf(msg+o, msgl-o, "\r\n");
+
+        }
+        p = *q? q+1: q;
+
+    }
+    msg[o] = 0;
+    fwrite(msg, 1, o, f);
+    fprintf(f, "\r\n.\r\n");
+    fflush(f);
+    code = smtpresp(f);
+    smtpsend(f, "QUIT");
+    smtpresp(f);
+    fclose(f);
+    if (code/100 != 2) {
+
+        snprintf(err, errl, "The sending server would not take the message.");
+        free(msg);
+
+        return;
+
+    }
+    /* And a copy here, which is the point of the whole program: what is
+       sent is ours as much as what is received. */
+    {
+
+        long fold = localfolder("Sent");
+
+        if (fold >= 0) {
+
+            char hex[DIGLEN];
+            long off, stored = 0;
+
+            digestof(msg, o, hex);
+            dlock();
+            off = mboxwrite(folders[fold].file, msg, o, &stored);
+            if (off >= 0) {
+
+                msgrec* m = idxroom(fold);
+
+                fillrec(m, msg, o, stored, off, hex);
+                adddigest(fold, folders[fold].idxct-1);
+                idxappend(fold, m);
+                folders[fold].msgs = folders[fold].idxct;
+                folders[fold].dirty = TRUE;
+                useidx();
+
+            }
+            dunlock();
+            wrkfolds = TRUE;
+            wrklist = TRUE;
+
+        }
+
+    }
+    free(msg);
+
+}
+
 static void smtpcheck(void)
 
 {
@@ -3853,6 +4194,555 @@ static void commas(long n, char* s, long sl);
 static void divider(FILE* f, long x1, long y1, long x2, long y2);
 static long progw; /* how wide the bar is */
 static long progh; /* and how tall */
+
+/*******************************************************************************
+
+Writing a message
+
+A window with the three fields a message needs and a body to type in.
+The fields are edit boxes, which the library gives us; the body is not,
+since there is no widget for more than one line of text, so it is kept
+and drawn here.
+
+The body is a list of lines and a place in one of them, which is the
+model the editor in this kit uses and the simplest one that behaves the
+way a person expects. Everything that types into it comes to the window
+as an event: a click on an edit box takes the keys away, and a click on
+the body gives them back, which is what the library does with focus and
+what makes the two kinds of field live together.
+
+*******************************************************************************/
+
+#define CMPMAX  20000 /* the longest line worth calling a line */
+
+static FILE*  cmpwf;            /* the window, when it is open */
+static char** cmpline;          /* the body, a line at a time */
+static long   cmpct;            /* how many lines */
+static long   cmpmax;           /* room for how many */
+static long   cmpcl, cmpcc;     /* the caret: which line, which column */
+static long   cmptop;           /* the first line shown */
+static long   cmprows;          /* how many fit */
+static long   cmpy0;            /* where the body starts down the window */
+static long   cmpsbw;           /* the bar beside it */
+static long   cmpfocus;         /* the body has the keys */
+static long   cmpmx, cmpmy;     /* where the mouse is in the window */
+static char   cmpinreply[MAXSTR]; /* what this answers, if it answers */
+static char   cmprefs[MAXSTR*2];
+
+/* The message on show in the reader, in the pieces a reply is made of.
+   Kept when it is opened, since the reply is written from the headers
+   and the text rather than from the file again. */
+static char   redfrom[MAXSTR];
+static char   redto[MAXSTR];
+static char   redcc[MAXSTR];
+static char   redsubj[MAXSTR];
+static char   reddate[MAXSTR];
+static char   redid[MAXSTR];
+static char   redrefs[MAXSTR*2];
+static char*  redtext;
+
+/* room for one more line */
+static void cmproom(long n)
+
+{
+
+    if (n < cmpmax) return;
+    cmpmax = cmpmax? cmpmax*2: 64;
+    while (cmpmax <= n) cmpmax *= 2;
+    cmpline = realloc(cmpline, cmpmax*sizeof(char*));
+    if (!cmpline) { fail("Out of memory"); exit(1); }
+
+}
+
+static void cmpclear(void)
+
+{
+
+    long i;
+
+    for (i = 0; i < cmpct; i++) free(cmpline[i]);
+    cmpct = 0;
+    cmpcl = 0;
+    cmpcc = 0;
+    cmptop = 0;
+
+}
+
+/* put a line in, at a place */
+static void cmpput(long at, const char* text)
+
+{
+
+    long i;
+
+    cmproom(cmpct+1);
+    for (i = cmpct; i > at; i--) cmpline[i] = cmpline[i-1];
+    cmpline[at] = getmem(strlen(text)+1);
+    strcpy(cmpline[at], text);
+    cmpct++;
+
+}
+
+static void cmptake(long at)
+
+{
+
+    long i;
+
+    if (at < 0 || at >= cmpct) return;
+    free(cmpline[at]);
+    for (i = at; i < cmpct-1; i++) cmpline[i] = cmpline[i+1];
+    cmpct--;
+
+}
+
+/* the whole of it, as one string, which is what sending wants */
+static char* cmptext(void)
+
+{
+
+    long  n = 1;
+    long  i;
+    char* t;
+
+    for (i = 0; i < cmpct; i++) n += strlen(cmpline[i])+1;
+    t = getmem(n);
+    *t = 0;
+    for (i = 0; i < cmpct; i++) { strcat(t, cmpline[i]); strcat(t, "\n"); }
+
+    return (t);
+
+}
+
+/*******************************************************************************
+
+The compose window: laying it out, drawing it, and answering it
+
+*******************************************************************************/
+
+static void cmpclose(void)
+
+{
+
+    if (!cmpwf) return;
+    ami_killwidget(cmpwf, CMPTO);
+    ami_killwidget(cmpwf, CMPCC);
+    ami_killwidget(cmpwf, CMPSUB);
+    ami_killwidget(cmpwf, CMPSEND);
+    ami_killwidget(cmpwf, CMPCAN);
+    ami_killwidget(cmpwf, CMPSB);
+    fclose(cmpwf); /* which is how a window is closed here */
+    cmpwf = NULL;
+    cmpclear();
+
+}
+
+/* how many lines of the body are on show */
+static long cmpvis(void)
+
+{
+
+    long n = (ami_maxyg(cmpwf)-cmpy0-8)/chrh;
+
+    return (n < 1? 1: n);
+
+}
+
+static void cmpbar(void)
+
+{
+
+    if (cmpct > cmpvis())
+        ami_scrollsiz(cmpwf, CMPSB, fullscale(cmpvis(), cmpct));
+    else ami_scrollsiz(cmpwf, CMPSB, INT_MAX);
+    ami_scrollpos(cmpwf, CMPSB, fullscale(cmptop, cmpct-1));
+
+}
+
+/* the body, and the caret in it */
+static void cmpdraw(void)
+
+{
+
+    long i;
+    long y;
+
+    if (!cmpwf) return;
+    ami_fcolor(cmpwf, ami_white);
+    ami_frect(cmpwf, 1, cmpy0, ami_maxxg(cmpwf)-cmpsbw-2, ami_maxyg(cmpwf));
+    ami_fcolor(cmpwf, ami_black);
+    cmprows = cmpvis();
+    if (cmpcl < cmptop) cmptop = cmpcl;
+    if (cmpcl >= cmptop+cmprows) cmptop = cmpcl-cmprows+1;
+    if (cmptop < 0) cmptop = 0;
+    y = cmpy0+4;
+    for (i = cmptop; i < cmpct && i < cmptop+cmprows; i++) {
+
+        ami_cursorg(cmpwf, 8, y);
+        fprintf(cmpwf, "%s", cmpline[i]);
+        if (i == cmpcl && cmpfocus) { /* the caret, where the typing goes */
+
+            char  upto[CMPMAX];
+            long  x;
+
+            copystr(upto, cmpline[i], sizeof(upto));
+            if (cmpcc < (long)strlen(upto)) upto[cmpcc] = 0;
+            x = 8+ami_strsiz(cmpwf, upto);
+            ami_fcolorc(cmpwf, rgb(200), rgb(40), rgb(40));
+            ami_linewidth(cmpwf, 2);
+            ami_line(cmpwf, x, y, x, y+chrh);
+            ami_linewidth(cmpwf, 1);
+            ami_fcolor(cmpwf, ami_black);
+
+        }
+        y += chrh;
+
+    }
+    cmpbar();
+
+}
+
+static void cmplay(void)
+
+{
+
+    long chrw = ami_strsiz(cmpwf, "0");
+    long labw = ami_strsiz(cmpwf, "Subject  ");
+    long ew, eh, bw, bh;
+    long y;
+    static const char* lab[] = { "To", "Cc", "Subject" };
+    static const long  wid[] = { CMPTO, CMPCC, CMPSUB };
+    long i;
+
+    ami_editboxsizg(cmpwf, "0", &ew, &eh);
+    ami_buttonsizg(cmpwf, "Cancel", &bw, &bh);
+    fprintf(cmpwf, "\f");
+    ami_fcolor(cmpwf, ami_black);
+    y = chrh/2;
+    for (i = 0; i < 3; i++) {
+
+        ami_cursorg(cmpwf, chrw, y+(eh-chrh)/2);
+        fprintf(cmpwf, "%s", lab[i]);
+        ami_poswidgetg(cmpwf, wid[i], chrw+labw, y);
+        ami_sizwidgetg(cmpwf, wid[i], ami_maxxg(cmpwf)-labw-chrw*2, eh);
+        y += eh+chrh/4;
+
+    }
+    y += chrh/4;
+    ami_poswidgetg(cmpwf, CMPSEND, chrw+labw, y);
+    ami_sizwidgetg(cmpwf, CMPSEND, bw, bh);
+    ami_poswidgetg(cmpwf, CMPCAN, chrw+labw+bw+chrw*2, y);
+    ami_sizwidgetg(cmpwf, CMPCAN, bw, bh);
+    y += bh+chrh/2;
+    /* the line that says the message begins here */
+    divider(cmpwf, 1, y, ami_maxxg(cmpwf), y);
+    cmpy0 = y+2;
+    ami_poswidgetg(cmpwf, CMPSB, ami_maxxg(cmpwf)-cmpsbw, cmpy0);
+    ami_sizwidgetg(cmpwf, CMPSB, cmpsbw, ami_maxyg(cmpwf)-cmpy0);
+    cmpdraw();
+
+}
+
+/* Open it, with whatever is already known filled in: a reply comes with
+   everything but the words. */
+static void cmpopen(const char* to, const char* cc, const char* subject,
+                    const char* body, const char* inreply, const char* refs)
+
+{
+
+    long wx, wy;
+    const char* p;
+
+    if (cmpwf) { ami_front(cmpwf); return; } /* one at a time */
+    ami_openwin(&stdin, &cmpwf, NULL, CMPWIN);
+    ami_title(cmpwf, "Write a message");
+    ami_auto(cmpwf, FALSE);
+    ami_curvis(cmpwf, FALSE);
+    ami_font(cmpwf, AMI_FONT_SIGN);
+    ami_setpoints(cmpwf, 11.0);
+    ami_binvis(cmpwf);
+    ami_winclientg(cmpwf, ami_strsiz(cmpwf, "0")*90, chrh*34, &wx, &wy,
+                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    ami_setsizg(cmpwf, wx, wy);
+    {
+
+        long ew, eh, bw, bh;
+
+        ami_editboxsizg(cmpwf, "0", &ew, &eh);
+        ami_buttonsizg(cmpwf, "Cancel", &bw, &bh);
+        ami_editboxg(cmpwf, 1, 1, 100, 1+eh, CMPTO);
+        ami_editboxg(cmpwf, 1, 1, 100, 1+eh, CMPCC);
+        ami_editboxg(cmpwf, 1, 1, 100, 1+eh, CMPSUB);
+        ami_buttong(cmpwf, 1, 1, 1+bw, 1+bh, "Send", CMPSEND);
+        ami_buttong(cmpwf, 1, 1, 1+bw, 1+bh, "Cancel", CMPCAN);
+        ami_scrollvertsizg(cmpwf, &cmpsbw, &eh);
+        ami_scrollvertg(cmpwf, 1, 1, cmpsbw, chrh*10, CMPSB);
+
+    }
+    ami_putwidgettext(cmpwf, CMPTO, (char*)(to? to: ""));
+    ami_putwidgettext(cmpwf, CMPCC, (char*)(cc? cc: ""));
+    ami_putwidgettext(cmpwf, CMPSUB, (char*)(subject? subject: ""));
+    copystr(cmpinreply, inreply? inreply: "", sizeof(cmpinreply));
+    copystr(cmprefs, refs? refs: "", sizeof(cmprefs));
+    /* the body, broken where its lines break */
+    cmpclear();
+    for (p = body? body: ""; ; ) {
+
+        const char* q = p;
+        char        one[CMPMAX];
+        long        n;
+
+        while (*q && *q != '\n') q++;
+        n = q-p;
+        if (n > CMPMAX-1) n = CMPMAX-1;
+        memcpy(one, p, n);
+        one[n] = 0;
+        while (n && (one[n-1] == '\r')) one[--n] = 0;
+        cmpput(cmpct, one);
+        if (!*q) break;
+        p = q+1;
+
+    }
+    if (!cmpct) cmpput(0, "");
+    cmpcl = 0;
+    cmpcc = 0;
+    cmpfocus = TRUE;
+    cmplay();
+
+}
+
+/* one character into the line the caret is on */
+static void cmpins(char c)
+
+{
+
+    char* l = cmpline[cmpcl];
+    long  n = strlen(l);
+    char* d;
+
+    if (n+2 > CMPMAX) return;
+    d = getmem(n+2);
+    memcpy(d, l, cmpcc);
+    d[cmpcc] = c;
+    strcpy(d+cmpcc+1, l+cmpcc);
+    free(cmpline[cmpcl]);
+    cmpline[cmpcl] = d;
+    cmpcc++;
+
+}
+
+/* the line broken where the caret is */
+static void cmpsplit(void)
+
+{
+
+    char* l = cmpline[cmpcl];
+    char* rest = getmem(strlen(l+cmpcc)+1);
+
+    strcpy(rest, l+cmpcc);
+    l[cmpcc] = 0;
+    cmpput(cmpcl+1, rest);
+    free(rest);
+    cmpcl++;
+    cmpcc = 0;
+
+}
+
+/* and joined to the one after it */
+static void cmpjoin(long at)
+
+{
+
+    char* a;
+    char* b;
+    char* d;
+
+    if (at < 0 || at+1 >= cmpct) return;
+    a = cmpline[at];
+    b = cmpline[at+1];
+    d = getmem(strlen(a)+strlen(b)+1);
+    strcpy(d, a);
+    strcat(d, b);
+    free(cmpline[at]);
+    cmpline[at] = d;
+    cmptake(at+1);
+
+}
+
+/* Everything typed into the body. The fields beside it are edit boxes
+   and answer for themselves; this is the part with no widget to do it. */
+static void cmpkey(ami_evtrec* er)
+
+{
+
+    long n = (long)strlen(cmpline[cmpcl]);
+
+    switch (er->etype) {
+
+        case ami_etchar:
+            if (er->echar >= ' ' && er->echar < 0x7f) cmpins(er->echar);
+            break;
+        case ami_etenter: cmpsplit(); break;
+        case ami_ettab: { long i; for (i = 0; i < 4; i++) cmpins(' '); break; }
+        case ami_etdelcb: /* backspace: within the line, or the break above */
+            if (cmpcc > 0) {
+
+                char* l = cmpline[cmpcl];
+
+                memmove(l+cmpcc-1, l+cmpcc, strlen(l+cmpcc)+1);
+                cmpcc--;
+
+            } else if (cmpcl > 0) {
+
+                cmpcc = strlen(cmpline[cmpcl-1]);
+                cmpjoin(cmpcl-1);
+                cmpcl--;
+
+            }
+            break;
+        case ami_etdelcf:
+            if (cmpcc < n) {
+
+                char* l = cmpline[cmpcl];
+
+                memmove(l+cmpcc, l+cmpcc+1, strlen(l+cmpcc+1)+1);
+
+            } else cmpjoin(cmpcl);
+            break;
+        case ami_etdell:
+            if (cmpct > 1) { cmptake(cmpcl); if (cmpcl >= cmpct) cmpcl = cmpct-1; }
+            else { free(cmpline[0]); cmpline[0] = getmem(1); *cmpline[0] = 0; }
+            cmpcc = 0;
+            break;
+        case ami_etleft:
+            if (cmpcc > 0) cmpcc--;
+            else if (cmpcl > 0) { cmpcl--; cmpcc = strlen(cmpline[cmpcl]); }
+            break;
+        case ami_etright:
+            if (cmpcc < n) cmpcc++;
+            else if (cmpcl < cmpct-1) { cmpcl++; cmpcc = 0; }
+            break;
+        case ami_etup: if (cmpcl > 0) cmpcl--; break;
+        case ami_etdown: if (cmpcl < cmpct-1) cmpcl++; break;
+        case ami_etpagu: cmpcl -= cmpvis()-1; if (cmpcl < 0) cmpcl = 0; break;
+        case ami_etpagd:
+            cmpcl += cmpvis()-1;
+            if (cmpcl > cmpct-1) cmpcl = cmpct-1;
+            break;
+        case ami_ethomel: case ami_ethomes: cmpcc = 0; break;
+        case ami_etendl: case ami_etends: cmpcc = strlen(cmpline[cmpcl]); break;
+        case ami_ethome: cmpcl = 0; cmpcc = 0; break;
+        case ami_etend:
+            cmpcl = cmpct-1;
+            cmpcc = strlen(cmpline[cmpcl]);
+            break;
+        default: return;
+
+    }
+    /* the caret cannot stand past the end of the line it is on */
+    n = (long)strlen(cmpline[cmpcl]);
+    if (cmpcc > n) cmpcc = n;
+    cmpdraw();
+
+}
+
+/* Send what has been written. The sending itself is network and slow,
+   so it is handed to the fetch thread; this only gathers it up. */
+static void cmpdosend(void)
+
+{
+
+    char  to[MAXSTR], cc[MAXSTR], sub[MAXSTR];
+    char* body;
+
+    ami_getwidgettext(cmpwf, CMPTO, to, sizeof(to));
+    ami_getwidgettext(cmpwf, CMPCC, cc, sizeof(cc));
+    ami_getwidgettext(cmpwf, CMPSUB, sub, sizeof(sub));
+    trim(to);
+    if (!*to) { fail("There is nobody to send it to."); return; }
+    body = cmptext();
+    /* No lock here: this runs while the display is handling an event,
+       and the display holds the lock for the whole of that. Taking it
+       again is a thread waiting for itself, which is what the library
+       calls a deadlock avoided and what it stops the program for. */
+    copystr(outto, to, sizeof(outto));
+    copystr(outcc, cc, sizeof(outcc));
+    copystr(outsub, sub, sizeof(outsub));
+    free(outbody);
+    outbody = body;
+    copystr(outinreply, cmpinreply, sizeof(outinreply));
+    copystr(outrefs, cmprefs, sizeof(outrefs));
+    sendwant = TRUE;
+    kickworker();
+    status("Sending...");
+    cmpclose();
+
+}
+
+static void cmpevent(ami_evtrec* er)
+
+{
+
+    switch (er->etype) {
+
+        case ami_etterm: cmpclose(); break;
+        case ami_etresize:
+            ami_sizbufg(cmpwf, er->rszxg, er->rszyg);
+            cmplay();
+            break;
+        case ami_etredraw: cmplay(); break;
+        case ami_etbutton:
+            if (er->butid == CMPSEND) cmpdosend();
+            else if (er->butid == CMPCAN) cmpclose();
+            break;
+        case ami_etmouba:
+            /* A click in the body is what gives the keys back to the
+               window after an edit box has had them, and it puts the
+               caret where it was clicked. */
+            if (er->amoubn == 1 && cmpmy >= cmpy0) {
+
+                long l = cmptop+(cmpmy-cmpy0-4)/chrh;
+
+                cmpfocus = TRUE;
+                if (l < 0) l = 0;
+                if (l > cmpct-1) l = cmpct-1;
+                cmpcl = l;
+                { /* the column the click landed nearest */
+
+                    char upto[CMPMAX];
+                    long i;
+
+                    copystr(upto, cmpline[cmpcl], sizeof(upto));
+                    for (i = 0; upto[i]; i++) {
+
+                        char c = upto[i+1];
+
+                        upto[i+1] = 0;
+                        if (8+ami_strsiz(cmpwf, upto) > cmpmx) break;
+                        upto[i+1] = c;
+
+                    }
+                    cmpcc = i;
+
+                }
+                cmpdraw();
+
+            } else if (er->amoubn == 1) cmpfocus = FALSE;
+            break;
+        case ami_etmoumovg: cmpmx = er->moupxg; cmpmy = er->moupyg; break;
+        case ami_etsclull: cmptop--; if (cmptop < 0) cmptop = 0; cmpdraw(); break;
+        case ami_etscldrl: cmptop++; cmpdraw(); break;
+        case ami_etsclulp: cmptop -= cmpvis()-1; cmpdraw(); break;
+        case ami_etscldrp: cmptop += cmpvis()-1; cmpdraw(); break;
+        case ami_etsclpos:
+            cmptop = scaleback(er->sclpos, cmpct-1);
+            cmpdraw();
+            break;
+        default: cmpkey(er); break;
+
+    }
+
+}
 
 /*******************************************************************************
 
@@ -4578,6 +5468,23 @@ Reading one message
 *******************************************************************************/
 
 /* wrap the message to the window it is being read in */
+/* one more line for the reader to show */
+static void readput(const char* s)
+
+{
+
+    if (readlines >= readmax) {
+
+        readmax = readmax? readmax*2: 200;
+        readline = realloc(readline, readmax*sizeof(char*));
+        if (!readline) { fail("Out of memory"); exit(1); }
+
+    }
+    readline[readlines] = getmem(strlen(s)+1);
+    strcpy(readline[readlines++], s);
+
+}
+
 static void wrapread(void)
 
 {
@@ -4602,6 +5509,20 @@ static void wrapread(void)
         memcpy(line, p, n);
         line[n] = 0;
         while (n && (line[n-1] == '\r' || line[n-1] == ' ')) line[--n] = 0;
+        if (!*line) {
+
+            /* A blank line is a line and nothing more. It cannot go
+               round the breaking loop below: nothing fits in no width,
+               so that loop takes its one character from past the end of
+               the string -- and what is past the end is whatever the
+               line before left in the buffer. Every blank line in every
+               message was followed by a ghost of the line above it. */
+            readput("");
+            p = *e? e+1: e;
+
+            continue;
+
+        }
         /* a line too long for the window is broken at a space */
         do {
 
@@ -4625,15 +5546,7 @@ static void wrapread(void)
                loop that takes nothing off the front of the line never
                reaches the end of it. */
             if (cut < 1) { cut = 1; part[1] = 0; }
-            if (readlines >= readmax) {
-
-                readmax = readmax? readmax*2: 200;
-                readline = realloc(readline, readmax*sizeof(char*));
-                if (!readline) { fail("Out of memory"); exit(1); }
-
-            }
-            readline[readlines] = getmem(strlen(part)+1);
-            strcpy(readline[readlines++], part);
+            readput(part);
             memmove(line, line+cut, strlen(line+cut)+1);
             while (*line == ' ') memmove(line, line+1, strlen(line));
 
@@ -4764,6 +5677,157 @@ static void showread(void)
 }
 
 /* open a message to be read: the headers worth showing, then the text */
+/* Quote what is being answered, the way mail has quoted since there was
+   mail: the sender and the date, then the text with a > before every
+   line of it. */
+static char* quoted(const char* who, const char* when, const char* text,
+                    int mark)
+
+{
+
+    long  n = strlen(text)*2+MAXSTR*2+64;
+    char* d = getmem(n);
+    long  o = 0;
+    const char* p;
+
+    if (mark) o += snprintf(d+o, n-o, "On %s, %s wrote:\n", when, who);
+    for (p = text; *p; ) {
+
+        const char* q = p;
+
+        while (*q && *q != '\n') q++;
+        if (o+(q-p)+4 < n) {
+
+            if (mark) { d[o++] = '>'; if (q > p) d[o++] = ' '; }
+            memcpy(d+o, p, q-p);
+            o += q-p;
+            d[o++] = '\n';
+
+        }
+        p = *q? q+1: q;
+
+    }
+    d[o] = 0;
+
+    return (d);
+
+}
+
+/* Answer it, answer everybody on it, or pass it on. */
+static void answer(long what)
+
+{
+
+    char  subj[MAXSTR*2];
+    char  to[MAXSTR*2];
+    char  cc[MAXSTR*2];
+    char* body;
+    char  who[MAXSTR];
+
+    if (!readwf) return;
+    nameof(redfrom, who, sizeof(who));
+    if (!*who) copystr(who, redfrom, sizeof(who));
+    *cc = 0;
+    if (what == MENUFWD) {
+
+        snprintf(subj, sizeof(subj), "%s%s",
+                 strncasecmp(redsubj, "Fwd:", 4)? "Fwd: ": "", redsubj);
+        *to = 0;
+        body = quoted(who, reddate, redtext? redtext: "", FALSE);
+        {   /* what is passed on says what it was */
+
+            char* d = getmem(strlen(body)+MAXSTR*4);
+
+            sprintf(d, "\n---------- Forwarded message ----------\n"
+                    "From: %s\nDate: %s\nSubject: %s\nTo: %s\n\n%s",
+                    redfrom, reddate, redsubj, redto, body);
+            free(body);
+            body = d;
+
+        }
+
+    } else {
+
+        snprintf(subj, sizeof(subj), "%s%s",
+                 strncasecmp(redsubj, "Re:", 3)? "Re: ": "", redsubj);
+        /* the answer goes to whoever wrote it */
+        addrof(redfrom, to, sizeof(to));
+        if (!*to) copystr(to, redfrom, sizeof(to));
+        if (what == MENUREPALL) {
+
+            /* and to everybody it was sent to, less ourselves: answering
+               everybody does not mean answering yourself */
+            char  mine[MAXSTR];
+            char  one[MAXSTR];
+            const char* p;
+            long  o = 0;
+
+            copystr(mine, sendsrv >= 0 && sendsrv < srvct?
+                    servers[sendsrv].user: "", sizeof(mine));
+            for (p = redto; p || *one; ) {
+
+                char just[MAXSTR];
+
+                p = nextaddr(p, one, sizeof(one));
+                if (*one) {
+
+                    addrof(one, just, sizeof(just));
+                    if (!*just) copystr(just, one, sizeof(just));
+                    if (strcasecmp(just, mine) && strcasecmp(just, to) &&
+                        o+strlen(just)+3 < sizeof(cc))
+                        o += snprintf(cc+o, sizeof(cc)-o, "%s%s",
+                                      o? ", ": "", just);
+
+                }
+                if (!p) break;
+
+            }
+            for (p = redcc; p || *one; ) {
+
+                char just[MAXSTR];
+
+                p = nextaddr(p, one, sizeof(one));
+                if (*one) {
+
+                    addrof(one, just, sizeof(just));
+                    if (!*just) copystr(just, one, sizeof(just));
+                    if (strcasecmp(just, mine) && strcasecmp(just, to) &&
+                        o+strlen(just)+3 < sizeof(cc))
+                        o += snprintf(cc+o, sizeof(cc)-o, "%s%s",
+                                      o? ", ": "", just);
+
+                }
+                if (!p) break;
+
+            }
+
+        }
+        body = quoted(who, reddate, redtext? redtext: "", TRUE);
+        {   /* a line to write on, above what is being answered */
+
+            char* d = getmem(strlen(body)+4);
+
+            sprintf(d, "\n\n%s", body);
+            free(body);
+            body = d;
+
+        }
+
+    }
+    /* A reply belongs to the conversation it answers and says so; a
+       forward is a new message to somebody who was not in it, and
+       putting it in the thread would file it under a conversation they
+       have never seen. */
+    if (what == MENUFWD) cmpopen(to, cc, subj, body, "", "");
+    else cmpopen(to, cc, subj, body, redid, redrefs);
+    free(body);
+    /* the caret where the writing goes, which is the top */
+    cmpcl = 0;
+    cmpcc = 0;
+    cmpdraw();
+
+}
+
 static void openmsg(long i)
 
 {
@@ -4785,6 +5849,17 @@ static void openmsg(long i)
     findheader(raw, "Subject", subj, sizeof(subj));
     findheader(raw, "Date", date, sizeof(date));
     text = textof(raw, strlen(raw), 0); /* all of it, to be read */
+    /* what a reply to this would be made of */
+    copystr(redfrom, from, sizeof(redfrom));
+    copystr(redto, to, sizeof(redto));
+    copystr(redsubj, subj, sizeof(redsubj));
+    copystr(reddate, date, sizeof(reddate));
+    if (!findheader(raw, "Cc", redcc, sizeof(redcc))) *redcc = 0;
+    if (!findheader(raw, "Message-ID", redid, sizeof(redid))) *redid = 0;
+    if (!findheader(raw, "References", redrefs, sizeof(redrefs))) *redrefs = 0;
+    free(redtext);
+    redtext = getmem(strlen(text)+1);
+    strcpy(redtext, text);
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t2);
     free(readtext);
     n = strlen(from)+strlen(to)+strlen(subj)+strlen(date)+strlen(text)+200;
@@ -4799,6 +5874,20 @@ static void openmsg(long i)
     if (!readwf) {
 
         ami_openwin(&stdin, &readwf, NULL, READWIN);
+        {   /* what can be done with a message that is being read */
+
+            ami_menuptr mp;
+            ami_menuptr ml = NULL;
+
+            newmenu(&mp, FALSE, FALSE, OFF, MENUREPLY, "Reply");
+            appendmenu(&ml, mp);
+            newmenu(&mp, FALSE, FALSE, OFF, MENUREPALL, "Reply All");
+            appendmenu(&ml, mp);
+            newmenu(&mp, FALSE, FALSE, OFF, MENUFWD, "Forward");
+            appendmenu(&ml, mp);
+            ami_menu(readwf, ml);
+
+        }
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
@@ -4919,6 +6008,22 @@ static void srvlay(void)
 
     }
     y += chrh/2;
+    /* One account sends, and only one: a message goes out over one
+       connection with one name on it. Checking the box here is choosing
+       among the accounts, so checking it for one clears it for the rest
+       -- which is what the box does when it is clicked, not something
+       the reader has to remember to do. */
+    {
+
+        long cw, ch;
+
+        ami_checkboxsizg(srvwf, "Send mail from this account", &cw, &ch);
+        ami_poswidgetg(srvwf, SRVSEND, chrw*2+labw, y);
+        ami_sizwidgetg(srvwf, SRVSEND, cw, ch);
+        ami_selectwidget(srvwf, SRVSEND, srvedit == sendsrv);
+        y += ch+chrh/2;
+
+    }
     ami_poswidgetg(srvwf, SRVOK, chrw*2+labw, y);
     ami_sizwidgetg(srvwf, SRVOK, bw, bh);
     ami_poswidgetg(srvwf, SRVCAN, chrw*2+labw+bw+chrw*2, y);
@@ -5067,6 +6172,7 @@ static void srvopen(void)
     ami_buttong(srvwf, 1, 1, 2, 2, "Next", SRVNEXT);
     ami_buttong(srvwf, 1, 1, 2, 2, "Add", SRVNEW);
     ami_buttong(srvwf, 1, 1, 2, 2, "Remove", SRVDEL);
+    ami_checkboxg(srvwf, 1, 1, 2, 2, "Send mail from this account", SRVSEND);
     srvlay();
     srvload();
 
@@ -5083,6 +6189,19 @@ static void srvevent(ami_evtrec* er)
 
         case ami_etredraw:
         case ami_etresize: srvlay(); break;
+
+        case ami_etchkbox:
+            if (er->ckbxid == SRVSEND) {
+
+                /* Ticking it names this account; unticking it would
+                   leave nothing able to send, so the box goes back on
+                   and says so by staying on. */
+                sendsrv = srvedit;
+                ami_selectwidget(srvwf, SRVSEND, TRUE);
+                writeaccount();
+
+            }
+            break;
 
         case ami_etbutton:
             if (er->butid == SRVNEXT) { /* show the one after this */
@@ -5937,6 +7056,8 @@ static void setupmenu(void)
        box does, in the corner every window has it in. Get Mail is what
        this program is for, so it stands on the bar rather than inside
        something. */
+    newmenu(&mp, FALSE, FALSE, OFF, MENUCOMP, "Compose");
+    appendmenu(&ml, mp);
     newmenu(&mp, FALSE, FALSE, OFF, MENUFETCH, "Get Mail");
     appendmenu(&ml, mp);
     newmenu(&ma, FALSE, FALSE, OFF, MENUMAIL, "Config");
@@ -6422,7 +7543,43 @@ static void fetchrun(void)
        timer setting the pace: that apparatus existed only to give the
        display a turn between messages, and the display has a thread of
        its own now. */
-    while (!wrkdone && !wrkstop) { serveindex(); fetchstep(); }
+    while (!wrkdone && !wrkstop) { servesend(); serveindex(); fetchstep(); }
+
+}
+
+/* Send whatever the compose window has left to be sent. Between
+   messages of a fetch as well as when nothing else is happening, so a
+   message written during a long fetch goes now rather than after it. */
+static void servesend(void)
+
+{
+
+    char to[MAXSTR], cc[MAXSTR], sub[MAXSTR], inreply[MAXSTR];
+    char refs[MAXSTR*2];
+    char err[MAXSTR*3];
+    char* body;
+
+    if (!sendwant) return;
+    dlock();
+    sendwant = FALSE;
+    copystr(to, outto, sizeof(to));
+    copystr(cc, outcc, sizeof(cc));
+    copystr(sub, outsub, sizeof(sub));
+    copystr(inreply, outinreply, sizeof(inreply));
+    copystr(refs, outrefs, sizeof(refs));
+    body = outbody;
+    outbody = NULL;
+    dunlock();
+    snprintf(wrkwhat, sizeof(wrkwhat), "Sending to %s", to);
+    wrkpos = 0;
+    wrkmax = 0;
+    sendmail(to, cc, sub, body? body: "", inreply, refs, err, sizeof(err));
+    free(body);
+    wrkwhat[0] = 0;
+    if (*err) { copystr(failsaid, err, sizeof(failsaid)); failwait = TRUE; }
+    else copystr(sentsaid, "Message sent, and a copy put in Sent.",
+                 sizeof(sentsaid));
+    wrkfolds = TRUE;
 
 }
 
@@ -6473,6 +7630,7 @@ static void mailwork(void)
 
     while (TRUE) {
 
+        servesend();
         serveindex();
         if (wrkgo) {
 
@@ -6599,6 +7757,7 @@ static void fetchpick(void)
         statprog(wrkpos, wrkmax);
 
     }
+    if (*sentsaid) { status(sentsaid); *sentsaid = 0; }
     if (failwait) {
 
         failwait = FALSE;
@@ -6606,7 +7765,7 @@ static void fetchpick(void)
            down fails every one of them: an hour away from it would be
            an hour of boxes to dismiss. Those are left to the diagnostic
            and to the account being set aside. */
-        if (fetchasked) ami_alert("Mail", failsaid);
+        if (fetchasked || !fetching) ami_alert("Mail", failsaid);
 
     }
     if (done) {
@@ -6879,11 +8038,16 @@ int main(int argc, char* argv[])
            window of its own and the panes are windows of their own, so
            this one loop serves them all. */
         if (er.winid == HELPWIN) { helpevent(&er); continue; }
+        if (er.winid == CMPWIN) { cmpevent(&er); continue; }
         if (er.winid == SRVWIN) { srvevent(&er); continue; }
         if (er.winid == READWIN) {
 
             switch (er.etype) {
 
+                case ami_etmenus:
+                    if (er.menuid == MENUREPLY || er.menuid == MENUREPALL ||
+                        er.menuid == MENUFWD) answer(er.menuid);
+                    break;
                 case ami_etterm: closeread(); break;
                 case ami_etredraw:
                 case ami_etresize: wrapread(); drawread(); break;
@@ -7131,6 +8295,11 @@ int main(int argc, char* argv[])
 
                     case MENUSRV: srvopen(); break;
 
+                    case MENUCOMP:
+                        if (!haveaccount()) { srvopen(); break; }
+                        cmpopen("", "", "", "", "", "");
+                        break;
+
                     case MENUFETCH:
                         if (!haveaccount()) {
 
@@ -7203,7 +8372,8 @@ int main(int argc, char* argv[])
 
     /* a terminate for the reader closed the reader, not the program */
     } while (er.etype != ami_etterm || er.winid == READWIN ||
-             er.winid == SRVWIN || er.winid == HELPWIN);
+             er.winid == SRVWIN || er.winid == HELPWIN ||
+             er.winid == CMPWIN);
     done:
     /* The lock is held here, so the worker is not in the middle of
        writing a message: what is in the store is whole. It is told to
@@ -7219,6 +8389,7 @@ int main(int argc, char* argv[])
     helpclose();
     srvclose();
     closeread();
+    cmpclose();
     dunlock();
 
     return (0);
