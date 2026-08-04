@@ -2555,26 +2555,45 @@ static void listline(const char* line)
     foldrec*    f;
 
     if (strncmp(line, "* LIST", 6)) return;
-    /* * LIST (\HasNoChildren) "/" "INBOX" -- the name is last, and quoted
-       unless it has nothing in it needing quotes */
-    p = strrchr(line, '"');
-    if (p && p != line) { /* quoted: find the quote that opens it */
+    /* A LIST reply is the flags in parentheses, then the delimiter, then
+       the name:
 
-        q = p-1;
-        while (q > line && *q != '"') q--;
-        if (*q != '"') return;
-        q++;
-        while (q < p && o < MAXSTR-1) name[o++] = *q++;
+           * LIST (\HasNoChildren) "/" "INBOX"      as Gmail writes it
+           * LIST (\HasChildren) "." INBOX          as Dovecot writes it
 
-    } else { /* not quoted: the last blank separated word */
+       Either part may be quoted or not, and taking the text between the
+       last pair of quotes -- which is what this did -- reads Dovecot's
+       delimiter as the name. Every folder then came back called "." and
+       not one of them could be opened, which is what an account on
+       shared hosting looked like: logged in, folders listed, nothing
+       fetched. So it is read in order: past the flags, past the
+       delimiter, and what is left is the name. */
+    p = line+6;
+    while (*p == ' ') p++;
+    if (*p == '(') { while (*p && *p != ')') p++; if (*p) p++; } /* flags */
+    while (*p == ' ') p++;
+    if (*p == '"') { /* the delimiter, quoted */
 
-        q = strrchr(line, ' ');
-        if (!q) return;
-        q++;
-        while (*q && o < MAXSTR-1) name[o++] = *q++;
+        p++;
+        while (*p && *p != '"') { if (*p == '\\' && p[1]) p++; p++; }
+        if (*p) p++;
 
-    }
+    } else while (*p && *p != ' ') p++; /* or NIL, unquoted */
+    while (*p == ' ') p++;
+    if (*p == '"') { /* the name, quoted */
+
+        p++;
+        while (*p && *p != '"' && o < MAXSTR-1) {
+
+            if (*p == '\\' && p[1]) p++; /* what is escaped is literal */
+            name[o++] = *p++;
+
+        }
+
+    } else while (*p && o < MAXSTR-1) name[o++] = *p++; /* or bare */
     name[o] = 0;
+    trim(name);
+    (void)q;
     if (!o || foldct >= MAXFOLDER) return;
     f = &folders[foldct++];
     copystr(f->name, name, MAXSTR);
