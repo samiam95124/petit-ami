@@ -90,6 +90,18 @@ asked again immediately. Nothing is lost by any of it: every folder
 remembers the stretch it has taken and every message is known by its
 digest, so the next look carries on from where the last one stopped.
 
+# The banner
+
+Across the top, under the menu: the program's name and the picture that
+goes with it, with a double line under them to say that what is below is
+a different thing.
+
+The picture is `mail.bmp`, kept beside the program. A bitmap, because
+that is the one form the library reads. Replace it with another and the
+banner follows it: the band is as tall as the picture is, so a smaller
+picture makes a smaller banner. If it is missing the banner is the name
+alone, which is a banner still.
+
 # Folders
 
 Down the left, in sections: one for each account's folders, then one for

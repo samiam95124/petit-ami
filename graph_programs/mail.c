@@ -95,6 +95,8 @@
 #define SRVWIN    5 /* the server form */
 #define POPWIN    6 /* the message menu, on the second mouse button */
 #define HELPWIN   7 /* the help window */
+#define BANWIN    8 /* the banner across the top */
+#define BANPIC    1 /* the picture in it */
 
 /* its widgets, numbered within it */
 #define HELPFIND  1 /* the search entry */
@@ -3854,6 +3856,92 @@ static long progh; /* and how tall */
 
 /*******************************************************************************
 
+The banner
+
+A band across the top under the menu: the program's name at the left in
+large type, and at the right the picture that goes with it. It is a
+window of its own, like the panes, so it is placed and drawn in one
+space and answers for its own redrawing.
+
+The picture is a bitmap beside the program, since that is the one form
+the library reads. It is loaded once; if it is not found the banner is
+the name alone, which is a banner still.
+
+*******************************************************************************/
+
+static FILE* banwf;    /* the banner is a pane, like the others */
+static long  banh;     /* how tall it is */
+static long  picw;     /* the picture, at the size it was made */
+static long  pich;
+static long  havepic;
+
+/* Something kept beside the program: the categories, the help, the
+   picture. Looked for where the program is, then where the source is,
+   so that it works run from anywhere and from the build directory. */
+static int resfile(const char* leaf, char* path, long pl)
+
+{
+
+    char  dir[MAXSTR];
+    char* e;
+    FILE* f;
+    long  i;
+
+    dir[0] = 0;
+    if (mailprog) {
+
+        snprintf(dir, sizeof(dir), "%s", mailprog);
+        e = strrchr(dir, '/');
+        if (e) e[1] = 0; else dir[0] = 0;
+
+    }
+    for (i = 0; i < 4; i++) {
+
+        if (i == 0) snprintf(path, pl, "%s%s", dir, leaf);
+        else if (i == 1) snprintf(path, pl, "%s../graph_programs/%s", dir, leaf);
+        else if (i == 2) snprintf(path, pl, "%s", leaf);
+        else snprintf(path, pl, "graph_programs/%s", leaf);
+        f = fopen(path, "r");
+        if (f) { fclose(f); return (TRUE); }
+
+    }
+
+    return (FALSE);
+
+}
+
+static void drawbanner(void)
+
+{
+
+    long y;
+
+    if (!banwf) return;
+    ami_bcolorc(banwf, rgb(255), rgb(255), rgb(255));
+    fprintf(banwf, "\f");
+    /* the name, at the left, set in the middle of the band */
+    ami_fcolorc(banwf, rgb(40), rgb(40), rgb(60));
+    ami_cursorg(banwf, 16, (banh-ami_chrsizy(banwf))/2);
+    fprintf(banwf, "Ami Mail");
+    ami_fcolor(banwf, ami_black);
+    /* and the picture at the right, at the size it was made */
+    if (havepic)
+        ami_picture(banwf, BANPIC, ami_maxxg(banwf)-picw-16, (banh-pich)/2,
+                    ami_maxxg(banwf)-16, (banh-pich)/2+pich);
+    /* Two lines under it, which is what says the banner is not part of
+       what is below it. */
+    y = banh-4;
+    ami_fcolorc(banwf, rgb(120), rgb(120), rgb(140));
+    ami_linewidth(banwf, 2);
+    ami_line(banwf, 1, y, ami_maxxg(banwf), y);
+    ami_line(banwf, 1, y+4, ami_maxxg(banwf), y+4);
+    ami_linewidth(banwf, 1);
+    ami_fcolor(banwf, ami_black);
+
+}
+
+/*******************************************************************************
+
 The status bar
 
 Anything that takes longer than an instant says so. The line at the foot
@@ -5059,8 +5147,13 @@ static void layout(void)
 
 {
 
-    long top = chrh*2; /* under the menu bar, which is drawn in the client */
+    long top = chrh*2+banh; /* under the menu bar and the banner */
     long h = ami_maxyg(stdout)-top-stath; /* the strip has the foot of it */
+
+    /* The banner is as wide as the window and stays where it is put. */
+    ami_setposg(banwf, 1, chrh*2);
+    ami_setsizg(banwf, ami_maxxg(stdout), banh);
+    ami_sizbufg(banwf, ami_maxxg(stdout), banh);
 
     if (diag) fprintf(stderr, "layout: buf %ldx%ld stath %ld progh %ld "
                       "panes %ld tall\n", ami_maxxg(stdout), ami_maxyg(stdout),
@@ -5108,6 +5201,7 @@ static void layout(void)
     drawfolders();
     drawlist();
     drawstatus();
+    drawbanner();
 
 }
 
@@ -6703,6 +6797,30 @@ int main(int argc, char* argv[])
     /* The strip at the foot, and the bar in it. Its natural height is
        what the strip is built around; its width is set here, since a bar
        as wide as a window says less than a short one does. */
+    /* the banner across the top: its own window, so that it is placed
+       and drawn in one space and answers for its own redrawing */
+    ami_openwin(&stdin, &banwf, stdout, BANWIN);
+    ami_frame(banwf, FALSE);
+    ami_auto(banwf, FALSE);
+    ami_curvis(banwf, FALSE);
+    ami_font(banwf, AMI_FONT_SIGN);
+    ami_setpoints(banwf, 24.0);
+    {
+
+        char path[MAXSTR];
+
+        if (resfile("mail.bmp", path, sizeof(path))) {
+
+            ami_loadpict(banwf, BANPIC, path);
+            picw = ami_pictsizx(banwf, BANPIC);
+            pich = ami_pictsizy(banwf, BANPIC);
+            havepic = picw > 0 && pich > 0;
+
+        }
+
+    }
+    /* as tall as the picture wants, or as the name does */
+    banh = havepic? pich+16: ami_chrsizy(banwf)+16;
     /* the strip along the foot, and the bar drawn in it */
     progh = chrh-2;
     progw = ami_strsiz(stdout, "0")*20;
@@ -6798,6 +6916,15 @@ int main(int argc, char* argv[])
                 default: break;
 
             }
+            continue;
+
+        }
+        if (er.winid == BANWIN) {
+
+            if (er.etype == ami_etredraw) drawbanner();
+            else if (er.etype == ami_etresize)
+                { ami_sizbufg(banwf, er.rszxg, er.rszyg); drawbanner(); }
+
             continue;
 
         }
@@ -6980,7 +7107,7 @@ int main(int argc, char* argv[])
                    stand on: when they move down to make room for it,
                    what they leave is the main window's again, and the
                    main window has to paint it. */
-                divider(stdout, foldw+4, chrh*2, foldw+4,
+                divider(stdout, foldw+4, chrh*2+banh, foldw+4,
                         ami_maxyg(stdout)-stath);
                 drawstatus();
                 break;
