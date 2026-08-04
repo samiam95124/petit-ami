@@ -5013,7 +5013,8 @@ through while it runs, and it can be stopped.
 
 static int  fetching;    /* a fetch is under way */
 static long fetchsrv;    /* the server being read */
-static long fetchfold;   /* the folder being read */
+static long fetchfold;   /* where the stepping has got to in the order */
+static long fetchcur = -1; /* and the folder that place names */
 static long fetchi;      /* which of that folder's uids is next */
 static long fetchgot;    /* messages taken, this fetch */
 static long fetchdup;    /* and passed over as already here */
@@ -5036,6 +5037,53 @@ static void fetchsay(void)
 
 /* Move to the next folder worth reading, and ask it what it holds.
    Gives FALSE when there are no folders left. */
+/* The order the folders are fetched in: the accounts take turns, one
+   folder each, round and round, rather than one account being finished
+   before the next is begun. A big account and a small one arrive
+   together that way; done in order, a mailbox of tens of thousands
+   starves everything configured after it, and the second account sits
+   at (not fetched) through cycle after cycle of the first.
+
+   Worked out once at the start of a fetch, into an order the stepping
+   walks straight down. */
+static long fetchord[MAXFOLDER];
+static long fetchordct;
+
+static void fetchorder(void)
+
+{
+
+    long round;
+    long i;
+
+    fetchordct = 0;
+    for (round = 0; round < MAXFOLDER; round++) {
+
+        long took = 0;
+
+        for (i = 0; i < srvct; i++) { /* one folder from each, in turn */
+
+            long seen = 0;
+            long k;
+
+            for (k = 0; k < foldct; k++) {
+
+                if (folders[k].srv != i) continue;
+                if (folders[k].local || folders[k].noselect) continue;
+                if (seen++ != round) continue;
+                fetchord[fetchordct++] = k;
+                took++;
+                break;
+
+            }
+
+        }
+        if (!took) break; /* every account is out of folders */
+
+    }
+
+}
+
 static int fetchnext(void)
 
 {
@@ -5044,14 +5092,14 @@ static int fetchnext(void)
     long validity;
     long lo, hi;
 
-    while (++fetchfold < foldct) {
+    while (++fetchfold < fetchordct) {
 
-        if (folders[fetchfold].noselect) continue;
-        if (folders[fetchfold].local) continue; /* nothing to fetch from */
-        if (folders[fetchfold].srv != fetchsrv) { /* a different server */
+        long fold = fetchord[fetchfold];
+
+        if (folders[fold].srv != fetchsrv) { /* a different account */
 
             imapclose();
-            fetchsrv = folders[fetchfold].srv;
+            fetchsrv = folders[fold].srv;
             if (fetchsrv < 0) continue;
             useserver(fetchsrv);
             if (!imapopen()) continue;
@@ -5062,11 +5110,11 @@ static int fetchnext(void)
         fetchsay();
         exists = 0;
         uidvalidity = 0;
-        imsend(tag, sizeof(tag), "EXAMINE \"%s\"",
-               folders[fetchfold].name);
+        fetchcur = fold; /* the folder this step is working on */
+        imsend(tag, sizeof(tag), "EXAMINE \"%s\"", folders[fold].name);
         if (!imwait(tag, examline)) continue; /* gone, or not a folder */
         if (!exists) continue; /* nothing in it */
-        readstate(fetchfold, &validity, &fetchseen);
+        readstate(fold, &validity, &fetchseen);
         /* a folder that was rebuilt on the server has new uids for the
            same messages, so what was taken before means nothing */
         if (validity != uidvalidity) fetchseen = 0;
@@ -5124,8 +5172,8 @@ static void fetchstep(void)
     if (!fetching) return;
     while (fetchi >= uidct) { /* this folder is done */
 
-        if (fetchfold >= 0 && fetchfold < foldct && uidct)
-            writestate(fetchfold, uidvalidity, fetchlast);
+        if (fetchcur >= 0 && fetchcur < foldct && uidct)
+            writestate(fetchcur, uidvalidity, fetchlast);
         if (!fetchnext()) { fetchend(); return; }
 
     }
@@ -5168,17 +5216,17 @@ static void fetchstep(void)
             char  fn[MAXSTR*2+8];
             FILE* df;
 
-            digfile(fetchfold, fn, sizeof(fn));
+            digfile(fetchcur, fn, sizeof(fn));
             df = fopen(fn, "a");
             if (df) { fprintf(df, "%s\n", hex); fclose(df); }
 
         }
 
     }
-    mboxwrite(folders[fetchfold].file, msg, n);
+    mboxwrite(folders[fetchcur].file, msg, n);
     free(msg);
     fetchgot++;
-    folders[fetchfold].msgs++; /* the pane's count is the progress */
+    folders[fetchcur].msgs++; /* the pane's count is the progress */
     imwait(tag, NULL); /* the ) and the answer */
     if (uid > fetchlast) fetchlast = uid;
     fetchsay();
@@ -5236,7 +5284,9 @@ static void fetchall(int relist)
         status("Looking...");
         fetching = TRUE;
         fetchsrv = -2;
+        fetchorder();
         fetchfold = -1;
+        fetchcur = -1;
         fetchi = 0;
         uidct = 0;
         fetchgot = 0;
@@ -5276,7 +5326,9 @@ static void fetchall(int relist)
     drawfolders();
     fetching = TRUE;
     fetchsrv = -2; /* no server open yet */
+    fetchorder();
     fetchfold = -1;
+    fetchcur = -1;
     fetchi = 0;
     uidct = 0;
     fetchgot = 0;
