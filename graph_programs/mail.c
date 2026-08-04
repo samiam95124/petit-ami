@@ -152,18 +152,6 @@
 #define ON  1
 
 /* a folder on the server, and the file it is kept in */
-typedef struct {
-
-    char name[MAXSTR];  /* the name the server knows it by */
-    char show[MAXSTR];  /* the name shown, without the [Gmail]/ part */
-    char file[MAXSTR*2]; /* the mbox file it is kept in */
-    long msgs;          /* messages in the file */
-    long dirty;         /* something has been put in it since it was read */
-    long noselect;      /* the server says it holds no messages */
-    long local;         /* ours alone: a folder with no server side */
-    long srv;           /* which server it belongs to, -1 if local */
-
-} foldrec;
 
 /* A message, as found in the mbox file. The file is the message; this is
    only what the list needs to draw a line without reading it again. */
@@ -174,6 +162,7 @@ typedef struct {
     char from[MAXSTR];    /* who it is from, shown */
     char subject[MAXSTR]; /* the subject line */
     char addr[100];       /* the sender's address, for matching */
+    char dig[DIGLEN];     /* what the message is, wherever it came from */
     char cat[32];         /* what kind of mail it is */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
@@ -181,13 +170,48 @@ typedef struct {
 
 } msgrec;
 
+typedef struct {
+
+    char name[MAXSTR];  /* the name the server knows it by */
+    char show[MAXSTR];  /* the name shown, without the [Gmail]/ part */
+    char file[MAXSTR*2]; /* the mbox file it is kept in */
+    long msgs;          /* messages in the file */
+    long dirty;         /* something has been put in it since it was read */
+    msgrec* idx;        /* every message in it, read from the index file */
+    long idxct;         /* how many */
+    long idxmax;        /* and how many the array has room for */
+    long idxok;         /* the index has been read and is good */
+    long wantidx;       /* it wants reading, when the worker gets to it */
+    long noselect;      /* the server says it holds no messages */
+    long local;         /* ours alone: a folder with no server side */
+    long srv;           /* which server it belongs to, -1 if local */
+
+} foldrec;
+
 static foldrec folders[MAXFOLDER];
 static long    foldct;
 static long    foldsel = -1;    /* the folder being shown */
 
 static msgrec* msgs;            /* the messages of that folder */
 static long    msgct;
-static long    msgmax;
+
+/* The list the display draws is the selected folder's index -- not a
+   copy of it, and not one built for the purpose. This points the two at
+   each other, and is called wherever either can move: the array is
+   grown as mail arrives, and growing it can move it. Every caller holds
+   the lock, which is what makes that safe. */
+static void useidx(void)
+
+{
+
+    if (foldsel >= 0 && foldsel < foldct) {
+
+        msgs = folders[foldsel].idx;
+        msgct = folders[foldsel].idxct;
+
+    } else { msgs = NULL; msgct = 0; }
+
+}
 static long    msgsel = -1;     /* the message being read */
 static long    msgtop;          /* the first message shown */
 static long    listshown;       /* the first one actually on the screen */
@@ -455,7 +479,8 @@ static void digestbytes(const char* data, long len, char* hex)
 
 typedef struct digent {
 
-    char           dig[DIGLEN];
+    long           fold; /* the folder holding the message */
+    long           rec;  /* and which of its messages it is */
     struct digent* next;
 
 } digent;
@@ -478,37 +503,129 @@ static long dighash(const char* d)
 
 }
 
-static int hasdigest(const char* d)
+/* What a digest names: a message, in a folder, at a place in its file.
+   The table holds no digests of its own -- it holds where to find them,
+   so that knowing a message is here also says where here is. That is
+   what makes it worth anything to an audit: not "something with this
+   digest was seen once" but "this message is in that file at that
+   offset". */
+static const char* digof(const digent* p)
+
+{
+
+    return (folders[p->fold].idx[p->rec].dig);
+
+}
+
+/* the message this digest names, or none */
+static int finddigest(const char* d, long* fold, long* rec)
 
 {
 
     digent* p;
 
     for (p = digtab[dighash(d)]; p; p = p->next)
-        if (!strcmp(p->dig, d)) return (TRUE);
+        if (!strcmp(digof(p), d)) {
+
+            if (fold) *fold = p->fold;
+            if (rec) *rec = p->rec;
+
+            return (TRUE);
+
+        }
 
     return (FALSE);
 
 }
 
-static void adddigest(const char* d)
+static int hasdigest(const char* d)
+
+{
+
+    return (finddigest(d, NULL, NULL));
+
+}
+
+static void adddigest(long fold, long rec)
 
 {
 
     digent* p;
     long    b;
+    const char* d = folders[fold].idx[rec].dig;
 
     if (hasdigest(d)) return;
     b = dighash(d);
     p = getmem(sizeof(digent));
-    copystr(p->dig, d, DIGLEN);
+    p->fold = fold;
+    p->rec = rec;
     p->next = digtab[b];
     digtab[b] = p;
     digct++;
 
 }
 
+/* Take the table again over every folder's index. Sorting a folder moves
+   its messages about and the table names them by where they sit, so it
+   is taken again whenever an index is rebuilt rather than added to. */
+static void rehashall(void)
+
+{
+
+    long i, j;
+
+    for (i = 0; i < DIGBKT; i++) {
+
+        digent* p = digtab[i];
+
+        while (p) { digent* n = p->next; free(p); p = n; }
+        digtab[i] = NULL;
+
+    }
+    digct = 0;
+    for (i = 0; i < foldct; i++)
+        for (j = 0; j < folders[i].idxct; j++) adddigest(i, j);
+
+}
+
 /* the file a folder's digests are kept in */
+/*******************************************************************************
+
+The index file
+
+One beside each mailbox, holding a line for every message in it: where
+it is in the file and how long it is, what it is (its digest), who it is
+from, what it is about, when it came and the start of what it says --
+everything the list shows and everything the store is searched by.
+
+It is written as it is filled, a line at a time, and read back at
+startup. Reading it costs a few megabytes; working it out again from the
+mailbox costs reading and parsing every byte of mail there is, which on
+this store is five gigabytes and half a minute of somebody's attention.
+
+The file needs no stamp saying how far it goes. The messages it names
+say that themselves: the furthest of them ends where the indexed part of
+the mailbox ends, and anything after that in the mailbox is new. A
+mailbox that is shorter than that, or that does not have a separator
+where the index says a message begins, has been rewritten under the
+index, and the index is thrown away and taken again.
+
+Fields are separated by tabs. Anything that could hold a tab or a line
+end -- a subject, a snippet -- is written with those escaped, since a
+record is a line and has to stay one.
+
+*******************************************************************************/
+
+#define IDXHEAD "ami-mail-index 1"
+
+static void idxfile(long fold, char* fn, long fnl)
+
+{
+
+    snprintf(fn, fnl, "%s.idx", folders[fold].file);
+
+}
+
 static void digfile(long fold, char* fn, long fnl)
 
 {
@@ -517,115 +634,284 @@ static void digfile(long fold, char* fn, long fnl)
 
 }
 
-/* Take the digests of every message in a folder's mailbox, writing them
-   beside it and adding them to the table. The mailbox is walked exactly
-   as the indexing walks it, so the two agree on what a message is. */
-static long digestfolder(long fold)
+/* a field, with what would break the line taken out of it */
+static void idxput(FILE* f, const char* s)
 
 {
 
-    FILE* f;
-    FILE* out;
-    char  fn[MAXSTR*2+8];
-    char* buf;
-    long  n;
-    long  i, start, blkstart;
-    long  got = 0;
-    char  hex[DIGLEN];
+    fputc('\t', f);
+    while (*s) {
 
-    f = fopen(folders[fold].file, "r");
-    if (!f) return (0);
-    fseek(f, 0, SEEK_END);
-    n = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    buf = getmem(n+1);
-    n = fread(buf, 1, n, f);
-    buf[n] = 0;
-    fclose(f);
-    digfile(fold, fn, sizeof(fn));
-    out = fopen(fn, "w");
-    if (out) fprintf(out, "%ld\n", n); /* the size these were taken at */
-    start = -1;
-    blkstart = 0;
-    for (i = 0; i < n; i++) {
+        switch (*s) {
 
-        int atsep = !strncmp(buf+i, "From ", 5) &&
-                    (i == 0 || (i >= 2 && buf[i-1] == '\n' &&
-                                (buf[i-2] == '\n' ||
-                                 (buf[i-2] == '\r' && i >= 3 &&
-                                  buf[i-3] == '\n'))));
-
-        if (atsep) {
-
-            if (start >= 0) { /* the message that just ended */
-
-                long e = i;
-
-                while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r'))
-                    e--;
-                digestof(buf+start, e-start, hex);
-                adddigest(hex);
-                if (out) fprintf(out, "%s\n", hex);
-                got++;
-
-            }
-            blkstart = i;
-            while (i < n && buf[i] != '\n') i++;
-            start = i+1;
+            case '\\': fputs("\\\\", f); break;
+            case '\t': fputs("\\t", f); break;
+            case '\n': fputs("\\n", f); break;
+            case '\r': break;
+            default:   fputc(*s, f); break;
 
         }
-        while (i < n && buf[i] != '\n') i++;
+        s++;
 
     }
-    if (start >= 0 && start < n) { /* the last one */
-
-        long e = n;
-
-        while (e > start && (buf[e-1] == '\n' || buf[e-1] == '\r')) e--;
-        digestof(buf+start, e-start, hex);
-        adddigest(hex);
-        if (out) fprintf(out, "%s\n", hex);
-        got++;
-
-    }
-    (void)blkstart;
-    free(buf);
-    if (out) fclose(out);
-
-    return (got);
 
 }
 
-/* Load a folder's digests, taking them afresh if the file is missing or
-   was written when the mailbox was a different size. */
-static void loaddigests(long fold)
+/* and back again: the next field of the line, up to the tab */
+static char* idxget(char* p, char* d, long dl)
 
 {
 
-    char        fn[MAXSTR*2+8];
-    FILE*       f;
-    struct stat sb;
-    char        line[DIGLEN+8];
-    long        was = -1;
+    long i = 0;
 
-    if (stat(folders[fold].file, &sb)) return; /* no mailbox */
-    digfile(fold, fn, sizeof(fn));
-    f = fopen(fn, "r");
-    if (f && fgets(line, sizeof(line), f)) was = atol(line);
-    if (!f || was != (long)sb.st_size) { /* stale, or never taken */
+    if (!p) { if (dl) *d = 0; return (NULL); }
+    if (*p == '\t') p++;
+    while (*p && *p != '\t') {
 
-        if (f) fclose(f);
-        digestfolder(fold);
+        char c = *p++;
 
-        return;
+        if (c == '\\' && *p) {
+
+            c = *p++;
+            if (c == 't') c = '\t';
+            else if (c == 'n') c = '\n';
+
+        }
+        if (i < dl-1) d[i++] = c;
 
     }
-    while (fgets(line, sizeof(line), f)) {
+    if (dl) d[i] = 0;
+
+    return (p);
+
+}
+
+static void idxwrite(FILE* f, const msgrec* m)
+
+{
+
+    fprintf(f, "%ld\t%ld\t%ld", m->off, m->len, m->date);
+    idxput(f, m->dig);
+    idxput(f, m->cat);
+    idxput(f, m->when);
+    idxput(f, m->addr);
+    idxput(f, m->from);
+    idxput(f, m->subject);
+    idxput(f, m->snip);
+    fputc('\n', f);
+
+}
+
+static int idxread(char* line, msgrec* m)
+
+{
+
+    char* p = line;
+    char  num[40];
+
+    p = idxget(p, num, sizeof(num)); m->off = atol(num);
+    p = idxget(p, num, sizeof(num)); m->len = atol(num);
+    p = idxget(p, num, sizeof(num)); m->date = atol(num);
+    p = idxget(p, m->dig, sizeof(m->dig));
+    p = idxget(p, m->cat, sizeof(m->cat));
+    p = idxget(p, m->when, sizeof(m->when));
+    p = idxget(p, m->addr, sizeof(m->addr));
+    p = idxget(p, m->from, sizeof(m->from));
+    p = idxget(p, m->subject, sizeof(m->subject));
+    p = idxget(p, m->snip, sizeof(m->snip));
+
+    return (p && m->len > 0 && strlen(m->dig) == DIGLEN-1);
+
+}
+
+/* room for one more in a folder's index */
+static msgrec* idxroom(long fold)
+
+{
+
+    foldrec* fo = &folders[fold];
+
+    if (fo->idxct >= fo->idxmax) {
+
+        fo->idxmax = fo->idxmax? fo->idxmax*2: 256;
+        fo->idx = realloc(fo->idx, fo->idxmax*sizeof(msgrec));
+        if (!fo->idx) { fail("Out of memory"); exit(1); }
+
+    }
+
+    return (&fo->idx[fo->idxct++]);
+
+}
+
+/* Where the mailbox has been indexed up to: the end of the message that
+   reaches furthest into it. The file is written in the order messages
+   arrive but sorted in memory, so it is the highest end and not the
+   last line. */
+static long idxend(long fold)
+
+{
+
+    long i;
+    long e = 0;
+
+    for (i = 0; i < folders[fold].idxct; i++) {
+
+        long x = folders[fold].idx[i].off+folders[fold].idx[i].len;
+
+        if (x > e) e = x;
+
+    }
+
+    return (e);
+
+}
+
+/*******************************************************************************
+
+Reading a folder
+
+An index file is read if there is one and it still fits the mailbox, and
+whatever the mailbox holds beyond what the index names is read from the
+mailbox itself and added. So a folder that has not changed costs reading
+a few hundred kilobytes; one that has had a hundred messages put in it
+costs those hundred; and only a folder with no index at all, or one
+whose mailbox has been rewritten under it, costs reading the whole
+thing.
+
+*******************************************************************************/
+
+/* Does the index still describe this mailbox? The messages it names say
+   how far it goes; the mailbox must be at least that long, and must
+   have a separator line where the index says the last message begins.
+   Anything else means the mailbox has been rewritten -- by a move, by a
+   hand, by another program -- and the index is not to be trusted. */
+static int idxfits(long fold)
+
+{
+
+    struct stat sb;
+    long        e;
+    long        off = -1;
+    long        i;
+    FILE*       f;
+    char        buf[300];
+    long        back, n;
+    char*       ln;
+
+    if (stat(folders[fold].file, &sb)) return (FALSE); /* no mailbox */
+    e = idxend(fold);
+    if (!e) return (folders[fold].idxct == 0); /* nothing named, nothing to fit */
+    if (e > (long)sb.st_size) return (FALSE);  /* the mailbox lost bytes */
+    for (i = 0; i < folders[fold].idxct; i++)
+        if (folders[fold].idx[i].off+folders[fold].idx[i].len == e)
+            { off = folders[fold].idx[i].off; break; }
+    if (off <= 0) return (FALSE);
+    f = fopen(folders[fold].file, "r");
+    if (!f) return (FALSE);
+    back = off > (long)sizeof(buf)-1? (long)sizeof(buf)-1: off;
+    fseek(f, off-back, SEEK_SET);
+    n = fread(buf, 1, back, f);
+    fclose(f);
+    if (n <= 0) return (FALSE);
+    buf[n] = 0;
+    /* the separator is the line that ends where the message begins */
+    ln = buf+n;
+    if (ln > buf && ln[-1] == '\n') ln--;
+    while (ln > buf && ln[-1] != '\n') ln--;
+
+    return (!strncmp(ln, "From ", 5));
+
+}
+
+/* read the index file, if there is one */
+static void idxload(long fold)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+    char* line;
+    long  lsz = MAXSTR*4+SNIPPET*2+400;
+
+    folders[fold].idxct = 0;
+    folders[fold].idxok = FALSE;
+    idxfile(fold, fn, sizeof(fn));
+    f = fopen(fn, "r");
+    if (!f) return;
+    line = getmem(lsz);
+    if (!fgets(line, lsz, f) || strncmp(line, IDXHEAD, strlen(IDXHEAD)))
+        { free(line); fclose(f); return; } /* not one of ours */
+    while (fgets(line, lsz, f)) {
+
+        msgrec m;
 
         trim(line);
-        if (strlen(line) == DIGLEN-1) adddigest(line);
+        if (!*line) continue;
+        if (!idxread(line, &m)) continue; /* a line that says nothing */
+        *idxroom(fold) = m;
 
     }
+    free(line);
+    fclose(f);
+    folders[fold].idxok = idxfits(fold);
+    if (!folders[fold].idxok) folders[fold].idxct = 0; /* it will be taken again */
+
+}
+
+/* write the whole of it */
+static void idxsave(long fold)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+    long  i;
+
+    idxfile(fold, fn, sizeof(fn));
+    f = fopen(fn, "w");
+    if (!f) return; /* an index that cannot be kept is worked out again */
+    fprintf(f, "%s\n", IDXHEAD);
+    for (i = 0; i < folders[fold].idxct; i++) idxwrite(f, &folders[fold].idx[i]);
+    fclose(f);
+    /* the digests file it replaces, which held one of these ten fields */
+    digfile(fold, fn, sizeof(fn));
+    remove(fn);
+
+}
+
+/* Throw an index away, file and all. The mailbox under it has been
+   rewritten -- by a move, or by a hand -- so every offset in it is
+   wrong. What is in it cannot be patched: a message moved is the same
+   message, but it is not in the same place. */
+static void idxdrop(long fold)
+
+{
+
+    char fn[MAXSTR*2+8];
+
+    idxfile(fold, fn, sizeof(fn));
+    remove(fn);
+    folders[fold].idxct = 0;
+    folders[fold].idxok = FALSE;
+    folders[fold].wantidx = TRUE;
+
+}
+
+/* and add to it as messages arrive */
+static void idxappend(long fold, const msgrec* m)
+
+{
+
+    char  fn[MAXSTR*2+8];
+    FILE* f;
+    int   made;
+
+    idxfile(fold, fn, sizeof(fn));
+    made = access(fn, F_OK) != 0;
+    f = fopen(fn, "a");
+    if (!f) return;
+    if (made) fprintf(f, "%s\n", IDXHEAD);
+    idxwrite(f, m);
     fclose(f);
 
 }
@@ -653,7 +939,7 @@ static void migratestore(void)
         long n, i;
         long srv = -2;
         const char* leaf = NULL;
-        static const char* ext[] = { "", ".state", ".dig" };
+        static const char* ext[] = { "", ".state", ".dig", ".idx" };
         long e;
 
         copystr(nm, fp->name, sizeof(nm));
@@ -707,7 +993,7 @@ static void migratestore(void)
                 fclose(sf);
 
             }
-            for (e = 0; e < 3; e++) {
+            for (e = 0; e < 4; e++) {
 
                 snprintf(old, sizeof(old), "%.400s/%.150s.mbox%.8s",
                          store, nm, ext[e]);
@@ -768,15 +1054,6 @@ static void renamestore(const char* was, const char* now)
 }
 
 /* every folder in the store, so that a fetch knows what is already here */
-static void loadalldigests(void)
-
-{
-
-    long i;
-
-    for (i = 0; i < foldct; i++) loaddigests(i);
-
-}
 
 /*******************************************************************************
 
@@ -1722,11 +1999,18 @@ static void nameof(const char* from, char* name, long nn)
 }
 
 /* write one message to the folder's mbox file */
-static void mboxwrite(const char* file, const char* msg, long len)
+/* Store a message, and say where it went: the offset the message itself
+   begins at, past the separator line, and the length it came out as --
+   which is not the length it went in as, since storing escapes any line
+   that could be mistaken for a separator. Those two are what the index
+   needs to find it again. */
+static long mboxwrite(const char* file, const char* msg, long len,
+                      long* stored)
 
 {
 
     FILE* f = fopen(file, "a");
+    long  off;
     char  from[MAXSTR];
     char  addr[MAXSTR];
     char  date[MAXSTR];
@@ -1735,7 +2019,7 @@ static void mboxwrite(const char* file, const char* msg, long len)
     const char* p;
     const char* e;
 
-    if (!f) { fail("Cannot write to the mail store"); return; }
+    if (!f) { fail("Cannot write to the mail store"); return (-1); }
     findheader(msg, "From", from, sizeof(from));
     addrof(from, addr, sizeof(addr));
     findheader(msg, "Date", date, sizeof(date));
@@ -1748,6 +2032,7 @@ static void mboxwrite(const char* file, const char* msg, long len)
         fprintf(f, "From %s %s", addr, ctime(&t)); /* ctime ends the line */
 
     }
+    off = ftell(f); /* the message itself starts here */
     /* the message, with any line that looks like a separator marked */
     p = msg;
     e = msg+len;
@@ -1763,8 +2048,11 @@ static void mboxwrite(const char* file, const char* msg, long len)
         p = q < e? q+1: e;
 
     }
+    if (stored) *stored = ftell(f)-off;
     fputc('\n', f); /* a blank line ends a message, always */
     fclose(f);
+
+    return (off);
 
 }
 
@@ -1811,33 +2099,23 @@ static void snipof(const char* text, char* snip, long sn)
 /* The index being built. It is built to one side and put in place in one
    move, because it is built on the fetch thread and the display is
    reading the one it already has the whole time. */
-static msgrec* bmsgs;
-static long    bct;
-static long    bmax;
 
 /* One message. What is passed is as much of it as was kept -- the
    headers and the beginning of the body, which is all the list shows --
    while len is the length of the whole thing, which is what reading it
    later will need. */
-static void indexmsg(const char* msg, long have, long len, long off)
+static void fillrec(msgrec* m, const char* msg, long have, long len,
+                    long off, const char* dig)
 
 {
 
-    msgrec* m;
     char    from[MAXSTR];
     char    date[MAXSTR];
     char*   text;
 
-    if (bct >= bmax) {
-
-        bmax = bmax? bmax*2: 256;
-        bmsgs = realloc(bmsgs, bmax*sizeof(msgrec));
-        if (!bmsgs) { fail("Out of memory"); exit(1); }
-
-    }
-    m = &bmsgs[bct++];
     m->off = off;
     m->len = len;
+    copystr(m->dig, dig, DIGLEN);
     classify(msg, m->cat, sizeof(m->cat));
     findheader(msg, "From", from, sizeof(from));
     nameof(from, m->from, sizeof(m->from));
@@ -1905,12 +2183,211 @@ static long idxwant = -1;
 static long idxfold = -1;
 static long idxdoing = -1;   /* the folder being read just now */
 
-/* How much of a message is kept for the list: the headers and the start
-   of the body, which is all it shows. A mailbox of four gigabytes was
-   being read into one allocation of four gigabytes and every message in
-   it decoded in full to find forty characters of snippet. */
+/* How much of a message is kept for what the list shows: the headers
+   and the start of the body. A mailbox of four gigabytes was being read
+   into one allocation of four gigabytes and every message decoded in
+   full to find forty characters of snippet. */
 #define MSGCAP 65536
 
+/* The digest of a message, taken as the message goes past rather than
+   from a copy of it. It has to agree exactly with digestof(), which
+   works on a whole message in memory: escapes undone, and every newline
+   at the end taken off. The escape is undone at the start of a line
+   only, and the trailing newlines are held back and only given to the
+   digest if something follows them. */
+/* How much of a run of line ends can be held back. The canonical form
+   drops every one of them at the end of a message, so none can be given
+   to the digest until something with content follows -- and a blank line
+   is line ends and nothing else, so a blank line does not settle the
+   question, it lengthens it. Half a kilobyte is more consecutive blank
+   lines than mail has; a message ending in more would be digested a
+   line end too long, and would not match one digested whole. */
+#define PENDMAX 512
+
+typedef struct {
+
+    EVP_MD_CTX* c;
+    char        pend[PENDMAX]; /* line ends held back */
+    long        pendn;
+
+} digrun;
+
+static void digstart(digrun* d)
+
+{
+
+    d->c = EVP_MD_CTX_new();
+    if (!d->c) { fail("Out of memory"); exit(1); }
+    EVP_DigestInit_ex(d->c, EVP_sha256(), NULL);
+    d->pendn = 0;
+
+}
+
+/* one line of it, or one piece of a line too long to come in one */
+static void digline(digrun* d, const char* p, long n, int atbol)
+
+{
+
+    long t;
+
+    if (atbol && n && *p == '>') { /* a line the storing escaped? */
+
+        long j = 0;
+
+        while (j < n && p[j] == '>') j++;
+        if (j+5 <= n && !strncmp(p+j, "From ", 5)) { p++; n--; } /* one off */
+
+    }
+    t = n;
+    while (t && (p[t-1] == '\n' || p[t-1] == '\r')) t--;
+    if (!t) { /* nothing but line ends: hold them with the rest */
+
+        if (d->pendn+n <= PENDMAX) { memcpy(d->pend+d->pendn, p, n);
+                                     d->pendn += n; }
+        else { /* further than can be held: give up holding */
+
+            EVP_DigestUpdate(d->c, d->pend, d->pendn);
+            EVP_DigestUpdate(d->c, p, n);
+            d->pendn = 0;
+
+        }
+
+        return;
+
+    }
+    /* something with content in it: whatever was held really was in the
+       middle of the message after all */
+    if (d->pendn) { EVP_DigestUpdate(d->c, d->pend, d->pendn); d->pendn = 0; }
+    EVP_DigestUpdate(d->c, p, t);
+    if (n-t > 0 && n-t <= PENDMAX) { memcpy(d->pend, p+t, n-t); d->pendn = n-t; }
+
+}
+
+static void digend(digrun* d, char* hex)
+
+{
+
+    unsigned char md[EVP_MAX_MD_SIZE];
+    unsigned int  n = 0;
+    long          i;
+
+    EVP_DigestFinal_ex(d->c, md, &n);
+    EVP_MD_CTX_free(d->c);
+    d->c = NULL;
+    for (i = 0; i < (long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
+    hex[n*2] = 0;
+
+}
+
+/*******************************************************************************
+
+Keeping the indexes across a rebuild of the folder list
+
+Asking the servers what folders they have builds the list again from
+their answers, which throws away everything the old list held --
+including every folder's index. Reading them all back means reading
+every mailbox in the store, and losing them means the digests go with
+them: a fetch straight after a Get Mail would find nothing already here
+and store the whole store a second time. It did, once, and doubled a
+test mailbox before the counts gave it away.
+
+So the indexes are set aside before the list is taken again, and each
+one is given back to whichever folder ends up with its mailbox. What no
+folder claims is let go: its mailbox is not there any more.
+
+*******************************************************************************/
+
+typedef struct {
+
+    char    file[MAXSTR*2];
+    msgrec* idx;
+    long    ct;
+    long    max;
+    long    ok;
+
+} idxkeep;
+
+static idxkeep* kept;
+static long     keptct;
+
+static void idxsetaside(void)
+
+{
+
+    long i;
+
+    free(kept);
+    kept = getmem(sizeof(idxkeep)*(foldct? foldct: 1));
+    keptct = 0;
+    for (i = 0; i < foldct; i++) {
+
+        if (!folders[i].idx) continue;
+        copystr(kept[keptct].file, folders[i].file, MAXSTR*2);
+        kept[keptct].idx = folders[i].idx;
+        kept[keptct].ct = folders[i].idxct;
+        kept[keptct].max = folders[i].idxmax;
+        kept[keptct].ok = folders[i].idxok;
+        keptct++;
+        folders[i].idx = NULL; /* it belongs to the kept list now */
+        folders[i].idxct = 0;
+        folders[i].idxmax = 0;
+        folders[i].idxok = FALSE;
+
+    }
+
+}
+
+static void idxgiveback(void)
+
+{
+
+    long i, j;
+
+    for (i = 0; i < foldct; i++)
+        for (j = 0; j < keptct; j++)
+            if (kept[j].idx && !strcmp(kept[j].file, folders[i].file)) {
+
+                folders[i].idx = kept[j].idx;
+                folders[i].idxct = kept[j].ct;
+                folders[i].idxmax = kept[j].max;
+                folders[i].idxok = kept[j].ok;
+                kept[j].idx = NULL;
+                break;
+
+            }
+    for (j = 0; j < keptct; j++) free(kept[j].idx); /* nobody wanted it */
+    free(kept);
+    kept = NULL;
+    keptct = 0;
+    rehashall(); /* the table names messages by folder, and folders moved */
+
+}
+
+/* A folder has been read, however it was read: from its index file, or
+   from the mailbox, or both. It is put in order, the display is pointed
+   at it, and the table that finds a message by its digest is taken
+   again -- which has to happen on every path, including the one where
+   the index was complete and nothing was read at all. It was missing
+   from exactly that path once, and the whole store lost its dedup: a
+   second fetch stored every message it already had. */
+static void idxdone(long fold)
+
+{
+
+    qsort(folders[fold].idx, folders[fold].idxct, sizeof(msgrec), bydate);
+    dlock();
+    folders[fold].msgs = folders[fold].idxct;
+    folders[fold].idxok = TRUE;
+    folders[fold].dirty = FALSE;
+    idxfold = fold;
+    useidx();
+    dunlock();
+    rehashall();
+
+}
+
+/* Read a folder: its index file if there is a good one, and whatever
+   the mailbox holds past the end of what that names. */
 static void indexfolder(long fold)
 
 {
@@ -1918,24 +2395,34 @@ static void indexfolder(long fold)
     FILE*  f;
     char*  hold;
     char   line[MAXLINE];
+    char   hex[DIGLEN];
+    digrun dg;
     long   holdn = 0;
     long   start = -1;    /* where the message being read began */
     long   endpos = 0;    /* and where its last line of substance ended */
-    long   pos = 0;       /* where in the file the next line begins */
+    long   pos = 0;       /* where in the file the next piece begins */
     long   size = 0;
+    long   from = 0;      /* where the reading of the mailbox begins */
+    long   had;           /* how many were already known */
     int    blank = TRUE;  /* the line before this one held nothing */
+    int    atbol = TRUE;  /* and this piece begins a line */
+    int    stopped = FALSE;
     struct timespec t0;
 
-    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
-    bct = 0;
     if (fold < 0) return;
+    if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
+    if (!folders[fold].idxok) idxload(fold);
+    had = folders[fold].idxct;
+    from = folders[fold].idxok? idxend(fold): 0;
+    if (!folders[fold].idxok) folders[fold].idxct = 0;
     f = fopen(folders[fold].file, "r");
     if (!f) { /* nothing fetched yet, which is not an error */
 
         dlock();
-        msgct = 0;
-        msgtop = 0;
-        msgsel = -1;
+        folders[fold].idxct = 0;
+        folders[fold].msgs = 0;
+        idxfold = fold;
+        useidx();
         dunlock();
 
         return;
@@ -1943,42 +2430,62 @@ static void indexfolder(long fold)
     }
     fseek(f, 0, SEEK_END);
     size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    fseek(f, from, SEEK_SET);
+    pos = from;
+    if (size <= from) { /* the index already names all of it */
+
+        fclose(f);
+        idxdone(fold);
+        if (diag) fprintf(stderr, "index: %s, %ld known, nothing new\n",
+                          folders[fold].name, folders[fold].idxct);
+
+        return;
+
+    }
     hold = getmem(MSGCAP+1);
-    /* Read through a line at a time. A separator is a line beginning
+    digstart(&dg);
+    /* Read through a piece at a time. A separator is a line beginning
        "From " with nothing on the line before it, which is what the
-       storing side writes and what it escapes in the messages
-       themselves. */
+       storing writes and what it escapes in the messages themselves. A
+       line longer than the buffer comes in pieces, and only the first
+       piece of one begins a line: everything that asks what a line
+       starts with has to ask that first. */
     while (fgets(line, sizeof(line), f)) {
 
         long ll = strlen(line);
-        int  sep = blank && !strncmp(line, "From ", 5);
+        int  sep = atbol && blank && !strncmp(line, "From ", 5);
 
         if (sep) {
 
             if (start >= 0) {
 
+                msgrec m;
+
+                digend(&dg, hex);
                 hold[holdn] = 0;
-                indexmsg(hold, holdn, endpos-start, start);
+                fillrec(&m, hold, holdn, endpos-start, start, hex);
+                *idxroom(fold) = m;
+                digstart(&dg);
 
             }
             start = pos+ll; /* the message begins after the separator */
             endpos = start;
             holdn = 0;
-            /* Say how far along, and give up on this one if the reader
-               has asked for another folder in the meantime: there is no
-               sense reading four gigabytes nobody is waiting for. */
-            if (!(bct%256)) {
+            /* Say how far along, and give up if the reader has asked for
+               another folder: there is no sense reading four gigabytes
+               nobody is waiting for. */
+            if (!(folders[fold].idxct%256)) {
 
-                wrkpos = pos;
-                wrkmax = size;
-                if (idxwant >= 0 && idxwant != fold) break;
-                if (wrkstop) break;
+                wrkpos = pos-from;
+                wrkmax = size-from;
+                if ((idxwant >= 0 && idxwant != fold) || wrkstop)
+                    { stopped = TRUE; break; }
 
             }
 
         } else if (start >= 0) {
 
+            digline(&dg, line, ll, atbol);
             if (holdn < MSGCAP) {
 
                 long take = ll;
@@ -1990,123 +2497,53 @@ static void indexfolder(long fold)
             }
 
         }
-        blank = ll && (line[0] == '\n' || (line[0] == '\r' && ll <= 2));
-        if (!blank) endpos = pos+ll; /* messages do not end in blank lines */
+        atbol = ll && line[ll-1] == '\n';
+        if (atbol) blank = ll == 1 || (ll == 2 && line[0] == '\r');
+        if (!blank || !atbol) endpos = pos+ll; /* messages do not end blank */
         pos += ll;
 
     }
-    if (start >= 0 && !wrkstop) {
+    if (start >= 0 && !stopped) { /* the last one */
 
+        msgrec m;
+
+        digend(&dg, hex);
         hold[holdn] = 0;
-        indexmsg(hold, holdn, endpos-start, start);
+        fillrec(&m, hold, holdn, endpos-start, start, hex);
+        *idxroom(fold) = m;
 
-    }
+    } else if (dg.c) { digend(&dg, hex); }
     free(hold);
     fclose(f);
-    qsort(bmsgs, bct, sizeof(msgrec), bydate);
-    /* Put it in place in one move, with the display shut out for the
-       length of a pointer swap. What was the list becomes the ground the
-       next index is built on, so nothing is allocated twice. */
-    {
+    /* What was read is written down: the whole file if it was worked out
+       from nothing, the new lines only if it was added to. */
+    if (!from) idxsave(fold);
+    else {
 
-        msgrec* t = msgs;
-        long    tm = msgmax;
+        long i;
 
-        dlock();
-        msgs = bmsgs;
-        msgct = bct;
-        msgmax = bmax;
-        msgtop = 0;
-        msgsel = -1;
-        folders[fold].msgs = msgct;
-        idxfold = fold;
-        folders[fold].dirty = FALSE;
-        dunlock();
-        bmsgs = t;
-        bmax = tm;
-        bct = 0;
+        for (i = had; i < folders[fold].idxct; i++)
+            idxappend(fold, &folders[fold].idx[i]);
 
     }
+    idxdone(fold);
     if (diag) {
 
         struct timespec t1;
 
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        fprintf(stderr, "index: %s, %ld bytes, %ld messages, %.0fms\n",
-                folders[fold].name, size, msgct,
+        fprintf(stderr, "index: %s, %ld new of %ld, read from %ld of %ld, "
+                "%.0fms\n", folders[fold].name, folders[fold].idxct-had,
+                folders[fold].idxct, from, size,
                 (t1.tv_sec-t0.tv_sec)*1000.0+(t1.tv_nsec-t0.tv_nsec)/1000000.0);
 
     }
 
 }
 
-static long countfolder(const char* file)
-
-{
-
-    FILE*  f = fopen(file, "r");
-    static const char from[] = "From ";
-    char   buf[65536];
-    long   n = 0;
-    long   got;
-    int    atbol = TRUE;    /* this character starts a line */
-    int    blank = TRUE;    /* the line before it held nothing */
-    int    matching = FALSE; /* a separator is being matched here */
-    long   hold = 0;        /* how much of it has matched */
-
-    if (!f) return (0);
-    while ((got = fread(buf, 1, sizeof(buf), f)) > 0) {
-
-        long i;
-
-        for (i = 0; i < got; i++) {
-
-            char c = buf[i];
-
-            if (c == '\r') continue; /* whatever the line endings are */
-            if (c == '\n') {
-
-                blank = atbol; /* nothing came between the two line ends */
-                atbol = TRUE;
-                matching = FALSE;
-
-                continue;
-
-            }
-            if (atbol) { /* a separator can only begin a line */
-
-                matching = blank;
-                hold = 0;
-                atbol = FALSE;
-
-            }
-            /* The match runs on past the start of the line, which is
-               what the first try of this got wrong: it asked to be at
-               the start of a line for every character of "From " and so
-               never matched more than the F. */
-            if (matching) {
-
-                if (c == from[hold]) { if (++hold == 5) { n++;
-                                                          matching = FALSE; } }
-                else matching = FALSE;
-
-            }
-
-        }
-
-    }
-    fclose(f);
-
-    return (n);
-
-}
-
-static char wrkwhat[MAXSTR]; /* what the worker is doing, for the strip */
-static long wrkpos;
-static long wrkmax;
-static long wrkfolds;        /* the folder pane wants redrawing */
-
-/* count every folder that has not been counted */
+/* How many messages a folder holds comes from its index, so asking is
+   free and nothing reads a mailbox to answer it. A folder with no index
+   yet asks for one. */
 static void countfolders(void)
 
 {
@@ -2115,39 +2552,13 @@ static void countfolders(void)
 
     for (i = 0; i < foldct; i++) {
 
-        /* Counting a mailbox means reading every byte of it, and there
-           can be gigabytes: it is one of the waits the strip at the foot
-           exists for. */
-        snprintf(wrkwhat, sizeof(wrkwhat), "Counting %s", folders[i].show);
-        wrkpos = i;
-        wrkmax = foldct;
-        folders[i].msgs = countfolder(folders[i].file);
-        wrkfolds = TRUE;
+        folders[i].msgs = folders[i].idxct;
+        if (!folders[i].idxok) folders[i].wantidx = TRUE;
 
     }
-    wrkpos = foldct;
 
 }
 
-/*******************************************************************************
-
-Local folders
-
-A local folder is a mailbox of the program's own: a file in the store
-with no counterpart on the server, holding messages moved into it by
-hand. The server is never told. This is the local-first model: the
-server keeps what it keeps, and how the mail is organized here is this
-program's business, done with file operations and nothing else.
-
-Local folders are listed under the server's folders, below a rule, and
-their files are named local_* so the two kinds can never be confused.
-
-*******************************************************************************/
-
-/* The directory an account's mailboxes live in, or the one the local
-   folders do. Each account gets its own, so that two accounts with an
-   INBOX each keep them apart without decorating the names, and the
-   directory is made if it is not there. */
 static void srvdir(long srv, char* dn, long dnl)
 
 {
@@ -2324,11 +2735,11 @@ static long movelocal(long fold, const char* dstfile, const char* set)
     fclose(dst);
     fclose(out);
     rename(tmp, folders[fold].file);
-    /* Both mailboxes changed under their digest files, which are taken
-       again from what is there rather than patched, so they cannot drift
-       from it. The digests themselves do not change: a message moved is
-       the same message. */
-    digestfolder(fold);
+    /* This mailbox has been written out again without the messages that
+       left it, so everything after the first of them sits somewhere
+       else. The index is thrown away and taken again from what is
+       actually there. */
+    idxdrop(fold);
 
     return (moved);
 
@@ -5685,7 +6096,25 @@ static void fetchend(void)
 
 {
 
+    long i;
+
     imapclose();
+    /* What arrived was put at the end of each folder's index as it came.
+       The list is shown newest first, so the folders that took anything
+       are put in order -- and the table that finds a message by its
+       digest is taken again, since it names them by where they sit and
+       sorting has moved them. */
+    for (i = 0; i < foldct; i++) if (folders[i].dirty) {
+
+        dlock();
+        qsort(folders[i].idx, folders[i].idxct, sizeof(msgrec), bydate);
+        folders[i].dirty = FALSE;
+        useidx();
+        dunlock();
+        wrklist = TRUE;
+
+    }
+    rehashall();
     if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
                       fetchgot, fetchdup);
     wrkfolds = TRUE;
@@ -5770,29 +6199,33 @@ static void fetchstep(void)
             return;
 
         }
-        adddigest(hex);
-        /* The message goes into the store and the count goes up
-           together, with the display shut out of both. This is the one
-           place the worker writes what the main thread reads: half a
-           message in a mailbox is what a reader would find if it indexed
-           a folder in the middle of an append, and a count that did not
-           match what is in the file is what it would draw. */
+        /* The message goes into the store, into the folder's index and
+           into the table that finds it, with the display shut out of all
+           three. This is the one place the worker writes what the main
+           thread reads: half a message in a mailbox is what a reader
+           would find if it read a folder in the middle of an append. */
         dlock();
         {
 
-            char  fn[MAXSTR*2+8];
-            FILE* df;
+            long    off, stored = 0;
+            msgrec* m;
 
-            /* beside the mailbox, so the next run knows it without
-               reading every message again */
-            digfile(fetchcur, fn, sizeof(fn));
-            df = fopen(fn, "a");
-            if (df) { fprintf(df, "%s\n", hex); fclose(df); }
+            off = mboxwrite(folders[fetchcur].file, msg, n, &stored);
+            if (off >= 0) {
+
+                m = idxroom(fetchcur);
+                fillrec(m, msg, n, stored, off, hex);
+                adddigest(fetchcur, folders[fetchcur].idxct-1);
+                /* written down as it arrives, so that a program stopped
+                   halfway keeps what it had */
+                idxappend(fetchcur, m);
+                folders[fetchcur].msgs = folders[fetchcur].idxct;
+                folders[fetchcur].dirty = TRUE;
+                useidx(); /* the array may have moved as it grew */
+
+            }
 
         }
-        mboxwrite(folders[fetchcur].file, msg, n);
-        folders[fetchcur].msgs++; /* the pane's count is the progress */
-        folders[fetchcur].dirty = TRUE;
         dunlock();
 
     }
@@ -5840,6 +6273,7 @@ static void fetchrun(void)
             wassrv = folders[foldsel].srv;
 
         }
+        idxsetaside();
         foldct = 0;
         foldsel = -1;
         for (i = 0; i < srvct; i++) {
@@ -5861,6 +6295,7 @@ static void fetchrun(void)
 
         }
         storefolders(-1); /* the locals rejoin, after the servers' */
+        idxgiveback();    /* and every folder gets its index back */
         if (*wasname) /* put the reader back on the folder it was reading */
             for (i = 0; i < foldct; i++)
                 if (folders[i].srv == wassrv &&
@@ -5870,17 +6305,14 @@ static void fetchrun(void)
         wrklist = TRUE;
 
     }
-    /* Counting a folder means reading every byte of its mailbox, and
-       there are gigabytes of them. It is done off the lock: a count is
-       one word, so a pane drawn while they are climbing draws either the
-       old number or the new one, never half of either -- and the numbers
-       climbing IS the display saying what is going on. */
-    copystr(wrkwhat, "Counting what is here", sizeof(wrkwhat));
+    /* Every folder that has not been read is read, and what they hold is
+       what the store holds: the counts, and the digests that say whether
+       an arriving message is already here. Reading is an index file
+       each; only a folder without one costs anything, and only once. */
     countfolders();
+    serveindex();
     wrkfolds = TRUE;
-    if (wrkcount) return; /* counting was the whole job */
-    /* what is already here, so that none of it is taken twice */
-    loadalldigests();
+    if (wrkcount) return; /* reading the store was the whole job */
     if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
                       digct, foldct);
     fetchsrv = -2; /* no server open yet */
@@ -5907,11 +6339,21 @@ static void serveindex(void)
 
 {
 
-    while (idxwant >= 0 && !wrkstop) {
+    long i;
+
+    while (!wrkstop) {
 
         long f = idxwant;
 
+        if (f < 0) { /* nobody is waiting; read whatever wants reading */
+
+            for (i = 0; i < foldct; i++) if (folders[i].wantidx) break;
+            if (i >= foldct) break;
+            f = i;
+
+        }
         idxwant = -1;
+        folders[f].wantidx = FALSE;
         idxdoing = f;
         snprintf(wrkwhat, sizeof(wrkwhat), "Reading %s", folders[f].show);
         wrkpos = 0;
@@ -6101,21 +6543,11 @@ static void fetchpick(void)
            reader: a fetch that put nothing in the folder being read
            leaves what is on the screen right, and finding that out by
            reading four gigabytes is four gigabytes wasted. */
-        /* A folder is read again only when something has been put in
-           it. A count cannot be the test: the counter that walks a
-           mailbox and the reader that indexes one do not agree to the
-           message on this store -- sixteen apart in four gigabytes --
-           and a folder whose two numbers differ would be read again,
-           and again, for as long as the program was left running. */
+        /* Nothing is read again here. What arrived went into the
+           folder's index as it was stored, so the list is already right;
+           the worker has put it in order and the drawing above has shown
+           it. */
         if (foldsel < 0 && foldct) showfolder(0);
-        else if (foldsel >= 0 && idxwant != foldsel && idxdoing != foldsel &&
-                 (idxfold != foldsel || folders[foldsel].dirty)) {
-
-            folders[foldsel].dirty = FALSE;
-            idxwant = foldsel;
-            kickworker();
-
-        }
         drawfolders();
 
     }
@@ -6140,17 +6572,22 @@ static void showfolder(long i)
     foldsel = i;
     popclose();
     closeread();
-    /* The reading is asked for, not done: a mailbox of four gigabytes
-       takes as long as four gigabytes takes, and doing it here is the
-       window going dead on a click. The list is emptied so that what is
-       on the screen is not the folder before this one, and it fills when
-       the reading is done. */
-    msgct = 0;
     msgtop = 0;
     msgsel = -1;
-    idxfold = -1;
-    if (idxdoing != i) idxwant = i; /* it is already being read */
-    kickworker();
+    /* If the folder has been read, showing it is showing what is already
+       here -- the list is its index, not a copy of it, and nothing is
+       read at all. Only a folder that has never been read costs
+       anything, and that is asked for rather than done: a mailbox of
+       four gigabytes takes as long as four gigabytes takes, and doing it
+       here is the window going dead on a click. */
+    useidx();
+    if (!folders[i].idxok) {
+
+        msgct = 0;
+        if (idxdoing != i) idxwant = i; /* it is already being read */
+        kickworker();
+
+    }
     drawfolders();
     drawlist();
 
@@ -6582,6 +7019,7 @@ int main(int argc, char* argv[])
                         long k;
 
                         if (!haveaccount()) { srvopen(); break; }
+                        idxsetaside(); /* the indexes outlive the list */
                         foldct = 0;
                         foldsel = -1;
                         for (k = 0; k < srvct; k++) {
@@ -6593,7 +7031,9 @@ int main(int argc, char* argv[])
 
                         }
                         storefolders(-1);
+                        idxgiveback();
                         countfolders();
+                        kickworker();
                         drawfolders();
                         break;
 

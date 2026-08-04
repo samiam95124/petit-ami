@@ -162,16 +162,32 @@ all, with a line before it saying who it is from and when. Any mail
 program can read it, and this one can read theirs.
 
 Beside each mailbox are two small files. One remembers how far that
-folder has been read, so fetching again takes only what is new. The
-other holds a digest of every message in it.
+folder has been read from the server, so fetching again takes only what
+is new. The other is the index: a line for every message saying where it
+is in the mailbox and how long it is, what it is, who it is from, what
+it is about, when it came and the start of what it says.
+
+The index is what the list is drawn from and what the store is searched
+by, and it is written as the mail arrives. Without one, showing a folder
+means reading and parsing every byte of its mailbox -- half a minute for
+one with sixty thousand messages in it, every time it is opened. With
+one it is a third of a second, once, at startup.
+
+Nothing has to be done to make it: a folder that has no index gets one
+the first time it is read, and a folder whose mailbox has been rewritten
+underneath its index has it taken again. A mailbox that has simply grown
+costs only the new messages.
 
 ## Digests
 
-Every message carries the SHA-256 of what it is. It is how this program
-knows a message it already has, whoever sent it and whatever folder it
-arrives in: mail moved between folders keeps its digest, mail fetched
+Every message carries the SHA-256 of what it is, as one of the fields of
+the index. It is how this program knows a message it already has,
+whoever sent it and whatever folder it arrives in: mail moved between folders keeps its digest, mail fetched
 twice has the same one, and the same mail from a second server has the
-same one. A message already here is not written again.
+same one. A message already here is not written again -- and since the digest sits
+in the index beside the message it belongs to, knowing that it is here
+also says which folder it is in and where in the file, which is what
+checking this store against a server will need.
 
 The account file holds a password and is written so that only its owner
 can read it.
