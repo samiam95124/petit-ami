@@ -627,6 +627,47 @@ static void migratestore(void)
 
 }
 
+/* Rename what an account owns, when the account is renamed. The
+   mailboxes carry their account's name, so they have to move with it or
+   be fetched again for nothing. */
+static void renamestore(const char* was, const char* now)
+
+{
+
+    ami_filptr lp = NULL;
+    ami_filptr fp;
+    char       what[MAXSTR*2];
+    long       wl = strlen(was);
+
+    if (!wl || !strcmp(was, now)) return;
+    snprintf(what, sizeof(what), "%s/*.mbox", store);
+    ami_list(what, &lp);
+    for (fp = lp; fp; fp = fp->next) {
+
+        char nm[MAXSTR];
+        char old[MAXSTR*2], new[MAXSTR*2];
+        long n;
+        static const char* ext[] = { "", ".state", ".dig" };
+        long e;
+
+        copystr(nm, fp->name, sizeof(nm));
+        n = strlen(nm);
+        if (n > 5 && !strcmp(nm+n-5, ".mbox")) nm[n-5] = 0; else continue;
+        if (strncmp(nm, was, wl) || nm[wl] != '_') continue; /* not its */
+        for (e = 0; e < 3; e++) {
+
+            snprintf(old, sizeof(old), "%.400s/%.150s.mbox%.8s",
+                     store, nm, ext[e]);
+            snprintf(new, sizeof(new), "%.400s/%.60s_%.150s.mbox%.8s",
+                     store, now, nm+wl+1, ext[e]);
+            rename(old, new); /* what is not there does not move */
+
+        }
+
+    }
+
+}
+
 /* every folder in the store, so that a fetch knows what is already here */
 static void loadalldigests(void)
 
@@ -3763,7 +3804,18 @@ static void srvsave(void)
     r = &servers[srvedit];
     ami_getwidgettext(srvwf, SRVNAME, s, sizeof(s));
     trim(s);
-    if (*s) copystr(r->name, s, sizeof(r->name));
+    if (*s && strcmp(s, r->name)) { /* it has been renamed */
+
+        char was[64];
+
+        copystr(was, r->name, sizeof(was));
+        copystr(r->name, s, sizeof(r->name));
+        /* The mailboxes are named for their account, so they follow it.
+           Without this a rename orphans everything the account has
+           fetched and it all comes down again under the new name. */
+        renamestore(was, r->name);
+
+    }
     ami_getwidgettext(srvwf, SRVIMAP, s, sizeof(s));
     trim(s);
     copystr(r->imap, s, MAXSTR);
