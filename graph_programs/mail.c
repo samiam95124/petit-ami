@@ -274,10 +274,18 @@ Odds and ends
 *******************************************************************************/
 
 /* say something went wrong, in a way the user can see */
+/* A fetch the timer started is a fetch nobody asked for, and a server
+   that is down will fail every one of them. Putting a box on the screen
+   for each is a program that cannot be left alone: come back after an
+   hour away and there is an hour of boxes to dismiss. Failures nobody
+   asked for go to the status line, where they can be read and ignored. */
+static long quietfail;
+
 static void fail(const char* what)
 
 {
 
+    if (quietfail) { status((char*)what); return; }
     ami_alert("Mail", (char*)what);
 
 }
@@ -2459,6 +2467,8 @@ static void imsend(char* tag, long tn, const char* fmt, ...)
 
 }
 
+static long netquiet; /* the last read got nothing at all */
+
 /* get one line back, without its line ending */
 static int imline(char* buf, long bn)
 
@@ -2466,8 +2476,11 @@ static int imline(char* buf, long bn)
 
     if (!fgets(buf, bn, imap)) {
 
-        /* nothing came, and something should have: the server has gone
-           quiet or the connection has died under us */
+        /* Nothing came, and something should have: the server has gone
+           quiet or the connection has died under us. Worth telling apart
+           from a refusal -- a refused login is a password to go and look
+           at, and silence is not. */
+        netquiet = TRUE;
         if (diag) fprintf(stderr, "! no answer from %s\n", imapsrv);
 
         return (FALSE);
@@ -2819,6 +2832,7 @@ static int imapopen(void)
         long sav = diag;
 
         diag = FALSE;
+        netquiet = FALSE;
         imsend(tag, sizeof(tag), "LOGIN \"%s\" \"%s\"", username, password);
         diag = sav;
 
@@ -2842,8 +2856,13 @@ static int imapopen(void)
             memmove(said, p, strlen(p)+1);
 
         }
-        snprintf(msg, sizeof(msg),
-                 "%s would not accept the login.\n%s", imapsrv, said);
+        if (netquiet) /* it did not refuse us, it said nothing at all */
+            snprintf(msg, sizeof(msg),
+                     "%s stopped answering during the login.\n"
+                     "It will be left alone for a while and tried again.",
+                     imapsrv);
+        else snprintf(msg, sizeof(msg),
+                      "%s would not accept the login.\n%s", imapsrv, said);
         fail(msg);
         fclose(imap);
         imap = NULL;
@@ -5097,6 +5116,69 @@ static long fetchlow;    /* and the lowest, which together say what is
                             already here rather than only how far up */
 static long fetchnewlow; /* the lowest this fetch has reached */
 
+/*******************************************************************************
+
+Leaving a server alone after it stops answering
+
+A server that has gone quiet is not helped by being asked again a
+quarter of a minute later, and a server that has gone quiet because it
+has had enough of us -- which is what tens of thousands of messages
+earns from a large provider -- is made worse by it. So a failure puts
+that account aside for a while, and the while doubles each time: a
+quarter minute, then half, then a minute, up to a quarter of an hour.
+Anything that arrives puts it back to nothing.
+
+This is the whole of the retry policy, and it is deliberately not a loop
+around the read. The fetch is already resumable -- every folder
+remembers the stretch it has taken, and every message is known by its
+digest -- so the next look IS the retry, and it costs nothing to let it
+be the next scheduled one. A retry inside the fetch would only be the
+same request sent sooner, to a server that has just declined to answer.
+
+*******************************************************************************/
+
+#define BACKOFF   15  /* seconds to wait after the first failure */
+#define BACKMAX   900 /* and never more than a quarter of an hour */
+
+static time_t srvquiet[MAXSRV]; /* not to be asked before this time */
+static long   srvwait[MAXSRV];  /* how long it was left alone last time */
+
+/* that account has stopped answering */
+static void serverfailed(long srv)
+
+{
+
+    if (srv < 0 || srv >= MAXSRV) return;
+    srvwait[srv] = srvwait[srv]? srvwait[srv]*2: BACKOFF;
+    if (srvwait[srv] > BACKMAX) srvwait[srv] = BACKMAX;
+    srvquiet[srv] = time(NULL)+srvwait[srv];
+    if (diag) fprintf(stderr, "! %s left alone for %lds\n",
+                      servers[srv].name, srvwait[srv]);
+
+}
+
+/* and that one is talking again */
+static void serverspoke(long srv)
+
+{
+
+    if (srv < 0 || srv >= MAXSRV) return;
+    srvwait[srv] = 0;
+    srvquiet[srv] = 0;
+
+}
+
+/* is this account being left alone just now? */
+static int serverquiet(long srv)
+
+{
+
+    if (srv < 0 || srv >= MAXSRV) return (FALSE);
+
+    return (srvquiet[srv] && time(NULL) < srvquiet[srv]);
+
+}
+
 /* say where the fetch has got to */
 static void fetchsay(void)
 
@@ -5142,6 +5224,8 @@ static void fetchorder(void)
             long seen = 0;
             long k;
 
+            if (serverquiet(i)) continue; /* it is not answering yet */
+
             for (k = 0; k < foldct; k++) {
 
                 if (folders[k].srv != i) continue;
@@ -5178,7 +5262,8 @@ static int fetchnext(void)
             fetchsrv = folders[fold].srv;
             if (fetchsrv < 0) continue;
             useserver(fetchsrv);
-            if (!imapopen()) continue;
+            if (!imapopen()) { serverfailed(fetchsrv); fetchsrv = -2; continue; }
+            serverspoke(fetchsrv);
 
         }
         fetchi = 0;
@@ -5275,6 +5360,7 @@ static void fetchstep(void)
         if (fetchcur >= 0 && fetchcur < foldct)
             writestate(fetchcur, uidvalidity,
                        fetchlow? fetchlow: fetchnewlow, fetchlast);
+        serverfailed(fetchsrv);
         status("The server stopped answering. What arrived is kept.");
         fetchend();
 
@@ -5815,8 +5901,13 @@ int main(int argc, char* argv[])
                 if (er.timnum == TIMFETCH) fetchstep();
                 /* and the periodic look at the servers, which does
                    nothing while a fetch is already under way */
-                else if (er.timnum == TIMPOLL && !fetching && haveaccount())
-                    fetchall(FALSE); /* look, but do not relist */
+                else if (er.timnum == TIMPOLL && !fetching && haveaccount()) {
+
+                    quietfail = TRUE; /* nobody asked for this one */
+                    fetchall(FALSE);  /* look, but do not relist */
+                    quietfail = FALSE;
+
+                }
                 break;
 
             case ami_etmenus:
