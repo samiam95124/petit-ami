@@ -3627,6 +3627,8 @@ static void fetchpick(void)
 
 }
 
+static long mailquit;   /* somebody asked to leave */
+
 static void openmsg(long i);
 static void selectmsg(long i);
 static void srvopen(void);
@@ -3649,6 +3651,61 @@ static void listkeys(ami_evtrec* er)
     long vis = listvis();
     long sel = msgsel;
 
+    /* The folder keys come first: they have to work when the list is
+       empty, which is exactly when somebody wants to change folder. */
+    if (er->etype == ami_ettab ||
+        (er->etype == ami_etchar && (er->echar == 'f' || er->echar == 'F'))) {
+
+        long i = foldsel;
+        long n = 0;
+        long back = er->etype == ami_etchar && er->echar == 'F';
+
+        /* the next folder that can be shown, wrapping, skipping the
+           headings' worth of nothing -- a server folder that holds no
+           messages is still a folder and is not skipped */
+        while (n++ < foldct) {
+
+            i = back? i-1: i+1;
+            if (i >= foldct) i = 0;
+            if (i < 0) i = foldct-1;
+            if (!folders[i].noselect) { showfolder(i); break; }
+
+        }
+
+        return;
+
+    }
+    if (er->etype == ami_etchar) {
+
+        /* One-key commands, which is how a terminal likes to be driven:
+           everything the menu offers, a letter offers too. They are
+           answered before the guard below -- composing a message,
+           getting mail, asking for help and leaving all make sense with
+           an empty list, and it is precisely when the list is empty
+           that somebody wants them. */
+        switch (er->echar) {
+
+            case 'c': case 'C':
+                if (!haveaccount()) srvopen();
+                else cmpopen("", "", "", "", "", "");
+                break;
+
+            case 'g': case 'G':
+                if (!haveaccount()) srvopen();
+                else if (!fetching) fetchall(TRUE);
+                break;
+
+            case 's': case 'S': srvopen(); break;
+            case 'h': case 'H': helpopen(); break;
+            case 'q': case 'Q': mailquit = TRUE; break;
+            default: break;
+
+        }
+
+        return;
+
+    }
+    /* what is left moves about in the list, and needs one to move in */
     if (foldsel < 0 || !msgct) return;
     switch (er->etype) {
 
@@ -3660,27 +3717,6 @@ static void listkeys(ami_evtrec* er)
         case ami_etend:  sel = msgct-1; break;
         case ami_etenter:
             if (msgsel >= 0) openmsg(msgsel);
-            return;
-
-        case ami_etchar:
-            /* One-key commands, which is how a terminal likes to be
-               driven: everything the menu offers, a letter offers too. */
-            switch (er->echar) {
-
-                case 'c': case 'C':
-                    if (!haveaccount()) srvopen(); else cmpopen("", "", "", "", "", "");
-                    break;
-
-                case 'g': case 'G':
-                    if (!haveaccount()) srvopen();
-                    else if (!fetching) fetchall(TRUE);
-                    break;
-
-                case 's': case 'S': srvopen(); break;
-                case 'h': case 'H': helpopen(); break;
-                default: break;
-
-            }
             return;
 
         default: return;
@@ -3862,7 +3898,8 @@ int main(int argc, char* argv[])
         status("No account yet. Mail/Server asks for one.");
     else if (!foldct) status("Nothing fetched yet. Mail/Get Mail reads the "
                              "server.");
-    else status("");
+    else status("Tab/f folder  arrows list  Enter read  c compose  "
+                "g get mail  s servers  h help  q quit");
     /* The counts come from reading every mailbox through, which on a
        store of gigabytes is not something to do in front of somebody
        waiting for a window. The worker does it, and the pane fills in
@@ -3940,6 +3977,17 @@ int main(int argc, char* argv[])
                 case ami_ethome: readtop = 0; showread(); break;
                 case ami_etend: readtop = readlines; showread(); break;
                 case ami_etcan: closeread(); break;
+                case ami_etchar:
+                    /* q and Escape both close it, which is what a
+                       terminal reader is expected to answer to */
+                    if (er.echar == 'q' || er.echar == 'Q') closeread();
+                    else if (er.echar == 'r' || er.echar == 'R')
+                        answer(MENUREPLY);
+                    else if (er.echar == 'a' || er.echar == 'A')
+                        answer(MENUREPALL);
+                    else if (er.echar == 'w' || er.echar == 'W')
+                        answer(MENUFWD);
+                    break;
                 default: break;
 
             }
@@ -4235,10 +4283,15 @@ int main(int argc, char* argv[])
 
         }
 
-    /* a terminate for the reader closed the reader, not the program */
-    } while (er.etype != ami_etterm || er.winid == READWIN ||
-             er.winid == SRVWIN || er.winid == HELPWIN ||
-             er.winid == CMPWIN);
+    /* Asked to leave is tested here and not in the body: every pane
+       hands its events back with a continue, which jumps to this
+       condition and past anything written after the switch.
+
+       A terminate for the reader closed the reader, not the program. */
+    } while (!mailquit &&
+             (er.etype != ami_etterm || er.winid == READWIN ||
+              er.winid == SRVWIN || er.winid == HELPWIN ||
+              er.winid == CMPWIN));
     done:
     /* The lock is held here, so the worker is not in the middle of
        writing a message: what is in the store is whole. It is told to
