@@ -613,6 +613,12 @@ what makes the two kinds of field live together.
 
 *******************************************************************************/
 
+/* What the strip says when it has nothing else to say. A terminal shows
+   no menu until it is asked, so the keys live here where they can be
+   read. */
+#define KEYHELP "Tab/f folder  arrows list  Enter read  c compose  " \
+                "g get mail  s servers  h help  q quit"
+
 #define CMPMAX  20000 /* the longest line worth calling a line */
 
 static FILE*  cmpwf;            /* the window, when it is open */
@@ -1244,11 +1250,15 @@ static void drawstatus(void)
     long i;
     char t[MAXSTR];
 
+
     /* the row, cleared in reverse video, which is what a status line
        looks like on a terminal */
     ami_reverse(stdout, TRUE);
     ami_cursor(stdout, 1, y);
-    for (i = 0; i < ami_maxx(stdout); i++) fputc(' ', stdout);
+    /* One short of the width. The strip is the last row, and writing
+       the last column of the last row is what a terminal answers by
+       scrolling -- the row went by before it could be seen. */
+    for (i = 0; i < ami_maxx(stdout)-1; i++) fputc(' ', stdout);
     if (*statsaid) {
 
         copystr(t, statsaid, sizeof(t));
@@ -2607,14 +2617,13 @@ static void layout(void)
 
 {
 
-    /* The manager's menu bar takes the first client row of a frameless
-       window, so everything here starts one row down: the banner under
-       the menu, the panes under the banner. */
-    long top = 1+1+banh;
+    /* The client is the inside: no frame, no system bar, no menu. The
+       banner starts at its first row. */
+    long top = 1+banh;
     long h = ami_maxy(stdout)-top-stath; /* the strip has the foot of it */
 
     /* The banner is as wide as the window and stays where it is put. */
-    ami_setpos(banwf, 1, 2); /* row 1 is the menu bar's */
+    ami_setpos(banwf, 1, 1);
     ami_setsiz(banwf, ami_maxx(stdout), banh);
     ami_sizbuf(banwf, ami_maxx(stdout), banh);
 
@@ -3578,7 +3587,7 @@ static void fetchpick(void)
         fetching = FALSE;
         *wrkwhat = 0;
         statprog(0, 0); /* the bar empties: there is nothing running */
-        if (wrkcount) status("");
+        if (wrkcount) status(KEYHELP); /* not blank: the keys come back */
         else {
 
             char a[40], b[40];
@@ -3898,8 +3907,7 @@ int main(int argc, char* argv[])
         status("No account yet. Mail/Server asks for one.");
     else if (!foldct) status("Nothing fetched yet. Mail/Get Mail reads the "
                              "server.");
-    else status("Tab/f folder  arrows list  Enter read  c compose  "
-                "g get mail  s servers  h help  q quit");
+    else status(KEYHELP);
     /* The counts come from reading every mailbox through, which on a
        store of gigabytes is not something to do in front of somebody
        waiting for a window. The worker does it, and the pane fills in

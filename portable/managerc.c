@@ -2909,11 +2909,19 @@ static long decory(winptr win)
 
 {
 
-    /* an installed menu adds its own row to the decorations: the system
-       bar and its underbar stay as they are, and the client starts below
-       the menu, as the graphical form presents it */
+    /* An installed menu adds its own row: the system bar and its
+       underbar stay as they are and the client starts below the menu,
+       as the graphical form presents it.
+
+       The menu row is counted whether or not there is a frame. It is
+       not a frame decoration -- it is a band above the client, and the
+       client is what is left inside the frame, the system bar and the
+       menu. Gated on the frame, as it was, a frameless window kept a
+       client the full height of the window and the bar was laid over
+       the client's first row: a program drawing from row one drew over
+       its own menu and never saw it. */
     return ((win->frame && win->size)*2+(win->frame && win->sysbar)*2+
-            (win->frame && win->mbar != 0));
+            (win->mbar != 0));
 
 }
 
@@ -3585,7 +3593,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient, int root)
     /* set client offset considering framing characteristics */
     win->coffx = 0+(win->frame && win->size);
     win->coffy = 0+(win->frame && win->size)+(win->frame && win->sysbar)*2+
-                 (win->frame && win->mbar != 0);
+                 (win->mbar != 0);
     win->curx = 1; /* set cursor at home */
     win->cury = 1;
     /* clear tabs and set to 8ths */
@@ -6893,7 +6901,10 @@ static void mbarsiz(winptr win)
     if (!wg) return;
     isizbuf(wg->wf, win->cmaxx, 1); /* buffer to the new width */
     intsetsiz(wg->win, win->cmaxx, 1); /* face to the new width */
-    intsetpos(wg->win, 1, 1-(win->frame != 0));
+    /* Row zero of the owner's client space, which is the row just above
+       the client -- where the client now begins whether the window is
+       framed or not. */
+    intsetpos(wg->win, 1, 0);
     wigdrw(wg); /* the size buffer change cleared the face */
 
 }
@@ -7078,7 +7089,7 @@ static void recompcli(winptr win)
 
     win->coffx = 0+(win->frame && win->size);
     win->coffy = 0+(win->frame && win->size)+(win->frame && win->sysbar)*2+
-                 (win->frame && win->mbar != 0);
+                 (win->mbar != 0);
     win->cmaxx = win->pmaxx; /* client dimensions from decorations */
     win->cmaxy = win->pmaxy;
     win->cmaxx -= decorx(win);
@@ -9811,8 +9822,7 @@ static void imenu(FILE* f, ami_menuptr m)
        underbar, which stay as they are -- the graphical form keeps the
        system bar untouched and the client simply starts below the menu.
        The client area shrinks by the row, which decory() accounts once
-       the bar is on. A frameless window has no decorations to extend and
-       gives up its first client row instead. */
+       the bar is on, framed or not. */
     id = ami_getwigid(f);
     wg = wigcre(f, 1, 1, win->cmaxx, 1, id, wtmenubar);
     wg->mitems = m;
@@ -9821,9 +9831,8 @@ static void imenu(FILE* f, ami_menuptr m)
     /* the bar carries its own background, setting it off from the client */
     wg->win->bcolor = ami_cyan;
     win->mbar = wg;
-    recompcli(win); /* the client geometry now includes the menu row */
-    if (win->frame) /* place the bar in its row, above the client origin */
-        intsetpos(wg->win, 1, 0);
+    recompcli(win); /* the client gives up a row to the menu */
+    intsetpos(wg->win, 1, 0); /* the row just above the client */
     restore(win); /* redraw the window under the new layout */
     annresize(win);
     annredraw(win);
