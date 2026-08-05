@@ -2237,6 +2237,7 @@ static void closeread(void)
     long i;
 
     if (!readwf) return;
+    ami_killwidget(readwf, SBREAD); /* the manager's record of it first */
     fclose(readwf);
     readwf = NULL;
     for (i = 0; i < readlines; i++) free(readline[i]);
@@ -2441,7 +2442,16 @@ static void srvclose(void)
 
 {
 
-    if (srvwf) { fclose(srvwf); srvwf = NULL; }
+    long i;
+
+    if (!srvwf) return;
+    /* The widgets first. The manager keeps a record for each, and a
+       window closed over live widgets leaves those records pointing at
+       a file that is gone -- which is the "Invalid file" that killed
+       the program when Cancel was pressed. */
+    for (i = SRVIMAP; i <= SRVSEND; i++) ami_killwidget(srvwf, i);
+    fclose(srvwf);
+    srvwf = NULL;
 
 }
 
@@ -3243,6 +3253,9 @@ static void helpclose(void)
     long i;
 
     if (!helpwf) return;
+    ami_killwidget(helpwf, HELPFIND);
+    if (helplistup) ami_killwidget(helpwf, HELPLIST);
+    ami_killwidget(helpwf, HELPCLOSE);
     fclose(helpwf);
     helpwf = NULL;
     helplistup = FALSE;
@@ -3900,12 +3913,18 @@ int main(int argc, char* argv[])
 
                     if (er.amoubn != 1) break;
                     /* Which folder the click landed on, found from where
-                       each was drawn rather than by counting rows: the
-                       two headings and the rule between the lists make
-                       row arithmetic wrong. */
+                       each was drawn rather than by counting rows. In
+                       cells the row IS the folder: the pixel version's
+                       two pixels of slop each way became two rows of
+                       slop, and the last folder in a five-row band is
+                       the one below the pointer -- the click that hit
+                       Sent and selected INBOX. */
                     for (i = 0; i < foldct; i++)
-                        if (mpy >= foldy[i]-2 && mpy < foldy[i]+chrh+2)
-                            best = i;
+                        if (mpy == foldy[i]) best = i;
+                    if (diag) fprintf(stderr, "foldclick: mpx %ld mpy %ld "
+                                      "best %ld foldy0..2 %ld %ld %ld\n",
+                                      mpx, mpy, best, foldy[0], foldy[1],
+                                      foldy[2]);
                     if (best >= 0) showfolder(best);
                     break;
 
