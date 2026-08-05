@@ -1791,7 +1791,7 @@ static void wrapread(void)
 {
 
     const char* p;
-    long        w = ami_maxx(readwf)-16-sbw;
+    long        w = ami_maxx(readwf)-sbw-2;
     long        i;
 
     for (i = 0; i < readlines; i++) free(readline[i]);
@@ -2206,9 +2206,21 @@ static void openmsg(long i)
         ami_scnsiz(readwf, &wx, &wy);
         ami_setsiz(readwf, wx-4, wy-2);
         ami_setpos(readwf, 3, 2);
-        ami_scrollvertsiz(readwf, &sbw, &wy);
+        /* The bar down the right. Its thickness is asked for into a
+           variable of its own: asking into wy, which is where the
+           window height was, left the window sized from a scroll bar's
+           nominal height -- the bar came out a full width wide, placed
+           at the right edge, and stood entirely off the window. */
+        {
+
+            long bh;
+
+            ami_scrollvertsiz(readwf, &sbw, &bh);
+
+        }
         ami_scrollvert(readwf, ami_maxx(readwf)-sbw+1, 1, ami_maxx(readwf),
                        ami_maxy(readwf), SBREAD);
+        ami_frontwidget(readwf, SBREAD); /* the window fronts over it */
 
     }
     copystr(title, *subj? subj: "(no subject)", MAXSTR);
@@ -4214,7 +4226,12 @@ int main(int argc, char* argv[])
                 }
                 break;
 
-            default: break;
+            /* Keys arrive on the main window under the graphical build
+               -- there is no manager handing focus among the panes --
+               and on whichever pane the manager has focused under the
+               character one. One stream either way: what the main
+               window does not use, the list gets. */
+            default: listkeys(&er); break;
 
         }
 

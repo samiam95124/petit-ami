@@ -5528,8 +5528,11 @@ static void intevent(FILE* f)
                             er.moupy = mousey-(absy(win)+win->coffy)+1;
                             intsendevent(win, &er);
                             er.etype = ami_etmouba;
-                            er.amoun = ev.mmoun;
-                            er.amoubn = 1;
+                            er.amoun = ev.amoun;
+                            er.amoubn = ev.amoubn; /* the button that was
+                                pressed, which may be the wheel: calling
+                                everything button 1 turned a wheel notch
+                                over an unfocused window into a click */
                             intsendevent(win, &er);
 
                         }
