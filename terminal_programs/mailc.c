@@ -2191,15 +2191,17 @@ static void openmsg(long i)
         }
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
-        ami_winclient(readwf, (long)strlen("0")*84, chrh*40, &wx, &wy,
-                       BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+        /* A terminal is small: the reader takes most of it, down and to
+           the right of nothing -- there is no room to offset into. The
+           frame is the manager's, so what is asked for is the client. */
+        ami_winclient(readwf, ami_maxx(stdout)-6, ami_maxy(stdout)-4,
+                      &wx, &wy,
+                      BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
         ami_setsiz(readwf, wx, wy);
-        /* down and to the right, so it does not sit on top of the list
-           it was opened from */
-        ami_setpos(readwf, 80, 80);
+        ami_setpos(readwf, 4, 3);
         ami_scrollvertsiz(readwf, &sbw, &wy);
-        ami_scrollvert(readwf, ami_maxx(readwf)-sbw, 1, sbw,
-                        ami_maxy(readwf), SBREAD);
+        ami_scrollvert(readwf, ami_maxx(readwf)-sbw+1, 1, ami_maxx(readwf),
+                       ami_maxy(readwf), SBREAD);
 
     }
     copystr(title, *subj? subj: "(no subject)", MAXSTR);
@@ -2575,11 +2577,14 @@ static void layout(void)
 
 {
 
-    long top = 1+banh; /* under the banner, which is under the menu */
+    /* The manager's menu bar takes the first client row of a frameless
+       window, so everything here starts one row down: the banner under
+       the menu, the panes under the banner. */
+    long top = 1+1+banh;
     long h = ami_maxy(stdout)-top-stath; /* the strip has the foot of it */
 
     /* The banner is as wide as the window and stays where it is put. */
-    ami_setpos(banwf, 1, 1);
+    ami_setpos(banwf, 1, 2); /* row 1 is the menu bar's */
     ami_setsiz(banwf, ami_maxx(stdout), banh);
     ami_sizbuf(banwf, ami_maxx(stdout), banh);
 
@@ -3567,6 +3572,48 @@ static void fetchpick(void)
 
 }
 
+static void openmsg(long i);
+static void selectmsg(long i);
+static void showlist(void);
+static long listvis(void);
+
+/* The keys, one stream for the whole main window. A terminal has one
+   keyboard and this program points it at the message list: the arrows
+   move the selection, the page keys page it, Enter opens what is
+   selected. It is called from every window of the main family, so it
+   does not matter which of them the manager thinks has focus. */
+static void listkeys(ami_evtrec* er)
+
+{
+
+    long vis = listvis();
+    long sel = msgsel;
+
+    if (foldsel < 0 || !msgct) return;
+    switch (er->etype) {
+
+        case ami_etup:   sel = sel < 0? msgtop: sel-1; break;
+        case ami_etdown: sel = sel < 0? msgtop: sel+1; break;
+        case ami_etpagu: sel = (sel < 0? msgtop: sel)-(vis-1); break;
+        case ami_etpagd: sel = (sel < 0? msgtop: sel)+(vis-1); break;
+        case ami_ethome: sel = 0; break;
+        case ami_etend:  sel = msgct-1; break;
+        case ami_etenter:
+            if (msgsel >= 0) openmsg(msgsel);
+            return;
+
+        default: return;
+
+    }
+    if (sel < 0) sel = 0;
+    if (sel > msgct-1) sel = msgct-1;
+    /* scrolled into view, then marked */
+    if (sel < msgtop) { msgtop = sel; showlist(); }
+    else if (sel >= msgtop+vis) { msgtop = sel-vis+1; showlist(); }
+    selectmsg(sel);
+
+}
+
 /* show a folder */
 static void showfolder(long i)
 
@@ -3659,26 +3706,10 @@ int main(int argc, char* argv[])
     }
     readaccount(); /* if there is one; the program comes up either way */
     migratestore(); /* mailboxes from before accounts had names */
-    {
-
-        long cw = (long)strlen("0")*130; /* the room wanted inside */
-        long ch = chrh*46;
-
-        ami_winclient(stdout, cw, ch, &wx, &wy,
-                       BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-        ami_setsiz(stdout, wx, wy);
-        /* The buffer is NOT sized here. It follows the window, and the
-           only thing that knows what the window actually became is the
-           resize the window manager sends back -- which may be nothing
-           like what was asked for. Sizing it here to what was asked for
-           puts the buffer ahead of the window instead of behind it, and
-           then every measurement is of a window that does not exist:
-           the status strip is drawn at the foot of a buffer taller than
-           the window, where nobody can see it. The resize that arrives
-           at startup does the sizing, as every later one does. */
-
-    }
-    /* The menu is built once the window is its final size. Built before,
+    /* The root of a terminal is the terminal: it is as big as it is,
+       and asking for a size would only put the layout at odds with the
+       screen. The manager gives the whole surface, maximized, and the
+       resize that matters is the terminal's own. */    /* The menu is built once the window is its final size. Built before,
        the menu strip follows the resize but its newly exposed right end
        is never painted, and sits there as a black box until something
        makes the window resize again. */
@@ -3751,6 +3782,9 @@ int main(int argc, char* argv[])
         dunlock();
         ami_event(stdin, &er);
         dlock();
+        if (diag && er.etype != ami_etmoumov && er.etype != ami_ettim &&
+            er.etype != ami_etframe)
+            fprintf(stderr, "event %d win %ld\n", er.etype, er.winid);
         if (diag) switch (er.etype) {
 
             case ami_etresize:
@@ -3817,6 +3851,7 @@ int main(int argc, char* argv[])
             if (er.etype == ami_etredraw) drawbanner();
             else if (er.etype == ami_etresize)
                 { ami_sizbuf(banwf, er.rszx, er.rszy); drawbanner(); }
+            else listkeys(&er); /* focus may sit anywhere; keys are one */
 
             continue;
 
@@ -3847,7 +3882,7 @@ int main(int argc, char* argv[])
                     ami_sizbuf(foldwf, er.rszx, er.rszy);
                     drawfolders();
                     break;
-                default: break;
+                default: listkeys(&er); break;
 
             }
             continue;
@@ -3928,22 +3963,11 @@ int main(int argc, char* argv[])
 
                     }
                     break;
-                case ami_etsclull: case ami_etup:
-                    msgtop--;
-                    showlist();
-                    break;
-                case ami_etscldrl: case ami_etdown:
-                    msgtop++;
-                    showlist();
-                    break;
-                case ami_etsclulp: case ami_etpagu:
-                    msgtop -= listvis()-1;
-                    showlist();
-                    break;
-                case ami_etscldrp: case ami_etpagd:
-                    msgtop += listvis()-1;
-                    showlist();
-                    break;
+                /* the bar scrolls the view; the keys move the selection */
+                case ami_etsclull: msgtop--; showlist(); break;
+                case ami_etscldrl: msgtop++; showlist(); break;
+                case ami_etsclulp: msgtop -= listvis()-1; showlist(); break;
+                case ami_etscldrp: msgtop += listvis()-1; showlist(); break;
                 case ami_etsclpos:
                     ami_scrollpos(listwf, SBLIST, er.sclpos);
                     msgtop = scaleback(er.sclpos, msgct-listvis());
@@ -3975,7 +3999,7 @@ int main(int argc, char* argv[])
                     break;
 
                 }
-                default: break;
+                default: listkeys(&er); break;
 
             }
             continue;
