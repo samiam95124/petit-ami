@@ -5508,6 +5508,31 @@ static void intevent(FILE* f)
                             win->hover = TRUE; /* set hover active */
 
                         }
+                        /* The click that focuses a client also acts on
+                           it. Widgets have acted on their focusing click
+                           all along, and a frame click acts on the same
+                           click that focuses -- the client area was the
+                           one place the click was swallowed, and a
+                           program that opens a message on a click needed
+                           two where the graphical library needs one.
+                           The position goes first, since a client that
+                           tracks the mouse from move events has been
+                           told nothing while it was unfocused: without
+                           it the click lands on coordinates from
+                           whenever the window last had the focus. */
+                        if (!win->widget) {
+
+                            er.etype = ami_etmoumov;
+                            er.mmoun = ev.mmoun;
+                            er.moupx = mousex-(absx(win)+win->coffx)+1;
+                            er.moupy = mousey-(absy(win)+win->coffy)+1;
+                            intsendevent(win, &er);
+                            er.etype = ami_etmouba;
+                            er.amoun = ev.mmoun;
+                            er.amoubn = 1;
+                            intsendevent(win, &er);
+
+                        }
 
                     }
                     if (!win->root) { /* the root stays put */
