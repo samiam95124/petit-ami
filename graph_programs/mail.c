@@ -228,8 +228,6 @@ static long  readmax;
 static void drawlist(void);     /* forward */
 static void drawfolders(void);
 static void showfolder(long i);
-static void srvdir(long srv, char* dn, long dnl);
-static void safename(const char* nm, char* fn, long fnl);
 static void drawread(void);
 static void layout(void);
 static void drawfolders(void);

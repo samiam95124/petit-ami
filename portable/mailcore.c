@@ -40,6 +40,10 @@ at the top of mailcore.h.
 long imaptag;   /* the number the next command is tagged with */
 FILE* imap;
 
+/* the store's directory names, defined with the store code below */
+void srvdir(long srv, char* dn, long dnl);
+void safename(const char* nm, char* fn, long fnl);
+
 /* What both front ends read. The types and the declarations are in
    mailcore.h; this is where they live. */
 foldrec folders[MAXFOLDER];
@@ -3928,7 +3932,7 @@ static int fetchnext(void)
         fetchi = 0;
         uidct = 0;
         fetchsay();
-        snprintf(wrkwhat, sizeof(wrkwhat), "%s: %s",
+        snprintf(wrkwhat, sizeof(wrkwhat), "%.60s: %.400s",
                  fetchsrv >= 0? servers[fetchsrv].name: "", folders[fold].show);
         wrkpos = 0;
         wrkmax = 0;
@@ -4225,7 +4229,7 @@ void servesend(void)
     body = outbody;
     outbody = NULL;
     dunlock();
-    snprintf(wrkwhat, sizeof(wrkwhat), "Sending to %s", to);
+    snprintf(wrkwhat, sizeof(wrkwhat), "Sending to %.400s", to);
     wrkpos = 0;
     wrkmax = 0;
     sendmail(to, cc, sub, body? body: "", inreply, refs, err, sizeof(err));
@@ -4267,7 +4271,8 @@ void serveindex(void)
         idxwant = -1;
         folders[f].wantidx = FALSE;
         idxdoing = f;
-        snprintf(wrkwhat, sizeof(wrkwhat), "Reading %s", folders[f].show);
+        snprintf(wrkwhat, sizeof(wrkwhat), "Reading %.400s",
+                 folders[f].show);
         wrkpos = 0;
         wrkmax = 0;
         indexfolder(f);
