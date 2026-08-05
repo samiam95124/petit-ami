@@ -868,10 +868,11 @@ static void cmpopen(const char* to, const char* cc, const char* subject,
     ami_title(cmpwf, "Write a message");
     ami_auto(cmpwf, FALSE);
     ami_curvis(cmpwf, FALSE);
-    /* most of the terminal, which is all the room there is */
-    ami_winclient(cmpwf, ami_maxx(stdout)-4, ami_maxy(stdout)-3, &wx, &wy,
-                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    ami_setsiz(cmpwf, wx, wy);
+    /* most of the terminal, sized as a window for the same reason the
+       reader is: the decorations are the manager's business, not a sum
+       to be guessed at */
+    ami_scnsiz(cmpwf, &wx, &wy);
+    ami_setsiz(cmpwf, wx-4, wy-2);
     ami_setpos(cmpwf, 3, 2);
     {
 
@@ -2194,14 +2195,17 @@ static void openmsg(long i)
         }
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
-        /* A terminal is small: the reader takes most of it, down and to
-           the right of nothing -- there is no room to offset into. The
-           frame is the manager's, so what is asked for is the client. */
-        ami_winclient(readwf, ami_maxx(stdout)-6, ami_maxy(stdout)-4,
-                      &wx, &wy,
-                      BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-        ami_setsiz(readwf, wx, wy);
-        ami_setpos(readwf, 4, 3);
+        /* A terminal is small: the reader takes most of it. The WINDOW
+           is sized, not the client, and from the screen itself: asking
+           winclient to work back from a wished-for client means
+           guessing the decorations -- frame, title, underbar, and the
+           menu this window carries -- and every wrong guess is a row
+           hanging off the screen. Sized as a window, the bottom border
+           lands where it is put and the client is whatever remains,
+           which is what the drawing adapts to anyway. */
+        ami_scnsiz(readwf, &wx, &wy);
+        ami_setsiz(readwf, wx-4, wy-2);
+        ami_setpos(readwf, 3, 2);
         ami_scrollvertsiz(readwf, &sbw, &wy);
         ami_scrollvert(readwf, ami_maxx(readwf)-sbw+1, 1, ami_maxx(readwf),
                        ami_maxy(readwf), SBREAD);
@@ -3282,10 +3286,9 @@ static void helpopen(void)
     ami_buffer(helpwf, FALSE);
     ami_auto(helpwf, FALSE);
     ami_curvis(helpwf, FALSE);
-    ami_winclient(helpwf, ami_maxx(stdout)-8 < 86? ami_maxx(stdout)-8: 86,
-                   ami_maxy(stdout)-4 < 26? ami_maxy(stdout)-4: 26,
-                   &wx, &wy, BIT(ami_wmframe) | BIT(ami_wmsize) |
-                             BIT(ami_wmsysbar));
+    ami_scnsiz(helpwf, &wx, &wy);
+    wx = wx-6 < 88? wx-6: 88;
+    wy = wy-2 < 28? wy-2: 28;
     ami_setsiz(helpwf, wx, wy);
     /* The entry and the button are made once here and moved by the
        layout after. The list is made by the layout, which is where its
