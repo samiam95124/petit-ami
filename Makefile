@@ -1556,6 +1556,15 @@ mail: $(GLIBSD) graph_programs/mail.c portable/mailcore.c
 		-o bin/mail
 
 #
+# Read email, in characters
+#
+# The character library with the window manager in it, since mailc is
+# windows and widgets on a terminal.
+mailc: $(LIBPFX)termc$(LIBEXT) terminal_programs/mailc.c portable/mailcore.c
+	$(CC) $(CFLAGS) terminal_programs/mailc.c portable/mailcore.c $(CLIBSC) \
+		-o bin/mailc
+
+#
 # Get remote email
 #
 getmail: $(PLIBSD) network_programs/getmail.c
