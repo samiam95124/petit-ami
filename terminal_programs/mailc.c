@@ -827,25 +827,28 @@ static void cmplay(void)
     ami_buttonsiz(cmpwf, "Cancel", &bw, &bh);
     fprintf(cmpwf, "\f");
     ami_fcolor(cmpwf, ami_black);
-    y = chrh/2;
+    /* In cells nothing is half a character tall: a field is a row and
+       the rows go down one at a time. The pixel version's fractional
+       paddings all come to zero here, and a widget at row zero is a
+       widget off the window. */
+    y = 1;
     for (i = 0; i < 3; i++) {
 
-        ami_cursor(cmpwf, chrw, y+(eh-chrh)/2);
+        ami_cursor(cmpwf, 2, y);
         fprintf(cmpwf, "%s", lab[i]);
-        ami_poswidget(cmpwf, wid[i], chrw+labw, y);
-        ami_sizwidget(cmpwf, wid[i], ami_maxx(cmpwf)-labw-chrw*2, eh);
-        y += eh+chrh/4;
+        ami_poswidget(cmpwf, wid[i], 2+labw, y);
+        ami_sizwidget(cmpwf, wid[i], ami_maxx(cmpwf)-labw-4, eh);
+        y += eh;
 
     }
-    y += chrh/4;
-    ami_poswidget(cmpwf, CMPSEND, chrw+labw, y);
+    ami_poswidget(cmpwf, CMPSEND, 2+labw, y);
     ami_sizwidget(cmpwf, CMPSEND, bw, bh);
-    ami_poswidget(cmpwf, CMPCAN, chrw+labw+bw+chrw*2, y);
+    ami_poswidget(cmpwf, CMPCAN, 2+labw+bw+2, y);
     ami_sizwidget(cmpwf, CMPCAN, bw, bh);
-    y += bh+chrh/2;
+    y += bh;
     /* the line that says the message begins here */
     divider(cmpwf, 1, y, ami_maxx(cmpwf), y);
-    cmpy0 = y+2;
+    cmpy0 = y+1;
     ami_poswidget(cmpwf, CMPSB, ami_maxx(cmpwf)-cmpsbw, cmpy0);
     ami_sizwidget(cmpwf, CMPSB, cmpsbw, ami_maxy(cmpwf)-cmpy0);
     cmpdraw();
@@ -867,9 +870,11 @@ static void cmpopen(const char* to, const char* cc, const char* subject,
     ami_title(cmpwf, "Write a message");
     ami_auto(cmpwf, FALSE);
     ami_curvis(cmpwf, FALSE);
-    ami_winclient(cmpwf, (long)strlen("0")*90, chrh*34, &wx, &wy,
-                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
+    /* most of the terminal, which is all the room there is */
+    ami_winclient(cmpwf, ami_maxx(stdout)-4, ami_maxy(stdout)-3, &wx, &wy,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsiz(cmpwf, wx, wy);
+    ami_setpos(cmpwf, 3, 2);
     {
 
         long ew, eh, bw, bh;
@@ -2468,13 +2473,14 @@ static void srvopen(void)
         long want = chrw*96;
 
         if (need > want) want = need;
+        if (want > ami_maxx(stdout)-4) want = ami_maxx(stdout)-4;
         ami_winclient(srvwf, want, (eh+chrh/2)*SRVFLDS+bh*2+chrh*8, &wx, &wy,
                        BIT(ami_wmframe) | BIT(ami_wmsize) |
                        BIT(ami_wmsysbar));
 
     }
     ami_setsiz(srvwf, wx, wy);
-    ami_setpos(srvwf, 120, 120);
+    ami_setpos(srvwf, 3, 3);
     /* made here, placed by the layout, which runs again on a resize */
     for (i = 0; i < SRVFLDS; i++)
         ami_editbox(srvwf, 1, 1, 2, 2, srvfld[i].id);
@@ -3265,7 +3271,8 @@ static void helpopen(void)
     ami_buffer(helpwf, FALSE);
     ami_auto(helpwf, FALSE);
     ami_curvis(helpwf, FALSE);
-    ami_winclient(helpwf, (long)strlen("0")*86, 1*26,
+    ami_winclient(helpwf, ami_maxx(stdout)-8 < 86? ami_maxx(stdout)-8: 86,
+                   ami_maxy(stdout)-4 < 26? ami_maxy(stdout)-4: 26,
                    &wx, &wy, BIT(ami_wmframe) | BIT(ami_wmsize) |
                              BIT(ami_wmsysbar));
     ami_setsiz(helpwf, wx, wy);
@@ -3574,6 +3581,11 @@ static void fetchpick(void)
 
 static void openmsg(long i);
 static void selectmsg(long i);
+static void srvopen(void);
+static void helpopen(void);
+static void cmpopen(const char* to, const char* cc, const char* subject,
+                    const char* body, const char* inreply, const char* refs);
+static void fetchall(int relist);
 static void showlist(void);
 static long listvis(void);
 
@@ -3600,6 +3612,27 @@ static void listkeys(ami_evtrec* er)
         case ami_etend:  sel = msgct-1; break;
         case ami_etenter:
             if (msgsel >= 0) openmsg(msgsel);
+            return;
+
+        case ami_etchar:
+            /* One-key commands, which is how a terminal likes to be
+               driven: everything the menu offers, a letter offers too. */
+            switch (er->echar) {
+
+                case 'c': case 'C':
+                    if (!haveaccount()) srvopen(); else cmpopen("", "", "", "", "", "");
+                    break;
+
+                case 'g': case 'G':
+                    if (!haveaccount()) srvopen();
+                    else if (!fetching) fetchall(TRUE);
+                    break;
+
+                case 's': case 'S': srvopen(); break;
+                case 'h': case 'H': helpopen(); break;
+                default: break;
+
+            }
             return;
 
         default: return;
@@ -3947,13 +3980,13 @@ int main(int argc, char* argv[])
 
                     } else if (er.amoubn == 1) {
 
-                        i = msgtop+(mpy-4)/rowh;
+                        i = msgtop+(mpy-1); /* row 1 is message msgtop */
                         if (i >= 0 && i < msgct) { selectmsg(i); openmsg(i); }
 
                     } else if (er.amoubn == 2 || er.amoubn == 3) {
 
                         /* the second button: the message menu */
-                        i = msgtop+(mpy-4)/rowh;
+                        i = msgtop+(mpy-1); /* row 1 is message msgtop */
                         if (i >= 0 && i < msgct) {
 
                             selectmsg(i);
