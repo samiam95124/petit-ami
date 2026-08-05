@@ -42,6 +42,17 @@ Web page for Ami !
 
 https://samiam95124.github.io/amitk
 
+To fetch and build it (the tree carries submodules, so take them along):
+
+    git clone --recurse-submodules https://github.com/samiam95124/amitk.git
+    cd amitk
+    . setpath
+    ./configure
+    make
+
+The full procedure, including what to do when the glibc override does
+not match your system, is in [INSTALL](INSTALL).
+
 Please see the following documents to get started in Petit-Ami
 
     doc/petit_ami.docx  The "grand unified" document of what it is, how to
