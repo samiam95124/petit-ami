@@ -665,6 +665,8 @@ static int    mpx;         /* mouse x/y current position */
 static int    mpy;
 /* new, incoming states of mouse */
 static int    nbutton1;    /* button 1 state: 0=assert, 1=deassert */
+static int    nwheelup;    /* wheel notches not yet reported, rolling up */
+static int    nwheeldn;    /* and rolling down */
 static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
 static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
 static int    nmpx;        /* mouse x/y current position */
@@ -2455,6 +2457,16 @@ static void ievent(void)
                                 case 0: nbutton1 = ba; break; /* assert button 1 */
                                 case 1: nbutton2 = ba; break; /* assert button 2 */
                                 case 2: nbutton3 = ba; break; /* assert button 3 */
+                                /* The wheel. A notch arrives as a press
+                                   of button 64 or 65 and no release, so
+                                   it is not a state like a button but a
+                                   count of notches to report. Graphical
+                                   programs have had the wheel as
+                                   buttons 4 and 5 all along; character
+                                   ones fell through this default and
+                                   never saw it at all. */
+                                case 64: if (!ba) nwheelup++; break;
+                                case 65: if (!ba) nwheeldn++; break;
                                 default: break; /* deassert all, do nothing */
 
                             }
@@ -2636,6 +2648,24 @@ static void ievent(void)
                 evtfnd = 1;
                 enquepaevt(&er); /* send to queue */
                 button3 = nbutton3;
+
+            } else if (nwheelup) { /* a wheel notch is its own event */
+
+                er.etype = ami_etmouba;
+                er.amoun = 1;
+                er.amoubn = 4;
+                evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
+                nwheelup--;
+
+            } else if (nwheeldn) {
+
+                er.etype = ami_etmouba;
+                er.amoun = 1;
+                er.amoubn = 5;
+                evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
+                nwheeldn--;
 
             } if (nmpx != mpx || nmpy != mpy) {
 

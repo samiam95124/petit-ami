@@ -1551,8 +1551,27 @@ getpageg: $(GLIBSD) network_programs/getpage.c
 
 # Mail reader. Graphical, and uses the network, so it takes the graphics
 # bundle, which carries the network module with it.
-mail: $(GLIBSD) graph_programs/mail.c
-	$(CC) $(CFLAGS) graph_programs/mail.c $(GLIBS) -o bin/mail
+mail: $(GLIBSD) graph_programs/mail.c portable/mailcore.c
+	$(CC) $(CFLAGS) graph_programs/mail.c portable/mailcore.c $(GLIBS) \
+		-o bin/mail
+
+#
+# Read email, in characters
+#
+# The character library with the window manager in it, since mailc is
+# windows and widgets on a terminal.
+mailc: $(LIBPFX)termc$(LIBEXT) terminal_programs/mailc.c portable/mailcore.c
+	$(CC) $(CFLAGS) terminal_programs/mailc.c portable/mailcore.c $(CLIBSC) \
+		-o bin/mailc
+
+#
+# Read email, in characters, on a graphical window: the same character
+# program linked against the graphical library, which speaks the whole
+# terminal API onto a window of its own.
+#
+mailcg: $(GLIBSD) terminal_programs/mailc.c portable/mailcore.c
+	$(CC) $(CFLAGS) terminal_programs/mailc.c portable/mailcore.c $(GLIBS) \
+		-o bin/mailcg
 
 #
 # Get remote email
