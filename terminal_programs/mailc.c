@@ -2632,9 +2632,31 @@ static void layout(void)
     divider(stdout, foldw+4, top, foldw+4, top+h);
     /* the columns of the list, kept here so the rows and their dividers
        agree on where the columns are */
-    fromx = (long)strlen("0")*18;
-    catx = fromx+(long)strlen("promotions  ");
+    /* The columns adapt to the width there is. At full width the sender
+       gets eighteen cells and the category twelve; in a narrow window
+       fixed columns leave the subject nothing at all -- an eighty
+       column window gave it zero -- so below that the sender and the
+       category give up room in proportion and the subject keeps what
+       they yield. The date column is never squeezed: a date that does
+       not fit is not a date. */
     datex = ami_maxx(listwf)-sbw-(long)strlen("Sep 30, 2025 ");
+    fromx = 18;
+    {
+
+        long catw = 12;
+
+        if (datex-1-(fromx+catw) < 12) { /* the subject is starving */
+
+            fromx = (datex-1)*2/5;
+            if (fromx < 8) fromx = 8;
+            catw = (datex-1)/6;
+            if (catw > 12) catw = 12;
+            if (catw < 4) catw = 4;
+
+        }
+        catx = fromx+catw;
+
+    }
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
@@ -3753,10 +3775,29 @@ int main(int argc, char* argv[])
     }
     readaccount(); /* if there is one; the program comes up either way */
     migratestore(); /* mailboxes from before accounts had names */
-    /* The root of a terminal is the terminal: it is as big as it is,
-       and asking for a size would only put the layout at odds with the
-       screen. The manager gives the whole surface, maximized, and the
-       resize that matters is the terminal's own. */    /* The menu is built once the window is its final size. Built before,
+    /* The root of a terminal is the terminal, but not every build of
+       this program runs on one: linked against the graphical library
+       the same character program gets a window, and a window has a
+       size worth asking for. The request is clamped to what the screen
+       says it has, which makes it safe under the manager too -- there
+       the screen IS the terminal, and a request for no more than that
+       is a request for what already is. */
+    {
+
+        long sx, sy;
+
+        ami_scnsiz(stdout, &sx, &sy);
+        if (sx > 4 && sy > 4) {
+
+            long wantx = sx-4 < 120? sx-4: 120;
+            long wanty = sy-4 < 42? sy-4: 42;
+
+            if (wantx > ami_maxx(stdout) || wanty > ami_maxy(stdout))
+                ami_setsiz(stdout, wantx, wanty);
+
+        }
+
+    }    /* The menu is built once the window is its final size. Built before,
        the menu strip follows the resize but its newly exposed right end
        is never painted, and sits there as a black box until something
        makes the window resize again. */

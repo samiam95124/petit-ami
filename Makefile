@@ -1565,6 +1565,15 @@ mailc: $(LIBPFX)termc$(LIBEXT) terminal_programs/mailc.c portable/mailcore.c
 		-o bin/mailc
 
 #
+# Read email, in characters, on a graphical window: the same character
+# program linked against the graphical library, which speaks the whole
+# terminal API onto a window of its own.
+#
+mailcg: $(GLIBSD) terminal_programs/mailc.c portable/mailcore.c
+	$(CC) $(CFLAGS) terminal_programs/mailc.c portable/mailcore.c $(GLIBS) \
+		-o bin/mailcg
+
+#
 # Get remote email
 #
 getmail: $(PLIBSD) network_programs/getmail.c
