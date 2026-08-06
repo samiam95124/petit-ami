@@ -1357,6 +1357,11 @@ static long fitchars(FILE* f, char* s, long w)
     long cap;
     char c;
 
+    /* No room at all, and nothing of it fits. A width arrives negative
+       when a column is squeezed past what there is to give it, and the
+       cap below would then be negative -- s[cap] writes in front of the
+       string, which is a caller's stack. */
+    if (w <= 0) return (0);
     /* Cut it down before measuring it. Measuring costs a walk of the
        whole string, so the four hundred characters of a snippet are
        walked by every measurement even though sixty of them will fit.
@@ -2707,6 +2712,7 @@ static void layout(void)
        eating the subject whole. The date is never squeezed: a date that
        does not fit is not a date. */
     datex = ami_maxxg(listwf)-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
+    if (datex < 0) datex = 0; /* a pane too narrow for even the date */
     {
 
         long unit = ami_strsiz(listwf, "0");
@@ -2724,6 +2730,15 @@ static void layout(void)
 
         }
         catx = fromx+catw;
+        /* The minimums above are what a column would like, not what
+           there is: at a large point size in a narrow window they ask
+           for more than the whole width. The columns are kept in order
+           and inside it, and the subject takes what is left, which may
+           be nothing. Left alone, a column past the date column gave the
+           drawing a negative width to cut a string to. */
+        if (fromx > datex) fromx = datex;
+        if (catx > datex) catx = datex;
+        if (catx < fromx) catx = fromx;
 
     }
     /* The bar down the right of the message list is moved and sized, not
