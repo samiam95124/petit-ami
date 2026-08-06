@@ -1,11 +1,34 @@
 Installing Petit-ami
 
-First of all, remember that petit-ami is in development. This means that 
+First of all, remember that petit-ami is in development. This means that
 everything may not work perfectly.
- 
-Second, the configure script does several automated installs of needed
-tools. For each one you will be asked if you want to install the tools.
-If you would prefer to do this manually, see the "make sure used packages are
+
+Getting the source
+
+The project lives on GitHub:
+
+    https://github.com/samiam95124/amitk
+
+Fetch it with git. The tree carries submodules (curses ports of nano,
+htop and the BSD games), so clone with them included:
+
+    git clone --recurse-submodules https://github.com/samiam95124/amitk.git
+    cd amitk
+
+If you cloned without the submodules, fill them in with:
+
+    git submodule update --init
+
+To bring an existing tree up to date later:
+
+    git pull
+    git submodule update
+
+Building
+
+The configure script does several automated installs of needed tools.
+For each one you will be asked if you want to install the tools. If you
+would prefer to do this manually, see the "make sure used packages are
 installed." section in configure.
 
 Steps to install
@@ -22,11 +45,7 @@ setpath [recommended]
 configure
 make
 
-Linux:
-
-. setpath [recommended]
-./configure
-gmake
+BSD and similar systems use gmake in place of make.
 
 If you get something like:
 
@@ -49,5 +68,5 @@ If this gives errors, it means the current glibc has changed enough that it no
 longer can just be automatically patched to find the new version. In this case,
 you will need to get an updated petit_ami or do some serious debug work.
 
-Note that building an override version of glibc is specific to Linux 
+Note that building an override version of glibc is specific to Linux
 distributions.
