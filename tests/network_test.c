@@ -30,7 +30,14 @@
 *    (certmsg, certlistmsg) directly.                                         *
 * 8. The IPv6 forms of all of the above: addrnetv6, opennetv6, openmsgv6,     *
 *    maxmsgv6 and relymsgv6, against the same loopback servers, which bind    *
-*    dual stack.                                                              *
+*    dual stack. The certificate queries are also made on a v6 connection.    *
+* 9. Contract corners: the critical buffer clause of certnet at the exact     *
+*    certificate length (fills, no terminator; one byte more terminates);     *
+*    rdmsg with a buffer shorter than the message (datagram truncation);      *
+*    relymsg says loopback is reliable, which it is by definition; two        *
+*    connections open at once with their replies kept apart; and the          *
+*    refused connection retry of opennet, run against a server that is       *
+*    deliberately slow to listen instead of left to a startup race.          *
 *                                                                              *
 * Run from the petit-ami/amitk root so the TLS test certificates              *
 * (client_tls_cert.pem and friends) are found in the current directory.      *
@@ -65,6 +72,10 @@
 #define PORT_DTLS6 42429
 #define PORT_MAXM  42430
 #define PORT_MAXM6 42431
+#define PORT_TRUNC 42432
+#define PORT_SIM1  42433
+#define PORT_SIM2  42434
+#define PORT_RETRY 42435
 
 static int passes = 0;
 static int fails  = 0;
@@ -209,6 +220,50 @@ static void msgserver(void)
     ami_wrmsg(fn, "Hello, client", 13);
     ami_clsmsg(fn);
     serverdone();
+
+}
+
+/* TCP server that is slow to come up: the client is already connecting
+   while this sleeps, so its connects are refused until the listen -- which
+   is the retry path in opennet, run deterministically instead of by the
+   race the other tests leave to chance */
+static void tcpslowserver(void)
+
+{
+
+    waitsrv();
+    waitsrv();
+    tcpserver();
+
+}
+
+/* A second TCP server with state of its own, so two can serve at once.
+   The lock and signal are shared: a signal wakes every waiter and each
+   loops on its own flag, so the pairs cannot take each other's events. */
+static int srv2port;
+static int cli2done;
+static int srv2done;
+
+static void tcpserver2(void)
+
+{
+
+    FILE* f;
+    char buff[BUFLEN];
+
+    f = ami_waitnet(srv2port, FALSE);
+    if (fgets(buff, BUFLEN, f))
+        ; /* client line received */
+    fputs("Hello, client 2\n", f);
+    fflush(f);
+    ami_lock(lockid);
+    while (!cli2done) ami_waitsig(lockid, sigid);
+    ami_unlock(lockid);
+    fclose(f);
+    ami_lock(lockid);
+    srv2done = TRUE;
+    ami_sendsig(sigid);
+    ami_unlock(lockid);
 
 }
 
@@ -361,6 +416,10 @@ static void ttcpv6(const char* name, int port, int secure)
     unsigned long long addrh, addrl;
     FILE* f;
     char  buff[BUFLEN];
+    char  cert[10000];
+    long  r;
+    ami_certptr list;
+    ami_certptr cp;
     int   pass;
 
     pass = FALSE;
@@ -371,6 +430,22 @@ static void ttcpv6(const char* name, int port, int secure)
     fflush(f);
     if (fgets(buff, BUFLEN, f))
         pass = !strcmp(buff, "Hello, client\n");
+    if (secure) {
+
+        /* the certificate queries on a v6 connection: the same server
+           chain arrives whichever stack carried it */
+        memset(cert, 0, sizeof(cert));
+        r = ami_certnet(f, 1, cert, sizeof(cert));
+        result("certnet raw certificate (IPv6)", strlen(cert) > 0);
+        printf("    TLS server certificate PEM over IPv6: %ld bytes\n", r);
+        list = NULL;
+        ami_certlistnet(f, 1, &list);
+        cp = fndnode(list, "Issuer");
+        result("certlist leaf issuer is test CA (IPv6)", cp && cp->data &&
+               strstr(cp->data, "Petit Ami Test CA") != NULL);
+        ami_certlistfree(&list);
+
+    }
     fclose(f);
     clientdone();
     finish();
@@ -425,6 +500,28 @@ static void tmsg(const char* name, int port, int secure)
         ami_certlistfree(&list);
         result("certlistfree clears list (DTLS)", list == NULL);
 
+        /* the chain, as on the stream side: the DTLS server presents the
+           same two deep chain, so certificate 2 is the test CA */
+        memset(cert, 0, sizeof(cert));
+        r = ami_certmsg(fn, 2, cert, sizeof(cert));
+        result("certmsg chain CA raw (DTLS)", strlen(cert) > 0);
+        list = NULL;
+        ami_certlistmsg(fn, 2, &list);
+        cp = fndnode(list, "Subject");
+        result("certlistmsg chain CA decodes (DTLS)", cp && cp->data &&
+               strstr(cp->data, "Petit Ami Test CA") != NULL);
+        printf("    DTLS certificate 2 subject: %s\n",
+               cp && cp->data ? cp->data : "<none>");
+        ami_certlistfree(&list);
+
+        /* and past its end: empty and NULL, without error */
+        memset(cert, 0, sizeof(cert));
+        r = ami_certmsg(fn, 3, cert, sizeof(cert));
+        result("certmsg past chain end is empty (DTLS)", r == 0 && cert[0] == 0);
+        list = NULL;
+        ami_certlistmsg(fn, 3, &list);
+        result("certlistmsg past chain end is NULL (DTLS)", list == NULL);
+
     }
     if (len == 13) pass = !strncmp(buff, "Hello, client", 13);
     ami_clsmsg(fn);
@@ -476,7 +573,7 @@ static void tmsglim(void)
     result("maxmsg sane", max > 0);
     printf("    maximum message for loopback: %ld bytes\n", max);
     rely = ami_relymsg(addr);
-    result("relymsg sane", rely == 0 || rely == 1);
+    result("relymsg loopback is reliable", rely == 1);
     printf("    loopback delivery reliable: %s\n", rely ? "yes" : "no");
 
 }
@@ -546,8 +643,116 @@ static void tmsglimv6(void)
     result("maxmsgv6 sane", max > 0);
     printf("    maximum message for v6 loopback: %ld bytes\n", max);
     rely = ami_relymsgv6(addrh, addrl);
-    result("relymsgv6 sane", rely == 0 || rely == 1);
+    result("relymsgv6 loopback is reliable", rely == 1);
     printf("    v6 loopback delivery reliable: %s\n", rely ? "yes" : "no");
+
+}
+
+/* A message longer than the buffer given to rdmsg: datagram semantics,
+   the buffer's worth arrives and the rest of the message is gone. The
+   reply is thirteen bytes read into five. */
+static void trdtrunc(void)
+
+{
+
+    unsigned long addr;
+    long fn;
+    long len;
+    char five[5];
+    int  pass;
+
+    startsrv(msgserver, PORT_TRUNC, FALSE);
+    waitsrv();
+    ami_addrnet("localhost", &addr);
+    fn = ami_openmsg(addr, PORT_TRUNC, FALSE);
+    ami_wrmsg(fn, "Hello, server", 13);
+    memset(five, 0, sizeof(five));
+    len = ami_rdmsg(fn, five, sizeof(five));
+    pass = len == 5 && !strncmp(five, "Hello", 5);
+    ami_clsmsg(fn);
+    finish();
+    result("rdmsg short buffer truncates", pass);
+    printf("    13 byte message into a 5 byte buffer: %ld bytes, "
+           "\"%.5s\"\n", len, five);
+
+}
+
+/* Two connections at once: two servers up together, both clients open,
+   the exchanges interleaved -- written in one order, read in the other --
+   and each reply is its own server's. One connection at a time is all the
+   other tests ever hold, and a mail program holds two. */
+static void tsimul(void)
+
+{
+
+    unsigned long addr;
+    FILE* f1;
+    FILE* f2;
+    char  b1[BUFLEN];
+    char  b2[BUFLEN];
+    int   pass;
+
+    startsrv(tcpserver, PORT_SIM1, FALSE);
+    srv2port = PORT_SIM2;
+    cli2done = FALSE;
+    srv2done = FALSE;
+    ami_newthread(tcpserver2);
+    ami_addrnet("localhost", &addr);
+    f1 = ami_opennet(addr, PORT_SIM1, FALSE);
+    f2 = ami_opennet(addr, PORT_SIM2, FALSE);
+    fputs("Hello, server 2\n", f2);
+    fflush(f2);
+    fputs("Hello, server 1\n", f1);
+    fflush(f1);
+    b1[0] = b2[0] = 0;
+    if (!fgets(b1, BUFLEN, f1)) b1[0] = 0;
+    if (!fgets(b2, BUFLEN, f2)) b2[0] = 0;
+    pass = !strcmp(b1, "Hello, client\n") && !strcmp(b2, "Hello, client 2\n");
+    fclose(f1);
+    fclose(f2);
+    clientdone();
+    ami_lock(lockid);
+    cli2done = TRUE;
+    ami_sendsig(sigid);
+    ami_unlock(lockid);
+    finish();
+    ami_lock(lockid);
+    while (!srv2done) ami_waitsig(lockid, sigid);
+    ami_unlock(lockid);
+    result("two connections at once", pass);
+    printf("    two servers, two clients, replies kept to their own "
+           "connections\n");
+
+}
+
+/* The refused connection retry, run on purpose: the server sleeps two
+   seconds before it listens and the client connects immediately, so the
+   client's first connects are refused and the retry in opennet is what
+   makes the exchange succeed. The other TCP tests leave this to a race
+   the client usually loses. */
+static void tretry(void)
+
+{
+
+    unsigned long addr;
+    FILE* f;
+    char  buff[BUFLEN];
+    int   pass;
+
+    pass = FALSE;
+    startsrv(tcpslowserver, PORT_RETRY, FALSE);
+    ami_addrnet("localhost", &addr);
+    f = ami_opennet(addr, PORT_RETRY, FALSE);
+    fputs("Hello, server\n", f);
+    fflush(f);
+    if (fgets(buff, BUFLEN, f))
+        pass = !strcmp(buff, "Hello, client\n");
+    fclose(f);
+    clientdone();
+    finish();
+    result("opennet retries a refused connection", pass);
+    printf("    server listened two seconds late; the exchange still "
+           "completed\n");
 
 }
 
@@ -601,6 +806,31 @@ static void tcert(void)
            cp && cp->data ? cp->data : "<none>");
     ami_certlistfree(&list);
     result("certlistfree clears list", list == NULL);
+
+    /* The critical buffer clause, at the boundary that defines it: a
+       result that exactly fills the buffer is left without a terminating
+       zero, and one byte more terminates. The certificate was fetched
+       above into a large buffer, so its length is known; a sentinel
+       beyond the passed length proves nothing was written past it. */
+    {
+
+        char  exact[10000];
+        long  l = r; /* the certificate length, from the fetch above */
+        long  r2;
+
+        memset(exact, 0x7f, sizeof(exact));
+        r2 = ami_certnet(f, 1, exact, l);
+        result("certnet exact fit fills, no terminator",
+               r2 == l && exact[l-1] != 0 && exact[l] == 0x7f &&
+               !memcmp(exact, cert, l));
+        memset(exact, 0x7f, sizeof(exact));
+        r2 = ami_certnet(f, 1, exact, l+1);
+        result("certnet one byte spare is terminated",
+               r2 == l && exact[l] == 0);
+        printf("    certificate is %ld bytes: at %ld unterminated, "
+               "at %ld terminated\n", l, l, l+1);
+
+    }
 
     /* the server presents the chain: certificate 2 is the test CA */
     memset(cert, 0, sizeof(cert));
@@ -661,12 +891,15 @@ int main(int argc, char **argv)
     ttcp("TCP exchange secured (TLS)", PORT_TLS, TRUE);
     ttcpv6("TCP exchange in the clear (IPv6)", PORT_TCP6, FALSE);
     ttcpv6("TCP exchange secured (TLS, IPv6)", PORT_TLS6, TRUE);
+    tsimul();
+    tretry();
     section("Messages: openmsg/waitmsg/wrmsg/rdmsg/clsmsg (IPv4), openmsgv6 "
             "(IPv6), clear and DTLS; certmsg/certlistmsg on the DTLS run");
     tmsg("message exchange in the clear", PORT_MSG, FALSE);
     tmsg("message exchange secured (DTLS)", PORT_DTLS, TRUE);
     tmsgv6("message exchange in the clear (IPv6)", PORT_MSG6, FALSE);
     tmsgv6("message exchange secured (DTLS, IPv6)", PORT_DTLS6, TRUE);
+    trdtrunc();
     section("Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 "
             "(IPv6); a maxmsg sized message is deliverable");
     tmsglim();
