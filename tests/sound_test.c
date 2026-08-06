@@ -1109,8 +1109,10 @@ newtests:
 
     printf("\n===== Test 35 =====\n\n");
     printf("Aftertouch and channel pressure. A note is held while each\n");
-    printf("sweeps up; many synthesizers quietly ignore both, so no\n");
-    printf("change heard is not a failure of the call.\n");
+    printf("sweeps up. What is heard depends on the synthesizer: the\n");
+    printf("soundfont default routes channel pressure to vibrato, so on\n");
+    printf("fluidsynth the note should take on a deepening vibrato in\n");
+    printf("the second half; a synth may also ignore both.\n");
     ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     for (i = 0; i < 10; i++) {
 
@@ -1125,6 +1127,12 @@ newtests:
 
     }
     ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
+    /* Put both back, the way every section leaves what it moved. The
+       pressure is not cosmetic: the soundfont default modulator turns
+       standing channel pressure into vibrato, and left at ninety
+       percent it put a wobble on every note of every test after. */
+    ami_aftertouch(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
+    ami_pressure(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
 
