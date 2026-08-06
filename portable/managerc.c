@@ -5385,14 +5385,20 @@ static void intevent(FILE* f)
 
                 win->pmaxx = dimx; /* the root window is the surface */
                 win->pmaxy = dimy;
-                win->cmaxx = dimx; /* frameless, client is the whole */
-                win->cmaxy = dimy;
+                /* The client is what the decorations leave. The root
+                   window is frameless, but a menu bar still takes its
+                   first row, and a client told it has that row draws its
+                   last line where nothing is shown: a program with a
+                   strip along its foot lost the strip on every terminal
+                   resize, and did not get it back by resizing again. */
+                win->cmaxx = dimx-decorx(win);
+                win->cmaxy = dimy-decory(win);
                 /* In follow mode the buffer is the window, so it tracks
                    the new surface. In buffered mode the program chose the
                    buffer size and it keeps it: the window simply shows
                    more or less of it. Growing it here regardless threw
                    away the size a program had asked for. */
-                if (!win->bufmod) growwinbuf(win, dimx, dimy);
+                if (!win->bufmod) growwinbuf(win, win->cmaxx, win->cmaxy);
                 /* The layer below keeps its own screen buffers, sized when
                    it started, and clips writes to them. Grow those through
                    the standard call rather than by reaching into that
@@ -5410,8 +5416,8 @@ static void intevent(FILE* f)
                 /* Before the repaint: the repaint announces redraws, and
                    the client draws on those to the size it last heard. */
                 er.etype = ami_etresize;
-                er.rszx = dimx;
-                er.rszy = dimy;
+                er.rszx = win->cmaxx; /* the client's size, as everywhere */
+                er.rszy = win->cmaxy;
                 er.winid = win->wid;
                 intsendevent(win, &er);
 
