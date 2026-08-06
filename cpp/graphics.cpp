@@ -28,6 +28,7 @@
 extern "C" {
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <graphics.h>
 
@@ -498,10 +499,35 @@ graph::graph(void)
 
 {
 
+    /* One graph object at a time. The events come back through one
+       global hook: a second object would not share the events with the
+       first, it would take them all -- and the second hooking of the
+       chain saves the hook itself as the handler to pass unhandled
+       events to, which is a loop with no bottom. Refusing is the only
+       honest answer the wrapper has. */
+    if (graphoCB) {
+
+        fprintf(stderr, "graphics: only one graph object may exist\n");
+        exit(1);
+
+    }
     infile = stdin;
     outfile = stdout;
     graphoCB = this;
     eventsover(graphCB, &graphoeh);
+
+}
+
+graph::~graph(void)
+
+{
+
+    pevthan tmp;
+
+    /* put the chain back the way it was found, so no event is ever
+       delivered to an object that no longer exists */
+    eventsover(graphoeh, &tmp);
+    graphoCB = 0;
 
 }
 
@@ -804,6 +830,8 @@ long graph::evdrpbox(long id, long sel) { return 0; }
 long graph::evdrebox(long id) { return 0; }
 long graph::evsldpos(long id, long pos) { return 0; }
 long graph::evtabbar(long id, long sel) { return 0; }
+long graph::evusize(void) { return 0; }
+long graph::evdsize(void) { return 0; }
 
 void graph::graphCB(evtrec* er)
 
@@ -897,6 +925,8 @@ void graph::graphCB(evtrec* er)
         case etdrebox:  handled = graphoCB->evdrebox(er->drebid); break;
         case etsldpos:  handled = graphoCB->evsldpos(er->sldpid, er->sldpos); break;
         case ettabbar:  handled = graphoCB->evtabbar(er->tabid, er->tabsel); break;
+        case etusize:   handled = graphoCB->evusize(); break;
+        case etdsize:   handled = graphoCB->evdsize(); break;
         default: handled = 0; break;
 
     }

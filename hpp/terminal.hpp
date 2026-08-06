@@ -266,6 +266,9 @@ public:
 /* constructor */
 term();
 
+/* destructor */
+~term();
+
 /* methods */
 void cursor(long x, long y);
 long  maxx(void);

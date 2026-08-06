@@ -391,7 +391,7 @@ endif
 #
 # No reason at present for CPP to be different than C
 #
-CFLAGSCPP = $(CFLAGS)
+CFLAGSCPP = $(CFLAGS) -Ihpp
 
 #
 # Specify object file for libc
@@ -494,7 +494,8 @@ else
     CLIBS += stub/keeper.o lib/petit_ami_term.so
 endif
 
-CLIBSCPP = $(CLIBS) cpp/terminal.o
+# the C++ wrapper is already packaged inside the library (term_core.o)
+CLIBSCPP = $(CLIBS)
 
 #
 # Graphical model API
@@ -521,7 +522,7 @@ PLIBSD += $(LIBPFX)plain$(LIBEXT)
 CLIBSD += $(LIBPFX)term$(LIBEXT) stub/keeper.o
 GLIBSD += $(LIBPFX)graph$(LIBEXT) stub/keeper.o
 
-CLIBSCPPD = $(CLIBSD) cpp/terminal.o
+CLIBSCPPD = $(CLIBSD)
 #
 # add external packages
 #
