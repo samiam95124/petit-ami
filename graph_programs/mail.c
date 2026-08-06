@@ -205,6 +205,13 @@ static FILE* readwf;            /* the reader, NULL when closed */
 static FILE* srvwf;             /* the server form, NULL when closed */
 static long  chrh;              /* the height of a line, in pixels */
 static long  rowh;              /* the height of a message line */
+/* The size everything is drawn at. Control-+ and control-- move it a
+   point at a time, and every window takes its size from it, so the whole
+   program grows and shrinks together. The window is not touched: what is
+   in it changes size, and the user sets the window themselves. */
+static float pointsz = 12.0;
+#define MINPOINT 6.0  /* as small and as large as it will go */
+#define MAXPOINT 36.0
 static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
@@ -453,7 +460,7 @@ static void popopen(long i, long x, long y)
     ami_auto(popwf, FALSE);
     ami_curvis(popwf, FALSE);
     ami_font(popwf, AMI_FONT_SIGN);
-    ami_setpoints(popwf, 12.0);
+    ami_setpoints(popwf, pointsz);
     ami_binvis(popwf);
     ami_setsizg(popwf, w, h);
     ami_setposg(popwf, x, y);
@@ -852,7 +859,7 @@ static void cmpopen(const char* to, const char* cc, const char* subject,
     ami_auto(cmpwf, FALSE);
     ami_curvis(cmpwf, FALSE);
     ami_font(cmpwf, AMI_FONT_SIGN);
-    ami_setpoints(cmpwf, 12.0);
+    ami_setpoints(cmpwf, pointsz);
     ami_binvis(cmpwf);
     ami_winclientg(cmpwf, ami_strsiz(cmpwf, "0")*90, chrh*34, &wx, &wy,
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
@@ -2251,7 +2258,7 @@ static void openmsg(long i)
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
-        ami_setpoints(readwf, 12.0);
+        ami_setpoints(readwf, pointsz);
         ami_binvis(readwf);
         ami_winclientg(readwf, ami_strsiz(readwf, "0")*84, chrh*40, &wx, &wy,
                        BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
@@ -2534,7 +2541,7 @@ static void srvopen(void)
     ami_auto(srvwf, FALSE);
     ami_curvis(srvwf, FALSE);
     ami_font(srvwf, AMI_FONT_SIGN);
-    ami_setpoints(srvwf, 12.0);
+    ami_setpoints(srvwf, pointsz);
     ami_binvis(srvwf);
     ami_editboxsizg(srvwf, "0", &ew, &eh);
     ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
@@ -2737,6 +2744,50 @@ static void layout(void)
     drawlist();
     drawstatus();
     drawbanner();
+
+}
+
+/* Larger and smaller, on control-+ and control--
+
+   The window is left exactly as it is -- that is the user's to set -- and
+   what changes is the size of everything in it. Nearly all of this
+   program is laid out from the point size: the rows of the list, the
+   width of the folder pane, the columns, the wrap of a message. So the
+   size moves a point, the measurements are taken again, and the whole
+   thing is laid out afresh at the new size.
+
+   A window that is open follows along. A window not yet made takes the
+   size when it is made, since it asks for pointsz like everything else. */
+static void setzoom(float d)
+
+{
+
+    float was = pointsz;
+
+    pointsz += d;
+    if (pointsz < MINPOINT) pointsz = MINPOINT;
+    if (pointsz > MAXPOINT) pointsz = MAXPOINT;
+    if (pointsz == was) return; /* it is as far over as it goes */
+    ami_setpoints(stdout, pointsz);
+    ami_setpoints(foldwf, pointsz);
+    ami_setpoints(listwf, pointsz);
+    ami_setpoints(banwf, pointsz*2);
+    /* what everything else is measured from */
+    chrh = ami_chrsizy(stdout);
+    rowh = chrh+8;
+    /* The banner is as tall as the picture wants, or as the name does
+       where there is no picture: the picture does not grow, so a banner
+       with one keeps its height and the name inside it grows. */
+    banh = havepic? pich+16: ami_chrsizy(banwf)+16;
+    layout();
+    /* a message being read is wrapped again at the size it is now */
+    if (readwf) {
+
+        ami_setpoints(readwf, pointsz);
+        wrapread();
+        drawread();
+
+    }
 
 }
 
@@ -3360,7 +3411,7 @@ static void helpopen(void)
     ami_auto(helpwf, FALSE);
     ami_curvis(helpwf, FALSE);
     ami_font(helpwf, AMI_FONT_SIGN);
-    ami_setpoints(helpwf, 12.0);
+    ami_setpoints(helpwf, pointsz);
     ami_binvis(helpwf);
     ami_winclientg(helpwf, ami_strsiz(helpwf, "0")*86, ami_chrsizy(helpwf)*26,
                    &wx, &wy, BIT(ami_wmframe) | BIT(ami_wmsize) |
@@ -3748,7 +3799,7 @@ int main(int argc, char* argv[])
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_font(stdout, AMI_FONT_SIGN);
-    ami_setpoints(stdout, 12.0);
+    ami_setpoints(stdout, pointsz);
     ami_binvis(stdout);
     chrh = ami_chrsizy(stdout);
     rowh = chrh+8;
@@ -3797,14 +3848,14 @@ int main(int argc, char* argv[])
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
-    ami_setpoints(foldwf, 12.0);
+    ami_setpoints(foldwf, pointsz);
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
-    ami_setpoints(listwf, 12.0);
+    ami_setpoints(listwf, pointsz);
     ami_binvis(listwf);
     /* The strip at the foot, and the bar in it. Its natural height is
        what the strip is built around; its width is set here, since a bar
@@ -3816,7 +3867,7 @@ int main(int argc, char* argv[])
     ami_auto(banwf, FALSE);
     ami_curvis(banwf, FALSE);
     ami_font(banwf, AMI_FONT_SIGN);
-    ami_setpoints(banwf, 24.0);
+    ami_setpoints(banwf, pointsz*2);
     {
 
         char path[MAXSTR];
@@ -3887,6 +3938,12 @@ int main(int argc, char* argv[])
             default: break;
 
         }
+        /* Larger and smaller belong to the program and not to any one
+           window of it: whichever window the user had in hand when they
+           asked, it is all of it that changes size. So these are taken
+           before the event is handed to the window it came from. */
+        if (er.etype == ami_etusize) { setzoom(1.0); continue; }
+        if (er.etype == ami_etdsize) { setzoom(-1.0); continue; }
         /* Every event names the window it came from. The reader is a
            window of its own and the panes are windows of their own, so
            this one loop serves them all. */
