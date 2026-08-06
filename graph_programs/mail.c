@@ -453,7 +453,7 @@ static void popopen(long i, long x, long y)
     ami_auto(popwf, FALSE);
     ami_curvis(popwf, FALSE);
     ami_font(popwf, AMI_FONT_SIGN);
-    ami_setpoints(popwf, 11.0);
+    ami_setpoints(popwf, 12.0);
     ami_binvis(popwf);
     ami_setsizg(popwf, w, h);
     ami_setposg(popwf, x, y);
@@ -852,7 +852,7 @@ static void cmpopen(const char* to, const char* cc, const char* subject,
     ami_auto(cmpwf, FALSE);
     ami_curvis(cmpwf, FALSE);
     ami_font(cmpwf, AMI_FONT_SIGN);
-    ami_setpoints(cmpwf, 11.0);
+    ami_setpoints(cmpwf, 12.0);
     ami_binvis(cmpwf);
     ami_winclientg(cmpwf, ami_strsiz(cmpwf, "0")*90, chrh*34, &wx, &wy,
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
@@ -2251,7 +2251,7 @@ static void openmsg(long i)
         ami_auto(readwf, FALSE);
         ami_curvis(readwf, FALSE);
         ami_font(readwf, AMI_FONT_TERM);
-        ami_setpoints(readwf, 11.0);
+        ami_setpoints(readwf, 12.0);
         ami_binvis(readwf);
         ami_winclientg(readwf, ami_strsiz(readwf, "0")*84, chrh*40, &wx, &wy,
                        BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
@@ -2515,7 +2515,7 @@ static void srvopen(void)
     ami_auto(srvwf, FALSE);
     ami_curvis(srvwf, FALSE);
     ami_font(srvwf, AMI_FONT_SIGN);
-    ami_setpoints(srvwf, 11.0);
+    ami_setpoints(srvwf, 12.0);
     ami_binvis(srvwf);
     ami_editboxsizg(srvwf, "0", &ew, &eh);
     ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
@@ -2672,11 +2672,34 @@ static void layout(void)
     ami_setsizg(listwf, ami_maxxg(stdout)-foldw-8, h);
     ami_sizbufg(listwf, ami_maxxg(stdout)-foldw-8, h);
     divider(stdout, foldw+4, top, foldw+4, top+h);
-    /* the columns of the list, kept here so the rows and their dividers
-       agree on where the columns are */
-    fromx = ami_strsiz(listwf, "0")*18;
-    catx = fromx+ami_strsiz(listwf, "promotions  ");
+    /* The columns of the list, kept here so the rows and their dividers
+       agree on where the columns are. They adapt to the width there is,
+       as the character front end's do: at full width the sender gets
+       eighteen characters' worth and the category a full "promotions",
+       and below that the two give up room in proportion and the subject
+       keeps what they yield -- fixed columns at a larger point size were
+       eating the subject whole. The date is never squeezed: a date that
+       does not fit is not a date. */
     datex = ami_maxxg(listwf)-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
+    {
+
+        long unit = ami_strsiz(listwf, "0");
+        long catw = ami_strsiz(listwf, "promotions  ");
+
+        fromx = unit*18;
+        if (datex-8-(fromx+catw) < unit*12) { /* the subject is starving */
+
+            fromx = datex*2/5;
+            if (fromx < unit*8) fromx = unit*8;
+            catw = datex/6;
+            if (catw > ami_strsiz(listwf, "promotions  "))
+                catw = ami_strsiz(listwf, "promotions  ");
+            if (catw < unit*4) catw = unit*4;
+
+        }
+        catx = fromx+catw;
+
+    }
     /* The bar down the right of the message list is moved and sized, not
        made again: a widget id is taken until the widget is killed, so
        making it a second time is an error, and a resize would raise it. */
@@ -3706,7 +3729,7 @@ int main(int argc, char* argv[])
     ami_curvis(stdout, FALSE);
     ami_auto(stdout, FALSE);
     ami_font(stdout, AMI_FONT_SIGN);
-    ami_setpoints(stdout, 11.0);
+    ami_setpoints(stdout, 12.0);
     ami_binvis(stdout);
     chrh = ami_chrsizy(stdout);
     rowh = chrh+8;
@@ -3755,14 +3778,14 @@ int main(int argc, char* argv[])
     ami_auto(foldwf, FALSE);
     ami_curvis(foldwf, FALSE);
     ami_font(foldwf, AMI_FONT_SIGN);
-    ami_setpoints(foldwf, 11.0);
+    ami_setpoints(foldwf, 12.0);
     ami_binvis(foldwf);
     ami_openwin(&stdin, &listwf, stdout, LISTWIN);
     ami_frame(listwf, FALSE);
     ami_auto(listwf, FALSE);
     ami_curvis(listwf, FALSE);
     ami_font(listwf, AMI_FONT_SIGN);
-    ami_setpoints(listwf, 11.0);
+    ami_setpoints(listwf, 12.0);
     ami_binvis(listwf);
     /* The strip at the foot, and the bar in it. Its natural height is
        what the strip is built around; its width is set here, since a bar
