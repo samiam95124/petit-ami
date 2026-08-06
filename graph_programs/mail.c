@@ -209,9 +209,10 @@ static long  rowh;              /* the height of a message line */
    point at a time, and every window takes its size from it, so the whole
    program grows and shrinks together. The window is not touched: what is
    in it changes size, and the user sets the window themselves. */
-static float pointsz = 12.0;
-#define MINPOINT 6.0  /* as small and as large as it will go */
-#define MAXPOINT 36.0
+#define BASEPOINT 12.0 /* the size it starts at, and the picture was made for */
+#define MINPOINT  6.0  /* as small and as large as it will go */
+#define MAXPOINT  36.0
+static float pointsz = BASEPOINT;
 static long  foldw;             /* the width of the folder pane */
 static long  sbw;               /* scroll bar thickness */
 static long  listrows;          /* message lines the list holds */
@@ -590,6 +591,7 @@ static long scaleback(long pos, long travel)
    says what an empty folder is, and the forms speak for themselves. The
    calls remain as markers of where a quieter program once spoke. */
 static long fitchars(FILE* f, char* s, long w);
+static void clipstr(FILE* f, char* s, long w);
 static void commas(long n, char* s, long sl);
 static void divider(FILE* f, long x1, long y1, long x2, long y2);
 static long progw; /* how wide the bar is */
@@ -1164,6 +1166,46 @@ static long  banh;     /* how tall it is */
 static long  picw;     /* the picture, at the size it was made */
 static long  pich;
 static long  havepic;
+static long  picdw;    /* and at the size it is drawn now */
+static long  picdh;
+
+/* How big the banner is at the size the display is drawn at
+
+   The picture goes with the rest: ami_picture fits it to whatever box it
+   is given, so it is scaled from the size it was made by however far the
+   point size has moved from the size the program starts at. The banner is
+   then as tall as the picture wants.
+
+   It is not let past a third of the window. The mail is what the program
+   is for, and a cat that took the window at thirty-six points would leave
+   nothing to read -- worse, a banner taller than the window would give
+   the panes below it a negative height. Where it would go past, the
+   picture is fitted to the room there is instead. */
+static void banmeasure(void)
+
+{
+
+    long max = ami_maxyg(stdout)/3;
+
+    picdw = picw*pointsz/BASEPOINT;
+    picdh = pich*pointsz/BASEPOINT;
+    banh = havepic? picdh+16: ami_chrsizy(banwf)+16;
+    if (banh > max) {
+
+        if (havepic && picdh > 0) { /* the picture takes what is left */
+
+            long fit = max-16;
+
+            if (fit < 1) fit = 1;
+            picdw = picdw*fit/picdh;
+            picdh = fit;
+
+        }
+        banh = max;
+
+    }
+
+}
 
 
 
@@ -1179,12 +1221,22 @@ static void drawbanner(void)
     /* the name, at the left, set in the middle of the band */
     ami_fcolorc(banwf, rgb(40), rgb(40), rgb(60));
     ami_cursorg(banwf, 16, (banh-ami_chrsizy(banwf))/2);
-    fprintf(banwf, "Ami Mail");
+    {   /* it keeps to the room the picture leaves it: at a large point
+           size in a small window the name is wider than the band, and it
+           ran in under the cat */
+
+        char nm[MAXSTR];
+
+        copystr(nm, "Ami Mail", sizeof(nm));
+        clipstr(banwf, nm, ami_maxxg(banwf)-(havepic? picdw+16: 0)-32);
+        fprintf(banwf, "%s", nm);
+
+    }
     ami_fcolor(banwf, ami_black);
-    /* and the picture at the right, at the size it was made */
+    /* and the picture at the right, at the size the display is drawn at */
     if (havepic)
-        ami_picture(banwf, BANPIC, ami_maxxg(banwf)-picw-16, (banh-pich)/2,
-                    ami_maxxg(banwf)-16, (banh-pich)/2+pich);
+        ami_picture(banwf, BANPIC, ami_maxxg(banwf)-picdw-16, (banh-picdh)/2,
+                    ami_maxxg(banwf)-16, (banh-picdh)/2+picdh);
     /* Two lines under it, which is what says the banner is not part of
        what is below it. */
     y = banh-4;
@@ -2790,10 +2842,7 @@ static void setzoom(float d)
     /* what everything else is measured from */
     chrh = ami_chrsizy(stdout);
     rowh = chrh+8;
-    /* The banner is as tall as the picture wants, or as the name does
-       where there is no picture: the picture does not grow, so a banner
-       with one keeps its height and the name inside it grows. */
-    banh = havepic? pich+16: ami_chrsizy(banwf)+16;
+    banmeasure(); /* the banner and its picture follow the size too */
     layout();
     /* a message being read is wrapped again at the size it is now */
     if (readwf) {
@@ -3898,7 +3947,7 @@ int main(int argc, char* argv[])
 
     }
     /* as tall as the picture wants, or as the name does */
-    banh = havepic? pich+16: ami_chrsizy(banwf)+16;
+    banmeasure();
     /* the strip along the foot, and the bar drawn in it */
     progh = chrh-2;
     progw = ami_strsiz(stdout, "0")*20;
