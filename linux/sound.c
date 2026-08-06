@@ -1750,7 +1750,6 @@ static void closealsapcmin(long p)
 {
 
     snd_pcm_close(alsapcmin[p-1]->pcm); /* close wave device */
-    snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
 
 }
 
@@ -4913,7 +4912,7 @@ void ami_closewaveout(long p)
 
     sndinit(); /* devices enumerate on first use */
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
-    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
     alsapcmout[p-1]->close(p); /* close device */
@@ -5230,7 +5229,7 @@ void ami_volwave(long p, long t, long v)
 
     sndinit(); /* devices enumerate on first use */
     if (p < 1 || p > MAXWAVP) error("Invalid wave output port");
-    if (!alsapcmout[p]) error("No wave output device defined at logical number");
+    if (!alsapcmout[p-1]) error("No wave output device defined at logical number");
     if (!alsapcmout[p-1]->devopn) error("Wave port not open");
 
 }
@@ -6138,7 +6137,6 @@ long ami_setparamsynthin(long p, string name, string value)
 {
 
     sndinit(); /* devices enumerate on first use */
-printf("pa_setparamsynthin:\n");
     if (p < 1 || p > MAXMIDP) error("Invalid synthesizer port");
     if (!alsamidiin[p-1]) error("No synthsizer defined for logical port");
 

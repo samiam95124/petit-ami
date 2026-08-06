@@ -9,11 +9,21 @@ Notes:
 1. The MIDI tests not only test sound.c, but also the synthesizer
 implementation.
 
+2. The sections after the synthesizer listening tests cover the rest of
+the API: devices and their names, parameters, the sequencer proper
+(timed playback), wrsynth, aftertouch/pressure/mono/poly, MIDI file
+playback, wave output synthesized and from a file, wave input, and
+synthesizer input. The files the file tests need are made on the spot
+and removed. --nomidi starts there; --sin=<port> enables the
+synthesizer input section, which wants a keyboard played.
+
 *******************************************************************************/
 
 #include <limits.h>
 #include <setjmp.h>
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
 #include <terminal.h> /* terminal level functions */
 #include <sound.h>    /* sound library */
@@ -23,11 +33,25 @@ implementation.
 
 
 long dport = AMI_SYNTH_OUT; /* set default synth out */
+long wport = AMI_WAVE_OUT;  /* wave output port */
+long iport = AMI_WAVE_IN;   /* wave input port */
+long sport = 0;             /* synth input port; 0 skips the section, since
+                               reading a keyboard nobody plays blocks */
+long nomidi = FALSE;        /* skip the synthesizer listening tests and go
+                               straight to the sections after them */
 
 ami_optrec opttbl[] = {
 
     { "port",   NULL,    &dport, NULL, NULL },
     { "p",      NULL,    &dport, NULL, NULL },
+    { "wport",  NULL,    &wport, NULL, NULL },
+    { "w",      NULL,    &wport, NULL, NULL },
+    { "iport",  NULL,    &iport, NULL, NULL },
+    { "i",      NULL,    &iport, NULL, NULL },
+    { "sin",    NULL,    &sport, NULL, NULL },
+    { "si",     NULL,    &sport, NULL, NULL },
+    { "nomidi", &nomidi, NULL,   NULL, NULL },
+    { "nm",     &nomidi, NULL,   NULL, NULL },
     { NULL,     NULL,    NULL,    NULL, NULL }
 
 };
@@ -90,6 +114,94 @@ static void waitret(void)
 
     printf("Hit return to continue\n");
     waitnext();
+
+}
+
+/*******************************************************************************
+
+Test files, made on the spot
+
+The wave and MIDI file tests need a file to load, and none is committed:
+a small one of each is written here, played, and removed. The wave is a
+sine at the given pitch, mono, sixteen bits, the standard rate. The MIDI
+file is the smallest thing that is a song: format 0, one track, three
+quarter notes of a C major chord walked up, on the piano.
+
+*******************************************************************************/
+
+#define TESTRATE 44100
+
+static void makewav(const char* fn, double freq, double secs)
+
+{
+
+    FILE* f;
+    long  n = (long)(TESTRATE*secs);
+    long  dlen = n*2;
+    long  i;
+
+    f = fopen(fn, "wb");
+    if (!f) { printf("could not write %s\n", fn); return; }
+    /* the RIFF/fmt/data framing, all little endian */
+    fprintf(f, "RIFF");
+    fputc((36+dlen)&0xff, f); fputc((36+dlen)>>8&0xff, f);
+    fputc((36+dlen)>>16&0xff, f); fputc((36+dlen)>>24&0xff, f);
+    fprintf(f, "WAVEfmt ");
+    fputc(16, f); fputc(0, f); fputc(0, f); fputc(0, f); /* fmt length */
+    fputc(1, f); fputc(0, f);                            /* PCM */
+    fputc(1, f); fputc(0, f);                            /* mono */
+    fputc(TESTRATE&0xff, f); fputc(TESTRATE>>8&0xff, f); /* rate */
+    fputc(TESTRATE>>16&0xff, f); fputc(0, f);
+    fputc((TESTRATE*2)&0xff, f); fputc((TESTRATE*2)>>8&0xff, f); /* byte rate */
+    fputc((TESTRATE*2)>>16&0xff, f); fputc(0, f);
+    fputc(2, f); fputc(0, f);                            /* block align */
+    fputc(16, f); fputc(0, f);                           /* bits */
+    fprintf(f, "data");
+    fputc(dlen&0xff, f); fputc(dlen>>8&0xff, f);
+    fputc(dlen>>16&0xff, f); fputc(dlen>>24&0xff, f);
+    for (i = 0; i < n; i++) {
+
+        /* the tone, eased in and out so it does not click */
+        double a = sin(2.0*3.14159265*freq*i/TESTRATE)*20000.0;
+        long   e = n/50;
+        short  s;
+
+        if (i < e) a = a*i/e;
+        if (n-i < e) a = a*(n-i)/e;
+        s = (short)a;
+        fputc(s&0xff, f); fputc(s>>8&0xff, f);
+
+    }
+    fclose(f);
+
+}
+
+static void makemid(const char* fn)
+
+{
+
+    FILE* f;
+    /* MThd: format 0, one track, 96 per quarter; MTrk: piano, C then E
+       then G, a quarter note each, end of track */
+    static const unsigned char smf[] = {
+
+        'M','T','h','d', 0,0,0,6, 0,0, 0,1, 0,96,
+        'M','T','r','k', 0,0,0,32,
+        0x00, 0xc0, 0x00,       /* program change, piano */
+        0x00, 0x90, 60, 0x60,   /* C on */
+        0x60, 0x80, 60, 0x40,   /* a quarter later, off */
+        0x00, 0x90, 64, 0x60,   /* E */
+        0x60, 0x80, 64, 0x40,
+        0x00, 0x90, 67, 0x60,   /* G */
+        0x60, 0x80, 67, 0x40,
+        0x00, 0xff, 0x2f, 0x00  /* end of track */
+
+    };
+
+    f = fopen(fn, "wb");
+    if (!f) { printf("could not write %s\n", fn); return; }
+    fwrite(smf, 1, sizeof(smf), f);
+    fclose(f);
 
 }
 
@@ -209,6 +321,13 @@ int main(int argc, char *argv[])
     if (argcl != 1) {
 
         fprintf(stderr, "Usage: sndtst [--port=<port>|--p=<port>]\n");
+        fprintf(stderr, "              [--wport=<port>] wave output port\n");
+        fprintf(stderr, "              [--iport=<port>] wave input port\n");
+        fprintf(stderr, "              [--sin=<port>]   synth input port; the\n");
+        fprintf(stderr, "                  section runs only when given, and\n");
+        fprintf(stderr, "                  wants keys played on the device\n");
+        fprintf(stderr, "              [--nomidi]       skip the synthesizer\n");
+        fprintf(stderr, "                  listening tests, straight to the rest\n");
         exit(1);
 
     }
@@ -233,6 +352,8 @@ int main(int argc, char *argv[])
     printf("Not all synths implement all modes or instruments. In fact, it is common\n");
     printf("to leave many features unimplemented.\n");
     waitret();
+
+    if (nomidi) goto newtests; /* asked to go straight to the later sections */
 
     printf("Run through the entire scale of notes available\n");
     for (n = AMI_NOTE_C+AMI_OCTAVE_1; n <= AMI_NOTE_G+AMI_OCTAVE_11; n++) {
@@ -730,6 +851,363 @@ int main(int argc, char *argv[])
     ami_pitch(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
+
+newtests:
+
+    /***************************************************************************
+
+    DEVICES AND PARAMETERS
+
+    ***************************************************************************/
+
+    printf("Device inventory. Every port of every kind, by name.\n");
+    {
+
+        char nm[200];
+
+        printf("Output synthesizers: %ld\n", ami_synthout());
+        for (i = 1; i <= ami_synthout(); i++) {
+
+            ami_synthoutname(i, nm, sizeof(nm));
+            printf("    %2ld: %s\n", (long)i, nm);
+
+        }
+        printf("Input synthesizers: %ld\n", ami_synthin());
+        for (i = 1; i <= ami_synthin(); i++) {
+
+            ami_synthinname(i, nm, sizeof(nm));
+            printf("    %2ld: %s\n", (long)i, nm);
+
+        }
+        printf("Output wave devices: %ld\n", ami_waveout());
+        for (i = 1; i <= ami_waveout(); i++) {
+
+            ami_waveoutname(i, nm, sizeof(nm));
+            printf("    %2ld: %s\n", (long)i, nm);
+
+        }
+        printf("Input wave devices: %ld\n", ami_wavein());
+        for (i = 1; i <= ami_wavein(); i++) {
+
+            ami_waveinname(i, nm, sizeof(nm));
+            printf("    %2ld: %s\n", (long)i, nm);
+
+        }
+
+    }
+    printf("Complete\n");
+    waitret();
+
+    printf("Parameters, get and set, all four directions. ALSA devices\n");
+    printf("carry none, so empty values and a declined set are correct\n");
+    printf("here; a plug-in with parameters would show them.\n");
+    {
+
+        char val[200];
+
+        ami_getparamsynthout(dport, "name", val, sizeof(val));
+        printf("getparamsynthout(name): \"%s\"\n", val);
+        printf("setparamsynthout(name): %ld\n",
+               ami_setparamsynthout(dport, "name", "value"));
+        if (ami_synthin() > 0) {
+
+            ami_getparamsynthin(1, "name", val, sizeof(val));
+            printf("getparamsynthin(name):  \"%s\"\n", val);
+            printf("setparamsynthin(name):  %ld\n",
+                   ami_setparamsynthin(1, "name", "value"));
+
+        }
+        ami_getparamwaveout(wport, "name", val, sizeof(val));
+        printf("getparamwaveout(name):  \"%s\"\n", val);
+        printf("setparamwaveout(name):  %ld\n",
+               ami_setparamwaveout(wport, "name", "value"));
+        if (ami_wavein() > 0) {
+
+            ami_getparamwavein(iport, "name", val, sizeof(val));
+            printf("getparamwavein(name):   \"%s\"\n", val);
+            printf("setparamwavein(name):   %ld\n",
+                   ami_setparamwavein(iport, "name", "value"));
+
+        }
+
+    }
+    printf("Complete\n");
+    waitret();
+
+    /***************************************************************************
+
+    THE SEQUENCER PROPER
+
+    ***************************************************************************/
+
+    printf("Sequenced playback. Every test so far played at time zero;\n");
+    printf("this queues a scale with future timestamps in one burst, and\n");
+    printf("the sequencer plays it in tempo. The queueing returns at\n");
+    printf("once, which the elapsed times printed show.\n");
+    ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
+    ami_starttimeout();
+    printf("time before queueing: %ld\n", ami_curtimeout());
+    {
+
+        static const ami_note sc[8] = {
+
+            AMI_NOTE_C+AMI_OCTAVE_6, AMI_NOTE_D+AMI_OCTAVE_6,
+            AMI_NOTE_E+AMI_OCTAVE_6, AMI_NOTE_F+AMI_OCTAVE_6,
+            AMI_NOTE_G+AMI_OCTAVE_6, AMI_NOTE_A+AMI_OCTAVE_6,
+            AMI_NOTE_B+AMI_OCTAVE_6, AMI_NOTE_C+AMI_OCTAVE_7
+
+        };
+
+        for (i = 0; i < 8; i++) {
+
+            ami_noteon(dport, (i+1)*(SECOND/3), 1, sc[i], LONG_MAX);
+            ami_noteoff(dport, (i+1)*(SECOND/3)+SECOND/4, 1, sc[i], 0);
+
+        }
+
+    }
+    printf("time after queueing:  %ld (all eight notes are queued)\n",
+           ami_curtimeout());
+    waittime(SECOND*3+SECOND/2);
+    printf("time after playing:   %ld\n", ami_curtimeout());
+    ami_stoptimeout();
+    printf("Complete\n");
+    waitret();
+
+    printf("wrsynth: the same notes as sequencer records, through the\n");
+    printf("record interface the plug-ins speak. Three notes.\n");
+    {
+
+        ami_seqmsg sm;
+
+        for (i = 0; i < 3; i++) {
+
+            memset(&sm, 0, sizeof(sm));
+            sm.port = dport;
+            sm.time = 0;
+            sm.st = st_noteon;
+            sm.ntc = 1;
+            sm.ntn = AMI_NOTE_C+AMI_OCTAVE_6+i*4;
+            sm.ntv = LONG_MAX;
+            ami_wrsynth(dport, &sm);
+            waittime(SECOND/3);
+            sm.st = st_noteoff;
+            sm.ntv = 0;
+            ami_wrsynth(dport, &sm);
+            waittime(SECOND/6);
+
+        }
+
+    }
+    printf("Complete\n");
+    waitret();
+
+    printf("Aftertouch and channel pressure. A note is held while each\n");
+    printf("sweeps up; many synthesizers quietly ignore both, so no\n");
+    printf("change heard is not a failure of the call.\n");
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    for (i = 0; i < 10; i++) {
+
+        ami_aftertouch(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, i*(LONG_MAX/10));
+        waittime(SECOND/10);
+
+    }
+    for (i = 0; i < 10; i++) {
+
+        ami_pressure(dport, 0, 1, i*(LONG_MAX/10));
+        waittime(SECOND/10);
+
+    }
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("Mono and poly. In mono a second note silences the first; in\n");
+    printf("poly they sound together. The same pair is played each way.\n");
+    ami_mono(dport, 0, 1, 1);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    waittime(SECOND/2);
+    ami_noteon(dport, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, LONG_MAX);
+    waittime(SECOND/2);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, 0);
+    ami_poly(dport, 0, 1);
+    waittime(SECOND/2);
+    ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
+    waittime(SECOND/2);
+    ami_noteon(dport, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, LONG_MAX);
+    waittime(SECOND/2);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, 0);
+    ami_noteoff(dport, 0, 1, AMI_NOTE_G+AMI_OCTAVE_6, 0);
+    printf("Complete\n");
+    waitret();
+
+    printf("A MIDI file: made here, loaded, played, deleted. You should\n");
+    printf("hear C, E, G on the piano, a quarter note each.\n");
+    makemid("sound_test.mid");
+    ami_loadsynth(1, "sound_test.mid");
+    ami_playsynth(dport, 0, 1);
+    ami_waitsynth(dport);
+    ami_delsynth(1);
+    remove("sound_test.mid");
+    printf("Complete\n");
+    waitret();
+
+    /***************************************************************************
+
+    WAVE OUTPUT
+
+    ***************************************************************************/
+
+    printf("Wave output, synthesized: two seconds of A 440 written\n");
+    printf("straight to the device, the way genwave does.\n");
+    ami_openwaveout(wport);
+    ami_chanwaveout(wport, 1);
+    ami_ratewaveout(wport, TESTRATE);
+    ami_lenwaveout(wport, 16);
+    ami_sgnwaveout(wport, TRUE);
+    ami_endwaveout(wport, FALSE);
+    ami_fltwaveout(wport, FALSE);
+    {
+
+        static short buf[TESTRATE/10]; /* a tenth of a second a write */
+        long j;
+
+        for (i = 0; i < 20; i++) {
+
+            for (j = 0; j < TESTRATE/10; j++)
+                buf[j] = (short)(sin(2.0*3.14159265*440.0*
+                                     (i*(TESTRATE/10)+j)/TESTRATE)*20000.0);
+            /* the length is in samples, as genwave and connectwave pass
+               it, not in bytes */
+            ami_wrwave(wport, (byte*)buf, TESTRATE/10);
+
+        }
+
+    }
+    printf("Complete\n");
+    waitret();
+
+    printf("A wave file: made here, loaded, played, deleted. You should\n");
+    printf("hear a C, a fifth above the tone before, for a second and a\n");
+    printf("half. volwave is exercised on the way; it is a stub in this\n");
+    printf("implementation, so it changes nothing audible yet.\n");
+    makewav("sound_test.wav", 523.25, 1.5);
+    ami_loadwave(1, "sound_test.wav");
+    ami_volwave(wport, 0, LONG_MAX/2);
+    ami_playwave(wport, 0, 1);
+    ami_waitwave(wport);
+    ami_delwave(1);
+    remove("sound_test.wav");
+    ami_closewaveout(wport);
+    printf("Complete\n");
+    waitret();
+
+    /***************************************************************************
+
+    WAVE INPUT
+
+    ***************************************************************************/
+
+    if (ami_wavein() > 0) {
+
+        long ch, ra, lb, sg, en, fl;
+        long bps, total, got;
+        byte* rec;
+
+        printf("Wave input. Three seconds are recorded from input port %ld\n",
+               iport);
+        printf("-- make some noise -- and played back to you.\n");
+        waitret();
+        ami_openwavein(iport);
+        ch = ami_chanwavein(iport);
+        ra = ami_ratewavein(iport);
+        lb = ami_lenwavein(iport);
+        sg = ami_sgnwavein(iport);
+        en = ami_endwavein(iport);
+        fl = ami_fltwavein(iport);
+        printf("The device delivers: %ld channels at %ld hertz, %ld bits,\n",
+               ch, ra, lb);
+        printf("%s, %s endian, %s\n", sg? "signed": "unsigned",
+               en? "big": "little", fl? "float": "integer");
+        /* lengths to rdwave and wrwave are in samples -- one frame of
+           every channel -- as connectwave passes them, not in bytes */
+        bps = ch*(lb/8);
+        total = ra*3;
+        rec = malloc(total*bps);
+        if (rec) {
+
+            printf("Recording...\n");
+            got = 0;
+            while (got < total)
+                got += ami_rdwave(iport, rec+got*bps, total-got);
+            ami_closewavein(iport);
+            printf("Playing back...\n");
+            ami_openwaveout(wport);
+            ami_chanwaveout(wport, ch);
+            ami_ratewaveout(wport, ra);
+            ami_lenwaveout(wport, lb);
+            ami_sgnwaveout(wport, sg);
+            ami_endwaveout(wport, en);
+            ami_fltwaveout(wport, fl);
+            ami_wrwave(wport, rec, total);
+            ami_closewaveout(wport);
+            free(rec);
+
+        } else {
+
+            printf("no memory for the recording\n");
+            ami_closewavein(iport);
+
+        }
+        printf("Complete\n");
+        waitret();
+
+    } else printf("No wave input device: recording not tested.\n");
+
+    /***************************************************************************
+
+    SYNTHESIZER INPUT
+
+    ***************************************************************************/
+
+    if (sport > 0) {
+
+        ami_seqmsg sm;
+
+        printf("Synthesizer input from port %ld. Play eight notes on the\n",
+               sport);
+        printf("keyboard; each is echoed to the output synthesizer and\n");
+        printf("printed with the time it arrived.\n");
+        ami_opensynthin(sport);
+        ami_starttimein();
+        for (i = 0; i < 8; ) {
+
+            ami_rdsynth(sport, &sm);
+            if (sm.st == st_noteon) {
+
+                printf("note on:  note %3ld velocity %ld time %ld\n",
+                       (long)sm.ntn, sm.ntv, ami_curtimein());
+                ami_noteon(dport, 0, 1, sm.ntn, sm.ntv);
+                i++;
+
+            } else if (sm.st == st_noteoff) {
+
+                printf("note off: note %3ld time %ld\n", (long)sm.ntn,
+                       ami_curtimein());
+                ami_noteoff(dport, 0, 1, sm.ntn, sm.ntv);
+
+            } else printf("other message: type %d time %ld\n", sm.st,
+                          ami_curtimein());
+
+        }
+        ami_stoptimein();
+        ami_closesynthin(sport);
+        printf("Complete\n");
+        waitret();
+
+    } else printf("Synthesizer input not tested: give --sin=<port> and play "
+                  "the keys.\n");
 
 terminate: /* terminate */
     ami_closesynthout(dport);
