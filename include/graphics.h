@@ -143,6 +143,13 @@ typedef enum {
     ami_etdrebox,   /* drop edit box signals done */
     ami_etsldpos,   /* slider position */
     ami_ettabbar,   /* tab bar select */
+    /* The user asks for what is displayed to be made larger or smaller,
+       with control-+ and control--. The window is not touched -- the user
+       sets that themselves -- it is the material in it that changes, which
+       for most programs means taking the point size a point up or down and
+       laying out again. */
+    ami_etusize,    /* enlarge what is displayed */
+    ami_etdsize,    /* reduce what is displayed */
 
     /* Reserved extra code areas, these are module defined. */
     ami_etsys    = 0x1000, /* start of base system reserved codes */

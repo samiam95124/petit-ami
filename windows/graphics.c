@@ -698,7 +698,7 @@ static int       stdwinj2c;    /* joystick 1 capture */
 /* lock for all global structures */
 CRITICAL_SECTION mainlock;     /* main task lock */
 static imptr     freitm;       /* intratask message free list */
-static ami_pevthan evthan[ami_ettabbar+1]; /* array of event handler routines */
+static ami_pevthan evthan[ami_etdsize+1]; /* array of event handler routines */
 static ami_pevthan evtshan;     /* single master event handler routine */
 
 /* The double fault flag is set when exiting, so if we exit again, it
@@ -16889,7 +16889,7 @@ static void ami_init_graph()
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = ami_etchar; e <= ami_ettabbar; e++) evthan[e] = defaultevent;
+    for (e = ami_etchar; e <= ami_etdsize; e++) evthan[e] = defaultevent;
 
     /* clear open files table */
     for (fi = 0; fi < MAXFIL; fi++) {
