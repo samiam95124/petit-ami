@@ -1089,7 +1089,7 @@ newtests:
     waitret();
 
     printf("A wave file: made here, loaded, played, deleted. You should\n");
-    printf("hear a C, a fifth above the tone before, for a second and a\n");
+    printf("hear a C, a bit above the tone before, for a second and a\n");
     printf("half. volwave is exercised on the way; it is a stub in this\n");
     printf("implementation, so it changes nothing audible yet.\n");
     makewav("sound_test.wav", 523.25, 1.5);
