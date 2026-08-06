@@ -17,6 +17,13 @@ synthesizer input. The files the file tests need are made on the spot
 and removed. --nomidi starts there; --sin=<port> enables the
 synthesizer input section, which wants a keyboard played.
 
+3. The virtual MIDI loop runs by itself: the output and input sides of
+ALSA's "virtual" port are opened and subscribed together with aconnect,
+which puts the library's encoder on one end of a wire and its decoder
+on the other. One message of each kind is sent and read back, checked
+against what was sent to within a wire step. Where the port or aconnect
+is missing the section says so and stands down.
+
 *******************************************************************************/
 
 #include <limits.h>
@@ -202,6 +209,70 @@ static void makemid(const char* fn)
     if (!f) { printf("could not write %s\n", fn); return; }
     fwrite(smf, 1, sizeof(smf), f);
     fclose(f);
+
+}
+
+/*******************************************************************************
+
+The virtual MIDI loop
+
+ALSA gives a port named "virtual": opening it makes a sequencer client,
+and two of them can be subscribed together with aconnect. Opening the
+output side and the input side and connecting them puts the library's
+own MIDI encoder on one end of a wire and its decoder on the other, so
+what is sent with the API can be read back with rdsynth and compared --
+the round trip through real MIDI bytes, no hardware and no hands.
+
+The clients are found by listing before and after the opens: the ones
+that appear are ours, in the order they were opened.
+
+*******************************************************************************/
+
+/* the library's own stdio header does not carry these */
+extern FILE* popen(const char* cmd, const char* mode);
+extern int   pclose(FILE* f);
+
+static int virtclients(int* cl, int max)
+
+{
+
+    FILE* p;
+    char  ln[300];
+    int   n = 0;
+    int   c = -1;
+
+    p = popen("aconnect -l", "r");
+    if (!p) return (-1);
+    while (fgets(ln, sizeof(ln), p)) {
+
+        if (!strncmp(ln, "client ", 7)) c = atoi(ln+7);
+        else if (strstr(ln, "Virtual RawMIDI") && c >= 0 && n < max)
+            cl[n++] = c;
+
+    }
+    pclose(p);
+
+    return (n);
+
+}
+
+/* one checked result of the loop test */
+static long loopfails;
+
+static void loopchk(const char* what, int ok)
+
+{
+
+    printf("%-40s %s\n", what, ok? "pass": "*** FAIL ***");
+    if (!ok) loopfails++;
+
+}
+
+static int loopnear(long a, long b, long tol)
+
+{
+
+    return (labs(a-b) <= tol);
 
 }
 
@@ -1164,6 +1235,110 @@ newtests:
         waitret();
 
     } else printf("No wave input device: recording not tested.\n");
+
+    /***************************************************************************
+
+    SYNTHESIZER INPUT, AUTOMATED: THE VIRTUAL LOOP
+
+    ***************************************************************************/
+
+    printf("The virtual MIDI loop: the encoder sent down a wire to the\n");
+    printf("decoder, and every message checked against what was sent.\n");
+    {
+
+        long vout = 0, vin = 0;
+        char nm[200];
+
+        for (i = 1; i <= ami_synthout() && !vout; i++) {
+
+            ami_synthoutname(i, nm, sizeof(nm));
+            if (!strcmp(nm, "virtual")) vout = i;
+
+        }
+        for (i = 1; i <= ami_synthin() && !vin; i++) {
+
+            ami_synthinname(i, nm, sizeof(nm));
+            if (!strcmp(nm, "virtual")) vin = i;
+
+        }
+        if (vout && vin) {
+
+            int before[20], after[20];
+            int nb, na;
+            int co = -1, ci = -1;
+            int j, k, found;
+
+            nb = virtclients(before, 20);
+            ami_opensynthout(vout);
+            ami_opensynthin(vin);
+            na = virtclients(after, 20);
+            /* ours are the clients that were not there before, in the
+               order they were opened: the output first */
+            for (j = 0; j < na; j++) {
+
+                found = FALSE;
+                for (k = 0; k < nb; k++) if (after[j] == before[k]) found = TRUE;
+                if (!found) {
+
+                    if (co < 0) co = after[j];
+                    else if (ci < 0) ci = after[j];
+
+                }
+
+            }
+            if (nb >= 0 && co >= 0 && ci >= 0) {
+
+                char cmd[100];
+
+                sprintf(cmd, "aconnect %d:0 %d:0", co, ci);
+                if (!system(cmd)) {
+
+                    ami_seqmsg sm;
+
+                    loopfails = 0;
+                    /* one of each kind down the wire ... */
+                    ami_noteon(vout, 0, 1, 61, LONG_MAX);
+                    ami_noteoff(vout, 0, 1, 61, 0);
+                    ami_instchange(vout, 0, 2, 42);
+                    ami_pressure(vout, 0, 3, LONG_MAX/2);
+                    ami_pitch(vout, 0, 4, LONG_MAX/2);
+                    /* ... and back, in order. The values scale to seven
+                       (or for pitch, fourteen) bits on the wire, so what
+                       returns is what was sent to within one wire step. */
+                    ami_rdsynth(vin, &sm);
+                    loopchk("loop note on", sm.st == st_noteon &&
+                            sm.ntc == 1 && sm.ntn == 61 &&
+                            loopnear(sm.ntv, LONG_MAX, LONG_MAX/64));
+                    ami_rdsynth(vin, &sm);
+                    loopchk("loop note off", sm.st == st_noteoff &&
+                            sm.ntc == 1 && sm.ntn == 61 && sm.ntv == 0);
+                    ami_rdsynth(vin, &sm);
+                    loopchk("loop instrument change", sm.st == st_instchange &&
+                            sm.icc == 2 && sm.ici == 42);
+                    ami_rdsynth(vin, &sm);
+                    loopchk("loop pressure", sm.st == st_pressure &&
+                            sm.ntc == 3 &&
+                            loopnear(sm.ntv, LONG_MAX/2, LONG_MAX/64));
+                    ami_rdsynth(vin, &sm);
+                    loopchk("loop pitch bend", sm.st == st_pitch &&
+                            sm.vsc == 4 &&
+                            loopnear(sm.vsv, LONG_MAX/2, LONG_MAX/4096));
+                    printf("Loop test: %s\n", loopfails?
+                           "*** FAILS ***": "all pass");
+
+                } else printf("aconnect would not connect the pair: "
+                              "not tested\n");
+
+            } else printf("could not tell the virtual clients apart: "
+                          "not tested\n");
+            ami_closesynthin(vin);
+            ami_closesynthout(vout);
+
+        } else printf("no virtual MIDI port: not tested\n");
+
+    }
+    printf("Complete\n");
+    waitret();
 
     /***************************************************************************
 

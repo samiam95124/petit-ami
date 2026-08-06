@@ -1642,7 +1642,7 @@ static void closealsamidiin(long p)
 
 {
 
-    snd_rawmidi_close(alsamidiout[p-1]->midi); /* close port */
+    snd_rawmidi_close(alsamidiin[p-1]->midi); /* close port */
 
 }
 
