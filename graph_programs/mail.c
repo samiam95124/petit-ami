@@ -2256,9 +2256,28 @@ static void openmsg(long i)
         ami_winclientg(readwf, ami_strsiz(readwf, "0")*84, chrh*40, &wx, &wy,
                        BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
         ami_setsizg(readwf, wx, wy);
-        /* down and to the right, so it does not sit on top of the list
-           it was opened from */
-        ami_setposg(readwf, 80, 80);
+        /* Clear of the list it was opened from, which has to stay
+           clickable: beside the main window, as far right as the screen
+           allows. A fixed position will not do, since it is measured from
+           the screen and the list is not -- the reader used to open at
+           80,80 and land on top of the very list it came from, where it
+           took the clicks meant for the next message, and every one after
+           the first appeared to open the same mail. */
+        {
+
+            long sx, sy; /* the screen */
+            long mx, my; /* and what the main window takes of it */
+            long rx;
+
+            ami_scnsizg(stdout, &sx, &sy);
+            ami_getsizg(stdout, &mx, &my);
+            rx = sx-wx-20;
+            if (rx < mx+20) rx = mx+20; /* beside the list at the least */
+            if (rx+wx > sx) rx = sx-wx; /* but still on the screen */
+            if (rx < 0) rx = 0;
+            ami_setposg(readwf, rx, 60);
+
+        }
         ami_scrollvertsizg(readwf, &sbw, &wy);
         ami_scrollvertg(readwf, ami_maxxg(readwf)-sbw, 1, sbw,
                         ami_maxyg(readwf), SBREAD);
