@@ -1220,7 +1220,7 @@ static int        numjoy;         /* number of joysticks found */
 static joyptr     joytab[MAXJOY]; /* joystick control table */
 static int        frmfid;         /* framing timer fid */
 static int        cfgcap;         /* "configuration" caps */
-static ami_pevthan evthan[ami_ettabbar+1]; /* array of event handler routines */
+static ami_pevthan evthan[ami_etdsize+1]; /* array of event handler routines */
 static ami_pevthan evtshan;        /* single master event handler routine */
 static xevtque*   freque;         /* free XEvent queue entries list */
 static xevtque*   evtque;         /* XEvent input save queue */
@@ -1938,6 +1938,8 @@ void prtevtt(ami_evtcod e)
         case ami_etdrebox:  fprintf(stderr, "etdrebox "); break;
         case ami_etsldpos:  fprintf(stderr, "etsldpos "); break;
         case ami_ettabbar:  fprintf(stderr, "ettabbar "); break;
+        case ami_etusize:   fprintf(stderr, "etusize "); break;
+        case ami_etdsize:   fprintf(stderr, "etdsize "); break;
 
         default: fprintf(stderr, "???");
 
@@ -13182,6 +13184,23 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                                        er->etype = ami_etinsert;
                                    break;
 
+                /* Larger and smaller, the way the browsers do it. There
+                   are two of each key on a PC keyboard, the "=+" and "-_"
+                   of the main pad and the "+" and "-" of the numeric one,
+                   and both are taken. The main pad key gives "=" plain and
+                   "+" shifted, and control-= is as common a way to ask for
+                   this as control-+, so both arrive here. */
+                case XK_equal:
+                case XK_plus:
+                case XK_KP_Add:      if (ctrll || ctrlr)
+                                         er->etype = ami_etusize;
+                                     break;
+                case XK_minus:
+                case XK_underscore:
+                case XK_KP_Subtract: if (ctrll || ctrlr)
+                                         er->etype = ami_etdsize;
+                                     break;
+
                 case XK_Shift_L:   shiftl = TRUE; break; /* Left shift */
                 case XK_Shift_R:   shiftr = TRUE; break; /* Right shift */
                 case XK_Control_L: ctrll = TRUE; break;  /* Left control */
@@ -13821,7 +13840,7 @@ static void event_ivf(FILE* f, ami_evtrec* er)
         }
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
-        if (!er->handled && er->etype <= ami_ettabbar) { /* send it to fanout */
+        if (!er->handled && er->etype <= ami_etdsize) { /* send it to fanout */
 
             er->handled = 1; /* set event is handled by default */
             (*evthan[er->etype])(er); /* call event handler first */
@@ -13887,7 +13906,7 @@ static void eventover_ivf(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
 
 {
 
-    if (e > ami_ettabbar) error(evecaxe); /* cannot vector auxillary event */
+    if (e > ami_etdsize) error(evecaxe); /* cannot vector auxillary event */
     *oeh = evthan[e]; /* save existing event handler */
     evthan[e] = eh; /* place new event handler */
 
@@ -17273,7 +17292,7 @@ static void ami_init_graphics(int argc, char *argv[])
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = ami_etchar; e <= ami_ettabbar; e++) evthan[e] = defaultevent;
+    for (e = ami_etchar; e <= ami_etdsize; e++) evthan[e] = defaultevent;
 
     /* get setup configuration */
     config_root = NULL;
@@ -17510,7 +17529,7 @@ static void ami_deinit_graphics()
        that are no longer safe to call now that main() has returned — the
        stack frame they longjmp into is gone. */
     evtshan = defaultevent;
-    for (e = ami_etchar; e <= ami_ettabbar; e++) evthan[e] = defaultevent;
+    for (e = ami_etchar; e <= ami_etdsize; e++) evthan[e] = defaultevent;
 
     /* try to get window from stdout */
     win = NULL; /* set no window */
