@@ -586,7 +586,8 @@ else
 	# The archives carry Petit-Ami's code; the system libraries stay
 	# shared. The sound and network tails cost nothing when unused:
 	# with the members not pulled, as-needed linking drops them.
-	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	# stdc++: the plain core carries the sound C++ wrapper
+	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 \
 	         -lfreetype -lfontconfig -lm -lpthread
@@ -864,6 +865,9 @@ stub/keeper.o: stub/keeper.c
 
 cpp/terminal.o: cpp/terminal.cpp
 	$(CPP) $(CFLAGS) -Ihpp -c cpp/terminal.cpp -o cpp/terminal.o
+
+cpp/sound.o: cpp/sound.cpp
+	$(CPP) $(CFLAGS) -Ihpp -c cpp/sound.cpp -o cpp/sound.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
 	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
@@ -989,10 +993,10 @@ lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/con
 	
 lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
-    cpp/terminal.o
+    cpp/terminal.o cpp/sound.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
-		utils/option.o  cpp/terminal.o -lstdc++ -o lib/petit_ami_term.so
+		utils/option.o  cpp/terminal.o cpp/sound.o -lstdc++ -o lib/petit_ami_term.so
 	
 #
 # Terminal library with the character mode window manager always included.
@@ -1002,18 +1006,18 @@ lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 #
 lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/terminal.o portable/managerc.o linux/system_event.o utils/config.o \
-	utils/option.o cpp/terminal.o
+	utils/option.o cpp/terminal.o cpp/sound.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/terminal.o portable/managerc.o linux/system_event.o \
-		utils/config.o utils/option.o cpp/terminal.o -lstdc++ \
+		utils/config.o utils/option.o cpp/terminal.o cpp/sound.o -lstdc++ \
 		-o lib/petit_ami_termc.so
 
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o
+	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/graphics.o linux/system_event.o \
-		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o \
+		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o \
         -lstdc++ -o lib/petit_ami_graph.so
 
 #
@@ -1057,24 +1061,24 @@ lib/sound.o: linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 # the model cores
 CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o
 
-lib/plain_core.o: $(CORE_COMMON)
-	ld -r -o lib/plain_core.o $(CORE_COMMON)
+lib/plain_core.o: $(CORE_COMMON) cpp/sound.o
+	ld -r -o lib/plain_core.o $(CORE_COMMON) cpp/sound.o
 
 lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
-	linux/system_event.o cpp/terminal.o
+	linux/system_event.o cpp/terminal.o cpp/sound.o
 	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
-	    linux/system_event.o cpp/terminal.o
+	    linux/system_event.o cpp/terminal.o cpp/sound.o
 
 lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
-	linux/system_event.o cpp/terminal.o
+	linux/system_event.o cpp/terminal.o cpp/sound.o
 	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
-	    portable/managerc.o linux/system_event.o cpp/terminal.o
+	    portable/managerc.o linux/system_event.o cpp/terminal.o cpp/sound.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o
+	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o cpp/sound.o
 	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
-	    cpp/terminal.o
+	    cpp/terminal.o cpp/sound.o
 
 # the model archives
 lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
