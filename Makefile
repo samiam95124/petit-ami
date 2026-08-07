@@ -585,7 +585,8 @@ else
 	# The archives carry Petit-Ami's code; the system libraries stay
 	# shared. The sound and network tails cost nothing when unused:
 	# with the members not pulled, as-needed linking drops them.
-	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	# stdc++: the plain core carries the sound C++ wrapper
+	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 \
 	         -lfreetype -lfontconfig -lm -lpthread
