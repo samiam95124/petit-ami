@@ -130,6 +130,8 @@ typedef enum {
     /** drop edit box signals done */   etdrebox,
     /** slider position */              etsldpos,
     /** tab bar select */               ettabbar,
+    /** enlarge what is displayed */    etusize,
+    /** reduce what is displayed */     etdsize,
 
     /* Reserved extra code areas, these are module defined. */
     etsys    = 0x1000, /**< start of base system reserved codes */
@@ -804,6 +806,9 @@ public:
 /* constructor */
 graph();
 
+/* destructor */
+~graph();
+
 /* methods */
 
 /* text */
@@ -1107,6 +1112,8 @@ virtual long evdrpbox(long id, long sel);
 virtual long evdrebox(long id);
 virtual long evsldpos(long id, long pos);
 virtual long evtabbar(long id, long sel);
+virtual long evusize(void);
+virtual long evdsize(void);
 
 }; /* class graph */
 

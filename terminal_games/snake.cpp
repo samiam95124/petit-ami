@@ -54,12 +54,9 @@ Translated to C++, 2022/08/19.
 #include <limits.h>
 #include <stdlib.h>
 
-#include <iostream>
-
 #include <localdefs.h>
 #include <terminal.hpp>
 
-using namespace std;
 using namespace terminal;
 
 #define MAXSN  1000  /* total snake positions */
@@ -108,7 +105,7 @@ class gameterm: public term
     char   image[MAXSCN][MAXSCN]; /* screen image */
 
     /* methods */
-    int evterm(void);
+    long evterm(void);
     void event(void);
     void writeimage(int x, int y, char c);
     char readimage(int x, int y);
@@ -142,7 +139,7 @@ screen back to 1, then exits the program with no error.
 
 *******************************************************************************/
 
-int gameterm::evterm(void)
+long gameterm::evterm(void)
 
 {
 
@@ -205,7 +202,7 @@ void gameterm::writescreen(int x, int y, /* position to place character */
     cursor(x, y); /* position to the given location */
     if (c != image[x][y]) { /* filter redundant placements */
 
-        cout << c; /* write the character */
+        putchar(c); /* write the character */
         image[x][y] = c; /* place character in image */
 
     }
@@ -263,12 +260,12 @@ class game: public gameterm
     ~game();                       /* destuctor */
 
     /* event callbacks */
-    int evleft(void);              /* left arrow */
-    int evright(void);             /* right arrow */
-    int evup(void);                /* up arrow */
-    int evdown(void);              /* down arrow */
-    int evjoymov(int j, int x, int y, int z); /* joystick move */
-    int evtim(int t);              /* timer fires */
+    long evleft(void);             /* left arrow */
+    long evright(void);            /* right arrow */
+    long evup(void);               /* up arrow */
+    long evdown(void);             /* down arrow */
+    long evjoymov(long j, long x, long y, long z); /* joystick move */
+    long evtim(long t);            /* timer fires */
 
     /* additional methods */
     void clrscn(void);             /* clear and format game screen */
@@ -290,10 +287,10 @@ Called on arrow keys, moves the snake in the direction indicated.
 
 *******************************************************************************/
 
-int game::evleft(void) { movesnake(etleft); return (1); }
-int game::evright(void) { movesnake(etright); return (1); }
-int game::evup(void) { movesnake(etup); return (1); }
-int game::evdown(void) { movesnake(etdown); return (1); }
+long game::evleft(void) { movesnake(etleft); return (1); }
+long game::evright(void) { movesnake(etright); return (1); }
+long game::evup(void) { movesnake(etup); return (1); }
+long game::evdown(void) { movesnake(etdown); return (1); }
 
 /*******************************************************************************
 
@@ -304,7 +301,7 @@ goes in the joystick indicated direction.
 
 *******************************************************************************/
 
-int game::evjoymov(int j, int x, int y, int z)
+long game::evjoymov(long j, long x, long y, long z)
 
 {
 
@@ -326,7 +323,7 @@ Called on timer events. We handle only timer 1 here, the automatic move timer.
 
 *******************************************************************************/
 
-int game::evtim(int t)
+long game::evtim(long t)
 
 {
 
@@ -378,7 +375,7 @@ void game::clrscn(void)
     int y; /* index y */
     int x; /* index x */
 
-    cout << '\f'; /* clear display screen */
+    putchar('\f'); /* clear display screen */
     for (x = 1; x <= maxx(); x++) /* clear image */
         for (y = 1; y <= maxy(); y++) writeimage(x, y, ' ');
     /* place top */
@@ -677,7 +674,7 @@ game::game()
 
     if (maxx() > MAXSCN || maxy() > MAXSCN) {
 
-        clog << "*** Error: Screen exceeds maximum size" << endl;
+        fprintf(stderr, "*** Error: Screen exceeds maximum size\n");
         exit(1);
 
     }

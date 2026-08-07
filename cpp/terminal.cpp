@@ -33,6 +33,7 @@
 extern "C" {
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <terminal.h>
 
@@ -144,10 +145,35 @@ term::term(void)
 
 {
 
+    /* One term object at a time. The events come back through one
+       global hook: a second object would not share the events with the
+       first, it would take them all -- and the second hooking of the
+       chain saves the hook itself as the handler to pass unhandled
+       events to, which is a loop with no bottom. Refusing is the only
+       honest answer the wrapper has. */
+    if (termoCB) {
+
+        fprintf(stderr, "terminal: only one term object may exist\n");
+        exit(1);
+
+    }
     infile = stdin;
     outfile = stdout;
     termoCB = this;
     eventsover(termCB, &termoeh);
+
+}
+
+term::~term(void)
+
+{
+
+    pevthan tmp;
+
+    /* put the chain back the way it was found, so no event is ever
+       delivered to an object that no longer exists */
+    eventsover(termoeh, &tmp);
+    termoCB = 0;
 
 }
 
