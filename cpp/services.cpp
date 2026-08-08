@@ -113,7 +113,6 @@ thread::thread(void (*threadmain)(void))
 
 }
 
-long thread::id(void) { return tid; }
 
 mutex::mutex(void)
 

@@ -189,10 +189,7 @@ public:
 /* constructor: the thread starts here */
 thread(void (*threadmain)(void));
 
-/* the identifier, as newthread returned it */
-long id(void);
-
-/* copying is refused: two objects would free one identifier */
+/* copying is refused: a thread is one act, not two */
 thread(const thread&) = delete;
 thread& operator=(const thread&) = delete;
 
