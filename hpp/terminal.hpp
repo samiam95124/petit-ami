@@ -242,7 +242,6 @@ long  funkey(FILE* f);
 long  funkey(void);
 void frametimer(FILE* f, long e);
 void frametimer(long e);
-void autohold(FILE* f, long e);
 void autohold(long e);
 void wrtstr(FILE* f, char *s);
 void wrtstr(char *s);
@@ -367,12 +366,13 @@ virtual long evtim(long t);
 virtual long evjoyba(long j, long b);
 virtual long evjoybd(long j, long b);
 virtual long evjoymov(long j, long x, long y, long z);
-virtual long evresize(void);
+virtual long evresize(long rszx, long rszy);
 virtual long evfocus(void);
 virtual long evnofocus(void);
 virtual long evhover(void);
 virtual long evnohover(void);
 virtual long evterm(void);
+virtual long evframe(void);
 
 }; /* class term */
 
