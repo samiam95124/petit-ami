@@ -349,54 +349,26 @@ void buttonsiz(FILE* f, char* s, long* w, long* h) { ami_buttonsiz(f, s, w, h); 
 void buttonsiz(char* s, long* w, long* h) { ami_buttonsiz(stdout, s, w, h); }
 void buttonsizg(FILE* f, char* s, long* w, long* h) { ami_buttonsizg(f, s, w, h); }
 void buttonsizg(char* s, long* w, long* h) { ami_buttonsizg(stdout, s, w, h); }
-void button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_button(f, x1, y1, x2, y2, s, id); }
-void button(long x1, long y1, long x2, long y2, char* s, long id) { ami_button(stdout, x1, y1, x2, y2, s, id); }
-void buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_buttong(f, x1, y1, x2, y2, s, id); }
-void buttong(long x1, long y1, long x2, long y2, char* s, long id) { ami_buttong(stdout, x1, y1, x2, y2, s, id); }
 void checkboxsiz(FILE* f, char* s, long* w, long* h) { ami_checkboxsiz(f, s, w, h); }
 void checkboxsiz(char* s, long* w, long* h) { ami_checkboxsiz(stdout, s, w, h); }
 void checkboxsizg(FILE* f, char* s, long* w, long* h) { ami_checkboxsizg(f, s, w, h); }
 void checkboxsizg(char* s, long* w, long* h) { ami_checkboxsizg(stdout, s, w, h); }
-void checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_checkbox(f, x1, y1, x2, y2, s, id); }
-void checkbox(long x1, long y1, long x2, long y2, char* s, long id) { ami_checkbox(stdout, x1, y1, x2, y2, s, id); }
-void checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_checkboxg(f, x1, y1, x2, y2, s, id); }
-void checkboxg(long x1, long y1, long x2, long y2, char* s, long id) { ami_checkboxg(stdout, x1, y1, x2, y2, s, id); }
 void radiobuttonsiz(FILE* f, char* s, long* w, long* h) { ami_radiobuttonsiz(f, s, w, h); }
 void radiobuttonsiz(char* s, long* w, long* h) { ami_radiobuttonsiz(stdout, s, w, h); }
 void radiobuttonsizg(FILE* f, char* s, long* w, long* h) { ami_radiobuttonsizg(f, s, w, h); }
 void radiobuttonsizg(char* s, long* w, long* h) { ami_radiobuttonsizg(stdout, s, w, h); }
-void radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_radiobutton(f, x1, y1, x2, y2, s, id); }
-void radiobutton(long x1, long y1, long x2, long y2, char* s, long id) { ami_radiobutton(stdout, x1, y1, x2, y2, s, id); }
-void radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_radiobuttong(f, x1, y1, x2, y2, s, id); }
-void radiobuttong(long x1, long y1, long x2, long y2, char* s, long id) { ami_radiobuttong(stdout, x1, y1, x2, y2, s, id); }
 void groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_groupsiz(f, s, cw, ch, w, h, ox, oy); }
 void groupsiz(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_groupsiz(stdout, s, cw, ch, w, h, ox, oy); }
 void groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_groupsizg(f, s, cw, ch, w, h, ox, oy); }
 void groupsizg(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_groupsizg(stdout, s, cw, ch, w, h, ox, oy); }
-void group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_group(f, x1, y1, x2, y2, s, id); }
-void group(long x1, long y1, long x2, long y2, char* s, long id) { ami_group(stdout, x1, y1, x2, y2, s, id); }
-void groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id) { ami_groupg(f, x1, y1, x2, y2, s, id); }
-void groupg(long x1, long y1, long x2, long y2, char* s, long id) { ami_groupg(stdout, x1, y1, x2, y2, s, id); }
-void background(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_background(f, x1, y1, x2, y2, id); }
-void background(long x1, long y1, long x2, long y2, long id) { ami_background(stdout, x1, y1, x2, y2, id); }
-void backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_backgroundg(f, x1, y1, x2, y2, id); }
-void backgroundg(long x1, long y1, long x2, long y2, long id) { ami_backgroundg(stdout, x1, y1, x2, y2, id); }
 void scrollvertsiz(FILE* f, long* w, long* h) { ami_scrollvertsiz(f, w, h); }
 void scrollvertsiz(long* w, long* h) { ami_scrollvertsiz(stdout, w, h); }
 void scrollvertsizg(FILE* f, long* w, long* h) { ami_scrollvertsizg(f, w, h); }
 void scrollvertsizg(long* w, long* h) { ami_scrollvertsizg(stdout, w, h); }
-void scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_scrollvert(f, x1, y1, x2, y2, id); }
-void scrollvert(long x1, long y1, long x2, long y2, long id) { ami_scrollvert(stdout, x1, y1, x2, y2, id); }
-void scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_scrollvertg(f, x1, y1, x2, y2, id); }
-void scrollvertg(long x1, long y1, long x2, long y2, long id) { ami_scrollvertg(stdout, x1, y1, x2, y2, id); }
 void scrollhorizsiz(FILE* f, long* w, long* h) { ami_scrollhorizsiz(f, w, h); }
 void scrollhorizsiz(long* w, long* h) { ami_scrollhorizsiz(stdout, w, h); }
 void scrollhorizsizg(FILE* f, long* w, long* h) { ami_scrollhorizsizg(f, w, h); }
 void scrollhorizsizg(long* w, long* h) { ami_scrollhorizsizg(stdout, w, h); }
-void scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_scrollhoriz(f, x1, y1, x2, y2, id); }
-void scrollhoriz(long x1, long y1, long x2, long y2, long id) { ami_scrollhoriz(stdout, x1, y1, x2, y2, id); }
-void scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_scrollhorizg(f, x1, y1, x2, y2, id); }
-void scrollhorizg(long x1, long y1, long x2, long y2, long id) { ami_scrollhorizg(stdout, x1, y1, x2, y2, id); }
 void scrollpos(FILE* f, long id, long r) { ami_scrollpos(f, id, r); }
 void scrollpos(long id, long r) { ami_scrollpos(stdout, id, r); }
 void scrollsiz(FILE* f, long id, long r) { ami_scrollsiz(f, id, r); }
@@ -405,68 +377,36 @@ void numselboxsiz(FILE* f, long l, long u, long* w, long* h) { ami_numselboxsiz(
 void numselboxsiz(long l, long u, long* w, long* h) { ami_numselboxsiz(stdout, l, u, w, h); }
 void numselboxsizg(FILE* f, long l, long u, long* w, long* h) { ami_numselboxsizg(f, l, u, w, h); }
 void numselboxsizg(long l, long u, long* w, long* h) { ami_numselboxsizg(stdout, l, u, w, h); }
-void numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id) { ami_numselbox(f, x1, y1, x2, y2, l, u, id); }
-void numselbox(long x1, long y1, long x2, long y2, long l, long u, long id) { ami_numselbox(stdout, x1, y1, x2, y2, l, u, id); }
-void numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id) { ami_numselboxg(f, x1, y1, x2, y2, l, u, id); }
-void numselboxg(long x1, long y1, long x2, long y2, long l, long u, long id) { ami_numselboxg(stdout, x1, y1, x2, y2, l, u, id); }
 void editboxsiz(FILE* f, char* s, long* w, long* h) { ami_editboxsiz(f, s, w, h); }
 void editboxsiz(char* s, long* w, long* h) { ami_editboxsiz(stdout, s, w, h); }
 void editboxsizg(FILE* f, char* s, long* w, long* h) { ami_editboxsizg(f, s, w, h); }
 void editboxsizg(char* s, long* w, long* h) { ami_editboxsizg(stdout, s, w, h); }
-void editbox(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_editbox(f, x1, y1, x2, y2, id); }
-void editbox(long x1, long y1, long x2, long y2, long id) { ami_editbox(stdout, x1, y1, x2, y2, id); }
-void editboxg(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_editboxg(f, x1, y1, x2, y2, id); }
-void editboxg(long x1, long y1, long x2, long y2, long id) { ami_editboxg(stdout, x1, y1, x2, y2, id); }
 void progbarsiz(FILE* f, long* w, long* h) { ami_progbarsiz(f, w, h); }
 void progbarsiz(long* w, long* h) { ami_progbarsiz(stdout, w, h); }
 void progbarsizg(FILE* f, long* w, long* h) { ami_progbarsizg(f, w, h); }
 void progbarsizg(long* w, long* h) { ami_progbarsizg(stdout, w, h); }
-void progbar(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_progbar(f, x1, y1, x2, y2, id); }
-void progbar(long x1, long y1, long x2, long y2, long id) { ami_progbar(stdout, x1, y1, x2, y2, id); }
-void progbarg(FILE* f, long x1, long y1, long x2, long y2, long id) { ami_progbarg(f, x1, y1, x2, y2, id); }
-void progbarg(long x1, long y1, long x2, long y2, long id) { ami_progbarg(stdout, x1, y1, x2, y2, id); }
 void progbarpos(FILE* f, long id, long pos) { ami_progbarpos(f, id, pos); }
 void progbarpos(long id, long pos) { ami_progbarpos(stdout, id, pos); }
 void listboxsiz(FILE* f, strptr sp, long* w, long* h) { ami_listboxsiz(f, (ami_strptr)sp, w, h); }
 void listboxsiz(strptr sp, long* w, long* h) { ami_listboxsiz(stdout, (ami_strptr)sp, w, h); }
 void listboxsizg(FILE* f, strptr sp, long* w, long* h) { ami_listboxsizg(f, (ami_strptr)sp, w, h); }
 void listboxsizg(strptr sp, long* w, long* h) { ami_listboxsizg(stdout, (ami_strptr)sp, w, h); }
-void listbox(FILE* f, long x1, long y1, long x2, long y2, strptr sp, long id) { ami_listbox(f, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void listbox(long x1, long y1, long x2, long y2, strptr sp, long id) { ami_listbox(stdout, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void listboxg(FILE* f, long x1, long y1, long x2, long y2, strptr sp, long id) { ami_listboxg(f, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void listboxg(long x1, long y1, long x2, long y2, strptr sp, long id) { ami_listboxg(stdout, x1, y1, x2, y2, (ami_strptr)sp, id); }
 void dropboxsiz(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropboxsiz(f, (ami_strptr)sp, cw, ch, ow, oh); }
 void dropboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropboxsiz(stdout, (ami_strptr)sp, cw, ch, ow, oh); }
 void dropboxsizg(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropboxsizg(f, (ami_strptr)sp, cw, ch, ow, oh); }
 void dropboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropboxsizg(stdout, (ami_strptr)sp, cw, ch, ow, oh); }
-void dropbox(FILE* f, long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropbox(f, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void dropbox(long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropbox(stdout, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void dropboxg(FILE* f, long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropboxg(f, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void dropboxg(long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropboxg(stdout, x1, y1, x2, y2, (ami_strptr)sp, id); }
 void dropeditboxsiz(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropeditboxsiz(f, (ami_strptr)sp, cw, ch, ow, oh); }
 void dropeditboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropeditboxsiz(stdout, (ami_strptr)sp, cw, ch, ow, oh); }
 void dropeditboxsizg(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropeditboxsizg(f, (ami_strptr)sp, cw, ch, ow, oh); }
 void dropeditboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropeditboxsizg(stdout, (ami_strptr)sp, cw, ch, ow, oh); }
-void dropeditbox(FILE* f, long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropeditbox(f, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void dropeditbox(long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropeditbox(stdout, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropeditboxg(f, x1, y1, x2, y2, (ami_strptr)sp, id); }
-void dropeditboxg(long x1, long y1, long x2, long y2, strptr sp, long id) { ami_dropeditboxg(stdout, x1, y1, x2, y2, (ami_strptr)sp, id); }
 void slidehorizsiz(FILE* f, long* w, long* h) { ami_slidehorizsiz(f, w, h); }
 void slidehorizsiz(long* w, long* h) { ami_slidehorizsiz(stdout, w, h); }
 void slidehorizsizg(FILE* f, long* w, long* h) { ami_slidehorizsizg(f, w, h); }
 void slidehorizsizg(long* w, long* h) { ami_slidehorizsizg(stdout, w, h); }
-void slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id) { ami_slidehoriz(f, x1, y1, x2, y2, mark, id); }
-void slidehoriz(long x1, long y1, long x2, long y2, long mark, long id) { ami_slidehoriz(stdout, x1, y1, x2, y2, mark, id); }
-void slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id) { ami_slidehorizg(f, x1, y1, x2, y2, mark, id); }
-void slidehorizg(long x1, long y1, long x2, long y2, long mark, long id) { ami_slidehorizg(stdout, x1, y1, x2, y2, mark, id); }
 void slidevertsiz(FILE* f, long* w, long* h) { ami_slidevertsiz(f, w, h); }
 void slidevertsiz(long* w, long* h) { ami_slidevertsiz(stdout, w, h); }
 void slidevertsizg(FILE* f, long* w, long* h) { ami_slidevertsizg(f, w, h); }
 void slidevertsizg(long* w, long* h) { ami_slidevertsizg(stdout, w, h); }
-void slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id) { ami_slidevert(f, x1, y1, x2, y2, mark, id); }
-void slidevert(long x1, long y1, long x2, long y2, long mark, long id) { ami_slidevert(stdout, x1, y1, x2, y2, mark, id); }
-void slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id) { ami_slidevertg(f, x1, y1, x2, y2, mark, id); }
-void slidevertg(long x1, long y1, long x2, long y2, long mark, long id) { ami_slidevertg(stdout, x1, y1, x2, y2, mark, id); }
 void tabbarsiz(FILE* f, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(f, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
 void tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(stdout, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
 void tabbarsizg(FILE* f, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(f, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
@@ -475,10 +415,6 @@ void tabbarclient(FILE* f, tabori tor, long w, long h, long* cw, long* ch, long*
 void tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclient(stdout, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void tabbarclientg(FILE* f, tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclientg(f, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclientg(stdout, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
-void tabbar(FILE* f, long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id) { ami_tabbar(f, x1, y1, x2, y2, (ami_strptr)sp, (ami_tabori)tor, id); }
-void tabbar(long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id) { ami_tabbar(stdout, x1, y1, x2, y2, (ami_strptr)sp, (ami_tabori)tor, id); }
-void tabbarg(FILE* f, long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id) { ami_tabbarg(f, x1, y1, x2, y2, (ami_strptr)sp, (ami_tabori)tor, id); }
-void tabbarg(long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id) { ami_tabbarg(stdout, x1, y1, x2, y2, (ami_strptr)sp, (ami_tabori)tor, id); }
 void tabsel(FILE* f, long id, long tn) { ami_tabsel(f, id, tn); }
 void tabsel(long id, long tn) { ami_tabsel(stdout, id, tn); }
 
@@ -933,6 +869,733 @@ void graph::graphCB(evtrec* er)
 
     er->handled = handled;
     if (!handled) (*graphoeh)(er);
+
+}
+
+
+/*******************************************************************************
+
+The window and widget objects
+
+The events of every window come down one chain, each record naming its
+window. The wrapper hooks the chain once, keeps a registry of the
+window objects that exist, and hands each event to the object that
+holds its window -- the widget it names first, then the window's own
+virtual, then the chain, so procedural code and objects mix freely,
+window by window.
+
+*******************************************************************************/
+
+#define MAXWINOBJ 250 /* window objects at one time */
+
+static struct { long wid; window* wp; } winreg[MAXWINOBJ];
+static long    winregs;   /* entries in use */
+static long    winhooked; /* the chain hook is in */
+static pevthan winpreveh; /* and what it displaced */
+
+static window* fndwin(long wid)
+
+{
+
+    long i;
+
+    for (i = 0; i < winregs; i++)
+        if (winreg[i].wid == wid) return (winreg[i].wp);
+
+    return (0);
+
+}
+
+
+
+static void regwin(long wid, window* wp)
+
+{
+
+    if (fndwin(wid)) {
+
+        fprintf(stderr, "graphics: a window object already holds window "
+                        "%ld\n", wid);
+        exit(1);
+
+    }
+    if (winregs >= MAXWINOBJ) {
+
+        fprintf(stderr, "graphics: too many window objects\n");
+        exit(1);
+
+    }
+    if (!winhooked) { /* the first object hooks the chain, once */
+
+        eventsover(windowCB, &winpreveh);
+        winhooked = 1;
+
+    }
+    winreg[winregs].wid = wid;
+    winreg[winregs].wp = wp;
+    winregs++;
+
+}
+
+static void unregwin(long wid)
+
+{
+
+    long i;
+
+    for (i = 0; i < winregs; i++) if (winreg[i].wid == wid) {
+
+        winreg[i] = winreg[winregs-1];
+        winregs--;
+        if (!winregs && winhooked) {
+
+            /* The last window object out takes the hook back out. The
+               chain is put back in the order it was built: whoever
+               hooked after us has already left, and whoever hooked
+               before us -- the widget system does -- verifies on its
+               own way out that what it removes is its own. */
+            pevthan tmp;
+
+            eventsover(winpreveh, &tmp);
+            winhooked = 0;
+
+        }
+
+        return;
+
+    }
+
+}
+
+/* the chain hook: route by the window the record names */
+void windowCB(evtrec* er)
+
+{
+
+    window* wp = fndwin(er->winid);
+    long    handled = 0;
+
+    if (wp) {
+
+        long    wgid = 0;
+        widget* wg;
+
+        /* the widget the event names, if it names one */
+        switch (er->etype) {
+
+        case etbutton: wgid = er->butid; break;
+        case etchkbox: wgid = er->ckbxid; break;
+        case etradbut: wgid = er->radbid; break;
+        case etsclull: wgid = er->sclulid; break;
+        case etscldrl: wgid = er->scldrid; break;
+        case etsclulp: wgid = er->sclupid; break;
+        case etscldrp: wgid = er->scldpid; break;
+        case etsclpos: wgid = er->sclpid; break;
+        case etedtbox: wgid = er->edtbid; break;
+        case etnumbox: wgid = er->numbid; break;
+        case etlstbox: wgid = er->lstbid; break;
+        case etdrpbox: wgid = er->drpbid; break;
+        case etdrebox: wgid = er->drebid; break;
+        case etsldpos: wgid = er->sldpid; break;
+        case ettabbar: wgid = er->tabid; break;
+        default: break;
+
+        }
+        if (wgid) {
+
+            for (wg = wp->wlist; wg; wg = wg->next) if (wg->id() == wgid) break;
+            if (wg) switch (er->etype) {
+
+            case etbutton:  handled = wg->pressed(); break;
+            case etchkbox:  handled = wg->clicked(); break;
+            case etradbut:  handled = wg->clicked(); break;
+            case etsclull:  handled = wg->upline(); break;
+            case etscldrl:  handled = wg->downline(); break;
+            case etsclulp:  handled = wg->uppage(); break;
+            case etscldrp:  handled = wg->downpage(); break;
+            case etsclpos:  handled = wg->moved(er->sclpos); break;
+            case etedtbox:  handled = wg->done(); break;
+            case etnumbox:  handled = wg->selected(er->numbsl); break;
+            case etlstbox:  handled = wg->selected(er->lstbsl); break;
+            case etdrpbox:  handled = wg->selected(er->drpbsl); break;
+            case etdrebox:  handled = wg->done(); break;
+            case etsldpos:  handled = wg->moved(er->sldpos); break;
+            case ettabbar:  handled = wg->selected(er->tabsel); break;
+            default: break;
+
+            }
+
+        }
+        if (!handled) switch (er->etype) {
+
+        case etchar: handled = wp->evchar(er->echar); break;
+        case etup: handled = wp->evup(); break;
+        case etdown: handled = wp->evdown(); break;
+        case etleft: handled = wp->evleft(); break;
+        case etright: handled = wp->evright(); break;
+        case etleftw: handled = wp->evleftw(); break;
+        case etrightw: handled = wp->evrightw(); break;
+        case ethome: handled = wp->evhome(); break;
+        case ethomes: handled = wp->evhomes(); break;
+        case ethomel: handled = wp->evhomel(); break;
+        case etend: handled = wp->evend(); break;
+        case etends: handled = wp->evends(); break;
+        case etendl: handled = wp->evendl(); break;
+        case etscrl: handled = wp->evscrl(); break;
+        case etscrr: handled = wp->evscrr(); break;
+        case etscru: handled = wp->evscru(); break;
+        case etscrd: handled = wp->evscrd(); break;
+        case etpagd: handled = wp->evpagd(); break;
+        case etpagu: handled = wp->evpagu(); break;
+        case ettab: handled = wp->evtab(); break;
+        case etenter: handled = wp->eventer(); break;
+        case etinsert: handled = wp->evinsert(); break;
+        case etinsertl: handled = wp->evinsertl(); break;
+        case etinsertt: handled = wp->evinsertt(); break;
+        case etdel: handled = wp->evdel(); break;
+        case etdell: handled = wp->evdell(); break;
+        case etdelcf: handled = wp->evdelcf(); break;
+        case etdelcb: handled = wp->evdelcb(); break;
+        case etcopy: handled = wp->evcopy(); break;
+        case etcopyl: handled = wp->evcopyl(); break;
+        case etcan: handled = wp->evcan(); break;
+        case etstop: handled = wp->evstop(); break;
+        case etcont: handled = wp->evcont(); break;
+        case etprint: handled = wp->evprint(); break;
+        case etprintb: handled = wp->evprintb(); break;
+        case etprints: handled = wp->evprints(); break;
+        case etfun: handled = wp->evfun(er->fkey); break;
+        case etmenu: handled = wp->evmenu(); break;
+        case ettim: handled = wp->evtim(er->timnum); break;
+        case etresize: handled = wp->evresize(); break;
+        case etfocus: handled = wp->evfocus(); break;
+        case etnofocus: handled = wp->evnofocus(); break;
+        case ethover: handled = wp->evhover(); break;
+        case etnohover: handled = wp->evnohover(); break;
+        case etterm: handled = wp->evterm(); break;
+        case etframe: handled = wp->evframe(); break;
+        case etredraw: handled = wp->evredraw(er->rsx, er->rsy, er->rex, er->rey); break;
+        case etmin: handled = wp->evmin(); break;
+        case etmax: handled = wp->evmax(); break;
+        case etnorm: handled = wp->evnorm(); break;
+        case etmenus: handled = wp->evmenus(er->menuid); break;
+        case etbutton: handled = wp->evbutton(er->butid); break;
+        case etchkbox: handled = wp->evchkbox(er->ckbxid); break;
+        case etradbut: handled = wp->evradbut(er->radbid); break;
+        case etsclull: handled = wp->evsclull(er->sclulid); break;
+        case etscldrl: handled = wp->evscldrl(er->scldrid); break;
+        case etsclulp: handled = wp->evsclulp(er->sclupid); break;
+        case etscldrp: handled = wp->evscldrp(er->scldpid); break;
+        case etsclpos: handled = wp->evsclpos(er->sclpid, er->sclpos); break;
+        case etedtbox: handled = wp->evedtbox(er->edtbid); break;
+        case etnumbox: handled = wp->evnumbox(er->numbid, er->numbsl); break;
+        case etlstbox: handled = wp->evlstbox(er->lstbid, er->lstbsl); break;
+        case etdrpbox: handled = wp->evdrpbox(er->drpbid, er->drpbsl); break;
+        case etdrebox: handled = wp->evdrebox(er->drebid); break;
+        case etsldpos: handled = wp->evsldpos(er->sldpid, er->sldpos); break;
+        case ettabbar: handled = wp->evtabbar(er->tabid, er->tabsel); break;
+        case etusize: handled = wp->evusize(); break;
+        case etdsize: handled = wp->evdsize(); break;
+        default: break;
+
+        }
+
+    }
+    if (!handled) winpreveh(er);
+
+}
+
+/* methods */
+window::window(void)
+
+{
+
+    /* attach to the main window, which is already open */
+    wf = stdout;
+    wid = 1;
+    owned = 0;
+    nextid = 0x2000; /* clear of the ids programs give by hand */
+    wlist = 0;
+    regwin(wid, this);
+
+}
+
+window::window(window* parent)
+
+{
+
+    FILE* win = stdin; /* share the event queue, as all windows do */
+
+    wid = ami_getwinid();
+    ami_openwin(&win, &wf, parent? parent->wf: NULL, wid);
+    owned = 1;
+    nextid = 0x2000;
+    wlist = 0;
+    regwin(wid, this);
+
+}
+
+window::~window(void)
+
+{
+
+    widget* wg;
+
+    /* Disarm the widgets still standing: the window is going, and their
+       destructors must not reach into it after it. In the subclass
+       pattern the members die first and this list is already empty. */
+    for (wg = wlist; wg; wg = wg->next) wg->dead = 1;
+    unregwin(wid);
+    if (owned) fclose(wf);
+
+}
+
+window::operator FILE*(void) { return wf; }
+long window::id(void) { return wid; }
+long window::newid(void) { return ++nextid; }
+
+void window::cursor(long x, long y) { ami_cursor(wf, x, y); }
+long  window::maxx(void) { return ami_maxx(wf); }
+long  window::maxy(void) { return ami_maxy(wf); }
+void window::home(void) { ami_home(wf); }
+void window::del(void) { ami_del(wf); }
+void window::up(void) { ami_up(wf); }
+void window::down(void) { ami_down(wf); }
+void window::left(void) { ami_left(wf); }
+void window::right(void) { ami_right(wf); }
+void window::blink(long e) { ami_blink(wf, e); }
+void window::reverse(long e) { ami_reverse(wf, e); }
+void window::underline(long e) { ami_underline(wf, e); }
+void window::superscript(long e) { ami_superscript(wf, e); }
+void window::subscript(long e) { ami_subscript(wf, e); }
+void window::italic(long e) { ami_italic(wf, e); }
+void window::bold(long e) { ami_bold(wf, e); }
+void window::strikeout(long e) { ami_strikeout(wf, e); }
+void window::standout(long e) { ami_standout(wf, e); }
+void window::fcolor(color c) { ami_fcolor(wf, (ami_color)c); }
+void window::bcolor(color c) { ami_bcolor(wf, (ami_color)c); }
+void window::autom(long e) { ami_auto(wf, e); }
+void window::curvis(long e) { ami_curvis(wf, e); }
+void window::scroll(long x, long y) { ami_scroll(wf, x, y); }
+long  window::curx(void) { return ami_curx(wf); }
+long  window::cury(void) { return ami_cury(wf); }
+long  window::curbnd(void) { return ami_curbnd(wf); }
+void window::select(long u, long d) { ami_select(wf, u, d); }
+void window::timer(long i, long t, long r) { ami_timer(wf, i, t, r); }
+void window::killtimer(long i) { ami_killtimer(wf, i); }
+long  window::mouse(void) { return ami_mouse(wf); }
+long  window::mousebutton(long m) { return ami_mousebutton(wf, m); }
+long  window::joystick(void) { return ami_joystick(wf); }
+long  window::joybutton(long j) { return ami_joybutton(wf, j); }
+long  window::joyaxis(long j) { return ami_joyaxis(wf, j); }
+void window::settab(long t) { ami_settab(wf, t); }
+void window::restab(long t) { ami_restab(wf, t); }
+void window::clrtab(void) { ami_clrtab(wf); }
+long  window::funkey(void) { return ami_funkey(wf); }
+void window::frametimer(long e) { ami_frametimer(wf, e); }
+void window::autohold(long e) { ami_autohold(e); }
+void window::wrtstr(char* s) { ami_wrtstr(wf, s); }
+void window::wrtstrn(char* s, long n) { ami_wrtstrn(wf, s, n); }
+void window::sizbuf(long x, long y) { ami_sizbuf(wf, x, y); }
+void window::title(char* ts) { ami_title(wf, ts); }
+void window::sendevent(evtrec* er) { ami_sendevent(wf, (ami_evtptr)er); }
+long  window::maxxg(void) { return ami_maxxg(wf); }
+long  window::maxyg(void) { return ami_maxyg(wf); }
+long  window::curxg(void) { return ami_curxg(wf); }
+long  window::curyg(void) { return ami_curyg(wf); }
+void window::line(long x1, long y1, long x2, long y2) { ami_line(wf, x1, y1, x2, y2); }
+void window::linewidth(long w) { ami_linewidth(wf, w); }
+void window::rect(long x1, long y1, long x2, long y2) { ami_rect(wf, x1, y1, x2, y2); }
+void window::frect(long x1, long y1, long x2, long y2) { ami_frect(wf, x1, y1, x2, y2); }
+void window::rrect(long x1, long y1, long x2, long y2, long xs, long ys) { ami_rrect(wf, x1, y1, x2, y2, xs, ys); }
+void window::frrect(long x1, long y1, long x2, long y2, long xs, long ys) { ami_frrect(wf, x1, y1, x2, y2, xs, ys); }
+void window::ellipse(long x1, long y1, long x2, long y2) { ami_ellipse(wf, x1, y1, x2, y2); }
+void window::fellipse(long x1, long y1, long x2, long y2) { ami_fellipse(wf, x1, y1, x2, y2); }
+void window::arc(long x1, long y1, long x2, long y2, long sa, long ea) { ami_arc(wf, x1, y1, x2, y2, sa, ea); }
+void window::farc(long x1, long y1, long x2, long y2, long sa, long ea) { ami_farc(wf, x1, y1, x2, y2, sa, ea); }
+void window::fchord(long x1, long y1, long x2, long y2, long sa, long ea) { ami_fchord(wf, x1, y1, x2, y2, sa, ea); }
+void window::ftriangle(long x1, long y1, long x2, long y2, long x3, long y3) { ami_ftriangle(wf, x1, y1, x2, y2, x3, y3); }
+void window::cursorg(long x, long y) { ami_cursorg(wf, x, y); }
+long  window::baseline(void) { return ami_baseline(wf); }
+void window::setpixel(long x, long y) { ami_setpixel(wf, x, y); }
+void window::fover(void) { ami_fover(wf); }
+void window::bover(void) { ami_bover(wf); }
+void window::finvis(void) { ami_finvis(wf); }
+void window::binvis(void) { ami_binvis(wf); }
+void window::fxor(void) { ami_fxor(wf); }
+void window::bxor(void) { ami_bxor(wf); }
+void window::fand(void) { ami_fand(wf); }
+void window::band(void) { ami_band(wf); }
+void window::for_(void) { ami_for(wf); }
+void window::bor(void) { ami_bor(wf); }
+long  window::chrsizx(void) { return ami_chrsizx(wf); }
+long  window::chrsizy(void) { return ami_chrsizy(wf); }
+long  window::fonts(void) { return ami_fonts(wf); }
+void window::font(long fc) { ami_font(wf, fc); }
+void window::fontnam(long fc, char* fns, long fnsl) { ami_fontnam(wf, fc, fns, fnsl); }
+void window::fontsiz(long s) { ami_fontsiz(wf, s); }
+void window::chrspcy(long s) { ami_chrspcy(wf, s); }
+void window::chrspcx(long s) { ami_chrspcx(wf, s); }
+long  window::dpmx(void) { return ami_dpmx(wf); }
+long  window::dpmy(void) { return ami_dpmy(wf); }
+long  window::strsiz(const char* s) { return ami_strsiz(wf, s); }
+long  window::chrpos(const char* s, long p) { return ami_chrpos(wf, s, p); }
+void window::writejust(const char* s, long n) { ami_writejust(wf, s, n); }
+long  window::justpos(const char* s, long p, long n) { return ami_justpos(wf, s, p, n); }
+void window::condensed(long e) { ami_condensed(wf, e); }
+void window::extended(long e) { ami_extended(wf, e); }
+void window::xlight(long e) { ami_xlight(wf, e); }
+void window::light(long e) { ami_light(wf, e); }
+void window::xbold(long e) { ami_xbold(wf, e); }
+void window::hollow(long e) { ami_hollow(wf, e); }
+void window::raised(long e) { ami_raised(wf, e); }
+void window::settabg(long t) { ami_settabg(wf, t); }
+void window::restabg(long t) { ami_restabg(wf, t); }
+void window::fcolorg(long r, long g, long b) { ami_fcolorg(wf, r, g, b); }
+void window::fcolorc(long r, long g, long b) { ami_fcolorc(wf, r, g, b); }
+void window::bcolorg(long r, long g, long b) { ami_bcolorg(wf, r, g, b); }
+void window::bcolorc(long r, long g, long b) { ami_bcolorc(wf, r, g, b); }
+void window::loadpict(long p, char* fn) { ami_loadpict(wf, p, fn); }
+long  window::pictsizx(long p) { return ami_pictsizx(wf, p); }
+long  window::pictsizy(long p) { return ami_pictsizy(wf, p); }
+void window::picture(long p, long x1, long y1, long x2, long y2) { ami_picture(wf, p, x1, y1, x2, y2); }
+void window::delpict(long p) { ami_delpict(wf, p); }
+void window::scrollg(long x, long y) { ami_scrollg(wf, x, y); }
+void window::path(long a) { ami_path(wf, a); }
+void window::buffer(long e) { ami_buffer(wf, e); }
+void window::sizbufg(long x, long y) { ami_sizbufg(wf, x, y); }
+void window::getsiz(long* x, long* y) { ami_getsiz(wf, x, y); }
+void window::getsizg(long* x, long* y) { ami_getsizg(wf, x, y); }
+void window::setsiz(long x, long y) { ami_setsiz(wf, x, y); }
+void window::setsizg(long x, long y) { ami_setsizg(wf, x, y); }
+void window::setpos(long x, long y) { ami_setpos(wf, x, y); }
+void window::setposg(long x, long y) { ami_setposg(wf, x, y); }
+void window::scnsiz(long* x, long* y) { ami_scnsiz(wf, x, y); }
+void window::scnsizg(long* x, long* y) { ami_scnsizg(wf, x, y); }
+void window::scncen(long* x, long* y) { ami_scncen(wf, x, y); }
+void window::scnceng(long* x, long* y) { ami_scnceng(wf, x, y); }
+void window::winclient(long cx, long cy, long* wx, long* wy, winmodset ms) { ami_winclient(wf, cx, cy, wx, wy, (ami_winmodset)ms); }
+void window::winclientg(long cx, long cy, long* wx, long* wy, winmodset ms) { ami_winclientg(wf, cx, cy, wx, wy, (ami_winmodset)ms); }
+void window::front(void) { ami_front(wf); }
+void window::back(void) { ami_back(wf); }
+void window::frame(long e) { ami_frame(wf, e); }
+void window::sizable(long e) { ami_sizable(wf, e); }
+void window::sysbar(long e) { ami_sysbar(wf, e); }
+void window::menu(menuptr m) { ami_menu(wf, (ami_menuptr)m); }
+void window::menuena(long id, long onoff) { ami_menuena(wf, id, onoff); }
+void window::menusel(long id, long select) { ami_menusel(wf, id, select); }
+void window::focus(void) { ami_focus(wf); }
+long  window::getwigid(void) { return ami_getwigid(wf); }
+void window::killwidget(long id) { ami_killwidget(wf, id); }
+void window::selectwidget(long id, long e) { ami_selectwidget(wf, id, e); }
+void window::enablewidget(long id, long e) { ami_enablewidget(wf, id, e); }
+void window::getwidgettext(long id, char* s, long sl) { ami_getwidgettext(wf, id, s, sl); }
+void window::putwidgettext(long id, char* s) { ami_putwidgettext(wf, id, s); }
+void window::sizwidget(long id, long x, long y) { ami_sizwidget(wf, id, x, y); }
+void window::sizwidgetg(long id, long x, long y) { ami_sizwidgetg(wf, id, x, y); }
+void window::poswidget(long id, long x, long y) { ami_poswidget(wf, id, x, y); }
+void window::poswidgetg(long id, long x, long y) { ami_poswidgetg(wf, id, x, y); }
+void window::backwidget(long id) { ami_backwidget(wf, id); }
+void window::frontwidget(long id) { ami_frontwidget(wf, id); }
+void window::focuswidget(long id) { ami_focuswidget(wf, id); }
+void window::buttonsiz(char* s, long* w, long* h) { ami_buttonsiz(wf, s, w, h); }
+void window::buttonsizg(char* s, long* w, long* h) { ami_buttonsizg(wf, s, w, h); }
+void window::checkboxsiz(char* s, long* w, long* h) { ami_checkboxsiz(wf, s, w, h); }
+void window::checkboxsizg(char* s, long* w, long* h) { ami_checkboxsizg(wf, s, w, h); }
+void window::radiobuttonsiz(char* s, long* w, long* h) { ami_radiobuttonsiz(wf, s, w, h); }
+void window::radiobuttonsizg(char* s, long* w, long* h) { ami_radiobuttonsizg(wf, s, w, h); }
+void window::groupsiz(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_groupsiz(wf, s, cw, ch, w, h, ox, oy); }
+void window::groupsizg(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_groupsizg(wf, s, cw, ch, w, h, ox, oy); }
+void window::scrollvertsiz(long* w, long* h) { ami_scrollvertsiz(wf, w, h); }
+void window::scrollvertsizg(long* w, long* h) { ami_scrollvertsizg(wf, w, h); }
+void window::scrollhorizsiz(long* w, long* h) { ami_scrollhorizsiz(wf, w, h); }
+void window::scrollhorizsizg(long* w, long* h) { ami_scrollhorizsizg(wf, w, h); }
+void window::scrollpos(long id, long r) { ami_scrollpos(wf, id, r); }
+void window::scrollsiz(long id, long r) { ami_scrollsiz(wf, id, r); }
+void window::numselboxsiz(long l, long u, long* w, long* h) { ami_numselboxsiz(wf, l, u, w, h); }
+void window::numselboxsizg(long l, long u, long* w, long* h) { ami_numselboxsizg(wf, l, u, w, h); }
+void window::editboxsiz(char* s, long* w, long* h) { ami_editboxsiz(wf, s, w, h); }
+void window::editboxsizg(char* s, long* w, long* h) { ami_editboxsizg(wf, s, w, h); }
+void window::progbarsiz(long* w, long* h) { ami_progbarsiz(wf, w, h); }
+void window::progbarsizg(long* w, long* h) { ami_progbarsizg(wf, w, h); }
+void window::progbarpos(long id, long pos) { ami_progbarpos(wf, id, pos); }
+void window::listboxsiz(strptr sp, long* w, long* h) { ami_listboxsiz(wf, (ami_strptr)sp, w, h); }
+void window::listboxsizg(strptr sp, long* w, long* h) { ami_listboxsizg(wf, (ami_strptr)sp, w, h); }
+void window::dropboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropboxsiz(wf, (ami_strptr)sp, cw, ch, ow, oh); }
+void window::dropboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropboxsizg(wf, (ami_strptr)sp, cw, ch, ow, oh); }
+void window::dropeditboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropeditboxsiz(wf, (ami_strptr)sp, cw, ch, ow, oh); }
+void window::dropeditboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh) { ami_dropeditboxsizg(wf, (ami_strptr)sp, cw, ch, ow, oh); }
+void window::slidehorizsiz(long* w, long* h) { ami_slidehorizsiz(wf, w, h); }
+void window::slidehorizsizg(long* w, long* h) { ami_slidehorizsizg(wf, w, h); }
+void window::slidevertsiz(long* w, long* h) { ami_slidevertsiz(wf, w, h); }
+void window::slidevertsizg(long* w, long* h) { ami_slidevertsizg(wf, w, h); }
+void window::tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(wf, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void window::tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(wf, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void window::tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclient(wf, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
+void window::tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclientg(wf, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
+void window::tabsel(long id, long tn) { ami_tabsel(wf, id, tn); }
+void window::queryfont(long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+                      long* bg, long* bb, qfteffects* effect) { ami_queryfont(wf, fc, s, fr, fg, fb, br, bg, bb, (ami_qfteffects*)effect); }
+
+/* the virtuals, which do nothing until overridden */
+long window::evchar(char c) { return 0; }
+long window::evup(void) { return 0; }
+long window::evdown(void) { return 0; }
+long window::evleft(void) { return 0; }
+long window::evright(void) { return 0; }
+long window::evleftw(void) { return 0; }
+long window::evrightw(void) { return 0; }
+long window::evhome(void) { return 0; }
+long window::evhomes(void) { return 0; }
+long window::evhomel(void) { return 0; }
+long window::evend(void) { return 0; }
+long window::evends(void) { return 0; }
+long window::evendl(void) { return 0; }
+long window::evscrl(void) { return 0; }
+long window::evscrr(void) { return 0; }
+long window::evscru(void) { return 0; }
+long window::evscrd(void) { return 0; }
+long window::evpagd(void) { return 0; }
+long window::evpagu(void) { return 0; }
+long window::evtab(void) { return 0; }
+long window::eventer(void) { return 0; }
+long window::evinsert(void) { return 0; }
+long window::evinsertl(void) { return 0; }
+long window::evinsertt(void) { return 0; }
+long window::evdel(void) { return 0; }
+long window::evdell(void) { return 0; }
+long window::evdelcf(void) { return 0; }
+long window::evdelcb(void) { return 0; }
+long window::evcopy(void) { return 0; }
+long window::evcopyl(void) { return 0; }
+long window::evcan(void) { return 0; }
+long window::evstop(void) { return 0; }
+long window::evcont(void) { return 0; }
+long window::evprint(void) { return 0; }
+long window::evprintb(void) { return 0; }
+long window::evprints(void) { return 0; }
+long window::evfun(long k) { return 0; }
+long window::evmenu(void) { return 0; }
+long window::evmouba(long m, long b) { return 0; }
+long window::evmoubd(long m, long b) { return 0; }
+long window::evmoumov(long m, long x, long y) { return 0; }
+long window::evtim(long t) { return 0; }
+long window::evjoyba(long j, long b) { return 0; }
+long window::evjoybd(long j, long b) { return 0; }
+long window::evjoymov(long j, long x, long y, long z) { return 0; }
+long window::evresize(void) { return 0; }
+long window::evfocus(void) { return 0; }
+long window::evnofocus(void) { return 0; }
+long window::evhover(void) { return 0; }
+long window::evnohover(void) { return 0; }
+long window::evterm(void) { return 0; }
+long window::evframe(void) { return 0; }
+long window::evmoumovg(long m, long x, long y) { return 0; }
+long window::evredraw(long x1, long y1, long x2, long y2) { return 0; }
+long window::evmin(void) { return 0; }
+long window::evmax(void) { return 0; }
+long window::evnorm(void) { return 0; }
+long window::evmenus(long id) { return 0; }
+long window::evbutton(long id) { return 0; }
+long window::evchkbox(long id) { return 0; }
+long window::evradbut(long id) { return 0; }
+long window::evsclull(long id) { return 0; }
+long window::evscldrl(long id) { return 0; }
+long window::evsclulp(long id) { return 0; }
+long window::evscldrp(long id) { return 0; }
+long window::evsclpos(long id, long pos) { return 0; }
+long window::evedtbox(long id) { return 0; }
+long window::evnumbox(long id, long val) { return 0; }
+long window::evlstbox(long id, long sel) { return 0; }
+long window::evdrpbox(long id, long sel) { return 0; }
+long window::evdrebox(long id) { return 0; }
+long window::evsldpos(long id, long pos) { return 0; }
+long window::evtabbar(long id, long sel) { return 0; }
+long window::evusize(void) { return 0; }
+long window::evdsize(void) { return 0; }
+
+widget::widget(window& wo, long id): w(wo)
+
+{
+
+    dead = 0;
+    wid = id? id: wo.newid();
+    next = wo.wlist; /* onto the window's list */
+    wo.wlist = this;
+
+}
+
+widget::~widget(void)
+
+{
+
+    widget** p;
+
+    if (!dead) {
+
+        ami_killwidget(w.wf, wid);
+        /* off the window's list */
+        for (p = &w.wlist; *p; p = &(*p)->next) if (*p == this) {
+
+            *p = next;
+            break;
+
+        }
+
+    }
+
+}
+
+long widget::id(void) { return wid; }
+void widget::kill(void)
+    { if (!dead) { ami_killwidget(w.wf, wid); dead = 1; } }
+void widget::select(long e) { ami_selectwidget(w.wf, wid, e); }
+void widget::enable(long e) { ami_enablewidget(w.wf, wid, e); }
+void widget::gettext(char* s, long sl) { ami_getwidgettext(w.wf, wid, s, sl); }
+void widget::puttext(const char* s) { ami_putwidgettext(w.wf, wid, (char*)s); }
+void widget::pos(long x, long y) { ami_poswidgetg(w.wf, wid, x, y); }
+void widget::siz(long x, long y) { ami_sizwidgetg(w.wf, wid, x, y); }
+void widget::back(void) { ami_backwidget(w.wf, wid); }
+void widget::front(void) { ami_frontwidget(w.wf, wid); }
+void widget::focus(void) { ami_focuswidget(w.wf, wid); }
+
+/* the widget virtuals, which do nothing until overridden */
+long widget::pressed(void) { return 0; }
+long widget::clicked(void) { return 0; }
+long widget::done(void) { return 0; }
+long widget::selected(long v) { return 0; }
+long widget::moved(long v) { return 0; }
+long widget::upline(void) { return 0; }
+long widget::downline(void) { return 0; }
+long widget::uppage(void) { return 0; }
+long widget::downpage(void) { return 0; }
+
+/* the typed widgets: constructing one makes it */
+button::button(window& wo, long x1, long y1, long x2, long y2, const char* s, long id): widget(wo, id)
+
+{
+
+    ami_buttong(wo, x1, y1, x2, y2, (char*)s, wid);
+
+}
+
+checkbox::checkbox(window& wo, long x1, long y1, long x2, long y2, const char* s, long id): widget(wo, id)
+
+{
+
+    ami_checkboxg(wo, x1, y1, x2, y2, (char*)s, wid);
+
+}
+
+radiobutton::radiobutton(window& wo, long x1, long y1, long x2, long y2, const char* s, long id): widget(wo, id)
+
+{
+
+    ami_radiobuttong(wo, x1, y1, x2, y2, (char*)s, wid);
+
+}
+
+group::group(window& wo, long x1, long y1, long x2, long y2, const char* s, long id): widget(wo, id)
+
+{
+
+    ami_groupg(wo, x1, y1, x2, y2, (char*)s, wid);
+
+}
+
+background::background(window& wo, long x1, long y1, long x2, long y2, long id): widget(wo, id)
+
+{
+
+    ami_backgroundg(wo, x1, y1, x2, y2, wid);
+
+}
+
+scrollvert::scrollvert(window& wo, long x1, long y1, long x2, long y2, long id): widget(wo, id)
+
+{
+
+    ami_scrollvertg(wo, x1, y1, x2, y2, wid);
+
+}
+
+scrollhoriz::scrollhoriz(window& wo, long x1, long y1, long x2, long y2, long id): widget(wo, id)
+
+{
+
+    ami_scrollhorizg(wo, x1, y1, x2, y2, wid);
+
+}
+
+numselbox::numselbox(window& wo, long x1, long y1, long x2, long y2, long l, long u, long id): widget(wo, id)
+
+{
+
+    ami_numselboxg(wo, x1, y1, x2, y2, l, u, wid);
+
+}
+
+editbox::editbox(window& wo, long x1, long y1, long x2, long y2, long id): widget(wo, id)
+
+{
+
+    ami_editboxg(wo, x1, y1, x2, y2, wid);
+
+}
+
+progbar::progbar(window& wo, long x1, long y1, long x2, long y2, long id): widget(wo, id)
+
+{
+
+    ami_progbarg(wo, x1, y1, x2, y2, wid);
+
+}
+
+listbox::listbox(window& wo, long x1, long y1, long x2, long y2, strptr sp, long id): widget(wo, id)
+
+{
+
+    ami_listboxg(wo, x1, y1, x2, y2, (ami_strptr)sp, wid);
+
+}
+
+dropbox::dropbox(window& wo, long x1, long y1, long x2, long y2, strptr sp, long id): widget(wo, id)
+
+{
+
+    ami_dropboxg(wo, x1, y1, x2, y2, (ami_strptr)sp, wid);
+
+}
+
+dropeditbox::dropeditbox(window& wo, long x1, long y1, long x2, long y2, strptr sp, long id): widget(wo, id)
+
+{
+
+    ami_dropeditboxg(wo, x1, y1, x2, y2, (ami_strptr)sp, wid);
+
+}
+
+slidehoriz::slidehoriz(window& wo, long x1, long y1, long x2, long y2, long mark, long id): widget(wo, id)
+
+{
+
+    ami_slidehorizg(wo, x1, y1, x2, y2, mark, wid);
+
+}
+
+slidevert::slidevert(window& wo, long x1, long y1, long x2, long y2, long mark, long id): widget(wo, id)
+
+{
+
+    ami_slidevertg(wo, x1, y1, x2, y2, mark, wid);
+
+}
+
+tabbar::tabbar(window& wo, long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id): widget(wo, id)
+
+{
+
+    ami_tabbarg(wo, x1, y1, x2, y2, (ami_strptr)sp, (ami_tabori)tor, wid);
 
 }
 

@@ -874,6 +874,9 @@ cpp/services.o: cpp/services.cpp
 
 cpp/network.o: cpp/network.cpp
 	$(CPP) $(CFLAGS) -Ihpp -c cpp/network.cpp -o cpp/network.o
+
+cpp/graphics.o: cpp/graphics.cpp
+	$(CPP) $(CFLAGS) -Ihpp -c cpp/graphics.cpp -o cpp/graphics.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
 	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
@@ -1020,11 +1023,12 @@ lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
+	cpp/graphics.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/graphics.o linux/system_event.o \
 		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
-        -lstdc++ -o lib/petit_ami_graph.so
+		cpp/graphics.o -lstdc++ -o lib/petit_ami_graph.so
 
 #
 # The Linux static configuration: per model, one bundle archive holding
@@ -1081,10 +1085,11 @@ lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
 	    portable/managerc.o linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
+	cpp/graphics.o
 	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
 
 # the model archives
 lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
@@ -1502,6 +1507,9 @@ snake+: $(CLIBSCPPD) terminal_games/snake.cp
 
 snake++: $(CLIBSCPPD) terminal_games/snake.cpp
 	$(CPP) $(CFLAGSCPP) terminal_games/snake.cpp $(CLIBSCPP) -o bin/snake
+
+winobj: $(GLIBSD) tests/winobj.cpp
+	$(CPP) $(CFLAGSCPP) tests/winobj.cpp $(GLIBS) -o bin/winobj
 	
 snakeg: $(GLIBSD) terminal_games/snake.c
 	$(CC) $(CFLAGS) terminal_games/snake.c $(GLIBS) -o bin/snakeg
