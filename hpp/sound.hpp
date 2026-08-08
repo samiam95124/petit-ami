@@ -448,6 +448,10 @@ synth();
 /* destructor */
 ~synth();
 
+/* copying is refused: two objects would free one port pair */
+synth(const synth&) = delete;
+synth& operator=(const synth&) = delete;
+
 /* methods */
 void opensynthout(long p = synth_out);
 void closesynthout(void);
@@ -503,6 +507,10 @@ wave();
 
 /* destructor */
 ~wave();
+
+/* copying is refused: two objects would free one port pair */
+wave(const wave&) = delete;
+wave& operator=(const wave&) = delete;
 
 /* methods */
 void openwaveout(long p = wave_out);

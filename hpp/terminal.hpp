@@ -269,6 +269,10 @@ term();
 /* destructor */
 ~term();
 
+/* copying is refused: two objects would free one event hook */
+term(const term&) = delete;
+term& operator=(const term&) = delete;
+
 /* methods */
 void cursor(long x, long y);
 long  maxx(void);

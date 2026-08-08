@@ -745,6 +745,10 @@ graph();
 /* destructor */
 ~graph();
 
+/* copying is refused: two objects would free one event hook */
+graph(const graph&) = delete;
+graph& operator=(const graph&) = delete;
+
 /* methods */
 
 /* text */
@@ -1114,6 +1118,10 @@ window(window* parent);
 /* destructor */
 virtual ~window();
 
+/* copying is refused: two objects would free one window */
+window(const window&) = delete;
+window& operator=(const window&) = delete;
+
 /* the window, for the stdio calls and the C interface */
 operator FILE*(void);
 
@@ -1405,6 +1413,10 @@ public:
 
 /* destructor: kills the widget */
 virtual ~widget();
+
+/* copying is refused: two objects would free one widget */
+widget(const widget&) = delete;
+widget& operator=(const widget&) = delete;
 
 /* the widget id */
 long id(void);
