@@ -88,6 +88,10 @@ net();
 /* destructor */
 ~net();
 
+/* copying is refused: two objects would free one connection */
+net(const net&) = delete;
+net& operator=(const net&) = delete;
+
 /* methods */
 void opennet(unsigned long addr, long port, long secure = 0);
 void opennet(const char* name, long port, long secure = 0);
@@ -116,6 +120,10 @@ msg();
 
 /* destructor */
 ~msg();
+
+/* copying is refused: two objects would free one channel */
+msg(const msg&) = delete;
+msg& operator=(const msg&) = delete;
 
 /* methods */
 void openmsg(unsigned long addr, long port, long secure = 0);

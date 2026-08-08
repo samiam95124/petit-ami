@@ -192,6 +192,10 @@ thread(void (*threadmain)(void));
 /* the identifier, as newthread returned it */
 long id(void);
 
+/* copying is refused: two objects would free one identifier */
+thread(const thread&) = delete;
+thread& operator=(const thread&) = delete;
+
 }; /* class thread */
 
 class mutex {
@@ -207,6 +211,10 @@ mutex();
 
 /* destructor */
 ~mutex();
+
+/* copying is refused: two objects would free one lock */
+mutex(const mutex&) = delete;
+mutex& operator=(const mutex&) = delete;
 
 /* methods */
 void lock(void);
@@ -225,6 +233,10 @@ signal();
 
 /* destructor */
 ~signal();
+
+/* copying is refused: two objects would free one signal */
+signal(const signal&) = delete;
+signal& operator=(const signal&) = delete;
 
 /* methods */
 void sendsig(void);
