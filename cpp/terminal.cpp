@@ -269,12 +269,13 @@ long term::evtim(long t) { return 0; }
 long term::evjoyba(long j, long b) { return 0; }
 long term::evjoybd(long j, long b) { return 0; }
 long term::evjoymov(long j, long x, long y, long z) { return 0; }
-long term::evresize(void) { return 0; }
+long term::evresize(long rszx, long rszy) { return 0; }
 long term::evfocus(void) { return 0; }
 long term::evnofocus(void) { return 0; }
 long term::evhover(void) { return 0; }
 long term::evnohover(void) { return 0; }
 long term::evterm(void) { return 0; }
+long term::evframe(void) { return 0; }
 
 void term::termCB(evtrec* er)
 
@@ -338,12 +339,14 @@ void term::termCB(evtrec* er)
             handled = termoCB->evjoymov(er->mjoyn, er->joypx, er->joypy,
                                         er->joypz);
             break;
-        case etresize:  handled = termoCB->evresize(); break;
+        case etresize:  handled = termoCB->evresize(er->rszx, er->rszy);
+            break;
         case etfocus:   handled = termoCB->evfocus(); break;
         case etnofocus: handled = termoCB->evnofocus(); break;
         case ethover:   handled = termoCB->evhover(); break;
         case etnohover: handled = termoCB->evnohover(); break;
         case etterm:    handled = termoCB->evterm(); break;
+        case etframe:   handled = termoCB->evframe(); break;
         /* not handled by the class, pass to next handler */
         default:        handled = 0; break;
 
