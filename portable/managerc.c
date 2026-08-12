@@ -9815,7 +9815,10 @@ static ami_menuptr cpymenu(ami_menuptr m)
         if (!e) error("Out of memory");
         e->next = NULL;
         e->branch = cpymenu(m->branch);
-        e->onoff = m->onoff;
+        /* The definition's onoff is the capability flag: the item HAS
+           on/off highlighting. In the working copy the field is the check
+           state itself, which starts clear and moves only by menusel(). */
+        e->onoff = FALSE;
         e->oneof = m->oneof;
         e->bar = m->bar;
         e->id = m->id;
