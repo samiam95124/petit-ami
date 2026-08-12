@@ -914,10 +914,13 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+static void frmenu(ami_menuptr m); /* forward: defined with the menu code */
+
 static void putwin(winptr p)
 
 {
 
+    if (p->amenu) { frmenu(p->amenu); p->amenu = NULL; } /* release menu copy */
     p->next = winfre; /* push to list */
     winfre = p;
 
@@ -7907,7 +7910,9 @@ static long mencol(winptr win, ami_menuptr m, char*** strs)
             if (me->id == p->id) ena = me->ena;
         snprintf(buf, sizeof(buf), "%c%c%s%s",
                  ena? ' ': '(', /* disabled shown in parens */
-                 p->onoff || p->oneof? '*': ' ', /* check mark */
+                 p->onoff? '*': ' ', /* check mark: the set state only; the
+                                        oneof flag is group structure, not a
+                                        selection */
                  p->face,
                  p->branch? " >": (ena? "": ")"));
         (*strs)[i] = malloc(strlen(buf)+1);
@@ -9795,6 +9800,54 @@ client as etmenus events, as the graphical implementations do.
 
 *******************************************************************************/
 
+/* deep copy a menu definition: the interface promises the caller's
+   structure is free for reuse after menu() returns */
+static ami_menuptr cpymenu(ami_menuptr m)
+
+{
+
+    ami_menuptr  root = NULL;
+    ami_menuptr* lp = &root;
+
+    while (m) {
+
+        ami_menuptr e = malloc(sizeof(ami_menurec));
+        if (!e) error("Out of memory");
+        e->next = NULL;
+        e->branch = cpymenu(m->branch);
+        e->onoff = m->onoff;
+        e->oneof = m->oneof;
+        e->bar = m->bar;
+        e->id = m->id;
+        e->face = malloc(strlen(m->face)+1);
+        if (!e->face) error("Out of memory");
+        strcpy(e->face, m->face);
+        *lp = e; lp = &e->next;
+        m = m->next;
+
+    }
+
+    return (root);
+
+}
+
+/* free a menu copy */
+static void frmenu(ami_menuptr m)
+
+{
+
+    while (m) {
+
+        ami_menuptr n = m->next;
+        frmenu(m->branch);
+        free(m->face);
+        free(m);
+        m = n;
+
+    }
+
+}
+
 static void imenu(FILE* f, ami_menuptr m)
 
 {
@@ -9814,7 +9867,10 @@ static void imenu(FILE* f, ami_menuptr m)
         win->mbar = NULL;
 
     }
-    win->amenu = m;
+    /* the definition is copied, per the interface: the caller's structure
+       is not used after this call */
+    if (win->amenu) frmenu(win->amenu);
+    win->amenu = cpymenu(m);
     if (!m) { /* menu removed: the client gets its row back */
 
         recompcli(win);
@@ -9831,7 +9887,7 @@ static void imenu(FILE* f, ami_menuptr m)
        the bar is on, framed or not. */
     id = ami_getwigid(f);
     wg = wigcre(f, 1, 1, win->cmaxx, 1, id, wtmenubar);
-    wg->mitems = m;
+    wg->mitems = win->amenu;
     wg->sel = 0;
     wigfac(wg, "");
     /* the bar carries its own background, setting it off from the client */
@@ -9886,22 +9942,52 @@ static ami_menuptr fndmen(ami_menuptr m, long id)
 
 }
 
+/* find the sibling list containing the item with the given id, searching
+   the branches */
+static ami_menuptr fndmenlist(ami_menuptr root, long id)
+
+{
+
+    ami_menuptr p, r;
+
+    for (p = root; p; p = p->next) if (p->id == id) return (root);
+    for (p = root; p; p = p->next)
+        if (p->branch) { r = fndmenlist(p->branch, id); if (r) return (r); }
+
+    return (NULL);
+
+}
+
 static void imenusel(FILE* f, long id, long select)
 
 {
 
     winptr      win = txt2win(f);
-    ami_menuptr p = fndmen(win->amenu, id);
+    ami_menuptr lst = fndmenlist(win->amenu, id);
+    ami_menuptr p, gs, ge, q;
 
-    if (!p) error("No menu item by given id");
-    /* Set the check state in the caller's record, which is where the
-       drawing reads it. For a "one of" item, clear its chain first. */
-    if (p->oneof) {
+    if (!lst) error("No menu item by given id");
+    /* The item's "one of" group is the contiguous run of items carrying
+       the oneof flag, closed by the item that ends the run -- the last
+       member is unflagged, by the interface convention. Walk the sibling
+       list tracking where the run holding the item begins. */
+    gs = lst; p = lst;
+    while (p->id != id) {
 
-        ami_menuptr q;
-        /* the chain is the run of oneof items this one sits in */
-        for (q = win->amenu; q; q = q->next)
-            if (q->oneof && q != p) q->onoff = FALSE;
+        if (!p->oneof) gs = p->next; /* a run closed; the next begins after */
+        p = p->next;
+
+    }
+    if (p->oneof || gs != p) { /* in a group: clear the other members */
+
+        ge = p;
+        while (ge->oneof && ge->next) ge = ge->next; /* find the run's close */
+        for (q = gs; ; q = q->next) {
+
+            if (q != p) q->onoff = FALSE;
+            if (q == ge) break;
+
+        }
 
     }
     p->onoff = !!select;
