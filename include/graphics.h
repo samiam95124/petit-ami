@@ -481,6 +481,10 @@ long  ami_scaley(FILE* f, long y);
 void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
                     long sy2, long dx1, long dy1, long dx2, long dy2);
 
+/* print files */
+
+void ami_openprint(FILE** f, char* n);
+
 /* Window management functions */
 
 void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid);
@@ -907,6 +911,7 @@ void _pa_curxg_ovr(ami_curxg_t nfp, ami_curxg_t* ofp);
 void _pa_curyg_ovr(ami_curyg_t nfp, ami_curyg_t* ofp);
 void _pa_select_ovr(ami_select_t nfp, ami_select_t* ofp);
 void _pa_wrtstr_ovr(ami_wrtstr_t nfp, ami_wrtstr_t* ofp);
+void _pa_wrtstrn_ovr(ami_wrtstrn_t nfp, ami_wrtstrn_t* ofp);
 void _pa_sizbuf_ovr(ami_sizbuf_t nfp, ami_sizbuf_t* ofp);
 void _pa_del_ovr(ami_del_t nfp, ami_del_t* ofp);
 void _pa_line_ovr(ami_line_t nfp, ami_line_t* ofp);

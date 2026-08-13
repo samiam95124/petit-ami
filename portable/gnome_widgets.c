@@ -333,6 +333,7 @@ typedef struct wigrec {
 
     WB_WIGHEAD(wigptr) /* the widget base head, first */
     /** type of widget */                     wigtyp    typ;
+    /** creation order stamp */               long      seq;
     /** in the pressed state */               long      pressed;
     /** last pressed state */                 long      lpressed;
     /** the current on/off state */           long      select;
@@ -1103,6 +1104,18 @@ will be passed back to the user.
 
 *******************************************************************************/
 
+static long wigseq = 0; /* widget creation sequence */
+
+/* a component is a widget made to be layered under others: it presents a
+   surface, not a control */
+static long component(wigtyp typ)
+
+{
+
+    return (typ == wtgroup || typ == wtbackground || typ == wtprogbar);
+
+}
+
 static void widget(
     /** Parent window file */              FILE* f,
     /** Containing rectangle for widget */ long x1, long y1, long x2, long y2,
@@ -1115,14 +1128,41 @@ static void widget(
 {
 
     wigptr wp;
+    wigptr sp; /* sibling walk */
+    wigptr np; /* next control to raise */
+    long   last; /* last sequence raised */
+    int    i;
 
     wp = *wpr; /* get any predefined widget entry */
     /* the base opens, places and registers the widget subwindow */
     wb_widget(&pkg, f, x1, y1, x2, y2, id, &wp);
+    wp->seq = ++wigseq; /* stamp creation order */
     wp->face = str(s); /* place face */
     ami_font(wp->wf, AMI_FONT_SIGN); /* set sign font */
     wp->typ = typ; /* place type */
     wp->sclsiz = LONG_MAX/10; /* set default size scrollbar */
+    /* Implicit Z ordering: a component goes behind the controls of its
+       window. It is not sent to the back, which would bury a group made
+       inside a group; instead the sibling controls are raised over it in
+       their creation order, which keeps their own stacking intact. */
+    if (component(typ)) {
+
+        last = 0;
+        do {
+
+            np = NULL;
+            for (i = 0; i < MAXWIG*2+1; i++) {
+
+                sp = (wigptr)pkg.opnfil[fileno(f)]->widgets[i];
+                if (sp && sp != wp && !component(sp->typ) &&
+                    sp->seq > last && (!np || sp->seq < np->seq)) np = sp;
+
+            }
+            if (np) { ami_front(np->wf); last = np->seq; }
+
+        } while (np);
+
+    }
 
     *wpr = wp; /* copy back to caller */
 

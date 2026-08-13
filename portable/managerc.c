@@ -9064,6 +9064,30 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     /* widget colors follow the owner */
     wg->win->fcolor = par->fcolor;
     wg->win->bcolor = par->bcolor;
+    /* Implicit Z ordering: a component, a widget made to be layered
+       under others, goes behind the controls of its owner. It is not
+       sent to the back, which would bury a group made inside a group;
+       instead the sibling controls are raised over it in their creation
+       order, which keeps their own stacking intact. The list is newest
+       first, so it is walked from the tail. */
+    if (typ == wtgroup || typ == wtbackground || typ == wtprogbar) {
+
+        wigptr p;    /* list walk */
+        long   cnt;  /* widgets on the owner */
+        long   i, j;
+
+        cnt = 0;
+        for (p = par->wiglst; p; p = p->next) cnt++;
+        for (i = cnt-1; i >= 0; i--) {
+
+            p = par->wiglst;
+            for (j = 0; j < i; j++) p = p->next;
+            if (p != wg && p->typ != wtgroup && p->typ != wtbackground &&
+                p->typ != wtprogbar) fronttree(p->win);
+
+        }
+
+    }
 
     return (wg);
 
