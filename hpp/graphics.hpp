@@ -565,6 +565,10 @@ void delpict(FILE* f, long p);
 void delpict(long p);
 void scrollg(FILE* f, long x, long y);
 void scrollg(long x, long y);
+void blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                long sy2, long dx1, long dy1, long dx2, long dy2);
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2,
+                long dx1, long dy1, long dx2, long dy2);
 void path(FILE* f, long a);
 void path(long a);
 
@@ -862,6 +866,7 @@ long  pictsizy(long p);
 void picture(long p, long x1, long y1, long x2, long y2);
 void delpict(long p);
 void scrollg(long x, long y);
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2, long dx1, long dy1, long dx2, long dy2);
 void path(long a);
 
 /* window management */
@@ -1239,6 +1244,7 @@ long  pictsizy(long p);
 void picture(long p, long x1, long y1, long x2, long y2);
 void delpict(long p);
 void scrollg(long x, long y);
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2, long dx1, long dy1, long dx2, long dy2);
 void path(long a);
 void buffer(long e);
 void sizbufg(long x, long y);
