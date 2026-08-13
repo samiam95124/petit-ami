@@ -264,6 +264,12 @@ void delpict(FILE* f, long p) { ami_delpict(f, p); }
 void delpict(long p) { ami_delpict(stdout, p); }
 void scrollg(FILE* f, long x, long y) { ami_scrollg(f, x, y); }
 void scrollg(long x, long y) { ami_scrollg(stdout, x, y); }
+void blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                long sy2, long dx1, long dy1, long dx2, long dy2)
+    { ami_blockcopyg(f, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2,
+                long dx1, long dy1, long dx2, long dy2)
+    { ami_blockcopyg(stdout, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
 void path(FILE* f, long a) { ami_path(f, a); }
 void path(long a) { ami_path(stdout, a); }
 
@@ -578,6 +584,9 @@ long  graph::pictsizy(long p) { return ami_pictsizy(outfile, p); }
 void graph::picture(long p, long x1, long y1, long x2, long y2) { ami_picture(outfile, p, x1, y1, x2, y2); }
 void graph::delpict(long p) { ami_delpict(outfile, p); }
 void graph::scrollg(long x, long y) { ami_scrollg(outfile, x, y); }
+void graph::blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2,
+                       long dx1, long dy1, long dx2, long dy2)
+    { ami_blockcopyg(outfile, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
 void graph::path(long a) { ami_path(outfile, a); }
 
 /* window management */
@@ -1261,6 +1270,9 @@ long  window::pictsizy(long p) { return ami_pictsizy(wf, p); }
 void window::picture(long p, long x1, long y1, long x2, long y2) { ami_picture(wf, p, x1, y1, x2, y2); }
 void window::delpict(long p) { ami_delpict(wf, p); }
 void window::scrollg(long x, long y) { ami_scrollg(wf, x, y); }
+void window::blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2,
+                        long dx1, long dy1, long dx2, long dy2)
+    { ami_blockcopyg(wf, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
 void window::path(long a) { ami_path(wf, a); }
 void window::buffer(long e) { ami_buffer(wf, e); }
 void window::sizbufg(long x, long y) { ami_sizbufg(wf, x, y); }

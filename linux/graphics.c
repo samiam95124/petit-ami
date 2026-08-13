@@ -1059,6 +1059,7 @@ static ami_scalex_t          scalex_vect;
 static ami_scaley_t          scaley_vect;
 static ami_scrollg_t         scrollg_vect;
 static ami_path_t            path_vect;
+static ami_blockcopyg_t      blockcopyg_vect;
 static ami_title_t           title_vect;
 static ami_openwin_t         openwin_vect;
 static ami_buffer_t          buffer_vect;
@@ -11882,6 +11883,142 @@ static void delpict_ivf(FILE* f, long p)
 
 /** ****************************************************************************
 
+Copy a pixel block between buffers
+
+Copies a block of pixels from a source screen buffer bounding box to a
+destination buffer bounding box, in the same or a different buffer of the
+window. The block is stretched or compressed as needed to fit the
+destination box. The current foreground write mode applies, so xor, and
+and or copies serve masking and stencil work. If the destination is the
+displayed screen, the window shows the result at once.
+
+*******************************************************************************/
+
+void _pa_blockcopyg_ovr(ami_blockcopyg_t nfp, ami_blockcopyg_t* ofp)
+    { *ofp = blockcopyg_vect; blockcopyg_vect = nfp; }
+void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                    long sy2, long dx1, long dy1, long dx2, long dy2)
+    { (*blockcopyg_vect)(f, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
+
+static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
+                           long sx2, long sy2, long dx1, long dy1,
+                           long dx2, long dy2)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr ss;  /* source screen */
+    scnptr ds;  /* destination screen */
+    scnptr cs;  /* current update screen, holder of the write mode */
+    long   t;   /* swap temp */
+    int    psx, psy, psw, psh; /* source box, physical */
+    int    pdx, pdy, pdw, pdh; /* destination box, physical */
+    int    fnc; /* X function for the write mode */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->bufmod) error(ebufoff); /* buffers only exist in buffered mode */
+    if (s < 1 || s > MAXCON || d < 1 || d > MAXCON)
+        error(einvscn); /* invalid screen number */
+    /* create either buffer if it does not exist yet, as select() does */
+    if (!win->screens[s-1]) {
+
+        win->screens[s-1] = imalloc(sizeof(scncon));
+        scncnt++;
+        scntot += sizeof(scncon);
+        iniscn(win, win->screens[s-1]);
+
+    }
+    if (!win->screens[d-1]) {
+
+        win->screens[d-1] = imalloc(sizeof(scncon));
+        scncnt++;
+        scntot += sizeof(scncon);
+        iniscn(win, win->screens[d-1]);
+
+    }
+    ss = win->screens[s-1];
+    ds = win->screens[d-1];
+    cs = win->screens[win->curupd-1];
+    if (cs->fmod == mdinvis) return; /* invisible drops the copy whole */
+    /* rationalize both rectangles to top left/bottom right */
+    if (sx1 > sx2) { t = sx1; sx1 = sx2; sx2 = t; }
+    if (sy1 > sy2) { t = sy1; sy1 = sy2; sy2 = t; }
+    if (dx1 > dx2) { t = dx1; dx1 = dx2; dx2 = t; }
+    if (dy1 > dy2) { t = dy1; dy1 = dy2; dy2 = t; }
+    /* transform to physical pixels */
+    psx = L2PX(win, sx1-1);
+    psy = L2PY(win, sy1-1);
+    psw = L2PW(win, sx2-sx1+1);
+    psh = L2PH(win, sy2-sy1+1);
+    pdx = L2PX(win, dx1-1);
+    pdy = L2PY(win, dy1-1);
+    pdw = L2PW(win, dx2-dx1+1);
+    pdh = L2PH(win, dy2-dy1+1);
+    if (psw < 1 || psh < 1 || pdw < 1 || pdh < 1) return; /* nothing to copy */
+    fnc = mod2fnc[cs->fmod]; /* the current foreground write mode */
+    if (psw == pdw && psh == pdh) { /* sizes match: copy direct */
+
+        XWLOCK();
+        XSetFunction(padisplay, ds->xcxt, fnc);
+        XCopyArea(padisplay, ss->xbuf, ds->xbuf, ds->xcxt,
+                  psx, psy, psw, psh, pdx, pdy);
+        XSetFunction(padisplay, ds->xcxt, mod2fnc[mdnorm]);
+        XWUNLOCK();
+
+    } else { /* stretch or compress through an image */
+
+        XImage* si; /* source image */
+        XImage* di; /* destination image */
+        Visual* vi; /* color visual */
+        byte*   frmdat; /* destination image frame */
+
+        XWLOCK();
+        si = XGetImage(padisplay, ss->xbuf, psx, psy, psw, psh,
+                       AllPlanes, ZPixmap);
+        XWUNLOCK();
+        if (!si) error(esystem);
+        vi = DefaultVisual(padisplay, 0); /* define direct map color */
+        frmdat = (byte*)imalloc(pdw*pdh*4); /* allocate image frame */
+        /* create truecolor image */
+        XWLOCK();
+        di = XCreateImage(padisplay, vi, 24, ZPixmap, 0, (char*)frmdat,
+                          pdw, pdh, 32, 0);
+        XWUNLOCK();
+        rescale(di, si); /* scale source to destination */
+        XWLOCK();
+        XSetFunction(padisplay, ds->xcxt, fnc);
+        XPutImage(padisplay, ds->xbuf, ds->xcxt, di, 0, 0,
+                  pdx, pdy, pdw, pdh);
+        XSetFunction(padisplay, ds->xcxt, mod2fnc[mdnorm]);
+        XDestroyImage(si); /* release both images */
+        XDestroyImage(di);
+        XWUNLOCK();
+
+    }
+    if (d == win->curdsp) { /* the destination is on display */
+
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        curoff(win); /* hide the cursor */
+        /* the buffer holds the composed result: present the destination
+           box as it now stands */
+        XWLOCK();
+        XCopyArea(padisplay, ds->xbuf, win->xwhan, ds->xcxt,
+                  pdx, pdy, pdw, pdh, pdx, pdy);
+        XWUNLOCK();
+        curon(win); /* show the cursor */
+
+    }
+    /* the copy is a complete act: push the requests to the server, so the
+       result is onscreen before the caller's next step */
+    XWLOCK();
+    XFlush(padisplay);
+    XWUNLOCK();
+
+}
+
+
+/** ****************************************************************************
+
 Load picture
 
 Loads a picture into a slot of the loadable pictures array. In this version,
@@ -17058,6 +17195,7 @@ static void ami_init_graphics(int argc, char *argv[])
     pictsizy_vect =        pictsizy_ivf;
     picture_vect =         picture_ivf;
     delpict_vect =         delpict_ivf;
+    blockcopyg_vect =      blockcopyg_ivf;
     viewoffg_vect =        viewoffg_ivf;
     viewscale_vect =       viewscale_ivf;
     scalex_vect =          scalex_ivf;

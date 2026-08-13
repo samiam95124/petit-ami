@@ -478,6 +478,8 @@ void ami_viewoffg(FILE* f, long x, long y);
 void ami_viewscale(FILE* f, float x, float y);
 long  ami_scalex(FILE* f, long x);
 long  ami_scaley(FILE* f, long y);
+void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                    long sy2, long dx1, long dy1, long dx2, long dy2);
 
 /* Window management functions */
 
@@ -734,6 +736,9 @@ typedef void (*ami_viewoffg_t)(FILE* f, long x, long y);
 typedef void (*ami_viewscale_t)(FILE* f, float x, float y);
 typedef long  (*ami_scalex_t)(FILE* f, long x);
 typedef long  (*ami_scaley_t)(FILE* f, long y);
+typedef void (*ami_blockcopyg_t)(FILE* f, long s, long d, long sx1, long sy1,
+                                 long sx2, long sy2, long dx1, long dy1,
+                                 long dx2, long dy2);
 typedef void (*ami_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, long wid);
 typedef void (*ami_buffer_t)(FILE* f, long e);
 typedef void (*ami_sizbufg_t)(FILE* f, long x, long y);
@@ -1007,6 +1012,7 @@ void _pa_viewoffg_ovr(ami_viewoffg_t nfp, ami_viewoffg_t* ofp);
 void _pa_viewscale_ovr(ami_viewscale_t nfp, ami_viewscale_t* ofp);
 void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp);
 void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp);
+void _pa_blockcopyg_ovr(ami_blockcopyg_t nfp, ami_blockcopyg_t* ofp);
 void _pa_getwigid_ovr(ami_getwigid_t nfp, ami_getwigid_t* ofp);
 void _pa_killwidget_ovr(ami_killwidget_t nfp, ami_killwidget_t* ofp);
 void _pa_selectwidget_ovr(ami_selectwidget_t nfp, ami_selectwidget_t* ofp);

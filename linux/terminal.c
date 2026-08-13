@@ -1682,8 +1682,8 @@ static void trm_clear(void) { putstrc("\33[2J\33[H"); }
 static void trm_stkout(void) { putstrc("\33[9m"); }
 /** turn off all attributes */
 static void trm_attroff(void) { putstrc("\33[0m"); }
-/** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[7h"); }
-/** turn off cursor wrap */ static void trm_wrapoff(void) { putstrc("\33[7l"); }
+/** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[?7h"); }
+/** turn off cursor wrap */ static void trm_wrapoff(void) { putstrc("\33[?7l"); }
 /** turn off cursor */ static void trm_curoff(void) { putstrc("\33[?25l"); }
 /** turn on cursor */ static void trm_curon(void) { putstrc("\33[?25h"); }
 
