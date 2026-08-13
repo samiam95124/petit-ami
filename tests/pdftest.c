@@ -4,9 +4,18 @@
 *                                                                              *
 * Exercises the pdfgraph module: opens a print file, runs the character set,   *
 * the attributes, the standard fonts, colors and tabs, then the drawing set,   *
-* type sizes and justified writes, and the automatic wrap and page eject.      *
-* The result is test.pdf in the current directory, for examination with any    *
-* .pdf reader.                                                                 *
+* type sizes and justified writes, a picture, and the automatic wrap and page  *
+* eject.                                                                       *
+*                                                                              *
+* The output goes to the first system printer, "lp0:". An argument replaces    *
+* the destination: a filename receives the document instead, so                *
+*                                                                              *
+*     pdftest test.pdf                                                         *
+*                                                                              *
+* gives the document as a file for examination with any .pdf reader.           *
+*                                                                              *
+* The picture page places tests/scott.bmp; run from the top of the source      *
+* tree.                                                                        *
 *                                                                              *
 * The page is US letter at 600 DPI, 5100 by 6600, 85 by 66 characters in the   *
 * default 12 point terminal font.                                              *
@@ -31,15 +40,16 @@ static void figlab(FILE* p, long x, long y, const char* s)
 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 
 {
 
     FILE* p;
     long  x, y;
+    long  pw, ph;
     int   i;
 
-    ami_openprint(&p, "test.pdf");
+    ami_openprint(&p, argc > 1? argv[1]: "lp0:");
     ami_title(p, "pdfgraph test document");
 
     /* ============================ page 1: text ============================ */
@@ -228,9 +238,27 @@ int main(void)
     ami_font(p, AMI_FONT_TERM);
     putc('\f', p);
 
-    /* ==================== page 4: wrap and page eject ===================== */
+    /* ========================== page 4: a picture ========================= */
 
-    fprintf(p, "pdfgraph test, page 4: automatic wrap, and the close ejects "
+    fprintf(p, "pdfgraph test, page 4: pixel output\n\n");
+    ami_loadpict(p, 1, "tests/scott");
+    pw = ami_pictsizx(p, 1);
+    ph = ami_pictsizy(p, 1);
+    fprintf(p, "the picture is %ld x %ld pixels\n", pw, ph);
+    /* placed at its own size: pixels one to one with the page grid */
+    ami_picture(p, 1, 300, 500, 300+pw-1, 500+ph-1);
+    figlab(p, 300, 550+ph, "at pixel size");
+    /* scaled up to fill the page width beside it, aspect held */
+    x = 300+pw+200;              /* left of the scaled copy */
+    y = (4800-x)*ph/pw;          /* height at the remaining width */
+    ami_picture(p, 1, x, 500, 4800, 500+y-1);
+    figlab(p, x, 550+y, "scaled to the remaining width");
+    ami_delpict(p, 1);
+    putc('\f', p);
+
+    /* ==================== page 5: wrap and page eject ===================== */
+
+    fprintf(p, "pdfgraph test, page 5: automatic wrap, and the close ejects "
                "this page\n\n");
     for (i = 0; i < 6; i++)
         fprintf(p, "auto wrap check: the quick brown fox jumps over the lazy "
@@ -239,7 +267,7 @@ int main(void)
                "the close of the print file ejects it.\n");
 
     fclose(p);
-    printf("test.pdf written\n");
+    printf("print complete to %s\n", argc > 1? argv[1]: "lp0:");
 
     return (0);
 
