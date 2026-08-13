@@ -298,6 +298,10 @@ void ami_bcolorc(FILE* f, long r, long g, long b);
 void ami_eventover(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh);
 void ami_eventsover(ami_pevthan eh, ami_pevthan* oeh);
 void ami_sendevent(FILE* f, ami_evtrec* er);
+
+/* print files */
+
+void ami_openprint(FILE** f, char* n);
 void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid);
 void ami_buffer(FILE* f, long e);
 void ami_getsiz(FILE* f, long* x, long* y);

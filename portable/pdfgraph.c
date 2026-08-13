@@ -2579,10 +2579,139 @@ static void ami_deinit_pdfgraph(void)
 
 {
 
-    int fd;
+    int      fd;
+    pwrite_t cpwrite;
+    pclose_t cpclose;
 
     /* complete any print file the program left open */
     for (fd = 0; fd < MAXPFIL; fd++)
         if (prtfil[fd]) { prtfree(fd); (*dn_close)(fd); }
+
+    /* pop off the display vectors; the modules below deinstall after us
+       and check that they come off the top of the chain */
+    { ami_cursor_t t;      _pa_cursor_ovr(dn_cursor, &t); }
+    { ami_maxx_t t;        _pa_maxx_ovr(dn_maxx, &t); }
+    { ami_maxy_t t;        _pa_maxy_ovr(dn_maxy, &t); }
+    { ami_home_t t;        _pa_home_ovr(dn_home, &t); }
+    { ami_del_t t;         _pa_del_ovr(dn_del, &t); }
+    { ami_up_t t;          _pa_up_ovr(dn_up, &t); }
+    { ami_down_t t;        _pa_down_ovr(dn_down, &t); }
+    { ami_left_t t;        _pa_left_ovr(dn_left, &t); }
+    { ami_right_t t;       _pa_right_ovr(dn_right, &t); }
+    { ami_blink_t t;       _pa_blink_ovr(dn_blink, &t); }
+    { ami_reverse_t t;     _pa_reverse_ovr(dn_reverse, &t); }
+    { ami_underline_t t;   _pa_underline_ovr(dn_underline, &t); }
+    { ami_superscript_t t; _pa_superscript_ovr(dn_superscript, &t); }
+    { ami_subscript_t t;   _pa_subscript_ovr(dn_subscript, &t); }
+    { ami_italic_t t;      _pa_italic_ovr(dn_italic, &t); }
+    { ami_bold_t t;        _pa_bold_ovr(dn_bold, &t); }
+    { ami_strikeout_t t;   _pa_strikeout_ovr(dn_strikeout, &t); }
+    { ami_standout_t t;    _pa_standout_ovr(dn_standout, &t); }
+    { ami_fcolor_t t;      _pa_fcolor_ovr(dn_fcolor, &t); }
+    { ami_bcolor_t t;      _pa_bcolor_ovr(dn_bcolor, &t); }
+    { ami_auto_t t;        _pa_auto_ovr(dn_auto, &t); }
+    { ami_curvis_t t;      _pa_curvis_ovr(dn_curvis, &t); }
+    { ami_scroll_t t;      _pa_scroll_ovr(dn_scroll, &t); }
+    { ami_curx_t t;        _pa_curx_ovr(dn_curx, &t); }
+    { ami_cury_t t;        _pa_cury_ovr(dn_cury, &t); }
+    { ami_curbnd_t t;      _pa_curbnd_ovr(dn_curbnd, &t); }
+    { ami_select_t t;      _pa_select_ovr(dn_select, &t); }
+    { ami_event_t t;       _pa_event_ovr(dn_event, &t); }
+    { ami_timer_t t;       _pa_timer_ovr(dn_timer, &t); }
+    { ami_killtimer_t t;   _pa_killtimer_ovr(dn_killtimer, &t); }
+    { ami_mouse_t t;       _pa_mouse_ovr(dn_mouse, &t); }
+    { ami_mousebutton_t t; _pa_mousebutton_ovr(dn_mousebutton, &t); }
+    { ami_joystick_t t;    _pa_joystick_ovr(dn_joystick, &t); }
+    { ami_joybutton_t t;   _pa_joybutton_ovr(dn_joybutton, &t); }
+    { ami_joyaxis_t t;     _pa_joyaxis_ovr(dn_joyaxis, &t); }
+    { ami_settab_t t;      _pa_settab_ovr(dn_settab, &t); }
+    { ami_restab_t t;      _pa_restab_ovr(dn_restab, &t); }
+    { ami_clrtab_t t;      _pa_clrtab_ovr(dn_clrtab, &t); }
+    { ami_funkey_t t;      _pa_funkey_ovr(dn_funkey, &t); }
+    { ami_frametimer_t t;  _pa_frametimer_ovr(dn_frametimer, &t); }
+    { ami_wrtstr_t t;      _pa_wrtstr_ovr(dn_wrtstr, &t); }
+    { ami_wrtstrn_t t;     _pa_wrtstrn_ovr(dn_wrtstrn, &t); }
+    { ami_sizbuf_t t;      _pa_sizbuf_ovr(dn_sizbuf, &t); }
+    { ami_title_t t;       _pa_title_ovr(dn_title, &t); }
+    { ami_sendevent_t t;   _pa_sendevent_ovr(dn_sendevent, &t); }
+    { ami_maxxg_t t;       _pa_maxxg_ovr(dn_maxxg, &t); }
+    { ami_maxyg_t t;       _pa_maxyg_ovr(dn_maxyg, &t); }
+    { ami_curxg_t t;       _pa_curxg_ovr(dn_curxg, &t); }
+    { ami_curyg_t t;       _pa_curyg_ovr(dn_curyg, &t); }
+    { ami_line_t t;        _pa_line_ovr(dn_line, &t); }
+    { ami_linewidth_t t;   _pa_linewidth_ovr(dn_linewidth, &t); }
+    { ami_linestyle_t t;   _pa_linestyle_ovr(dn_linestyle, &t); }
+    { ami_rect_t t;        _pa_rect_ovr(dn_rect, &t); }
+    { ami_frect_t t;       _pa_frect_ovr(dn_frect, &t); }
+    { ami_rrect_t t;       _pa_rrect_ovr(dn_rrect, &t); }
+    { ami_frrect_t t;      _pa_frrect_ovr(dn_frrect, &t); }
+    { ami_ellipse_t t;     _pa_ellipse_ovr(dn_ellipse, &t); }
+    { ami_fellipse_t t;    _pa_fellipse_ovr(dn_fellipse, &t); }
+    { ami_arc_t t;         _pa_arc_ovr(dn_arc, &t); }
+    { ami_farc_t t;        _pa_farc_ovr(dn_farc, &t); }
+    { ami_fchord_t t;      _pa_fchord_ovr(dn_fchord, &t); }
+    { ami_ftriangle_t t;   _pa_ftriangle_ovr(dn_ftriangle, &t); }
+    { ami_cursorg_t t;     _pa_cursorg_ovr(dn_cursorg, &t); }
+    { ami_baseline_t t;    _pa_baseline_ovr(dn_baseline, &t); }
+    { ami_setpixel_t t;    _pa_setpixel_ovr(dn_setpixel, &t); }
+    { ami_fover_t t;       _pa_fover_ovr(dn_fover, &t); }
+    { ami_bover_t t;       _pa_bover_ovr(dn_bover, &t); }
+    { ami_finvis_t t;      _pa_finvis_ovr(dn_finvis, &t); }
+    { ami_binvis_t t;      _pa_binvis_ovr(dn_binvis, &t); }
+    { ami_fxor_t t;        _pa_fxor_ovr(dn_fxor, &t); }
+    { ami_bxor_t t;        _pa_bxor_ovr(dn_bxor, &t); }
+    { ami_fand_t t;        _pa_fand_ovr(dn_fand, &t); }
+    { ami_band_t t;        _pa_band_ovr(dn_band, &t); }
+    { ami_for_t t;         _pa_for_ovr(dn_for, &t); }
+    { ami_bor_t t;         _pa_bor_ovr(dn_bor, &t); }
+    { ami_chrsizx_t t;     _pa_chrsizx_ovr(dn_chrsizx, &t); }
+    { ami_chrsizy_t t;     _pa_chrsizy_ovr(dn_chrsizy, &t); }
+    { ami_fonts_t t;       _pa_fonts_ovr(dn_fonts, &t); }
+    { ami_font_t t;        _pa_font_ovr(dn_font, &t); }
+    { ami_fontnam_t t;     _pa_fontnam_ovr(dn_fontnam, &t); }
+    { ami_fontsiz_t t;     _pa_fontsiz_ovr(dn_fontsiz, &t); }
+    { ami_setpoints_t t;   _pa_setpoints_ovr(dn_setpoints, &t); }
+    { ami_points_t t;      _pa_points_ovr(dn_points, &t); }
+    { ami_chrspcy_t t;     _pa_chrspcy_ovr(dn_chrspcy, &t); }
+    { ami_chrspcx_t t;     _pa_chrspcx_ovr(dn_chrspcx, &t); }
+    { ami_dpmx_t t;        _pa_dpmx_ovr(dn_dpmx, &t); }
+    { ami_dpmy_t t;        _pa_dpmy_ovr(dn_dpmy, &t); }
+    { ami_strsiz_t t;      _pa_strsiz_ovr(dn_strsiz, &t); }
+    { ami_chrpos_t t;      _pa_chrpos_ovr(dn_chrpos, &t); }
+    { ami_writejust_t t;   _pa_writejust_ovr(dn_writejust, &t); }
+    { ami_justpos_t t;     _pa_justpos_ovr(dn_justpos, &t); }
+    { ami_condensed_t t;   _pa_condensed_ovr(dn_condensed, &t); }
+    { ami_extended_t t;    _pa_extended_ovr(dn_extended, &t); }
+    { ami_xlight_t t;      _pa_xlight_ovr(dn_xlight, &t); }
+    { ami_light_t t;       _pa_light_ovr(dn_light, &t); }
+    { ami_xbold_t t;       _pa_xbold_ovr(dn_xbold, &t); }
+    { ami_hollow_t t;      _pa_hollow_ovr(dn_hollow, &t); }
+    { ami_raised_t t;      _pa_raised_ovr(dn_raised, &t); }
+    { ami_settabg_t t;     _pa_settabg_ovr(dn_settabg, &t); }
+    { ami_restabg_t t;     _pa_restabg_ovr(dn_restabg, &t); }
+    { ami_fcolorg_t t;     _pa_fcolorg_ovr(dn_fcolorg, &t); }
+    { ami_fcolorc_t t;     _pa_fcolorc_ovr(dn_fcolorc, &t); }
+    { ami_bcolorg_t t;     _pa_bcolorg_ovr(dn_bcolorg, &t); }
+    { ami_bcolorc_t t;     _pa_bcolorc_ovr(dn_bcolorc, &t); }
+    { ami_loadpict_t t;    _pa_loadpict_ovr(dn_loadpict, &t); }
+    { ami_pictsizx_t t;    _pa_pictsizx_ovr(dn_pictsizx, &t); }
+    { ami_pictsizy_t t;    _pa_pictsizy_ovr(dn_pictsizy, &t); }
+    { ami_picture_t t;     _pa_picture_ovr(dn_picture, &t); }
+    { ami_delpict_t t;     _pa_delpict_ovr(dn_delpict, &t); }
+    { ami_scrollg_t t;     _pa_scrollg_ovr(dn_scrollg, &t); }
+    { ami_path_t t;        _pa_path_ovr(dn_path, &t); }
+    { ami_viewoffg_t t;    _pa_viewoffg_ovr(dn_viewoffg, &t); }
+    { ami_viewscale_t t;   _pa_viewscale_ovr(dn_viewscale, &t); }
+    { ami_scalex_t t;      _pa_scalex_ovr(dn_scalex, &t); }
+    { ami_scaley_t t;      _pa_scaley_ovr(dn_scaley, &t); }
+    { ami_blockcopyg_t t;  _pa_blockcopyg_ovr(dn_blockcopyg, &t); }
+    { ami_openwin_t t;     _pa_openwin_ovr(dn_openwin, &t); }
+
+    /* swap the system vectors back; if we don't come off the top of the
+       chain the stacking is corrupt */
+    ovr_write(dn_write, &cpwrite);
+    ovr_close(dn_close, &cpclose);
+    if (cpwrite != iwrite || cpclose != iclose)
+        error("System consistency check");
 
 }
