@@ -882,6 +882,10 @@ portable/gnome_widgets.o: portable/gnome_widgets.c
 	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
 		-o portable/gnome_widgets.o
 
+portable/pdfgraph.o: portable/pdfgraph.c include/graphics.h
+	$(CC) $(CFLAGS) -c portable/pdfgraph.c \
+		-o portable/pdfgraph.o
+
 portable/widget_base.o: portable/widget_base.c
 	$(CC) $(CFLAGS) -c portable/widget_base.c \
 		-o portable/widget_base.o
@@ -1085,10 +1089,12 @@ lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
 	    portable/managerc.o linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
+	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
+	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
 	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    portable/pdfgraph.o \
 	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
 
 # the model archives
