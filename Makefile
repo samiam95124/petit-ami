@@ -1491,6 +1491,9 @@ event: $(CLIBSD) tests/event.c
 eventg: $(GLIBSD) tests/event.c
 	$(CC) $(CFLAGS) tests/event.c $(GLIBS) -o bin/eventg
 
+pdftest: $(GLIBSD) tests/pdftest.c
+	$(CC) $(CFLAGS) tests/pdftest.c $(GLIBS) -o bin/pdftest
+
 #
 # Test terminal characteristics (console and graph mode)
 #	
