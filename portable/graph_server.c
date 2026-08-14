@@ -517,6 +517,9 @@ static void* evpump(void* arg)
         ami_event(stdin, &er);
         if (pumpstop) return (NULL); /* the process is exiting */
         if ((long)er.etype == GR_EVWAKE) continue; /* ours, not the wire's */
+        if (gtrace && !clientup)
+            fprintf(stderr, "gs.e %-15s w%ld (idle)\n",
+                    gr_evtname((long)er.etype), er.winid);
         if (er.etype == ami_etterm && !clientup) {
 
             /* the display asks an idle server to terminate: that is the
@@ -594,6 +597,11 @@ static void sigmask_early(void)
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
+    /* A background launch inherits ignore for these, and an ignored
+       signal is discarded even while blocked, starving sigwait(). The
+       default disposition keeps a blocked signal pending. */
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
 
 }
 

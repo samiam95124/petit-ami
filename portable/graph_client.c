@@ -1539,6 +1539,11 @@ static void ami_init_graph_client(void)
         sigaddset(&set, SIGINT);
         sigaddset(&set, SIGTERM);
         pthread_sigmask(SIG_BLOCK, &set, NULL);
+        /* a background launch inherits ignore, which discards even
+           blocked signals; the default disposition keeps them pending
+           for the sigwait thread */
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
         pthread_create(&st, NULL, sigrun, NULL);
 
     }
