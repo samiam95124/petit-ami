@@ -643,6 +643,11 @@ void ami_event(FILE* f, ami_evtrec* er)
 {
 
     (void)f; /* events are not per file */
+    /* the rule of the manual: all outstanding output completes before
+       input is taken. The window files are unbuffered; the standard
+       output holds partial lines, positioned text being the classic
+       case, and flushes here. */
+    fflush(stdout);
     for (;;) {
 
         pthread_mutex_lock(&evlock);
