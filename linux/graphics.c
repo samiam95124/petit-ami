@@ -117,8 +117,10 @@
 extern char *program_invocation_short_name;
 #endif
 
-/* forward declaration: wait for a window to become mapped (defined with
-   the event machinery) */
+/* forward declarations: the notify waits (defined with the event
+   machinery) */
+static void notexevt(XEvent* e);
+static void waitxevt(int type, Window wh, XEvent* out);
 static void waitxmap(Window wh);
 
 /* forward declarations for FreeType helper functions */
@@ -4512,6 +4514,7 @@ static int takexevt(int type, Window w, XEvent* out)
             }
             memcpy(out, &p->evt, sizeof(XEvent));
             putxevt(p); /* release entry */
+            pthread_mutex_unlock(&xevtlock);
 
             return (TRUE);
 
@@ -4581,7 +4584,8 @@ static void coalesce(XEvent* e)
            the rest, then let the X queue (newest of all) win. */
         if (takexevt(t, w, &tmp)) { *e = tmp; while (takexevt(t, w, &tmp)); }
         XWLOCK();
-        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp)) *e = tmp;
+        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp))
+            { notexevt(&tmp); *e = tmp; }
         XWUNLOCK();
 
     }
@@ -4606,46 +4610,61 @@ Should have timeouts.
    the mapper waits on this data, locked only for the touch, per the rule
    that a lock encompasses just the data it locks. */
 
-#define MAPRING 16
-static Window          mapring[MAPRING];
-static int             mapin;
-static pthread_mutex_t maplock = PTHREAD_MUTEX_INITIALIZER;
+#define NOTERING 32
+static XEvent          notering[NOTERING]; /* awaitable notifies seen */
+static int             notein;
+static pthread_mutex_t notelock = PTHREAD_MUTEX_INITIALIZER;
 
-static void notemap(XEvent* e)
+/* the types a thread may wait on: the map and configure notifies */
+static int noteable(int type)
+    { return (type == MapNotify || type == ConfigureNotify); }
+
+static void notexevt(XEvent* e)
 
 {
 
-    if (e->type == MapNotify) {
+    if (noteable(e->type)) {
 
-        pthread_mutex_lock(&maplock);
-        mapring[mapin] = e->xmap.window;
-        mapin = (mapin+1)%MAPRING;
-        pthread_mutex_unlock(&maplock);
+        pthread_mutex_lock(&notelock);
+        notering[notein] = *e;
+        notein = (notein+1)%NOTERING;
+        pthread_mutex_unlock(&notelock);
 
     }
 
 }
 
-static int sawmap(Window w)
+/* take the newest noted event of the type for the window, consuming every
+   match so stale ones do not satisfy a later wait */
+static int sawxevt(int type, Window w, XEvent* out)
 
 {
 
-    int i, r = 0;
+    int i, j, r = 0;
 
-    pthread_mutex_lock(&maplock);
-    for (i = 0; i < MAPRING; i++)
-        if (mapring[i] == w) { mapring[i] = 0; r = 1; }
-    pthread_mutex_unlock(&maplock);
+    pthread_mutex_lock(&notelock);
+    for (j = 0; j < NOTERING; j++) {
+
+        i = (notein+NOTERING-1-j)%NOTERING; /* newest first */
+        if (notering[i].type == type && notering[i].xany.window == w) {
+
+            if (!r) { *out = notering[i]; r = 1; }
+            memset(&notering[i], 0, sizeof(XEvent));
+
+        }
+
+    }
+    pthread_mutex_unlock(&notelock);
 
     return (r);
 
 }
 
-/* Wait for a window to become mapped. Whoever reads the notify, this
-   thread or another, the table carries the fact; we read events only when
-   they are there to read, filing them for normal processing, and never
-   hold the display lock across a wait. */
-static void waitxmap(Window wh)
+/* Wait for a notify of the type for the window. Whoever reads it, this
+   thread or another, the table carries it; we read events only when they
+   are there to read, filing them for normal processing, and never hold
+   the display lock across a wait. */
+static void waitxevt(int type, Window wh, XEvent* out)
 
 {
 
@@ -4654,15 +4673,25 @@ static void waitxmap(Window wh)
 
     for (;;) {
 
-        if (sawmap(wh)) return;
+        if (sawxevt(type, wh, out)) return;
         got = 0;
         XWLOCK();
         if (XPending(padisplay)) { XNextEvent(padisplay, &e); got = 1; }
         XWUNLOCK();
-        if (got) { notemap(&e); enquexevt(&e); }
+        if (got) { notexevt(&e); enquexevt(&e); }
         else usleep(1000);
 
     }
+
+}
+
+static void waitxmap(Window wh)
+
+{
+
+    XEvent e;
+
+    waitxevt(MapNotify, wh, &e);
 
 }
 
@@ -4683,7 +4712,7 @@ static void peekxevt(XEvent* e)
         usleep(1000);
 
     }
-    notemap(e); /* a map notify is data others may be waiting on */
+    notexevt(e); /* a notify is data others may be waiting on */
     enquexevt(e); /* place in input queue */
     /* there is another diagnostic in ami_event(), but you might want to see
        these events immediately */
@@ -13236,8 +13265,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                    exact size match: Wayland/XWayland (and tiling WMs) may clamp
                    or override the requested size, so demanding the exact value
                    would loop forever. Adopt the actual granted size instead. */
-                do { peekxevt(&xe); /* peek next event */
-                } while (xe.type != ConfigureNotify || xe.xany.window != win->xwhan);
+                waitxevt(ConfigureNotify, win->xwhan, &xe);
                 xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
                 xwc.height = xe.xconfigure.height;
 #endif
@@ -13271,8 +13299,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 #ifdef WAITWMR
                     /* wait for the next configure for this window (any size --
                        the WM may clamp the request; see note above) */
-                    do { peekxevt(&xe); /* peek next event */
-                    } while (xe.type != ConfigureNotify || xe.xany.window != mwin->xmwhan);
+                    waitxevt(ConfigureNotify, mwin->xmwhan, &xe);
                     xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
                     xwc.height = xe.xconfigure.height;
 #endif
@@ -13985,7 +14012,7 @@ static void xwinget(ami_evtrec* er, int* keep)
                 XWLOCK();
                 XNextEvent(padisplay, &e); /* get next event */
                 XWUNLOCK();
-                notemap(&e); /* a map notify is data others may wait on */
+                notexevt(&e); /* a notify is data others may wait on */
                 coalesce(&e); /* fold redundant resize/redraw bursts into one */
                 xwinprc(&e, er, keep); /* pass to processing */
 
@@ -14943,9 +14970,7 @@ static void buffer_ivf(FILE* f, long e)
             /* wait for the next configure for this window (any size -- the WM
                may clamp the request; see note above). Adopt the granted
                size. */
-            do { peekxevt(&xe); /* peek next event */
-            } while (xe.type != ConfigureNotify ||
-                     xe.xany.window != win->xmwhan);
+            waitxevt(ConfigureNotify, win->xmwhan, &xe);
             win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
             win->xmwr.h = xe.xconfigure.height;
 #endif
@@ -15153,8 +15178,7 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 #ifdef WAITWMR
     /* wait for the next configure for this window (any geometry; see note in
        the resize path -- the WM may not honor an exact request) */
-    do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xany.window != win->xwhan);
+    waitxevt(ConfigureNotify, win->xwhan, &e);
 #endif
     restore(win);
 
@@ -15669,8 +15693,7 @@ static void setsizg_ivf(FILE* f, long x, long y)
            requested size, and demanding the exact value would loop forever.
            The actual granted size is adopted from the event below. */
         if (!win->childfrm) {
-            do { peekxevt(&e); /* peek next event */
-            } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+            waitxevt(ConfigureNotify, win->xmwhan, &e);
         }
 #endif
 
@@ -15783,8 +15806,7 @@ static void setposg_ivf(FILE* f, long x, long y)
 
 #ifdef WAITWMR
         /* wait for the configure response */
-        do { peekxevt(&e); /* peek next event */
-        } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+        waitxevt(ConfigureNotify, win->xmwhan, &e);
 #endif
 
         /* set origin for next time */
