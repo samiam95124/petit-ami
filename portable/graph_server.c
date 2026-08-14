@@ -21,14 +21,16 @@
 * transfer exchange: on a miss it names its file port in the request, and    *
 * the client connects and streams the file in, close delimited.               *
 *                                                                              *
-* The server serves one client and exits when the client says bye, or if     *
-* the display library errors. It must be started before the client.           *
+* The server serves one client at a time, and when the client says bye it    *
+* resets and cycles back to wait for the next connection, until the console   *
+* interrupt cancels it. It must be started before its client.                 *
 *                                                                              *
 *******************************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
@@ -501,6 +503,7 @@ second interrupt is force.
 *******************************************************************************/
 
 static int clientup; /* a client is connected */
+static int sigasked;  /* the interrupt asked once this session */
 
 /* The mask must be in place before any thread exists: a process directed
    signal lands on any thread that leaves it unblocked, and a thread
@@ -531,7 +534,6 @@ static void* sigrun(void* arg)
     unsigned char ebuf[sizeof(gr_msghdr)+sizeof(gr_msgevt)];
     gr_msghdr*    h = (gr_msghdr*)ebuf;
     gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
-    int           asked = 0;
 
     (void)arg;
     sigemptyset(&set);
@@ -540,8 +542,8 @@ static void* sigrun(void* arg)
     for (;;) {
 
         if (sigwait(&set, &sig)) return (NULL);
-        if (!clientup || asked) exit(1);
-        asked = 1;
+        if (!clientup || sigasked) exit(1);
+        sigasked = 1;
         if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
         h->len = sizeof(ebuf);
         h->mid = GR_MEVENT;
@@ -1262,60 +1264,94 @@ int main(int argc, char* argv[])
     h2f[1] = stdout;
     h2lw[1] = 1;
 
-    /* the hello */
-    rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-    if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
-    roff = sizeof(gr_msghdr);
-    if (rhdr()->mid != GR_MHELLO) error("Protocol failure: no hello");
-    dispatch();
-
-    /* the event channel hello names the peer for events */
-    rlen = ami_rdmsg(evtfn, rbuf, msgmax);
-    if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
-    if (((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
-        error("Protocol failure: no event channel hello");
-
     /* the heartbeat: the frame timer keeps event() returning, so the
        display lock always cycles between the pump and the commands */
     ami_frametimer(stdout, 1);
-    clientup = 1;
 
-    /* events flow from here on */
-    if (pthread_create(&pump, NULL, evpump, NULL))
-        error("Cannot start event pump");
-
-    /* The command loop. A burst of commands executes under one hold of
-       the display lock: after the blocking read, the socket drains
-       without blocking, so drawing throughput is bounded by the wire and
-       not by the heartbeat. The logical id of a message channel is its
-       descriptor. */
+    /* the session loop: serve a client, reset, wait for the next; the
+       console interrupt is the only way out */
     for (;;) {
 
-        ssize_t r;
+        long h;
 
+        /* fresh session */
+        byeseen = 0;
+        pumpdone = 0;
+        cliframe = 0;
+        sigasked = 0;
+
+        /* the hello */
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-        pthread_mutex_lock(&displk);
-        for (;;) {
+        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
+        roff = sizeof(gr_msghdr);
+        if (rhdr()->mid != GR_MHELLO) error("Protocol failure: no hello");
+        dispatch();
 
-            if (rlen < (long)sizeof(gr_msghdr))
-                error("Short message from client");
-            roff = sizeof(gr_msghdr);
-            dispatch();
-            if (byeseen) break;
-            r = recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT);
-            if (r < 0) break; /* the burst is drained */
-            rlen = r;
+        /* the event channel hello names the peer for events */
+        rlen = ami_rdmsg(evtfn, rbuf, msgmax);
+        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
+        if (((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
+            error("Protocol failure: no event channel hello");
+        clientup = 1;
+
+        /* events flow from here on */
+        if (pthread_create(&pump, NULL, evpump, NULL))
+            error("Cannot start event pump");
+
+        /* The command loop. A burst of commands executes under one hold
+           of the display lock: after the blocking read, the socket
+           drains without blocking, so drawing throughput is bounded by
+           the wire and not by the heartbeat. The logical id of a message
+           channel is its descriptor. */
+        while (!byeseen) {
+
+            ssize_t r;
+
+            rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
+            pthread_mutex_lock(&displk);
+            for (;;) {
+
+                if (rlen < (long)sizeof(gr_msghdr))
+                    error("Short message from client");
+                roff = sizeof(gr_msghdr);
+                dispatch();
+                if (byeseen) break;
+                r = recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT);
+                if (r < 0) break; /* the burst is drained */
+                rlen = r;
+
+            }
+            pthread_mutex_unlock(&displk);
 
         }
-        pthread_mutex_unlock(&displk);
-        if (byeseen) {
+        /* the pump leaves the library at its next heartbeat */
+        pthread_join(pump, NULL);
+        clientup = 0;
 
-            /* the pump leaves the library at its next heartbeat; then the
-               exit owns the display alone */
-            while (!pumpdone) usleep(1000);
-            exit(0);
+        /* Reset for the next client: the session's windows close, and
+           the main window comes back to a reasonable state. A timer the
+           session left running is not recovered, the library having no
+           way to ask, and would tick into the next session. */
+        for (h = 2; h < MAXHND; h++) if (h2f[h]) {
+
+            fclose(h2f[h]);
+            h2f[h] = 0;
 
         }
+        ami_auto(stdout, 0); /* off first: the resets below are illegal
+                                with it on, and it cannot come back on
+                                until the geometry is standard again */
+        ami_fover(stdout);
+        ami_bover(stdout);
+        ami_fcolor(stdout, ami_black);
+        ami_bcolor(stdout, ami_white);
+        ami_viewoffg(stdout, 0, 0);
+        ami_viewscale(stdout, 1.0, 1.0);
+        ami_path(stdout, LONG_MAX/4);
+        putchar('\f'); /* clear, and home the cursor to the grid */
+        fflush(stdout);
+        ami_auto(stdout, 1);
+        ami_curvis(stdout, 1);
 
     }
 
