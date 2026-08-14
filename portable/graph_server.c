@@ -739,7 +739,12 @@ static void dispatch(void)
         case GR_MCLRTAB: ami_clrtab(f); break;
         case GR_MFUNKEY: rbegin(); ri(ami_funkey(f)); rsend(); break;
         case GR_MFRAMETIMER: a = gi(); ami_frametimer(f, a); break;
-        case GR_MAUTOHOLD: a = gi(); ami_autohold(a); break;
+        case GR_MAUTOHOLD:
+            /* accepted and swallowed: the hold acts at process exit,
+               which a session never is, and the server's own exit must
+               never hold */
+            a = gi();
+            break;
         case GR_MWRTSTR: gstr(s1, MAXSTR); ami_wrtstr(f, s1); break;
         case GR_MWRTSTRN:
             a = g4();
@@ -1308,6 +1313,11 @@ int main(int argc, char* argv[])
        first constructor, before any thread existed */
     (void)sset;
     pthread_create(&st, NULL, sigrun, NULL);
+    /* The server never holds its final screen: it is infrastructure,
+       and its exit must release the display and the ports at once. The
+       hold belongs to programs, and a session's program never exits
+       this process. */
+    ami_autohold(0);
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     ami_addrnet("127.0.0.1", &la);
