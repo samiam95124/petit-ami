@@ -886,6 +886,10 @@ portable/pdfgraph.o: portable/pdfgraph.c include/graphics.h
 	$(CC) $(CFLAGS) -c portable/pdfgraph.c \
 		-o portable/pdfgraph.o
 
+portable/txtterminal.o: portable/txtterminal.c include/terminal.h
+	$(CC) $(CFLAGS) -c portable/txtterminal.c \
+		-o portable/txtterminal.o
+
 portable/widget_base.o: portable/widget_base.c
 	$(CC) $(CFLAGS) -c portable/widget_base.c \
 		-o portable/widget_base.o
@@ -1079,14 +1083,18 @@ lib/plain_core.o: $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/plain_core.o $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
 
 lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	portable/txtterminal.o \
 	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	    portable/txtterminal.o \
 	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
 lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
+	portable/txtterminal.o \
 	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
-	    portable/managerc.o linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+	    portable/managerc.o portable/txtterminal.o \
+	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
@@ -1487,6 +1495,9 @@ stdio_test: $(PLIBSD) tests/stdio_test.c
 #	
 event: $(CLIBSD) tests/event.c
 	$(CC) $(CFLAGS) tests/event.c $(CLIBS) -o bin/event
+
+txttest: $(CLIBSD) tests/txttest.c
+	$(CC) $(CFLAGS) tests/txttest.c $(CLIBS) -o bin/txttest
 	
 eventg: $(GLIBSD) tests/event.c
 	$(CC) $(CFLAGS) tests/event.c $(GLIBS) -o bin/eventg
