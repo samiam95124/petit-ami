@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 #include <sys/socket.h>
 
 #include <graphics.h>
@@ -58,6 +59,9 @@ static unsigned long srvaddr;     /* server address */
 static long          srvport;     /* command port */
 static long          msgmax;      /* channel message size bound */
 static int           connected;   /* the link is up */
+static int           gtrace;      /* diagnostic trace: GRAPH_TRACE set;
+                                     every message prints to the error
+                                     channel. Slow, and worth it. */
 
 /* message assembly */
 static unsigned char* sbuf;       /* send buffer, msgmax bytes */
@@ -225,6 +229,9 @@ static void send0(void)
 {
 
     shdr()->len = (int)soff;
+    if (gtrace)
+        fprintf(stderr, "gc> %-16s w%-3ld s%-5d len%ld\n",
+                gr_msgname(shdr()->mid), shdr()->wid, shdr()->seq, soff);
     ami_wrmsg(cmdfn, sbuf, soff);
 
 }
@@ -361,6 +368,9 @@ static void qsend(void)
 
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
         if (rlen < (long)sizeof(gr_msghdr)) error("Short message from server");
+        if (gtrace)
+            fprintf(stderr, "gc< %-16s w%-3ld s%-5d len%ld\n",
+                    gr_msgname(rhdr()->mid), rhdr()->wid, rhdr()->seq, rlen);
         if (rhdr()->mid == GR_MFILEREQ) { servefile(); continue; }
         if (rhdr()->mid != GR_MREPLY) error("Protocol failure: not a reply");
         if (rhdr()->seq != sseq) error("Protocol failure: reply serial");
@@ -563,6 +573,46 @@ static void* evrun(void* arg)
         if (h->mid != GR_MEVENT) error("Protocol failure: not an event");
         we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
         wire2evt(we, &er);
+        if (gtrace)
+            fprintf(stderr, "gc<e %-15s w%ld\n",
+                    gr_evtname((long)er.etype), er.winid);
+        pthread_mutex_lock(&evlock);
+        evqput(&er);
+        pthread_mutex_unlock(&evlock);
+
+    }
+
+    return (NULL);
+
+}
+
+/* The console interrupt becomes the terminate event, as it does on the
+   display: the program winds down its normal way, and the bye follows.
+   The signals wait on their own thread, so injecting is ordinary thread
+   work; a second interrupt, the program having ignored the first, is
+   force. */
+static void* sigrun(void* arg)
+
+{
+
+    sigset_t   set;
+    int        sig;
+    ami_evtrec er;
+    int        asked = 0;
+
+    (void)arg;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+    for (;;) {
+
+        if (sigwait(&set, &sig)) return (NULL);
+        if (asked) exit(1); /* asked nicely once already */
+        asked = 1;
+        if (gtrace) fprintf(stderr, "gc:  interrupt -> ETTERM injected\n");
+        memset(&er, 0, sizeof(er));
+        er.winid = 1;
+        er.etype = ami_etterm;
         pthread_mutex_lock(&evlock);
         evqput(&er);
         pthread_mutex_unlock(&evlock);
@@ -657,7 +707,7 @@ static ssize_t iwrite(int fd, const void* buf, size_t n)
 
     if (!connected || fd < 0 || fd >= MAXFDS || !fdh[fd])
         return ((*dn_write)(fd, buf, n));
-    chunk = msgmax-(long)sizeof(gr_msghdr);
+    chunk = msgmax-(long)sizeof(gr_msghdr)-4;
     while (i < (size_t)n) {
 
         long c = n-i > (size_t)chunk? chunk: (long)(n-i);
@@ -1384,6 +1434,7 @@ static void ami_init_graph_client(void)
     if (!sa || !sa[0]) sa = "127.0.0.1";
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
+    gtrace = getenv("GRAPH_TRACE") != NULL;
     ami_addrnet((char*)sa, &srvaddr);
     msgmax = ami_maxmsg(srvaddr);
     if (msgmax < 1024) error("Message channel too small");
@@ -1445,10 +1496,24 @@ static void ami_init_graph_client(void)
     pi(GR_VERSION);
     shdr()->len = (int)soff;
     ami_wrmsg(evtfn, sbuf, soff);
-    /* the receiver drains the event channel into the queue from here on */
+    /* the receiver drains the event channel into the queue from here on.
+       The console interrupt signals block everywhere and wait on their
+       own thread, becoming the terminate event. */
     evqsiz = 256;
     evq = malloc(evqsiz*sizeof(ami_evtrec));
     if (!evq) error("Out of memory");
+    {
+
+        sigset_t  set;
+        pthread_t st;
+
+        sigemptyset(&set);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGTERM);
+        pthread_sigmask(SIG_BLOCK, &set, NULL);
+        pthread_create(&st, NULL, sigrun, NULL);
+
+    }
     if (pthread_create(&evthrd, NULL, evrun, NULL))
         error("Cannot start event receiver");
 

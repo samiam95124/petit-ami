@@ -31,6 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 #include <sys/socket.h>
 
 #include <graphics.h>
@@ -45,6 +46,9 @@ static long cmdfn = -1;  /* command channel */
 static long evtfn = -1;  /* event channel */
 static long srvport;     /* command port */
 static long msgmax;      /* channel message size bound */
+static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
+                            every message prints to the error channel.
+                            Slow, and worth it. */
 
 /* message assembly */
 static unsigned char* sbuf; /* reply buffer */
@@ -65,6 +69,8 @@ static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
    to the client only when the client asked for them. */
 static pthread_mutex_t displk = PTHREAD_MUTEX_INITIALIZER;
 static int cliframe;  /* the client wants frame events */
+static int byeseen;   /* the client said bye; wind down */
+static int pumpdone;  /* the pump has left the display library */
 
 /* window handle map */
 static FILE* h2f[MAXHND];  /* handle to window file */
@@ -322,6 +328,9 @@ static void rsend(void)
 {
 
     shdr()->len = (int)soff;
+    if (gtrace)
+        fprintf(stderr, "gs> %-16s w%-3ld s%-5d len%ld\n",
+                gr_msgname(shdr()->mid), shdr()->wid, shdr()->seq, soff);
     ami_wrmsg(cmdfn, sbuf, soff);
 
 }
@@ -445,11 +454,22 @@ static void* evpump(void* arg)
         /* the display lock is held only while inside the library; the
            heartbeat frame timer bounds the hold */
         pthread_mutex_lock(&displk);
+        if (byeseen) {
+
+            /* wind down outside the library, so the exit can have it */
+            pumpdone = 1;
+            pthread_mutex_unlock(&displk);
+            return (NULL);
+
+        }
         ami_event(stdin, &er);
         pthread_mutex_unlock(&displk);
         /* the heartbeat is ours; the client gets frame events only by
            asking */
         if (er.etype == ami_etframe && !cliframe) continue;
+        if (gtrace)
+            fprintf(stderr, "gs>e %-15s w%ld\n",
+                    gr_evtname((long)er.etype), er.winid);
         h->len = sizeof(ebuf);
         h->mid = GR_MEVENT;
         h->seq = 0;
@@ -459,6 +479,77 @@ static void* evpump(void* arg)
         we->etype = (long)er.etype;
         we->handled = 0;
         memcpy(we->p, &er.echar, EVUNION);
+        pthread_mutex_lock(&evsend);
+        ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
+        pthread_mutex_unlock(&evsend);
+
+    }
+
+    return (NULL);
+
+}
+
+/*******************************************************************************
+
+Console interrupt
+
+The interrupt asks the program to terminate, as the close button does: a
+terminate event goes to the client, the program winds down, and the bye
+ends the server. Before a client exists there is nothing to ask, and a
+second interrupt is force.
+
+*******************************************************************************/
+
+static int clientup; /* a client is connected */
+
+/* The mask must be in place before any thread exists: a process directed
+   signal lands on any thread that leaves it unblocked, and a thread
+   spawned by the display or sound constructors would take the interrupt
+   to the default disposition, or discard it where the shell set ignore
+   for a background job. First constructor in, so every later thread
+   inherits the block and the signal stays pending for sigwait(). */
+static void sigmask_early(void) __attribute__((constructor (101)));
+static void sigmask_early(void)
+
+{
+
+    sigset_t set;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+}
+
+static void* sigrun(void* arg)
+
+{
+
+    sigset_t      set;
+    int           sig;
+    unsigned char ebuf[sizeof(gr_msghdr)+sizeof(gr_msgevt)];
+    gr_msghdr*    h = (gr_msghdr*)ebuf;
+    gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
+    int           asked = 0;
+
+    (void)arg;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+    for (;;) {
+
+        if (sigwait(&set, &sig)) return (NULL);
+        if (!clientup || asked) exit(1);
+        asked = 1;
+        if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
+        h->len = sizeof(ebuf);
+        h->mid = GR_MEVENT;
+        h->seq = 0;
+        h->wid = 0;
+        memset(we, 0, sizeof(gr_msgevt));
+        we->winid = 1;
+        we->etype = (long)ami_etterm;
         pthread_mutex_lock(&evsend);
         ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
         pthread_mutex_unlock(&evsend);
@@ -489,6 +580,9 @@ static void dispatch(void)
     char  s1[MAXSTR];
     char  s2[MAXSTR];
 
+    if (gtrace)
+        fprintf(stderr, "gs< %-16s w%-3ld s%-5d len%ld\n",
+                gr_msgname(rhdr()->mid), rhdr()->wid, rhdr()->seq, rlen);
     if (rhdr()->wid) f = wf(rhdr()->wid);
     switch (rhdr()->mid) {
 
@@ -500,7 +594,9 @@ static void dispatch(void)
             if (a != GR_VERSION) error("Client protocol version mismatch");
             break;
         case GR_MBYE:
-            exit(0);
+            /* wind down: the main loop stops the pump first, so nothing
+               is inside the display library when the exit takes it down */
+            byeseen = 1;
             break;
 
         /* -------------------------------------------------- byte stream */
@@ -1118,9 +1214,24 @@ int main(int argc, char* argv[])
 
     const char* sp;
     pthread_t   pump;
+    pthread_t   st;
+    sigset_t    sset;
     unsigned long la;
 
-    (void)argc; (void)argv;
+    {
+
+        int i;
+
+        for (i = 1; i < argc; i++)
+            if (!strcmp(argv[i], "--trace")) gtrace = 1;
+
+    }
+    if (getenv("GRAPH_TRACE")) gtrace = 1;
+    /* the console interrupt waits on its own thread and asks the program
+       to terminate, as the close button does; the mask went up in the
+       first constructor, before any thread existed */
+    (void)sset;
+    pthread_create(&st, NULL, sigrun, NULL);
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     ami_addrnet("127.0.0.1", &la);
@@ -1167,6 +1278,7 @@ int main(int argc, char* argv[])
     /* the heartbeat: the frame timer keeps event() returning, so the
        display lock always cycles between the pump and the commands */
     ami_frametimer(stdout, 1);
+    clientup = 1;
 
     /* events flow from here on */
     if (pthread_create(&pump, NULL, evpump, NULL))
@@ -1189,12 +1301,21 @@ int main(int argc, char* argv[])
                 error("Short message from client");
             roff = sizeof(gr_msghdr);
             dispatch();
+            if (byeseen) break;
             r = recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT);
             if (r < 0) break; /* the burst is drained */
             rlen = r;
 
         }
         pthread_mutex_unlock(&displk);
+        if (byeseen) {
+
+            /* the pump leaves the library at its next heartbeat; then the
+               exit owns the display alone */
+            while (!pumpdone) usleep(1000);
+            exit(0);
+
+        }
 
     }
 
