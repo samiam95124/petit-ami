@@ -81,13 +81,31 @@
 *                                                                              *
 * SCOPE                                                                        *
 *                                                                              *
-* Files named in calls, the picture files of loadpict(), exist on the server   *
-* side: the call carries the name, the server opens the file. The mouse, the   *
-* keyboard and the joysticks are the server's; their events flow to the        *
-* client, and the input device queries are synchronous queries like any        *
-* other. eventover(), eventsover() and sendevent() act on the client's own     *
-* event stream and put nothing on the wire. Print files (openprint()) are      *
-* reserved for a later protocol version.                                       *
+* The mouse, the keyboard and the joysticks are the server's; their events     *
+* flow to the client, and the input device queries are synchronous queries     *
+* like any other. eventover(), eventsover() and sendevent() act on the         *
+* client's own event stream and put nothing on the wire. Print files           *
+* (openprint()) are reserved for a later protocol version.                     *
+*                                                                              *
+* FILE TRANSFER                                                                *
+*                                                                              *
+* Files named in calls, the picture files of loadpict(), live where the        *
+* program lives, on the client; the server holds a cache, its current          *
+* directory. When a call names a file the server looks it up: first the name   *
+* as given, then the base name in the cache. If it holds the file the call     *
+* proceeds. If not, it requests the file from the client, on the model of      *
+* ftp: the request goes by message inside the pending call's reply window,     *
+* the client answers with a port, the server opens that port as a stream       *
+* connection (opennet()) and receives the file, close delimited, raw bytes.    *
+* The received file is stored in the cache under its base name, never under    *
+* a path the client supplied, and the call then proceeds against the cache.    *
+*                                                                              *
+* The client listens on the file port, the command port + 2, after it sends    *
+* the port message; the server retries the connection briefly to cover the     *
+* gap. One transfer runs at a time, which the one outstanding request rule     *
+* already guarantees. The port message names the port explicitly so the       *
+* mechanism stays general; it is not tied to pictures, and any future call     *
+* that names a file uses the same exchange.                                    *
 *                                                                              *
 * RELIABILITY                                                                  *
 *                                                                              *
@@ -102,7 +120,8 @@
 #define __GRAPH_REMOTE_H__
 
 #define GR_VERSION 1    /* protocol version, carried in the hello exchange */
-#define GR_DEFPORT 4901 /* default command port; the event channel is +1 */
+#define GR_DEFPORT 4901 /* default command port; the event channel is +1,
+                           the file transfer port +2 */
 
 /* the fixed message header. The types are chosen for the wire widths on the
    supported platforms: int is 32 bits, short 16, long 64, little endian. */
@@ -146,6 +165,15 @@ typedef enum {
     /** server -> client on the event channel: str message. The client
        raises the error to the program. */
     GR_MERROR      = 4,
+    /** server -> client on the command channel, inside the reply window
+       of a pending call that names a file the server does not hold:
+       str name. The client answers with GR_MFILEPORT. */
+    GR_MFILEREQ    = 5,
+    /** client -> server: i64 port. The client then listens on that port
+       (the file port, command port + 2); the server opens it as a stream
+       connection and receives the file, raw bytes, close delimited, then
+       completes the pending call and sends its reply. */
+    GR_MFILEPORT   = 6,
     /** the reply to any query: the request's seq, and the payload the
        request's catalog entry gives. */
     GR_MREPLY      = 9,
@@ -267,7 +295,10 @@ typedef enum {
     GR_MRESTABG    = 154, /* i64 t */
     GR_MFCOLORG    = 155, /* i64 r, i64 g, i64 b */
     GR_MBCOLORG    = 156, /* i64 r, i64 g, i64 b */
-    GR_MLOADPICT   = 157, /* i64 p, str name; the file is the server's */
+    GR_MLOADPICT   = 157, /* i64 p, str name -> i64 0. The server fills
+                             its cache by the file transfer exchange if
+                             it does not hold the file; the reply comes
+                             after the picture is loaded. */
     GR_MPICTSIZX   = 158, /* i64 p -> i64 */
     GR_MPICTSIZY   = 159, /* i64 p -> i64 */
     GR_MPICTURE    = 160, /* i64 p, x1, y1, x2, y2 */
