@@ -679,6 +679,11 @@ static void dispatch(void)
             rbegin(); ri(GR_VERSION); rsend();
             if (a != GR_VERSION) sesserr("Client protocol version mismatch");
             break;
+        case GR_MSYNC:
+            /* the flow fence: the reply is the client's permission to
+               send another window */
+            rbegin(); ri(0); rsend();
+            break;
         case GR_MBYE:
             /* wind down: the main loop stops the pump first, so nothing
                is inside the display library when the exit takes it down */
@@ -1339,6 +1344,16 @@ int main(int argc, char* argv[])
        channel is its descriptor. */
     cmdfn = ami_waitmsg(srvport, 0);
     evtfn = ami_waitmsg(srvport+1, 0);
+    {
+
+        /* deep receive buffers: a full flow window must fit with room,
+           and events should never drop for a slow moment */
+        int rb = 2*1024*1024;
+
+        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVBUF, &rb, sizeof(rb));
+        setsockopt((int)evtfn, SOL_SOCKET, SO_RCVBUF, &rb, sizeof(rb));
+
+    }
     {
 
         struct timeval tv = { 0, 0 };

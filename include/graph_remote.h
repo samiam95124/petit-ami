@@ -182,6 +182,11 @@ typedef enum {
        would connect to a port the client names. The passive form above
        is the form of this protocol version. */
     GR_MFILEPORT   = 6,
+    /** client -> server: -> i64 0. The flow fence: the client bounds
+       its outstanding bytes by syncing once per window, so a command
+       burst cannot outrun the server's socket into datagram loss. Any
+       query is also a fence, being a round trip. */
+    GR_MSYNC       = 7,
     /** the reply to any query: the request's seq, and the payload the
        request's catalog entry gives. */
     GR_MREPLY      = 9,
