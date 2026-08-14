@@ -270,10 +270,11 @@ static void gs(char* dst, long dl)
 
 File transfer service
 
-The server, missing a file we named, asks for it inside the reply window.
-We answer with the file port, listen there, and stream the file out, close
-delimited. A file we do not hold streams as empty, and the server's error
-follows.
+The server, missing a file we named, asks for it inside the reply window,
+naming its file port. We open the port as a stream connection and stream
+the file in, close delimited. A file we do not hold streams as empty, and
+the server's complaint follows. The passive form of ftp: the client
+connects, because it is the side that knows the other's address.
 
 *******************************************************************************/
 
@@ -281,24 +282,26 @@ static void servefile(void)
 
 {
 
-    char  fn[256];
-    long  n;
-    FILE* nf;
-    FILE* lf;
-    char  buf[4096];
+    char   fn[256];
+    long   n, port;
+    FILE*  nf;
+    FILE*  lf;
+    char   buf[4096];
     size_t r;
 
-    /* the request carries the name */
+    /* the request carries the name and the port */
+    rlen = ((gr_msghdr*)rbuf)->len;
     roff = sizeof(gr_msghdr);
     n = g4();
+    if (roff+n > rlen) error("Message truncated");
     if (n > (long)sizeof(fn)-1) n = sizeof(fn)-1;
     memcpy(fn, rbuf+roff, n);
     fn[n] = 0;
-    /* answer with the file port, then serve it */
-    begin(GR_MFILEPORT, 0);
-    pi(srvport+2);
-    send0();
-    nf = ami_waitnet(srvport+2, 0);
+    roff += n;
+    port = gi();
+    /* let the server reach its accept before we knock */
+    usleep(50000);
+    nf = ami_opennet(srvaddr, port, 0);
     if (!nf) error("Cannot open file transfer connection");
     lf = fopen(fn, "rb");
     if (lf) {
@@ -1345,7 +1348,7 @@ channels, exchange the hello. The main window is handle 1 from the start.
 
 *******************************************************************************/
 
-static void ami_init_graph_client(void) __attribute__((constructor (102)));
+static void ami_init_graph_client(void) __attribute__((constructor (105)));
 static void ami_init_graph_client(void)
 
 {
@@ -1398,7 +1401,7 @@ static void ami_init_graph_client(void)
 
 }
 
-static void ami_deinit_graph_client(void) __attribute__((destructor (102)));
+static void ami_deinit_graph_client(void) __attribute__((destructor (105)));
 static void ami_deinit_graph_client(void)
 
 {

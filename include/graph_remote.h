@@ -99,17 +99,19 @@
 * directory. When a call names a file the server looks it up: first the name   *
 * as given, then the base name in the cache. If it holds the file the call     *
 * proceeds. If not, it requests the file from the client, on the model of      *
-* ftp: the request goes by message inside the pending call's reply window,     *
-* the client answers with a port, the server opens that port as a stream       *
-* connection (opennet()) and receives the file, close delimited, raw bytes.    *
-* The received file is stored in the cache under its base name, never under    *
-* a path the client supplied, and the call then proceeds against the cache.    *
+* ftp's passive form: the request goes by message inside the pending call's    *
+* reply window, naming the file and the server's file port, the command       *
+* port + 2. The client opens that port as a stream connection (opennet())     *
+* and streams the file in, raw bytes, close delimited; an empty stream is a   *
+* file the client does not hold either. The received file is stored in the    *
+* cache under its base name, never under a path the client supplied, and the  *
+* call then proceeds against the cache and sends its reply.                    *
 *                                                                              *
-* The client listens on the file port, the command port + 2, after it sends    *
-* the port message; the server retries the connection briefly to cover the     *
-* gap. One transfer runs at a time, which the one outstanding request rule     *
-* already guarantees. The port message names the port explicitly so the       *
-* mechanism stays general; it is not tied to pictures, and any future call     *
+* The passive form is used because the message channels do not disclose the    *
+* client's address to the server, while the client always knows the            *
+* server's; it is also the form that crosses address translation toward the   *
+* server. One transfer runs at a time, which the one outstanding request       *
+* rule already guarantees. The mechanism is not tied to pictures: any call     *
 * that names a file uses the same exchange.                                    *
 *                                                                              *
 * RELIABILITY                                                                  *
@@ -172,12 +174,13 @@ typedef enum {
     GR_MERROR      = 4,
     /** server -> client on the command channel, inside the reply window
        of a pending call that names a file the server does not hold:
-       str name. The client answers with GR_MFILEPORT. */
+       str name, i64 port, the server's file port. The client opens the
+       port as a stream connection and streams the file in, raw bytes,
+       close delimited; the pending call then completes and replies. */
     GR_MFILEREQ    = 5,
-    /** client -> server: i64 port. The client then listens on that port
-       (the file port, command port + 2); the server opens it as a stream
-       connection and receives the file, raw bytes, close delimited, then
-       completes the pending call and sends its reply. */
+    /** reserved: the active form of the transfer, where the server
+       would connect to a port the client names. The passive form above
+       is the form of this protocol version. */
     GR_MFILEPORT   = 6,
     /** the reply to any query: the request's seq, and the payload the
        request's catalog entry gives. */

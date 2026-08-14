@@ -1526,6 +1526,12 @@ graphics_testr: tests/graphics_test.c portable/graph_client.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/graphics_testr
 
 #
+# The remote display server: the display side of remote mode, standalone.
+#
+graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h
+	$(CC) $(CFLAGS) portable/graph_server.c $(GLIBS) -o bin/graph_server
+
+#
 # Test terminal characteristics (console and graph mode)
 #	
 term: $(CLIBSD) tests/term.c

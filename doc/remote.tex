@@ -253,21 +253,24 @@ looks it up: first the name as given, then the base name in the cache. If
 it holds the file, the call proceeds.
 
 If not, the server requests the file, on the model of ftp's control and
-data split. The request goes by message on the command channel, inside the
-reply window of the pending call, so the single threaded client is
-guaranteed to be listening. The client answers with a port number, then
-listens on that port; the server opens the port as a stream connection
-with \texttt{opennet()} and receives the file as raw bytes, close
-delimited, exactly as an ftp data connection carries one file. The server
-stores the file in its cache under its base name, never under a path the
-client supplied, and the pending call then proceeds against the cache and
-sends its reply.
+data split, in ftp's passive form. The request goes by message on the
+command channel, inside the reply window of the pending call, so the
+client is guaranteed to be listening; it names the file and the server's
+file port, the command port plus two. The client opens that port as a
+stream connection with \texttt{opennet()} and streams the file in as raw
+bytes, close delimited, exactly as an ftp data connection carries one
+file; an empty stream is a file the client does not hold either. The
+server stores the file in its cache under its base name, never under a
+path the client supplied, and the pending call then proceeds against the
+cache and sends its reply.
 
-In this protocol version the port named is always the file port, the
-command port plus two; the message names it explicitly so the mechanism
-stays general. One transfer at a time falls out of the one outstanding
-request rule. The client cannot listen before it sends the port message,
-so the server retries the connection briefly to cover the gap.
+The passive form, the client connecting rather than the server, is forced
+by an asymmetry: the message channels never disclose the client's address
+to the server, while the client always knows the server's. It is also the
+direction that crosses network address translation toward the server. The
+active form, where the server would connect to a port the client names,
+keeps its reserved message for a later version. One transfer at a time
+falls out of the one outstanding request rule.
 
 The exchange is deliberately not tied to pictures: any call that names a
 file uses it, and it stands as the protocol's general bulk transfer
