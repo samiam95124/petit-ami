@@ -70,6 +70,15 @@ static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
    thread. */
 static int byeseen;   /* the client said bye; wind down */
 
+/* The pump lives across sessions: it forwards events while a client is
+   up, discards them while the server is idle, and treats a terminate
+   from the display, the close button or a control-c typed in the
+   window, on an idle server as cancellation. It stops only for the
+   process exit, which must not tear the library down around it. */
+static pthread_t pump;     /* the pump thread */
+static int       pumpstop; /* exiting: leave the library and return */
+static int       clientup; /* a client is connected */
+
 /* the wake: a user event code, injected to return the pump from event()
    and never forwarded */
 #define GR_EVWAKE (ami_etuser+0x100)
@@ -501,8 +510,17 @@ static void* evpump(void* arg)
     for (;;) {
 
         ami_event(stdin, &er);
-        if (byeseen) return (NULL); /* the session is over */
+        if (pumpstop) return (NULL); /* the process is exiting */
         if ((long)er.etype == GR_EVWAKE) continue; /* ours, not the wire's */
+        if (er.etype == ami_etterm && !clientup) {
+
+            /* the display asks an idle server to terminate: that is the
+               cancellation, by the same path as the console interrupt */
+            kill(getpid(), SIGINT);
+            continue;
+
+        }
+        if (!clientup) continue; /* idle: nobody to forward to */
         if (gtrace)
             fprintf(stderr, "gs>e %-15s w%ld\n",
                     gr_evtname((long)er.etype), er.winid);
@@ -525,6 +543,22 @@ static void* evpump(void* arg)
 
 }
 
+/* stop the pump for a process exit: wake it out of the library and
+   collect it, so the teardown finds the library empty */
+static void stoppump(void)
+
+{
+
+    ami_evtrec wake;
+
+    pumpstop = 1;
+    memset(&wake, 0, sizeof(wake));
+    wake.etype = (ami_evtcod)GR_EVWAKE;
+    ami_sendevent(stdout, &wake);
+    pthread_join(pump, NULL);
+
+}
+
 /*******************************************************************************
 
 Console interrupt
@@ -536,7 +570,6 @@ second interrupt is force.
 
 *******************************************************************************/
 
-static int clientup; /* a client is connected */
 static int sigasked;  /* the interrupt asked once this session */
 
 /* The mask must be in place before any thread exists: a process directed
@@ -576,7 +609,7 @@ static void* sigrun(void* arg)
     for (;;) {
 
         if (sigwait(&set, &sig)) return (NULL);
-        if (!clientup || sigasked) exit(1);
+        if (!clientup || sigasked) { stoppump(); exit(1); }
         sigasked = 1;
         if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
         h->len = sizeof(ebuf);
@@ -1244,7 +1277,6 @@ int main(int argc, char* argv[])
 {
 
     const char* sp;
-    pthread_t   pump;
     pthread_t   st;
     sigset_t    sset;
     unsigned long la;
@@ -1293,29 +1325,22 @@ int main(int argc, char* argv[])
     h2f[1] = stdout;
     h2lw[1] = 1;
 
-    /* the session loop: serve a client, reset, wait for the next; the
-       console interrupt is the only way out. A session error jumps back
-       here, winds down whatever the session had running, and recycles. */
+    /* the pump lives across sessions: idle it discards, and the display
+       can cancel an idle server */
+    if (pthread_create(&pump, NULL, evpump, NULL))
+        error("Cannot start event pump");
+
+    /* the session loop: serve a client, reset, wait for the next; a
+       session error jumps back here, winds down, and recycles. The
+       console interrupt, or a terminate from the display of an idle
+       server, is the way out. */
     for (;;) {
 
         long h;
         int  faulted;
 
         faulted = setjmp(sesjmp);
-        if (faulted && pumping) {
-
-            /* the pump is up: wake it out of event() and collect it */
-            ami_evtrec wake;
-
-            byeseen = 1;
-            memset(&wake, 0, sizeof(wake));
-            wake.etype = (ami_evtcod)GR_EVWAKE;
-            ami_sendevent(stdout, &wake);
-            pthread_join(pump, NULL);
-            pumping = 0;
-
-        }
-        if (faulted) goto winddown;
+        if (faulted) goto winddown; /* the pump lives on, idle */
 
         /* fresh session */
         byeseen = 0;
@@ -1353,12 +1378,7 @@ int main(int argc, char* argv[])
                 sesserr("Protocol failure: no event channel hello");
 
         }
-        clientup = 1;
-
-        /* events flow from here on */
-        if (pthread_create(&pump, NULL, evpump, NULL))
-            error("Cannot start event pump");
-        pumping = 1;
+        clientup = 1; /* the pump forwards from here on */
 
         /* The command loop. A burst of commands executes under one hold
            of the display lock: after the blocking read, the socket
@@ -1384,21 +1404,9 @@ int main(int argc, char* argv[])
             }
 
         }
-        /* wake the pump out of event() so it can see the end */
-        {
-
-            ami_evtrec wake;
-
-            memset(&wake, 0, sizeof(wake));
-            wake.etype = (ami_evtcod)GR_EVWAKE;
-            ami_sendevent(stdout, &wake);
-
-        }
-        pthread_join(pump, NULL);
-        pumping = 0;
         /* an interrupt asked this session to end: the server was being
            cancelled, so it goes down with the session */
-        if (sigasked) exit(0);
+        if (sigasked) { stoppump(); exit(0); }
 
 winddown:
         clientup = 0;
