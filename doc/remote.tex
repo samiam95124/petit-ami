@@ -42,7 +42,8 @@ Two modules implement the mode:
 \begin{description}
 \item[\texttt{graph\_client}] links with the program. It exposes the
 complete graphical API; each call composes a message and sends it, and
-\texttt{event()} returns the next inbound event. It needs no threads.
+\texttt{event()} returns the next inbound event from the client's queue,
+fed by a receiver thread.
 \item[\texttt{graph\_server}] owns the display. It plugs into the standard
 graphics package as an overrider, executes inbound call messages against
 it, and sends the resulting events back out.
@@ -80,9 +81,12 @@ reply if the call returns values. A second thread runs the event pump: call
 two directions are asynchronous, which is exactly why they are separate
 threads; neither ever waits on the other.
 
-The client needs no threads at all. Calls go out on the command channel as
-they are made, in order. \texttt{event()} reads the event channel. A query
-sends its request and waits for the reply before anything else is issued.
+The client runs one thread beside the program: a receiver, which takes
+event messages from the event channel as they arrive and appends them to
+the client's event queue. Calls stay on the program's thread: they go out
+on the command channel as they are made, in order, and a query sends its
+request and waits for the reply before anything else is issued.
+\texttt{event()} takes from the queue, waiting if it is empty.
 
 \section{Transport}
 
@@ -213,11 +217,24 @@ and the server closes its side.
 
 \section{Events and client-local operations}
 
-The server's event pump thread calls \texttt{event()} on the display
-library without pause, translating each event to the wire record and
-sending it. The client's \texttt{event()} reads the event channel,
-translates back, and returns the event to the program, replacing the wire
-handle with the window identification the API promises.
+Events are pushed, never polled. A pull model, where the program asks for
+the next event and waits for it, would degenerate to an ask and answer
+protocol: a full round trip across the wire per event, which for a stream
+of mouse movements is a performance disaster. Instead the source runs
+ahead of the consumer at both ends. The server's event pump thread calls
+\texttt{event()} on the display library without pause, translating each
+event to the wire record and sending it the moment it is ready. The
+client's receiver thread takes each event message as it arrives and
+appends it to the client's event queue, so the transport is always
+drained; \texttt{event()} takes from the queue, translates back, and
+returns the event to the program, replacing the wire handle with the
+window identification the API promises. The program regulates its own
+consumption from the queue.
+
+The queue is also where the anticipated optimization lives: redundant
+events, a run of mouse movements of which only the last matters, can
+collapse in the queue, and a superseding message can override queued ones,
+all without any change to the protocol on the wire.
 
 Three operations act on the client's own event stream and put nothing on
 the wire: \texttt{eventover()} and \texttt{eventsover()}, which hook event

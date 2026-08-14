@@ -33,8 +33,13 @@
 * The server runs the command channel on its main thread: wait for a message,  *
 * execute it against the display library, reply if the call returns values.    *
 * A second thread runs the event channel: call event() forever and send each   *
-* event out. The client needs no threads: calls go out on the command          *
-* channel, and event() reads the event channel.                                *
+* event out, as soon as it is ready. Events are pushed, never polled: a pull   *
+* model would cost a round trip per event. The client mirrors the push with a  *
+* receiver thread of its own, which moves inbound events to the client's       *
+* queue as they arrive; event() takes from the queue, and the program          *
+* regulates its consumption there. The queue is also where the anticipated     *
+* optimization of collapsing redundant events belongs. Calls stay on the       *
+* program's thread.                                                            *
 *                                                                              *
 * Queries are synchronous: the client sends the request and waits for the      *
 * reply on the command channel before issuing anything else. There is thus     *
