@@ -503,6 +503,123 @@ allow.
 
 #define EVUNION (7*8)
 
+/* Event thinning: the movement streams, mouse, graphical mouse and
+   joystick, and window resizes, arrive faster than they matter, a
+   joystick idling at full rate being the standing example. Each stream
+   sends at most one event per interval per device; between sends the
+   latest holds as pending. Ordering stays truthful where it counts: a
+   pending movement flushes before any other event goes out, so a click
+   always follows the position it happened at, and only the trailing
+   rest position can lag, until the next event of any kind carries it. */
+
+#define THINMS   10  /* the interval, milliseconds */
+#define THINDEV  8   /* devices per stream */
+#define THINRSZ  16  /* resize slots */
+
+typedef struct thinslot {
+
+    int        dirty;   /* a pending event holds */
+    double     last;    /* when one last sent */
+    gr_msgevt  ev;      /* the pending event */
+
+} thinslot;
+
+static thinslot thmou[THINDEV];  /* mouse moves, by mouse */
+static thinslot thmoug[THINDEV]; /* graphical mouse moves */
+static thinslot thjoy[THINDEV];  /* joystick moves, by stick */
+static thinslot thrsz[THINRSZ];  /* resizes, by window handle */
+
+static double thnow(void)
+
+{
+
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (ts.tv_sec+ts.tv_nsec/1e9);
+
+}
+
+/* drop pending thinned events; a new session never sees stale ones */
+static void thinclear(void)
+
+{
+
+    int i;
+
+    for (i = 0; i < THINDEV; i++)
+        thmou[i].dirty = thmoug[i].dirty = thjoy[i].dirty = 0;
+    for (i = 0; i < THINRSZ; i++) thrsz[i].dirty = 0;
+
+}
+
+/* the thin slot for a wire event, or NULL if the type never thins */
+static thinslot* thinfor(gr_msgevt* we)
+
+{
+
+    long d;
+
+    switch (we->etype) {
+
+        case ami_etmoumov:  d = we->p[0]; 
+            return (d >= 1 && d <= THINDEV)? &thmou[d-1]: NULL;
+        case ami_etmoumovg: d = we->p[0];
+            return (d >= 1 && d <= THINDEV)? &thmoug[d-1]: NULL;
+        case ami_etjoymov:  d = we->p[0];
+            return (d >= 1 && d <= THINDEV)? &thjoy[d-1]: NULL;
+        case ami_etresize:  d = we->winid;
+            return (d >= 1 && d <= THINRSZ)? &thrsz[d-1]: NULL;
+        default: return (NULL);
+
+    }
+
+}
+
+static void evsend1(gr_msgevt* we);
+
+/* flush every pending movement, before any other event overtakes it */
+static void thinflush(void)
+
+{
+
+    int i;
+
+    for (i = 0; i < THINDEV; i++) {
+
+        if (thmou[i].dirty)  { thmou[i].dirty = 0;  evsend1(&thmou[i].ev); }
+        if (thmoug[i].dirty) { thmoug[i].dirty = 0; evsend1(&thmoug[i].ev); }
+        if (thjoy[i].dirty)  { thjoy[i].dirty = 0;  evsend1(&thjoy[i].ev); }
+
+    }
+    for (i = 0; i < THINRSZ; i++)
+        if (thrsz[i].dirty) { thrsz[i].dirty = 0; evsend1(&thrsz[i].ev); }
+
+}
+
+/* put one event on the wire */
+static void evsend1(gr_msgevt* we)
+
+{
+
+    unsigned char ebuf[sizeof(gr_msghdr)+sizeof(gr_msgevt)];
+    gr_msghdr*    h = (gr_msghdr*)ebuf;
+
+    if (gtrace)
+        fprintf(stderr, "gs>e %-15s w%ld\n",
+                gr_evtname((long)we->etype), we->winid);
+    h->len = sizeof(ebuf);
+    h->mid = GR_MEVENT;
+    h->seq = 0;
+    h->wid = 0;
+    memcpy(ebuf+sizeof(gr_msghdr), we, sizeof(gr_msgevt));
+    pthread_mutex_lock(&evsend);
+    ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
+    pthread_mutex_unlock(&evsend);
+
+}
+
 static void* evpump(void* arg)
 
 {
@@ -534,21 +651,46 @@ static void* evpump(void* arg)
 
         }
         if (!clientup) continue; /* idle: nobody to forward to */
-        if (gtrace)
-            fprintf(stderr, "gs>e %-15s w%ld\n",
-                    gr_evtname((long)er.etype), er.winid);
-        h->len = sizeof(ebuf);
-        h->mid = GR_MEVENT;
-        h->seq = 0;
-        h->wid = 0;
+        (void)h;
         memset(we, 0, sizeof(gr_msgevt));
         we->winid = lw2h(er.winid);
         we->etype = (long)er.etype;
         we->handled = 0;
         memcpy(we->p, &er.echar, EVUNION);
-        pthread_mutex_lock(&evsend);
-        ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
-        pthread_mutex_unlock(&evsend);
+        {
+
+            thinslot* ts = thinfor(we);
+
+            if (ts) {
+
+                double now = thnow();
+
+                if (now-ts->last >= THINMS/1000.0) {
+
+                    /* due: this one goes, and carries any pendings;
+                       its own pending it supersedes outright */
+                    ts->dirty = 0;
+                    thinflush();
+                    ts->last = now;
+                    evsend1(we);
+
+                } else {
+
+                    /* within the interval: hold as the latest */
+                    ts->ev = *we;
+                    ts->dirty = 1;
+
+                }
+
+            } else {
+
+                /* every other event flushes the pendings ahead of it */
+                thinflush();
+                evsend1(we);
+
+            }
+
+        }
 
     }
 
@@ -1437,6 +1579,7 @@ int main(int argc, char* argv[])
                 sesserr("Protocol failure: no event channel hello");
 
         }
+        thinclear(); /* no pending events from a prior session */
         clientup = 1; /* the pump forwards from here on */
 
         /* The command loop. A burst of commands executes under one hold

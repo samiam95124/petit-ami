@@ -644,7 +644,29 @@ static void wire2evt(gr_msgevt* we, ami_evtrec* er)
 
 }
 
-/* append to the queue, growing the ring as needed; the lock is held */
+/* true if b supersedes a in the queue: the same movement stream from
+   the same device, or a resize of the same window, of which only the
+   latest matters */
+static int evqsuper(ami_evtrec* a, ami_evtrec* b)
+
+{
+
+    if (a->etype != b->etype) return (0);
+    switch (a->etype) {
+
+        case ami_etmoumov:  return (a->mmoun == b->mmoun);
+        case ami_etmoumovg: return (a->mmoung == b->mmoung);
+        case ami_etjoymov:  return (a->mjoyn == b->mjoyn);
+        case ami_etresize:  return (a->winid == b->winid);
+        default: return (0);
+
+    }
+
+}
+
+/* append to the queue, growing the ring as needed; the lock is held.
+   A movement or resize replaces an unconsumed one it supersedes at the
+   tail of the queue instead of stacking behind it. */
 static void evqput(ami_evtrec* er)
 
 {
@@ -652,6 +674,13 @@ static void evqput(ami_evtrec* er)
     ami_evtrec* nq;
     long        i;
 
+    if (evqcnt) {
+
+        ami_evtrec* tail = &evq[(evqhead+evqcnt-1)%evqsiz];
+
+        if (evqsuper(tail, er)) { *tail = *er; return; }
+
+    }
     if (evqcnt == evqsiz) {
 
         nq = malloc(evqsiz*2*sizeof(ami_evtrec));
