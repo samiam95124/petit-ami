@@ -117,6 +117,12 @@
 extern char *program_invocation_short_name;
 #endif
 
+/* forward declarations: the notify waits (defined with the event
+   machinery) */
+static void notexevt(XEvent* e);
+static void waitxevt(int type, Window wh, XEvent* out);
+static void waitxmap(Window wh);
+
 /* forward declarations for FreeType helper functions */
 static void ft_draw_char(Drawable d, GC gc, FT_Face face,
                          int pixel_size_x, int pixel_size_y,
@@ -1227,6 +1233,16 @@ static xevtque*   freque;         /* free XEvent queue entries list */
 static xevtque*   evtque;         /* XEvent input save queue */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
+/* The queues are shared data: event() may run on one thread while another
+   enqueues, sendevent() being the designed case. Each queue has its own
+   lock, held only across the link work, per the rule that a lock
+   encompasses just the data it locks. */
+static pthread_mutex_t xevtlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t paevtlock = PTHREAD_MUTEX_INITIALIZER;
+/* the sendevent wake: a cross thread enqueue writes a byte so a blocked
+   event() returns to find it */
+static int        sendwfds[2];    /* wake pipe */
+static int        sendwsev;       /* wake system event id */
 static ami_pevthan menu_event_oeh; /* event callback save for menus */
 static metptr     fremet;         /* free menu entrys list */
 static winptr     winfre;         /* free windows structure list */
@@ -2511,14 +2527,9 @@ void fndfrm(void)
     XFlush(padisplay);
     XWUNLOCK();
 
-    /* wait window present */
-    do {
-
-        XWLOCK();
-        XNextEvent(padisplay, &xe); /* get next event */
-        XWUNLOCK();
-
-    } while (xe.type != MapNotify || xe.xany.window != wh);
+    /* wait window present; the events read along the way file for
+       processing instead of dropping */
+    waitxmap(wh);
 
     /* get frame measurements */
     fndfrmdif(wh, &frmextwdt[frmcfgall], &frmexthgt[frmcfgall],
@@ -4310,6 +4321,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds xevtlock */
 static xevtque* getxevt(void)
 
 {
@@ -4335,6 +4347,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds xevtlock */
 static void putxevt(xevtque* p)
 
 {
@@ -4356,6 +4369,8 @@ static void enquexevt(XEvent* e)
 
     xevtque* p;
 
+    pthread_mutex_lock(&xevtlock);
+
     p = getxevt(); /* get a queue entry */
     memcpy(&p->evt, e, sizeof(XEvent)); /* copy event to queue entry */
     if (evtque) { /* there are entries in queue */
@@ -4374,6 +4389,7 @@ static void enquexevt(XEvent* e)
         evtque = p; /* place in list */
 
     }
+    pthread_mutex_unlock(&xevtlock);
 
 }
 
@@ -4383,13 +4399,14 @@ Remove XEvent from input queue
 
 *******************************************************************************/
 
-static void dequexevt(XEvent* e)
+static int dequexevt(XEvent* e)
 
 {
 
     xevtque* p;
 
-    if (!evtque) error(esystem); /* should not be called empty */
+    pthread_mutex_lock(&xevtlock);
+    if (!evtque) { pthread_mutex_unlock(&xevtlock); return (FALSE); }
     /* we push TO next (current) and take FROM last (final) */
     p = evtque->last; /* index final entry */
     if (p->next == p) evtque = NULL; /* only one entry, clear list */
@@ -4401,6 +4418,9 @@ static void dequexevt(XEvent* e)
     }
     memcpy(e, &p->evt, sizeof(XEvent)); /* copy out to caller */
     putxevt(p); /* release queue entry to free */
+    pthread_mutex_unlock(&xevtlock);
+
+    return (TRUE);
 
 }
 
@@ -4476,7 +4496,8 @@ static int takexevt(int type, Window w, XEvent* out)
 
     xevtque* p;
 
-    if (!evtque) return (FALSE);
+    pthread_mutex_lock(&xevtlock);
+    if (!evtque) { pthread_mutex_unlock(&xevtlock); return (FALSE); }
     p = evtque;
     do {
 
@@ -4493,6 +4514,7 @@ static int takexevt(int type, Window w, XEvent* out)
             }
             memcpy(out, &p->evt, sizeof(XEvent));
             putxevt(p); /* release entry */
+            pthread_mutex_unlock(&xevtlock);
 
             return (TRUE);
 
@@ -4500,6 +4522,8 @@ static int takexevt(int type, Window w, XEvent* out)
         p = p->next;
 
     } while (evtque && p != evtque);
+
+    pthread_mutex_unlock(&xevtlock);
 
     return (FALSE);
 
@@ -4560,7 +4584,8 @@ static void coalesce(XEvent* e)
            the rest, then let the X queue (newest of all) win. */
         if (takexevt(t, w, &tmp)) { *e = tmp; while (takexevt(t, w, &tmp)); }
         XWLOCK();
-        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp)) *e = tmp;
+        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp))
+            { notexevt(&tmp); *e = tmp; }
         XWUNLOCK();
 
     }
@@ -4579,13 +4604,115 @@ Should have timeouts.
 
 *******************************************************************************/
 
+/* Recently mapped X windows. A thread that maps a window cannot hunt the
+   event stream for its MapNotify: another thread's event processing may
+   consume it first. Every reader of X events notes map notifies here, and
+   the mapper waits on this data, locked only for the touch, per the rule
+   that a lock encompasses just the data it locks. */
+
+#define NOTERING 32
+static XEvent          notering[NOTERING]; /* awaitable notifies seen */
+static int             notein;
+static pthread_mutex_t notelock = PTHREAD_MUTEX_INITIALIZER;
+
+/* the types a thread may wait on: the map and configure notifies */
+static int noteable(int type)
+    { return (type == MapNotify || type == ConfigureNotify); }
+
+static void notexevt(XEvent* e)
+
+{
+
+    if (noteable(e->type)) {
+
+        pthread_mutex_lock(&notelock);
+        notering[notein] = *e;
+        notein = (notein+1)%NOTERING;
+        pthread_mutex_unlock(&notelock);
+
+    }
+
+}
+
+/* take the newest noted event of the type for the window, consuming every
+   match so stale ones do not satisfy a later wait */
+static int sawxevt(int type, Window w, XEvent* out)
+
+{
+
+    int i, j, r = 0;
+
+    pthread_mutex_lock(&notelock);
+    for (j = 0; j < NOTERING; j++) {
+
+        i = (notein+NOTERING-1-j)%NOTERING; /* newest first */
+        if (notering[i].type == type && notering[i].xany.window == w) {
+
+            if (!r) { *out = notering[i]; r = 1; }
+            memset(&notering[i], 0, sizeof(XEvent));
+
+        }
+
+    }
+    pthread_mutex_unlock(&notelock);
+
+    return (r);
+
+}
+
+/* Wait for a notify of the type for the window. Whoever reads it, this
+   thread or another, the table carries it; we read events only when they
+   are there to read, filing them for normal processing, and never hold
+   the display lock across a wait. */
+static void waitxevt(int type, Window wh, XEvent* out)
+
+{
+
+    XEvent e;
+    int    got;
+
+    for (;;) {
+
+        if (sawxevt(type, wh, out)) return;
+        got = 0;
+        XWLOCK();
+        if (XPending(padisplay)) { XNextEvent(padisplay, &e); got = 1; }
+        XWUNLOCK();
+        if (got) { notexevt(&e); enquexevt(&e); }
+        else usleep(1000);
+
+    }
+
+}
+
+static void waitxmap(Window wh)
+
+{
+
+    XEvent e;
+
+    waitxevt(MapNotify, wh, &e);
+
+}
+
 static void peekxevt(XEvent* e)
 
 {
 
-    XWLOCK();
-    XNextEvent(padisplay, e); /* get next event */
-    XWUNLOCK();
+    int got;
+
+    for (;;) {
+
+        /* never hold the display lock across the wait for traffic */
+        XWLOCK();
+        got = XPending(padisplay);
+        if (got) XNextEvent(padisplay, e); /* get next event */
+        XWUNLOCK();
+        if (got) break;
+        usleep(1000);
+
+    }
+    notexevt(e); /* a notify is data others may be waiting on */
     enquexevt(e); /* place in input queue */
     /* there is another diagnostic in ami_event(), but you might want to see
        these events immediately */
@@ -4601,6 +4728,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds paevtlock */
 static paevtque* getpaevt(void)
 
 {
@@ -4626,6 +4754,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds paevtlock */
 static void putpaevt(paevtque* p)
 
 {
@@ -4673,6 +4802,7 @@ static void enquepaevt(ami_evtrec* e)
 
     paevtque* p;
 
+    pthread_mutex_lock(&paevtlock);
     p = getpaevt(); /* get a queue entry */
     memcpy(&p->evt, e, sizeof(ami_evtrec)); /* copy event to queue entry */
     if (paqevt) { /* there are entries in queue */
@@ -4691,6 +4821,9 @@ static void enquepaevt(ami_evtrec* e)
         paqevt = p; /* place in list */
 
     }
+    pthread_mutex_unlock(&paevtlock);
+    /* wake a blocked event() on another thread to find the entry */
+    if (sendwfds[1]) write(sendwfds[1], "w", 1);
 
 }
 
@@ -4700,13 +4833,14 @@ Remove PA event from input queue
 
 *******************************************************************************/
 
-static void dequepaevt(ami_evtrec* e)
+static int dequepaevt(ami_evtrec* e)
 
 {
 
     paevtque* p;
 
-    if (!paqevt) error(esystem); /* should not be called empty */
+    pthread_mutex_lock(&paevtlock);
+    if (!paqevt) { pthread_mutex_unlock(&paevtlock); return (FALSE); }
     /* we push TO next (current) and take FROM last (final) */
     p = paqevt->last; /* index final entry */
     if (p->next == p) paqevt = NULL; /* only one entry, clear list */
@@ -4718,6 +4852,9 @@ static void dequepaevt(ami_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(ami_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
+    pthread_mutex_unlock(&paevtlock);
+
+    return (TRUE);
 
 }
 
@@ -4734,6 +4871,7 @@ static void remquepawin(long winid)
     paevtque* p;
     paevtque* p2;
 
+    pthread_mutex_lock(&paevtlock);
     p = paqevt; /* index root entry */
     while (p) {
 
@@ -4765,6 +4903,8 @@ static void remquepawin(long winid)
         }
 
     }
+
+    pthread_mutex_unlock(&paevtlock);
 
 }
 
@@ -5570,8 +5710,7 @@ static void winvis(winptr win)
         XWUNLOCK();
 
         /* wait for the window to be displayed */
-        do { peekxevt(&e);
-        } while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
+        waitxmap(win->xmwhan);
 
         /* present the subclient window onscreen */
         XWLOCK();
@@ -5580,7 +5719,7 @@ static void winvis(winptr win)
         XWUNLOCK();
 
         /* wait for the window to be displayed */
-        do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != win->xwhan);
+        waitxmap(win->xwhan);
 
         win->visible = TRUE; /* set now visible */
         restore(win); /* restore window */
@@ -13126,8 +13265,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                    exact size match: Wayland/XWayland (and tiling WMs) may clamp
                    or override the requested size, so demanding the exact value
                    would loop forever. Adopt the actual granted size instead. */
-                do { peekxevt(&xe); /* peek next event */
-                } while (xe.type != ConfigureNotify || xe.xany.window != win->xwhan);
+                waitxevt(ConfigureNotify, win->xwhan, &xe);
                 xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
                 xwc.height = xe.xconfigure.height;
 #endif
@@ -13161,8 +13299,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 #ifdef WAITWMR
                     /* wait for the next configure for this window (any size --
                        the WM may clamp the request; see note above) */
-                    do { peekxevt(&xe); /* peek next event */
-                    } while (xe.type != ConfigureNotify || xe.xany.window != mwin->xmwhan);
+                    waitxevt(ConfigureNotify, mwin->xmwhan, &xe);
                     xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
                     xwc.height = xe.xconfigure.height;
 #endif
@@ -13859,9 +13996,8 @@ static void xwinget(ami_evtrec* er, int* keep)
 
         rv = 0;
         /* check input queue has events */
-        while (evtque && !*keep) {
+        while (!*keep && dequexevt(&e)) {
 
-            dequexevt(&e); /* remove event from queue */
             coalesce(&e); /* fold redundant resize/redraw bursts into one */
             xwinprc(&e, er, keep); /* process */
 
@@ -13876,6 +14012,7 @@ static void xwinget(ami_evtrec* er, int* keep)
                 XWLOCK();
                 XNextEvent(padisplay, &e); /* get next event */
                 XWUNLOCK();
+                notexevt(&e); /* a notify is data others may wait on */
                 coalesce(&e); /* fold redundant resize/redraw bursts into one */
                 xwinprc(&e, er, keep); /* pass to processing */
 
@@ -13918,7 +14055,16 @@ static void ievent(FILE* f, ami_evtrec* er)
             /* check display event occurred */
             if (sev.typ == se_inp) {
 
-                if (sev.lse == dspsev) xwinget(er, &keep);
+                if (sev.lse == sendwsev) {
+
+                    /* a cross thread enqueue; drain the taps, take an
+                       entry if one is still there */
+                    char b[256];
+
+                    while (read(sendwfds[0], b, sizeof(b)) > 0);
+                    if (dequepaevt(er)) keep = TRUE;
+
+                } else if (sev.lse == dspsev) xwinget(er, &keep);
                 else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
                     /* process joystick event */
                     joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
@@ -13965,10 +14111,9 @@ static void event_ivf(FILE* f, ami_evtrec* er)
 
     do { /* loop handling via event vectors and queuing */
 
-        /* check input PA queue */
-        if (paqevt) dequepaevt(er);
-        /* get logical input file number for input, and get the event for that. */
-        else ievent(f, er); /* process event */
+        /* check input PA queue; if empty, get an event */
+        if (!dequepaevt(er))
+            ievent(f, er); /* process event */
         if (dmpevt) {
 
             prtevt(er); /* do diagnostic dump of PA events */
@@ -14825,9 +14970,7 @@ static void buffer_ivf(FILE* f, long e)
             /* wait for the next configure for this window (any size -- the WM
                may clamp the request; see note above). Adopt the granted
                size. */
-            do { peekxevt(&xe); /* peek next event */
-            } while (xe.type != ConfigureNotify ||
-                     xe.xany.window != win->xmwhan);
+            waitxevt(ConfigureNotify, win->xmwhan, &xe);
             win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
             win->xmwr.h = xe.xconfigure.height;
 #endif
@@ -15035,8 +15178,7 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 #ifdef WAITWMR
     /* wait for the next configure for this window (any geometry; see note in
        the resize path -- the WM may not honor an exact request) */
-    do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xany.window != win->xwhan);
+    waitxevt(ConfigureNotify, win->xwhan, &e);
 #endif
     restore(win);
 
@@ -15551,8 +15693,7 @@ static void setsizg_ivf(FILE* f, long x, long y)
            requested size, and demanding the exact value would loop forever.
            The actual granted size is adopted from the event below. */
         if (!win->childfrm) {
-            do { peekxevt(&e); /* peek next event */
-            } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+            waitxevt(ConfigureNotify, win->xmwhan, &e);
         }
 #endif
 
@@ -15665,8 +15806,7 @@ static void setposg_ivf(FILE* f, long x, long y)
 
 #ifdef WAITWMR
         /* wait for the configure response */
-        do { peekxevt(&e); /* peek next event */
-        } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+        waitxevt(ConfigureNotify, win->xmwhan, &e);
 #endif
 
         /* set origin for next time */
@@ -17572,6 +17712,13 @@ static void ami_init_graphics(int argc, char *argv[])
     dfid = ConnectionNumber(padisplay);
     XWUNLOCK();
     dspsev = system_event_addseinp(dfid);
+    /* the sendevent wake pipe: a cross thread enqueue taps it. Nonblocking
+       both ways: a wake already pending is wake enough, and the tap must
+       never stall the tapper. */
+    if (pipe(sendwfds)) error(esystem);
+    fcntl(sendwfds[0], F_SETFL, O_NONBLOCK);
+    fcntl(sendwfds[1], F_SETFL, O_NONBLOCK);
+    sendwsev = system_event_addseinp(sendwfds[0]);
 
     /* clear joystick table */
     for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;

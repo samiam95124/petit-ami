@@ -890,6 +890,15 @@ portable/txtterminal.o: portable/txtterminal.c include/terminal.h
 	$(CC) $(CFLAGS) -c portable/txtterminal.c \
 		-o portable/txtterminal.o
 
+portable/graph_client.o: portable/graph_client.c include/graphics.h \
+	include/network.h include/graph_remote.h
+	$(CC) $(CFLAGS) -c portable/graph_client.c \
+		-o portable/graph_client.o
+
+stub/screen_capture_stub.o: stub/screen_capture_stub.c
+	$(CC) $(CFLAGS) -c stub/screen_capture_stub.c \
+		-o stub/screen_capture_stub.o
+
 portable/widget_base.o: portable/widget_base.c
 	$(CC) $(CFLAGS) -c portable/widget_base.c \
 		-o portable/widget_base.o
@@ -1504,6 +1513,23 @@ eventg: $(GLIBSD) tests/event.c
 
 pdftest: $(GLIBSD) tests/pdftest.c
 	$(CC) $(CFLAGS) tests/pdftest.c $(GLIBS) -o bin/pdftest
+
+#
+# The graphics test run remotely: linked with graph_client, the display
+# side served by graph_server.
+#
+graphics_testr: tests/graphics_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/graphics_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/graphics_testr
+
+#
+# The remote display server: the display side of remote mode, standalone.
+#
+graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h
+	$(CC) $(CFLAGS) portable/graph_server.c $(GLIBS) -o bin/graph_server
 
 #
 # Test terminal characteristics (console and graph mode)
