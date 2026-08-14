@@ -87,6 +87,11 @@ static int       clientup; /* a client is connected */
 static FILE* h2f[MAXHND];  /* handle to window file */
 static long  h2lw[MAXHND]; /* handle to logical window id */
 
+/* the main window as the server presented it, restored between
+   sessions: a session's title and size are the session's */
+static char srvname[64];
+static long origw, origh;
+
 /*******************************************************************************
 
 Report error and stop
@@ -1325,6 +1330,16 @@ int main(int argc, char* argv[])
     h2f[1] = stdout;
     h2lw[1] = 1;
 
+    /* the main window as presented, for the between-session restore */
+    {
+
+        const char* bn = strrchr(argv[0], '/');
+
+        snprintf(srvname, sizeof(srvname), "%s", bn? bn+1: argv[0]);
+        ami_getsizg(stdout, &origw, &origh);
+
+    }
+
     /* the pump lives across sessions: idle it discards, and the display
        can cancel an idle server */
     if (pthread_create(&pump, NULL, evpump, NULL))
@@ -1422,6 +1437,8 @@ winddown:
             h2f[h] = 0;
 
         }
+        ami_title(stdout, srvname); /* the session's title went with it */
+        ami_setsizg(stdout, origw, origh); /* and its size */
         ami_auto(stdout, 0); /* off first: the resets below are illegal
                                 with it on, and it cannot come back on
                                 until the geometry is standard again */
