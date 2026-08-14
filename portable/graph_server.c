@@ -78,6 +78,7 @@ static int byeseen;   /* the client said bye; wind down */
 static pthread_t pump;     /* the pump thread */
 static int       pumpstop; /* exiting: leave the library and return */
 static int       clientup; /* a client is connected */
+static int       sigasked; /* a terminate asked this session to end */
 
 /* the wake: a user event code, injected to return the pump from event()
    and never forwarded */
@@ -520,12 +521,16 @@ static void* evpump(void* arg)
         if (gtrace && !clientup)
             fprintf(stderr, "gs.e %-15s w%ld (idle)\n",
                     gr_evtname((long)er.etype), er.winid);
-        if (er.etype == ami_etterm && !clientup) {
+        if (er.etype == ami_etterm) {
 
-            /* the display asks an idle server to terminate: that is the
-               cancellation, by the same path as the console interrupt */
-            kill(getpid(), SIGINT);
-            continue;
+            /* A terminate from the display, control-c or the close
+               button, shuts the whole server down, as the console
+               interrupt does: one stroke. With a client up it winds
+               down politely, the terminate forwarding so the program
+               exits and its bye takes the server; idle, or asked twice,
+               the signal path exits directly. */
+            if (!clientup || sigasked) { kill(getpid(), SIGINT); continue; }
+            sigasked = 1; /* the bye that follows ends the server */
 
         }
         if (!clientup) continue; /* idle: nobody to forward to */
@@ -578,7 +583,6 @@ second interrupt is force.
 
 *******************************************************************************/
 
-static int sigasked;  /* the interrupt asked once this session */
 
 /* The mask must be in place before any thread exists: a process directed
    signal lands on any thread that leaves it unblocked, and a thread
@@ -1358,6 +1362,13 @@ int main(int argc, char* argv[])
 
     }
 
+    /* the idle window says what it is; a blank window reads as a hang */
+    printf("Remote display server awaiting connection on port %ld.\n",
+           srvport);
+    printf("Control-c in this window, or its close button, shuts the "
+           "server down.\n");
+    fflush(stdout);
+
     /* the pump lives across sessions: idle it discards, and the display
        can cancel an idle server */
     if (pthread_create(&pump, NULL, evpump, NULL))
@@ -1471,6 +1482,11 @@ winddown:
         fflush(stdout);
         ami_auto(stdout, 1);
         ami_curvis(stdout, 1);
+        printf("Session ended. Remote display server awaiting connection "
+               "on port %ld.\n", srvport);
+        printf("Control-c in this window, or its close button, shuts the "
+               "server down.\n");
+        fflush(stdout);
         if (faulted) {
 
             /* drop whatever the dead session left on the channels, so
