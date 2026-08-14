@@ -161,11 +161,17 @@ values, little endian, which on the supported hosts is a plain copy.
 static gr_msghdr* shdr(void) { return ((gr_msghdr*)sbuf); }
 static gr_msghdr* rhdr(void) { return ((gr_msghdr*)rbuf); }
 
-/* begin a message */
+/* begin a message. The write stream flushes first: the manual's first
+   condition for remote display is that all output applies in the order
+   issued, and a buffered partial line, a form feed being the classic
+   case, must not arrive after the calls that followed it. The flush
+   lands its own message through the write interdiction before this one
+   builds. */
 static void begin(int mid, long wid)
 
 {
 
+    if (connected) fflush(stdout);
     shdr()->mid = mid;
     shdr()->seq = 0;
     shdr()->wid = wid;
