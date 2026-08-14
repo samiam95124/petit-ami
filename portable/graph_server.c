@@ -55,7 +55,10 @@ static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
 /* message assembly */
 static unsigned char* sbuf; /* reply buffer */
 static long           soff;
-static unsigned char* rbuf; /* receive buffer */
+static unsigned char* rbuf; /* receive buffer: points at the message
+                               being executed, which may sit inside a
+                               batched datagram */
+static unsigned char* rbase; /* the buffer datagrams land in */
 static long           roff;
 static long           rlen;
 
@@ -1431,6 +1434,43 @@ static void dispatch(void)
 
 }
 
+/* Execute every message in the datagram at rbase, dlen bytes; a
+   datagram carries one or more messages back to back, the header
+   lengths delimiting them. rbuf walks the batch; a session error inside
+   longjmps out, and the fault path restores rbuf to rbase. */
+static void dgram(long dlen)
+
+{
+
+    long off = 0;
+    long ml;
+
+    while (off < dlen) {
+
+        if (dlen-off < (long)sizeof(gr_msghdr)) {
+
+            rbuf = rbase;
+            sesserr("Short message from client");
+
+        }
+        rbuf = rbase+off;
+        ml = rhdr()->len;
+        if (ml < (long)sizeof(gr_msghdr) || off+ml > dlen) {
+
+            rbuf = rbase;
+            sesserr("Message framing error");
+
+        }
+        rlen = ml;
+        roff = sizeof(gr_msghdr);
+        dispatch();
+        off += ml;
+
+    }
+    rbuf = rbase;
+
+}
+
 /*******************************************************************************
 
 Main: bind, greet, pump, serve
@@ -1475,7 +1515,7 @@ int main(int argc, char* argv[])
     msgmax = ami_maxmsg(la);
     if (msgmax < 1024) error("Message channel too small");
     sbuf = malloc(msgmax);
-    rbuf = malloc(msgmax);
+    rbuf = rbase = malloc(msgmax);
     if (!sbuf || !rbuf) error("Out of memory");
 
     /* both channels up before anyone is answered. The channels arrive
@@ -1541,6 +1581,7 @@ int main(int argc, char* argv[])
         int  faulted;
 
         faulted = setjmp(sesjmp);
+        rbuf = rbase; /* a fault mid-batch leaves the walk pointer inside */
         if (faulted) goto winddown; /* the pump lives on, idle */
 
         /* fresh session */
@@ -1549,11 +1590,11 @@ int main(int argc, char* argv[])
         cleaning = 0;
 
         /* the hello */
-        rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
+        rlen = ami_rdmsg(cmdfn, rbase, msgmax);
         if (rlen < (long)sizeof(gr_msghdr)) sesserr("Short message from client");
-        roff = sizeof(gr_msghdr);
-        if (rhdr()->mid != GR_MHELLO) sesserr("Protocol failure: no hello");
-        dispatch();
+        if (((gr_msghdr*)rbase)->mid != GR_MHELLO)
+            sesserr("Protocol failure: no hello");
+        dgram(rlen);
 
         /* The event channel hello names the peer for events. The wait is
            bounded: a client that died between hellos must not wedge the
@@ -1573,7 +1614,7 @@ int main(int argc, char* argv[])
             r = select((int)evtfn+1, &fs, NULL, NULL, &tv);
             if (r <= 0)
                 sesserr("Protocol failure: no event channel hello");
-            rlen = ami_rdmsg(evtfn, rbuf, msgmax);
+            rlen = ami_rdmsg(evtfn, rbase, msgmax);
             if (rlen < (long)sizeof(gr_msghdr) ||
                 ((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
                 sesserr("Protocol failure: no event channel hello");
@@ -1591,15 +1632,12 @@ int main(int argc, char* argv[])
 
             ssize_t r;
 
-            rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
+            rlen = ami_rdmsg(cmdfn, rbase, msgmax);
             for (;;) {
 
-                if (rlen < (long)sizeof(gr_msghdr))
-                    sesserr("Short message from client");
-                roff = sizeof(gr_msghdr);
-                dispatch();
+                dgram(rlen);
                 if (byeseen) break;
-                r = recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT);
+                r = recv((int)cmdfn, rbase, msgmax, MSG_DONTWAIT);
                 if (r < 0) break; /* the burst is drained */
                 rlen = r;
 
@@ -1649,8 +1687,8 @@ winddown:
 
             /* drop whatever the dead session left on the channels, so
                the next hello read is not stale traffic */
-            while (recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT) >= 0);
-            while (recv((int)evtfn, rbuf, msgmax, MSG_DONTWAIT) >= 0);
+            while (recv((int)cmdfn, rbase, msgmax, MSG_DONTWAIT) >= 0);
+            while (recv((int)evtfn, rbase, msgmax, MSG_DONTWAIT) >= 0);
 
         }
         cleaning = 0;

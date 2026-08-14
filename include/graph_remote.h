@@ -49,11 +49,16 @@
 *                                                                              *
 * WIRE FORMAT                                                                  *
 *                                                                              *
-* Every message is one message-channel datagram, and must fit the channel      *
+* A message-channel datagram carries one or more messages, back to back,       *
+* their header lengths delimiting them; a receiver executes them in order.     *
+* No message is split across datagrams. A datagram must fit the channel        *
 * maximum given by maxmsg() for the address; senders chunk the write stream    *
 * as needed, and no other message can exceed the maximum with its payload      *
-* strings, which bounds practical string lengths. All multibyte values are     *
-* little endian. The notation used in the message catalog below:              *
+* strings, which bounds practical string lengths. Batching is the sender's     *
+* option: nothing may wait to fill a batch, and every boundary, a query, an    *
+* event wait, the sync, the bye, must send what has gathered at once. All      *
+* multibyte values are little endian. The notation used in the message         *
+* catalog below:                                                               *
 *                                                                              *
 *     i64   signed 64 bit integer (the API long)                               *
 *     f64   IEEE 754 double (carries the API float values)                     *

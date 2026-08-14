@@ -41,6 +41,8 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <errno.h>
+#include <time.h>
 #include <sys/socket.h>
 
 #include <graphics.h>
@@ -79,8 +81,10 @@ static short          sseq;       /* request serial */
 /* The window counts messages, not bytes: the kernel accounts a socket
    buffer in per-datagram truesize, hundreds of bytes for the smallest
    message, so a stock receive buffer holds only a few hundred
-   datagrams however small their payloads. */
-#define GRWINDOW 64
+   datagrams however small their payloads. Batching packs tens of
+   messages into each datagram's truesize, which is what affords a
+   window this wide. */
+#define GRWINDOW 256
 static long           sentb;      /* messages since the last fence */
 static int            inquery;    /* a round trip is in progress */
 
@@ -218,6 +222,7 @@ static gr_msghdr* rhdr(void) { return ((gr_msghdr*)rbuf); }
 
 /* forward: the fence in send0() uses these, defined below */
 static void qsend(void);
+static void flushcmd(void);
 static long gi(void);
 static void servefile(void);
 static void dosync(void);
@@ -290,6 +295,70 @@ static void ps(const char* s)
 
 }
 
+/* The command batch. Messages gather in one buffer and go out as one
+   datagram, saving the per-datagram cost on the hot paths. Nothing ever
+   waits to fill a batch: every boundary, a query, event(), the fence,
+   the bye, sends at once, and the flusher thread bounds a lone trailing
+   command to a couple of milliseconds. A datagram carries one or more
+   messages, back to back; the header lengths delimit them. */
+
+#define BATLIM 1400 /* batch bound: one wire MTU's worth */
+
+static unsigned char*  batbuf;   /* the batch, NULL until the layer is up */
+static long            batmax;   /* its bound */
+static long            batlen;   /* bytes gathered */
+static pthread_mutex_t batlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  batcond = PTHREAD_COND_INITIALIZER;
+
+/* put the batch on the wire; the lock is held */
+static void batflush(void)
+
+{
+
+    if (batlen) { ami_wrmsg(cmdfn, batbuf, batlen); batlen = 0; }
+
+}
+
+/* a boundary: whatever has gathered goes now */
+static void flushcmd(void)
+
+{
+
+    if (!batbuf) return;
+    pthread_mutex_lock(&batlock);
+    batflush();
+    pthread_mutex_unlock(&batlock);
+
+}
+
+/* the flusher: a lone trailing command must not sit in the batch
+   waiting for a boundary that is not coming */
+static void* batrun(void* arg)
+
+{
+
+    struct timespec ts;
+
+    pthread_mutex_lock(&batlock);
+    for (;;) {
+
+        int rc = 0;
+
+        while (!batlen) pthread_cond_wait(&batcond, &batlock);
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += 1500000; /* the bound */
+        if (ts.tv_nsec >= 1000000000)
+            { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
+        while (batlen && rc != ETIMEDOUT)
+            rc = pthread_cond_timedwait(&batcond, &batlock, &ts);
+        batflush();
+
+    }
+
+    return (NULL);
+
+}
+
 /* send the assembled message, no reply expected */
 static void send0(void)
 
@@ -299,7 +368,22 @@ static void send0(void)
     if (gtrace)
         fprintf(stderr, "gc> %-16s w%-3ld s%-5d len%ld\n",
                 gr_msgname(shdr()->mid), shdr()->wid, shdr()->seq, soff);
-    ami_wrmsg(cmdfn, sbuf, soff);
+    if (!batbuf) ami_wrmsg(cmdfn, sbuf, soff); /* the layer is not up */
+    else {
+
+        pthread_mutex_lock(&batlock);
+        if (batlen+soff > batmax) batflush();
+        if (soff >= batmax) ami_wrmsg(cmdfn, sbuf, soff); /* oversize */
+        else {
+
+            if (!batlen) pthread_cond_signal(&batcond);
+            memcpy(batbuf+batlen, sbuf, soff);
+            batlen += soff;
+
+        }
+        pthread_mutex_unlock(&batlock);
+
+    }
     sentb++;
     if (!inquery && sentb >= GRWINDOW) dosync();
 
@@ -445,6 +529,7 @@ static void qsend(void)
     sseq++;
     shdr()->seq = sseq;
     send0();
+    flushcmd(); /* the request must be on the wire before the wait */
     for (;;) {
 
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
@@ -485,6 +570,7 @@ static void dosync(void)
     struct timeval tv0 = { 0, 0 };
     ssize_t        r;
 
+    flushcmd(); /* the fence orders after everything batched */
     inquery = 1;
     setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     for (;;) {
@@ -808,6 +894,7 @@ void ami_event(FILE* f, ami_evtrec* er)
        output holds partial lines, positioned text being the classic
        case, and flushes here. */
     fflush(stdout);
+    flushcmd(); /* output completes before input, all the way out */
     for (;;) {
 
         pthread_mutex_lock(&evlock);
@@ -1750,6 +1837,18 @@ static void ami_init_graph_client(void)
     }
     if (pthread_create(&evthrd, NULL, evrun, NULL))
         error("Cannot start event receiver");
+    /* the command batch comes up last: until then send0 is direct */
+    batmax = msgmax < BATLIM? msgmax: BATLIM;
+    batbuf = malloc(batmax);
+    if (!batbuf) error("Out of memory");
+    {
+
+        pthread_t bt;
+
+        if (pthread_create(&bt, NULL, batrun, NULL))
+            error("Cannot start batch flusher");
+
+    }
 
 }
 
@@ -1766,6 +1865,7 @@ static void ami_deinit_graph_client(void)
 
         begin(GR_MBYE, 0);
         send0();
+        flushcmd(); /* the bye is a boundary */
         connected = 0;
         /* stop the receiver before its channel goes away. The session may
            be dying half made, an error before the event side came up, so
