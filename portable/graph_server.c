@@ -389,6 +389,25 @@ static const char* basenm(const char* fn)
 
 }
 
+/* The picture extension rule of the display library: .bmp is set or
+   overwritten. The names cross the wire as given, and both ends apply
+   the rule where they touch a file. */
+static void setbmp(char* dst, long dl, const char* fn)
+
+{
+
+    const char* dot = strrchr(fn, '.');
+    const char* sl = strrchr(fn, '/');
+    long        n;
+
+    if (dot && (!sl || dot > sl)) n = dot-fn; /* strip the extension */
+    else n = strlen(fn);
+    if (n > dl-5) n = dl-5;
+    memcpy(dst, fn, n);
+    strcpy(dst+n, ".bmp");
+
+}
+
 /* find or fetch a named file; returns the name to use */
 static const char* fndfile(const char* fn, char* cb, long cbl)
 
@@ -400,10 +419,14 @@ static const char* fndfile(const char* fn, char* cb, long cbl)
     char  buf[4096];
     size_t r;
 
-    /* the name as given, then the base name in the cache */
-    tf = fopen(fn, "rb");
-    if (tf) { fclose(tf); return (fn); }
-    snprintf(cb, cbl, "%s", basenm(fn));
+    char en[MAXSTR]; /* the name under the extension rule */
+
+    /* the name as given, then the base name in the cache, both under
+       the extension rule of the library */
+    setbmp(en, MAXSTR, fn);
+    tf = fopen(en, "rb");
+    if (tf) { fclose(tf); snprintf(cb, cbl, "%s", en); return (cb); }
+    setbmp(cb, cbl, basenm(fn));
     tf = fopen(cb, "rb");
     if (tf) { fclose(tf); return (cb); }
     /* request it: the client connects to our file port and streams it */

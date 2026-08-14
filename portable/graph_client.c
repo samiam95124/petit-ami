@@ -335,6 +335,17 @@ static void servefile(void)
     fn[n] = 0;
     roff += n;
     port = gi();
+    /* the picture extension rule of the display library: .bmp is set or
+       overwritten before the file opens */
+    {
+
+        char* dot = strrchr(fn, '.');
+        char* sl = strrchr(fn, '/');
+
+        if (dot && (!sl || dot > sl)) *dot = 0;
+        if (strlen(fn) < sizeof(fn)-5) strcat(fn, ".bmp");
+
+    }
     /* let the server reach its accept before we knock */
     usleep(50000);
     nf = ami_opennet(srvaddr, port, 0);
