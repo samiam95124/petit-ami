@@ -1401,9 +1401,37 @@ static void ami_init_graph_client(void)
     fdh[1] = 1;
     h2lw[1] = 1;
     connected = 1;
+    /* The hello, with a bounded wait of our own: a missing server should
+       say so, not hang or die in the transport. The channel descriptor
+       takes a timeout for just this exchange. */
     begin(GR_MHELLO, 0);
     pi(GR_VERSION);
-    qsend();
+    sseq++;
+    shdr()->seq = sseq;
+    send0();
+    {
+
+        struct timeval tv = { 5, 0 };
+        ssize_t       r;
+
+        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        r = recv((int)cmdfn, rbuf, msgmax, 0);
+        if (r < (long)sizeof(gr_msghdr)) {
+
+            static char es[128];
+
+            snprintf(es, sizeof(es),
+                     "No display server at %s port %ld", sa, srvport);
+            error(es);
+
+        }
+        persistent(cmdfn);
+        rlen = r;
+        if (rhdr()->mid != GR_MREPLY || rhdr()->seq != sseq)
+            error("Protocol failure: bad hello reply");
+        roff = sizeof(gr_msghdr);
+
+    }
     v = gi();
     if (v != GR_VERSION) error("Server protocol version mismatch");
     /* the event channel, and its hello so the server knows where events
@@ -1440,11 +1468,17 @@ static void ami_deinit_graph_client(void)
         begin(GR_MBYE, 0);
         send0();
         connected = 0;
-        /* stop the receiver before its channel goes away */
-        pthread_cancel(evthrd);
-        pthread_join(evthrd, NULL);
+        /* stop the receiver before its channel goes away. The session may
+           be dying half made, an error before the event side came up, so
+           each piece takes down only if it exists. */
+        if (evq) {
+
+            pthread_cancel(evthrd);
+            pthread_join(evthrd, NULL);
+
+        }
         ami_clsmsg(cmdfn);
-        ami_clsmsg(evtfn);
+        if (evtfn >= 0) ami_clsmsg(evtfn);
 
     }
     /* swap the system vectors back; if we don't come off the top of the

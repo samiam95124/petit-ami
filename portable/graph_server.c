@@ -57,6 +57,15 @@ static long           rlen;
    main thread; the lock keeps the messages whole */
 static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
 
+/* The display library is one program's library: it does not expect its
+   event loop on one thread while another draws, and the two can deadlock
+   in the window machinery. The display lock serializes every entry, the
+   pump's event() included. The frame timer runs as the server's heartbeat
+   so event() always returns and the lock always cycles; frame events pass
+   to the client only when the client asked for them. */
+static pthread_mutex_t displk = PTHREAD_MUTEX_INITIALIZER;
+static int cliframe;  /* the client wants frame events */
+
 /* window handle map */
 static FILE* h2f[MAXHND];  /* handle to window file */
 static long  h2lw[MAXHND]; /* handle to logical window id */
@@ -433,7 +442,14 @@ static void* evpump(void* arg)
     (void)arg;
     for (;;) {
 
+        /* the display lock is held only while inside the library; the
+           heartbeat frame timer bounds the hold */
+        pthread_mutex_lock(&displk);
         ami_event(stdin, &er);
+        pthread_mutex_unlock(&displk);
+        /* the heartbeat is ours; the client gets frame events only by
+           asking */
+        if (er.etype == ami_etframe && !cliframe) continue;
         h->len = sizeof(ebuf);
         h->mid = GR_MEVENT;
         h->seq = 0;
@@ -544,7 +560,12 @@ static void dispatch(void)
         case GR_MRESTAB: a = gi(); ami_restab(f, a); break;
         case GR_MCLRTAB: ami_clrtab(f); break;
         case GR_MFUNKEY: rbegin(); ri(ami_funkey(f)); rsend(); break;
-        case GR_MFRAMETIMER: a = gi(); ami_frametimer(f, a); break;
+        case GR_MFRAMETIMER:
+            /* the frame timer runs regardless as the server heartbeat;
+               the flag decides whether the client sees the events */
+            a = gi();
+            cliframe = !!a;
+            break;
         case GR_MAUTOHOLD: a = gi(); ami_autohold(a); break;
         case GR_MWRTSTR: gstr(s1, MAXSTR); ami_wrtstr(f, s1); break;
         case GR_MWRTSTRN:
@@ -1143,17 +1164,37 @@ int main(int argc, char* argv[])
     if (((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
         error("Protocol failure: no event channel hello");
 
+    /* the heartbeat: the frame timer keeps event() returning, so the
+       display lock always cycles between the pump and the commands */
+    ami_frametimer(stdout, 1);
+
     /* events flow from here on */
     if (pthread_create(&pump, NULL, evpump, NULL))
         error("Cannot start event pump");
 
-    /* the command loop */
+    /* The command loop. A burst of commands executes under one hold of
+       the display lock: after the blocking read, the socket drains
+       without blocking, so drawing throughput is bounded by the wire and
+       not by the heartbeat. The logical id of a message channel is its
+       descriptor. */
     for (;;) {
 
+        ssize_t r;
+
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
-        roff = sizeof(gr_msghdr);
-        dispatch();
+        pthread_mutex_lock(&displk);
+        for (;;) {
+
+            if (rlen < (long)sizeof(gr_msghdr))
+                error("Short message from client");
+            roff = sizeof(gr_msghdr);
+            dispatch();
+            r = recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT);
+            if (r < 0) break; /* the burst is drained */
+            rlen = r;
+
+        }
+        pthread_mutex_unlock(&displk);
 
     }
 
