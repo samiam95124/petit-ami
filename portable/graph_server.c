@@ -63,16 +63,16 @@ static long           rlen;
    main thread; the lock keeps the messages whole */
 static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
 
-/* The display library is one program's library: it does not expect its
-   event loop on one thread while another draws, and the two can deadlock
-   in the window machinery. The display lock serializes every entry, the
-   pump's event() included. The frame timer runs as the server's heartbeat
-   so event() always returns and the lock always cycles; frame events pass
-   to the client only when the client asked for them. */
-static pthread_mutex_t displk = PTHREAD_MUTEX_INITIALIZER;
-static int cliframe;  /* the client wants frame events */
+/* The display library is multithreadable and carries its own locks: the
+   pump's event() runs concurrently with command execution, and any
+   deadlock between them is the library's bug, to be fixed there. The
+   pump winds down at session end by a wake event injected from the main
+   thread. */
 static int byeseen;   /* the client said bye; wind down */
-static int pumpdone;  /* the pump has left the display library */
+
+/* the wake: a user event code, injected to return the pump from event()
+   and never forwarded */
+#define GR_EVWAKE (ami_etuser+0x100)
 
 /* window handle map */
 static FILE* h2f[MAXHND];  /* handle to window file */
@@ -453,22 +453,9 @@ static void* evpump(void* arg)
     (void)arg;
     for (;;) {
 
-        /* the display lock is held only while inside the library; the
-           heartbeat frame timer bounds the hold */
-        pthread_mutex_lock(&displk);
-        if (byeseen) {
-
-            /* wind down outside the library, so the exit can have it */
-            pumpdone = 1;
-            pthread_mutex_unlock(&displk);
-            return (NULL);
-
-        }
         ami_event(stdin, &er);
-        pthread_mutex_unlock(&displk);
-        /* the heartbeat is ours; the client gets frame events only by
-           asking */
-        if (er.etype == ami_etframe && !cliframe) continue;
+        if (byeseen) return (NULL); /* the session is over */
+        if ((long)er.etype == GR_EVWAKE) continue; /* ours, not the wire's */
         if (gtrace)
             fprintf(stderr, "gs>e %-15s w%ld\n",
                     gr_evtname((long)er.etype), er.winid);
@@ -658,12 +645,7 @@ static void dispatch(void)
         case GR_MRESTAB: a = gi(); ami_restab(f, a); break;
         case GR_MCLRTAB: ami_clrtab(f); break;
         case GR_MFUNKEY: rbegin(); ri(ami_funkey(f)); rsend(); break;
-        case GR_MFRAMETIMER:
-            /* the frame timer runs regardless as the server heartbeat;
-               the flag decides whether the client sees the events */
-            a = gi();
-            cliframe = !!a;
-            break;
+        case GR_MFRAMETIMER: a = gi(); ami_frametimer(f, a); break;
         case GR_MAUTOHOLD: a = gi(); ami_autohold(a); break;
         case GR_MWRTSTR: gstr(s1, MAXSTR); ami_wrtstr(f, s1); break;
         case GR_MWRTSTRN:
@@ -1264,10 +1246,6 @@ int main(int argc, char* argv[])
     h2f[1] = stdout;
     h2lw[1] = 1;
 
-    /* the heartbeat: the frame timer keeps event() returning, so the
-       display lock always cycles between the pump and the commands */
-    ami_frametimer(stdout, 1);
-
     /* the session loop: serve a client, reset, wait for the next; the
        console interrupt is the only way out */
     for (;;) {
@@ -1276,8 +1254,6 @@ int main(int argc, char* argv[])
 
         /* fresh session */
         byeseen = 0;
-        pumpdone = 0;
-        cliframe = 0;
         sigasked = 0;
 
         /* the hello */
@@ -1308,7 +1284,6 @@ int main(int argc, char* argv[])
             ssize_t r;
 
             rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-            pthread_mutex_lock(&displk);
             for (;;) {
 
                 if (rlen < (long)sizeof(gr_msghdr))
@@ -1321,12 +1296,23 @@ int main(int argc, char* argv[])
                 rlen = r;
 
             }
-            pthread_mutex_unlock(&displk);
 
         }
-        /* the pump leaves the library at its next heartbeat */
+        /* wake the pump out of event() so it can see the end */
+        {
+
+            ami_evtrec wake;
+
+            memset(&wake, 0, sizeof(wake));
+            wake.etype = (ami_evtcod)GR_EVWAKE;
+            ami_sendevent(stdout, &wake);
+
+        }
         pthread_join(pump, NULL);
         clientup = 0;
+        /* an interrupt asked this session to end: the server was being
+           cancelled, so it goes down with the session */
+        if (sigasked) exit(0);
 
         /* Reset for the next client: the session's windows close, and
            the main window comes back to a reasonable state. A timer the

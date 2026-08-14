@@ -1455,18 +1455,24 @@ static void ami_init_graph_client(void)
     /* The hello, with a bounded wait of our own: a missing server should
        say so, not hang or die in the transport. The channel descriptor
        takes a timeout for just this exchange. */
-    begin(GR_MHELLO, 0);
-    pi(GR_VERSION);
-    sseq++;
-    shdr()->seq = sseq;
-    send0();
     {
 
-        struct timeval tv = { 5, 0 };
-        ssize_t       r;
+        struct timeval tv = { 2, 0 };
+        ssize_t       r = -1;
+        int           try;
 
+        /* a datagram handshake retries: the hello is idempotent */
         setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        r = recv((int)cmdfn, rbuf, msgmax, 0);
+        for (try = 0; try < 3 && r < (long)sizeof(gr_msghdr); try++) {
+
+            begin(GR_MHELLO, 0);
+            pi(GR_VERSION);
+            sseq++;
+            shdr()->seq = sseq;
+            send0();
+            r = recv((int)cmdfn, rbuf, msgmax, 0);
+
+        }
         if (r < (long)sizeof(gr_msghdr)) {
 
             static char es[128];

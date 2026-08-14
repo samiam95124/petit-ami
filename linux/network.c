@@ -1399,15 +1399,21 @@ long ami_waitmsg(/* port number to wait on */ long port,
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
     newfil(fn); /* clear the fid entry */
 
-    /* Set socket options, multiple servers on address and same port.
-       SO_REUSEPORT is required as well: the DTLS accept path binds a
-       second socket to this same port while this one is still live,
-       which BSD/macOS only allows with SO_REUSEPORT on both sockets. */
-    opt = 1;
-    r = setsockopt(fn, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    if (r < 0) linuxerror();
-    r = setsockopt(fn, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-    if (r < 0) linuxerror();
+    /* Socket options: only the secured path shares the port, its DTLS
+       accept binding a second socket to the same port while this one is
+       live, which needs SO_REUSEPORT on both (and BSD/macOS insists).
+       The plain path binds exclusively: a second server on the port
+       would silently split the datagram flow with this one, each taking
+       a share by flow hash, so the duplicate must fail loudly instead. */
+    if (secure) {
+
+        opt = 1;
+        r = setsockopt(fn, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        if (r < 0) linuxerror();
+        r = setsockopt(fn, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+        if (r < 0) linuxerror();
+
+    }
 
     /* clear server address */
     memset(&opnfil[fn]->saddr, 0, sizeof(socket_struct));
