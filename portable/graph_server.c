@@ -31,6 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/socket.h>
 
 #include <graphics.h>
 #include <network.h>
@@ -1108,9 +1109,22 @@ int main(int argc, char* argv[])
     rbuf = malloc(msgmax);
     if (!sbuf || !rbuf) error("Out of memory");
 
-    /* both channels up before anyone is answered */
+    /* both channels up before anyone is answered. The channels arrive
+       with short receive timeouts, meant for transient exchanges where a
+       lost datagram should fail the read; these channels are persistent,
+       a server without a client yet and a quiet command channel both
+       being normal, so the timeouts clear. The logical id of a message
+       channel is its descriptor. */
     cmdfn = ami_waitmsg(srvport, 0);
     evtfn = ami_waitmsg(srvport+1, 0);
+    {
+
+        struct timeval tv = { 0, 0 };
+
+        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        setsockopt((int)evtfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    }
 
     /* the main window is handle 1 */
     h2f[1] = stdout;

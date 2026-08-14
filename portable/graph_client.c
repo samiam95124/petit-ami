@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <sys/socket.h>
 
 #include <graphics.h>
 #include <network.h>
@@ -119,6 +120,28 @@ static void error(const char* es)
     write(2, es, strlen(es));
     write(2, "\n", 1);
     exit(1);
+
+}
+
+/*******************************************************************************
+
+Persistent channel
+
+Message channels arrive with short receive timeouts, meant for transient
+exchanges where a lost datagram should fail the read. These channels are
+persistent: a quiet stretch is normal, a dialog can hold a reply for as
+long as the user thinks, and the protocol requires a reliable carrier.
+Clear the timeout; the logical id of a message channel is its descriptor.
+
+*******************************************************************************/
+
+static void persistent(long fn)
+
+{
+
+    struct timeval tv = { 0, 0 };
+
+    setsockopt((int)fn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
 }
 
@@ -1373,6 +1396,7 @@ static void ami_init_graph_client(void)
     ovr_close(iclose, &dn_close);
 
     cmdfn = ami_openmsg(srvaddr, srvport, 0);
+    persistent(cmdfn);
     /* the main window exists from the hello */
     fdh[1] = 1;
     h2lw[1] = 1;
@@ -1385,6 +1409,7 @@ static void ami_init_graph_client(void)
     /* the event channel, and its hello so the server knows where events
        go */
     evtfn = ami_openmsg(srvaddr, srvport+1, 0);
+    persistent(evtfn);
     shdr()->mid = GR_MEVOPEN;
     shdr()->seq = 0;
     shdr()->wid = 0;
