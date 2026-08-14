@@ -1,0 +1,242 @@
+% Generated from include/graph_remote.h: the message catalog rows.
+% Regenerate when the header changes; the header is normative.
+\texttt{GR\_MHELLO} & 1 & first on the command channel: i64 version $\rightarrow$ i64 version. The server refuses a version it does not speak by replying its own and closing. \\
+\texttt{GR\_MEVOPEN} & 2 & first on the event channel, from the client, so the server learns where events go: i64 version. No reply. \\
+\texttt{GR\_MBYE} & 3 & client is done; the server drops the connection. No payload. \\
+\texttt{GR\_MERROR} & 4 & server $\rightarrow$ client on the event channel: str message. The client raises the error to the program. \\
+\texttt{GR\_MFILEREQ} & 5 & server $\rightarrow$ client on the command channel, inside the reply window of a pending call that names a file the server does not hold: str name. The client answers with GR\_MFILEPORT. \\
+\texttt{GR\_MFILEPORT} & 6 & client $\rightarrow$ server: i64 port. The client then listens on that port (the file port, command port + 2); the server opens it as a stream connection and receives the file, raw bytes, close delimited, then completes the pending call and sends its reply. \\
+\texttt{GR\_MREPLY} & 9 & the reply to any query: the request's seq, and the payload the request's catalog entry gives. \\
+\texttt{GR\_MWRITE} & 10 & the write stream of the window: blk of characters, as they would go to the window file. Chunked by the sender to the channel maximum. No reply. \\
+\texttt{GR\_MCLOSEWIN} & 11 & the window file closes: the server closes its side. No payload. \\
+\texttt{GR\_MCURSOR} & 20 & i64 x, i64 y \\
+\texttt{GR\_MMAXX} & 21 & $\rightarrow$ i64 \\
+\texttt{GR\_MMAXY} & 22 & $\rightarrow$ i64 \\
+\texttt{GR\_MHOME} & 23 & (no payload) \\
+\texttt{GR\_MDEL} & 24 & (no payload) \\
+\texttt{GR\_MUP} & 25 & (no payload) \\
+\texttt{GR\_MDOWN} & 26 & (no payload) \\
+\texttt{GR\_MLEFT} & 27 & (no payload) \\
+\texttt{GR\_MRIGHT} & 28 & (no payload) \\
+\texttt{GR\_MBLINK} & 29 & i64 e \\
+\texttt{GR\_MREVERSE} & 30 & i64 e \\
+\texttt{GR\_MUNDERLINE} & 31 & i64 e \\
+\texttt{GR\_MSUPERSCRIPT} & 32 & i64 e \\
+\texttt{GR\_MSUBSCRIPT} & 33 & i64 e \\
+\texttt{GR\_MITALIC} & 34 & i64 e \\
+\texttt{GR\_MBOLD} & 35 & i64 e \\
+\texttt{GR\_MSTRIKEOUT} & 36 & i64 e \\
+\texttt{GR\_MSTANDOUT} & 37 & i64 e \\
+\texttt{GR\_MFCOLOR} & 38 & i64 color \\
+\texttt{GR\_MBCOLOR} & 39 & i64 color \\
+\texttt{GR\_MAUTO} & 40 & i64 e \\
+\texttt{GR\_MCURVIS} & 41 & i64 e \\
+\texttt{GR\_MSCROLL} & 42 & i64 x, i64 y \\
+\texttt{GR\_MCURX} & 43 & $\rightarrow$ i64 \\
+\texttt{GR\_MCURY} & 44 & $\rightarrow$ i64 \\
+\texttt{GR\_MCURBND} & 45 & $\rightarrow$ i64 \\
+\texttt{GR\_MSELECT} & 46 & i64 u, i64 d \\
+\texttt{GR\_MTIMER} & 47 & i64 i, i64 t, i64 r \\
+\texttt{GR\_MKILLTIMER} & 48 & i64 i \\
+\texttt{GR\_MMOUSE} & 49 & $\rightarrow$ i64 \\
+\texttt{GR\_MMOUSEBUTTON} & 50 & i64 m $\rightarrow$ i64 \\
+\texttt{GR\_MJOYSTICK} & 51 & $\rightarrow$ i64 \\
+\texttt{GR\_MJOYBUTTON} & 52 & i64 j $\rightarrow$ i64 \\
+\texttt{GR\_MJOYAXIS} & 53 & i64 j $\rightarrow$ i64 \\
+\texttt{GR\_MSETTAB} & 54 & i64 t \\
+\texttt{GR\_MRESTAB} & 55 & i64 t \\
+\texttt{GR\_MCLRTAB} & 56 & (no payload) \\
+\texttt{GR\_MFUNKEY} & 57 & $\rightarrow$ i64 \\
+\texttt{GR\_MFRAMETIMER} & 58 & i64 e \\
+\texttt{GR\_MAUTOHOLD} & 59 & i64 e; wid 0, the hold is global \\
+\texttt{GR\_MWRTSTR} & 60 & str \\
+\texttt{GR\_MWRTSTRN} & 61 & str \\
+\texttt{GR\_MSIZBUF} & 62 & i64 x, i64 y \\
+\texttt{GR\_MTITLE} & 63 & str \\
+\texttt{GR\_MFCOLORC} & 64 & i64 r, i64 g, i64 b \\
+\texttt{GR\_MBCOLORC} & 65 & i64 r, i64 g, i64 b \\
+\texttt{GR\_MMAXXG} & 100 & $\rightarrow$ i64 \\
+\texttt{GR\_MMAXYG} & 101 & $\rightarrow$ i64 \\
+\texttt{GR\_MCURXG} & 102 & $\rightarrow$ i64 \\
+\texttt{GR\_MCURYG} & 103 & $\rightarrow$ i64 \\
+\texttt{GR\_MLINE} & 104 & i64 x1, y1, x2, y2 \\
+\texttt{GR\_MLINEWIDTH} & 105 & i64 w \\
+\texttt{GR\_MLINESTYLE} & 106 & i64 style \\
+\texttt{GR\_MRECT} & 107 & i64 x1, y1, x2, y2 \\
+\texttt{GR\_MFRECT} & 108 & i64 x1, y1, x2, y2 \\
+\texttt{GR\_MRRECT} & 109 & i64 x1, y1, x2, y2, xs, ys \\
+\texttt{GR\_MFRRECT} & 110 & i64 x1, y1, x2, y2, xs, ys \\
+\texttt{GR\_MELLIPSE} & 111 & i64 x1, y1, x2, y2 \\
+\texttt{GR\_MFELLIPSE} & 112 & i64 x1, y1, x2, y2 \\
+\texttt{GR\_MARC} & 113 & i64 x1, y1, x2, y2, sa, ea \\
+\texttt{GR\_MFARC} & 114 & i64 x1, y1, x2, y2, sa, ea \\
+\texttt{GR\_MFCHORD} & 115 & i64 x1, y1, x2, y2, sa, ea \\
+\texttt{GR\_MFTRIANGLE} & 116 & i64 x1, y1, x2, y2, x3, y3 \\
+\texttt{GR\_MCURSORG} & 117 & i64 x, i64 y \\
+\texttt{GR\_MBASELINE} & 118 & $\rightarrow$ i64 \\
+\texttt{GR\_MSETPIXEL} & 119 & i64 x, i64 y \\
+\texttt{GR\_MFOVER} & 120 & (no payload) \\
+\texttt{GR\_MBOVER} & 121 & (no payload) \\
+\texttt{GR\_MFINVIS} & 122 & (no payload) \\
+\texttt{GR\_MBINVIS} & 123 & (no payload) \\
+\texttt{GR\_MFXOR} & 124 & (no payload) \\
+\texttt{GR\_MBXOR} & 125 & (no payload) \\
+\texttt{GR\_MFAND} & 126 & (no payload) \\
+\texttt{GR\_MBAND} & 127 & (no payload) \\
+\texttt{GR\_MFOR} & 128 & (no payload) \\
+\texttt{GR\_MBOR} & 129 & (no payload) \\
+\texttt{GR\_MCHRSIZX} & 130 & $\rightarrow$ i64 \\
+\texttt{GR\_MCHRSIZY} & 131 & $\rightarrow$ i64 \\
+\texttt{GR\_MFONTS} & 132 & $\rightarrow$ i64 \\
+\texttt{GR\_MFONT} & 133 & i64 fc \\
+\texttt{GR\_MFONTNAM} & 134 & i64 fc $\rightarrow$ str \\
+\texttt{GR\_MFONTSIZ} & 135 & i64 s \\
+\texttt{GR\_MSETPOINTS} & 136 & f64 ps \\
+\texttt{GR\_MPOINTS} & 137 & $\rightarrow$ f64 \\
+\texttt{GR\_MCHRSPCY} & 138 & i64 s \\
+\texttt{GR\_MCHRSPCX} & 139 & i64 s \\
+\texttt{GR\_MDPMX} & 140 & $\rightarrow$ i64 \\
+\texttt{GR\_MDPMY} & 141 & $\rightarrow$ i64 \\
+\texttt{GR\_MSTRSIZ} & 142 & str $\rightarrow$ i64 \\
+\texttt{GR\_MCHRPOS} & 143 & str, i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MWRITEJUST} & 144 & str, i64 n \\
+\texttt{GR\_MJUSTPOS} & 145 & str, i64 p, i64 n $\rightarrow$ i64 \\
+\texttt{GR\_MCONDENSED} & 146 & i64 e \\
+\texttt{GR\_MEXTENDED} & 147 & i64 e \\
+\texttt{GR\_MXLIGHT} & 148 & i64 e \\
+\texttt{GR\_MLIGHT} & 149 & i64 e \\
+\texttt{GR\_MXBOLD} & 150 & i64 e \\
+\texttt{GR\_MHOLLOW} & 151 & i64 e \\
+\texttt{GR\_MRAISED} & 152 & i64 e \\
+\texttt{GR\_MSETTABG} & 153 & i64 t \\
+\texttt{GR\_MRESTABG} & 154 & i64 t \\
+\texttt{GR\_MFCOLORG} & 155 & i64 r, i64 g, i64 b \\
+\texttt{GR\_MBCOLORG} & 156 & i64 r, i64 g, i64 b \\
+\texttt{GR\_MLOADPICT} & 157 & i64 p, str name $\rightarrow$ i64 0. The server fills its cache by the file transfer exchange if it does not hold the file; the reply comes after the picture is loaded. \\
+\texttt{GR\_MPICTSIZX} & 158 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MPICTSIZY} & 159 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MPICTURE} & 160 & i64 p, x1, y1, x2, y2 \\
+\texttt{GR\_MDELPICT} & 161 & i64 p \\
+\texttt{GR\_MSCROLLG} & 162 & i64 x, i64 y \\
+\texttt{GR\_MPATH} & 163 & i64 a \\
+\texttt{GR\_MVIEWOFFG} & 164 & i64 x, i64 y \\
+\texttt{GR\_MVIEWSCALE} & 165 & f64 x, f64 y \\
+\texttt{GR\_MSCALEX} & 166 & i64 x $\rightarrow$ i64 \\
+\texttt{GR\_MSCALEY} & 167 & i64 y $\rightarrow$ i64 \\
+\texttt{GR\_MBLOCKCOPYG} & 168 & i64 s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2 \\
+\texttt{GR\_MOPENWIN} & 200 & open a window: i64 parent handle (0 for none), i64 new handle, i64 logical window id. The header wid is 0. \\
+\texttt{GR\_MBUFFER} & 201 & i64 e \\
+\texttt{GR\_MSIZBUFG} & 202 & i64 x, i64 y \\
+\texttt{GR\_MGETSIZ} & 203 & $\rightarrow$ i64 x, i64 y \\
+\texttt{GR\_MGETSIZG} & 204 & $\rightarrow$ i64 x, i64 y \\
+\texttt{GR\_MSETSIZ} & 205 & i64 x, i64 y \\
+\texttt{GR\_MSETSIZG} & 206 & i64 x, i64 y \\
+\texttt{GR\_MSETPOS} & 207 & i64 x, i64 y \\
+\texttt{GR\_MSETPOSG} & 208 & i64 x, i64 y \\
+\texttt{GR\_MDRAGWIN} & 209 & (no payload) \\
+\texttt{GR\_MSCNSIZ} & 210 & $\rightarrow$ i64 x, i64 y \\
+\texttt{GR\_MSCNSIZG} & 211 & $\rightarrow$ i64 x, i64 y \\
+\texttt{GR\_MSCNCEN} & 212 & $\rightarrow$ i64 x, i64 y \\
+\texttt{GR\_MSCNCENG} & 213 & $\rightarrow$ i64 x, i64 y \\
+\texttt{GR\_MWINCLIENT} & 214 & i64 cx, cy, ms $\rightarrow$ i64 wx, wy \\
+\texttt{GR\_MWINCLIENTG} & 215 & i64 cx, cy, ms $\rightarrow$ i64 wx, wy \\
+\texttt{GR\_MFRONT} & 216 & (no payload) \\
+\texttt{GR\_MBACK} & 217 & (no payload) \\
+\texttt{GR\_MFRAME} & 218 & i64 e \\
+\texttt{GR\_MSIZABLE} & 219 & i64 e \\
+\texttt{GR\_MSYSBAR} & 220 & i64 e \\
+\texttt{GR\_MMENU} & 221 & menu; an empty tree removes the menu \\
+\texttt{GR\_MMENUENA} & 222 & i64 id, i64 e \\
+\texttt{GR\_MMENUSEL} & 223 & i64 id, i64 e \\
+\texttt{GR\_MSTDMENU} & 224 & i64 standard menu set, menu the user additions $\rightarrow$ menu, the combined menu as the server built it, which the client materializes for the program \\
+\texttt{GR\_MGETWINID} & 225 & $\rightarrow$ i64; wid 0, ids are global \\
+\texttt{GR\_MFOCUS} & 226 & (no payload) \\
+\texttt{GR\_MGETWIGID} & 300 & $\rightarrow$ i64 \\
+\texttt{GR\_MKILLWIDGET} & 301 & i64 id \\
+\texttt{GR\_MSELECTWIDGET} & 302 & i64 id, i64 e \\
+\texttt{GR\_MENABLEWIDGET} & 303 & i64 id, i64 e \\
+\texttt{GR\_MGETWIDGETTEXT} & 304 & i64 id $\rightarrow$ str \\
+\texttt{GR\_MPUTWIDGETTEXT} & 305 & i64 id, str \\
+\texttt{GR\_MSIZWIDGET} & 306 & i64 id, i64 x, i64 y \\
+\texttt{GR\_MSIZWIDGETG} & 307 & i64 id, i64 x, i64 y \\
+\texttt{GR\_MPOSWIDGET} & 308 & i64 id, i64 x, i64 y \\
+\texttt{GR\_MPOSWIDGETG} & 309 & i64 id, i64 x, i64 y \\
+\texttt{GR\_MBACKWIDGET} & 310 & i64 id \\
+\texttt{GR\_MFRONTWIDGET} & 311 & i64 id \\
+\texttt{GR\_MFOCUSWIDGET} & 312 & i64 id \\
+\texttt{GR\_MBUTTONSIZ} & 313 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MBUTTONSIZG} & 314 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MBUTTON} & 315 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MBUTTONG} & 316 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MCHECKBOXSIZ} & 317 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MCHECKBOXSIZG} & 318 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MCHECKBOX} & 319 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MCHECKBOXG} & 320 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MRADIOBUTTONSIZ} & 321 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MRADIOBUTTONSIZG} & 322 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MRADIOBUTTON} & 323 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MRADIOBUTTONG} & 324 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MGROUPSIZG} & 325 & str, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
+\texttt{GR\_MGROUPSIZ} & 326 & str, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
+\texttt{GR\_MGROUP} & 327 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MGROUPG} & 328 & i64 x1, y1, x2, y2, str, i64 id \\
+\texttt{GR\_MBACKGROUND} & 329 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MBACKGROUNDG} & 330 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MSCROLLVERTSIZG} & 331 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSCROLLVERTSIZ} & 332 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSCROLLVERT} & 333 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MSCROLLVERTG} & 334 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MSCROLLHORIZSIZG} & 335 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSCROLLHORIZSIZ} & 336 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSCROLLHORIZ} & 337 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MSCROLLHORIZG} & 338 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MSCROLLPOS} & 339 & i64 id, i64 r \\
+\texttt{GR\_MSCROLLSIZ} & 340 & i64 id, i64 r \\
+\texttt{GR\_MNUMSELBOXSIZG} & 341 & i64 l, i64 u $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MNUMSELBOXSIZ} & 342 & i64 l, i64 u $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MNUMSELBOX} & 343 & i64 x1, y1, x2, y2, l, u, id \\
+\texttt{GR\_MNUMSELBOXG} & 344 & i64 x1, y1, x2, y2, l, u, id \\
+\texttt{GR\_MEDITBOXSIZG} & 345 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MEDITBOXSIZ} & 346 & str $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MEDITBOX} & 347 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MEDITBOXG} & 348 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MPROGBARSIZG} & 349 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MPROGBARSIZ} & 350 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MPROGBAR} & 351 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MPROGBARG} & 352 & i64 x1, y1, x2, y2, i64 id \\
+\texttt{GR\_MPROGBARPOS} & 353 & i64 id, i64 pos \\
+\texttt{GR\_MLISTBOXSIZG} & 354 & slst $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MLISTBOXSIZ} & 355 & slst $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MLISTBOX} & 356 & i64 x1, y1, x2, y2, slst, i64 id \\
+\texttt{GR\_MLISTBOXG} & 357 & i64 x1, y1, x2, y2, slst, i64 id \\
+\texttt{GR\_MDROPBOXSIZG} & 358 & slst $\rightarrow$ i64 cw, ch, ow, oh \\
+\texttt{GR\_MDROPBOXSIZ} & 359 & slst $\rightarrow$ i64 cw, ch, ow, oh \\
+\texttt{GR\_MDROPBOX} & 360 & i64 x1, y1, x2, y2, slst, i64 id \\
+\texttt{GR\_MDROPBOXG} & 361 & i64 x1, y1, x2, y2, slst, i64 id \\
+\texttt{GR\_MDROPEDITBOXSIZG} & 362 & slst $\rightarrow$ i64 cw, ch, ow, oh \\
+\texttt{GR\_MDROPEDITBOXSIZ} & 363 & slst $\rightarrow$ i64 cw, ch, ow, oh \\
+\texttt{GR\_MDROPEDITBOX} & 364 & i64 x1, y1, x2, y2, slst, i64 id \\
+\texttt{GR\_MDROPEDITBOXG} & 365 & i64 x1, y1, x2, y2, slst, i64 id \\
+\texttt{GR\_MSLIDEHORIZSIZG} & 366 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSLIDEHORIZSIZ} & 367 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSLIDEHORIZ} & 368 & i64 x1, y1, x2, y2, i64 mark, i64 id \\
+\texttt{GR\_MSLIDEHORIZG} & 369 & i64 x1, y1, x2, y2, i64 mark, i64 id \\
+\texttt{GR\_MSLIDEVERTSIZG} & 370 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSLIDEVERTSIZ} & 371 & $\rightarrow$ i64 w, i64 h \\
+\texttt{GR\_MSLIDEVERT} & 372 & i64 x1, y1, x2, y2, i64 mark, i64 id \\
+\texttt{GR\_MSLIDEVERTG} & 373 & i64 x1, y1, x2, y2, i64 mark, i64 id \\
+\texttt{GR\_MTABBARSIZG} & 374 & i64 tor, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
+\texttt{GR\_MTABBARSIZ} & 375 & i64 tor, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
+\texttt{GR\_MTABBARCLIENTG} & 376 & i64 tor, i64 w, i64 h $\rightarrow$ i64 cw, ch, ox, oy \\
+\texttt{GR\_MTABBARCLIENT} & 377 & i64 tor, i64 w, i64 h $\rightarrow$ i64 cw, ch, ox, oy \\
+\texttt{GR\_MTABBAR} & 378 & i64 x1, y1, x2, y2, slst, i64 tor, i64 id \\
+\texttt{GR\_MTABBARG} & 379 & i64 x1, y1, x2, y2, slst, i64 tor, i64 id \\
+\texttt{GR\_MTABSEL} & 380 & i64 id, i64 tn \\
+\texttt{GR\_MALERT} & 420 & str title, str message; wid 0 \\
+\texttt{GR\_MQUERYCOLOR} & 421 & i64 r, g, b $\rightarrow$ i64 r, g, b; wid 0 \\
+\texttt{GR\_MQUERYOPEN} & 422 & str $\rightarrow$ str; wid 0 \\
+\texttt{GR\_MQUERYSAVE} & 423 & str $\rightarrow$ str; wid 0 \\
+\texttt{GR\_MQUERYFIND} & 424 & str, i64 opt $\rightarrow$ str, i64 opt; wid 0 \\
+\texttt{GR\_MQUERYFINDREP} & 425 & str, str, i64 opt $\rightarrow$ str, str, i64 opt; wid 0 \\
+\texttt{GR\_MQUERYFONT} & 426 & i64 fc, s, fr, fg, fb, br, bg, bb, effect $\rightarrow$ the same nine, as chosen \\
+\texttt{GR\_MEVENT} & 500 & an event, server $\rightarrow$ client on the event channel: evt \\
