@@ -95,6 +95,30 @@ static void error(const char* es)
 
 }
 
+/* A session error: the client's fault or the wire's, not the server's.
+   The error prints, the session drops, and the server recycles to wait
+   for a new connection; only faults of the server itself exit. The
+   jump lands in the session loop, which winds down whatever the
+   session had running. */
+
+#include <setjmp.h>
+
+static jmp_buf sesjmp;    /* recycle point */
+static int     pumping;   /* the pump thread is up */
+static int     cleaning;  /* winding down; a second fault is fatal */
+
+static void sesserr(const char* es)
+
+{
+
+    write(2, "*** graph_server: ", 18);
+    write(2, es, strlen(es));
+    write(2, " -- session dropped, awaiting new connection\n", 45);
+    if (cleaning) exit(1); /* faulted while winding down */
+    longjmp(sesjmp, 1);
+
+}
+
 /*******************************************************************************
 
 Message assembly
@@ -111,7 +135,7 @@ static long gi(void)
 
     long v;
 
-    if (roff+8 > rlen) error("Message truncated");
+    if (roff+8 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 8);
     roff += 8;
 
@@ -125,7 +149,7 @@ static double gf(void)
 
     double v;
 
-    if (roff+8 > rlen) error("Message truncated");
+    if (roff+8 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 8);
     roff += 8;
 
@@ -139,7 +163,7 @@ static int g4(void)
 
     int v;
 
-    if (roff+4 > rlen) error("Message truncated");
+    if (roff+4 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 4);
     roff += 4;
 
@@ -155,7 +179,7 @@ static void gstr(char* dst, long dl)
     long n = g4();
     long c = n;
 
-    if (roff+n > rlen) error("Message truncated");
+    if (roff+n > rlen) sesserr("Message truncated");
     if (c > dl-1) c = dl-1;
     memcpy(dst, rbuf+roff, c);
     dst[c] = 0;
@@ -171,7 +195,7 @@ static char* gsdup(void)
     long  n = g4();
     char* s;
 
-    if (roff+n > rlen) error("Message truncated");
+    if (roff+n > rlen) sesserr("Message truncated");
     s = malloc(n+1);
     if (!s) error("Out of memory");
     memcpy(s, rbuf+roff, n);
@@ -258,7 +282,7 @@ static void ri(long v)
 
 {
 
-    if (soff+8 > msgmax) error("Reply too large for channel");
+    if (soff+8 > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, &v, 8);
     soff += 8;
 
@@ -268,7 +292,7 @@ static void rf(double v)
 
 {
 
-    if (soff+8 > msgmax) error("Reply too large for channel");
+    if (soff+8 > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, &v, 8);
     soff += 8;
 
@@ -278,7 +302,7 @@ static void r4(int v)
 
 {
 
-    if (soff+4 > msgmax) error("Reply too large for channel");
+    if (soff+4 > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, &v, 4);
     soff += 4;
 
@@ -291,7 +315,7 @@ static void rstrn(const char* s, long n)
 {
 
     r4((int)n);
-    if (soff+n > msgmax) error("Reply too large for channel");
+    if (soff+n > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, s, n);
     soff += n;
 
@@ -347,7 +371,7 @@ static FILE* wf(long h)
 
 {
 
-    if (h < 1 || h >= MAXHND || !h2f[h]) error("Invalid window handle");
+    if (h < 1 || h >= MAXHND || !h2f[h]) sesserr("Invalid window handle");
 
     return (h2f[h]);
 
@@ -439,11 +463,11 @@ static const char* fndfile(const char* fn, char* cb, long cbl)
     shdr()->len = (int)soff;
     ami_wrmsg(cmdfn, sbuf, soff);
     nf = ami_waitnet(srvport+2, 0);
-    if (!nf) error("Cannot open file transfer connection");
+    if (!nf) sesserr("Cannot open file transfer connection");
     lf = fopen(cb, "wb");
-    if (!lf) error("Cannot write file cache");
+    if (!lf) sesserr("Cannot write file cache");
     while ((r = fread(buf, 1, sizeof(buf), nf)) > 0)
-        if (fwrite(buf, 1, r, lf) != r) error("Cannot write file cache");
+        if (fwrite(buf, 1, r, lf) != r) sesserr("Cannot write file cache");
     fclose(lf);
     fclose(nf);
 
@@ -603,7 +627,7 @@ static void dispatch(void)
         case GR_MHELLO:
             a = gi();
             rbegin(); ri(GR_VERSION); rsend();
-            if (a != GR_VERSION) error("Client protocol version mismatch");
+            if (a != GR_VERSION) sesserr("Client protocol version mismatch");
             break;
         case GR_MBYE:
             /* wind down: the main loop stops the pump first, so nothing
@@ -615,7 +639,7 @@ static void dispatch(void)
 
         case GR_MWRITE:
             a = g4();
-            if (roff+a > rlen) error("Message truncated");
+            if (roff+a > rlen) sesserr("Message truncated");
             fwrite(rbuf+roff, 1, a, f);
             fflush(f);
             break;
@@ -673,7 +697,7 @@ static void dispatch(void)
         case GR_MWRTSTR: gstr(s1, MAXSTR); ami_wrtstr(f, s1); break;
         case GR_MWRTSTRN:
             a = g4();
-            if (roff+a > rlen) error("Message truncated");
+            if (roff+a > rlen) sesserr("Message truncated");
             if (a > MAXSTR) a = MAXSTR;
             memcpy(s1, rbuf+roff, a);
             ami_wrtstrn(f, s1, a);
@@ -820,7 +844,7 @@ static void dispatch(void)
 
             par = gi(); h = gi(); a = gi();
             if (h < 1 || h >= MAXHND || h2f[h])
-                error("Invalid window handle");
+                sesserr("Invalid window handle");
             ami_openwin(&inf, &outf, par? wf(par): NULL, a);
             h2f[h] = outf;
             h2lw[h] = a;
@@ -1199,7 +1223,7 @@ static void dispatch(void)
 
         }
 
-        default: error("Unknown message");
+        default: sesserr("Unknown message");
 
     }
 
@@ -1270,32 +1294,71 @@ int main(int argc, char* argv[])
     h2lw[1] = 1;
 
     /* the session loop: serve a client, reset, wait for the next; the
-       console interrupt is the only way out */
+       console interrupt is the only way out. A session error jumps back
+       here, winds down whatever the session had running, and recycles. */
     for (;;) {
 
         long h;
+        int  faulted;
+
+        faulted = setjmp(sesjmp);
+        if (faulted && pumping) {
+
+            /* the pump is up: wake it out of event() and collect it */
+            ami_evtrec wake;
+
+            byeseen = 1;
+            memset(&wake, 0, sizeof(wake));
+            wake.etype = (ami_evtcod)GR_EVWAKE;
+            ami_sendevent(stdout, &wake);
+            pthread_join(pump, NULL);
+            pumping = 0;
+
+        }
+        if (faulted) goto winddown;
 
         /* fresh session */
         byeseen = 0;
         sigasked = 0;
+        cleaning = 0;
 
         /* the hello */
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
+        if (rlen < (long)sizeof(gr_msghdr)) sesserr("Short message from client");
         roff = sizeof(gr_msghdr);
-        if (rhdr()->mid != GR_MHELLO) error("Protocol failure: no hello");
+        if (rhdr()->mid != GR_MHELLO) sesserr("Protocol failure: no hello");
         dispatch();
 
-        /* the event channel hello names the peer for events */
-        rlen = ami_rdmsg(evtfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
-        if (((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
-            error("Protocol failure: no event channel hello");
+        /* The event channel hello names the peer for events. The wait is
+           bounded: a client that died between hellos must not wedge the
+           server, and its successor's hello waits on the command
+           channel. The logical id of a message channel is its
+           descriptor. */
+        {
+
+            struct timeval tv = { 10, 0 };
+            fd_set        fs;
+            int           r;
+
+            /* the bound by select, the read by the message call, which
+               is what records the peer the events go back to */
+            FD_ZERO(&fs);
+            FD_SET((int)evtfn, &fs);
+            r = select((int)evtfn+1, &fs, NULL, NULL, &tv);
+            if (r <= 0)
+                sesserr("Protocol failure: no event channel hello");
+            rlen = ami_rdmsg(evtfn, rbuf, msgmax);
+            if (rlen < (long)sizeof(gr_msghdr) ||
+                ((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
+                sesserr("Protocol failure: no event channel hello");
+
+        }
         clientup = 1;
 
         /* events flow from here on */
         if (pthread_create(&pump, NULL, evpump, NULL))
             error("Cannot start event pump");
+        pumping = 1;
 
         /* The command loop. A burst of commands executes under one hold
            of the display lock: after the blocking read, the socket
@@ -1310,7 +1373,7 @@ int main(int argc, char* argv[])
             for (;;) {
 
                 if (rlen < (long)sizeof(gr_msghdr))
-                    error("Short message from client");
+                    sesserr("Short message from client");
                 roff = sizeof(gr_msghdr);
                 dispatch();
                 if (byeseen) break;
@@ -1332,10 +1395,14 @@ int main(int argc, char* argv[])
 
         }
         pthread_join(pump, NULL);
-        clientup = 0;
+        pumping = 0;
         /* an interrupt asked this session to end: the server was being
            cancelled, so it goes down with the session */
         if (sigasked) exit(0);
+
+winddown:
+        clientup = 0;
+        cleaning = 1; /* a fault in the winddown itself is fatal */
 
         /* Reset for the next client: the session's windows close, and
            the main window comes back to a reasonable state. A timer the
@@ -1361,6 +1428,15 @@ int main(int argc, char* argv[])
         fflush(stdout);
         ami_auto(stdout, 1);
         ami_curvis(stdout, 1);
+        if (faulted) {
+
+            /* drop whatever the dead session left on the channels, so
+               the next hello read is not stale traffic */
+            while (recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT) >= 0);
+            while (recv((int)evtfn, rbuf, msgmax, MSG_DONTWAIT) >= 0);
+
+        }
+        cleaning = 0;
 
     }
 
