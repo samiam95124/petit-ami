@@ -451,7 +451,9 @@ typedef enum {
 
     /* ----------------------------------------------------- dialogs */
 
-    GR_MALERT      = 420, /* str title, str message; wid 0 */
+    GR_MALERT      = 420, /* str title, str message -> nothing; the reply
+                              comes when the dialog is dismissed, which is
+                              what makes the call modal at the far end */
     GR_MQUERYCOLOR = 421, /* i64 r, g, b -> i64 r, g, b; wid 0 */
     GR_MQUERYOPEN  = 422, /* str -> str; wid 0 */
     GR_MQUERYSAVE  = 423, /* str -> str; wid 0 */

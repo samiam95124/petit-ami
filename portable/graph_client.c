@@ -1701,7 +1701,8 @@ The API: dialogs
 *******************************************************************************/
 
 void ami_alert(char* title, char* message)
-    { begin(GR_MALERT, 0); ps(title); ps(message); send0(); }
+    { begin(GR_MALERT, 0); ps(title); ps(message); qsend(); }
+      /* the reply comes on dismissal: alert is modal by contract */
 void ami_querycolor(long* r, long* g, long* b)
     { begin(GR_MQUERYCOLOR, 0); pi(*r); pi(*g); pi(*b); qsend();
       *r = gi(); *g = gi(); *b = gi(); }

@@ -6382,6 +6382,16 @@ static void ialert(
     ami_setsizg(out, icsize*3+mxs+ami_chrsizy(out)*3,
                     ami_chrsizy(out)*7);
 
+    /* The first paint is requested, not left to fate: the dialog
+       paints on redraw events, its window maps on its first draw, and
+       an expose cannot arrive for a window not yet mapped. */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
     /* start with events */
     do {
 
@@ -6598,6 +6608,15 @@ static void iquerycolor(
     /* size the dialog */
     ami_setsizg(out, ami_chrsizy(out)*25.8,
                     ami_chrsizy(out)*15.2);
+
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
 
     /* center the dialog */
     ami_scnceng(out, &sx, &sy); /* find screen center */
@@ -7520,6 +7539,15 @@ static void iqueryfind(
     /* set size */
     ami_setsizg(out, chrsz*34, titbot+chrsz*9);
 
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
+
     /* center on screen */
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
@@ -7755,6 +7783,15 @@ static void iqueryfindrep(
     titbot = chrsz*1.6;
 
     ami_setsizg(out, chrsz*36, titbot+chrsz*11);
+
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
 
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
@@ -8009,6 +8046,15 @@ static void iqueryfont(
     titbot = chrsz*1.6;
 
     ami_setsizg(out, chrsz*42, titbot+chrsz*19);
+
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
 
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
