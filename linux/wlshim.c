@@ -49,6 +49,7 @@
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
 #include <sys/eventfd.h>
+#include <fcntl.h>
 #include <time.h>
 
 #include <wayland-client.h>
@@ -193,6 +194,7 @@ struct _XDisplay {
     int    natom;
     XErrorHandler errh;
     int    dumpseq;
+    int    injfd;           /* rig input injection stream, -1 if none */
 
 };
 
@@ -2458,6 +2460,7 @@ Display* XOpenDisplay(const char* name)
     }
     d->xkb = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
     d->rptdelay = 400; d->rptrate = 25;
+    d->injfd = -1;
     /* the combined wait fd */
     d->epfd = epoll_create1(EPOLL_CLOEXEC);
     d->evfd = eventfd(0, EFD_NONBLOCK|EFD_CLOEXEC);
@@ -2517,6 +2520,80 @@ int XGetErrorText(Display* d, int code, char* buf, int len)
 int XSynchronize(Display* d, Bool onoff)
 { (void)d; (void)onoff; return (0); }
 
+/* Rig input injection: AMI_WL_INPUT names a fifo; lines arriving there
+   synthesize input as if the seat delivered it, which is what lets a
+   compositor without virtual input protocols (headless weston) drive
+   interactive tests. Commands:
+       key <xkeycode>        press and release
+       keydown <xkeycode>    press only
+       keyup <xkeycode>      release only
+       move <x> <y>          pointer motion, surface coordinates
+       btn <1|2|3> <x> <y>   move, press, release */
+static void injline(Display* d, char* ln)
+{
+    int a, x, y;
+    wlwin* c;
+
+    /* a pointer target: the first mapped toplevel */
+    if (!d->ptrtop) {
+
+        for (c = d->root.childs; c; c = c->sibnext)
+            if (c->mapped && c->top) { d->ptrtop = c; break; }
+
+    }
+    if (!d->kbdtop) d->kbdtop = d->ptrtop;
+    if (sscanf(ln, "key %d", &a) == 1) {
+
+        keyevt(d, KeyPress, a, nowms());
+        keyevt(d, KeyRelease, a, nowms());
+
+    } else if (sscanf(ln, "keydown %d", &a) == 1)
+        keyevt(d, KeyPress, a, nowms());
+    else if (sscanf(ln, "keyup %d", &a) == 1)
+        keyevt(d, KeyRelease, a, nowms());
+    else if (sscanf(ln, "move %d %d", &x, &y) == 2)
+        ptrmotion(d, NULL, (uint32_t)nowms(), wl_fixed_from_int(x),
+                  wl_fixed_from_int(y));
+    else if (sscanf(ln, "btn %d %d %d", &a, &x, &y) == 3) {
+
+        int bc = a == 1? 0x110: a == 2? 0x112: 0x111;
+
+        ptrmotion(d, NULL, (uint32_t)nowms(), wl_fixed_from_int(x),
+                  wl_fixed_from_int(y));
+        ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 1);
+        ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 0);
+
+    }
+}
+
+static void injpoll(Display* d)
+{
+    static char buf[256];
+    static int  len;
+    const char* fn;
+    char        c;
+    struct epoll_event ev;
+
+    if (d->injfd < 0) {
+
+        fn = getenv("AMI_WL_INPUT");
+        if (!fn) return;
+        d->injfd = open(fn, O_RDONLY|O_NONBLOCK);
+        if (d->injfd < 0) return;
+        memset(&ev, 0, sizeof(ev));
+        ev.events = EPOLLIN;
+        ev.data.fd = d->injfd;
+        epoll_ctl(d->epfd, EPOLL_CTL_ADD, d->injfd, &ev);
+
+    }
+    while (read(d->injfd, &c, 1) == 1) {
+
+        if (c == '\n') { buf[len] = 0; len = 0; injline(d, buf); }
+        else if (len < (int)sizeof(buf)-1) buf[len++] = c;
+
+    }
+}
+
 /* drain wayland traffic and timers without blocking; the wake fds clear as
    a side effect. Callers hold the lock */
 static void pump(Display* d)
@@ -2526,6 +2603,7 @@ static void pump(Display* d)
     int      i, n;
 
     if (!d->dpy) return;
+    injpoll(d); /* rig-injected input, when enabled */
     /* the prepare-read protocol: we are the only reader thread by
        construction (the backend's event loop), but the protocol keeps us
        honest against future queue users */
@@ -2707,6 +2785,19 @@ KeySym XLookupKeysym(XKeyEvent* e, int index)
     const xkb_keysym_t* syms;
     int n;
 
+    /* a seat with no keyboard (headless) never delivered a keymap; rig
+       injection still needs translation, so fall back to the default
+       rules (pc105/us) */
+    if (!d->keymap && d->xkb) {
+
+        struct xkb_rule_names rn;
+
+        memset(&rn, 0, sizeof(rn));
+        d->keymap = xkb_keymap_new_from_names(d->xkb, &rn,
+                                              XKB_KEYMAP_COMPILE_NO_FLAGS);
+        if (d->keymap) d->xst = xkb_state_new(d->keymap);
+
+    }
     if (!d->keymap) return (0);
     n = xkb_keymap_key_get_syms_by_level(d->keymap, e->keycode, 0, index,
                                          &syms);
