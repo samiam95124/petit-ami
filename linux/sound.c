@@ -1732,6 +1732,11 @@ static void openalsapcmin(long p)
 
     snd_pcm_hw_params_free (hw_params);
 
+    /* find the frame size: sample bytes, rounded up, times channels */
+    r = alsapcmin[p-1]->bits/8;
+    if (alsapcmin[p-1]->bits&7) r++;
+    alsapcmin[p-1]->ssiz = r*alsapcmin[p-1]->chan;
+
     snd_pcm_prepare(alsapcmin[p-1]->pcm);
     if (r < 0) alsaerror(r);
 
@@ -1796,11 +1801,13 @@ static void wralsapcmout(long p, byte* buff, long len)
         snd_pcm_prepare(alsapcmout[p-1]->pcm);
 
     }
-    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
+    /* the length is in bytes by the API contract; ALSA takes frames */
+    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff,
+                       len/alsapcmout[p-1]->ssiz);
     if (r == -EPIPE) {
         /* uncomment next for a broken pipe diagnostic */
         /* printf("Recovered from output error\n"); */
-        snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
+        snd_pcm_recover(alsapcmout[p-1]->pcm, r, 1);
     } else if (r < 0) alsaerror(r);
 
 }
@@ -1838,10 +1845,16 @@ static long rdalsapcmin(long p, byte* buff, long len)
 {
 
     long r;
+    long frames;
 
+    /* The length is in bytes by the API contract; ALSA takes frames,
+       and passing bytes as frames overran the caller's buffer by the
+       frame size. A buffer under one frame reads nothing. */
+    frames = len/alsapcmin[p-1]->ssiz;
+    if (frames < 1) return (0);
     do {
 
-        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
+        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, frames);
         if (r < 0) {
 
             /* uncomment the next to get a channel recovery diagnostic */
@@ -1853,7 +1866,7 @@ static long rdalsapcmin(long p, byte* buff, long len)
 
     } while (!r);
 
-    return (r);
+    return (r*alsapcmin[p-1]->ssiz);
 
 }
 
