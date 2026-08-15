@@ -1787,13 +1787,43 @@ static int xerror(Display* d, XErrorEvent* e)
     /* if the bypass flag is on, just return ignoring the error */
     if (xerrbyp) return (0);
 
+    /* A request against a window that no longer exists is not a fault.
+       X delivery is asynchronous: events for a window outlive it, and a
+       request made while processing them, a configure follow-up, a
+       cursor touch, can land after another thread's destroy. The
+       request is void anyway; the program is not wrong. Every mature
+       toolkit swallows these, and so do we; everything else stays
+       fatal. */
+    if (e->error_code == BadWindow || e->error_code == BadDrawable ||
+        e->error_code == BadPixmap) {
+
+        if (getenv("PA_XSYNC")) {
+
+            fprintf(stderr,
+                    "Graphics: stale window request ignored: "
+                    "request %d.%d resource %lx\n",
+                    e->request_code, e->minor_code, e->resourceid);
+            fflush(stderr);
+
+        }
+
+        return (0);
+
+    }
+
     /* by definition the XWindows lock is active, since xerror() will only be
        called from within XWindows */
     XWUNLOCK();
     /* get text of error */
     XGetErrorText(padisplay, e->error_code, ebuf, 250);
     fprintf(stderr, "*** Error: Graphics: XWindow: %s\n", ebuf);
+    /* the request and resource: which call, against what */
+    fprintf(stderr, "***        request %d.%d resource %lx serial %lu\n",
+            e->request_code, e->minor_code, e->resourceid, e->serial);
     fflush(stderr); /* make sure error message is output */
+    /* under diagnosis, die where it happened: the core holds the
+       guilty call */
+    if (getenv("PA_XABORT")) abort();
     errflg = TRUE; /* flag error occurred */
 
     exit(1);
@@ -4276,12 +4306,31 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* The window free list and the disposal deferrals are shared between
+   the thread that opens and closes windows and a thread inside event
+   processing; the lock covers exactly that data. A close landing while
+   another thread is inside event processing cannot recycle the record
+   out from under it: the record leaves the lookup tables at once, and
+   its disposal waits on the deferred list until event processing
+   ends. */
+typedef struct windefer {
+
+    struct windefer* next; /* next deferral */
+    winptr           win;  /* the record awaiting disposal */
+
+} windefer;
+
+static pthread_mutex_t winfrelock = PTHREAD_MUTEX_INITIALIZER;
+static int             evtbusy;    /* threads inside event processing */
+static windefer*       windeflst;  /* disposals awaiting the event end */
+
 static winptr getwin(void)
 
 {
 
     winptr p;
 
+    pthread_mutex_lock(&winfrelock);
     if (winfre) { /* there is a freed entry */
 
         p = winfre; /* index top entry */
@@ -4294,6 +4343,7 @@ static winptr getwin(void)
         wintot += sizeof(winrec); /* add to total memory used */
 
     }
+    pthread_mutex_unlock(&winfrelock);
 
     return (p);
 
@@ -4307,12 +4357,38 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the disposal proper: screens and record; the lock is held */
+static void dispwin(winptr p)
+
+{
+
+    int si;
+
+    for (si = 0; si < MAXCON; si++)
+        if (p->screens[si]) { ifree(p->screens[si]); p->screens[si] = NULL; }
+    p->next = winfre; /* push to list */
+    winfre = p;
+
+}
+
 static void putwin(winptr p)
 
 {
 
-    p->next = winfre; /* push to list */
-    winfre = p;
+    windefer* dp;
+
+    pthread_mutex_lock(&winfrelock);
+    if (evtbusy) {
+
+        /* a thread is inside event processing and may be standing on
+           this record; the disposal waits for it */
+        dp = imalloc(sizeof(windefer));
+        dp->win = p;
+        dp->next = windeflst;
+        windeflst = dp;
+
+    } else dispwin(p);
+    pthread_mutex_unlock(&winfrelock);
 
 }
 
@@ -6204,18 +6280,11 @@ static void clsfil(int fn)
 
 {
 
-    int    si; /* index for screens */
     filptr fp;
 
     fp = opnfil[fn];
-    if (fp->win) { /* there is a window component */
-
-        /* release all of the screen buffers */
-        for (si = 0; si < MAXCON; si++)
-            if (fp->win->screens[si]) ifree(fp->win->screens[si]);
-        putwin(fp->win); /* release the window data */
-
-    }
+    if (fp->win) /* there is a window component */
+        putwin(fp->win); /* release the window data, screens with it */
     fp->win = NULL; /* set end open */
     fp->inw = FALSE;
     fp->inl = -1;
@@ -14133,6 +14202,11 @@ static void event_ivf(FILE* f, ami_evtrec* er)
 
 {
 
+    windefer* dp;
+
+    pthread_mutex_lock(&winfrelock);
+    evtbusy++; /* window disposals defer from here */
+    pthread_mutex_unlock(&winfrelock);
     do { /* loop handling via event vectors and queuing */
 
         /* check input PA queue; if empty, get an event */
@@ -14155,6 +14229,17 @@ static void event_ivf(FILE* f, ami_evtrec* er)
 
     } while (er->handled);
     /* event not handled, return it to the caller */
+    pthread_mutex_lock(&winfrelock);
+    if (!--evtbusy) while (windeflst) {
+
+        /* the disposals that waited on this pass */
+        dp = windeflst;
+        windeflst = dp->next;
+        dispwin(dp->win);
+        ifree(dp);
+
+    }
+    pthread_mutex_unlock(&winfrelock);
 
 }
 
@@ -17729,6 +17814,12 @@ static void ami_init_graphics(int argc, char *argv[])
        a concurrent event read wedges inside xcb. */
     XInitThreads();
     padisplay = XOpenDisplay(NULL);
+    /* Diagnosis mode: PA_XSYNC makes every X request synchronous, so
+       an X error fires inside the call that caused it instead of long
+       after; with PA_XABORT the handler aborts for a core with the
+       guilty call on the stack. Slow, and priceless when hunting an
+       asynchronous BadWindow. */
+    if (padisplay && getenv("PA_XSYNC")) XSynchronize(padisplay, True);
     XWUNLOCK();
     if (padisplay == NULL) {
 

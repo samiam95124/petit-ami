@@ -40,6 +40,7 @@
 #include <network.h>
 #include <graph_remote.h>
 #include <widget_base.h>
+#include <execinfo.h>
 
 #define MAXHND 512   /* window handles */
 #define MAXSTR 4096  /* string unmarshal bound */
@@ -1483,6 +1484,24 @@ static void dgram(long dlen)
 
 }
 
+/* A crash in the field must tell its story: the fatal signals print
+   the backtrace of the thread that died, resolvable with addr2line,
+   before going down. gdb slows the process enough to hide the races
+   this exists to catch. */
+static void crashbt(int sig)
+
+{
+
+    void* frames[32];
+    int   n;
+
+    fprintf(stderr, "*** graph_server: fatal signal %d, backtrace:\n", sig);
+    n = backtrace(frames, 32);
+    backtrace_symbols_fd(frames, n, 2);
+    _exit(128+sig);
+
+}
+
 /*******************************************************************************
 
 Main: bind, greet, pump, serve
@@ -1496,6 +1515,10 @@ the client's event channel hello has arrived and named the peer.
 int main(int argc, char* argv[])
 
 {
+
+    signal(SIGSEGV, crashbt);
+    signal(SIGBUS, crashbt);
+    signal(SIGFPE, crashbt);
 
     const char* sp;
     pthread_t   st;
