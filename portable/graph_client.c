@@ -2060,10 +2060,7 @@ static void ami_init_graph_client(void)
     gtrace = getenv("GRAPH_TRACE") != NULL;
     gsecure = getenv("GRAPH_SECURE") != NULL;
     ami_addrnet((char*)sa, &srvaddr);
-    msgmax = ami_maxmsg(srvaddr);
-    /* a DTLS datagram carries at most one 16K record; plain UDP fragments
-       larger datagrams at the IP layer, DTLS refuses them */
-    if (gsecure && msgmax > 16000) msgmax = 16000;
+    msgmax = ami_maxmsg(srvaddr, gsecure);
     if (msgmax < 1024) error("Message channel too small");
     sbuf = malloc(msgmax);
     rbuf = malloc(msgmax);

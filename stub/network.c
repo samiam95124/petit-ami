@@ -223,7 +223,7 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-long ami_maxmsg(unsigned long addr)
+long ami_maxmsg(unsigned long addr, long secure)
 
 {
 
@@ -247,7 +247,8 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  long secure)
 
 {
 

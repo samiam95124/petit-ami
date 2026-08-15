@@ -82,8 +82,9 @@ void ami_addrnetv6(const string name, unsigned long long* addrh,
 FILE* ami_opennet(unsigned long addr, long port, long secure);
 FILE* ami_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    long port, long secure);
-long ami_maxmsg(unsigned long addr);
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl);
+long ami_maxmsg(unsigned long addr, long secure);
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  long secure);
 long ami_relymsg(unsigned long addr);
 long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl);
 long ami_openmsg(unsigned long addr, long port, long secure);

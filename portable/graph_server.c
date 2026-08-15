@@ -1933,10 +1933,7 @@ int main(int argc, char* argv[])
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     ami_addrnet("127.0.0.1", &la);
-    msgmax = ami_maxmsg(la);
-    /* a DTLS datagram carries at most one 16K record; plain UDP fragments
-       larger datagrams at the IP layer, DTLS refuses them */
-    if (gsecure && msgmax > 16000) msgmax = 16000;
+    msgmax = ami_maxmsg(la, gsecure);
     if (msgmax < 1024) error("Message channel too small");
     sbuf = malloc(msgmax);
     rbuf = rbase = malloc(msgmax);

@@ -103,6 +103,12 @@
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
 #define CONRETRY 50     /* connect retries on refused connections */
+#define DTLSPAY  16384  /* most payload one DTLS record carries: a datagram
+                           carries at most one record, whatever the route
+                           itself could hold */
+#define DTLSOVR  64     /* record header and cipher expansion riding inside
+                           the datagram; a generous bound across cipher
+                           suites */
 #define CONDELAY 100000 /* delay between connect retries, in microseconds
                            (0.1 second, under human perception; with CONRETRY
                            gives a 5 second budget before the error stands) */
@@ -1574,6 +1580,12 @@ We return the MTU reported by the interface. For a reliable network, this is
 the absolute packet size. For others, it will be the MTU of the interface, which
 packet breakage is possible.
 
+A message channel opened secure answers to the DTLS record before the route:
+a datagram carries at most one record, and a record at most 16K of payload,
+however large the route's packets run. With secure true the returned limit
+honors that ceiling and the record's own framing; ask with the same secure
+flag the channel will be opened with.
+
 *******************************************************************************/
 
 #ifdef __MACH__
@@ -1619,7 +1631,10 @@ static int sockmtu(int fn, int family)
 }
 #endif
 
-long ami_maxmsg(unsigned long addr)
+long ami_maxmsg(
+    /* ip address */      unsigned long addr,
+    /* link is secured */ long secure
+)
 
 {
 
@@ -1659,10 +1674,17 @@ long ami_maxmsg(unsigned long addr)
 
     /* The mtu includes the IP and UDP headers; the caller wants the largest
        message wrmsg can send. Also clamp to the largest possible UDP
-       payload. Note a secured (DTLS) connection carries additional record
-       overhead not accounted for here */
+       payload */
     mtu -= 28; /* IPv4 header 20 plus UDP header 8 */
     if (mtu > 65507) mtu = 65507;
+
+    /* a secured channel is bounded by the DTLS record, not the route */
+    if (secure) {
+
+        mtu -= DTLSOVR; /* the record's framing rides inside the datagram */
+        if (mtu > DTLSPAY) mtu = DTLSPAY;
+
+    }
 
     return (mtu); /* return maximum message */
 
@@ -1680,9 +1702,19 @@ We return the MTU reported by the interface. For a reliable network, this is
 the absolute packet size. For others, it will be the MTU of the interface, which
 packet breakage is possible.
 
+A message channel opened secure answers to the DTLS record before the route:
+a datagram carries at most one record, and a record at most 16K of payload,
+however large the route's packets run. With secure true the returned limit
+honors that ceiling and the record's own framing; ask with the same secure
+flag the channel will be opened with.
+
 *******************************************************************************/
 
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_maxmsgv6(
+    /* v6 address low */  unsigned long long addrh,
+    /* v6 address high */ unsigned long long addrl,
+    /* link is secured */ long secure
+)
 
 {
 
@@ -1721,10 +1753,17 @@ long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 
     /* The mtu includes the IP and UDP headers; the caller wants the largest
        message wrmsg can send. Also clamp to the largest possible UDP
-       payload. Note a secured (DTLS) connection carries additional record
-       overhead not accounted for here */
+       payload */
     mtu -= 48; /* IPv6 header 40 plus UDP header 8 */
     if (mtu > 65527) mtu = 65527;
+
+    /* a secured channel is bounded by the DTLS record, not the route */
+    if (secure) {
+
+        mtu -= DTLSOVR; /* the record's framing rides inside the datagram */
+        if (mtu > DTLSPAY) mtu = DTLSPAY;
+
+    }
 
     return (mtu); /* return maximum message */
 

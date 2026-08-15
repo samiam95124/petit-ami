@@ -569,9 +569,14 @@ static void tmsglim(void)
     long rely;
 
     ami_addrnet("localhost", &addr);
-    max = ami_maxmsg(addr);
+    max = ami_maxmsg(addr, FALSE);
     result("maxmsg sane", max > 0);
     printf("    maximum message for loopback: %ld bytes\n", max);
+    /* the secure limit answers to the DTLS record: one record per datagram,
+       at most 16K of payload however large the route's packets run */
+    max = ami_maxmsg(addr, TRUE);
+    result("maxmsg secure honors the DTLS record", max > 0 && max <= 16384);
+    printf("    maximum secure message for loopback: %ld bytes\n", max);
     rely = ami_relymsg(addr);
     result("relymsg loopback is reliable", rely == 1);
     printf("    loopback delivery reliable: %s\n", rely ? "yes" : "no");
@@ -579,9 +584,9 @@ static void tmsglim(void)
 }
 
 /* A message of exactly maxmsg bytes is deliverable: send one through the
-   loopback and have the server echo the received length. In the clear only:
-   secured messages carry DTLS record overhead the limit does not account
-   for. The send buffer is static, like the server receive buffer */
+   loopback and have the server echo the received length. In the clear only
+   here; asked with secure true, maxmsg answers for the DTLS record limit
+   instead. The send buffer is static, like the server receive buffer */
 static char maxsend[70000];
 
 static void tmsgmax(const char* name, int port, int v6)
@@ -602,13 +607,13 @@ static void tmsgmax(const char* name, int port, int v6)
     if (v6) {
 
         ami_addrnetv6("::1", &addrh, &addrl);
-        max = ami_maxmsgv6(addrh, addrl);
+        max = ami_maxmsgv6(addrh, addrl, FALSE);
         fn = ami_openmsgv6(addrh, addrl, port, FALSE);
 
     } else {
 
         ami_addrnet("localhost", &addr);
-        max = ami_maxmsg(addr);
+        max = ami_maxmsg(addr, FALSE);
         fn = ami_openmsg(addr, port, FALSE);
 
     }
@@ -639,9 +644,14 @@ static void tmsglimv6(void)
     long rely;
 
     ami_addrnetv6("::1", &addrh, &addrl);
-    max = ami_maxmsgv6(addrh, addrl);
+    max = ami_maxmsgv6(addrh, addrl, FALSE);
     result("maxmsgv6 sane", max > 0);
     printf("    maximum message for v6 loopback: %ld bytes\n", max);
+    /* the secure limit answers to the DTLS record: one record per datagram,
+       at most 16K of payload however large the route's packets run */
+    max = ami_maxmsgv6(addrh, addrl, TRUE);
+    result("maxmsgv6 secure honors the DTLS record", max > 0 && max <= 16384);
+    printf("    maximum secure message for v6 loopback: %ld bytes\n", max);
     rely = ami_relymsgv6(addrh, addrl);
     result("relymsgv6 loopback is reliable", rely == 1);
     printf("    v6 loopback delivery reliable: %s\n", rely ? "yes" : "no");
