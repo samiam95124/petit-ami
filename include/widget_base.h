@@ -93,7 +93,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     /** widget is enabled */                  long   enb; \
     /** focused */                            long   focus; \
     /** hovered */                            long   hover; \
-    /** position of widget in parent */       long   px, py;
+    /** position of widget in parent */       long   px, py; \
+    /** construction complete: events dispatch only from here */ \
+                                              long   live;
 
 /* the base's view of a widget record: the head alone */
 typedef struct wbwig* wbwigptr;
@@ -164,5 +166,8 @@ void* wb_fndwig(wbpkg* pk, FILE* f, long id);
 void wb_killwidget(wbpkg* pk, FILE* f, long id);
 /* allocate an anonymous (negative) widget id in the window */
 long wb_getwigid(wbpkg* pk, FILE* f);
+/* kill every widget on the window, every package, without closing it;
+   what a session leaves behind must not greet the next one */
+void wb_purge(FILE* f);
 
 #endif /* __WIDGET_BASE_H__ */

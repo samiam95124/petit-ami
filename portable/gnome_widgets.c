@@ -950,6 +950,8 @@ static void widget_redraw(
 
     ami_evtrec ev;  /* outbound menu event */
 
+    wp->live = TRUE; /* whole from here: every creator ends with its
+                        first-paint request, and reconfigures keep it */
     ev.etype = ami_etredraw; /* set redraw event */
     ev.rsx = 1; /* set extent */
     ev.rsy = 1;
@@ -1163,6 +1165,12 @@ static void widget(
         } while (np);
 
     }
+    /* The first paint is requested here, covering every creation, the
+       dialogs' direct subclasses included; it also takes the widget
+       live, ending the construction gap the event gate holds shut.
+       Creators that set parameters after this request their own
+       completing redraw, which repaints over the default face. */
+    widget_redraw(wp);
 
     *wpr = wp; /* copy back to caller */
 
@@ -2310,6 +2318,8 @@ static void numselbox_draw(
 
 {
 
+    if (!wg->cw) return; /* not yet wired: the completing redraw paints */
+
     long udspc; /* up/down control space */
     long figsiz; /* size of up/down figures */
 
@@ -2375,6 +2385,8 @@ static void numselbox_event(
 )
 
 {
+
+    if (!wg->cw) return; /* not yet wired: the completing redraw paints */
 
     long udspc;    /* up/down control space */
     char buff[40]; /* buffer for number entered (holds full long) */
@@ -2875,7 +2887,7 @@ static void dropbox_draw(
     while (sc > 1 && sp) { sp = sp->next; sc--; }
     fcolort(wg->wf, th_droptext);
     ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, ami_chrsizy(wg->wf)*0.5);
-    fprintf(wg->wf, "%s", sp->str); /* place string */
+    if (sp) fprintf(wg->wf, "%s", sp->str); /* place string */
 
 }
 
@@ -3002,6 +3014,8 @@ static void dropeditbox_draw(
 
 {
 
+    if (!wg->cw || !wg->cw2) return; /* not yet wired: the completing redraw paints */
+
     /* everything in this widget is drawn by subclassed widgets */
 
 }
@@ -3020,6 +3034,8 @@ static void dropeditbox_event(
 )
 
 {
+
+    if (!wg->cw || !wg->cw2) return; /* not yet wired: the completing redraw paints */
 
     ami_evtrec er; /* outbound event */
     ami_strptr sp;
@@ -3079,6 +3095,8 @@ static void slidehoriz_draw(
 )
 
 {
+
+
 
     long sldsizp;    /* size of slider in pixels */
     long sldposp;    /* position of slider in pixels */
@@ -3172,15 +3190,14 @@ static void slidehoriz_draw(
     /* place tickmarks */
     if (wg->ticks) {
 
-        tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
-        tickno = 0; /* start at left */
-        x = margin+tiksizp*tickno; /* set location */
+        /* Counted, not accumulated: a degenerate track size makes the
+           step zero, and a while over an unmoving position never ends. */
+        tiksizp = wg->ticks > 1? trksizp/(wg->ticks-1): 0;
         ami_fcolor(wg->wf, ami_black); /* set color */
-        while (x <= margin+trksizp) { /* place tick marks */
+        for (tickno = 0; tickno < wg->ticks; tickno++) {
 
+            x = margin+tiksizp*tickno; /* set location */
             ami_line(wg->wf, x, 1, x, mid-sldsizp*0.5); /* draw tick */
-            tickno++; /* count ticks */
-            x = margin+tiksizp*tickno; /* next location */
 
         }
 
@@ -3246,6 +3263,8 @@ static void slidevert_draw(
 )
 
 {
+
+
 
     long sldsizp;  /* size of slider in pixels */
     long sldposp;  /* position of slider in pixels */
@@ -3339,15 +3358,14 @@ static void slidevert_draw(
     /* place tickmarks */
     if (wg->ticks) {
 
-        tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
-        tickno = 0; /* start at top */
-        y = margin+tiksizp*tickno; /* set location */
+        /* Counted, not accumulated: a degenerate track size makes the
+           step zero, and a while over an unmoving position never ends. */
+        tiksizp = wg->ticks > 1? trksizp/(wg->ticks-1): 0;
         ami_fcolor(wg->wf, ami_black); /* set color */
-        while (y <= margin+trksizp) { /* place tick marks */
+        for (tickno = 0; tickno < wg->ticks; tickno++) {
 
+            y = margin+tiksizp*tickno; /* set location */
             ami_line(wg->wf, mid+sldsizp*0.5, y, ami_maxxg(wg->wf), y); /* draw tick */
-            tickno++; /* count ticks */
-            y = margin+tiksizp*tickno; /* next location */
 
         }
 
@@ -4271,6 +4289,8 @@ static void ibuttong(
     widget(f, x1, y1, x2, y2, s, id, wtbutton, &wp);
     ami_linewidth(wp->wf, 3); /* thicker lines */
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4377,6 +4397,8 @@ static void icheckboxg(
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtcheckbox, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4482,6 +4504,8 @@ static void iradiobuttong(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtradiobutton, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -4606,6 +4630,8 @@ static void igroupg(
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtgroup, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4661,6 +4687,8 @@ static void ibackgroundg(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtbackground, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -4763,6 +4791,8 @@ static void iscrollvertg(
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtscrollvert, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4862,6 +4892,8 @@ static void iscrollhorizg(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtscrollhoriz, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -5054,6 +5086,8 @@ static void inumselboxg(
     ami_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
+    widget_redraw(wps); /* the child's first paint */
+    widget_redraw(wp); /* now whole: the finished face */
 
 }
 
@@ -5159,6 +5193,8 @@ static void ieditboxg(
     widget(f, x1, y1, x2, y2, "", id, wteditbox, &wp);
     ami_curvis(wp->wf, FALSE); /* turn on cursor */
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -5260,6 +5296,8 @@ static void iprogbarg(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtprogbar, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -5427,6 +5465,8 @@ static void ilistboxg(
     wp->strlst = nl; /* plant the list */
     widget(f, x1, y1, x2, y2, "", id, wtlistbox, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -5568,6 +5608,8 @@ static void idropboxg(
     wp->strlst = nl; /* plant the list */
     wp->ss = 1; /* select first entry */
     widget(f, x1, y1, x2, y1+ch-1, "", id, wtdropbox, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -5711,6 +5753,7 @@ static void idropeditboxg(
 
     wp->cw = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
+    widget_redraw(wps); /* the child's first paint */
 
     /* set up a subclass entry for edit */
     wps = getwig(); /* get widget entry */
@@ -5722,6 +5765,8 @@ static void idropeditboxg(
     ami_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw2 = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
+    widget_redraw(wps); /* the child's first paint */
+    widget_redraw(wp); /* now whole: the finished face */
 
 }
 
@@ -5830,6 +5875,8 @@ static void islidehorizg(
     wp->ticks = mark; /* set tick marks */
     widget(f, x1, y1, x2, y2, "", id, wtslidehoriz, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -5934,6 +5981,8 @@ static void islidevertg(
     wp = getwig(); /* predef so we can plant ticks before display */
     wp->ticks = mark; /* set tick marks */
     widget(f, x1, y1, x2, y2, "", id, wtslidevert, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -6151,6 +6200,8 @@ static void itabbarg(
     wp->tor = tor; /* set tab orientation */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -6193,6 +6244,14 @@ static void itabbar(
     wp->tor = tor; /* set tab orientation */
     wp->charb = TRUE; /* set character grid */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
+
+    /* The first paint is requested here, not left to fate: a widget
+       window becomes visible when it is first drawn, and its first
+       draw was riding on a later parent-window redraw that a quiet
+       display never sends. The queued redraw arrives after the
+       creator finishes, paints the finished face, and maps the
+       window. */
+    widget_redraw(wp);
 
 }
 
@@ -6329,6 +6388,16 @@ static void ialert(
     /* set size */
     ami_setsizg(out, icsize*3+mxs+ami_chrsizy(out)*3,
                     ami_chrsizy(out)*7);
+
+    /* The first paint is requested, not left to fate: the dialog
+       paints on redraw events, its window maps on its first draw, and
+       an expose cannot arrive for a window not yet mapped. */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
 
     /* start with events */
     do {
@@ -6546,6 +6615,15 @@ static void iquerycolor(
     /* size the dialog */
     ami_setsizg(out, ami_chrsizy(out)*25.8,
                     ami_chrsizy(out)*15.2);
+
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
 
     /* center the dialog */
     ami_scnceng(out, &sx, &sy); /* find screen center */
@@ -7468,6 +7546,15 @@ static void iqueryfind(
     /* set size */
     ami_setsizg(out, chrsz*34, titbot+chrsz*9);
 
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
+
     /* center on screen */
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
@@ -7703,6 +7790,15 @@ static void iqueryfindrep(
     titbot = chrsz*1.6;
 
     ami_setsizg(out, chrsz*36, titbot+chrsz*11);
+
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
 
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
@@ -7957,6 +8053,15 @@ static void iqueryfont(
     titbot = chrsz*1.6;
 
     ami_setsizg(out, chrsz*42, titbot+chrsz*19);
+
+    /* the first paint is requested, not left to fate (see ialert) */
+    er.etype = ami_etredraw;
+    er.rsx = 1;
+    er.rsy = 1;
+    er.rex = ami_maxxg(out);
+    er.rey = ami_maxyg(out);
+    ami_sendevent(out, &er);
+
 
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);

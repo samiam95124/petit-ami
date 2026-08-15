@@ -39,6 +39,8 @@
 #include <graphics.h>
 #include <network.h>
 #include <graph_remote.h>
+#include <widget_base.h>
+#include <execinfo.h>
 
 #define MAXHND 512   /* window handles */
 #define MAXSTR 4096  /* string unmarshal bound */
@@ -81,6 +83,19 @@ static int  hellopend;   /* a mid-session hello opened the next session */
    process exit, which must not tear the library down around it. */
 static pthread_t pump;     /* the pump thread */
 static int       pumpstop; /* exiting: leave the library and return */
+
+/* The pump stands down while a modal dialog runs. A dialog pumps its
+   own events on the dispatch thread, and two threads inside event()
+   split the stream between them: the pump would steal the dialog's
+   paints and clicks and forward them to a client that has never heard
+   of the dialog's window. The dispatch thread asks, the pump parks
+   between events, and the dialog is the only consumer until it is
+   dismissed -- which is also exactly the native picture, where the
+   program is inside the dialog and consuming nothing else. */
+static pthread_mutex_t pauselock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  pausecond = PTHREAD_COND_INITIALIZER;
+static int             pausereq;  /* dispatch asks */
+static int             pumppaused; /* the pump stands down */
 static int       clientup; /* a client is connected */
 static int       sigasked; /* a terminate asked this session to end */
 
@@ -624,6 +639,37 @@ static void evsend1(gr_msgevt* we)
 
 }
 
+/* bracket a modal dialog: the pump parks first, resumes after */
+static void pausepump(void)
+
+{
+
+    ami_evtrec wake;
+
+    pthread_mutex_lock(&pauselock);
+    pausereq = 1;
+    pthread_mutex_unlock(&pauselock);
+    /* kick the pump out of event() so it sees the request */
+    memset(&wake, 0, sizeof(wake));
+    wake.etype = (ami_evtcod)GR_EVWAKE;
+    ami_sendevent(stdout, &wake);
+    pthread_mutex_lock(&pauselock);
+    while (!pumppaused) pthread_cond_wait(&pausecond, &pauselock);
+    pthread_mutex_unlock(&pauselock);
+
+}
+
+static void resumepump(void)
+
+{
+
+    pthread_mutex_lock(&pauselock);
+    pausereq = 0;
+    pthread_cond_broadcast(&pausecond);
+    pthread_mutex_unlock(&pauselock);
+
+}
+
 static void* evpump(void* arg)
 
 {
@@ -636,6 +682,16 @@ static void* evpump(void* arg)
     (void)arg;
     for (;;) {
 
+        pthread_mutex_lock(&pauselock);
+        while (pausereq) {
+
+            pumppaused = 1; /* standing down; the dialog owns events */
+            pthread_cond_broadcast(&pausecond);
+            pthread_cond_wait(&pausecond, &pauselock);
+
+        }
+        pumppaused = 0;
+        pthread_mutex_unlock(&pauselock);
         ami_event(stdin, &er);
         if (pumpstop) return (NULL); /* the process is exiting */
         if ((long)er.etype == GR_EVWAKE) continue; /* ours, not the wire's */
@@ -1396,24 +1452,27 @@ static void dispatch(void)
         /* --------------------------------------------------- dialogs */
 
         case GR_MALERT:
-            gstr(s1, MAXSTR); gstr(s2, MAXSTR); ami_alert(s1, s2); break;
+            gstr(s1, MAXSTR); gstr(s2, MAXSTR);
+            pausepump(); ami_alert(s1, s2); resumepump();
+            rbegin(); rsend(); /* the reply is the dismissal */
+            break;
         case GR_MQUERYCOLOR:
             o1 = gi(); o2 = gi(); o3 = gi();
-            ami_querycolor(&o1, &o2, &o3);
+            pausepump(); ami_querycolor(&o1, &o2, &o3); resumepump();
             rbegin(); ri(o1); ri(o2); ri(o3); rsend(); break;
         case GR_MQUERYOPEN:
             gstr(s1, MAXSTR);
-            ami_queryopen(s1, MAXSTR);
+            pausepump(); ami_queryopen(s1, MAXSTR); resumepump();
             rbegin(); rstr(s1, MAXSTR); rsend(); break;
         case GR_MQUERYSAVE:
             gstr(s1, MAXSTR);
-            ami_querysave(s1, MAXSTR);
+            pausepump(); ami_querysave(s1, MAXSTR); resumepump();
             rbegin(); rstr(s1, MAXSTR); rsend(); break;
         case GR_MQUERYFIND: {
 
             ami_qfnopts opt;
             gstr(s1, MAXSTR); opt = (ami_qfnopts)gi();
-            ami_queryfind(s1, MAXSTR, &opt);
+            pausepump(); ami_queryfind(s1, MAXSTR, &opt); resumepump();
             rbegin(); rstr(s1, MAXSTR); ri((long)opt); rsend(); break;
 
         }
@@ -1421,7 +1480,7 @@ static void dispatch(void)
 
             ami_qfropts opt;
             gstr(s1, MAXSTR); gstr(s2, MAXSTR); opt = (ami_qfropts)gi();
-            ami_queryfindrep(s1, MAXSTR, s2, MAXSTR, &opt);
+            pausepump(); ami_queryfindrep(s1, MAXSTR, s2, MAXSTR, &opt); resumepump();
             rbegin(); rstr(s1, MAXSTR); rstr(s2, MAXSTR); ri((long)opt);
             rsend(); break;
 
@@ -1433,7 +1492,7 @@ static void dispatch(void)
 
             fc = gi(); s = gi(); fr = gi(); fg = gi(); fb = gi();
             br = gi(); bg = gi(); bb = gi(); eff = (ami_qfteffects)gi();
-            ami_queryfont(f, &fc, &s, &fr, &fg, &fb, &br, &bg, &bb, &eff);
+            pausepump(); ami_queryfont(f, &fc, &s, &fr, &fg, &fb, &br, &bg, &bb, &eff); resumepump();
             rbegin(); ri(fc); ri(s); ri(fr); ri(fg); ri(fb);
             ri(br); ri(bg); ri(bb); ri((long)eff); rsend(); break;
 
@@ -1482,6 +1541,24 @@ static void dgram(long dlen)
 
 }
 
+/* A crash in the field must tell its story: the fatal signals print
+   the backtrace of the thread that died, resolvable with addr2line,
+   before going down. gdb slows the process enough to hide the races
+   this exists to catch. */
+static void crashbt(int sig)
+
+{
+
+    void* frames[32];
+    int   n;
+
+    fprintf(stderr, "*** graph_server: fatal signal %d, backtrace:\n", sig);
+    n = backtrace(frames, 32);
+    backtrace_symbols_fd(frames, n, 2);
+    _exit(128+sig);
+
+}
+
 /*******************************************************************************
 
 Main: bind, greet, pump, serve
@@ -1495,6 +1572,10 @@ the client's event channel hello has arrived and named the peer.
 int main(int argc, char* argv[])
 
 {
+
+    signal(SIGSEGV, crashbt);
+    signal(SIGBUS, crashbt);
+    signal(SIGFPE, crashbt);
 
     const char* sp;
     pthread_t   st;
@@ -1680,6 +1761,7 @@ winddown:
             h2f[h] = 0;
 
         }
+        wb_purge(stdout); /* the session's widgets go with it */
         ami_title(stdout, srvname); /* the session's title went with it */
         ami_setsizg(stdout, origw, origh); /* and its size */
         ami_auto(stdout, 0); /* off first: the resets below are illegal

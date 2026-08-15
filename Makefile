@@ -1157,6 +1157,13 @@ dif: utils/dif.c Makefile
 	$(CC) utils/dif.c -o bin/dif
 
 #
+# Show what the X clipboard contains: owner, formats, text or image
+# content. The answer to a screen capture that silently left stale data.
+#
+showclip: utils/showclip.c Makefile
+	$(CC) utils/showclip.c -lX11 -o bin/showclip
+
+#
 # Convert a GTK CSS theme to a Petit-Ami widget theme in petit_ami.cfg
 # (not Petit-Ami dependent)
 #
