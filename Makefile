@@ -1635,6 +1635,16 @@ breakout: $(GLIBSD) graph_games/breakout.c
 	$(CC) $(CFLAGS) graph_games/breakout.c $(GLIBS) -o bin/breakout
 
 #
+# Breakout run remotely: linked with graph_client, the display and the
+# sound served by graph_server.
+#
+breakoutr: graph_games/breakout.c portable/graph_client.o
+	$(CC) $(CFLAGS) graph_games/breakout.c portable/graph_client.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/breakoutr
+
+#
 # Text editor
 #	
 editor: $(CLIBSD) terminal_programs/editor.c

@@ -1973,6 +1973,10 @@ int main(int argc, char* argv[])
                 sesserr("Protocol failure: no event channel hello");
 
         }
+        /* the idle banner must not greet the session: the window
+           clears before the client's first drawing arrives */
+        putchar('\f');
+        fflush(stdout);
         thinclear(); /* no pending events from a prior session */
         clientup = 1; /* the pump forwards from here on */
 
