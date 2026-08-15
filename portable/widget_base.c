@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <localdefs.h>
 #include <graphics.h>
@@ -65,6 +66,45 @@ extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
 
 static wbpkgptr    pkglst;          /* registered packages, first in first */
 static int         wb_hooked;       /* the vectors are hooked */
+
+/* The tables and records are shared between the thread that makes and
+   kills widgets and the thread that delivers their events; the lock
+   covers exactly that data. A kill that lands while a dispatch is in
+   flight cannot free the record out from under the handler: the entry
+   leaves the tables at once, so nothing new finds it, and the teardown
+   itself waits on the deferred list until the dispatch ends. The lock
+   is recursive because closing a widget window re-enters through the
+   close intercept. */
+typedef struct wbdefer {
+
+    struct wbdefer* next; /* next deferral */
+    wbpkgptr        pk;   /* owning package */
+    wbwigptr        wp;   /* the widget to tear down */
+
+} wbdefer;
+
+static pthread_mutex_t wblock;     /* recursive; made in wb_lockinit */
+static pthread_once_t  wbonce = PTHREAD_ONCE_INIT;
+static int             wbdispatch; /* a dispatch is in flight */
+static wbdefer*        wbdeflst;   /* kills awaiting the dispatch end */
+
+static void wb_lockinit(void)
+
+{
+
+    pthread_mutexattr_t a;
+
+    pthread_mutexattr_init(&a);
+    pthread_mutexattr_settype(&a, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&wblock, &a);
+    pthread_mutexattr_destroy(&a);
+
+}
+
+static void wb_lock(void)
+    { pthread_once(&wbonce, wb_lockinit); pthread_mutex_lock(&wblock); }
+static void wb_unlock(void)
+    { pthread_mutex_unlock(&wblock); }
 static ami_pevthan wb_event_old;    /* downchain event handler */
 static pclose_t    ofpclose;        /* saved close() vectors */
 #ifdef NOCANCEL
@@ -148,12 +188,14 @@ void* wb_getwig(
 
     wbwigptr wp;
 
+    wb_lock();
     if (pk->wigfre) {
 
         wp = pk->wigfre;
         pk->wigfre = pk->wigfre->next;
 
     } else wp = malloc(pk->recsiz);
+    wb_unlock();
     if (!wp) error(pk, "Out of memory");
     wp->next = NULL;
     wp->wf = NULL;
@@ -213,13 +255,22 @@ void* wb_fndwig(
 
     long fn;
 
+    void* wp;
+
     if (id <= -MAXWIG || id > MAXWIG || !id) error(pk, "Invalid widget id");
     fn = fileno(f);
     if (fn < 0 || fn > MAXFIL) error(pk, "Invalid file number");
-    if (!pk->opnfil[fn] || !pk->opnfil[fn]->widgets[id+MAXWIG])
+    wb_lock();
+    if (!pk->opnfil[fn] || !pk->opnfil[fn]->widgets[id+MAXWIG]) {
+
+        wb_unlock();
         error(pk, "No widget by given id");
 
-    return (pk->opnfil[fn]->widgets[id+MAXWIG]);
+    }
+    wp = pk->opnfil[fn]->widgets[id+MAXWIG];
+    wb_unlock();
+
+    return (wp);
 
 }
 
@@ -255,17 +306,25 @@ void wb_widget(
     wbwigptr* wprp = (wbwigptr*)wpr;
 
     if (id <= -MAXWIG || id > MAXWIG || !id) error(pk, "Invalid widget id");
+    wb_lock();
     makfil(pk, f);
     fn = fileno(f);
     wp = *wprp; /* get any predefined widget entry */
     if (!wp) wp = wb_getwig(pk); /* get widget entry if none passed in */
-    if (pk->opnfil[fn]->widgets[id+MAXWIG])
+    if (pk->opnfil[fn]->widgets[id+MAXWIG]) {
+
+        wb_unlock();
         error(pk, "Widget by id already in use");
+
+    }
     pk->opnfil[fn]->widgets[id+MAXWIG] = wp;
+    wb_unlock();
     wp->wid = ami_getwinid(); /* allocate a buried window id */
     ami_openwin(&stdin, &wp->wf, f, wp->wid); /* open widget window */
     wp->parent = f;
+    wb_lock();
     pk->xltwig[wp->wid+MAXFIL] = wp; /* events for the window find the widget */
+    wb_unlock();
     wp->id = id;
     ami_buffer(wp->wf, FALSE); /* draws appear as made */
     ami_auto(wp->wf, FALSE);   /* drawing must not scroll the face */
@@ -293,6 +352,23 @@ entry, then the widget window is closed and the record released.
 
 *******************************************************************************/
 
+/* the teardown proper: the package's pre-teardown callback (stop
+   timers, kill subwidgets), the window, the record. The lock is held;
+   the close re-enters the close intercept, which the recursive lock
+   absorbs. */
+static void teardown(
+    /** Package */ wbpkgptr pk,
+    /** Widget */  wbwigptr wp
+)
+
+{
+
+    if (pk->wigkill) pk->wigkill(wp); /* the package's pre-teardown */
+    fclose(wp->wf); /* close the window file */
+    putwig(pk, wp);
+
+}
+
 static void intkillwidget(
     /** Package */           wbpkgptr pk,
     /** file id */           long     fn,
@@ -302,18 +378,45 @@ static void intkillwidget(
 {
 
     wbwigptr wp;
+    wbdefer* dp;
 
     if (fn < 0 || fn > MAXFIL) error(pk, "Invalid file number");
-    if (!pk->opnfil[fn]) error(pk, "File by id not open");
-    if (id <= -MAXWIG || id > MAXWIG || !id) error(pk, "Invalid widget id");
-    if (!pk->opnfil[fn]->widgets[id+MAXWIG])
+    wb_lock();
+    if (!pk->opnfil[fn]) {
+
+        wb_unlock();
+        error(pk, "File by id not open");
+
+    }
+    if (id <= -MAXWIG || id > MAXWIG || !id) {
+
+        wb_unlock();
+        error(pk, "Invalid widget id");
+
+    }
+    if (!pk->opnfil[fn]->widgets[id+MAXWIG]) {
+
+        wb_unlock();
         error(pk, "No widget by given id");
+
+    }
     wp = pk->opnfil[fn]->widgets[id+MAXWIG];
-    if (pk->wigkill) pk->wigkill(wp); /* the package's pre-teardown */
+    /* out of the tables at once: nothing new finds the widget */
     pk->xltwig[wp->wid+MAXFIL] = NULL;
-    fclose(wp->wf); /* close the window file */
     pk->opnfil[fn]->widgets[id+MAXWIG] = NULL;
-    putwig(pk, wp);
+    if (wbdispatch) {
+
+        /* a dispatch is in flight and may be standing on this record;
+           the teardown waits for it */
+        dp = malloc(sizeof(wbdefer));
+        if (!dp) { wb_unlock(); error(pk, "Out of memory"); }
+        dp->pk = pk;
+        dp->wp = wp;
+        dp->next = wbdeflst;
+        wbdeflst = dp;
+
+    } else teardown(pk, wp);
+    wb_unlock();
 
 }
 
@@ -353,13 +456,48 @@ long wb_getwigid(
     long fn;
     long wid;
 
+    wb_lock();
     makfil(pk, f);
     fn = fileno(f);
     wid = -1; /* start at -1 */
     while (wid > -MAXWIG && pk->opnfil[fn]->widgets[wid+MAXWIG]) wid--;
+    wb_unlock();
     if (wid == -MAXWIG) error(pk, "No more anonymous widget IDs");
 
     return (wid);
+
+}
+
+/** ****************************************************************************
+
+Purge window
+
+Kills every widget on the window, for every registered package, without
+closing the window itself. The display server uses it between sessions:
+a session's widgets on the main window would otherwise greet the next
+session.
+
+*******************************************************************************/
+
+void wb_purge(
+    /** Window file */ FILE* f
+)
+
+{
+
+    wbpkgptr pk;
+    long     fd;
+    long     i;
+
+    fd = fileno(f);
+    if (fd < 0 || fd >= MAXFIL) return;
+    wb_lock();
+    for (pk = pkglst; pk; pk = pk->next)
+        if (pk->opnfil[fd])
+            for (i = 0; i < MAXWIG*2+1; i++)
+                if (pk->opnfil[fd]->widgets[i])
+                    intkillwidget(pk, fd, i-MAXWIG);
+    wb_unlock();
 
 }
 
@@ -382,21 +520,39 @@ static void wb_event(
 {
 
     wbpkgptr pk;
-    wbwigptr wg;
+    wbwigptr wg = NULL;
+    wbpkgptr fpk = NULL;
+    wbdefer* dp;
 
+    wb_lock();
     if (ev->winid > -MAXFIL && ev->winid <= MAXFIL)
-        for (pk = pkglst; pk; pk = pk->next) {
+        for (pk = pkglst; pk && !fpk; pk = pk->next) {
 
             wg = pk->xltwig[ev->winid+MAXFIL];
-            if (wg) { /* one of this package's widgets */
-
-                pk->dispatch(ev, wg);
-
-                return;
-
-            }
+            if (wg) fpk = pk; /* one of this package's widgets */
 
         }
+    if (fpk) wbdispatch++; /* kills defer from here */
+    wb_unlock();
+    if (fpk) {
+
+        fpk->dispatch(ev, wg);
+        wb_lock();
+        wbdispatch--;
+        if (!wbdispatch) while (wbdeflst) {
+
+            /* the kills that waited on this dispatch */
+            dp = wbdeflst;
+            wbdeflst = dp->next;
+            teardown(dp->pk, dp->wp);
+            free(dp);
+
+        }
+        wb_unlock();
+
+        return;
+
+    }
     wb_event_old(ev); /* no package's: down the chain */
 
 }
@@ -421,7 +577,9 @@ static int ivclose(
     wbpkgptr pk;
     long     i;
 
-    if (fd >= 0 && fd < MAXFIL)
+    if (fd >= 0 && fd < MAXFIL) {
+
+        wb_lock();
         for (pk = pkglst; pk; pk = pk->next)
             if (pk->opnfil[fd]) {
 
@@ -432,6 +590,9 @@ static int ivclose(
                 pk->opnfil[fd] = NULL;
 
             }
+        wb_unlock();
+
+    }
 
     return (*closedc)(fd);
 

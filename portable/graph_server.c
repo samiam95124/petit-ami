@@ -39,6 +39,7 @@
 #include <graphics.h>
 #include <network.h>
 #include <graph_remote.h>
+#include <widget_base.h>
 
 #define MAXHND 512   /* window handles */
 #define MAXSTR 4096  /* string unmarshal bound */
@@ -1680,6 +1681,7 @@ winddown:
             h2f[h] = 0;
 
         }
+        wb_purge(stdout); /* the session's widgets go with it */
         ami_title(stdout, srvname); /* the session's title went with it */
         ami_setsizg(stdout, origw, origh); /* and its size */
         ami_auto(stdout, 0); /* off first: the resets below are illegal

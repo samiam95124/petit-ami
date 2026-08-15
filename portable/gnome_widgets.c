@@ -1163,14 +1163,6 @@ static void widget(
         } while (np);
 
     }
-    /* The first paint is requested here, not left to fate. A widget
-       window becomes visible when it is first drawn, and its first
-       draw was riding on a later parent-window redraw that a quiet
-       display never sends; the widget then sat unmapped forever. The
-       queued redraw is delivered after creation completes, and the
-       draw it triggers maps the window. */
-    widget_redraw(wp);
-
     *wpr = wp; /* copy back to caller */
 
 }
@@ -2317,6 +2309,8 @@ static void numselbox_draw(
 
 {
 
+    if (!wg->cw) return; /* not yet wired: the completing redraw paints */
+
     long udspc; /* up/down control space */
     long figsiz; /* size of up/down figures */
 
@@ -2382,6 +2376,8 @@ static void numselbox_event(
 )
 
 {
+
+    if (!wg->cw) return; /* not yet wired: the completing redraw paints */
 
     long udspc;    /* up/down control space */
     char buff[40]; /* buffer for number entered (holds full long) */
@@ -2882,7 +2878,7 @@ static void dropbox_draw(
     while (sc > 1 && sp) { sp = sp->next; sc--; }
     fcolort(wg->wf, th_droptext);
     ami_cursorg(wg->wf, ami_chrsizy(wg->wf)*0.5, ami_chrsizy(wg->wf)*0.5);
-    fprintf(wg->wf, "%s", sp->str); /* place string */
+    if (sp) fprintf(wg->wf, "%s", sp->str); /* place string */
 
 }
 
@@ -3009,6 +3005,8 @@ static void dropeditbox_draw(
 
 {
 
+    if (!wg->cw || !wg->cw2) return; /* not yet wired: the completing redraw paints */
+
     /* everything in this widget is drawn by subclassed widgets */
 
 }
@@ -3027,6 +3025,8 @@ static void dropeditbox_event(
 )
 
 {
+
+    if (!wg->cw || !wg->cw2) return; /* not yet wired: the completing redraw paints */
 
     ami_evtrec er; /* outbound event */
     ami_strptr sp;
@@ -4278,6 +4278,8 @@ static void ibuttong(
     widget(f, x1, y1, x2, y2, s, id, wtbutton, &wp);
     ami_linewidth(wp->wf, 3); /* thicker lines */
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4384,6 +4386,8 @@ static void icheckboxg(
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtcheckbox, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4489,6 +4493,8 @@ static void iradiobuttong(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtradiobutton, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -4613,6 +4619,8 @@ static void igroupg(
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, s, id, wtgroup, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4668,6 +4676,8 @@ static void ibackgroundg(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtbackground, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -4770,6 +4780,8 @@ static void iscrollvertg(
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtscrollvert, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -4869,6 +4881,8 @@ static void iscrollhorizg(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtscrollhoriz, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -5061,6 +5075,8 @@ static void inumselboxg(
     ami_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
+    widget_redraw(wps); /* the child's first paint */
+    widget_redraw(wp); /* now whole: the finished face */
 
 }
 
@@ -5166,6 +5182,8 @@ static void ieditboxg(
     widget(f, x1, y1, x2, y2, "", id, wteditbox, &wp);
     ami_curvis(wp->wf, FALSE); /* turn on cursor */
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -5267,6 +5285,8 @@ static void iprogbarg(
 
     wp = NULL; /* set no predefinition */
     widget(f, x1, y1, x2, y2, "", id, wtprogbar, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -5434,6 +5454,8 @@ static void ilistboxg(
     wp->strlst = nl; /* plant the list */
     widget(f, x1, y1, x2, y2, "", id, wtlistbox, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -5575,6 +5597,8 @@ static void idropboxg(
     wp->strlst = nl; /* plant the list */
     wp->ss = 1; /* select first entry */
     widget(f, x1, y1, x2, y1+ch-1, "", id, wtdropbox, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -5718,6 +5742,7 @@ static void idropeditboxg(
 
     wp->cw = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
+    widget_redraw(wps); /* the child's first paint */
 
     /* set up a subclass entry for edit */
     wps = getwig(); /* get widget entry */
@@ -5729,6 +5754,8 @@ static void idropeditboxg(
     ami_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw2 = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
+    widget_redraw(wps); /* the child's first paint */
+    widget_redraw(wp); /* now whole: the finished face */
 
 }
 
@@ -5837,6 +5864,8 @@ static void islidehorizg(
     wp->ticks = mark; /* set tick marks */
     widget(f, x1, y1, x2, y2, "", id, wtslidehoriz, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -5941,6 +5970,8 @@ static void islidevertg(
     wp = getwig(); /* predef so we can plant ticks before display */
     wp->ticks = mark; /* set tick marks */
     widget(f, x1, y1, x2, y2, "", id, wtslidevert, &wp);
+
+    widget_redraw(wp); /* first paint of the finished face */
 
 }
 
@@ -6158,6 +6189,8 @@ static void itabbarg(
     wp->tor = tor; /* set tab orientation */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
 
+    widget_redraw(wp); /* first paint of the finished face */
+
 }
 
 /** ****************************************************************************
@@ -6200,6 +6233,14 @@ static void itabbar(
     wp->tor = tor; /* set tab orientation */
     wp->charb = TRUE; /* set character grid */
     widget(f, x1, y1, x2, y2, "", id, wttabbar, &wp);
+
+    /* The first paint is requested here, not left to fate: a widget
+       window becomes visible when it is first drawn, and its first
+       draw was riding on a later parent-window redraw that a quiet
+       display never sends. The queued redraw arrives after the
+       creator finishes, paints the finished face, and maps the
+       window. */
+    widget_redraw(wp);
 
 }
 
