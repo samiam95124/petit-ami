@@ -1163,6 +1163,13 @@ static void widget(
         } while (np);
 
     }
+    /* The first paint is requested here, not left to fate. A widget
+       window becomes visible when it is first drawn, and its first
+       draw was riding on a later parent-window redraw that a quiet
+       display never sends; the widget then sat unmapped forever. The
+       queued redraw is delivered after creation completes, and the
+       draw it triggers maps the window. */
+    widget_redraw(wp);
 
     *wpr = wp; /* copy back to caller */
 

@@ -13283,18 +13283,10 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
                 }
                 XWUNLOCK();
-#ifdef WAITWMR
-                /* wait for the next configure for this window. Do not require an
-                   exact size match: Wayland/XWayland (and tiling WMs) may clamp
-                   or override the requested size, so demanding the exact value
-                   would loop forever. Adopt the actual granted size instead. */
-                if (waitxevt(ConfigureNotify, win->xwhan, snc, &xe)) {
-
-                    xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
-                    xwc.height = xe.xconfigure.height;
-
-                }
-#endif
+                /* the subclient is a child of the master: its configure
+                   applies synchronously and grants what was asked, so
+                   there is nothing to wait on */
+                (void)snc;
                 /* change saved size to match */
                 win->xwr.w = xwc.width;
                 win->xwr.h = xwc.height;
@@ -13324,9 +13316,11 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                                      &xwc);
                     XWUNLOCK();
 #ifdef WAITWMR
-                    /* wait for the next configure for this window (any size --
-                       the WM may clamp the request; see note above) */
-                    if (waitxevt(ConfigureNotify, mwin->xmwhan, snc, &xe)) {
+                    /* wait for the next configure (any size -- the WM may
+                       clamp the request); a child menu window configures
+                       synchronously and is not waited on */
+                    if (!mwin->parwin &&
+                        waitxevt(ConfigureNotify, mwin->xmwhan, snc, &xe)) {
 
                         xwc.width = xe.xconfigure.width;   /* adopt granted */
                         xwc.height = xe.xconfigure.height;
@@ -15001,8 +14995,10 @@ static void buffer_ivf(FILE* f, long e)
 #ifdef WAITWMR
             /* wait for the next configure for this window (any size -- the WM
                may clamp the request; see note above). Adopt the granted
-               size. */
-            if (waitxevt(ConfigureNotify, win->xmwhan, snc, &xe)) {
+               size. A child window configures synchronously and grants
+               what was asked; only a top-level has a manager to answer. */
+            if (!win->parwin &&
+                waitxevt(ConfigureNotify, win->xmwhan, snc, &xe)) {
 
                 win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
                 win->xmwr.h = xe.xconfigure.height;
@@ -15212,11 +15208,10 @@ static void menu_resize(FILE* f, winptr win, int menuon)
     XMoveWindow(padisplay, win->xwhan, 0, yes);
     XWUNLOCK();
 
-#ifdef WAITWMR
-    /* wait for the next configure for this window (any geometry; see note in
-       the resize path -- the WM may not honor an exact request) */
-    waitxevt(ConfigureNotify, win->xwhan, snc, &e);
-#endif
+    /* the subclient is a child of the master: its move applies
+       synchronously, and a no-change move sends no notify, so there is
+       nothing to wait on */
+    (void)snc; (void)e;
     restore(win);
 
 }
@@ -15732,7 +15727,11 @@ static void setsizg_ivf(FILE* f, long x, long y)
            requested size, and demanding the exact value would loop forever.
            The actual granted size is adopted from the event below. */
         if (!win->childfrm) {
-            if (!waitxevt(ConfigureNotify, win->xmwhan, snc, &e)) {
+            /* Only a top-level window has a manager to answer; a child's
+               configure applies synchronously and grants what was asked,
+               and a request that changes nothing sends no notify at all,
+               so waiting on a child is waiting on silence. */
+            if (win->parwin || !waitxevt(ConfigureNotify, win->xmwhan, snc, &e)) {
 
                 /* no answer: stand on the computed client size */
                 e.xconfigure.width = xwc.width;
@@ -15852,8 +15851,10 @@ static void setposg_ivf(FILE* f, long x, long y)
         XWUNLOCK();
 
 #ifdef WAITWMR
-        /* wait for the configure response */
-        waitxevt(ConfigureNotify, win->xmwhan, snc, &e);
+        /* wait for the configure response; a child moves synchronously
+           and a no-change move sends no notify, so only a top-level
+           window, with a manager to answer, is worth waiting on */
+        if (!win->parwin) waitxevt(ConfigureNotify, win->xmwhan, snc, &e);
 #endif
 
         /* set origin for next time */
