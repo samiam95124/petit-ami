@@ -551,8 +551,10 @@ typedef enum {
     GR_MSGNWAVEOUT     = GR_SNDBASE+55, /* i64 p, s */
     GR_MFLTWAVEOUT     = GR_SNDBASE+56, /* i64 p, f */
     GR_MENDWAVEOUT     = GR_SNDBASE+57, /* i64 p, e */
-    GR_MWRWAVE         = GR_SNDBASE+58, /* i64 p, blk; the sender chunks
-                                           to the channel bound */
+    GR_MWRWAVE         = GR_SNDBASE+58, /* i64 p, i64 frames, blk
+                                           samples; the sender chunks to
+                                           the channel bound on frame
+                                           boundaries */
 
     /* wave input; the devices live at the server, and a read blocks the
        caller until data arrives, as the native call does */
@@ -564,8 +566,12 @@ typedef enum {
     GR_MSGNWAVEIN      = GR_SNDBASE+64, /* i64 p -> i64 */
     GR_MENDWAVEIN      = GR_SNDBASE+65, /* i64 p -> i64 */
     GR_MFLTWAVEIN      = GR_SNDBASE+66, /* i64 p -> i64 */
-    GR_MRDWAVE         = GR_SNDBASE+67, /* i64 p, len -> i64 n, blk; the
-                                           caller chunks to the bound */
+    GR_MRDWAVE         = GR_SNDBASE+67, /* i64 p, frames -> i64 got, blk
+                                           samples; the server clamps the
+                                           answer to the channel bound and
+                                           the caller loops. Lengths are in
+                                           samples, one frame of every
+                                           channel, as the API counts. */
 
     /* device names and parameters */
     GR_MSYNTHOUTNAME   = GR_SNDBASE+68, /* i64 p -> str */

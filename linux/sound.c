@@ -1801,9 +1801,9 @@ static void wralsapcmout(long p, byte* buff, long len)
         snd_pcm_prepare(alsapcmout[p-1]->pcm);
 
     }
-    /* the length is in bytes by the API contract; ALSA takes frames */
-    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff,
-                       len/alsapcmout[p-1]->ssiz);
+    /* the length is in samples (frames), as connectwave and genwave
+       pass it; ALSA counts the same way */
+    r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
     if (r == -EPIPE) {
         /* uncomment next for a broken pipe diagnostic */
         /* printf("Recovered from output error\n"); */
@@ -1835,8 +1835,9 @@ Thus (for example) 1024*channels would be an appropriate buffer size. Not
 providing enough buffering will not cause an error, but will cause the read
 rate to fall behind the data rate.
 
-ami_rdwave() will return the actual number of bytes read, which will contain
-3*ami_chanwavein() bytes of samples. This will then be the actual buffer content.
+ami_rdwave() takes and returns lengths in samples: one frame of every
+channel, the unit connectwave passes. The buffer must hold the sample
+count times the frame size, channels times the sample byte size.
 
 *******************************************************************************/
 
@@ -1845,16 +1846,12 @@ static long rdalsapcmin(long p, byte* buff, long len)
 {
 
     long r;
-    long frames;
 
-    /* The length is in bytes by the API contract; ALSA takes frames,
-       and passing bytes as frames overran the caller's buffer by the
-       frame size. A buffer under one frame reads nothing. */
-    frames = len/alsapcmin[p-1]->ssiz;
-    if (frames < 1) return (0);
+    /* the length is in samples (frames), as connectwave passes it;
+       ALSA counts the same way */
     do {
 
-        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, frames);
+        r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
         if (r < 0) {
 
             /* uncomment the next to get a channel recovery diagnostic */
@@ -1866,7 +1863,7 @@ static long rdalsapcmin(long p, byte* buff, long len)
 
     } while (!r);
 
-    return (r*alsapcmin[p-1]->ssiz);
+    return (r);
 
 }
 
@@ -5669,8 +5666,9 @@ Thus (for example) 1024*channels would be an appropriate buffer size. Not
 providing enough buffering will not cause an error, but will cause the read
 rate to fall behind the data rate.
 
-ami_rdwave() will return the actual number of bytes read, which will contain
-3*ami_chanwavein() bytes of samples. This will then be the actual buffer content.
+ami_rdwave() takes and returns lengths in samples: one frame of every
+channel, the unit connectwave passes. The buffer must hold the sample
+count times the frame size, channels times the sample byte size.
 
 *******************************************************************************/
 

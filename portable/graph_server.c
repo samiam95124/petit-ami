@@ -1611,8 +1611,9 @@ static void dispatch(void)
         case GR_MFLTWAVEOUT: a = gi(); b = gi(); ami_fltwaveout(a, b); break;
         case GR_MENDWAVEOUT: a = gi(); b = gi(); ami_endwaveout(a, b); break;
         case GR_MWRWAVE:
-            a = gi(); b = g4();
-            if (roff+b > rlen) sesserr("Message truncated");
+            /* i64 port, i64 frames, then the samples as a block */
+            a = gi(); b = gi(); c = g4();
+            if (roff+c > rlen) sesserr("Message truncated");
             ami_wrwave(a, (byte*)(rbuf+roff), b);
             break;
         case GR_MOPENWAVEIN: a = gi(); ami_openwavein(a); break;
@@ -1633,21 +1634,28 @@ static void dispatch(void)
 
             static byte* wvbuf;
             static long  wvblen;
-            long         got;
+            long         got, fsiz, fit;
 
+            /* Lengths are in samples, one frame of every channel. The
+               answer clamps to what one message carries, at the frame
+               size this device delivers, and the client loops. */
             a = gi(); b = gi();
-            if (b > wvblen) {
+            fsiz = ami_chanwavein(a)*((ami_lenwavein(a)+7)/8);
+            if (fsiz < 1) fsiz = 1;
+            fit = (msgmax-96)/fsiz;
+            if (b > fit) b = fit;
+            if (b*fsiz > wvblen) {
 
                 free(wvbuf);
-                wvbuf = malloc(b);
+                wvbuf = malloc(b*fsiz);
                 if (!wvbuf) sesserr("Out of memory");
-                wvblen = b;
+                wvblen = b*fsiz;
 
             }
             got = ami_rdwave(a, wvbuf, b); /* blocks until data */
             rbegin();
             ri(got);
-            rstrn((char*)wvbuf, got > 0? got: 0);
+            rstrn((char*)wvbuf, got > 0? got*fsiz: 0);
             rsend();
             break;
 

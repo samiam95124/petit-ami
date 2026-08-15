@@ -1879,12 +1879,22 @@ void ami_volwave(long p, long t, long v)
     { begin(GR_MVOLWAVE, 0); pi(p); pi(t); pi(v); send0(); }
 void ami_waitwave(long p)
     { begin(GR_MWAITWAVE, 0); pi(p); qsend(); gi(); }
+/* The frame size of an output port, channels times sample bytes, is
+   tracked from the parameter calls so the raw stream can chunk on
+   frame boundaries. A raw stream requires the parameters set first,
+   which is also what the device needs to interpret the samples. */
+#define MAXWAVP 100 /* maximum wave ports, matching the library */
+static long wochan[MAXWAVP]; /* channels set per output port */
+static long wobits[MAXWAVP]; /* sample bits set per output port */
+
 void ami_chanwaveout(long p, long c)
-    { begin(GR_MCHANWAVEOUT, 0); pi(p); pi(c); send0(); }
+    { if (p >= 1 && p <= MAXWAVP) wochan[p-1] = c;
+      begin(GR_MCHANWAVEOUT, 0); pi(p); pi(c); send0(); }
 void ami_ratewaveout(long p, long r)
     { begin(GR_MRATEWAVEOUT, 0); pi(p); pi(r); send0(); }
 void ami_lenwaveout(long p, long l)
-    { begin(GR_MLENWAVEOUT, 0); pi(p); pi(l); send0(); }
+    { if (p >= 1 && p <= MAXWAVP) wobits[p-1] = l;
+      begin(GR_MLENWAVEOUT, 0); pi(p); pi(l); send0(); }
 void ami_sgnwaveout(long p, long s)
     { begin(GR_MSGNWAVEOUT, 0); pi(p); pi(s); send0(); }
 void ami_fltwaveout(long p, long f)
@@ -1896,18 +1906,28 @@ void ami_wrwave(long p, byte* buff, long len)
 
 {
 
-    long chunk = msgmax-64; /* header, port and counts, with slack */
+    long fsiz;  /* frame size in bytes */
+    long chunk; /* frames per message */
     long n;
 
-    /* the sample stream chunks to the channel bound */
+    /* Lengths are in samples, one frame of every channel; the byte
+       stream chunks to the channel bound on frame boundaries. The
+       frame size comes from the parameters the program set, which a
+       raw stream must set for the device to make sense of it anyway. */
+    if (p < 1 || p > MAXWAVP) error("Invalid wave port");
+    if (!wochan[p-1] || !wobits[p-1])
+        error("Remote wrwave requires channels and bits set first");
+    fsiz = wochan[p-1]*((wobits[p-1]+7)/8);
+    chunk = (msgmax-96)/fsiz;
     while (len > 0) {
 
         n = len > chunk? chunk: len;
         begin(GR_MWRWAVE, 0);
         pi(p);
-        psn((char*)buff, n);
+        pi(n);
+        psn((char*)buff, n*fsiz);
         send0();
-        buff += n;
+        buff += n*fsiz;
         len -= n;
 
     }
@@ -1935,29 +1955,26 @@ long ami_rdwave(long p, byte* buff, long len)
 
 {
 
-    long chunk = msgmax-64;
     long total = 0;
-    long n, got, dl;
+    long got, dl;
 
-    /* Chunk the request to the channel bound; a short return ends the
-       read, as it does at the device. Each chunk blocks the caller
-       until the far device delivers, exactly as the native call does. */
+    /* Lengths are in samples, one frame of every channel. The server
+       clamps each answer to the channel bound and this loops until the
+       count is satisfied; each round blocks until the far device
+       delivers, exactly as the native call does. */
     while (len > 0) {
 
-        n = len > chunk? chunk: len;
         begin(GR_MRDWAVE, 0);
         pi(p);
-        pi(n);
+        pi(len);
         qsend();
-        got = gi(); /* samples delivered */
-        dl = g4(); /* the block length */
-        if (dl > len) error("Protocol failure: wave read overrun");
+        got = gi(); /* frames delivered */
+        dl = g4(); /* the block length in bytes */
         memcpy(buff, rbuf+roff, dl);
         roff += dl;
         buff += dl;
         total += got;
-        len -= dl;
-        if (got < n) break; /* short read ends it */
+        len -= got;
 
     }
 
