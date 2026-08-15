@@ -709,9 +709,17 @@ KeySym XLookupKeysym(XKeyEvent* e, int index);
    blocking; call when the display fd selects readable */
 void   wlshim_pump(Display* d);
 
-/* set the title-bar rectangle of a toplevel window, in surface pixels; a
-   pointer press there starts a compositor-side interactive move */
-void   wlshim_titlebar(Display* d, Window w, int x, int y, int wd, int ht);
+/* Declare a toplevel's frame regions, in surface pixels. A pointer press in
+   the title rectangle starts a compositor-side interactive move; a press
+   within borderw of the surface edge starts an interactive resize with the
+   grabbed edges. Declare the title rectangle to exclude the frame buttons,
+   whose presses must reach the application */
+void   wlshim_frame(Display* d, Window w, int titx, int tity, int titw,
+                    int tith, int borderw);
+
+/* toplevel minimize and maximize through the shell */
+void   wlshim_minimize(Display* d, Window w);
+void   wlshim_maximize(Display* d, Window w, int on);
 
 /* dump a window's composed surface buffer to a PPM file; the test rig's
    capture path, independent of any compositor screenshot facility */

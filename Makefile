@@ -756,7 +756,7 @@ linux/wlproto/xdg-shell-protocol.o: linux/wlproto/xdg-shell-protocol.c Makefile
 	    -o linux/wlproto/xdg-shell-protocol.o
 
 WLGRAPH = linux/graphics_wl.o linux/wlshim.o linux/wlproto/xdg-shell-protocol.o
-WLLIBS = -lwayland-client -lxkbcommon
+WLLIBS = -lwayland-client -lwayland-cursor -lxkbcommon
 
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
 	$(CC) $(CFLAGS) -c linux/system_event.c -o linux/system_event.o

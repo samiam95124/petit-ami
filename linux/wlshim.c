@@ -53,6 +53,7 @@
 #include <time.h>
 
 #include <wayland-client.h>
+#include <wayland-cursor.h>
 #include "wlproto/xdg-shell-client-protocol.h"
 #include <xkbcommon/xkbcommon.h>
 
@@ -100,6 +101,7 @@ typedef struct wltop {
     Time   fcbtime;         /* when it was armed */
     int    commitpend;      /* damage waiting on frame callback */
     int    titx, tity, titw, tith; /* interactive move rectangle */
+    int    borderw;         /* resize border width, 0 if none */
 
 } wltop;
 
@@ -187,6 +189,11 @@ struct _XDisplay {
     struct xkb_context* xkb;
     struct xkb_keymap*  keymap;
     struct xkb_state*   xst;
+    /* cursor theme */
+    struct wl_cursor_theme* ctheme;
+    struct wl_surface*      csurf;
+    uint32_t enterserial;   /* serial of the pointer enter, for set_cursor */
+    Cursor   curshown;      /* shape currently shown, to skip re-sets */
     int    rptdelay, rptrate; /* repeat delay/rate, ms */
     uint32_t rptkey;        /* repeating key (X keycode), 0 if none */
     /* atoms */
@@ -205,6 +212,7 @@ static int    dpyopen;
 static void pump(Display* d);
 static void compose(Display* d, wlwin* t);
 static void flushtops(Display* d);
+static void setcursor(Display* d, wlwin* w);
 
 /*******************************************************************************
 
@@ -1667,6 +1675,11 @@ int XDefineCursor(Display* d, Window w, Cursor c)
 {
     LK(d);
     ((wlwin*)w)->cursor = c;
+    /* X changes the visible cursor immediately when the pointer is inside;
+       the frame hover cursors depend on it */
+    if (d->ptrwin == (wlwin*)w ||
+        (d->ptrwin && winTop(d->ptrwin) == (wlwin*)w))
+        setcursor(d, d->ptrwin);
     ULK(d);
     return (0);
 }
@@ -1900,7 +1913,12 @@ static void xsconf(void* data, struct xdg_surface* s, uint32_t serial)
     if (t->confw > 0 && t->confh > 0 &&
         (t->confw != win->w || t->confh != win->h)) {
 
-        /* the compositor resized us; report as the window manager would */
+        /* The compositor resized us. In the X model the window manager has
+           already resized the window when the notify arrives, so apply the
+           size before reporting: the backend reacts to a fait accompli */
+        win->w = t->confw; win->h = t->confh;
+        sizecanvas(win, win->w, win->h);
+        sizebufs(d, win);
         evbase(d, &e, ConfigureNotify, win);
         e.xconfigure.window = (Window)win;
         e.xconfigure.x = win->x; e.xconfigure.y = win->y;
@@ -2001,6 +2019,58 @@ Input listeners
 
 *******************************************************************************/
 
+/* Cursor names by X font cursor shape code. Cursor themes carry the X
+   names literally */
+static const char* curname(Cursor c)
+{
+    switch (c? c-1: XC_left_ptr) {
+
+        case XC_left_side:           return ("left_side");
+        case XC_right_side:          return ("right_side");
+        case XC_top_side:            return ("top_side");
+        case XC_bottom_side:         return ("bottom_side");
+        case XC_top_left_corner:     return ("top_left_corner");
+        case XC_top_right_corner:    return ("top_right_corner");
+        case XC_bottom_left_corner:  return ("bottom_left_corner");
+        case XC_bottom_right_corner: return ("bottom_right_corner");
+
+    }
+    return ("left_ptr");
+}
+
+/* show the cursor belonging to a window: its own, or the nearest ancestor's
+   (X inheritance), or the arrow */
+static void setcursor(Display* d, wlwin* w)
+{
+    struct wl_cursor*       cur;
+    struct wl_cursor_image* img;
+    struct wl_buffer*       buf;
+    Cursor                  shape;
+
+    if (!d->ptr) return; /* no pointer, no one to show it to */
+    shape = 0;
+    while (w && !shape) { shape = w->cursor; w = w->parent; }
+    if (shape == d->curshown && d->csurf) return;
+    if (!d->ctheme) {
+
+        d->ctheme = wl_cursor_theme_load(NULL, 24, d->shm);
+        if (!d->ctheme) return;
+        d->csurf = wl_compositor_create_surface(d->comp);
+
+    }
+    cur = wl_cursor_theme_get_cursor(d->ctheme, curname(shape));
+    if (!cur) cur = wl_cursor_theme_get_cursor(d->ctheme, "left_ptr");
+    if (!cur || !cur->image_count) return;
+    img = cur->images[0];
+    buf = wl_cursor_image_get_buffer(img);
+    wl_surface_attach(d->csurf, buf, 0, 0);
+    wl_surface_damage(d->csurf, 0, 0, img->width, img->height);
+    wl_surface_commit(d->csurf);
+    wl_pointer_set_cursor(d->ptr, d->enterserial, d->csurf,
+                          img->hotspot_x, img->hotspot_y);
+    d->curshown = shape;
+}
+
 static unsigned btnmask(int b)
 {
     switch (b) {
@@ -2056,11 +2126,14 @@ static void ptrenter(void* data, struct wl_pointer* p, uint32_t serial,
     int      x, y;
 
     d->inserial = serial;
+    d->enterserial = serial;
     win = surf? wl_surface_get_user_data(surf): NULL;
     d->ptrtop = win;
     d->ptrx = wl_fixed_to_double(sx);
     d->ptry = wl_fixed_to_double(sy);
     d->ptrwin = ptrroute(d, &x, &y);
+    d->curshown = (Cursor)-1; /* the enter must set a cursor or none shows */
+    setcursor(d, d->ptrwin);
     crossevt(d, d->ptrwin, EnterNotify);
 }
 
@@ -2091,6 +2164,7 @@ static void ptrmotion(void* data, struct wl_pointer* p, uint32_t time,
         crossevt(d, d->ptrwin, LeaveNotify);
         crossevt(d, nw, EnterNotify);
         d->ptrwin = nw;
+        setcursor(d, nw);
 
     }
     if (nw) {
@@ -2122,18 +2196,49 @@ static void ptrbutton(void* data, struct wl_pointer* p, uint32_t serial,
     w = ptrroute(d, &x, &y);
     if (state) d->modstate |= btnmask(b);
     else d->modstate &= ~btnmask(b);
-    /* a press in a toplevel's declared title bar starts a compositor-side
-       interactive move */
+    /* A press on a toplevel's declared frame goes to the compositor: the
+       resize border becomes an interactive resize with the grabbed edges,
+       the title bar an interactive move. The declared title rectangle
+       excludes the frame buttons, whose presses flow to the application */
     t = d->ptrtop;
-    if (state && b == Button1 && !d->grab && t && t->top &&
-        t->top->titw > 0 &&
-        (int)d->ptrx >= t->top->titx &&
-        (int)d->ptrx < t->top->titx+t->top->titw &&
-        (int)d->ptry >= t->top->tity &&
-        (int)d->ptry < t->top->tity+t->top->tith) {
+    if (state && b == Button1 && !d->grab && t && t->top && w == t) {
 
-        xdg_toplevel_move(t->top->xtop, d->seat, serial);
-        return;
+        int px = (int)d->ptrx, py = (int)d->ptry;
+        int bw = t->top->borderw;
+
+        if (bw > 0 && (px < bw || py < bw || px >= t->w-bw ||
+                       py >= t->h-bw)) {
+
+            /* corner zones widen so a diagonal grab is not a tiny square */
+            int cz = bw*4 > 16? bw*4: 16;
+            unsigned edges = 0;
+
+            if (py < bw || (py < cz && (px < cz || px >= t->w-cz)))
+                edges |= XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+            if (py >= t->h-bw ||
+                (py >= t->h-cz && (px < cz || px >= t->w-cz)))
+                edges |= XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+            if (px < bw || (px < cz && (py < cz || py >= t->h-cz)))
+                edges |= XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+            if (px >= t->w-bw ||
+                (px >= t->w-cz && (py < cz || py >= t->h-cz)))
+                edges |= XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+            if (edges) {
+
+                xdg_toplevel_resize(t->top->xtop, d->seat, serial, edges);
+                return;
+
+            }
+
+        }
+        if (t->top->titw > 0 &&
+            px >= t->top->titx && px < t->top->titx+t->top->titw &&
+            py >= t->top->tity && py < t->top->tity+t->top->tith) {
+
+            xdg_toplevel_move(t->top->xtop, d->seat, serial);
+            return;
+
+        }
 
     }
     if (w) {
@@ -2811,7 +2916,8 @@ Wayland specific hooks
 
 *******************************************************************************/
 
-void wlshim_titlebar(Display* d, Window w, int x, int y, int wd, int ht)
+void wlshim_frame(Display* d, Window w, int titx, int tity, int titw,
+                  int tith, int borderw)
 {
     wlwin* win;
 
@@ -2819,8 +2925,40 @@ void wlshim_titlebar(Display* d, Window w, int x, int y, int wd, int ht)
     win = (wlwin*)w;
     if (win->top) {
 
-        win->top->titx = x; win->top->tity = y;
-        win->top->titw = wd; win->top->tith = ht;
+        win->top->titx = titx; win->top->tity = tity;
+        win->top->titw = titw; win->top->tith = tith;
+        win->top->borderw = borderw;
+
+    }
+    ULK(d);
+}
+
+void wlshim_minimize(Display* d, Window w)
+{
+    wlwin* win;
+
+    LK(d);
+    win = (wlwin*)w;
+    if (win->top && win->top->xtop) {
+
+        xdg_toplevel_set_minimized(win->top->xtop);
+        wl_display_flush(d->dpy);
+
+    }
+    ULK(d);
+}
+
+void wlshim_maximize(Display* d, Window w, int on)
+{
+    wlwin* win;
+
+    LK(d);
+    win = (wlwin*)w;
+    if (win->top && win->top->xtop) {
+
+        if (on) xdg_toplevel_set_maximized(win->top->xtop);
+        else xdg_toplevel_unset_maximized(win->top->xtop);
+        wl_display_flush(d->dpy);
 
     }
     ULK(d);

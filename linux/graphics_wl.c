@@ -5471,6 +5471,16 @@ static void childfrm_draw(winptr win, int mw, int mh)
         XSetLineAttributes(padisplay, win->frmgc, 1, LineSolid, CapButt, JoinMiter);
     }
 
+    /* A toplevel's frame is compositor-interactive: declare the regions so
+       a title press becomes an interactive move and a border press an
+       interactive resize. The declared title stops short of the buttons,
+       whose presses must reach us. */
+    if (!win->parwin)
+        wlshim_frame(padisplay, win->xmwhan,
+                     CFRM_BORDER_W, CFRM_BORDER_W,
+                     bx_min - CFRM_BUTTON_GAP - CFRM_BORDER_W,
+                     tbh - CFRM_BORDER_W, CFRM_BORDER_W);
+
     XFlush(padisplay);
     XWUNLOCK();
 
@@ -6127,10 +6137,13 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
     XSetWMProtocols(padisplay, win->xmwhan, &win->delmsg, 1);
     XWUNLOCK();
 
-    /* set up child frame or WM frame parameters */
-    if (pwin && subclient) {
+    /* Set up frame parameters. On Wayland the compositor draws no frame
+       around a toplevel; Ami frames its own toplevels through the same
+       child frame machinery the MDI children use. Only menu components
+       (children of the master) stay frameless. */
+    if ((pwin && subclient) || !pwin) {
 
-        /* child window: Ami draws its own frame on xmwhan */
+        /* child window or toplevel: Ami draws its own frame on xmwhan */
         win->childfrm = TRUE;
         win->minimized = FALSE;
         win->pfw = CFRM_BORDER_W * 2;
@@ -6149,7 +6162,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     } else {
 
-        /* top-level window: WM provides the frame */
+        /* menu component: frameless */
         win->childfrm = FALSE;
         win->pfw = frmextwdt[frmcfgall];
         win->pfh = frmexthgt[frmcfgall];
@@ -6166,6 +6179,16 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
     win->xwhan = createwindow(win->xmwhan, win->xwr.x, win->xwr.y,
                                            win->xwr.w, win->xwr.h);
 
+    /* the frame offsets position the subclient; createwindow itself places
+       every window at the parent origin */
+    if (win->childfrm) {
+
+        XWLOCK();
+        XMoveWindow(padisplay, win->xwhan, win->xwr.x, win->xwr.y);
+        XWUNLOCK();
+
+    }
+
     /* create GC for drawing on xmwhan (used for child frame rendering) */
     if (win->childfrm) {
 
@@ -6175,27 +6198,18 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     }
 
-    /* set window title */
+    /* Set window title. The Ami frame carries it, and the shell title is
+       set as well: task bars and window switchers on the desktop read the
+       shell's, not ours */
     XWLOCK();
-    if (win->childfrm) {
-
-        /* store title for Ami-drawn frame */
 #if defined(__MACH__) || defined(__FreeBSD__)
-        win->wintitle = strdup(getprogname());
+    if (win->childfrm) win->wintitle = strdup(getprogname());
+    XStoreName(padisplay, win->xmwhan, getprogname());
 #else
+    if (win->childfrm)
         win->wintitle = strdup(program_invocation_short_name);
+    XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
 #endif
-
-    } else {
-
-        /* set WM title for top-level windows */
-#if defined(__MACH__) || defined(__FreeBSD__)
-        XStoreName(padisplay, win->xmwhan, getprogname());
-#else
-        XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
-#endif
-
-    }
     XWUNLOCK();
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
@@ -13625,16 +13639,22 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             } else if (mx >= mabx && mx < mabx + bsz &&
                        my >= cby && my < cby + bsz) {
 
-                /* max button: when minimized, restore to previous size */
+                /* max button: when minimized, restore to previous size; a
+                   toplevel's maximize toggles through the shell */
                 if (win->minimized) childfrm_restore(win);
+                else if (!win->parwin)
+                    wlshim_maximize(padisplay, win->xmwhan,
+                                    win->winstate != 1);
                 *keep = FALSE;
                 return;
 
             } else if (mx >= mibx && mx < mibx + bsz &&
                        my >= cby && my < cby + bsz) {
 
-                /* min button: collapse to title-bar slot at bottom of parent */
-                if (!win->minimized) childfrm_minimize(win);
+                /* min button: a toplevel minimizes through the shell, a
+                   child collapses to a title-bar slot in its parent */
+                if (!win->parwin) wlshim_minimize(padisplay, win->xmwhan);
+                else if (!win->minimized) childfrm_minimize(win);
                 *keep = FALSE;
                 return;
 
