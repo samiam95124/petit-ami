@@ -86,7 +86,14 @@ static short          sseq;       /* request serial */
    messages into each datagram's truesize, which is what affords a
    window this wide. */
 #define GRWINDOW 256
+/* The window also counts bytes: a wave stream's messages fill the
+   channel maximum, and a few of those cover the receiver's whole
+   socket buffer, which the kernel accounts with generous overhead.
+   The byte fence paces a bulk stream to the consumer, which for wave
+   output is the playback rate itself. */
+#define GRWINBYTES 65536
 static long           sentb;      /* messages since the last fence */
+static long           sentbytes;  /* bytes since the last fence */
 static int            inquery;    /* a round trip is in progress */
 
 /* window bookkeeping */
@@ -386,7 +393,9 @@ static void send0(void)
 
     }
     sentb++;
-    if (!inquery && sentb >= GRWINDOW) dosync();
+    sentbytes += soff;
+    if (!inquery && (sentb >= GRWINDOW || sentbytes >= GRWINBYTES))
+        dosync();
 
 }
 
@@ -548,6 +557,7 @@ static void qsend(void)
         roff = sizeof(gr_msghdr);
         inquery = 0;
         sentb = 0; /* a round trip is a fence */
+        sentbytes = 0;
         return;
 
     }
@@ -591,6 +601,7 @@ static void dosync(void)
     setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv0, sizeof(tv0));
     inquery = 0;
     sentb = 0;
+    sentbytes = 0;
 
 }
 
@@ -1926,7 +1937,8 @@ void ami_wrwave(long p, byte* buff, long len)
         pi(p);
         pi(n);
         psn((char*)buff, n*fsiz);
-        send0();
+        qsend(); /* the ack paces the stream and keeps it whole */
+        gi();
         buff += n*fsiz;
         len -= n;
 

@@ -1611,10 +1611,12 @@ static void dispatch(void)
         case GR_MFLTWAVEOUT: a = gi(); b = gi(); ami_fltwaveout(a, b); break;
         case GR_MENDWAVEOUT: a = gi(); b = gi(); ami_endwaveout(a, b); break;
         case GR_MWRWAVE:
-            /* i64 port, i64 frames, then the samples as a block */
+            /* i64 port, i64 frames, then the samples as a block; the
+               ack paces the stream to the playback rate */
             a = gi(); b = gi(); c = g4();
             if (roff+c > rlen) sesserr("Message truncated");
             ami_wrwave(a, (byte*)(rbuf+roff), b);
+            rbegin(); ri(0); rsend();
             break;
         case GR_MOPENWAVEIN: a = gi(); ami_openwavein(a); break;
         case GR_MCLOSEWAVEIN: a = gi(); ami_closewavein(a); break;

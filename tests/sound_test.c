@@ -47,6 +47,19 @@ long sport = 0;             /* synth input port; 0 skips the section, since
 long nomidi = FALSE;        /* skip the synthesizer listening tests and go
                                straight to the sections after them */
 
+long tstlo = 1;             /* first test to run */
+long tsthi = 1000;          /* last test to run */
+
+/* is the test within the selected range? sound_test n runs test n
+   alone; sound_test n x runs n through x; no arguments runs all */
+static int tst(long n)
+
+{
+
+    return (n >= tstlo && n <= tsthi);
+
+}
+
 ami_optrec opttbl[] = {
 
     { "port",   NULL,    &dport, NULL, NULL },
@@ -389,9 +402,28 @@ int main(int argc, char *argv[])
     argcl = argc;
     ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
+    /* the positionals select a test or a range of tests */
+    if (argcl == 2 || argcl == 3) {
+
+        tstlo = strtol(argv[argi], NULL, 10);
+        tsthi = tstlo; /* one test alone */
+        if (argcl == 3) tsthi = strtol(argv[argi+1], NULL, 10);
+        if (tstlo < 1 || tsthi < tstlo) {
+
+            fprintf(stderr, "Bad test range\n");
+            exit(1);
+
+        }
+        argcl = 1; /* consumed */
+
+    }
+
     if (argcl != 1) {
 
-        fprintf(stderr, "Usage: sndtst [--port=<port>|--p=<port>]\n");
+        fprintf(stderr, "Usage: sndtst [options] [first [last]]\n");
+        fprintf(stderr, "              first, or first and last, select the\n");
+        fprintf(stderr, "              test or range of tests to run\n");
+        fprintf(stderr, "       options: [--port=<port>|--p=<port>]\n");
         fprintf(stderr, "              [--wport=<port>] wave output port\n");
         fprintf(stderr, "              [--iport=<port>] wave input port\n");
         fprintf(stderr, "              [--sin=<port>]   synth input port; the\n");
@@ -426,6 +458,8 @@ int main(int argc, char *argv[])
 
     if (nomidi) goto newtests; /* asked to go straight to the later sections */
 
+    if (tst(1)) {
+
     printf("\n===== Test 1 =====\n\n");
     printf("Run through the entire scale of notes available\n");
     for (n = AMI_NOTE_C+AMI_OCTAVE_1; n <= AMI_NOTE_G+AMI_OCTAVE_11; n++) {
@@ -439,6 +473,10 @@ int main(int argc, char *argv[])
     printf("\n");
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(2)) {
 
     printf("\n===== Test 2 =====\n\n");
     printf("Run through all instruments with middle C\n");
@@ -459,6 +497,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(3)) {
+
     printf("\n===== Test 3 =====\n\n");
     printf("Run though all percussive instruments\n");
     printf("Note that not all syths implement all instruments\n");
@@ -476,6 +518,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(4)) {
+
     printf("\n===== Test 4 =====\n\n");
     printf("Chop test, play note series and repeat with the envelope time\n");
     printf("limited by noteoff\n");
@@ -487,6 +533,10 @@ int main(int argc, char *argv[])
     for (i = 10; i >= 1; i--) playscale(dport, i*(SECOND/30));
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(5)) {
 
     printf("\n===== Test 5 =====\n\n");
     printf("Note volume test\n");
@@ -502,12 +552,20 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(6)) {
+
     printf("\n===== Test 6 =====\n\n");
     printf("Random note programming piano:\n");
     waitret();
     playrand(dport, 100);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(7)) {
 
     printf("\n===== Test 7 =====\n\n");
     printf("Random note programming harpsichord:\n");
@@ -517,6 +575,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(8)) {
+
     printf("\n===== Test 8 =====\n\n");
     printf("Random note programming organ:\n");
     waitret();
@@ -525,6 +587,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(9)) {
+
     printf("\n===== Test 9 =====\n\n");
     printf("Random note programming soprando sax:\n");
     waitret();
@@ -532,6 +598,10 @@ int main(int argc, char *argv[])
     playrand(dport, 100);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(10)) {
 
     printf("\n===== Test 10 =====\n\n");
     printf("Random note programming telephone:\n");
@@ -545,6 +615,10 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
 
     /* set attack times */
+    } /* test range gate */
+
+    if (tst(11)) {
+
     printf("\n===== Test 11 =====\n\n");
     printf("Set step attack times on piano\n");
     waitret();
@@ -558,6 +632,10 @@ int main(int argc, char *argv[])
     ami_attack(dport, 0, 1, LONG_MAX/2); /* reset normal */
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(12)) {
 
     printf("\n===== Test 12 =====\n\n");
     printf("Set step attack times on organ\n");
@@ -575,6 +653,10 @@ int main(int argc, char *argv[])
     waitret();
 
     /* set release times */
+    } /* test range gate */
+
+    if (tst(13)) {
+
     printf("\n===== Test 13 =====\n\n");
     printf("Set step release times on piano\n");
     waitret();
@@ -589,6 +671,10 @@ int main(int argc, char *argv[])
     ami_release(dport, 0, 1, LONG_MAX/2); /* reset normal */
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(14)) {
 
     printf("\n===== Test 14 =====\n\n");
     printf("Set step release times on organ\n");
@@ -606,6 +692,10 @@ int main(int argc, char *argv[])
     waitret();
 
     /* set legato */
+    } /* test range gate */
+
+    if (tst(15)) {
+
     printf("\n===== Test 15 =====\n\n");
     printf("Set legato on piano, first normal, then legato\n");
     waitret();
@@ -630,6 +720,10 @@ int main(int argc, char *argv[])
     ami_legato(dport, 0, 1, FALSE); /* reset normal */
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(16)) {
 
     printf("\n===== Test 16 =====\n\n");
     printf("Set legato on organ, first normal, then legato\n");
@@ -657,6 +751,10 @@ int main(int argc, char *argv[])
     waitret();
 
     /* set portamento */
+    } /* test range gate */
+
+    if (tst(17)) {
+
     printf("\n===== Test 17 =====\n\n");
     printf("Set portamento on piano, first normal, then portamento, through\n");
     printf("various portamento times\n");
@@ -689,6 +787,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(18)) {
+
     printf("\n===== Test 18 =====\n\n");
     printf("Set portamento on organ, first normal, then portamento\n");
     waitret();
@@ -719,6 +821,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(19)) {
+
     printf("\n===== Test 19 =====\n\n");
     printf("Channel volume test. Play note continuously while advancing volume\n");
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
@@ -736,6 +842,10 @@ int main(int argc, char *argv[])
     ami_volsynthchan(dport, 0, 1, LONG_MAX/2);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(20)) {
 
     printf("\n===== Test 20 =====\n\n");
     printf("Channel balance test. Play note continuously while changing\n");
@@ -756,6 +866,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(21)) {
+
     printf("\n===== Test 21 =====\n\n");
     printf("Channel vibrato test. Play note continuously while advancing vibrato\n");
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
@@ -773,6 +887,10 @@ int main(int argc, char *argv[])
     ami_vibrato(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(22)) {
 
     printf("\n===== Test 22 =====\n\n");
     printf("Channel pan test. Play note continuously while changing\n");
@@ -793,6 +911,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(23)) {
+
     printf("\n===== Test 23 =====\n\n");
     printf("Channel timbre test. Play notes while advancing timbre\n");
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
@@ -811,6 +933,10 @@ int main(int argc, char *argv[])
     ami_timbre(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(24)) {
 
     printf("\n===== Test 24 =====\n\n");
     printf("Channel brightness test. Play notes while advancing brightness\n");
@@ -831,6 +957,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(25)) {
+
     printf("\n===== Test 25 =====\n\n");
     printf("Channel reverb test. Play notes while advancing reverb\n");
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
@@ -849,6 +979,10 @@ int main(int argc, char *argv[])
     ami_reverb(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(26)) {
 
     printf("\n===== Test 26 =====\n\n");
     printf("Channel tremulo test. Play notes while advancing tremulo\n");
@@ -870,6 +1004,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(27)) {
+
     printf("\n===== Test 27 =====\n\n");
     printf("Channel chorus test. Play notes while advancing chorus\n");
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
@@ -890,6 +1028,10 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(28)) {
+
     printf("\n===== Test 28 =====\n\n");
     printf("Channel celeste test. Play notes while advancing celeste\n");
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
@@ -908,6 +1050,10 @@ int main(int argc, char *argv[])
     ami_celeste(dport, 0, 1, 0);
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(29)) {
 
     printf("\n===== Test 29 =====\n\n");
     printf("Channel phaser test. Play notes while advancing phaser\n");
@@ -930,6 +1076,10 @@ int main(int argc, char *argv[])
 
     /* don't know about this test, it seems to limit the total pitch wheel range,
        which is not right */
+    } /* test range gate */
+
+    if (tst(30)) {
+
     printf("\n===== Test 30 =====\n\n");
     printf("pitch wheel. Vary pitch wheel while playing continuously\n");
     ami_instchange(dport, 0, 1, AMI_INST_LEAD_1_SQUARE);
@@ -953,6 +1103,8 @@ int main(int argc, char *argv[])
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
 newtests:
 
     /***************************************************************************
@@ -960,6 +1112,8 @@ newtests:
     DEVICES AND PARAMETERS
 
     ***************************************************************************/
+
+    if (tst(31)) {
 
     printf("\n===== Test 31 =====\n\n");
     printf("Device inventory. Every port of every kind, by name.\n");
@@ -999,6 +1153,10 @@ newtests:
     }
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(32)) {
 
     printf("\n===== Test 32 =====\n\n");
     printf("Parameters, get and set, all four directions. ALSA devices\n");
@@ -1043,6 +1201,10 @@ newtests:
 
     ***************************************************************************/
 
+    } /* test range gate */
+
+    if (tst(33)) {
+
     printf("\n===== Test 33 =====\n\n");
     printf("Sequenced playback. Every test so far played at time zero;\n");
     printf("this queues a scale with future timestamps in one burst, and\n");
@@ -1078,6 +1240,10 @@ newtests:
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(34)) {
+
     printf("\n===== Test 34 =====\n\n");
     printf("wrsynth: the same notes as sequencer records, through the\n");
     printf("record interface the plug-ins speak. Three notes.\n");
@@ -1106,6 +1272,10 @@ newtests:
     }
     printf("Complete\n");
     waitret();
+
+    } /* test range gate */
+
+    if (tst(35)) {
 
     printf("\n===== Test 35 =====\n\n");
     printf("Aftertouch and channel pressure. A note is held while each\n");
@@ -1136,6 +1306,10 @@ newtests:
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(36)) {
+
     printf("\n===== Test 36 =====\n\n");
     printf("Mono and poly. In mono a second note silences the first; in\n");
     printf("poly they sound together. The same pair is played each way.\n");
@@ -1157,6 +1331,10 @@ newtests:
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(37)) {
+
     printf("\n===== Test 37 =====\n\n");
     printf("A MIDI file: made here, loaded, played, deleted. You should\n");
     printf("hear C, E, G on the piano, a quarter note each.\n");
@@ -1174,6 +1352,10 @@ newtests:
     WAVE OUTPUT
 
     ***************************************************************************/
+
+    } /* test range gate */
+
+    if (tst(38)) {
 
     printf("\n===== Test 38 =====\n\n");
     printf("Wave output, synthesized: two seconds of A 440 written\n");
@@ -1205,6 +1387,10 @@ newtests:
     printf("Complete\n");
     waitret();
 
+    } /* test range gate */
+
+    if (tst(39)) {
+
     printf("\n===== Test 39 =====\n\n");
     printf("A wave file: made here, loaded, played, deleted. You should\n");
     printf("hear a C, a bit above the tone before, for a second and a\n");
@@ -1226,6 +1412,10 @@ newtests:
     WAVE INPUT
 
     ***************************************************************************/
+
+    } /* test range gate */
+
+    if (tst(40)) {
 
     printf("\n===== Test 40 =====\n\n");
     if (ami_wavein() > 0) {
@@ -1289,6 +1479,10 @@ newtests:
     SYNTHESIZER INPUT, AUTOMATED: THE VIRTUAL LOOP
 
     ***************************************************************************/
+
+    } /* test range gate */
+
+    if (tst(41)) {
 
     printf("\n===== Test 41 =====\n\n");
     printf("The virtual MIDI loop: the encoder sent down a wire to the\n");
@@ -1395,6 +1589,10 @@ newtests:
 
     ***************************************************************************/
 
+    } /* test range gate */
+
+    if (tst(42)) {
+
     printf("\n===== Test 42 =====\n\n");
     if (sport > 0) {
 
@@ -1433,6 +1631,8 @@ newtests:
 
     } else printf("Synthesizer input not tested: give --sin=<port> and play "
                   "the keys.\n");
+
+    } /* test range gate */
 
 terminate: /* terminate */
     ami_closesynthout(dport);

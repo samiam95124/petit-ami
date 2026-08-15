@@ -552,9 +552,12 @@ typedef enum {
     GR_MFLTWAVEOUT     = GR_SNDBASE+56, /* i64 p, f */
     GR_MENDWAVEOUT     = GR_SNDBASE+57, /* i64 p, e */
     GR_MWRWAVE         = GR_SNDBASE+58, /* i64 p, i64 frames, blk
-                                           samples; the sender chunks to
-                                           the channel bound on frame
-                                           boundaries */
+                                           samples -> i64 0. The sender
+                                           chunks to the channel bound on
+                                           frame boundaries; each chunk
+                                           is acknowledged, which paces
+                                           the stream to the consumer and
+                                           keeps it whole. */
 
     /* wave input; the devices live at the server, and a read blocks the
        caller until data arrives, as the native call does */
