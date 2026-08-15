@@ -120,8 +120,8 @@ extern char *program_invocation_short_name;
 /* forward declarations: the notify waits (defined with the event
    machinery) */
 static void notexevt(XEvent* e);
-static void waitxevt(int type, Window wh, XEvent* out);
-static void waitxmap(Window wh);
+static int  waitxevt(int type, Window wh, unsigned long since, XEvent* out);
+static void waitxmap(Window wh, unsigned long since);
 
 /* forward declarations for FreeType helper functions */
 static void ft_draw_char(Drawable d, GC gc, FT_Face face,
@@ -2514,6 +2514,8 @@ void fndfrm(void)
     XWindowAttributes xwga, xpwga; /* XWindow get attributes */
     GC                xcxt;
 
+    unsigned long snc; /* serial of the provoking request */
+
     /* measure window frame characteristics */
     XWLOCK();
     wh = XCreateWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0, 1, 1,
@@ -2523,13 +2525,14 @@ void fndfrm(void)
                  KeyReleaseMask|PointerMotionMask|ButtonPressMask|
                  ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
                  EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
+    snc = XNextRequest(padisplay);
     XMapWindow(padisplay, wh);
     XFlush(padisplay);
     XWUNLOCK();
 
     /* wait window present; the events read along the way file for
        processing instead of dropping */
-    waitxmap(wh);
+    waitxmap(wh, snc);
 
     /* get frame measurements */
     fndfrmdif(wh, &frmextwdt[frmcfgall], &frmexthgt[frmcfgall],
@@ -4634,9 +4637,12 @@ static void notexevt(XEvent* e)
 
 }
 
-/* take the newest noted event of the type for the window, consuming every
-   match so stale ones do not satisfy a later wait */
-static int sawxevt(int type, Window w, XEvent* out)
+/* Take the newest noted event of the type for the window, consuming every
+   match. Only a note generated at or after the provoking request, by its
+   X serial, can satisfy the wait: with other threads reading and noting
+   events continuously, the ring holds history, and a stale configure
+   would hand a resize the size the window used to be. */
+static int sawxevt(int type, Window w, unsigned long since, XEvent* out)
 
 {
 
@@ -4648,7 +4654,8 @@ static int sawxevt(int type, Window w, XEvent* out)
         i = (notein+NOTERING-1-j)%NOTERING; /* newest first */
         if (notering[i].type == type && notering[i].xany.window == w) {
 
-            if (!r) { *out = notering[i]; r = 1; }
+            if (!r && notering[i].xany.serial >= since)
+                { *out = notering[i]; r = 1; }
             memset(&notering[i], 0, sizeof(XEvent));
 
         }
@@ -4660,38 +4667,49 @@ static int sawxevt(int type, Window w, XEvent* out)
 
 }
 
-/* Wait for a notify of the type for the window. Whoever reads it, this
-   thread or another, the table carries it; we read events only when they
-   are there to read, filing them for normal processing, and never hold
-   the display lock across a wait. */
-static void waitxevt(int type, Window wh, XEvent* out)
+/* Wait for a notify of the type for the window, provoked by the request
+   before serial since. Whoever reads it, this thread or another, the
+   table carries it; we read events only when they are there to read,
+   filing them for normal processing, and never hold the display lock
+   across a wait. The wait is bounded: a window manager that answers a
+   request with nothing at all leaves the caller its own computed
+   geometry, signaled by the zero return, rather than hanging it. */
+#define WAITXMS 2000 /* the bound, in polls of a millisecond */
+
+static int waitxevt(int type, Window wh, unsigned long since, XEvent* out)
 
 {
 
     XEvent e;
     int    got;
+    int    idle = 0;
 
     for (;;) {
 
-        if (sawxevt(type, wh, out)) return;
+        if (sawxevt(type, wh, since, out)) return (1);
         got = 0;
         XWLOCK();
         if (XPending(padisplay)) { XNextEvent(padisplay, &e); got = 1; }
         XWUNLOCK();
         if (got) { notexevt(&e); enquexevt(&e); }
-        else usleep(1000);
+        else {
+
+            if (++idle >= WAITXMS) return (0);
+            usleep(1000);
+
+        }
 
     }
 
 }
 
-static void waitxmap(Window wh)
+static void waitxmap(Window wh, unsigned long since)
 
 {
 
     XEvent e;
 
-    waitxevt(MapNotify, wh, &e);
+    waitxevt(MapNotify, wh, since, &e);
 
 }
 
@@ -5693,7 +5711,8 @@ static void winvis(winptr win)
 
 {
 
-    XEvent e; /* XWindow event */
+    XEvent        e;   /* XWindow event */
+    unsigned long snc; /* serial of the provoking request */
 
 #ifndef NOWDELAY
    if (!win->visible) { /* not already visible */
@@ -5703,6 +5722,7 @@ static void winvis(winptr win)
 
         /* present the master window onscreen */
         XWLOCK();
+        snc = XNextRequest(padisplay);
         XMapWindow(padisplay, win->xmwhan);
         /* place */
         XMoveWindow(padisplay, win->xmwhan, win->xmwr.x, win->xmwr.y);
@@ -5710,16 +5730,17 @@ static void winvis(winptr win)
         XWUNLOCK();
 
         /* wait for the window to be displayed */
-        waitxmap(win->xmwhan);
+        waitxmap(win->xmwhan, snc);
 
         /* present the subclient window onscreen */
         XWLOCK();
+        snc = XNextRequest(padisplay);
         XMapWindow(padisplay, win->xwhan);
         XFlush(padisplay);
         XWUNLOCK();
 
         /* wait for the window to be displayed */
-        waitxmap(win->xwhan);
+        waitxmap(win->xwhan, snc);
 
         win->visible = TRUE; /* set now visible */
         restore(win); /* restore window */
@@ -13135,6 +13156,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
     winptr         wp;
     int            ff;  /* found focus flag */
     winptr         fwin; /* focus window */
+    unsigned long  snc; /* serial of the provoking request */
 
     sc = win->screens[win->curdsp-1]; /* index screen */
 
@@ -13247,6 +13269,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
 
                 XWLOCK();
+                snc = XNextRequest(padisplay);
                 if (win->childfrm) {
 
                     /* keep the subclient offset by the frame thickness */
@@ -13265,9 +13288,12 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                    exact size match: Wayland/XWayland (and tiling WMs) may clamp
                    or override the requested size, so demanding the exact value
                    would loop forever. Adopt the actual granted size instead. */
-                waitxevt(ConfigureNotify, win->xwhan, &xe);
-                xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
-                xwc.height = xe.xconfigure.height;
+                if (waitxevt(ConfigureNotify, win->xwhan, snc, &xe)) {
+
+                    xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
+                    xwc.height = xe.xconfigure.height;
+
+                }
 #endif
                 /* change saved size to match */
                 win->xwr.w = xwc.width;
@@ -13286,6 +13312,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 if (xwc.width != mwin->xmwr.w || xwc.height != mwin->xmwr.h) {
 
                     XWLOCK();
+                    snc = XNextRequest(padisplay);
                     XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
                     /* The subclient with it. Only the master was being
                        configured, so the strip's own idea of how wide it
@@ -13299,9 +13326,12 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 #ifdef WAITWMR
                     /* wait for the next configure for this window (any size --
                        the WM may clamp the request; see note above) */
-                    waitxevt(ConfigureNotify, mwin->xmwhan, &xe);
-                    xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
-                    xwc.height = xe.xconfigure.height;
+                    if (waitxevt(ConfigureNotify, mwin->xmwhan, snc, &xe)) {
+
+                        xwc.width = xe.xconfigure.width;   /* adopt granted */
+                        xwc.height = xe.xconfigure.height;
+
+                    }
 #endif
                     /* change saved size to match */
                     mwin->xmwr.w = xwc.width;
@@ -14935,6 +14965,7 @@ static void buffer_ivf(FILE* f, long e)
     XWindowAttributes xwa; /* XWindow attributes */
     XEvent            xe;  /* XWindow event */
     int               si;  /* index for screens */
+    unsigned long     snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
     if (e) { /* perform buffer on actions */
@@ -14961,6 +14992,7 @@ static void buffer_ivf(FILE* f, long e)
         if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
 
             XWLOCK();
+            snc = XNextRequest(padisplay);
             XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
             XWUNLOCK();
             /* change saved size to match */
@@ -14970,9 +15002,12 @@ static void buffer_ivf(FILE* f, long e)
             /* wait for the next configure for this window (any size -- the WM
                may clamp the request; see note above). Adopt the granted
                size. */
-            waitxevt(ConfigureNotify, win->xmwhan, &xe);
-            win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
-            win->xmwr.h = xe.xconfigure.height;
+            if (waitxevt(ConfigureNotify, win->xmwhan, snc, &xe)) {
+
+                win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
+                win->xmwr.h = xe.xconfigure.height;
+
+            }
 #endif
 
         }
@@ -15162,6 +15197,7 @@ static void menu_resize(FILE* f, winptr win, int menuon)
     XEvent e;   /* XWindow event */
     long wx, wy; /* window sizes */
     int yes;    /* y extra size */
+    unsigned long snc; /* serial of the provoking request */
 
     yes = 0; /* set no menu extra size */
     if (menuon) yes = win->menuspcy; /* set menu extra y size */
@@ -15172,13 +15208,14 @@ static void menu_resize(FILE* f, winptr win, int menuon)
     ami_setsizg(f, wx, wy);
     /* move subclient window down past menu bar */
     XWLOCK();
+    snc = XNextRequest(padisplay);
     XMoveWindow(padisplay, win->xwhan, 0, yes);
     XWUNLOCK();
 
 #ifdef WAITWMR
     /* wait for the next configure for this window (any geometry; see note in
        the resize path -- the WM may not honor an exact request) */
-    waitxevt(ConfigureNotify, win->xwhan, &e);
+    waitxevt(ConfigureNotify, win->xwhan, snc, &e);
 #endif
     restore(win);
 
@@ -15645,6 +15682,7 @@ static void setsizg_ivf(FILE* f, long x, long y)
     winptr win; /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
     XEvent e; /* Xwindow event */
+    unsigned long snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
     /* if child, apply parent's viewport scale to the requested size */
@@ -15658,6 +15696,7 @@ static void setsizg_ivf(FILE* f, long x, long y)
 
         /* reconfigure window */
         XWLOCK();
+        snc = XNextRequest(padisplay);
         if (win->childfrm) {
 
             /* For child-framed windows: x/y are total master dimensions.
@@ -15693,7 +15732,13 @@ static void setsizg_ivf(FILE* f, long x, long y)
            requested size, and demanding the exact value would loop forever.
            The actual granted size is adopted from the event below. */
         if (!win->childfrm) {
-            waitxevt(ConfigureNotify, win->xmwhan, &e);
+            if (!waitxevt(ConfigureNotify, win->xmwhan, snc, &e)) {
+
+                /* no answer: stand on the computed client size */
+                e.xconfigure.width = xwc.width;
+                e.xconfigure.height = xwc.height;
+
+            }
         }
 #endif
 
@@ -15789,6 +15834,7 @@ static void setposg_ivf(FILE* f, long x, long y)
     winptr win;         /* pointer to windows context */
     XWindowChanges xwc; /* XWindow values */
     XEvent         e;   /* XWindow event */
+    unsigned long  snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
 
@@ -15797,6 +15843,7 @@ static void setposg_ivf(FILE* f, long x, long y)
 
         /* reconfigure window; if child, apply parent's viewport scale */
         XWLOCK();
+        snc = XNextRequest(padisplay);
         if (win->parwin)
             XMoveWindow(padisplay, win->xmwhan,
                         L2PX(win->parwin, x-1), L2PY(win->parwin, y-1));
@@ -15806,7 +15853,7 @@ static void setposg_ivf(FILE* f, long x, long y)
 
 #ifdef WAITWMR
         /* wait for the configure response */
-        waitxevt(ConfigureNotify, win->xmwhan, &e);
+        waitxevt(ConfigureNotify, win->xmwhan, snc, &e);
 #endif
 
         /* set origin for next time */
