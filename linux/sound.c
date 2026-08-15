@@ -1732,6 +1732,11 @@ static void openalsapcmin(long p)
 
     snd_pcm_hw_params_free (hw_params);
 
+    /* find the frame size: sample bytes, rounded up, times channels */
+    r = alsapcmin[p-1]->bits/8;
+    if (alsapcmin[p-1]->bits&7) r++;
+    alsapcmin[p-1]->ssiz = r*alsapcmin[p-1]->chan;
+
     snd_pcm_prepare(alsapcmin[p-1]->pcm);
     if (r < 0) alsaerror(r);
 
@@ -1796,11 +1801,13 @@ static void wralsapcmout(long p, byte* buff, long len)
         snd_pcm_prepare(alsapcmout[p-1]->pcm);
 
     }
+    /* the length is in samples (frames), as connectwave and genwave
+       pass it; ALSA counts the same way */
     r = snd_pcm_writei(alsapcmout[p-1]->pcm, buff, len);
     if (r == -EPIPE) {
         /* uncomment next for a broken pipe diagnostic */
         /* printf("Recovered from output error\n"); */
-        snd_pcm_recover(alsapcmin[p-1]->pcm, r, 1);
+        snd_pcm_recover(alsapcmout[p-1]->pcm, r, 1);
     } else if (r < 0) alsaerror(r);
 
 }
@@ -1828,8 +1835,9 @@ Thus (for example) 1024*channels would be an appropriate buffer size. Not
 providing enough buffering will not cause an error, but will cause the read
 rate to fall behind the data rate.
 
-ami_rdwave() will return the actual number of bytes read, which will contain
-3*ami_chanwavein() bytes of samples. This will then be the actual buffer content.
+ami_rdwave() takes and returns lengths in samples: one frame of every
+channel, the unit connectwave passes. The buffer must hold the sample
+count times the frame size, channels times the sample byte size.
 
 *******************************************************************************/
 
@@ -1839,6 +1847,8 @@ static long rdalsapcmin(long p, byte* buff, long len)
 
     long r;
 
+    /* the length is in samples (frames), as connectwave passes it;
+       ALSA counts the same way */
     do {
 
         r = snd_pcm_readi(alsapcmin[p-1]->pcm, buff, len);
@@ -5656,8 +5666,9 @@ Thus (for example) 1024*channels would be an appropriate buffer size. Not
 providing enough buffering will not cause an error, but will cause the read
 rate to fall behind the data rate.
 
-ami_rdwave() will return the actual number of bytes read, which will contain
-3*ami_chanwavein() bytes of samples. This will then be the actual buffer content.
+ami_rdwave() takes and returns lengths in samples: one frame of every
+channel, the unit connectwave passes. The buffer must hold the sample
+count times the frame size, channels times the sample byte size.
 
 *******************************************************************************/
 

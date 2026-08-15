@@ -19,8 +19,9 @@ Remote display mode separates a Petit-Ami program from its display: the
 program runs on one machine, the client side, and its windows, drawing,
 widgets and input devices live on another, the server side. This paper
 defines the wire protocol between the two, carried on the message channels
-of the network library. Every call of the graphical API has a message; a
-continuous event stream flows back. The protocol is defined by the header
+of the network library. Every call of the graphical API has a message, and
+the sound API travels the same channel in its own partition of the message
+space; a continuous event stream flows back. The protocol is defined by the header
 \texttt{include/graph\_remote.h}, of which this paper is the narrative
 companion; where the two disagree, the header governs.
 \end{abstract}
@@ -285,6 +286,42 @@ falls out of the one outstanding request rule.
 The exchange is deliberately not tied to pictures: any call that names a
 file uses it, and it stands as the protocol's general bulk transfer
 mechanism.
+
+\section{The module partition}
+
+The sixteen bit message id space divides into four modules of 8192 codes
+each: graphics holds $0..8191$, sound holds $8192..16383$, and two
+partitions remain for future modules; the negative half of the space is
+reserved. A module's calls may grow within its partition without
+disturbing its neighbors, which is the reason for partitioning rather
+than packing: the graphics catalog and the sound catalog will both grow,
+and neither should renumber the other.
+
+\section{Sound}
+
+The sound API of \texttt{sound.h} carries in the sound partition,
+complete: the synthesizer channel voice messages, the stored sequences,
+the wave channels, the device names and parameters. There is no window;
+every sound message goes with a zero window handle in the header.
+
+The devices live at the server, which is where the speakers and the
+microphones are, matching the placement of the display and the input
+devices. Sequencer times are interpreted against the server's time
+bases, and the time queries return them, so a schedule computed on the
+client lands where it should. The input calls, sequencer reads and wave
+reads, block the caller until the far device delivers, exactly as the
+native calls do; a program that did not want to wait natively will not
+want to wait remotely either.
+
+The files of \texttt{loadsynth()} and \texttt{loadwave()} live where
+the program lives, and travel by the file transfer mechanism, which is
+why those calls are queries: the transfer request must arrive inside the
+reply window, with the client listening. The name in a transfer request
+now travels already under the extension rule of the call that asked,
+\texttt{.bmp} for pictures, \texttt{.wav} for waves, \texttt{.mid}
+for stored sequences, and the client serves exactly the name asked. Wave
+sample streams, in either direction, chunk to the channel bound like the
+write stream.
 
 \section{Future work}
 

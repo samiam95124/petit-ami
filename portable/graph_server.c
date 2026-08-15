@@ -40,6 +40,7 @@
 #include <network.h>
 #include <graph_remote.h>
 #include <widget_base.h>
+#include <sound.h>
 #include <execinfo.h>
 
 #define MAXHND 512   /* window handles */
@@ -450,7 +451,7 @@ static const char* basenm(const char* fn)
 /* The picture extension rule of the display library: .bmp is set or
    overwritten. The names cross the wire as given, and both ends apply
    the rule where they touch a file. */
-static void setbmp(char* dst, long dl, const char* fn)
+static void setfext(char* dst, long dl, const char* fn, const char* ext)
 
 {
 
@@ -460,14 +461,15 @@ static void setbmp(char* dst, long dl, const char* fn)
 
     if (dot && (!sl || dot > sl)) n = dot-fn; /* strip the extension */
     else n = strlen(fn);
-    if (n > dl-5) n = dl-5;
+    if (n > dl-(long)strlen(ext)-1) n = dl-strlen(ext)-1;
     memcpy(dst, fn, n);
-    strcpy(dst+n, ".bmp");
+    strcpy(dst+n, ext);
 
 }
 
 /* find or fetch a named file; returns the name to use */
-static const char* fndfile(const char* fn, char* cb, long cbl)
+static const char* fndfile(const char* fn, char* cb, long cbl,
+                           const char* ext)
 
 {
 
@@ -480,19 +482,22 @@ static const char* fndfile(const char* fn, char* cb, long cbl)
     char en[MAXSTR]; /* the name under the extension rule */
 
     /* the name as given, then the base name in the cache, both under
-       the extension rule of the library */
-    setbmp(en, MAXSTR, fn);
+       the extension rule of the library: .bmp for pictures, .wav for
+       waves, .mid for stored sequences */
+    setfext(en, MAXSTR, fn, ext);
     tf = fopen(en, "rb");
     if (tf) { fclose(tf); snprintf(cb, cbl, "%s", en); return (cb); }
-    setbmp(cb, cbl, basenm(fn));
+    setfext(cb, cbl, basenm(fn), ext);
     tf = fopen(cb, "rb");
     if (tf) { fclose(tf); return (cb); }
-    /* request it: the client connects to our file port and streams it */
+    /* Request it: the client connects to our file port and streams it.
+       The request carries the name under the extension rule, and the
+       client serves exactly the name asked. */
     shdr()->mid = GR_MFILEREQ;
     shdr()->seq = 0;
     shdr()->wid = 0;
     soff = sizeof(gr_msghdr);
-    rstrn(fn, strlen(fn));
+    rstrn(en, strlen(en));
     ri(srvport+2);
     shdr()->len = (int)soff;
     ami_wrmsg(cmdfn, sbuf, soff);
@@ -1080,7 +1085,7 @@ static void dispatch(void)
             a = gi(); b = gi(); c = gi(); ami_bcolorg(f, a, b, c); break;
         case GR_MLOADPICT:
             a = gi(); gstr(s1, MAXSTR);
-            ami_loadpict(f, a, (char*)fndfile(s1, s2, MAXSTR));
+            ami_loadpict(f, a, (char*)fndfile(s1, s2, MAXSTR, ".bmp"));
             rbegin(); ri(0); rsend();
             break;
         case GR_MPICTSIZX:
@@ -1448,6 +1453,255 @@ static void dispatch(void)
 
         }
         case GR_MTABSEL: a = gi(); b = gi(); ami_tabsel(f, a, b); break;
+
+        /* ----------------------------------------------------- sound */
+
+        case GR_MSTARTTIMEOUT: ami_starttimeout(); break;
+        case GR_MSTOPTIMEOUT: ami_stoptimeout(); break;
+        case GR_MCURTIMEOUT:
+            rbegin(); ri(ami_curtimeout()); rsend(); break;
+        case GR_MSTARTTIMEIN: ami_starttimein(); break;
+        case GR_MSTOPTIMEIN: ami_stoptimein(); break;
+        case GR_MCURTIMEIN:
+            rbegin(); ri(ami_curtimein()); rsend(); break;
+        case GR_MSYNTHOUT: rbegin(); ri(ami_synthout()); rsend(); break;
+        case GR_MSYNTHIN: rbegin(); ri(ami_synthin()); rsend(); break;
+        case GR_MOPENSYNTHOUT: a = gi(); ami_opensynthout(a); break;
+        case GR_MCLOSESYNTHOUT: a = gi(); ami_closesynthout(a); break;
+        case GR_MOPENSYNTHIN: a = gi(); ami_opensynthin(a); break;
+        case GR_MCLOSESYNTHIN: a = gi(); ami_closesynthin(a); break;
+        case GR_MNOTEON:
+            a = gi(); b = gi(); c = gi(); d = gi(); e = gi();
+            ami_noteon(a, b, c, d, e); break;
+        case GR_MNOTEOFF:
+            a = gi(); b = gi(); c = gi(); d = gi(); e = gi();
+            ami_noteoff(a, b, c, d, e); break;
+        case GR_MINSTCHANGE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_instchange(a, b, c, d); break;
+        case GR_MATTACK:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_attack(a, b, c, d); break;
+        case GR_MRELEASE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_release(a, b, c, d); break;
+        case GR_MLEGATO:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_legato(a, b, c, d); break;
+        case GR_MPORTAMENTO:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_portamento(a, b, c, d); break;
+        case GR_MVIBRATO:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_vibrato(a, b, c, d); break;
+        case GR_MVOLSYNTHCHAN:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_volsynthchan(a, b, c, d); break;
+        case GR_MPORTTIME:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_porttime(a, b, c, d); break;
+        case GR_MBALANCE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_balance(a, b, c, d); break;
+        case GR_MPAN:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_pan(a, b, c, d); break;
+        case GR_MTIMBRE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_timbre(a, b, c, d); break;
+        case GR_MBRIGHTNESS:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_brightness(a, b, c, d); break;
+        case GR_MREVERB:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_reverb(a, b, c, d); break;
+        case GR_MTREMULO:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_tremulo(a, b, c, d); break;
+        case GR_MCHORUS:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_chorus(a, b, c, d); break;
+        case GR_MCELESTE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_celeste(a, b, c, d); break;
+        case GR_MPHASER:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_phaser(a, b, c, d); break;
+        case GR_MAFTERTOUCH:
+            a = gi(); b = gi(); c = gi(); d = gi(); e = gi();
+            ami_aftertouch(a, b, c, d, e); break;
+        case GR_MPRESSURE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_pressure(a, b, c, d); break;
+        case GR_MPITCH:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_pitch(a, b, c, d); break;
+        case GR_MPITCHRANGE:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_pitchrange(a, b, c, d); break;
+        case GR_MMONO:
+            a = gi(); b = gi(); c = gi(); d = gi();
+            ami_mono(a, b, c, d); break;
+        case GR_MPOLY:
+            a = gi(); b = gi(); c = gi(); ami_poly(a, b, c); break;
+        case GR_MLOADSYNTH:
+            a = gi(); gstr(s1, MAXSTR);
+            ami_loadsynth(a, (char*)fndfile(s1, s2, MAXSTR, ".mid"));
+            rbegin(); ri(0); rsend();
+            break;
+        case GR_MPLAYSYNTH:
+            a = gi(); b = gi(); c = gi(); ami_playsynth(a, b, c); break;
+        case GR_MDELSYNTH: a = gi(); ami_delsynth(a); break;
+        case GR_MWAITSYNTH:
+            a = gi(); ami_waitsynth(a);
+            rbegin(); ri(0); rsend(); break;
+        case GR_MWRSYNTH: {
+
+            ami_seqmsg sm;
+            long       u[3];
+
+            a = gi();
+            memset(&sm, 0, sizeof(sm));
+            sm.port = gi();
+            sm.time = gi();
+            sm.st = (ami_seqtyp)gi();
+            u[0] = gi(); u[1] = gi(); u[2] = gi();
+            memcpy(&sm.ntc, u, sizeof(u));
+            ami_wrsynth(a, &sm);
+            break;
+
+        }
+        case GR_MRDSYNTH: {
+
+            ami_seqmsg sm;
+            long       u[3];
+
+            a = gi();
+            memset(&sm, 0, sizeof(sm));
+            ami_rdsynth(a, &sm); /* blocks until the device delivers */
+            memcpy(u, &sm.ntc, sizeof(u));
+            rbegin();
+            ri(sm.port); ri(sm.time); ri((long)sm.st);
+            ri(u[0]); ri(u[1]); ri(u[2]);
+            rsend();
+            break;
+
+        }
+        case GR_MWAVEOUT: rbegin(); ri(ami_waveout()); rsend(); break;
+        case GR_MWAVEIN: rbegin(); ri(ami_wavein()); rsend(); break;
+        case GR_MOPENWAVEOUT: a = gi(); ami_openwaveout(a); break;
+        case GR_MCLOSEWAVEOUT: a = gi(); ami_closewaveout(a); break;
+        case GR_MLOADWAVE:
+            a = gi(); gstr(s1, MAXSTR);
+            ami_loadwave(a, (char*)fndfile(s1, s2, MAXSTR, ".wav"));
+            rbegin(); ri(0); rsend();
+            break;
+        case GR_MPLAYWAVE:
+            a = gi(); b = gi(); c = gi(); ami_playwave(a, b, c); break;
+        case GR_MDELWAVE: a = gi(); ami_delwave(a); break;
+        case GR_MVOLWAVE:
+            a = gi(); b = gi(); c = gi(); ami_volwave(a, b, c); break;
+        case GR_MWAITWAVE:
+            a = gi(); ami_waitwave(a);
+            rbegin(); ri(0); rsend(); break;
+        case GR_MCHANWAVEOUT: a = gi(); b = gi(); ami_chanwaveout(a, b); break;
+        case GR_MRATEWAVEOUT: a = gi(); b = gi(); ami_ratewaveout(a, b); break;
+        case GR_MLENWAVEOUT: a = gi(); b = gi(); ami_lenwaveout(a, b); break;
+        case GR_MSGNWAVEOUT: a = gi(); b = gi(); ami_sgnwaveout(a, b); break;
+        case GR_MFLTWAVEOUT: a = gi(); b = gi(); ami_fltwaveout(a, b); break;
+        case GR_MENDWAVEOUT: a = gi(); b = gi(); ami_endwaveout(a, b); break;
+        case GR_MWRWAVE:
+            /* i64 port, i64 frames, then the samples as a block; the
+               ack paces the stream to the playback rate */
+            a = gi(); b = gi(); c = g4();
+            if (roff+c > rlen) sesserr("Message truncated");
+            ami_wrwave(a, (byte*)(rbuf+roff), b);
+            rbegin(); ri(0); rsend();
+            break;
+        case GR_MOPENWAVEIN: a = gi(); ami_openwavein(a); break;
+        case GR_MCLOSEWAVEIN: a = gi(); ami_closewavein(a); break;
+        case GR_MCHANWAVEIN:
+            a = gi(); rbegin(); ri(ami_chanwavein(a)); rsend(); break;
+        case GR_MRATEWAVEIN:
+            a = gi(); rbegin(); ri(ami_ratewavein(a)); rsend(); break;
+        case GR_MLENWAVEIN:
+            a = gi(); rbegin(); ri(ami_lenwavein(a)); rsend(); break;
+        case GR_MSGNWAVEIN:
+            a = gi(); rbegin(); ri(ami_sgnwavein(a)); rsend(); break;
+        case GR_MENDWAVEIN:
+            a = gi(); rbegin(); ri(ami_endwavein(a)); rsend(); break;
+        case GR_MFLTWAVEIN:
+            a = gi(); rbegin(); ri(ami_fltwavein(a)); rsend(); break;
+        case GR_MRDWAVE: {
+
+            static byte* wvbuf;
+            static long  wvblen;
+            long         got, fsiz, fit;
+
+            /* Lengths are in samples, one frame of every channel. The
+               answer clamps to what one message carries, at the frame
+               size this device delivers, and the client loops. */
+            a = gi(); b = gi();
+            fsiz = ami_chanwavein(a)*((ami_lenwavein(a)+7)/8);
+            if (fsiz < 1) fsiz = 1;
+            fit = (msgmax-96)/fsiz;
+            if (b > fit) b = fit;
+            if (b*fsiz > wvblen) {
+
+                free(wvbuf);
+                wvbuf = malloc(b*fsiz);
+                if (!wvbuf) sesserr("Out of memory");
+                wvblen = b*fsiz;
+
+            }
+            got = ami_rdwave(a, wvbuf, b); /* blocks until data */
+            rbegin();
+            ri(got);
+            rstrn((char*)wvbuf, got > 0? got*fsiz: 0);
+            rsend();
+            break;
+
+        }
+        case GR_MSYNTHOUTNAME:
+            a = gi(); ami_synthoutname(a, s1, MAXSTR);
+            rbegin(); rstr(s1, MAXSTR); rsend(); break;
+        case GR_MSYNTHINNAME:
+            a = gi(); ami_synthinname(a, s1, MAXSTR);
+            rbegin(); rstr(s1, MAXSTR); rsend(); break;
+        case GR_MWAVEOUTNAME:
+            a = gi(); ami_waveoutname(a, s1, MAXSTR);
+            rbegin(); rstr(s1, MAXSTR); rsend(); break;
+        case GR_MWAVEINNAME:
+            a = gi(); ami_waveinname(a, s1, MAXSTR);
+            rbegin(); rstr(s1, MAXSTR); rsend(); break;
+        case GR_MSETPARAMSYNTHIN:
+            a = gi(); gstr(s1, MAXSTR); gstr(s2, MAXSTR);
+            rbegin(); ri(ami_setparamsynthin(a, s1, s2)); rsend(); break;
+        case GR_MSETPARAMSYNTHOUT:
+            a = gi(); gstr(s1, MAXSTR); gstr(s2, MAXSTR);
+            rbegin(); ri(ami_setparamsynthout(a, s1, s2)); rsend(); break;
+        case GR_MSETPARAMWAVEIN:
+            a = gi(); gstr(s1, MAXSTR); gstr(s2, MAXSTR);
+            rbegin(); ri(ami_setparamwavein(a, s1, s2)); rsend(); break;
+        case GR_MSETPARAMWAVEOUT:
+            a = gi(); gstr(s1, MAXSTR); gstr(s2, MAXSTR);
+            rbegin(); ri(ami_setparamwaveout(a, s1, s2)); rsend(); break;
+        case GR_MGETPARAMSYNTHIN:
+            a = gi(); gstr(s1, MAXSTR);
+            ami_getparamsynthin(a, s1, s2, MAXSTR);
+            rbegin(); rstr(s2, MAXSTR); rsend(); break;
+        case GR_MGETPARAMSYNTHOUT:
+            a = gi(); gstr(s1, MAXSTR);
+            ami_getparamsynthout(a, s1, s2, MAXSTR);
+            rbegin(); rstr(s2, MAXSTR); rsend(); break;
+        case GR_MGETPARAMWAVEIN:
+            a = gi(); gstr(s1, MAXSTR);
+            ami_getparamwavein(a, s1, s2, MAXSTR);
+            rbegin(); rstr(s2, MAXSTR); rsend(); break;
+        case GR_MGETPARAMWAVEOUT:
+            a = gi(); gstr(s1, MAXSTR);
+            ami_getparamwaveout(a, s1, s2, MAXSTR);
+            rbegin(); rstr(s2, MAXSTR); rsend(); break;
 
         /* --------------------------------------------------- dialogs */
 

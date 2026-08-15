@@ -466,7 +466,129 @@ typedef enum {
     /* ----------------------------------------------------- events */
 
     /** an event, server -> client on the event channel: evt */
-    GR_MEVENT      = 500
+    GR_MEVENT      = 500,
+
+    /* ------------------------------------------------------------------
+       The module partition. The i16 message id space divides into four
+       modules of 8192 codes each: graphics holds 0..8191 (the ids
+       above), sound holds 8192..16383, and two partitions remain for
+       future modules. The negative half of the space is reserved. A
+       module's calls may grow within its partition without disturbing
+       its neighbors.
+       ------------------------------------------------------------------ */
+
+    GR_SNDBASE     = 8192, /* the sound partition */
+
+    /* sequencer time bases */
+    GR_MSTARTTIMEOUT   = GR_SNDBASE+0,  /* -- */
+    GR_MSTOPTIMEOUT    = GR_SNDBASE+1,  /* -- */
+    GR_MCURTIMEOUT     = GR_SNDBASE+2,  /* -> i64 time */
+    GR_MSTARTTIMEIN    = GR_SNDBASE+3,  /* -- */
+    GR_MSTOPTIMEIN     = GR_SNDBASE+4,  /* -- */
+    GR_MCURTIMEIN      = GR_SNDBASE+5,  /* -> i64 time */
+
+    /* device counts and opens */
+    GR_MSYNTHOUT       = GR_SNDBASE+6,  /* -> i64 count */
+    GR_MSYNTHIN        = GR_SNDBASE+7,  /* -> i64 count */
+    GR_MOPENSYNTHOUT   = GR_SNDBASE+8,  /* i64 p */
+    GR_MCLOSESYNTHOUT  = GR_SNDBASE+9,  /* i64 p */
+    GR_MOPENSYNTHIN    = GR_SNDBASE+10, /* i64 p */
+    GR_MCLOSESYNTHIN   = GR_SNDBASE+11, /* i64 p */
+
+    /* the channel voice messages: i64 p, t, c, then the values */
+    GR_MNOTEON         = GR_SNDBASE+12, /* i64 p, t, c, n, v */
+    GR_MNOTEOFF        = GR_SNDBASE+13, /* i64 p, t, c, n, v */
+    GR_MINSTCHANGE     = GR_SNDBASE+14, /* i64 p, t, c, i */
+    GR_MATTACK         = GR_SNDBASE+15, /* i64 p, t, c, at */
+    GR_MRELEASE        = GR_SNDBASE+16, /* i64 p, t, c, rt */
+    GR_MLEGATO         = GR_SNDBASE+17, /* i64 p, t, c, b */
+    GR_MPORTAMENTO     = GR_SNDBASE+18, /* i64 p, t, c, b */
+    GR_MVIBRATO        = GR_SNDBASE+19, /* i64 p, t, c, v */
+    GR_MVOLSYNTHCHAN   = GR_SNDBASE+20, /* i64 p, t, c, v */
+    GR_MPORTTIME       = GR_SNDBASE+21, /* i64 p, t, c, v */
+    GR_MBALANCE        = GR_SNDBASE+22, /* i64 p, t, c, b */
+    GR_MPAN            = GR_SNDBASE+23, /* i64 p, t, c, b */
+    GR_MTIMBRE         = GR_SNDBASE+24, /* i64 p, t, c, tb */
+    GR_MBRIGHTNESS     = GR_SNDBASE+25, /* i64 p, t, c, b */
+    GR_MREVERB         = GR_SNDBASE+26, /* i64 p, t, c, r */
+    GR_MTREMULO        = GR_SNDBASE+27, /* i64 p, t, c, tr */
+    GR_MCHORUS         = GR_SNDBASE+28, /* i64 p, t, c, cr */
+    GR_MCELESTE        = GR_SNDBASE+29, /* i64 p, t, c, ce */
+    GR_MPHASER         = GR_SNDBASE+30, /* i64 p, t, c, ph */
+    GR_MAFTERTOUCH     = GR_SNDBASE+31, /* i64 p, t, c, n, at */
+    GR_MPRESSURE       = GR_SNDBASE+32, /* i64 p, t, c, pr */
+    GR_MPITCH          = GR_SNDBASE+33, /* i64 p, t, c, pt */
+    GR_MPITCHRANGE     = GR_SNDBASE+34, /* i64 p, t, c, v */
+    GR_MMONO           = GR_SNDBASE+35, /* i64 p, t, c, ch */
+    GR_MPOLY           = GR_SNDBASE+36, /* i64 p, t, c */
+
+    /* stored sequences. loadsynth is a query for the same reason
+       loadpict is: the file transfer request must happen inside the
+       reply window, with the client listening. */
+    GR_MLOADSYNTH      = GR_SNDBASE+37, /* i64 s, str fn -> i64 0 */
+    GR_MPLAYSYNTH      = GR_SNDBASE+38, /* i64 p, t, s */
+    GR_MDELSYNTH       = GR_SNDBASE+39, /* i64 s */
+    GR_MWAITSYNTH      = GR_SNDBASE+40, /* i64 p -> i64 0, on completion */
+    GR_MWRSYNTH        = GR_SNDBASE+41, /* i64 p + seq: i64 port, time,
+                                           st, p1, p2, p3 */
+    GR_MRDSYNTH        = GR_SNDBASE+42, /* i64 p -> seq; blocks the caller
+                                           until input arrives, as the
+                                           native call does */
+
+    /* wave output */
+    GR_MWAVEOUT        = GR_SNDBASE+43, /* -> i64 count */
+    GR_MWAVEIN         = GR_SNDBASE+44, /* -> i64 count */
+    GR_MOPENWAVEOUT    = GR_SNDBASE+45, /* i64 p */
+    GR_MCLOSEWAVEOUT   = GR_SNDBASE+46, /* i64 p */
+    GR_MLOADWAVE       = GR_SNDBASE+47, /* i64 w, str fn -> i64 0 */
+    GR_MPLAYWAVE       = GR_SNDBASE+48, /* i64 p, t, w */
+    GR_MDELWAVE        = GR_SNDBASE+49, /* i64 w */
+    GR_MVOLWAVE        = GR_SNDBASE+50, /* i64 p, t, v */
+    GR_MWAITWAVE       = GR_SNDBASE+51, /* i64 p -> i64 0, on completion */
+    GR_MCHANWAVEOUT    = GR_SNDBASE+52, /* i64 p, c */
+    GR_MRATEWAVEOUT    = GR_SNDBASE+53, /* i64 p, r */
+    GR_MLENWAVEOUT     = GR_SNDBASE+54, /* i64 p, l */
+    GR_MSGNWAVEOUT     = GR_SNDBASE+55, /* i64 p, s */
+    GR_MFLTWAVEOUT     = GR_SNDBASE+56, /* i64 p, f */
+    GR_MENDWAVEOUT     = GR_SNDBASE+57, /* i64 p, e */
+    GR_MWRWAVE         = GR_SNDBASE+58, /* i64 p, i64 frames, blk
+                                           samples -> i64 0. The sender
+                                           chunks to the channel bound on
+                                           frame boundaries; each chunk
+                                           is acknowledged, which paces
+                                           the stream to the consumer and
+                                           keeps it whole. */
+
+    /* wave input; the devices live at the server, and a read blocks the
+       caller until data arrives, as the native call does */
+    GR_MOPENWAVEIN     = GR_SNDBASE+59, /* i64 p */
+    GR_MCLOSEWAVEIN    = GR_SNDBASE+60, /* i64 p */
+    GR_MCHANWAVEIN     = GR_SNDBASE+61, /* i64 p -> i64 */
+    GR_MRATEWAVEIN     = GR_SNDBASE+62, /* i64 p -> i64 */
+    GR_MLENWAVEIN      = GR_SNDBASE+63, /* i64 p -> i64 */
+    GR_MSGNWAVEIN      = GR_SNDBASE+64, /* i64 p -> i64 */
+    GR_MENDWAVEIN      = GR_SNDBASE+65, /* i64 p -> i64 */
+    GR_MFLTWAVEIN      = GR_SNDBASE+66, /* i64 p -> i64 */
+    GR_MRDWAVE         = GR_SNDBASE+67, /* i64 p, frames -> i64 got, blk
+                                           samples; the server clamps the
+                                           answer to the channel bound and
+                                           the caller loops. Lengths are in
+                                           samples, one frame of every
+                                           channel, as the API counts. */
+
+    /* device names and parameters */
+    GR_MSYNTHOUTNAME   = GR_SNDBASE+68, /* i64 p -> str */
+    GR_MSYNTHINNAME    = GR_SNDBASE+69, /* i64 p -> str */
+    GR_MWAVEOUTNAME    = GR_SNDBASE+70, /* i64 p -> str */
+    GR_MWAVEINNAME     = GR_SNDBASE+71, /* i64 p -> str */
+    GR_MSETPARAMSYNTHIN  = GR_SNDBASE+72, /* i64 p, str, str -> i64 */
+    GR_MSETPARAMSYNTHOUT = GR_SNDBASE+73, /* i64 p, str, str -> i64 */
+    GR_MSETPARAMWAVEIN   = GR_SNDBASE+74, /* i64 p, str, str -> i64 */
+    GR_MSETPARAMWAVEOUT  = GR_SNDBASE+75, /* i64 p, str, str -> i64 */
+    GR_MGETPARAMSYNTHIN  = GR_SNDBASE+76, /* i64 p, str -> str */
+    GR_MGETPARAMSYNTHOUT = GR_SNDBASE+77, /* i64 p, str -> str */
+    GR_MGETPARAMWAVEIN   = GR_SNDBASE+78, /* i64 p, str -> str */
+    GR_MGETPARAMWAVEOUT  = GR_SNDBASE+79  /* i64 p, str -> str */
 
 } gr_msgcod;
 
@@ -720,6 +842,86 @@ static const char* gr_msgname(int mid)
         case GR_MQUERYFINDREP: return "QUERYFINDREP";
         case GR_MQUERYFONT: return "QUERYFONT";
         case GR_MEVENT: return "EVENT";
+        case GR_MSTARTTIMEOUT: return "STARTTIMEOUT";
+        case GR_MSTOPTIMEOUT: return "STOPTIMEOUT";
+        case GR_MCURTIMEOUT: return "CURTIMEOUT";
+        case GR_MSTARTTIMEIN: return "STARTTIMEIN";
+        case GR_MSTOPTIMEIN: return "STOPTIMEIN";
+        case GR_MCURTIMEIN: return "CURTIMEIN";
+        case GR_MSYNTHOUT: return "SYNTHOUT";
+        case GR_MSYNTHIN: return "SYNTHIN";
+        case GR_MOPENSYNTHOUT: return "OPENSYNTHOUT";
+        case GR_MCLOSESYNTHOUT: return "CLOSESYNTHOUT";
+        case GR_MOPENSYNTHIN: return "OPENSYNTHIN";
+        case GR_MCLOSESYNTHIN: return "CLOSESYNTHIN";
+        case GR_MNOTEON: return "NOTEON";
+        case GR_MNOTEOFF: return "NOTEOFF";
+        case GR_MINSTCHANGE: return "INSTCHANGE";
+        case GR_MATTACK: return "ATTACK";
+        case GR_MRELEASE: return "RELEASE";
+        case GR_MLEGATO: return "LEGATO";
+        case GR_MPORTAMENTO: return "PORTAMENTO";
+        case GR_MVIBRATO: return "VIBRATO";
+        case GR_MVOLSYNTHCHAN: return "VOLSYNTHCHAN";
+        case GR_MPORTTIME: return "PORTTIME";
+        case GR_MBALANCE: return "BALANCE";
+        case GR_MPAN: return "PAN";
+        case GR_MTIMBRE: return "TIMBRE";
+        case GR_MBRIGHTNESS: return "BRIGHTNESS";
+        case GR_MREVERB: return "REVERB";
+        case GR_MTREMULO: return "TREMULO";
+        case GR_MCHORUS: return "CHORUS";
+        case GR_MCELESTE: return "CELESTE";
+        case GR_MPHASER: return "PHASER";
+        case GR_MAFTERTOUCH: return "AFTERTOUCH";
+        case GR_MPRESSURE: return "PRESSURE";
+        case GR_MPITCH: return "PITCH";
+        case GR_MPITCHRANGE: return "PITCHRANGE";
+        case GR_MMONO: return "MONO";
+        case GR_MPOLY: return "POLY";
+        case GR_MLOADSYNTH: return "LOADSYNTH";
+        case GR_MPLAYSYNTH: return "PLAYSYNTH";
+        case GR_MDELSYNTH: return "DELSYNTH";
+        case GR_MWAITSYNTH: return "WAITSYNTH";
+        case GR_MWRSYNTH: return "WRSYNTH";
+        case GR_MRDSYNTH: return "RDSYNTH";
+        case GR_MWAVEOUT: return "WAVEOUT";
+        case GR_MWAVEIN: return "WAVEIN";
+        case GR_MOPENWAVEOUT: return "OPENWAVEOUT";
+        case GR_MCLOSEWAVEOUT: return "CLOSEWAVEOUT";
+        case GR_MLOADWAVE: return "LOADWAVE";
+        case GR_MPLAYWAVE: return "PLAYWAVE";
+        case GR_MDELWAVE: return "DELWAVE";
+        case GR_MVOLWAVE: return "VOLWAVE";
+        case GR_MWAITWAVE: return "WAITWAVE";
+        case GR_MCHANWAVEOUT: return "CHANWAVEOUT";
+        case GR_MRATEWAVEOUT: return "RATEWAVEOUT";
+        case GR_MLENWAVEOUT: return "LENWAVEOUT";
+        case GR_MSGNWAVEOUT: return "SGNWAVEOUT";
+        case GR_MFLTWAVEOUT: return "FLTWAVEOUT";
+        case GR_MENDWAVEOUT: return "ENDWAVEOUT";
+        case GR_MWRWAVE: return "WRWAVE";
+        case GR_MOPENWAVEIN: return "OPENWAVEIN";
+        case GR_MCLOSEWAVEIN: return "CLOSEWAVEIN";
+        case GR_MCHANWAVEIN: return "CHANWAVEIN";
+        case GR_MRATEWAVEIN: return "RATEWAVEIN";
+        case GR_MLENWAVEIN: return "LENWAVEIN";
+        case GR_MSGNWAVEIN: return "SGNWAVEIN";
+        case GR_MENDWAVEIN: return "ENDWAVEIN";
+        case GR_MFLTWAVEIN: return "FLTWAVEIN";
+        case GR_MRDWAVE: return "RDWAVE";
+        case GR_MSYNTHOUTNAME: return "SYNTHOUTNAME";
+        case GR_MSYNTHINNAME: return "SYNTHINNAME";
+        case GR_MWAVEOUTNAME: return "WAVEOUTNAME";
+        case GR_MWAVEINNAME: return "WAVEINNAME";
+        case GR_MSETPARAMSYNTHIN: return "SETPARAMSYNTHIN";
+        case GR_MSETPARAMSYNTHOUT: return "SETPARAMSYNTHOUT";
+        case GR_MSETPARAMWAVEIN: return "SETPARAMWAVEIN";
+        case GR_MSETPARAMWAVEOUT: return "SETPARAMWAVEOUT";
+        case GR_MGETPARAMSYNTHIN: return "GETPARAMSYNTHIN";
+        case GR_MGETPARAMSYNTHOUT: return "GETPARAMSYNTHOUT";
+        case GR_MGETPARAMWAVEIN: return "GETPARAMWAVEIN";
+        case GR_MGETPARAMWAVEOUT: return "GETPARAMWAVEOUT";
         default: return "?";
     }
 }
