@@ -516,6 +516,13 @@ else
 endif
 
 #
+# The Wayland graphical model: identical contract, the backend swapped in by
+# link option (Linux static only)
+#
+GLIBSW = stub/keeper.o lib/libami_graphw.a
+GLIBSWD = lib/libami_graphw.a stub/keeper.o
+
+#
 # Create dependency macros
 #
 PLIBSD += $(LIBPFX)plain$(LIBEXT)
@@ -730,7 +737,27 @@ linux/terminal.o: linux/terminal.c include/terminal.h Makefile
 	
 linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 	$(CC) $(CFLAGS) -c linux/graphics.c -o linux/graphics.o
-	
+
+#
+# The Wayland graphics backend: same library contract as linux/graphics.o,
+# selected by linking these objects in its place. wlshim implements the X
+# window and drawing model on Wayland so the backend proper stays
+# structurally parallel to the Xlib version.
+#
+linux/graphics_wl.o: linux/graphics_wl.c linux/wlshim.h include/graphics.h Makefile
+	$(CC) $(CFLAGS) -c linux/graphics_wl.c -o linux/graphics_wl.o
+
+linux/wlshim.o: linux/wlshim.c linux/wlshim.h \
+	linux/wlproto/xdg-shell-client-protocol.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/wlshim.c -o linux/wlshim.o
+
+linux/wlproto/xdg-shell-protocol.o: linux/wlproto/xdg-shell-protocol.c Makefile
+	$(CC) $(CFLAGS) -c linux/wlproto/xdg-shell-protocol.c \
+	    -o linux/wlproto/xdg-shell-protocol.o
+
+WLGRAPH = linux/graphics_wl.o linux/wlshim.o linux/wlproto/xdg-shell-protocol.o
+WLLIBS = -lwayland-client -lxkbcommon
+
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
 	$(CC) $(CFLAGS) -c linux/system_event.c -o linux/system_event.o
 	
@@ -1131,6 +1158,21 @@ lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_graph.a
 	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o
 
+# the Wayland graphics model: graphics_wl and its shim linked in place of
+# linux/graphics.o, all else identical
+lib/graphw_core.o: $(CORE_COMMON) $(WLGRAPH) linux/system_event.o \
+	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
+	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
+	cpp/graphics.o
+	ld -r -o lib/graphw_core.o $(CORE_COMMON) $(WLGRAPH) \
+	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    portable/pdfgraph.o \
+	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+
+lib/libami_graphw.a: lib/graphw_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_graphw.a
+	ar rcs lib/libami_graphw.a lib/graphw_core.o lib/sound.o linux/network.o
+
 endif
 
 ################################################################################
@@ -1388,6 +1430,15 @@ else
 graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/graphics_test
 endif
+
+#
+# Graphics test on the Wayland backend: the same program, the backend
+# swapped by link option
+#
+graphics_testw: $(GLIBSWD) tests/graphics_test.c
+	$(CC) $(CFLAGS) tests/graphics_test.c stub/screen_capture_stub.o \
+	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
+	    -lfreetype -lfontconfig -lm -lpthread -o bin/graphics_testw
 
 #
 # BMP-stream frame viewer: walks the test_images file produced by
