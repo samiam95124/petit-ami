@@ -1165,6 +1165,13 @@ static void widget(
         } while (np);
 
     }
+    /* The first paint is requested here, covering every creation, the
+       dialogs' direct subclasses included; it also takes the widget
+       live, ending the construction gap the event gate holds shut.
+       Creators that set parameters after this request their own
+       completing redraw, which repaints over the default face. */
+    widget_redraw(wp);
+
     *wpr = wp; /* copy back to caller */
 
 }
