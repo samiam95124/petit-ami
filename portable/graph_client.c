@@ -65,6 +65,9 @@ static int           connected;   /* the link is up */
 static int           gtrace;      /* diagnostic trace: GRAPH_TRACE set;
                                      every message prints to the error
                                      channel. Slow, and worth it. */
+static int           gsecure;     /* secure channels: GRAPH_SECURE set;
+                                     DTLS on the messages, TLS on the
+                                     file connections */
 
 /* message assembly */
 static unsigned char* sbuf;       /* send buffer, msgmax bytes */
@@ -497,7 +500,7 @@ static void servefile(void)
        asked. */
     /* let the server reach its accept before we knock */
     usleep(50000);
-    nf = ami_opennet(srvaddr, port, 0);
+    nf = ami_opennet(srvaddr, port, gsecure);
     if (!nf) error("Cannot open file transfer connection");
     lf = fopen(fn, "rb");
     if (getenv("PA_FILEDBG")) {
@@ -573,13 +576,11 @@ static void dosync(void)
 
 {
 
-    struct timeval tv = { 0, 200000 };
-    struct timeval tv0 = { 0, 0 };
-    ssize_t        r;
+    struct timeval tv;
+    fd_set         fs;
 
     flushcmd(); /* the fence orders after everything batched */
     inquery = 1;
-    setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     for (;;) {
 
         sseq++;
@@ -592,13 +593,20 @@ static void dosync(void)
             fprintf(stderr, "gc> %-16s w0   s%-5d len%ld\n",
                     gr_msgname(GR_MSYNC), sseq, soff);
         ami_wrmsg(cmdfn, sbuf, soff);
-        r = recv((int)cmdfn, rbuf, msgmax, 0);
-        if (r < (long)sizeof(gr_msghdr)) continue; /* lost: fence again */
-        if (rhdr()->mid == GR_MFILEREQ) { rlen = r; servefile(); continue; }
+        /* the bound by select, the read by the message call, which
+           under the secure channel is also what decrypts */
+        FD_ZERO(&fs);
+        FD_SET((int)cmdfn, &fs);
+        tv.tv_sec = 0;
+        tv.tv_usec = 200000;
+        if (select((int)cmdfn+1, &fs, NULL, NULL, &tv) <= 0)
+            continue; /* lost: fence again */
+        rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
+        if (rlen < (long)sizeof(gr_msghdr)) continue;
+        if (rhdr()->mid == GR_MFILEREQ) { servefile(); continue; }
         if (rhdr()->mid == GR_MREPLY) break; /* any sync's reply serves */
 
     }
-    setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv0, sizeof(tv0));
     inquery = 0;
     sentb = 0;
     sentbytes = 0;
@@ -2050,8 +2058,12 @@ static void ami_init_graph_client(void)
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     gtrace = getenv("GRAPH_TRACE") != NULL;
+    gsecure = getenv("GRAPH_SECURE") != NULL;
     ami_addrnet((char*)sa, &srvaddr);
     msgmax = ami_maxmsg(srvaddr);
+    /* a DTLS datagram carries at most one 16K record; plain UDP fragments
+       larger datagrams at the IP layer, DTLS refuses them */
+    if (gsecure && msgmax > 16000) msgmax = 16000;
     if (msgmax < 1024) error("Message channel too small");
     sbuf = malloc(msgmax);
     rbuf = malloc(msgmax);
@@ -2061,8 +2073,15 @@ static void ami_init_graph_client(void)
     ovr_write(iwrite, &dn_write);
     ovr_close(iclose, &dn_close);
 
-    cmdfn = ami_openmsg(srvaddr, srvport, 0);
+    cmdfn = ami_openmsg(srvaddr, srvport, gsecure);
     persistent(cmdfn);
+    /* The event channel opens before the hello: under the secure
+       channel the server accepts each channel's handshake in turn
+       before it can answer anything, so both handshakes must complete
+       before the first exchange. In the clear the order is
+       indifferent. */
+    evtfn = ami_openmsg(srvaddr, srvport+1, gsecure);
+    persistent(evtfn);
     /* the main window exists from the hello */
     fdh[1] = 1;
     h2lw[1] = 1;
@@ -2072,12 +2091,15 @@ static void ami_init_graph_client(void)
        takes a timeout for just this exchange. */
     {
 
-        struct timeval tv = { 2, 0 };
+        struct timeval tv;
+        fd_set        fs;
         ssize_t       r = -1;
         int           try;
 
-        /* a datagram handshake retries: the hello is idempotent */
-        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        /* A datagram handshake retries: the hello is idempotent. The
+           bound is by select and the read by the message call, which
+           under the secure channel is also what decrypts: a raw recv
+           on a DTLS channel sees only ciphertext. */
         for (try = 0; try < 3 && r < (long)sizeof(gr_msghdr); try++) {
 
             begin(GR_MHELLO, 0);
@@ -2085,7 +2107,12 @@ static void ami_init_graph_client(void)
             sseq++;
             shdr()->seq = sseq;
             send0();
-            r = recv((int)cmdfn, rbuf, msgmax, 0);
+            FD_ZERO(&fs);
+            FD_SET((int)cmdfn, &fs);
+            tv.tv_sec = 2;
+            tv.tv_usec = 0;
+            if (select((int)cmdfn+1, &fs, NULL, NULL, &tv) > 0)
+                r = ami_rdmsg(cmdfn, rbuf, msgmax);
 
         }
         if (r < (long)sizeof(gr_msghdr)) {
@@ -2108,8 +2135,6 @@ static void ami_init_graph_client(void)
     if (v != GR_VERSION) error("Server protocol version mismatch");
     /* the event channel, and its hello so the server knows where events
        go */
-    evtfn = ami_openmsg(srvaddr, srvport+1, 0);
-    persistent(evtfn);
     shdr()->mid = GR_MEVOPEN;
     shdr()->seq = 0;
     shdr()->wid = 0;
