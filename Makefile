@@ -1554,6 +1554,16 @@ widget_testr: tests/widget_test.c portable/graph_client.o
 	    -lssl -lcrypto -lm -lpthread -o bin/widget_testr
 
 #
+# The sound test run remotely: linked with graph_client, the sound
+# devices served by graph_server.
+#
+sound_testr: tests/sound_test.c portable/graph_client.o
+	$(CC) $(CFLAGS) tests/sound_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/sound_testr
+
+#
 # The remote display server: the display side of remote mode, standalone.
 #
 graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h

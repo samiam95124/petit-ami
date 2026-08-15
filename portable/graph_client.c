@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 
 #include <graphics.h>
+#include <sound.h>
 #include <network.h>
 #include <graph_remote.h>
 
@@ -482,22 +483,18 @@ static void servefile(void)
     fn[n] = 0;
     roff += n;
     port = gi();
-    /* the picture extension rule of the display library: .bmp is set or
-       overwritten before the file opens */
-    {
-
-        char* dot = strrchr(fn, '.');
-        char* sl = strrchr(fn, '/');
-
-        if (dot && (!sl || dot > sl)) *dot = 0;
-        if (strlen(fn) < sizeof(fn)-5) strcat(fn, ".bmp");
-
-    }
+    /* The name arrives already under the library's extension rule,
+       .bmp, .wav or .mid by the call that asked; serve exactly what is
+       asked. */
     /* let the server reach its accept before we knock */
     usleep(50000);
     nf = ami_opennet(srvaddr, port, 0);
     if (!nf) error("Cannot open file transfer connection");
     lf = fopen(fn, "rb");
+    if (getenv("PA_FILEDBG")) {
+        fprintf(stderr, "servefile: '%s' -> %s\n", fn, lf? "found": "MISSING");
+        fflush(stderr);
+    }
     if (lf) {
 
         while ((r = fread(buf, 1, sizeof(buf), lf)) > 0)
@@ -1722,6 +1719,284 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
       pi(*br); pi(*bg); pi(*bb); pi((long)*effect); qsend();
       *fc = gi(); *s = gi(); *fr = gi(); *fg = gi(); *fb = gi();
       *br = gi(); *bg = gi(); *bb = gi(); *effect = (ami_qfteffects)gi(); }
+
+/*******************************************************************************
+
+The sound API
+
+The full sound call set of sound.h, carried in the sound partition of
+the message space. There is no window: every message goes with wid 0.
+The devices, synthesizers, wave channels, their inputs, live at the
+server, which is where the speakers and the microphones are. Sequencer
+times are interpreted against the server's time bases, and the time
+queries return them, so client-computed schedules land where they
+should. The input calls block the caller until the far device delivers,
+exactly as the native calls do. The files of loadsynth() and loadwave()
+live where the program lives and travel by the file transfer mechanism,
+which is why those calls are queries.
+
+*******************************************************************************/
+
+/* the channel voice pattern: port, time, channel, and one value */
+static void sndc1(int mid, long p, long t, long c, long v)
+
+{
+
+    begin(mid, 0);
+    pi(p); pi(t); pi(c); pi(v);
+    send0();
+
+}
+
+void ami_starttimeout(void) { begin(GR_MSTARTTIMEOUT, 0); send0(); }
+void ami_stoptimeout(void) { begin(GR_MSTOPTIMEOUT, 0); send0(); }
+long ami_curtimeout(void)
+    { begin(GR_MCURTIMEOUT, 0); qsend(); return (gi()); }
+void ami_starttimein(void) { begin(GR_MSTARTTIMEIN, 0); send0(); }
+void ami_stoptimein(void) { begin(GR_MSTOPTIMEIN, 0); send0(); }
+long ami_curtimein(void)
+    { begin(GR_MCURTIMEIN, 0); qsend(); return (gi()); }
+long ami_synthout(void)
+    { begin(GR_MSYNTHOUT, 0); qsend(); return (gi()); }
+long ami_synthin(void)
+    { begin(GR_MSYNTHIN, 0); qsend(); return (gi()); }
+void ami_opensynthout(long p)
+    { begin(GR_MOPENSYNTHOUT, 0); pi(p); send0(); }
+void ami_closesynthout(long p)
+    { begin(GR_MCLOSESYNTHOUT, 0); pi(p); send0(); }
+void ami_opensynthin(long p)
+    { begin(GR_MOPENSYNTHIN, 0); pi(p); send0(); }
+void ami_closesynthin(long p)
+    { begin(GR_MCLOSESYNTHIN, 0); pi(p); send0(); }
+void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
+    { begin(GR_MNOTEON, 0); pi(p); pi(t); pi(c); pi(n); pi(v); send0(); }
+void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
+    { begin(GR_MNOTEOFF, 0); pi(p); pi(t); pi(c); pi(n); pi(v); send0(); }
+void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
+    { sndc1(GR_MINSTCHANGE, p, t, c, i); }
+void ami_attack(long p, long t, ami_channel c, long at)
+    { sndc1(GR_MATTACK, p, t, c, at); }
+void ami_release(long p, long t, ami_channel c, long rt)
+    { sndc1(GR_MRELEASE, p, t, c, rt); }
+void ami_legato(long p, long t, ami_channel c, long b)
+    { sndc1(GR_MLEGATO, p, t, c, b); }
+void ami_portamento(long p, long t, ami_channel c, long b)
+    { sndc1(GR_MPORTAMENTO, p, t, c, b); }
+void ami_vibrato(long p, long t, ami_channel c, long v)
+    { sndc1(GR_MVIBRATO, p, t, c, v); }
+void ami_volsynthchan(long p, long t, ami_channel c, long v)
+    { sndc1(GR_MVOLSYNTHCHAN, p, t, c, v); }
+void ami_porttime(long p, long t, ami_channel c, long v)
+    { sndc1(GR_MPORTTIME, p, t, c, v); }
+void ami_balance(long p, long t, ami_channel c, long b)
+    { sndc1(GR_MBALANCE, p, t, c, b); }
+void ami_pan(long p, long t, ami_channel c, long b)
+    { sndc1(GR_MPAN, p, t, c, b); }
+void ami_timbre(long p, long t, ami_channel c, long tb)
+    { sndc1(GR_MTIMBRE, p, t, c, tb); }
+void ami_brightness(long p, long t, ami_channel c, long b)
+    { sndc1(GR_MBRIGHTNESS, p, t, c, b); }
+void ami_reverb(long p, long t, ami_channel c, long r)
+    { sndc1(GR_MREVERB, p, t, c, r); }
+void ami_tremulo(long p, long t, ami_channel c, long tr)
+    { sndc1(GR_MTREMULO, p, t, c, tr); }
+void ami_chorus(long p, long t, ami_channel c, long cr)
+    { sndc1(GR_MCHORUS, p, t, c, cr); }
+void ami_celeste(long p, long t, ami_channel c, long ce)
+    { sndc1(GR_MCELESTE, p, t, c, ce); }
+void ami_phaser(long p, long t, ami_channel c, long ph)
+    { sndc1(GR_MPHASER, p, t, c, ph); }
+void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
+    { begin(GR_MAFTERTOUCH, 0); pi(p); pi(t); pi(c); pi(n); pi(at); send0(); }
+void ami_pressure(long p, long t, ami_channel c, long pr)
+    { sndc1(GR_MPRESSURE, p, t, c, pr); }
+void ami_pitch(long p, long t, ami_channel c, long pt)
+    { sndc1(GR_MPITCH, p, t, c, pt); }
+void ami_pitchrange(long p, long t, ami_channel c, long v)
+    { sndc1(GR_MPITCHRANGE, p, t, c, v); }
+void ami_mono(long p, long t, ami_channel c, long ch)
+    { sndc1(GR_MMONO, p, t, c, ch); }
+void ami_poly(long p, long t, ami_channel c)
+    { begin(GR_MPOLY, 0); pi(p); pi(t); pi(c); send0(); }
+void ami_loadsynth(long s, string sf)
+    { begin(GR_MLOADSYNTH, 0); pi(s); ps(sf); qsend(); gi(); }
+void ami_playsynth(long p, long t, long s)
+    { begin(GR_MPLAYSYNTH, 0); pi(p); pi(t); pi(s); send0(); }
+void ami_delsynth(long s) { begin(GR_MDELSYNTH, 0); pi(s); send0(); }
+void ami_waitsynth(long p)
+    { begin(GR_MWAITSYNTH, 0); pi(p); qsend(); gi(); }
+
+void ami_wrsynth(long p, ami_seqptr sp)
+
+{
+
+    long u[3];
+
+    begin(GR_MWRSYNTH, 0);
+    pi(p);
+    pi(sp->port);
+    pi(sp->time);
+    pi((long)sp->st);
+    /* the union rides as its three widest words */
+    memcpy(u, &sp->ntc, sizeof(u));
+    pi(u[0]); pi(u[1]); pi(u[2]);
+    send0();
+
+}
+
+void ami_rdsynth(long p, ami_seqptr sp)
+
+{
+
+    long u[3];
+
+    begin(GR_MRDSYNTH, 0);
+    pi(p);
+    qsend(); /* blocks until the far device delivers */
+    sp->next = NULL;
+    sp->port = gi();
+    sp->time = gi();
+    sp->st = (ami_seqtyp)gi();
+    u[0] = gi(); u[1] = gi(); u[2] = gi();
+    memcpy(&sp->ntc, u, sizeof(u));
+
+}
+
+long ami_waveout(void)
+    { begin(GR_MWAVEOUT, 0); qsend(); return (gi()); }
+long ami_wavein(void)
+    { begin(GR_MWAVEIN, 0); qsend(); return (gi()); }
+void ami_openwaveout(long p)
+    { begin(GR_MOPENWAVEOUT, 0); pi(p); send0(); }
+void ami_closewaveout(long p)
+    { begin(GR_MCLOSEWAVEOUT, 0); pi(p); send0(); }
+void ami_loadwave(long w, string fn)
+    { begin(GR_MLOADWAVE, 0); pi(w); ps(fn); qsend(); gi(); }
+void ami_playwave(long p, long t, long w)
+    { begin(GR_MPLAYWAVE, 0); pi(p); pi(t); pi(w); send0(); }
+void ami_delwave(long w) { begin(GR_MDELWAVE, 0); pi(w); send0(); }
+void ami_volwave(long p, long t, long v)
+    { begin(GR_MVOLWAVE, 0); pi(p); pi(t); pi(v); send0(); }
+void ami_waitwave(long p)
+    { begin(GR_MWAITWAVE, 0); pi(p); qsend(); gi(); }
+void ami_chanwaveout(long p, long c)
+    { begin(GR_MCHANWAVEOUT, 0); pi(p); pi(c); send0(); }
+void ami_ratewaveout(long p, long r)
+    { begin(GR_MRATEWAVEOUT, 0); pi(p); pi(r); send0(); }
+void ami_lenwaveout(long p, long l)
+    { begin(GR_MLENWAVEOUT, 0); pi(p); pi(l); send0(); }
+void ami_sgnwaveout(long p, long s)
+    { begin(GR_MSGNWAVEOUT, 0); pi(p); pi(s); send0(); }
+void ami_fltwaveout(long p, long f)
+    { begin(GR_MFLTWAVEOUT, 0); pi(p); pi(f); send0(); }
+void ami_endwaveout(long p, long e)
+    { begin(GR_MENDWAVEOUT, 0); pi(p); pi(e); send0(); }
+
+void ami_wrwave(long p, byte* buff, long len)
+
+{
+
+    long chunk = msgmax-64; /* header, port and counts, with slack */
+    long n;
+
+    /* the sample stream chunks to the channel bound */
+    while (len > 0) {
+
+        n = len > chunk? chunk: len;
+        begin(GR_MWRWAVE, 0);
+        pi(p);
+        psn((char*)buff, n);
+        send0();
+        buff += n;
+        len -= n;
+
+    }
+
+}
+
+void ami_openwavein(long p)
+    { begin(GR_MOPENWAVEIN, 0); pi(p); send0(); }
+void ami_closewavein(long p)
+    { begin(GR_MCLOSEWAVEIN, 0); pi(p); send0(); }
+long ami_chanwavein(long p)
+    { begin(GR_MCHANWAVEIN, 0); pi(p); qsend(); return (gi()); }
+long ami_ratewavein(long p)
+    { begin(GR_MRATEWAVEIN, 0); pi(p); qsend(); return (gi()); }
+long ami_lenwavein(long p)
+    { begin(GR_MLENWAVEIN, 0); pi(p); qsend(); return (gi()); }
+long ami_sgnwavein(long p)
+    { begin(GR_MSGNWAVEIN, 0); pi(p); qsend(); return (gi()); }
+long ami_endwavein(long p)
+    { begin(GR_MENDWAVEIN, 0); pi(p); qsend(); return (gi()); }
+long ami_fltwavein(long p)
+    { begin(GR_MFLTWAVEIN, 0); pi(p); qsend(); return (gi()); }
+
+long ami_rdwave(long p, byte* buff, long len)
+
+{
+
+    long chunk = msgmax-64;
+    long total = 0;
+    long n, got, dl;
+
+    /* Chunk the request to the channel bound; a short return ends the
+       read, as it does at the device. Each chunk blocks the caller
+       until the far device delivers, exactly as the native call does. */
+    while (len > 0) {
+
+        n = len > chunk? chunk: len;
+        begin(GR_MRDWAVE, 0);
+        pi(p);
+        pi(n);
+        qsend();
+        got = gi(); /* samples delivered */
+        dl = g4(); /* the block length */
+        if (dl > len) error("Protocol failure: wave read overrun");
+        memcpy(buff, rbuf+roff, dl);
+        roff += dl;
+        buff += dl;
+        total += got;
+        len -= dl;
+        if (got < n) break; /* short read ends it */
+
+    }
+
+    return (total);
+
+}
+
+void ami_synthoutname(long p, string name, long len)
+    { begin(GR_MSYNTHOUTNAME, 0); pi(p); qsend(); gs(name, len); }
+void ami_synthinname(long p, string name, long len)
+    { begin(GR_MSYNTHINNAME, 0); pi(p); qsend(); gs(name, len); }
+void ami_waveoutname(long p, string name, long len)
+    { begin(GR_MWAVEOUTNAME, 0); pi(p); qsend(); gs(name, len); }
+void ami_waveinname(long p, string name, long len)
+    { begin(GR_MWAVEINNAME, 0); pi(p); qsend(); gs(name, len); }
+long ami_setparamsynthin(long p, string name, string value)
+    { begin(GR_MSETPARAMSYNTHIN, 0); pi(p); ps(name); ps(value); qsend();
+      return (gi()); }
+long ami_setparamsynthout(long p, string name, string value)
+    { begin(GR_MSETPARAMSYNTHOUT, 0); pi(p); ps(name); ps(value); qsend();
+      return (gi()); }
+long ami_setparamwavein(long p, string name, string value)
+    { begin(GR_MSETPARAMWAVEIN, 0); pi(p); ps(name); ps(value); qsend();
+      return (gi()); }
+long ami_setparamwaveout(long p, string name, string value)
+    { begin(GR_MSETPARAMWAVEOUT, 0); pi(p); ps(name); ps(value); qsend();
+      return (gi()); }
+void ami_getparamsynthin(long p, string name, string value, long len)
+    { begin(GR_MGETPARAMSYNTHIN, 0); pi(p); ps(name); qsend();
+      gs(value, len); }
+void ami_getparamsynthout(long p, string name, string value, long len)
+    { begin(GR_MGETPARAMSYNTHOUT, 0); pi(p); ps(name); qsend();
+      gs(value, len); }
+void ami_getparamwavein(long p, string name, string value, long len)
+    { begin(GR_MGETPARAMWAVEIN, 0); pi(p); ps(name); qsend();
+      gs(value, len); }
+void ami_getparamwaveout(long p, string name, string value, long len)
+    { begin(GR_MGETPARAMWAVEOUT, 0); pi(p); ps(name); qsend();
+      gs(value, len); }
 
 /*******************************************************************************
 

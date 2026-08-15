@@ -241,3 +241,87 @@
 \texttt{GR\_MQUERYFINDREP} & 425 & str, str, i64 opt $\rightarrow$ str, str, i64 opt; wid 0 \\
 \texttt{GR\_MQUERYFONT} & 426 & i64 fc, s, fr, fg, fb, br, bg, bb, effect $\rightarrow$ the same nine, as chosen \\
 \texttt{GR\_MEVENT} & 500 & an event, server $\rightarrow$ client on the event channel: evt \\
+
+\hline
+\multicolumn{3}{@{}l}{\textbf{The sound partition (base 8192)}} \\
+\hline
+\texttt{GR\_MSTARTTIMEOUT} & 8192 & -- \\
+\texttt{GR\_MSTOPTIMEOUT} & 8193 & -- \\
+\texttt{GR\_MCURTIMEOUT} & 8194 & $\rightarrow$ i64 time \\
+\texttt{GR\_MSTARTTIMEIN} & 8195 & -- \\
+\texttt{GR\_MSTOPTIMEIN} & 8196 & -- \\
+\texttt{GR\_MCURTIMEIN} & 8197 & $\rightarrow$ i64 time \\
+\texttt{GR\_MSYNTHOUT} & 8198 & $\rightarrow$ i64 count \\
+\texttt{GR\_MSYNTHIN} & 8199 & $\rightarrow$ i64 count \\
+\texttt{GR\_MOPENSYNTHOUT} & 8200 & i64 p \\
+\texttt{GR\_MCLOSESYNTHOUT} & 8201 & i64 p \\
+\texttt{GR\_MOPENSYNTHIN} & 8202 & i64 p \\
+\texttt{GR\_MCLOSESYNTHIN} & 8203 & i64 p \\
+\texttt{GR\_MNOTEON} & 8204 & i64 p, t, c, n, v \\
+\texttt{GR\_MNOTEOFF} & 8205 & i64 p, t, c, n, v \\
+\texttt{GR\_MINSTCHANGE} & 8206 & i64 p, t, c, i \\
+\texttt{GR\_MATTACK} & 8207 & i64 p, t, c, at \\
+\texttt{GR\_MRELEASE} & 8208 & i64 p, t, c, rt \\
+\texttt{GR\_MLEGATO} & 8209 & i64 p, t, c, b \\
+\texttt{GR\_MPORTAMENTO} & 8210 & i64 p, t, c, b \\
+\texttt{GR\_MVIBRATO} & 8211 & i64 p, t, c, v \\
+\texttt{GR\_MVOLSYNTHCHAN} & 8212 & i64 p, t, c, v \\
+\texttt{GR\_MPORTTIME} & 8213 & i64 p, t, c, v \\
+\texttt{GR\_MBALANCE} & 8214 & i64 p, t, c, b \\
+\texttt{GR\_MPAN} & 8215 & i64 p, t, c, b \\
+\texttt{GR\_MTIMBRE} & 8216 & i64 p, t, c, tb \\
+\texttt{GR\_MBRIGHTNESS} & 8217 & i64 p, t, c, b \\
+\texttt{GR\_MREVERB} & 8218 & i64 p, t, c, r \\
+\texttt{GR\_MTREMULO} & 8219 & i64 p, t, c, tr \\
+\texttt{GR\_MCHORUS} & 8220 & i64 p, t, c, cr \\
+\texttt{GR\_MCELESTE} & 8221 & i64 p, t, c, ce \\
+\texttt{GR\_MPHASER} & 8222 & i64 p, t, c, ph \\
+\texttt{GR\_MAFTERTOUCH} & 8223 & i64 p, t, c, n, at \\
+\texttt{GR\_MPRESSURE} & 8224 & i64 p, t, c, pr \\
+\texttt{GR\_MPITCH} & 8225 & i64 p, t, c, pt \\
+\texttt{GR\_MPITCHRANGE} & 8226 & i64 p, t, c, v \\
+\texttt{GR\_MMONO} & 8227 & i64 p, t, c, ch \\
+\texttt{GR\_MPOLY} & 8228 & i64 p, t, c \\
+\texttt{GR\_MLOADSYNTH} & 8229 & i64 s, str fn $\rightarrow$ i64 0 \\
+\texttt{GR\_MPLAYSYNTH} & 8230 & i64 p, t, s \\
+\texttt{GR\_MDELSYNTH} & 8231 & i64 s \\
+\texttt{GR\_MWAITSYNTH} & 8232 & i64 p $\rightarrow$ i64 0, on completion \\
+\texttt{GR\_MWRSYNTH} & 8233 & i64 p + seq: i64 port, time, st, p1, p2, p3 \\
+\texttt{GR\_MRDSYNTH} & 8234 & i64 p $\rightarrow$ seq; blocks the caller until input arrives, as the native call does \\
+\texttt{GR\_MWAVEOUT} & 8235 & $\rightarrow$ i64 count \\
+\texttt{GR\_MWAVEIN} & 8236 & $\rightarrow$ i64 count \\
+\texttt{GR\_MOPENWAVEOUT} & 8237 & i64 p \\
+\texttt{GR\_MCLOSEWAVEOUT} & 8238 & i64 p \\
+\texttt{GR\_MLOADWAVE} & 8239 & i64 w, str fn $\rightarrow$ i64 0 \\
+\texttt{GR\_MPLAYWAVE} & 8240 & i64 p, t, w \\
+\texttt{GR\_MDELWAVE} & 8241 & i64 w \\
+\texttt{GR\_MVOLWAVE} & 8242 & i64 p, t, v \\
+\texttt{GR\_MWAITWAVE} & 8243 & i64 p $\rightarrow$ i64 0, on completion \\
+\texttt{GR\_MCHANWAVEOUT} & 8244 & i64 p, c \\
+\texttt{GR\_MRATEWAVEOUT} & 8245 & i64 p, r \\
+\texttt{GR\_MLENWAVEOUT} & 8246 & i64 p, l \\
+\texttt{GR\_MSGNWAVEOUT} & 8247 & i64 p, s \\
+\texttt{GR\_MFLTWAVEOUT} & 8248 & i64 p, f \\
+\texttt{GR\_MENDWAVEOUT} & 8249 & i64 p, e \\
+\texttt{GR\_MWRWAVE} & 8250 & i64 p, blk; the sender chunks to the channel bound \\
+\texttt{GR\_MOPENWAVEIN} & 8251 & i64 p \\
+\texttt{GR\_MCLOSEWAVEIN} & 8252 & i64 p \\
+\texttt{GR\_MCHANWAVEIN} & 8253 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MRATEWAVEIN} & 8254 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MLENWAVEIN} & 8255 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MSGNWAVEIN} & 8256 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MENDWAVEIN} & 8257 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MFLTWAVEIN} & 8258 & i64 p $\rightarrow$ i64 \\
+\texttt{GR\_MRDWAVE} & 8259 & i64 p, len $\rightarrow$ i64 n, blk; the caller chunks to the bound \\
+\texttt{GR\_MSYNTHOUTNAME} & 8260 & i64 p $\rightarrow$ str \\
+\texttt{GR\_MSYNTHINNAME} & 8261 & i64 p $\rightarrow$ str \\
+\texttt{GR\_MWAVEOUTNAME} & 8262 & i64 p $\rightarrow$ str \\
+\texttt{GR\_MWAVEINNAME} & 8263 & i64 p $\rightarrow$ str \\
+\texttt{GR\_MSETPARAMSYNTHIN} & 8264 & i64 p, str, str $\rightarrow$ i64 \\
+\texttt{GR\_MSETPARAMSYNTHOUT} & 8265 & i64 p, str, str $\rightarrow$ i64 \\
+\texttt{GR\_MSETPARAMWAVEIN} & 8266 & i64 p, str, str $\rightarrow$ i64 \\
+\texttt{GR\_MSETPARAMWAVEOUT} & 8267 & i64 p, str, str $\rightarrow$ i64 \\
+\texttt{GR\_MGETPARAMSYNTHIN} & 8268 & i64 p, str $\rightarrow$ str \\
+\texttt{GR\_MGETPARAMSYNTHOUT} & 8269 & i64 p, str $\rightarrow$ str \\
+\texttt{GR\_MGETPARAMWAVEIN} & 8270 & i64 p, str $\rightarrow$ str \\
+\texttt{GR\_MGETPARAMWAVEOUT} & 8271 & i64 p, str $\rightarrow$ str \\
