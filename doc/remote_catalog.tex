@@ -6,6 +6,7 @@
 \texttt{GR\_MERROR} & 4 & server $\rightarrow$ client on the event channel: str message. The client raises the error to the program. \\
 \texttt{GR\_MFILEREQ} & 5 & server $\rightarrow$ client on the command channel, inside the reply window of a pending call that names a file the server does not hold: str name, i64 port, the server's file port. The client opens the port as a stream connection and streams the file in, raw bytes, close delimited; the pending call then completes and replies. \\
 \texttt{GR\_MFILEPORT} & 6 & reserved: the active form of the transfer, where the server would connect to a port the client names. The passive form above is the form of this protocol version. \\
+\texttt{GR\_MSYNC} & 7 & client $\rightarrow$ server: $\rightarrow$ i64 0. The flow fence: the client bounds its outstanding bytes by syncing once per window, so a command burst cannot outrun the server's socket into datagram loss. Any query is also a fence, being a round trip. \\
 \texttt{GR\_MREPLY} & 9 & the reply to any query: the request's seq, and the payload the request's catalog entry gives. \\
 \texttt{GR\_MWRITE} & 10 & the write stream of the window: blk of characters, as they would go to the window file. Chunked by the sender to the channel maximum. No reply. \\
 \texttt{GR\_MCLOSEWIN} & 11 & the window file closes: the server closes its side. No payload. \\

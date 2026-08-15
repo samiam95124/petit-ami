@@ -41,6 +41,8 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <errno.h>
+#include <time.h>
 #include <sys/socket.h>
 
 #include <graphics.h>
@@ -70,11 +72,68 @@ static unsigned char* rbuf;       /* receive buffer, msgmax bytes */
 static long           roff;       /* receive parse offset */
 static long           rlen;       /* received length */
 static short          sseq;       /* request serial */
+/* The flow window: a command burst must not outrun the server's socket
+   into datagram loss, loopback being reliable only while the consumer
+   keeps up. The client counts outstanding bytes and fences with a sync
+   round trip once per window; any query resets the count, being a
+   fence itself. Never a wait during a stream: the fence is one round
+   trip per window, amortized to nothing. */
+/* The window counts messages, not bytes: the kernel accounts a socket
+   buffer in per-datagram truesize, hundreds of bytes for the smallest
+   message, so a stock receive buffer holds only a few hundred
+   datagrams however small their payloads. Batching packs tens of
+   messages into each datagram's truesize, which is what affords a
+   window this wide. */
+#define GRWINDOW 256
+static long           sentb;      /* messages since the last fence */
+static int            inquery;    /* a round trip is in progress */
 
 /* window bookkeeping */
 static long fdh[MAXFDS];          /* file descriptor to window handle */
 static long h2lw[MAXHND];         /* window handle to logical window id */
 static long nexth = 2;            /* next handle; 1 is the main window */
+
+/* The query cache: the stable metrics of a window, served locally after
+   the first round trip. Remotely a query is a round trip, and programs
+   ask for bounds and character metrics constantly; the API defines when
+   the answers can change, so between those points the cache answers.
+   Size metrics drop on a resize event or a size call; character metrics
+   drop on any call that touches the font or its attributes; the dots
+   per meter and the font count never change. */
+#define QCMAXX    0x001
+#define QCMAXY    0x002
+#define QCMAXXG   0x004
+#define QCMAXYG   0x008
+#define QCCHRSIZX 0x010
+#define QCCHRSIZY 0x020
+#define QCBASELIN 0x040
+#define QCDPMX    0x080
+#define QCDPMY    0x100
+#define QCFONTS   0x200
+#define QCPOINTS  0x400
+#define QCSIZES   (QCMAXX|QCMAXY|QCMAXXG|QCMAXYG)
+#define QCCHARS   (QCMAXX|QCMAXY|QCCHRSIZX|QCCHRSIZY|QCBASELIN|QCPOINTS)
+
+typedef struct qcache {
+
+    unsigned valid; /* which entries hold */
+    long     maxx, maxy, maxxg, maxyg;
+    long     chrsizx, chrsizy, baselin;
+    long     dpmx, dpmy, fonts;
+    float    points;
+
+} qcache;
+
+static qcache qc[MAXHND];
+
+/* the resize event, seen by the receiver, drops the window's sizes */
+static void qcresize(long h)
+
+{
+
+    if (h >= 1 && h < MAXHND) qc[h].valid &= ~QCSIZES;
+
+}
 
 /* event machinery. The receiver thread fills the queue; event() and
    sendevent() are the other users. The lock covers the queue only. */
@@ -161,11 +220,24 @@ values, little endian, which on the supported hosts is a plain copy.
 static gr_msghdr* shdr(void) { return ((gr_msghdr*)sbuf); }
 static gr_msghdr* rhdr(void) { return ((gr_msghdr*)rbuf); }
 
-/* begin a message */
+/* forward: the fence in send0() uses these, defined below */
+static void qsend(void);
+static void flushcmd(void);
+static long gi(void);
+static void servefile(void);
+static void dosync(void);
+
+/* begin a message. The write stream flushes first: the manual's first
+   condition for remote display is that all output applies in the order
+   issued, and a buffered partial line, a form feed being the classic
+   case, must not arrive after the calls that followed it. The flush
+   lands its own message through the write interdiction before this one
+   builds. */
 static void begin(int mid, long wid)
 
 {
 
+    if (connected) fflush(stdout);
     shdr()->mid = mid;
     shdr()->seq = 0;
     shdr()->wid = wid;
@@ -223,6 +295,70 @@ static void ps(const char* s)
 
 }
 
+/* The command batch. Messages gather in one buffer and go out as one
+   datagram, saving the per-datagram cost on the hot paths. Nothing ever
+   waits to fill a batch: every boundary, a query, event(), the fence,
+   the bye, sends at once, and the flusher thread bounds a lone trailing
+   command to a couple of milliseconds. A datagram carries one or more
+   messages, back to back; the header lengths delimit them. */
+
+#define BATLIM 1400 /* batch bound: one wire MTU's worth */
+
+static unsigned char*  batbuf;   /* the batch, NULL until the layer is up */
+static long            batmax;   /* its bound */
+static long            batlen;   /* bytes gathered */
+static pthread_mutex_t batlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  batcond = PTHREAD_COND_INITIALIZER;
+
+/* put the batch on the wire; the lock is held */
+static void batflush(void)
+
+{
+
+    if (batlen) { ami_wrmsg(cmdfn, batbuf, batlen); batlen = 0; }
+
+}
+
+/* a boundary: whatever has gathered goes now */
+static void flushcmd(void)
+
+{
+
+    if (!batbuf) return;
+    pthread_mutex_lock(&batlock);
+    batflush();
+    pthread_mutex_unlock(&batlock);
+
+}
+
+/* the flusher: a lone trailing command must not sit in the batch
+   waiting for a boundary that is not coming */
+static void* batrun(void* arg)
+
+{
+
+    struct timespec ts;
+
+    pthread_mutex_lock(&batlock);
+    for (;;) {
+
+        int rc = 0;
+
+        while (!batlen) pthread_cond_wait(&batcond, &batlock);
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += 1500000; /* the bound */
+        if (ts.tv_nsec >= 1000000000)
+            { ts.tv_sec++; ts.tv_nsec -= 1000000000; }
+        while (batlen && rc != ETIMEDOUT)
+            rc = pthread_cond_timedwait(&batcond, &batlock, &ts);
+        batflush();
+
+    }
+
+    return (NULL);
+
+}
+
 /* send the assembled message, no reply expected */
 static void send0(void)
 
@@ -232,7 +368,24 @@ static void send0(void)
     if (gtrace)
         fprintf(stderr, "gc> %-16s w%-3ld s%-5d len%ld\n",
                 gr_msgname(shdr()->mid), shdr()->wid, shdr()->seq, soff);
-    ami_wrmsg(cmdfn, sbuf, soff);
+    if (!batbuf) ami_wrmsg(cmdfn, sbuf, soff); /* the layer is not up */
+    else {
+
+        pthread_mutex_lock(&batlock);
+        if (batlen+soff > batmax) batflush();
+        if (soff >= batmax) ami_wrmsg(cmdfn, sbuf, soff); /* oversize */
+        else {
+
+            if (!batlen) pthread_cond_signal(&batcond);
+            memcpy(batbuf+batlen, sbuf, soff);
+            batlen += soff;
+
+        }
+        pthread_mutex_unlock(&batlock);
+
+    }
+    sentb++;
+    if (!inquery && sentb >= GRWINDOW) dosync();
 
 }
 
@@ -329,6 +482,17 @@ static void servefile(void)
     fn[n] = 0;
     roff += n;
     port = gi();
+    /* the picture extension rule of the display library: .bmp is set or
+       overwritten before the file opens */
+    {
+
+        char* dot = strrchr(fn, '.');
+        char* sl = strrchr(fn, '/');
+
+        if (dot && (!sl || dot > sl)) *dot = 0;
+        if (strlen(fn) < sizeof(fn)-5) strcat(fn, ".bmp");
+
+    }
     /* let the server reach its accept before we knock */
     usleep(50000);
     nf = ami_opennet(srvaddr, port, 0);
@@ -361,9 +525,11 @@ static void qsend(void)
 
 {
 
+    inquery = 1;
     sseq++;
     shdr()->seq = sseq;
     send0();
+    flushcmd(); /* the request must be on the wire before the wait */
     for (;;) {
 
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
@@ -373,11 +539,61 @@ static void qsend(void)
                     gr_msgname(rhdr()->mid), rhdr()->wid, rhdr()->seq, rlen);
         if (rhdr()->mid == GR_MFILEREQ) { servefile(); continue; }
         if (rhdr()->mid != GR_MREPLY) error("Protocol failure: not a reply");
-        if (rhdr()->seq != sseq) error("Protocol failure: reply serial");
+        if (rhdr()->seq != sseq) {
+
+            /* a stale reply, a resent fence's duplicate being the
+               normal source, discards; a reply from the future is a
+               real failure */
+            if ((short)(sseq-rhdr()->seq) > 0) continue;
+            error("Protocol failure: reply serial");
+
+        }
         roff = sizeof(gr_msghdr);
+        inquery = 0;
+        sentb = 0; /* a round trip is a fence */
         return;
 
     }
+
+}
+
+/* The flow fence. Unlike a query it retries: under pressure the fence
+   datagram itself can be the one the kernel drops, and the sync is
+   idempotent, so a bounded wait and a resend recover it. Once the
+   window holds, the queues stay shallow and ordinary queries ride
+   safely. */
+static void dosync(void)
+
+{
+
+    struct timeval tv = { 0, 200000 };
+    struct timeval tv0 = { 0, 0 };
+    ssize_t        r;
+
+    flushcmd(); /* the fence orders after everything batched */
+    inquery = 1;
+    setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    for (;;) {
+
+        sseq++;
+        shdr()->mid = GR_MSYNC;
+        shdr()->seq = sseq;
+        shdr()->wid = 0;
+        soff = sizeof(gr_msghdr);
+        shdr()->len = (int)soff;
+        if (gtrace)
+            fprintf(stderr, "gc> %-16s w0   s%-5d len%ld\n",
+                    gr_msgname(GR_MSYNC), sseq, soff);
+        ami_wrmsg(cmdfn, sbuf, soff);
+        r = recv((int)cmdfn, rbuf, msgmax, 0);
+        if (r < (long)sizeof(gr_msghdr)) continue; /* lost: fence again */
+        if (rhdr()->mid == GR_MFILEREQ) { rlen = r; servefile(); continue; }
+        if (rhdr()->mid == GR_MREPLY) break; /* any sync's reply serves */
+
+    }
+    setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv0, sizeof(tv0));
+    inquery = 0;
+    sentb = 0;
 
 }
 
@@ -514,7 +730,29 @@ static void wire2evt(gr_msgevt* we, ami_evtrec* er)
 
 }
 
-/* append to the queue, growing the ring as needed; the lock is held */
+/* true if b supersedes a in the queue: the same movement stream from
+   the same device, or a resize of the same window, of which only the
+   latest matters */
+static int evqsuper(ami_evtrec* a, ami_evtrec* b)
+
+{
+
+    if (a->etype != b->etype) return (0);
+    switch (a->etype) {
+
+        case ami_etmoumov:  return (a->mmoun == b->mmoun);
+        case ami_etmoumovg: return (a->mmoung == b->mmoung);
+        case ami_etjoymov:  return (a->mjoyn == b->mjoyn);
+        case ami_etresize:  return (a->winid == b->winid);
+        default: return (0);
+
+    }
+
+}
+
+/* append to the queue, growing the ring as needed; the lock is held.
+   A movement or resize replaces an unconsumed one it supersedes at the
+   tail of the queue instead of stacking behind it. */
 static void evqput(ami_evtrec* er)
 
 {
@@ -522,6 +760,13 @@ static void evqput(ami_evtrec* er)
     ami_evtrec* nq;
     long        i;
 
+    if (evqcnt) {
+
+        ami_evtrec* tail = &evq[(evqhead+evqcnt-1)%evqsiz];
+
+        if (evqsuper(tail, er)) { *tail = *er; return; }
+
+    }
     if (evqcnt == evqsiz) {
 
         nq = malloc(evqsiz*2*sizeof(ami_evtrec));
@@ -572,6 +817,7 @@ static void* evrun(void* arg)
         }
         if (h->mid != GR_MEVENT) error("Protocol failure: not an event");
         we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
+        if ((long)we->etype == (long)ami_etresize) qcresize(we->winid);
         wire2evt(we, &er);
         if (gtrace)
             fprintf(stderr, "gc<e %-15s w%ld\n",
@@ -643,6 +889,12 @@ void ami_event(FILE* f, ami_evtrec* er)
 {
 
     (void)f; /* events are not per file */
+    /* the rule of the manual: all outstanding output completes before
+       input is taken. The window files are unbuffered; the standard
+       output holds partial lines, positioned text being the classic
+       case, and flushes here. */
+    fflush(stdout);
+    flushcmd(); /* output completes before input, all the way out */
     for (;;) {
 
         pthread_mutex_lock(&evlock);
@@ -792,6 +1044,7 @@ static int iclose(int fd)
 
         begin(GR_MCLOSEWIN, fdh[fd]);
         send0();
+        qc[fdh[fd]].valid = 0;
         fdh[fd] = 0;
 
     }
@@ -812,9 +1065,17 @@ reply.
 void ami_cursor(FILE* f, long x, long y)
     { begin(GR_MCURSOR, wh(f)); pi(x); pi(y); send0(); }
 long ami_maxx(FILE* f)
-    { begin(GR_MMAXX, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCMAXX)) {
+          begin(GR_MMAXX, h); qsend();
+          qc[h].maxx = gi(); qc[h].valid |= QCMAXX; }
+      return (qc[h].maxx); }
 long ami_maxy(FILE* f)
-    { begin(GR_MMAXY, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCMAXY)) {
+          begin(GR_MMAXY, h); qsend();
+          qc[h].maxy = gi(); qc[h].valid |= QCMAXY; }
+      return (qc[h].maxy); }
 void ami_home(FILE* f)
     { begin(GR_MHOME, wh(f)); send0(); }
 void ami_del(FILE* f)
@@ -894,7 +1155,8 @@ void ami_wrtstr(FILE* f, char* s)
 void ami_wrtstrn(FILE* f, char* s, long n)
     { begin(GR_MWRTSTRN, wh(f)); psn(s, n); send0(); }
 void ami_sizbuf(FILE* f, long x, long y)
-    { begin(GR_MSIZBUF, wh(f)); pi(x); pi(y); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+      begin(GR_MSIZBUF, h); pi(x); pi(y); send0(); }
 void ami_title(FILE* f, char* ts)
     { begin(GR_MTITLE, wh(f)); ps(ts); send0(); }
 void ami_fcolorc(FILE* f, long r, long g, long b)
@@ -909,9 +1171,17 @@ The API: graphical level
 *******************************************************************************/
 
 long ami_maxxg(FILE* f)
-    { begin(GR_MMAXXG, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCMAXXG)) {
+          begin(GR_MMAXXG, h); qsend();
+          qc[h].maxxg = gi(); qc[h].valid |= QCMAXXG; }
+      return (qc[h].maxxg); }
 long ami_maxyg(FILE* f)
-    { begin(GR_MMAXYG, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCMAXYG)) {
+          begin(GR_MMAXYG, h); qsend();
+          qc[h].maxyg = gi(); qc[h].valid |= QCMAXYG; }
+      return (qc[h].maxyg); }
 long ami_curxg(FILE* f)
     { begin(GR_MCURXG, wh(f)); qsend(); return (gi()); }
 long ami_curyg(FILE* f)
@@ -952,7 +1222,11 @@ void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3,
 void ami_cursorg(FILE* f, long x, long y)
     { begin(GR_MCURSORG, wh(f)); pi(x); pi(y); send0(); }
 long ami_baseline(FILE* f)
-    { begin(GR_MBASELINE, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCBASELIN)) {
+          begin(GR_MBASELINE, h); qsend();
+          qc[h].baselin = gi(); qc[h].valid |= QCBASELIN; }
+      return (qc[h].baselin); }
 void ami_setpixel(FILE* f, long x, long y)
     { begin(GR_MSETPIXEL, wh(f)); pi(x); pi(y); send0(); }
 void ami_fover(FILE* f)
@@ -976,29 +1250,58 @@ void ami_for(FILE* f)
 void ami_bor(FILE* f)
     { begin(GR_MBOR, wh(f)); send0(); }
 long ami_chrsizx(FILE* f)
-    { begin(GR_MCHRSIZX, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCCHRSIZX)) {
+          begin(GR_MCHRSIZX, h); qsend();
+          qc[h].chrsizx = gi(); qc[h].valid |= QCCHRSIZX; }
+      return (qc[h].chrsizx); }
 long ami_chrsizy(FILE* f)
-    { begin(GR_MCHRSIZY, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCCHRSIZY)) {
+          begin(GR_MCHRSIZY, h); qsend();
+          qc[h].chrsizy = gi(); qc[h].valid |= QCCHRSIZY; }
+      return (qc[h].chrsizy); }
 long ami_fonts(FILE* f)
-    { begin(GR_MFONTS, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCFONTS)) {
+          begin(GR_MFONTS, h); qsend();
+          qc[h].fonts = gi(); qc[h].valid |= QCFONTS; }
+      return (qc[h].fonts); }
 void ami_font(FILE* f, long fc)
-    { begin(GR_MFONT, wh(f)); pi(fc); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MFONT, h); pi(fc); send0(); }
 void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
     { begin(GR_MFONTNAM, wh(f)); pi(fc); qsend(); gs(fns, fnsl); }
 void ami_fontsiz(FILE* f, long s)
-    { begin(GR_MFONTSIZ, wh(f)); pi(s); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MFONTSIZ, h); pi(s); send0(); }
 void ami_setpoints(FILE* f, float ps)
-    { begin(GR_MSETPOINTS, wh(f)); pf(ps); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MSETPOINTS, h); pf(ps); send0(); }
 float ami_points(FILE* f)
-    { begin(GR_MPOINTS, wh(f)); qsend(); return ((float)gf()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCPOINTS)) {
+          begin(GR_MPOINTS, h); qsend();
+          qc[h].points = (float)gf(); qc[h].valid |= QCPOINTS; }
+      return (qc[h].points); }
 void ami_chrspcy(FILE* f, long s)
-    { begin(GR_MCHRSPCY, wh(f)); pi(s); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MCHRSPCY, h); pi(s); send0(); }
 void ami_chrspcx(FILE* f, long s)
-    { begin(GR_MCHRSPCX, wh(f)); pi(s); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MCHRSPCX, h); pi(s); send0(); }
 long ami_dpmx(FILE* f)
-    { begin(GR_MDPMX, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCDPMX)) {
+          begin(GR_MDPMX, h); qsend();
+          qc[h].dpmx = gi(); qc[h].valid |= QCDPMX; }
+      return (qc[h].dpmx); }
 long ami_dpmy(FILE* f)
-    { begin(GR_MDPMY, wh(f)); qsend(); return (gi()); }
+    { long h = wh(f);
+      if (!(qc[h].valid&QCDPMY)) {
+          begin(GR_MDPMY, h); qsend();
+          qc[h].dpmy = gi(); qc[h].valid |= QCDPMY; }
+      return (qc[h].dpmy); }
 long ami_strsiz(FILE* f, const char* s)
     { begin(GR_MSTRSIZ, wh(f)); ps(s); qsend(); return (gi()); }
 long ami_chrpos(FILE* f, const char* s, long p)
@@ -1008,9 +1311,11 @@ void ami_writejust(FILE* f, const char* s, long n)
 long ami_justpos(FILE* f, const char* s, long p, long n)
     { begin(GR_MJUSTPOS, wh(f)); ps(s); pi(p); pi(n); qsend(); return (gi()); }
 void ami_condensed(FILE* f, long e)
-    { begin(GR_MCONDENSED, wh(f)); pi(e); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MCONDENSED, h); pi(e); send0(); }
 void ami_extended(FILE* f, long e)
-    { begin(GR_MEXTENDED, wh(f)); pi(e); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+      begin(GR_MEXTENDED, h); pi(e); send0(); }
 void ami_xlight(FILE* f, long e)
     { begin(GR_MXLIGHT, wh(f)); pi(e); send0(); }
 void ami_light(FILE* f, long e)
@@ -1075,6 +1380,7 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
     if (fd < 0 || fd >= MAXFDS) error("Cannot open window file");
     fdh[fd] = h;
     h2lw[h] = wid;
+    qc[h].valid = 0;
     *outfile = fdopen(fd, "w");
     if (!*outfile) error("Cannot open window file");
     setvbuf(*outfile, NULL, _IONBF, 0);
@@ -1088,17 +1394,21 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 }
 
 void ami_buffer(FILE* f, long e)
-    { begin(GR_MBUFFER, wh(f)); pi(e); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+      begin(GR_MBUFFER, h); pi(e); send0(); }
 void ami_sizbufg(FILE* f, long x, long y)
-    { begin(GR_MSIZBUFG, wh(f)); pi(x); pi(y); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+      begin(GR_MSIZBUFG, h); pi(x); pi(y); send0(); }
 void ami_getsiz(FILE* f, long* x, long* y)
     { begin(GR_MGETSIZ, wh(f)); qsend(); *x = gi(); *y = gi(); }
 void ami_getsizg(FILE* f, long* x, long* y)
     { begin(GR_MGETSIZG, wh(f)); qsend(); *x = gi(); *y = gi(); }
 void ami_setsiz(FILE* f, long x, long y)
-    { begin(GR_MSETSIZ, wh(f)); pi(x); pi(y); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+      begin(GR_MSETSIZ, h); pi(x); pi(y); send0(); }
 void ami_setsizg(FILE* f, long x, long y)
-    { begin(GR_MSETSIZG, wh(f)); pi(x); pi(y); send0(); }
+    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+      begin(GR_MSETSIZG, h); pi(x); pi(y); send0(); }
 void ami_setpos(FILE* f, long x, long y)
     { begin(GR_MSETPOS, wh(f)); pi(x); pi(y); send0(); }
 void ami_setposg(FILE* f, long x, long y)
@@ -1517,11 +1827,28 @@ static void ami_init_graph_client(void)
         sigaddset(&set, SIGINT);
         sigaddset(&set, SIGTERM);
         pthread_sigmask(SIG_BLOCK, &set, NULL);
+        /* a background launch inherits ignore, which discards even
+           blocked signals; the default disposition keeps them pending
+           for the sigwait thread */
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
         pthread_create(&st, NULL, sigrun, NULL);
 
     }
     if (pthread_create(&evthrd, NULL, evrun, NULL))
         error("Cannot start event receiver");
+    /* the command batch comes up last: until then send0 is direct */
+    batmax = msgmax < BATLIM? msgmax: BATLIM;
+    batbuf = malloc(batmax);
+    if (!batbuf) error("Out of memory");
+    {
+
+        pthread_t bt;
+
+        if (pthread_create(&bt, NULL, batrun, NULL))
+            error("Cannot start batch flusher");
+
+    }
 
 }
 
@@ -1538,6 +1865,7 @@ static void ami_deinit_graph_client(void)
 
         begin(GR_MBYE, 0);
         send0();
+        flushcmd(); /* the bye is a boundary */
         connected = 0;
         /* stop the receiver before its channel goes away. The session may
            be dying half made, an error before the event side came up, so

@@ -92,9 +92,14 @@ request and waits for the reply before anything else is issued.
 
 The protocol rides the message channels of the network library:
 \texttt{openmsg()} on the client side, \texttt{waitmsg()} on the server
-side, \texttt{rdmsg()} and \texttt{wrmsg()} to move discrete messages. One
-protocol message is one channel message; nothing is split across datagrams,
-and nothing shares one.
+side, \texttt{rdmsg()} and \texttt{wrmsg()} to move discrete messages. A
+channel message carries one or more protocol messages, back to back, their
+header lengths delimiting them; the receiver executes them in order, and no
+protocol message is split across channel messages. Batching is the sender's
+option, and it saves the per-datagram cost on the hot paths; but nothing
+ever waits to fill a batch. Every boundary, a query, an event wait, the
+sync, the bye, sends what has gathered at once, and a lone trailing command
+is bounded by a flusher of a couple of milliseconds.
 
 Message channels bound the size of a message, found from \texttt{maxmsg()}
 for the address. The write stream chunks itself to fit; every other message
@@ -231,10 +236,15 @@ returns the event to the program, replacing the wire handle with the
 window identification the API promises. The program regulates its own
 consumption from the queue.
 
-The queue is also where the anticipated optimization lives: redundant
-events, a run of mouse movements of which only the last matters, can
-collapse in the queue, and a superseding message can override queued ones,
-all without any change to the protocol on the wire.
+Redundant events are thinned at both ends, on the principle that of a
+movement stream only the latest matters. The server sends at most one
+movement per short interval per device, mouse, graphical mouse, joystick,
+and likewise one resize per window; between sends the latest holds as
+pending, and a pending movement flushes before any other event goes out,
+so a click always follows the position it happened at. On the client, a
+movement or resize arriving at the queue replaces an unconsumed one it
+supersedes at the tail instead of stacking behind it. Neither side changes
+the protocol on the wire.
 
 Three operations act on the client's own event stream and put nothing on
 the wire: \texttt{eventover()} and \texttt{eventsover()}, which hook event

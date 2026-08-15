@@ -1526,6 +1526,27 @@ graphics_testr: tests/graphics_test.c portable/graph_client.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/graphics_testr
 
 #
+# The management test run remotely: linked with graph_client, the display
+# side served by graph_server.
+#
+management_testr: tests/management_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/management_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/management_testr
+
+#
+# The widget test run remotely: linked with graph_client, the display
+# side served by graph_server.
+#
+widget_testr: tests/widget_test.c portable/graph_client.o
+	$(CC) $(CFLAGS) tests/widget_test.c portable/graph_client.o \
+	    $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/widget_testr
+
+#
 # The remote display server: the display side of remote mode, standalone.
 #
 graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h

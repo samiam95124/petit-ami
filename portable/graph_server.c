@@ -55,7 +55,10 @@ static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
 /* message assembly */
 static unsigned char* sbuf; /* reply buffer */
 static long           soff;
-static unsigned char* rbuf; /* receive buffer */
+static unsigned char* rbuf; /* receive buffer: points at the message
+                               being executed, which may sit inside a
+                               batched datagram */
+static unsigned char* rbase; /* the buffer datagrams land in */
 static long           roff;
 static long           rlen;
 
@@ -69,6 +72,17 @@ static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
    pump winds down at session end by a wake event injected from the main
    thread. */
 static int byeseen;   /* the client said bye; wind down */
+static int  hellopend;   /* a mid-session hello opened the next session */
+
+/* The pump lives across sessions: it forwards events while a client is
+   up, discards them while the server is idle, and treats a terminate
+   from the display, the close button or a control-c typed in the
+   window, on an idle server as cancellation. It stops only for the
+   process exit, which must not tear the library down around it. */
+static pthread_t pump;     /* the pump thread */
+static int       pumpstop; /* exiting: leave the library and return */
+static int       clientup; /* a client is connected */
+static int       sigasked; /* a terminate asked this session to end */
 
 /* the wake: a user event code, injected to return the pump from event()
    and never forwarded */
@@ -77,6 +91,11 @@ static int byeseen;   /* the client said bye; wind down */
 /* window handle map */
 static FILE* h2f[MAXHND];  /* handle to window file */
 static long  h2lw[MAXHND]; /* handle to logical window id */
+
+/* the main window as the server presented it, restored between
+   sessions: a session's title and size are the session's */
+static char srvname[64];
+static long origw, origh;
 
 /*******************************************************************************
 
@@ -92,6 +111,30 @@ static void error(const char* es)
     write(2, es, strlen(es));
     write(2, "\n", 1);
     exit(1);
+
+}
+
+/* A session error: the client's fault or the wire's, not the server's.
+   The error prints, the session drops, and the server recycles to wait
+   for a new connection; only faults of the server itself exit. The
+   jump lands in the session loop, which winds down whatever the
+   session had running. */
+
+#include <setjmp.h>
+
+static jmp_buf sesjmp;    /* recycle point */
+static int     pumping;   /* the pump thread is up */
+static int     cleaning;  /* winding down; a second fault is fatal */
+
+static void sesserr(const char* es)
+
+{
+
+    write(2, "*** graph_server: ", 18);
+    write(2, es, strlen(es));
+    write(2, " -- session dropped, awaiting new connection\n", 45);
+    if (cleaning) exit(1); /* faulted while winding down */
+    longjmp(sesjmp, 1);
 
 }
 
@@ -111,7 +154,7 @@ static long gi(void)
 
     long v;
 
-    if (roff+8 > rlen) error("Message truncated");
+    if (roff+8 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 8);
     roff += 8;
 
@@ -125,7 +168,7 @@ static double gf(void)
 
     double v;
 
-    if (roff+8 > rlen) error("Message truncated");
+    if (roff+8 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 8);
     roff += 8;
 
@@ -139,7 +182,7 @@ static int g4(void)
 
     int v;
 
-    if (roff+4 > rlen) error("Message truncated");
+    if (roff+4 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 4);
     roff += 4;
 
@@ -155,7 +198,7 @@ static void gstr(char* dst, long dl)
     long n = g4();
     long c = n;
 
-    if (roff+n > rlen) error("Message truncated");
+    if (roff+n > rlen) sesserr("Message truncated");
     if (c > dl-1) c = dl-1;
     memcpy(dst, rbuf+roff, c);
     dst[c] = 0;
@@ -171,7 +214,7 @@ static char* gsdup(void)
     long  n = g4();
     char* s;
 
-    if (roff+n > rlen) error("Message truncated");
+    if (roff+n > rlen) sesserr("Message truncated");
     s = malloc(n+1);
     if (!s) error("Out of memory");
     memcpy(s, rbuf+roff, n);
@@ -258,7 +301,7 @@ static void ri(long v)
 
 {
 
-    if (soff+8 > msgmax) error("Reply too large for channel");
+    if (soff+8 > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, &v, 8);
     soff += 8;
 
@@ -268,7 +311,7 @@ static void rf(double v)
 
 {
 
-    if (soff+8 > msgmax) error("Reply too large for channel");
+    if (soff+8 > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, &v, 8);
     soff += 8;
 
@@ -278,7 +321,7 @@ static void r4(int v)
 
 {
 
-    if (soff+4 > msgmax) error("Reply too large for channel");
+    if (soff+4 > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, &v, 4);
     soff += 4;
 
@@ -291,7 +334,7 @@ static void rstrn(const char* s, long n)
 {
 
     r4((int)n);
-    if (soff+n > msgmax) error("Reply too large for channel");
+    if (soff+n > msgmax) sesserr("Reply too large for channel");
     memcpy(sbuf+soff, s, n);
     soff += n;
 
@@ -347,7 +390,7 @@ static FILE* wf(long h)
 
 {
 
-    if (h < 1 || h >= MAXHND || !h2f[h]) error("Invalid window handle");
+    if (h < 1 || h >= MAXHND || !h2f[h]) sesserr("Invalid window handle");
 
     return (h2f[h]);
 
@@ -389,6 +432,25 @@ static const char* basenm(const char* fn)
 
 }
 
+/* The picture extension rule of the display library: .bmp is set or
+   overwritten. The names cross the wire as given, and both ends apply
+   the rule where they touch a file. */
+static void setbmp(char* dst, long dl, const char* fn)
+
+{
+
+    const char* dot = strrchr(fn, '.');
+    const char* sl = strrchr(fn, '/');
+    long        n;
+
+    if (dot && (!sl || dot > sl)) n = dot-fn; /* strip the extension */
+    else n = strlen(fn);
+    if (n > dl-5) n = dl-5;
+    memcpy(dst, fn, n);
+    strcpy(dst+n, ".bmp");
+
+}
+
 /* find or fetch a named file; returns the name to use */
 static const char* fndfile(const char* fn, char* cb, long cbl)
 
@@ -400,10 +462,14 @@ static const char* fndfile(const char* fn, char* cb, long cbl)
     char  buf[4096];
     size_t r;
 
-    /* the name as given, then the base name in the cache */
-    tf = fopen(fn, "rb");
-    if (tf) { fclose(tf); return (fn); }
-    snprintf(cb, cbl, "%s", basenm(fn));
+    char en[MAXSTR]; /* the name under the extension rule */
+
+    /* the name as given, then the base name in the cache, both under
+       the extension rule of the library */
+    setbmp(en, MAXSTR, fn);
+    tf = fopen(en, "rb");
+    if (tf) { fclose(tf); snprintf(cb, cbl, "%s", en); return (cb); }
+    setbmp(cb, cbl, basenm(fn));
     tf = fopen(cb, "rb");
     if (tf) { fclose(tf); return (cb); }
     /* request it: the client connects to our file port and streams it */
@@ -416,11 +482,11 @@ static const char* fndfile(const char* fn, char* cb, long cbl)
     shdr()->len = (int)soff;
     ami_wrmsg(cmdfn, sbuf, soff);
     nf = ami_waitnet(srvport+2, 0);
-    if (!nf) error("Cannot open file transfer connection");
+    if (!nf) sesserr("Cannot open file transfer connection");
     lf = fopen(cb, "wb");
-    if (!lf) error("Cannot write file cache");
+    if (!lf) sesserr("Cannot write file cache");
     while ((r = fread(buf, 1, sizeof(buf), nf)) > 0)
-        if (fwrite(buf, 1, r, lf) != r) error("Cannot write file cache");
+        if (fwrite(buf, 1, r, lf) != r) sesserr("Cannot write file cache");
     fclose(lf);
     fclose(nf);
 
@@ -441,6 +507,123 @@ allow.
 
 #define EVUNION (7*8)
 
+/* Event thinning: the movement streams, mouse, graphical mouse and
+   joystick, and window resizes, arrive faster than they matter, a
+   joystick idling at full rate being the standing example. Each stream
+   sends at most one event per interval per device; between sends the
+   latest holds as pending. Ordering stays truthful where it counts: a
+   pending movement flushes before any other event goes out, so a click
+   always follows the position it happened at, and only the trailing
+   rest position can lag, until the next event of any kind carries it. */
+
+#define THINMS   10  /* the interval, milliseconds */
+#define THINDEV  8   /* devices per stream */
+#define THINRSZ  16  /* resize slots */
+
+typedef struct thinslot {
+
+    int        dirty;   /* a pending event holds */
+    double     last;    /* when one last sent */
+    gr_msgevt  ev;      /* the pending event */
+
+} thinslot;
+
+static thinslot thmou[THINDEV];  /* mouse moves, by mouse */
+static thinslot thmoug[THINDEV]; /* graphical mouse moves */
+static thinslot thjoy[THINDEV];  /* joystick moves, by stick */
+static thinslot thrsz[THINRSZ];  /* resizes, by window handle */
+
+static double thnow(void)
+
+{
+
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (ts.tv_sec+ts.tv_nsec/1e9);
+
+}
+
+/* drop pending thinned events; a new session never sees stale ones */
+static void thinclear(void)
+
+{
+
+    int i;
+
+    for (i = 0; i < THINDEV; i++)
+        thmou[i].dirty = thmoug[i].dirty = thjoy[i].dirty = 0;
+    for (i = 0; i < THINRSZ; i++) thrsz[i].dirty = 0;
+
+}
+
+/* the thin slot for a wire event, or NULL if the type never thins */
+static thinslot* thinfor(gr_msgevt* we)
+
+{
+
+    long d;
+
+    switch (we->etype) {
+
+        case ami_etmoumov:  d = we->p[0]; 
+            return (d >= 1 && d <= THINDEV)? &thmou[d-1]: NULL;
+        case ami_etmoumovg: d = we->p[0];
+            return (d >= 1 && d <= THINDEV)? &thmoug[d-1]: NULL;
+        case ami_etjoymov:  d = we->p[0];
+            return (d >= 1 && d <= THINDEV)? &thjoy[d-1]: NULL;
+        case ami_etresize:  d = we->winid;
+            return (d >= 1 && d <= THINRSZ)? &thrsz[d-1]: NULL;
+        default: return (NULL);
+
+    }
+
+}
+
+static void evsend1(gr_msgevt* we);
+
+/* flush every pending movement, before any other event overtakes it */
+static void thinflush(void)
+
+{
+
+    int i;
+
+    for (i = 0; i < THINDEV; i++) {
+
+        if (thmou[i].dirty)  { thmou[i].dirty = 0;  evsend1(&thmou[i].ev); }
+        if (thmoug[i].dirty) { thmoug[i].dirty = 0; evsend1(&thmoug[i].ev); }
+        if (thjoy[i].dirty)  { thjoy[i].dirty = 0;  evsend1(&thjoy[i].ev); }
+
+    }
+    for (i = 0; i < THINRSZ; i++)
+        if (thrsz[i].dirty) { thrsz[i].dirty = 0; evsend1(&thrsz[i].ev); }
+
+}
+
+/* put one event on the wire */
+static void evsend1(gr_msgevt* we)
+
+{
+
+    unsigned char ebuf[sizeof(gr_msghdr)+sizeof(gr_msgevt)];
+    gr_msghdr*    h = (gr_msghdr*)ebuf;
+
+    if (gtrace)
+        fprintf(stderr, "gs>e %-15s w%ld\n",
+                gr_evtname((long)we->etype), we->winid);
+    h->len = sizeof(ebuf);
+    h->mid = GR_MEVENT;
+    h->seq = 0;
+    h->wid = 0;
+    memcpy(ebuf+sizeof(gr_msghdr), we, sizeof(gr_msgevt));
+    pthread_mutex_lock(&evsend);
+    ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
+    pthread_mutex_unlock(&evsend);
+
+}
+
 static void* evpump(void* arg)
 
 {
@@ -454,27 +637,84 @@ static void* evpump(void* arg)
     for (;;) {
 
         ami_event(stdin, &er);
-        if (byeseen) return (NULL); /* the session is over */
+        if (pumpstop) return (NULL); /* the process is exiting */
         if ((long)er.etype == GR_EVWAKE) continue; /* ours, not the wire's */
-        if (gtrace)
-            fprintf(stderr, "gs>e %-15s w%ld\n",
+        if (gtrace && !clientup)
+            fprintf(stderr, "gs.e %-15s w%ld (idle)\n",
                     gr_evtname((long)er.etype), er.winid);
-        h->len = sizeof(ebuf);
-        h->mid = GR_MEVENT;
-        h->seq = 0;
-        h->wid = 0;
+        if (er.etype == ami_etterm) {
+
+            /* A terminate from the display, control-c or the close
+               button, shuts the whole server down, as the console
+               interrupt does: one stroke. With a client up it winds
+               down politely, the terminate forwarding so the program
+               exits and its bye takes the server; idle, or asked twice,
+               the signal path exits directly. */
+            if (!clientup || sigasked) { kill(getpid(), SIGINT); continue; }
+            sigasked = 1; /* the bye that follows ends the server */
+
+        }
+        if (!clientup) continue; /* idle: nobody to forward to */
+        (void)h;
         memset(we, 0, sizeof(gr_msgevt));
         we->winid = lw2h(er.winid);
         we->etype = (long)er.etype;
         we->handled = 0;
         memcpy(we->p, &er.echar, EVUNION);
-        pthread_mutex_lock(&evsend);
-        ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
-        pthread_mutex_unlock(&evsend);
+        {
+
+            thinslot* ts = thinfor(we);
+
+            if (ts) {
+
+                double now = thnow();
+
+                if (now-ts->last >= THINMS/1000.0) {
+
+                    /* due: this one goes, and carries any pendings;
+                       its own pending it supersedes outright */
+                    ts->dirty = 0;
+                    thinflush();
+                    ts->last = now;
+                    evsend1(we);
+
+                } else {
+
+                    /* within the interval: hold as the latest */
+                    ts->ev = *we;
+                    ts->dirty = 1;
+
+                }
+
+            } else {
+
+                /* every other event flushes the pendings ahead of it */
+                thinflush();
+                evsend1(we);
+
+            }
+
+        }
 
     }
 
     return (NULL);
+
+}
+
+/* stop the pump for a process exit: wake it out of the library and
+   collect it, so the teardown finds the library empty */
+static void stoppump(void)
+
+{
+
+    ami_evtrec wake;
+
+    pumpstop = 1;
+    memset(&wake, 0, sizeof(wake));
+    wake.etype = (ami_evtcod)GR_EVWAKE;
+    ami_sendevent(stdout, &wake);
+    pthread_join(pump, NULL);
 
 }
 
@@ -489,8 +729,6 @@ second interrupt is force.
 
 *******************************************************************************/
 
-static int clientup; /* a client is connected */
-static int sigasked;  /* the interrupt asked once this session */
 
 /* The mask must be in place before any thread exists: a process directed
    signal lands on any thread that leaves it unblocked, and a thread
@@ -509,6 +747,11 @@ static void sigmask_early(void)
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGTERM);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
+    /* A background launch inherits ignore for these, and an ignored
+       signal is discarded even while blocked, starving sigwait(). The
+       default disposition keeps a blocked signal pending. */
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
 
 }
 
@@ -529,7 +772,7 @@ static void* sigrun(void* arg)
     for (;;) {
 
         if (sigwait(&set, &sig)) return (NULL);
-        if (!clientup || sigasked) exit(1);
+        if (!clientup || sigasked) { stoppump(); exit(1); }
         sigasked = 1;
         if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
         h->len = sizeof(ebuf);
@@ -580,7 +823,22 @@ static void dispatch(void)
         case GR_MHELLO:
             a = gi();
             rbegin(); ri(GR_VERSION); rsend();
-            if (a != GR_VERSION) error("Client protocol version mismatch");
+            if (a != GR_VERSION) sesserr("Client protocol version mismatch");
+            if (clientup) {
+
+                /* A hello mid-session: the old client went without its
+                   bye, a kill or a dead network, and a new one is
+                   knocking. The old session winds down and this hello,
+                   already answered, opens the new one. */
+                hellopend = 1;
+                byeseen = 1;
+
+            }
+            break;
+        case GR_MSYNC:
+            /* the flow fence: the reply is the client's permission to
+               send another window */
+            rbegin(); ri(0); rsend();
             break;
         case GR_MBYE:
             /* wind down: the main loop stops the pump first, so nothing
@@ -592,7 +850,7 @@ static void dispatch(void)
 
         case GR_MWRITE:
             a = g4();
-            if (roff+a > rlen) error("Message truncated");
+            if (roff+a > rlen) sesserr("Message truncated");
             fwrite(rbuf+roff, 1, a, f);
             fflush(f);
             break;
@@ -646,11 +904,16 @@ static void dispatch(void)
         case GR_MCLRTAB: ami_clrtab(f); break;
         case GR_MFUNKEY: rbegin(); ri(ami_funkey(f)); rsend(); break;
         case GR_MFRAMETIMER: a = gi(); ami_frametimer(f, a); break;
-        case GR_MAUTOHOLD: a = gi(); ami_autohold(a); break;
+        case GR_MAUTOHOLD:
+            /* accepted and swallowed: the hold acts at process exit,
+               which a session never is, and the server's own exit must
+               never hold */
+            a = gi();
+            break;
         case GR_MWRTSTR: gstr(s1, MAXSTR); ami_wrtstr(f, s1); break;
         case GR_MWRTSTRN:
             a = g4();
-            if (roff+a > rlen) error("Message truncated");
+            if (roff+a > rlen) sesserr("Message truncated");
             if (a > MAXSTR) a = MAXSTR;
             memcpy(s1, rbuf+roff, a);
             ami_wrtstrn(f, s1, a);
@@ -797,7 +1060,7 @@ static void dispatch(void)
 
             par = gi(); h = gi(); a = gi();
             if (h < 1 || h >= MAXHND || h2f[h])
-                error("Invalid window handle");
+                sesserr("Invalid window handle");
             ami_openwin(&inf, &outf, par? wf(par): NULL, a);
             h2f[h] = outf;
             h2lw[h] = a;
@@ -1176,9 +1439,46 @@ static void dispatch(void)
 
         }
 
-        default: error("Unknown message");
+        default: sesserr("Unknown message");
 
     }
+
+}
+
+/* Execute every message in the datagram at rbase, dlen bytes; a
+   datagram carries one or more messages back to back, the header
+   lengths delimiting them. rbuf walks the batch; a session error inside
+   longjmps out, and the fault path restores rbuf to rbase. */
+static void dgram(long dlen)
+
+{
+
+    long off = 0;
+    long ml;
+
+    while (off < dlen) {
+
+        if (dlen-off < (long)sizeof(gr_msghdr)) {
+
+            rbuf = rbase;
+            sesserr("Short message from client");
+
+        }
+        rbuf = rbase+off;
+        ml = rhdr()->len;
+        if (ml < (long)sizeof(gr_msghdr) || off+ml > dlen) {
+
+            rbuf = rbase;
+            sesserr("Message framing error");
+
+        }
+        rlen = ml;
+        roff = sizeof(gr_msghdr);
+        dispatch();
+        off += ml;
+
+    }
+    rbuf = rbase;
 
 }
 
@@ -1197,7 +1497,6 @@ int main(int argc, char* argv[])
 {
 
     const char* sp;
-    pthread_t   pump;
     pthread_t   st;
     sigset_t    sset;
     unsigned long la;
@@ -1216,13 +1515,18 @@ int main(int argc, char* argv[])
        first constructor, before any thread existed */
     (void)sset;
     pthread_create(&st, NULL, sigrun, NULL);
+    /* The server never holds its final screen: it is infrastructure,
+       and its exit must release the display and the ports at once. The
+       hold belongs to programs, and a session's program never exits
+       this process. */
+    ami_autohold(0);
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     ami_addrnet("127.0.0.1", &la);
     msgmax = ami_maxmsg(la);
     if (msgmax < 1024) error("Message channel too small");
     sbuf = malloc(msgmax);
-    rbuf = malloc(msgmax);
+    rbuf = rbase = malloc(msgmax);
     if (!sbuf || !rbuf) error("Out of memory");
 
     /* both channels up before anyone is answered. The channels arrive
@@ -1233,6 +1537,16 @@ int main(int argc, char* argv[])
        channel is its descriptor. */
     cmdfn = ami_waitmsg(srvport, 0);
     evtfn = ami_waitmsg(srvport+1, 0);
+    {
+
+        /* deep receive buffers: a full flow window must fit with room,
+           and events should never drop for a slow moment */
+        int rb = 2*1024*1024;
+
+        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVBUF, &rb, sizeof(rb));
+        setsockopt((int)evtfn, SOL_SOCKET, SO_RCVBUF, &rb, sizeof(rb));
+
+    }
     {
 
         struct timeval tv = { 0, 0 };
@@ -1246,33 +1560,86 @@ int main(int argc, char* argv[])
     h2f[1] = stdout;
     h2lw[1] = 1;
 
-    /* the session loop: serve a client, reset, wait for the next; the
-       console interrupt is the only way out */
+    /* the main window as presented, for the between-session restore */
+    {
+
+        const char* bn = strrchr(argv[0], '/');
+
+        snprintf(srvname, sizeof(srvname), "%s", bn? bn+1: argv[0]);
+        ami_getsizg(stdout, &origw, &origh);
+
+    }
+
+    /* the idle window says what it is; a blank window reads as a hang */
+    printf("Remote display server awaiting connection on port %ld.\n",
+           srvport);
+    printf("Control-c in this window, or its close button, shuts the "
+           "server down.\n");
+    fflush(stdout);
+
+    /* the pump lives across sessions: idle it discards, and the display
+       can cancel an idle server */
+    if (pthread_create(&pump, NULL, evpump, NULL))
+        error("Cannot start event pump");
+
+    /* the session loop: serve a client, reset, wait for the next; a
+       session error jumps back here, winds down, and recycles. The
+       console interrupt, or a terminate from the display of an idle
+       server, is the way out. */
     for (;;) {
 
         long h;
+        int  faulted;
+
+        faulted = setjmp(sesjmp);
+        rbuf = rbase; /* a fault mid-batch leaves the walk pointer inside */
+        if (faulted) goto winddown; /* the pump lives on, idle */
 
         /* fresh session */
         byeseen = 0;
         sigasked = 0;
+        cleaning = 0;
 
-        /* the hello */
-        rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
-        roff = sizeof(gr_msghdr);
-        if (rhdr()->mid != GR_MHELLO) error("Protocol failure: no hello");
-        dispatch();
+        /* the hello; a mid-session hello was already read and answered,
+           and its client is waiting on the event channel exchange */
+        if (!hellopend) {
 
-        /* the event channel hello names the peer for events */
-        rlen = ami_rdmsg(evtfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from client");
-        if (((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
-            error("Protocol failure: no event channel hello");
-        clientup = 1;
+            rlen = ami_rdmsg(cmdfn, rbase, msgmax);
+            if (rlen < (long)sizeof(gr_msghdr))
+                sesserr("Short message from client");
+            if (((gr_msghdr*)rbase)->mid != GR_MHELLO)
+                sesserr("Protocol failure: no hello");
+            dgram(rlen);
 
-        /* events flow from here on */
-        if (pthread_create(&pump, NULL, evpump, NULL))
-            error("Cannot start event pump");
+        }
+        hellopend = 0;
+
+        /* The event channel hello names the peer for events. The wait is
+           bounded: a client that died between hellos must not wedge the
+           server, and its successor's hello waits on the command
+           channel. The logical id of a message channel is its
+           descriptor. */
+        {
+
+            struct timeval tv = { 10, 0 };
+            fd_set        fs;
+            int           r;
+
+            /* the bound by select, the read by the message call, which
+               is what records the peer the events go back to */
+            FD_ZERO(&fs);
+            FD_SET((int)evtfn, &fs);
+            r = select((int)evtfn+1, &fs, NULL, NULL, &tv);
+            if (r <= 0)
+                sesserr("Protocol failure: no event channel hello");
+            rlen = ami_rdmsg(evtfn, rbase, msgmax);
+            if (rlen < (long)sizeof(gr_msghdr) ||
+                ((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
+                sesserr("Protocol failure: no event channel hello");
+
+        }
+        thinclear(); /* no pending events from a prior session */
+        clientup = 1; /* the pump forwards from here on */
 
         /* The command loop. A burst of commands executes under one hold
            of the display lock: after the blocking read, the socket
@@ -1283,36 +1650,25 @@ int main(int argc, char* argv[])
 
             ssize_t r;
 
-            rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
+            rlen = ami_rdmsg(cmdfn, rbase, msgmax);
             for (;;) {
 
-                if (rlen < (long)sizeof(gr_msghdr))
-                    error("Short message from client");
-                roff = sizeof(gr_msghdr);
-                dispatch();
+                dgram(rlen);
                 if (byeseen) break;
-                r = recv((int)cmdfn, rbuf, msgmax, MSG_DONTWAIT);
+                r = recv((int)cmdfn, rbase, msgmax, MSG_DONTWAIT);
                 if (r < 0) break; /* the burst is drained */
                 rlen = r;
 
             }
 
         }
-        /* wake the pump out of event() so it can see the end */
-        {
-
-            ami_evtrec wake;
-
-            memset(&wake, 0, sizeof(wake));
-            wake.etype = (ami_evtcod)GR_EVWAKE;
-            ami_sendevent(stdout, &wake);
-
-        }
-        pthread_join(pump, NULL);
-        clientup = 0;
         /* an interrupt asked this session to end: the server was being
            cancelled, so it goes down with the session */
-        if (sigasked) exit(0);
+        if (sigasked) { stoppump(); exit(0); }
+
+winddown:
+        clientup = 0;
+        cleaning = 1; /* a fault in the winddown itself is fatal */
 
         /* Reset for the next client: the session's windows close, and
            the main window comes back to a reasonable state. A timer the
@@ -1324,6 +1680,8 @@ int main(int argc, char* argv[])
             h2f[h] = 0;
 
         }
+        ami_title(stdout, srvname); /* the session's title went with it */
+        ami_setsizg(stdout, origw, origh); /* and its size */
         ami_auto(stdout, 0); /* off first: the resets below are illegal
                                 with it on, and it cannot come back on
                                 until the geometry is standard again */
@@ -1338,6 +1696,20 @@ int main(int argc, char* argv[])
         fflush(stdout);
         ami_auto(stdout, 1);
         ami_curvis(stdout, 1);
+        printf("Session ended. Remote display server awaiting connection "
+               "on port %ld.\n", srvport);
+        printf("Control-c in this window, or its close button, shuts the "
+               "server down.\n");
+        fflush(stdout);
+        if (faulted) {
+
+            /* drop whatever the dead session left on the channels, so
+               the next hello read is not stale traffic */
+            while (recv((int)cmdfn, rbase, msgmax, MSG_DONTWAIT) >= 0);
+            while (recv((int)evtfn, rbase, msgmax, MSG_DONTWAIT) >= 0);
+
+        }
+        cleaning = 0;
 
     }
 

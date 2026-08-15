@@ -17673,6 +17673,13 @@ static void ami_init_graphics(int argc, char *argv[])
 
     /* find existing display */
     XWLOCK();
+    /* Xlib in thread safe mode, before any other Xlib call: the library
+       is multithreadable by contract, and the display lock serializes
+       entries but not xcb's own connection state, whose sequence and
+       reply bookkeeping needs Xlib's locking once more than one thread
+       touches the connection. Without this, a heavy draw stream against
+       a concurrent event read wedges inside xcb. */
+    XInitThreads();
     padisplay = XOpenDisplay(NULL);
     XWUNLOCK();
     if (padisplay == NULL) {

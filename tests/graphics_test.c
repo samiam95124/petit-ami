@@ -181,6 +181,59 @@
 * Picture draw                  5.00    0.000275                               *
 * No scaling picture draw       4.98    0.000007                               *
 *                                                                              *
+* Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
+* Ubuntu 20.04.6 LTS                                                           *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                   5.04    0.000004                              *
+* line width 10                  4.88    0.000004                              *
+* rectangle width 1              5.98    0.000047                              *
+* rectangle width 10             4.93    0.000001                              *
+* rounded rectangle width 1      5.28    0.011113                              *
+* rounded rectangle width 10     9.24    0.012761                              *
+* filled rectangle               5.07    0.000003                              *
+* filled rounded rectangle       4.85    0.000381                              *
+* ellipse width 1                5.77    0.002357                              *
+* ellipse width 10               5.11    0.002265                              *
+* filled ellipse                 5.22    0.000090                              *
+* arc width 1                    0.62    0.000508                              *
+* arc width 10                   5.20    0.002421                              *
+* filled arc                     5.17    0.000125                              *
+* filled chord                   4.95    0.000127                              *
+* filled triangle                5.03    0.000010                              *
+* text                           4.81    0.000038                              *
+* background invisible text      5.47    0.000108                              *
+* Picture draw                   4.42    0.003874                              *
+* No scaling picture draw        4.91    0.000102                              *
+*                                                                              *
+* Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
+* Ubuntu 20.04.6 LTS, remote display: graph_client to                          *
+* graph_server over the local socket connection                                *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                   5.16    0.000004                              *
+* line width 10                  5.05    0.000004                              *
+* rectangle width 1              0.57    0.000006                              *
+* rectangle width 10             5.05    0.000001                              *
+* rounded rectangle width 1      1.25    0.001468                              *
+* rounded rectangle width 10     1.94    0.002115                              *
+* filled rectangle               0.00    0.000000                              *
+* filled rounded rectangle       0.70    0.003780                              *
+* ellipse width 1                2.63    0.024387                              *
+* ellipse width 10               2.85    0.007868                              *
+* filled ellipse                 6.19    0.008128                              *
+* arc width 1                    1.89    0.001886                              *
+* arc width 10                   0.00    0.000001                              *
+* filled arc                     3.00    0.000345                              *
+* filled chord                   4.96    0.000131                              *
+* filled triangle                5.02    0.000009                              *
+* text                           5.03    0.000036                              *
+* background invisible text      5.48    0.000103                              *
+* Picture draw                   1.22    0.001278                              *
+* No scaling picture draw        0.00    0.000000                              *
+*                                                                              *
 *******************************************************************************/
 
 /* base C defines */
