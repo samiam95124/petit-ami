@@ -1440,6 +1440,11 @@ graphics_testw: $(GLIBSWD) tests/graphics_test.c
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
 	    -lfreetype -lfontconfig -lm -lpthread -o bin/graphics_testw
 
+widget_testw: $(GLIBSWD) tests/widget_test.c
+	$(CC) $(CFLAGS) tests/widget_test.c \
+	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
+	    -lfreetype -lfontconfig -lm -lpthread -o bin/widget_testw
+
 #
 # BMP-stream frame viewer: walks the test_images file produced by
 # screen_capture, one frame per keypress (left/right arrows).
