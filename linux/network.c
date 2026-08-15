@@ -103,6 +103,12 @@
 #define COOKIE_SECRET_LENGTH 16 /* length of secret cookie */
 #define CVBUFSIZ 4096 /* certificate value buffer size */
 #define CONRETRY 50     /* connect retries on refused connections */
+#define DTLSPAY  16384  /* most payload one DTLS record carries: a datagram
+                           carries at most one record, whatever the route
+                           itself could hold */
+#define DTLSOVR  64     /* record header and cipher expansion riding inside
+                           the datagram; a generous bound across cipher
+                           suites */
 #define CONDELAY 100000 /* delay between connect retries, in microseconds
                            (0.1 second, under human perception; with CONRETRY
                            gives a 5 second budget before the error stands) */
@@ -299,12 +305,25 @@ Outputs an error message using the special syslib function, then halts.
 
 *******************************************************************************/
 
+/* the installed error handler; a handler that longjmps takes the
+   error, one that returns lets the abort proceed */
+static ami_neterrhan_t neterrhan;
+
+void ami_neterror(ami_neterrhan_t handler)
+
+{
+
+    neterrhan = handler;
+
+}
+
 static void netwrterr(const char* s)
 
 {
 
     fprintf(stderr, "\nError: Network: %s\n", s);
 
+    if (neterrhan) neterrhan(s);
     net_abort();
 
 }
@@ -410,6 +429,7 @@ static void sslerrorqueue(void)
 {
 
     ERR_print_errors_cb(sslerrcb, NULL);
+    if (neterrhan) neterrhan("SSL error");
     net_abort();
 
 }
@@ -460,6 +480,7 @@ static void sslerror(SSL* ssl, int r)
 
     }
 
+    if (neterrhan) neterrhan("SSL error");
     net_abort();
 
 }
@@ -1195,6 +1216,7 @@ long ami_openmsg(
     int fn;
     socket_struct laddr;
     int r;
+    int i;
     struct timeval timeout;
 
     /* set up address */
@@ -1235,22 +1257,39 @@ long ami_openmsg(
 
         /* create socket struct */
         pthread_once(&client_dtls_once, init_client_dtls); /* ensure context */
-        opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
-        if (!opnfil[fn]->ssl) sslerrorqueue();
 
-        /* Create BIO, connect and set to already connected */
-        /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
-           close the fd a second time when SSL_free releases the BIO */
-        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
+        /* connect fixes the peer address for the datagram BIO */
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in));
         if (r) linuxerror();
 
-        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+        /* Handshake. A refused handshake is retried on a short backoff, as
+           the stream connect above retries a refused connection: a server
+           rebuilding its listening socket between sessions is reached again
+           once it is back up. One that stays down still errors after the
+           retry budget */
+        for (i = 0; ; i++) {
 
-        SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+            opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
+            if (!opnfil[fn]->ssl) sslerrorqueue();
 
-        r = SSL_connect(opnfil[fn]->ssl);
-        if (r <= 0) sslerror(opnfil[fn]->ssl, r);
+            /* Create BIO and set to already connected */
+            /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
+               close the fd a second time when SSL_free releases the BIO */
+            opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
+            BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+            SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+
+            r = SSL_connect(opnfil[fn]->ssl);
+            if (r > 0) break;
+            if (SSL_get_error(opnfil[fn]->ssl, r) != SSL_ERROR_SYSCALL ||
+                errno != ECONNREFUSED || i == CONRETRY-1)
+                sslerror(opnfil[fn]->ssl, r);
+            SSL_free(opnfil[fn]->ssl); /* releases the BIO with it */
+            opnfil[fn]->ssl = NULL;
+            opnfil[fn]->bio = NULL;
+            usleep(CONDELAY); /* let the server come up */
+
+        }
 
         /* Set and activate timeouts */
         timeout.tv_sec = 3;
@@ -1288,6 +1327,7 @@ long ami_openmsgv6(
     int fn;
     socket_struct laddr;
     int r;
+    int i;
     struct timeval timeout;
 
     /* set up address */
@@ -1328,22 +1368,39 @@ long ami_openmsgv6(
 
         /* create socket struct */
         pthread_once(&client_dtls_once, init_client_dtls); /* ensure context */
-        opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
-        if (!opnfil[fn]->ssl) sslerrorqueue();
 
-        /* Create BIO, connect and set to already connected */
-        /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
-           close the fd a second time when SSL_free releases the BIO */
-        opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
+        /* connect fixes the peer address for the datagram BIO */
         r = connect(fn, (struct sockaddr *) &opnfil[fn]->saddr, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
-        BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+        /* Handshake. A refused handshake is retried on a short backoff, as
+           the stream connect above retries a refused connection: a server
+           rebuilding its listening socket between sessions is reached again
+           once it is back up. One that stays down still errors after the
+           retry budget */
+        for (i = 0; ; i++) {
 
-        SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+            opnfil[fn]->ssl = SSL_new(client_dtls_ctx);
+            if (!opnfil[fn]->ssl) sslerrorqueue();
 
-        r = SSL_connect(opnfil[fn]->ssl);
-        if (r <= 0) sslerror(opnfil[fn]->ssl, r);
+            /* Create BIO and set to already connected */
+            /* BIO_NOCLOSE: ami_clsmsg owns the socket close; BIO_CLOSE would
+               close the fd a second time when SSL_free releases the BIO */
+            opnfil[fn]->bio = BIO_new_dgram(fn, BIO_NOCLOSE);
+            BIO_ctrl(opnfil[fn]->bio, BIO_CTRL_DGRAM_SET_CONNECTED, 0, &opnfil[fn]->saddr.ss);
+            SSL_set_bio(opnfil[fn]->ssl, opnfil[fn]->bio, opnfil[fn]->bio);
+
+            r = SSL_connect(opnfil[fn]->ssl);
+            if (r > 0) break;
+            if (SSL_get_error(opnfil[fn]->ssl, r) != SSL_ERROR_SYSCALL ||
+                errno != ECONNREFUSED || i == CONRETRY-1)
+                sslerror(opnfil[fn]->ssl, r);
+            SSL_free(opnfil[fn]->ssl); /* releases the BIO with it */
+            opnfil[fn]->ssl = NULL;
+            opnfil[fn]->bio = NULL;
+            usleep(CONDELAY); /* let the server come up */
+
+        }
 
         /* Set and activate timeouts */
         timeout.tv_sec = 3;
@@ -1469,8 +1526,16 @@ long ami_waitmsg(/* port number to wait on */ long port,
         r = connect(fn2, (struct sockaddr *) &caddr.s6, sizeof(struct sockaddr_in6));
         if (r) linuxerror();
 
+        /* The logical id of a message channel is its descriptor: the
+           connected socket replaces the listener under the same number,
+           so a select on the id watches the live socket, secure or
+           clear alike. */
+        r = dup2(fn2, fn);
+        if (r < 0) linuxerror();
+        close(fn2);
+
         /* Set new fd and set BIO to connected */
-        BIO_set_fd(SSL_get_rbio(opnfil[fn]->ssl), fn2, BIO_NOCLOSE);
+        BIO_set_fd(SSL_get_rbio(opnfil[fn]->ssl), fn, BIO_NOCLOSE);
         BIO_ctrl(SSL_get_rbio(opnfil[fn]->ssl), BIO_CTRL_DGRAM_SET_CONNECTED,
                  0, &caddr.ss);
 
@@ -1514,6 +1579,12 @@ at 64kb, or somewhere in between.
 We return the MTU reported by the interface. For a reliable network, this is
 the absolute packet size. For others, it will be the MTU of the interface, which
 packet breakage is possible.
+
+A message channel opened secure answers to the DTLS record before the route:
+a datagram carries at most one record, and a record at most 16K of payload,
+however large the route's packets run. With secure true the returned limit
+honors that ceiling and the record's own framing; ask with the same secure
+flag the channel will be opened with.
 
 *******************************************************************************/
 
@@ -1560,7 +1631,10 @@ static int sockmtu(int fn, int family)
 }
 #endif
 
-long ami_maxmsg(unsigned long addr)
+long ami_maxmsg(
+    /* ip address */      unsigned long addr,
+    /* link is secured */ long secure
+)
 
 {
 
@@ -1600,10 +1674,17 @@ long ami_maxmsg(unsigned long addr)
 
     /* The mtu includes the IP and UDP headers; the caller wants the largest
        message wrmsg can send. Also clamp to the largest possible UDP
-       payload. Note a secured (DTLS) connection carries additional record
-       overhead not accounted for here */
+       payload */
     mtu -= 28; /* IPv4 header 20 plus UDP header 8 */
     if (mtu > 65507) mtu = 65507;
+
+    /* a secured channel is bounded by the DTLS record, not the route */
+    if (secure) {
+
+        mtu -= DTLSOVR; /* the record's framing rides inside the datagram */
+        if (mtu > DTLSPAY) mtu = DTLSPAY;
+
+    }
 
     return (mtu); /* return maximum message */
 
@@ -1621,9 +1702,19 @@ We return the MTU reported by the interface. For a reliable network, this is
 the absolute packet size. For others, it will be the MTU of the interface, which
 packet breakage is possible.
 
+A message channel opened secure answers to the DTLS record before the route:
+a datagram carries at most one record, and a record at most 16K of payload,
+however large the route's packets run. With secure true the returned limit
+honors that ceiling and the record's own framing; ask with the same secure
+flag the channel will be opened with.
+
 *******************************************************************************/
 
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_maxmsgv6(
+    /* v6 address low */  unsigned long long addrh,
+    /* v6 address high */ unsigned long long addrl,
+    /* link is secured */ long secure
+)
 
 {
 
@@ -1662,10 +1753,17 @@ long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
 
     /* The mtu includes the IP and UDP headers; the caller wants the largest
        message wrmsg can send. Also clamp to the largest possible UDP
-       payload. Note a secured (DTLS) connection carries additional record
-       overhead not accounted for here */
+       payload */
     mtu -= 48; /* IPv6 header 40 plus UDP header 8 */
     if (mtu > 65527) mtu = 65527;
+
+    /* a secured channel is bounded by the DTLS record, not the route */
+    if (secure) {
+
+        mtu -= DTLSOVR; /* the record's framing rides inside the datagram */
+        if (mtu > DTLSPAY) mtu = DTLSPAY;
+
+    }
 
     return (mtu); /* return maximum message */
 
@@ -2817,10 +2915,32 @@ static ssize_t ivread(pread_t readdc, int fd, void* buff, size_t count)
     if (opnfil[fd]) { /* if not tracked, don't touch it */
 
         makfil(fd); /* create file entry as required */
-        if (opnfil[fd]->sec)
-            /* perform ssl decoded read */
-            r = SSL_read(opnfil[fd]->ssl, buff, count);
-        else r = (*readdc)(fd, buff, count); /* standard file and socket read */
+        if (opnfil[fd]->sec) {
+
+            /* Perform ssl decoded read. The raw return is not a read
+               return: transient conditions, a retryable want or an
+               interrupted call, retry; the peer's close notify is the
+               end of file; anything else is an error. Handing the raw
+               value up made a transient look like the end of the
+               stream, and transfers truncated at random. */
+            int se;
+
+            for (;;) {
+
+                r = SSL_read(opnfil[fd]->ssl, buff, count);
+                if (r > 0) break;
+                se = SSL_get_error(opnfil[fd]->ssl, r);
+                if (se == SSL_ERROR_WANT_READ || se == SSL_ERROR_WANT_WRITE)
+                    continue;
+                if (se == SSL_ERROR_SYSCALL && errno == EINTR) continue;
+                if (se == SSL_ERROR_ZERO_RETURN) { r = 0; break; } /* eof */
+                if (se == SSL_ERROR_SYSCALL && r == 0) { r = 0; break; }
+                r = -1; /* a real error, to the caller */
+                break;
+
+            }
+
+        } else r = (*readdc)(fd, buff, count); /* standard file and socket read */
 
     } else r = (*readdc)(fd, buff, count); /* standard file and socket read */
 
@@ -2861,10 +2981,26 @@ static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
     if (opnfil[fd]) { /* if not tracked, don't touch it */
 
         makfil(fd); /* create file entry as required */
-        if (opnfil[fd]->sec)
-            /* perform ssl encoded write */
-            r = SSL_write(opnfil[fd]->ssl, buff, count);
-        else
+        if (opnfil[fd]->sec) {
+
+            /* perform ssl encoded write, retrying the transients as
+               the read side does */
+            int se;
+
+            for (;;) {
+
+                r = SSL_write(opnfil[fd]->ssl, buff, count);
+                if (r > 0) break;
+                se = SSL_get_error(opnfil[fd]->ssl, r);
+                if (se == SSL_ERROR_WANT_READ || se == SSL_ERROR_WANT_WRITE)
+                    continue;
+                if (se == SSL_ERROR_SYSCALL && errno == EINTR) continue;
+                r = -1; /* a real error, to the caller */
+                break;
+
+            }
+
+        } else
             /* standard file and socket write */
             r = (*writedc)(fd, buff, count);
 
@@ -2988,6 +3124,13 @@ static void init_server_tls(void)
     initctx(&server_tls_ctx, TLS_server_method(), "server_tls_cert.pem",
                                                   "server_tls_key.pem");
     SSL_CTX_set_ecdh_auto(server_tls_ctx, 1);
+    /* No session tickets. A write-only client never reads the tickets
+       the server volunteers after the handshake, and closing a socket
+       with unread data resets the connection instead of finishing it,
+       destroying whatever the server had not yet consumed: transfers
+       truncated at random. Tickets buy only resumption, which these
+       one-shot transfer connections never use. */
+    SSL_CTX_set_num_tickets(server_tls_ctx, 0);
 
 }
 

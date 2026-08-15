@@ -82,8 +82,9 @@ void ami_addrnetv6(const string name, unsigned long long* addrh,
 FILE* ami_opennet(unsigned long addr, long port, long secure);
 FILE* ami_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    long port, long secure);
-long ami_maxmsg(unsigned long addr);
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl);
+long ami_maxmsg(unsigned long addr, long secure);
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  long secure);
 long ami_relymsg(unsigned long addr);
 long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl);
 long ami_openmsg(unsigned long addr, long port, long secure);
@@ -93,6 +94,13 @@ void ami_wrmsg(long fn, void* msg, unsigned long len);
 long ami_rdmsg(long fn, void* msg, unsigned long len);
 void ami_clsmsg(long f);
 FILE* ami_waitnet(long port, long secure);
+/* Install a network error handler. Called with the error text before
+   the abort; a handler that longjmps takes the error, one that returns
+   lets the abort proceed. A server that recycles failed connections
+   catches channel deaths this way: a vanished secure peer surfaces as
+   an error where a clear channel just falls silent. */
+typedef void (*ami_neterrhan_t)(const char* es);
+void ami_neterror(ami_neterrhan_t handler);
 long ami_waitmsg(long port, long secure);
 long ami_certnet(FILE* f, long which, string cert, long len);
 long ami_certmsg(long fn, long which, string cert, long len);

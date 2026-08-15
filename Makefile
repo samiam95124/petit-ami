@@ -1638,8 +1638,9 @@ breakout: $(GLIBSD) graph_games/breakout.c
 # Breakout run remotely: linked with graph_client, the display and the
 # sound served by graph_server.
 #
-breakoutr: graph_games/breakout.c portable/graph_client.o
+breakoutr: graph_games/breakout.c portable/graph_client.o stub/graph_secure.c
 	$(CC) $(CFLAGS) graph_games/breakout.c portable/graph_client.o \
+	    stub/graph_secure.c \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/breakoutr

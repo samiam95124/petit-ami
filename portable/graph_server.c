@@ -41,6 +41,7 @@
 #include <graph_remote.h>
 #include <widget_base.h>
 #include <sound.h>
+#include <setjmp.h>
 #include <execinfo.h>
 
 #define MAXHND 512   /* window handles */
@@ -54,6 +55,8 @@ static long msgmax;      /* channel message size bound */
 static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
                             every message prints to the error channel.
                             Slow, and worth it. */
+static int  gsecure;     /* secure channels: -s or --secure; DTLS on the
+                            messages, TLS on the file connections */
 
 /* message assembly */
 static unsigned char* sbuf; /* reply buffer */
@@ -93,6 +96,32 @@ static int       pumpstop; /* exiting: leave the library and return */
    between events, and the dialog is the only consumer until it is
    dismissed -- which is also exactly the native picture, where the
    program is inside the dialog and consuming nothing else. */
+/* Network channel failure recovery. A vanished secure peer surfaces
+   as a network error where a clear channel just falls silent; the
+   handler routes it to the recovery matching the thread it fired on:
+   the dispatch thread drops the session, the pump escapes its send and
+   idles, and a failure inside a deliberate close simply completes the
+   close. */
+/* The session's sound footprint. A session that dies leaves its
+   ports open, its timers running and its stores loaded, and the next
+   session's own opens would collide with them; the winddown returns
+   what the session took, as it does for windows and widgets. */
+#define SNDPORTS 100 /* matching the library's port maximum */
+static char sesso[SNDPORTS]; /* synth out ports opened */
+static char sessi[SNDPORTS]; /* synth in ports opened */
+static char seswo[SNDPORTS]; /* wave out ports opened */
+static char seswi[SNDPORTS]; /* wave in ports opened */
+static char sessy[SNDPORTS]; /* synth stores loaded */
+static char seswv[SNDPORTS]; /* waves loaded */
+static char sesto;           /* output time base started */
+static char sesti;           /* input time base started */
+
+static jmp_buf   pumpjmp;    /* the pump's escape from a dead send */
+static int       pumpjmpset; /* it is armed */
+static pthread_t pumptid;    /* the pump's thread */
+static jmp_buf   closejmp;   /* escape for a failing deliberate close */
+static int       inclose;    /* a deliberate close is in progress */
+
 static pthread_mutex_t pauselock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  pausecond = PTHREAD_COND_INITIALIZER;
 static int             pausereq;  /* dispatch asks */
@@ -136,7 +165,6 @@ static void error(const char* es)
    jump lands in the session loop, which winds down whatever the
    session had running. */
 
-#include <setjmp.h>
 
 static jmp_buf sesjmp;    /* recycle point */
 static int     pumping;   /* the pump thread is up */
@@ -501,7 +529,7 @@ static const char* fndfile(const char* fn, char* cb, long cbl,
     ri(srvport+2);
     shdr()->len = (int)soff;
     ami_wrmsg(cmdfn, sbuf, soff);
-    nf = ami_waitnet(srvport+2, 0);
+    nf = ami_waitnet(srvport+2, gsecure);
     if (!nf) sesserr("Cannot open file transfer connection");
     lf = fopen(cb, "wb");
     if (!lf) sesserr("Cannot write file cache");
@@ -644,6 +672,26 @@ static void evsend1(gr_msgevt* we)
 
 }
 
+/* the network error handler: see the recovery state above */
+static void neterr(const char* es)
+
+{
+
+    (void)es;
+    if (inclose) longjmp(closejmp, 1); /* the close completes */
+    if (pthread_equal(pthread_self(), pumptid)) {
+
+        /* The client is gone. The pump idles on; the dispatch thread,
+           asleep in its channel read, is woken by shutting the command
+           socket under it, and its failing read drops the session. */
+        clientup = 0;
+        shutdown((int)cmdfn, SHUT_RDWR);
+        if (pumpjmpset) longjmp(pumpjmp, 1);
+
+    } else sesserr("Network channel failed");
+
+}
+
 /* bracket a modal dialog: the pump parks first, resumes after */
 static void pausepump(void)
 
@@ -685,8 +733,17 @@ static void* evpump(void* arg)
     ami_evtrec    er;
 
     (void)arg;
+    pumptid = pthread_self();
     for (;;) {
 
+        if (setjmp(pumpjmp)) {
+
+            /* a send failed under this pass: the client is gone and
+               the event is dropped; the session drop is the dispatch
+               thread's to notice */
+
+        }
+        pumpjmpset = 1;
         pthread_mutex_lock(&pauselock);
         while (pausereq) {
 
@@ -1456,20 +1513,24 @@ static void dispatch(void)
 
         /* ----------------------------------------------------- sound */
 
-        case GR_MSTARTTIMEOUT: ami_starttimeout(); break;
-        case GR_MSTOPTIMEOUT: ami_stoptimeout(); break;
+        case GR_MSTARTTIMEOUT: ami_starttimeout(); sesto = 1; break;
+        case GR_MSTOPTIMEOUT: ami_stoptimeout(); sesto = 0; break;
         case GR_MCURTIMEOUT:
             rbegin(); ri(ami_curtimeout()); rsend(); break;
-        case GR_MSTARTTIMEIN: ami_starttimein(); break;
-        case GR_MSTOPTIMEIN: ami_stoptimein(); break;
+        case GR_MSTARTTIMEIN: ami_starttimein(); sesti = 1; break;
+        case GR_MSTOPTIMEIN: ami_stoptimein(); sesti = 0; break;
         case GR_MCURTIMEIN:
             rbegin(); ri(ami_curtimein()); rsend(); break;
         case GR_MSYNTHOUT: rbegin(); ri(ami_synthout()); rsend(); break;
         case GR_MSYNTHIN: rbegin(); ri(ami_synthin()); rsend(); break;
-        case GR_MOPENSYNTHOUT: a = gi(); ami_opensynthout(a); break;
-        case GR_MCLOSESYNTHOUT: a = gi(); ami_closesynthout(a); break;
-        case GR_MOPENSYNTHIN: a = gi(); ami_opensynthin(a); break;
-        case GR_MCLOSESYNTHIN: a = gi(); ami_closesynthin(a); break;
+        case GR_MOPENSYNTHOUT: a = gi(); ami_opensynthout(a);
+            if (a >= 1 && a <= SNDPORTS) sesso[a-1] = 1; break;
+        case GR_MCLOSESYNTHOUT: a = gi(); ami_closesynthout(a);
+            if (a >= 1 && a <= SNDPORTS) sesso[a-1] = 0; break;
+        case GR_MOPENSYNTHIN: a = gi(); ami_opensynthin(a);
+            if (a >= 1 && a <= SNDPORTS) sessi[a-1] = 1; break;
+        case GR_MCLOSESYNTHIN: a = gi(); ami_closesynthin(a);
+            if (a >= 1 && a <= SNDPORTS) sessi[a-1] = 0; break;
         case GR_MNOTEON:
             a = gi(); b = gi(); c = gi(); d = gi(); e = gi();
             ami_noteon(a, b, c, d, e); break;
@@ -1547,11 +1608,13 @@ static void dispatch(void)
         case GR_MLOADSYNTH:
             a = gi(); gstr(s1, MAXSTR);
             ami_loadsynth(a, (char*)fndfile(s1, s2, MAXSTR, ".mid"));
+            if (a >= 1 && a <= SNDPORTS) sessy[a-1] = 1;
             rbegin(); ri(0); rsend();
             break;
         case GR_MPLAYSYNTH:
             a = gi(); b = gi(); c = gi(); ami_playsynth(a, b, c); break;
-        case GR_MDELSYNTH: a = gi(); ami_delsynth(a); break;
+        case GR_MDELSYNTH: a = gi(); ami_delsynth(a);
+            if (a >= 1 && a <= SNDPORTS) sessy[a-1] = 0; break;
         case GR_MWAITSYNTH:
             a = gi(); ami_waitsynth(a);
             rbegin(); ri(0); rsend(); break;
@@ -1589,16 +1652,20 @@ static void dispatch(void)
         }
         case GR_MWAVEOUT: rbegin(); ri(ami_waveout()); rsend(); break;
         case GR_MWAVEIN: rbegin(); ri(ami_wavein()); rsend(); break;
-        case GR_MOPENWAVEOUT: a = gi(); ami_openwaveout(a); break;
-        case GR_MCLOSEWAVEOUT: a = gi(); ami_closewaveout(a); break;
+        case GR_MOPENWAVEOUT: a = gi(); ami_openwaveout(a);
+            if (a >= 1 && a <= SNDPORTS) seswo[a-1] = 1; break;
+        case GR_MCLOSEWAVEOUT: a = gi(); ami_closewaveout(a);
+            if (a >= 1 && a <= SNDPORTS) seswo[a-1] = 0; break;
         case GR_MLOADWAVE:
             a = gi(); gstr(s1, MAXSTR);
             ami_loadwave(a, (char*)fndfile(s1, s2, MAXSTR, ".wav"));
+            if (a >= 1 && a <= SNDPORTS) seswv[a-1] = 1;
             rbegin(); ri(0); rsend();
             break;
         case GR_MPLAYWAVE:
             a = gi(); b = gi(); c = gi(); ami_playwave(a, b, c); break;
-        case GR_MDELWAVE: a = gi(); ami_delwave(a); break;
+        case GR_MDELWAVE: a = gi(); ami_delwave(a);
+            if (a >= 1 && a <= SNDPORTS) seswv[a-1] = 0; break;
         case GR_MVOLWAVE:
             a = gi(); b = gi(); c = gi(); ami_volwave(a, b, c); break;
         case GR_MWAITWAVE:
@@ -1618,8 +1685,10 @@ static void dispatch(void)
             ami_wrwave(a, (byte*)(rbuf+roff), b);
             rbegin(); ri(0); rsend();
             break;
-        case GR_MOPENWAVEIN: a = gi(); ami_openwavein(a); break;
-        case GR_MCLOSEWAVEIN: a = gi(); ami_closewavein(a); break;
+        case GR_MOPENWAVEIN: a = gi(); ami_openwavein(a);
+            if (a >= 1 && a <= SNDPORTS) seswi[a-1] = 1; break;
+        case GR_MCLOSEWAVEIN: a = gi(); ami_closewavein(a);
+            if (a >= 1 && a <= SNDPORTS) seswi[a-1] = 0; break;
         case GR_MCHANWAVEIN:
             a = gi(); rbegin(); ri(ami_chanwavein(a)); rsend(); break;
         case GR_MRATEWAVEIN:
@@ -1840,8 +1909,13 @@ int main(int argc, char* argv[])
 
         int i;
 
-        for (i = 1; i < argc; i++)
+        for (i = 1; i < argc; i++) {
+
             if (!strcmp(argv[i], "--trace")) gtrace = 1;
+            if (!strcmp(argv[i], "-s") || !strcmp(argv[i], "--secure"))
+                gsecure = 1;
+
+        }
 
     }
     if (getenv("GRAPH_TRACE")) gtrace = 1;
@@ -1855,10 +1929,11 @@ int main(int argc, char* argv[])
        hold belongs to programs, and a session's program never exits
        this process. */
     ami_autohold(0);
+    ami_neterror(neterr); /* channel failures recycle, not abort */
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     ami_addrnet("127.0.0.1", &la);
-    msgmax = ami_maxmsg(la);
+    msgmax = ami_maxmsg(la, gsecure);
     if (msgmax < 1024) error("Message channel too small");
     sbuf = malloc(msgmax);
     rbuf = rbase = malloc(msgmax);
@@ -1870,8 +1945,8 @@ int main(int argc, char* argv[])
        a server without a client yet and a quiet command channel both
        being normal, so the timeouts clear. The logical id of a message
        channel is its descriptor. */
-    cmdfn = ami_waitmsg(srvport, 0);
-    evtfn = ami_waitmsg(srvport+1, 0);
+    cmdfn = ami_waitmsg(srvport, gsecure);
+    evtfn = ami_waitmsg(srvport+1, gsecure);
     {
 
         /* deep receive buffers: a full flow window must fit with room,
@@ -1906,7 +1981,8 @@ int main(int argc, char* argv[])
     }
 
     /* the idle window says what it is; a blank window reads as a hang */
-    printf("Remote display server awaiting connection on port %ld.\n",
+    printf("Remote display server awaiting %sconnection on port %ld.\n",
+           gsecure? "secure ": "",
            srvport);
     printf("Control-c in this window, or its close button, shuts the "
            "server down.\n");
@@ -1987,16 +2063,24 @@ int main(int argc, char* argv[])
            channel is its descriptor. */
         while (!byeseen) {
 
-            ssize_t r;
+            struct timeval tv;
+            fd_set         fs;
 
             rlen = ami_rdmsg(cmdfn, rbase, msgmax);
             for (;;) {
 
                 dgram(rlen);
                 if (byeseen) break;
-                r = recv((int)cmdfn, rbase, msgmax, MSG_DONTWAIT);
-                if (r < 0) break; /* the burst is drained */
-                rlen = r;
+                /* the drain probes by select and reads by the message
+                   call, which under the secure channel is also what
+                   decrypts: a raw recv on DTLS sees only ciphertext */
+                FD_ZERO(&fs);
+                FD_SET((int)cmdfn, &fs);
+                tv.tv_sec = 0;
+                tv.tv_usec = 0;
+                if (select((int)cmdfn+1, &fs, NULL, NULL, &tv) <= 0)
+                    break; /* the burst is drained */
+                rlen = ami_rdmsg(cmdfn, rbase, msgmax);
 
             }
 
@@ -2020,6 +2104,25 @@ winddown:
 
         }
         wb_purge(stdout); /* the session's widgets go with it */
+        {
+
+            /* and its sound footprint: ports, timers and stores */
+            int sp;
+
+            for (sp = 0; sp < SNDPORTS; sp++) {
+
+                if (sesso[sp]) { ami_closesynthout(sp+1); sesso[sp] = 0; }
+                if (sessi[sp]) { ami_closesynthin(sp+1); sessi[sp] = 0; }
+                if (seswo[sp]) { ami_closewaveout(sp+1); seswo[sp] = 0; }
+                if (seswi[sp]) { ami_closewavein(sp+1); seswi[sp] = 0; }
+                if (sessy[sp]) { ami_delsynth(sp+1); sessy[sp] = 0; }
+                if (seswv[sp]) { ami_delwave(sp+1); seswv[sp] = 0; }
+
+            }
+            if (sesto) { ami_stoptimeout(); sesto = 0; }
+            if (sesti) { ami_stoptimein(); sesti = 0; }
+
+        }
         ami_title(stdout, srvname); /* the session's title went with it */
         ami_setsizg(stdout, origw, origh); /* and its size */
         ami_auto(stdout, 0); /* off first: the resets below are illegal
@@ -2041,12 +2144,58 @@ winddown:
         printf("Control-c in this window, or its close button, shuts the "
                "server down.\n");
         fflush(stdout);
-        if (faulted) {
+        if (gsecure) {
+
+            /* A secure channel belongs to its client: the DTLS
+               association is peer-bound, so the next session needs
+               fresh channels, accepted from the next client's
+               handshakes. The reopen waits inside for the client. */
+            inclose = 1;
+            if (!setjmp(closejmp)) ami_clsmsg(cmdfn);
+            if (!setjmp(closejmp)) ami_clsmsg(evtfn);
+            inclose = 0;
+            cmdfn = ami_waitmsg(srvport, gsecure);
+            evtfn = ami_waitmsg(srvport+1, gsecure);
+            {
+
+                struct timeval tv = { 0, 0 };
+
+                setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv,
+                           sizeof(tv));
+                setsockopt((int)evtfn, SOL_SOCKET, SO_RCVTIMEO, &tv,
+                           sizeof(tv));
+
+            }
+
+        } else if (faulted) {
 
             /* drop whatever the dead session left on the channels, so
                the next hello read is not stale traffic */
-            while (recv((int)cmdfn, rbase, msgmax, MSG_DONTWAIT) >= 0);
-            while (recv((int)evtfn, rbase, msgmax, MSG_DONTWAIT) >= 0);
+            {
+
+                struct timeval tv;
+                fd_set         fs;
+                long           dfd;
+                int            di;
+
+                for (di = 0; di < 2; di++) {
+
+                    dfd = di? evtfn: cmdfn;
+                    for (;;) {
+
+                        FD_ZERO(&fs);
+                        FD_SET((int)dfd, &fs);
+                        tv.tv_sec = 0;
+                        tv.tv_usec = 0;
+                        if (select((int)dfd+1, &fs, NULL, NULL, &tv) <= 0)
+                            break;
+                        ami_rdmsg(dfd, rbase, msgmax);
+
+                    }
+
+                }
+
+            }
 
         }
         cleaning = 0;
