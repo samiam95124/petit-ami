@@ -72,6 +72,7 @@ static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
    pump winds down at session end by a wake event injected from the main
    thread. */
 static int byeseen;   /* the client said bye; wind down */
+static int  hellopend;   /* a mid-session hello opened the next session */
 
 /* The pump lives across sessions: it forwards events while a client is
    up, discards them while the server is idle, and treats a terminate
@@ -823,6 +824,16 @@ static void dispatch(void)
             a = gi();
             rbegin(); ri(GR_VERSION); rsend();
             if (a != GR_VERSION) sesserr("Client protocol version mismatch");
+            if (clientup) {
+
+                /* A hello mid-session: the old client went without its
+                   bye, a kill or a dead network, and a new one is
+                   knocking. The old session winds down and this hello,
+                   already answered, opens the new one. */
+                hellopend = 1;
+                byeseen = 1;
+
+            }
             break;
         case GR_MSYNC:
             /* the flow fence: the reply is the client's permission to
@@ -1589,12 +1600,19 @@ int main(int argc, char* argv[])
         sigasked = 0;
         cleaning = 0;
 
-        /* the hello */
-        rlen = ami_rdmsg(cmdfn, rbase, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) sesserr("Short message from client");
-        if (((gr_msghdr*)rbase)->mid != GR_MHELLO)
-            sesserr("Protocol failure: no hello");
-        dgram(rlen);
+        /* the hello; a mid-session hello was already read and answered,
+           and its client is waiting on the event channel exchange */
+        if (!hellopend) {
+
+            rlen = ami_rdmsg(cmdfn, rbase, msgmax);
+            if (rlen < (long)sizeof(gr_msghdr))
+                sesserr("Short message from client");
+            if (((gr_msghdr*)rbase)->mid != GR_MHELLO)
+                sesserr("Protocol failure: no hello");
+            dgram(rlen);
+
+        }
+        hellopend = 0;
 
         /* The event channel hello names the peer for events. The wait is
            bounded: a client that died between hellos must not wedge the
