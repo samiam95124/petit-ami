@@ -207,6 +207,7 @@ void* wb_getwig(
     wp->hover = FALSE;
     wp->px = 0;
     wp->py = 0;
+    wp->live = FALSE; /* not constructed: no events until the package says */
     if (pk->wiginit) pk->wiginit(wp); /* the package's fields */
 
     return (wp);
@@ -532,6 +533,11 @@ static void wb_event(
             if (wg) fpk = pk; /* one of this package's widgets */
 
         }
+    /* A widget under construction takes no events: the record goes into
+       the tables before the package finishes building it, and a stale
+       event dispatched into that gap runs a handler on half-set state.
+       The completing redraw repaints whatever was missed. */
+    if (fpk && !wg->live) { wb_unlock(); return; }
     if (fpk) wbdispatch++; /* kills defer from here */
     wb_unlock();
     if (fpk) {

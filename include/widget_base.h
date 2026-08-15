@@ -93,7 +93,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     /** widget is enabled */                  long   enb; \
     /** focused */                            long   focus; \
     /** hovered */                            long   hover; \
-    /** position of widget in parent */       long   px, py;
+    /** position of widget in parent */       long   px, py; \
+    /** construction complete: events dispatch only from here */ \
+                                              long   live;
 
 /* the base's view of a widget record: the head alone */
 typedef struct wbwig* wbwigptr;

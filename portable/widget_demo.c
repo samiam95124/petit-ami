@@ -342,6 +342,7 @@ void kickbutton(
         sndopn = TRUE;
 
     }
+    wp->live = TRUE; /* whole from here: events may dispatch */
     kickbutton_draw(wp); /* show the resting face */
 
 }

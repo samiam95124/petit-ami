@@ -950,6 +950,8 @@ static void widget_redraw(
 
     ami_evtrec ev;  /* outbound menu event */
 
+    wp->live = TRUE; /* whole from here: every creator ends with its
+                        first-paint request, and reconfigures keep it */
     ev.etype = ami_etredraw; /* set redraw event */
     ev.rsx = 1; /* set extent */
     ev.rsy = 1;
@@ -3087,6 +3089,8 @@ static void slidehoriz_draw(
 
 {
 
+
+
     long sldsizp;    /* size of slider in pixels */
     long sldposp;    /* position of slider in pixels */
     long mid;        /* y midpoint */
@@ -3179,15 +3183,14 @@ static void slidehoriz_draw(
     /* place tickmarks */
     if (wg->ticks) {
 
-        tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
-        tickno = 0; /* start at left */
-        x = margin+tiksizp*tickno; /* set location */
+        /* Counted, not accumulated: a degenerate track size makes the
+           step zero, and a while over an unmoving position never ends. */
+        tiksizp = wg->ticks > 1? trksizp/(wg->ticks-1): 0;
         ami_fcolor(wg->wf, ami_black); /* set color */
-        while (x <= margin+trksizp) { /* place tick marks */
+        for (tickno = 0; tickno < wg->ticks; tickno++) {
 
+            x = margin+tiksizp*tickno; /* set location */
             ami_line(wg->wf, x, 1, x, mid-sldsizp*0.5); /* draw tick */
-            tickno++; /* count ticks */
-            x = margin+tiksizp*tickno; /* next location */
 
         }
 
@@ -3253,6 +3256,8 @@ static void slidevert_draw(
 )
 
 {
+
+
 
     long sldsizp;  /* size of slider in pixels */
     long sldposp;  /* position of slider in pixels */
@@ -3346,15 +3351,14 @@ static void slidevert_draw(
     /* place tickmarks */
     if (wg->ticks) {
 
-        tiksizp = trksizp/(wg->ticks-1); /* find number of pixels between ticks */
-        tickno = 0; /* start at top */
-        y = margin+tiksizp*tickno; /* set location */
+        /* Counted, not accumulated: a degenerate track size makes the
+           step zero, and a while over an unmoving position never ends. */
+        tiksizp = wg->ticks > 1? trksizp/(wg->ticks-1): 0;
         ami_fcolor(wg->wf, ami_black); /* set color */
-        while (y <= margin+trksizp) { /* place tick marks */
+        for (tickno = 0; tickno < wg->ticks; tickno++) {
 
+            y = margin+tiksizp*tickno; /* set location */
             ami_line(wg->wf, mid+sldsizp*0.5, y, ami_maxxg(wg->wf), y); /* draw tick */
-            tickno++; /* count ticks */
-            y = margin+tiksizp*tickno; /* next location */
 
         }
 
