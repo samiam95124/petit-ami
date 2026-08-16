@@ -2433,7 +2433,7 @@ typedef struct {
 
 } countryety;
 
-countryety countrytab[] = {
+static countryety countrytab[] = {
 
     /* Name                                                    A2   Country-code */
     { "Afghanistan",                                          "AF", 4   },

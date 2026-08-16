@@ -273,9 +273,9 @@ static void init_server_tls(void);
 static void init_server_dtls(void);
 
 /* server secret cookie */
-unsigned char cookie_secret[COOKIE_SECRET_LENGTH];
+static unsigned char cookie_secret[COOKIE_SECRET_LENGTH];
 /* cookie has been initialized */
-int cookie_initialized;
+static int cookie_initialized;
 
 /*******************************************************************************
 
