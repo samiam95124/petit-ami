@@ -1370,6 +1370,10 @@ static int        stdchrx;        /* standard/reference character size x */
 static int        stdchry;        /* standard/reference character size y */
 static int        errflg;         /* an error has been flagged */
 static int        dspsev;         /* XWindows display system event */
+static int        thmsev;         /* desktop scheme monitor system event */
+static int        thmfd = -1;     /* scheme monitor pipe */
+static pid_t      thmpid;         /* scheme monitor process */
+static int        frmforce;       /* config pinned the frame theme */
 static sevtptr    sidtab[MAXSID]; /* system event table */
 static int        evtcnt;         /* count of PA event diagnostics output */
 
@@ -5256,6 +5260,62 @@ static void childfrm_draw(winptr win, int mw, int mh)
                      tbh - CFRM_BORDER_W, CFRM_BORDER_W);
 
     pd_flush(padisplay);
+
+}
+
+/* The desktop switching schemes mid run: a monitor child prints a line
+   per change, its pipe rides the system event loop, and the frames of
+   the open windows repaint in the new palette. A config-pinned theme
+   holds still */
+
+static void thememonitor(void)
+
+{
+
+    int pfd[2];
+
+    if (frmforce) return;
+    if (pipe(pfd)) return;
+    thmpid = fork();
+    if (thmpid == 0) {
+
+        close(pfd[0]);
+        dup2(pfd[1], 1);
+        close(pfd[1]);
+        execlp("gsettings", "gsettings", "monitor",
+               "org.gnome.desktop.interface", "color-scheme", (char*)NULL);
+        _exit(1);
+
+    }
+    close(pfd[1]);
+    if (thmpid < 0) { close(pfd[0]); return; }
+    fcntl(pfd[0], F_SETFL, O_NONBLOCK);
+    thmfd = pfd[0];
+    thmsev = system_event_addseinp(thmfd);
+
+}
+
+static void themechange(void)
+
+{
+
+    char    buf[256];
+    ssize_t n;
+    int     old = frmscheme;
+    int     fi;
+
+    n = read(thmfd, buf, sizeof(buf)-1);
+    if (n <= 0) return;
+    buf[n] = 0;
+    if (strstr(buf, "prefer-dark")) frmscheme = 1;
+    else frmscheme = 0;
+    if (frmscheme == old) return;
+    /* repaint every framed window in the new palette */
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->childfrm &&
+            opnfil[fi]->win->xmwhan)
+            childfrm_draw(opnfil[fi]->win, opnfil[fi]->win->xmwr.w,
+                          opnfil[fi]->win->xmwr.h);
 
 }
 
@@ -13518,6 +13578,7 @@ static void ievent(FILE* f, ami_evtrec* er)
                     if (dequepaevt(er)) keep = TRUE;
 
                 } else if (sev.lse == dspsev) xwinget(er, &keep);
+                else if (thmfd >= 0 && sev.lse == thmsev) themechange();
                 else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
                     /* process joystick event */
                     joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
@@ -17050,8 +17111,8 @@ static void ami_init_graphics(int argc, char *argv[])
         vp = ami_schlst("frame_theme", graph_root->sublist);
         if (vp) {
 
-            if (!strcmp(vp->value, "dark")) frmscheme = 1;
-            else if (!strcmp(vp->value, "light")) frmscheme = 0;
+            if (!strcmp(vp->value, "dark")) { frmscheme = 1; frmforce = 1; }
+            else if (!strcmp(vp->value, "light")) { frmscheme = 0; frmforce = 1; }
 
         }
 
@@ -17144,6 +17205,7 @@ static void ami_init_graphics(int argc, char *argv[])
     fcntl(sendwfds[0], F_SETFL, O_NONBLOCK);
     fcntl(sendwfds[1], F_SETFL, O_NONBLOCK);
     sendwsev = system_event_addseinp(sendwfds[0]);
+    thememonitor(); /* follow the desktop's scheme while running */
 
     /* clear joystick table */
     for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;
