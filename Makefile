@@ -195,7 +195,45 @@ ifndef LINK_TYPE
         LINK_TYPE=static
         
     endif
-    
+
+endif
+
+#
+# Which graphics backend serves the graphical model? (Linux static only:
+# the backend is swapped by link option.) Defaults to the running
+# session: a Wayland display present selects the native Wayland backend,
+# else Xlib. Override on the command line with GRAPHICS_BACKEND=x11 or
+# GRAPHICS_BACKEND=wayland. The explicit graphics_testw/widget_testw
+# targets build the Wayland backend regardless.
+#
+ifndef GRAPHICS_BACKEND
+
+    ifneq ($(WAYLAND_DISPLAY),)
+
+        GRAPHICS_BACKEND=wayland
+
+    else
+
+        GRAPHICS_BACKEND=x11
+
+    endif
+
+endif
+# the dynamic link has no Wayland library; the X backend serves it
+ifneq ($(LINK_TYPE),static)
+
+    GRAPHICS_BACKEND=x11
+
+endif
+# the graphical archive name the backend selects
+ifeq ($(GRAPHICS_BACKEND),wayland)
+
+    GRAPHLIB=graphw
+
+else
+
+    GRAPHLIB=graph
+
 endif
 
 #
@@ -508,8 +546,10 @@ ifeq ($(LINK_TYPE),static)
     else ifeq ($(OSTYPE),FreeBSD)
     	GLIBS += -Wl,--whole-archive lib/libami_graph.a -Wl,--no-whole-archive
     else
-        # Linux: the model's bundle archive, as for the terminal model
-    	GLIBS += stub/keeper.o lib/libami_graph.a
+        # Linux: the model's bundle archive, as for the terminal model.
+        # GRAPHLIB carries the backend choice: graph (Xlib) or graphw
+        # (Wayland)
+    	GLIBS += stub/keeper.o lib/libami_$(GRAPHLIB).a
     endif
 else
     GLIBS += stub/keeper.o lib/petit_ami_graph.so
@@ -527,7 +567,7 @@ GLIBSWD = lib/libami_graphw.a stub/keeper.o
 #
 PLIBSD += $(LIBPFX)plain$(LIBEXT)
 CLIBSD += $(LIBPFX)term$(LIBEXT) stub/keeper.o
-GLIBSD += $(LIBPFX)graph$(LIBEXT) stub/keeper.o
+GLIBSD += $(LIBPFX)$(GRAPHLIB)$(LIBEXT) stub/keeper.o
 
 CLIBSCPPD = $(CLIBSD)
 #
@@ -596,8 +636,14 @@ else
 	# stdc++: the plain core carries the sound C++ wrapper
 	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+    ifeq ($(GRAPHICS_BACKEND),wayland)
+	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
+	         -lwayland-client -lwayland-cursor -lxkbcommon \
+	         -lfreetype -lfontconfig -lm -lpthread
+    else
 	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 \
 	         -lfreetype -lfontconfig -lm -lpthread
+    endif
 
     else
 
@@ -747,9 +793,17 @@ linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 linux/graphics_wl.o: linux/graphics_wl.c linux/wlshim.h include/graphics.h Makefile
 	$(CC) $(CFLAGS) -c linux/graphics_wl.c -o linux/graphics_wl.o
 
+# wlshim carries the rasterizer's pixel loops; the optimizer is worth
+# 2x-24x across the primitive benchmarks there, and -O3 buys a further
+# 1.3x-2x on fills and lines over -O2 (arcs give a little back). The
+# header benchmark table in tests/graphics_test.c was recorded at -O3.
+# -g3 stays for symbols; set WLSHIM_OPT= (empty) if stepping through
+# this file matters more than speed, or add -march=native locally for
+# the last measure at the cost of binary portability
+WLSHIM_OPT ?= -O3
 linux/wlshim.o: linux/wlshim.c linux/wlshim.h \
 	linux/wlproto/xdg-shell-client-protocol.h Makefile
-	$(CC) $(CFLAGS) -Ilinux -c linux/wlshim.c -o linux/wlshim.o
+	$(CC) $(CFLAGS) $(WLSHIM_OPT) -Ilinux -c linux/wlshim.c -o linux/wlshim.o
 
 linux/wlproto/xdg-shell-protocol.o: linux/wlproto/xdg-shell-protocol.c Makefile
 	$(CC) $(CFLAGS) -c linux/wlproto/xdg-shell-protocol.c \
@@ -1386,6 +1440,10 @@ else ifeq ($(OSTYPE),Darwin)
 SCREEN_CAPTURE_OBJ = macosx/screen_capture.o
 else ifeq ($(OSTYPE),FreeBSD)
 SCREEN_CAPTURE_OBJ = bsd/screen_capture.o
+else ifeq ($(GRAPHICS_BACKEND),wayland)
+# the Linux capturer reads windows through X and cannot see a native
+# Wayland surface; the rig's AMI_WL_DUMP carries capture instead
+SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
 else
 SCREEN_CAPTURE_OBJ = linux/screen_capture.o
 endif
@@ -1435,7 +1493,7 @@ endif
 # Graphics test on the Wayland backend: the same program, the backend
 # swapped by link option
 #
-graphics_testw: $(GLIBSWD) tests/graphics_test.c
+graphics_testw: $(GLIBSWD) tests/graphics_test.c stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/graphics_test.c stub/screen_capture_stub.o \
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
 	    -lfreetype -lfontconfig -lm -lpthread -o bin/graphics_testw
