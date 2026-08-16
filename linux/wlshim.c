@@ -480,6 +480,80 @@ static void hspan(canvas* c, GC gc, int x, int y, int w)
     }
 }
 
+/* Full ellipse, filled: the scanline walk. Each row's extent comes from
+   the ellipse equation directly -- one sqrt a row against the thousand-
+   point polygon and per-row edge sort the general arc path costs */
+static void fillellipse(canvas* c, GC gc, int x, int y, unsigned w,
+                        unsigned h)
+{
+    double rx = w/2.0, ry = h/2.0;
+    double cx = x+rx, cy = y+ry;
+    double dy, t;
+    int    j, xs, xe;
+
+    if (!w || !h) return;
+    for (j = y; j < y+(int)h; j++) {
+
+        dy = (j+0.5-cy)/ry;
+        t = 1.0-dy*dy;
+        if (t <= 0) continue;
+        t = rx*sqrt(t);
+        xs = (int)ceil(cx-t-0.5);
+        xe = (int)floor(cx+t-0.5);
+        if (xe >= xs) hspan(c, gc, xs, j, xe-xs+1);
+
+    }
+}
+
+/* Full ellipse, stroked: the annulus between the ellipse dilated and
+   eroded by half the line width, walked the same way; two spans a row
+   where the hole crosses, one at the caps */
+static void ringellipse(canvas* c, GC gc, int x, int y, unsigned w,
+                        unsigned h)
+{
+    double lw = gc->lw > 1? gc->lw: 1;
+    double rxo = w/2.0+lw/2, ryo = h/2.0+lw/2;
+    double rxi = w/2.0-lw/2, ryi = h/2.0-lw/2;
+    double cx = x+w/2.0, cy = y+h/2.0;
+    double dy, t;
+    int    j, xs, xe, xis, xie;
+
+    for (j = (int)floor(cy-ryo); j <= (int)ceil(cy+ryo); j++) {
+
+        dy = (j+0.5-cy)/ryo;
+        t = 1.0-dy*dy;
+        if (t <= 0) continue;
+        t = rxo*sqrt(t);
+        xs = (int)ceil(cx-t-0.5);
+        xe = (int)floor(cx+t-0.5);
+        if (xe < xs) continue;
+        t = 0;
+        if (rxi > 0 && ryi > 0) {
+
+            dy = (j+0.5-cy)/ryi;
+            t = 1.0-dy*dy;
+
+        }
+        if (t > 0) {
+
+            /* the row crosses the hole: rim spans on either side */
+            t = rxi*sqrt(t);
+            xis = (int)ceil(cx-t-0.5);
+            xie = (int)floor(cx+t-0.5);
+            if (xie >= xis) {
+
+                hspan(c, gc, xs, j, xis-xs);
+                hspan(c, gc, xie+1, j, xe-xie);
+                continue;
+
+            }
+
+        }
+        hspan(c, gc, xs, j, xe-xs+1);
+
+    }
+}
+
 /* filled rectangle, honoring fill style */
 static void fillrect(canvas* c, GC gc, int x, int y, int w, int h)
 {
@@ -746,9 +820,18 @@ int XDrawArc(Display* d, Drawable dr, GC gc, int x, int y,
     c = drwcan(dr);
     if (c && !gcnoop(gc)) {
 
-        n = arcpath(x, y, w, h, a1, a2, pt, MAXARC);
-        for (i = 0; i+1 < n; i++)
-            anyline(c, gc, pt[i].x, pt[i].y, pt[i+1].x, pt[i+1].y);
+        if (abs(a2) >= 360*64 && gc->lstyle == LineSolid &&
+            gc->fillstyle != FillStippled)
+            /* the complete ellipse walks scanlines; the path polygon
+               is for partial sweeps and patterned lines */
+            ringellipse(c, gc, x, y, w, h);
+        else {
+
+            n = arcpath(x, y, w, h, a1, a2, pt, MAXARC);
+            for (i = 0; i+1 < n; i++)
+                anyline(c, gc, pt[i].x, pt[i].y, pt[i+1].x, pt[i+1].y);
+
+        }
         dmg(dr, x-gc->lw, y-gc->lw, w+2*gc->lw+1, h+2*gc->lw+1);
 
     }
@@ -767,16 +850,23 @@ int XFillArc(Display* d, Drawable dr, GC gc, int x, int y,
     c = drwcan(dr);
     if (c && !gcnoop(gc)) {
 
-        n = arcpath(x, y, w, h, a1, a2, pt, MAXARC-1);
-        if (abs(a2) < 360*64 && gc->arcmode == ArcPieSlice) {
+        if (abs(a2) >= 360*64)
+            /* the complete ellipse walks scanlines directly */
+            fillellipse(c, gc, x, y, w, h);
+        else {
 
-            /* close through the center */
-            pt[n].x = (short)(x+w/2);
-            pt[n].y = (short)(y+h/2);
-            n++;
+            n = arcpath(x, y, w, h, a1, a2, pt, MAXARC-1);
+            if (gc->arcmode == ArcPieSlice) {
+
+                /* close through the center */
+                pt[n].x = (short)(x+w/2);
+                pt[n].y = (short)(y+h/2);
+                n++;
+
+            }
+            fillpoly(c, gc, pt, n);
 
         }
-        fillpoly(c, gc, pt, n);
         dmg(dr, x, y, w+1, h+1);
 
     }
