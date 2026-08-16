@@ -1908,6 +1908,33 @@ static void compose(pd_display* d, pd_win* win)
     alphaover(t->bufpx[b], t->bufw, x1, y1, x2, y2);
     if (roundon(t))
         roundcorners(d, win, t->bufpx[b], t->bufw, x1, y1, x2, y2);
+    /* The corner boxes recompose every commit: a corner's pixels mix
+       content and rounding state settled at different moments, and a
+       stale corner survives any damage that misses it. Four small
+       blits buy corners that are always current */
+    {
+        int rad = CORNERRAD*d->scale;
+        int k, bx, by, bx2, by2;
+
+        for (k = 0; k < 4; k++) {
+
+            bx = (k&1)? win->w-rad: 0;
+            by = (k&2)? win->h-rad: 0;
+            if (bx < 0) bx = 0;
+            if (by < 0) by = 0;
+            bx2 = bx+rad > win->w? win->w: bx+rad;
+            by2 = by+rad > win->h? win->h: by+rad;
+            if (bx2 <= bx || by2 <= by) continue;
+            blittree(win, t->bufpx[b], t->bufw, t->bufh, 0, 0,
+                     bx, by, bx2, by2);
+            alphaover(t->bufpx[b], t->bufw, bx, by, bx2, by2);
+            if (roundon(t))
+                roundcorners(d, win, t->bufpx[b], t->bufw, bx, by,
+                             bx2, by2);
+            wl_surface_damage_buffer(t->surf, bx, by, bx2-bx, by2-by);
+
+        }
+    }
     wl_surface_attach(t->surf, t->buf[b], 0, 0);
     wl_surface_damage_buffer(t->surf, x1, y1, x2-x1, y2-y1);
     /* Mailbox presentation: a free buffer commits at once, and the

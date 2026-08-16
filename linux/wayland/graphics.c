@@ -153,6 +153,7 @@ static void blitmix(pd_canvas* dst, int dx, int dy, pd_canvas* src,
 #endif
 #include <time.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
@@ -264,6 +265,76 @@ static enum { /* debug levels */
 #define CFRM_BUTTON_GAP     6  /* gap between buttons */
 #define CFRM_BUTTON_MG      8  /* button margin from edge */
 #define CFRM_TITLE_SZ(win)  ((int)((win)->gfhigh * 1.15))
+
+/* The frame palette follows the desktop's color scheme: the Adwaita
+   light header on a light desktop, the dark one on a dark desktop. The
+   config value frame_theme (light or dark) overrides detection */
+typedef struct {
+
+    unsigned long bg;      /* frame and title bar */
+    unsigned long text;    /* title text, focused */
+    unsigned long textun;  /* title text, unfocused */
+    unsigned long btnbg;   /* button circles */
+    unsigned long btnfg;   /* button glyphs, focused */
+    unsigned long btnfgun; /* button glyphs, unfocused */
+
+} frmpal;
+
+static const frmpal frmlight = { 0xfafafa, 0x2e2e2e, 0x949390,
+                                 0xe8e8e6, 0x2e2e2e, 0x949390 };
+static const frmpal frmdark  = { 0x303030, 0xffffff, 0x808080,
+                                 0x454545, 0xffffff, 0x808080 };
+static int frmscheme = -1; /* -1 detect, 0 light, 1 dark */
+
+/* Ask the desktop its color scheme, once. The stdio override makes
+   popen a hazard, so the pipe runs on raw descriptors */
+static const frmpal* framepal(void)
+
+{
+
+    int   pfd[2];
+    pid_t pid;
+    char  buf[128];
+    ssize_t n;
+
+    if (frmscheme < 0) {
+
+        frmscheme = 0; /* the light desktop is the default */
+        if (pipe(pfd) == 0) {
+
+            pid = fork();
+            if (pid == 0) {
+
+                close(pfd[0]);
+                dup2(pfd[1], 1);
+                close(pfd[1]);
+                execlp("gsettings", "gsettings", "get",
+                       "org.gnome.desktop.interface", "color-scheme",
+                       (char*)NULL);
+                _exit(1);
+
+            }
+            close(pfd[1]);
+            if (pid > 0) {
+
+                n = read(pfd[0], buf, sizeof(buf)-1);
+                if (n > 0) {
+
+                    buf[n] = 0;
+                    if (strstr(buf, "prefer-dark")) frmscheme = 1;
+
+                }
+                waitpid(pid, NULL, 0);
+
+            }
+            close(pfd[0]);
+
+        }
+
+    }
+    return (frmscheme? &frmdark: &frmlight);
+
+}
 #define CFRM_MIN_W          200 /* width of a minimized child window */
 
 /* Logical → physical viewport transform. Petit-Ami primitives shift their
@@ -5070,7 +5141,7 @@ static void childfrm_draw(winptr win, int mw, int mh)
        input region, making the corner un-grabbable, and X does not alpha-
        composite nested children against their parent), so we keep them square
        and fully grabbable. */
-    win->frmgc->fg = 0x303030; /* dark frame bg */
+    win->frmgc->fg = framepal()->bg; /* the scheme's frame bg */
     pd_frect(pd_wincanvas(win->xmwhan), win->frmgc, 0, 0, mw, mh);
 
     /* draw title text - centered, using FreeType for native font rendering.
@@ -5090,7 +5161,7 @@ static void childfrm_draw(winptr win, int mw, int mh)
         tlen = ft_text_width(win->ftface, win->wintitle, len);
         int ty = (tbh + title_size) / 2 - 2;
 
-        win->frmgc->fg = 0xffffff;
+        win->frmgc->fg = win->focus? framepal()->text: framepal()->textun;
         if (tlen <= avail) {
 
             /* title fits: center it in the available space */
@@ -5132,10 +5203,11 @@ static void childfrm_draw(winptr win, int mw, int mh)
     }
 
     {
-        /* button colors depend on focus state */
-        unsigned long btn_bg = 0x303030; /* min/max match title bar bg always */
-        unsigned long btn_fg = win->focus ? 0xffffff : 0x808080;
-        unsigned long cls_bg = win->focus ? 0xe04040 : 0x303030;
+        /* the scheme's button circles; glyphs dim without focus */
+        const frmpal* pal = framepal();
+        unsigned long btn_bg = pal->btnbg;
+        unsigned long btn_fg = win->focus ? pal->btnfg : pal->btnfgun;
+        unsigned long cls_bg = pal->btnbg;
 
         /* draw minimize button (circle with horizontal line) */
         win->frmgc->fg = btn_bg;
@@ -16974,6 +17046,14 @@ static void ami_init_graphics(int argc, char *argv[])
     /* find graph block */
     graph_root = ami_schlst("graphics", config_root);
     if (graph_root) {
+
+        vp = ami_schlst("frame_theme", graph_root->sublist);
+        if (vp) {
+
+            if (!strcmp(vp->value, "dark")) frmscheme = 1;
+            else if (!strcmp(vp->value, "light")) frmscheme = 0;
+
+        }
 
         vp = ami_schlst("console_points", graph_root->sublist);
         if (vp) {
