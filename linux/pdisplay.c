@@ -516,6 +516,195 @@ static void ringellipse(pd_canvas* c, pd_draw* dr, int x, int y, unsigned w,
     }
 }
 
+/*******************************************************************************
+
+Partial arc scanlines
+
+A pie is the ellipse cut to an angular wedge, a chord the ellipse cut at
+the chord line, and a stroked partial arc the annulus cut to the wedge.
+Each row the curve contributes intervals and the cut contributes boundary
+crossings; testing the midpoint of every division against one predicate
+keeps all the sweep geometry in a single place. Angle work runs y-up
+about the center, matching the arc convention, with wedge boundaries
+along the true endpoint rays (rx cos, ry sin) so noncircular ellipses
+cut correctly.
+
+*******************************************************************************/
+
+/* the angular cut: a wedge for pies and strokes, a half plane for chords */
+typedef struct {
+
+    int    chord;      /* cut at the chord line */
+    int    big;        /* sweep passes 180 degrees */
+    double sx, sy;     /* sweep start endpoint ray */
+    double ex, ey;     /* sweep end endpoint ray */
+    double lx, ly, lc; /* chord line: lx*px+ly*py >= lc holds the arc */
+
+} arccut;
+
+static double crossz(double ax, double ay, double bx, double by)
+{ return (ax*by-ay*bx); }
+
+/* build the cut for a sweep from a1 by a2, in 64ths of a degree */
+static void mkcut(arccut* ct, int a1, int a2, double rx, double ry, int chord)
+{
+    double sa, ea, ma;
+
+    /* normalize to a positive sweep */
+    if (a2 < 0) { a1 = a1+a2; a2 = -a2; }
+    sa = a1/64.0*M_PI/180.0;
+    ea = (a1+a2)/64.0*M_PI/180.0;
+    ct->chord = chord;
+    ct->big = a2 > 180*64;
+    ct->sx = rx*cos(sa); ct->sy = ry*sin(sa);
+    ct->ex = rx*cos(ea); ct->ey = ry*sin(ea);
+    if (chord) {
+
+        /* the line through the sweep endpoints, oriented so the side
+           holding the arc's midpoint is kept */
+        ma = (sa+ea)/2;
+        ct->lx = ct->ey-ct->sy;
+        ct->ly = ct->sx-ct->ex;
+        ct->lc = ct->lx*ct->sx+ct->ly*ct->sy;
+        if (ct->lx*rx*cos(ma)+ct->ly*ry*sin(ma) < ct->lc) {
+
+            ct->lx = -ct->lx; ct->ly = -ct->ly; ct->lc = -ct->lc;
+
+        }
+
+    }
+}
+
+/* is the point (y-up, center relative) on the kept side of the cut */
+static int incut(arccut* ct, double px, double py)
+{
+    if (ct->chord) return (ct->lx*px+ct->ly*py >= ct->lc);
+    if (ct->big)
+        return (!(crossz(ct->ex, ct->ey, px, py) > 0 &&
+                  crossz(px, py, ct->sx, ct->sy) > 0));
+    return (crossz(ct->sx, ct->sy, px, py) >= 0 &&
+            crossz(px, py, ct->ex, ct->ey) >= 0);
+}
+
+/* the cut boundaries' crossings of the row, appended to the divisions */
+static int cutrow(arccut* ct, double py, double* xs, int n)
+{
+    double t;
+
+    if (ct->chord) {
+
+        if (ct->lx != 0) xs[n++] = (ct->lc-ct->ly*py)/ct->lx;
+
+    } else if (py == 0)
+        /* the apex row: divide at the vertex, where every direction
+           test ties, so the side midpoints decide */
+        xs[n++] = 0;
+    else {
+
+        /* each boundary ray crosses the row at most once, outbound */
+        if (ct->sy != 0) { t = py/ct->sy; if (t > 0) xs[n++] = t*ct->sx; }
+        if (ct->ey != 0) { t = py/ct->ey; if (t > 0) xs[n++] = t*ct->ex; }
+
+    }
+    return (n);
+}
+
+/* emit the kept parts of the center-relative interval [l, r] on row j.
+   py is the row's y-up center-relative coordinate, cx the center's
+   surface x */
+static void cutspans(pd_canvas* c, pd_draw* dr, arccut* ct, int j,
+                     double cx, double py, double l, double r)
+{
+    double xs[6];
+    double v, mid;
+    int    n, i, k;
+    int    x1, x2;
+
+    xs[0] = l; xs[1] = r;
+    n = cutrow(ct, py, xs, 2);
+    for (i = 1; i < n; i++) {
+
+        v = xs[i];
+        for (k = i-1; k >= 0 && xs[k] > v; k--) xs[k+1] = xs[k];
+        xs[k+1] = v;
+
+    }
+    for (i = 0; i+1 < n; i++) {
+
+        if (xs[i+1] <= l || xs[i] >= r) continue;
+        v = xs[i] > l? xs[i]: l;
+        mid = (v+(xs[i+1] < r? xs[i+1]: r))/2;
+        if (!incut(ct, mid, py)) continue;
+        x1 = (int)ceil(cx+v-0.5);
+        x2 = (int)floor(cx+(xs[i+1] < r? xs[i+1]: r)-0.5);
+        if (x2 >= x1) hspan(c, dr, x1, j, x2-x1+1);
+
+    }
+}
+
+/* partial sweep, filled: pie closes through the center, chord rim to rim */
+static void fillarcpart(pd_canvas* c, pd_draw* dr, int x, int y, unsigned w,
+                        unsigned h, int a1, int a2, int pie)
+{
+    double rx = w/2.0, ry = h/2.0;
+    double cx = x+rx, cy = y+ry;
+    double py, dy, t;
+    arccut ct;
+    int    j;
+
+    if (!w || !h) return;
+    mkcut(&ct, a1, a2, rx, ry, !pie);
+    for (j = y; j < y+(int)h; j++) {
+
+        py = -(j+0.5-cy);
+        dy = py/ry;
+        t = 1.0-dy*dy;
+        if (t <= 0) continue;
+        t = rx*sqrt(t);
+        cutspans(c, dr, &ct, j, cx, py, -t, t);
+
+    }
+}
+
+/* partial sweep, stroked: the annulus rows of the ring, cut to the wedge */
+static void ringarcpart(pd_canvas* c, pd_draw* dr, int x, int y, unsigned w,
+                        unsigned h, int a1, int a2)
+{
+    double lw = dr->lw > 1? dr->lw: 1;
+    double rxo = w/2.0+lw/2, ryo = h/2.0+lw/2;
+    double rxi = w/2.0-lw/2, ryi = h/2.0-lw/2;
+    double cx = x+w/2.0, cy = y+h/2.0;
+    double py, dy, to, ti;
+    arccut ct;
+    int    j;
+
+    mkcut(&ct, a1, a2, w/2.0, h/2.0, 0);
+    for (j = (int)floor(cy-ryo); j <= (int)ceil(cy+ryo); j++) {
+
+        py = -(j+0.5-cy);
+        dy = py/ryo;
+        to = 1.0-dy*dy;
+        if (to <= 0) continue;
+        to = rxo*sqrt(to);
+        ti = 0;
+        if (rxi > 0 && ryi > 0) {
+
+            dy = py/ryi;
+            ti = 1.0-dy*dy;
+            ti = ti > 0? rxi*sqrt(ti): 0;
+
+        }
+        if (ti > 0) {
+
+            /* the row crosses the hole: rim intervals on either side */
+            cutspans(c, dr, &ct, j, cx, py, -to, -ti);
+            cutspans(c, dr, &ct, j, cx, py, ti, to);
+
+        } else cutspans(c, dr, &ct, j, cx, py, -to, to);
+
+    }
+}
+
 /* filled rectangle, honoring the stipple */
 static void fillrect(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h)
 {
@@ -639,6 +828,26 @@ static void wideline(pd_canvas* c, pd_draw* dr, int x1, int y1, int x2, int y2)
     len = sqrtf(dx*dx+dy*dy);
     if (len < 0.001f) { fillrect(c, dr, x1-dr->lw/2, y1-dr->lw/2, dr->lw, dr->lw); return; }
     hw = dr->lw/2.0f;
+    /* an axis-aligned butt-capped segment is a rectangle: the rows and
+       columns the quad's scanlines would produce, as one fill */
+    if (y1 == y2) {
+
+        int xa = x1 < x2? x1: x2, xb = x1 > x2? x1: x2;
+        int yq1 = lroundf(y1-hw), yq2 = lroundf(y1+hw);
+
+        fillrect(c, dr, xa, yq1, xb-xa+1, yq2-yq1);
+        return;
+
+    }
+    if (x1 == x2) {
+
+        int ya = y1 < y2? y1: y2, yb = y1 > y2? y1: y2;
+        int xq1 = lroundf(x1-hw), xq2 = lroundf(x1+hw);
+
+        fillrect(c, dr, xq1, ya, xq2-xq1, yb-ya+1);
+        return;
+
+    }
     nx = -dy/len*hw; ny = dx/len*hw;
     q[0].x = (short)lroundf(x1+nx); q[0].y = (short)lroundf(y1+ny);
     q[1].x = (short)lroundf(x2+nx); q[1].y = (short)lroundf(y2+ny);
@@ -824,8 +1033,11 @@ void pd_arc(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h,
 
         if (abs(a2) >= 360*64 && dr->lstyle == pd_linesolid && !dr->stipple)
             /* the complete ellipse walks scanlines; the path polygon
-               is for partial sweeps and patterned lines */
+               is for thin partial sweeps and patterned lines */
             ringellipse(c, dr, x, y, w, h);
+        else if (dr->lw > 1 && dr->lstyle == pd_linesolid && !dr->stipple)
+            /* a wide partial sweep walks the ring, cut to the wedge */
+            ringarcpart(c, dr, x, y, w, h, a1, a2);
         else {
 
             n = arcpath(x, y, w, h, a1, a2, pt, MAXARC);
@@ -843,26 +1055,10 @@ void pd_arc(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h,
 static void farc(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h,
                  int a1, int a2, int pie)
 {
-    ppoint pt[MAXARC];
-    int    n;
-
     if (abs(a2) >= 360*64)
         /* the complete ellipse walks scanlines directly */
         fillellipse(c, dr, x, y, w, h);
-    else {
-
-        n = arcpath(x, y, w, h, a1, a2, pt, MAXARC-1);
-        if (pie) {
-
-            /* close through the center */
-            pt[n].x = (short)(x+w/2);
-            pt[n].y = (short)(y+h/2);
-            n++;
-
-        }
-        fillpoly(c, dr, pt, n);
-
-    }
+    else fillarcpart(c, dr, x, y, w, h, a1, a2, pie);
     candmg(c, x, y, w+1, h+1);
 }
 
