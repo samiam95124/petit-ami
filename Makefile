@@ -786,30 +786,30 @@ linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 
 #
 # The Wayland graphics backend: same library contract as linux/graphics.o,
-# selected by linking these objects in its place. wlshim implements the X
-# window and drawing model on Wayland so the backend proper stays
-# structurally parallel to the Xlib version.
+# selected by linking these objects in its place. pdisplay carries the
+# platform display interface (pdisplay.h) on Wayland: the window tree,
+# rasterization, input, and presentation the backend draws through.
 #
-linux/graphics_wl.o: linux/graphics_wl.c linux/wlshim.h include/graphics.h Makefile
-	$(CC) $(CFLAGS) -c linux/graphics_wl.c -o linux/graphics_wl.o
+linux/graphics_wl.o: linux/graphics_wl.c linux/pdisplay.h include/graphics.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/graphics_wl.c -o linux/graphics_wl.o
 
-# wlshim carries the rasterizer's pixel loops; the optimizer is worth
+# pdisplay carries the rasterizer's pixel loops; the optimizer is worth
 # 2x-24x across the primitive benchmarks there, and -O3 buys a further
 # 1.3x-2x on fills and lines over -O2 (arcs give a little back). The
 # header benchmark table in tests/graphics_test.c was recorded at -O3.
-# -g3 stays for symbols; set WLSHIM_OPT= (empty) if stepping through
+# -g3 stays for symbols; set PDISPLAY_OPT= (empty) if stepping through
 # this file matters more than speed, or add -march=native locally for
 # the last measure at the cost of binary portability
-WLSHIM_OPT ?= -O3
-linux/wlshim.o: linux/wlshim.c linux/wlshim.h \
+PDISPLAY_OPT ?= -O3
+linux/pdisplay.o: linux/pdisplay.c linux/pdisplay.h \
 	linux/wlproto/xdg-shell-client-protocol.h Makefile
-	$(CC) $(CFLAGS) $(WLSHIM_OPT) -Ilinux -c linux/wlshim.c -o linux/wlshim.o
+	$(CC) $(CFLAGS) $(PDISPLAY_OPT) -Ilinux -c linux/pdisplay.c -o linux/pdisplay.o
 
 linux/wlproto/xdg-shell-protocol.o: linux/wlproto/xdg-shell-protocol.c Makefile
 	$(CC) $(CFLAGS) -c linux/wlproto/xdg-shell-protocol.c \
 	    -o linux/wlproto/xdg-shell-protocol.o
 
-WLGRAPH = linux/graphics_wl.o linux/wlshim.o linux/wlproto/xdg-shell-protocol.o
+WLGRAPH = linux/graphics_wl.o linux/pdisplay.o linux/wlproto/xdg-shell-protocol.o
 WLLIBS = -lwayland-client -lwayland-cursor -lxkbcommon
 
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
@@ -1498,6 +1498,13 @@ graphics_testw: $(GLIBSWD) tests/graphics_test.c stub/screen_capture_stub.o
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
 	    -lfreetype -lfontconfig -lm -lpthread -o bin/graphics_testw
 
+# The GTK edition of the graphics_test benchmarks, for rasterizer and
+# complexity comparison against the Ami backends. Needs libgtk-4-dev.
+graphics_test_gtk: tests/graphics_test_gtk.c
+	$(CC) $(CFLAGS) tests/graphics_test_gtk.c \
+	    $(shell pkg-config --cflags --libs gtk4) -lm \
+	    -o bin/graphics_test_gtk
+
 widget_testw: $(GLIBSWD) tests/widget_test.c
 	$(CC) $(CFLAGS) tests/widget_test.c \
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
@@ -1986,6 +1993,69 @@ backgammon: $(GLIBSD) graph_games/backgammon.c
 # Clean target
 #
 ################################################################################
+
+#
+# Target and option guide
+#
+help:
+	@echo ""
+	@echo "Petit-Ami build"
+	@echo ""
+	@echo "Principal targets:"
+	@echo ""
+	@echo "  all                 every program and test (the default)"
+	@echo "  clean               remove built programs and objects"
+	@echo "  help                this guide"
+	@echo ""
+	@echo "Tests, by model:"
+	@echo ""
+	@echo "  stdio_test          serial (plain) model"
+	@echo "  services_test       operating system services"
+	@echo "  network_test        network model"
+	@echo "  sound_test          sound model (sound_testg: graphical)"
+	@echo "  terminal_test       terminal model (terminal_testg, terminal_testc)"
+	@echo "  graphics_test       graphical model; 'graphics_test bench' runs"
+	@echo "                      the benchmark section alone"
+	@echo "  widget_test         widget set (widget_testc: terminal)"
+	@echo "  management_test     window management (management_testc)"
+	@echo "  event/eventg        event diagnostics"
+	@echo ""
+	@echo "The Wayland backend pair (Linux; built regardless of session):"
+	@echo ""
+	@echo "  graphics_testw      graphics test on the Wayland backend"
+	@echo "  widget_testw        widget test on the Wayland backend"
+	@echo "  graphics_test_gtk   the GTK4/Cairo benchmark edition (libgtk-4-dev)"
+	@echo ""
+	@echo "Demos and games: snake mine wator pong breakout chess checkers"
+	@echo "  backgammon defenders editor clock calc pixel ball1-6 line1-5"
+	@echo "  (a trailing g names the graphical build of a terminal program)"
+	@echo ""
+	@echo "Network programs: getpage getmail fakemail gettys msgclient"
+	@echo "  msgserver prtcertnet prtcertmsg listcertnet"
+	@echo ""
+	@echo "Remote display: graph_server (see the remote regressions)"
+	@echo ""
+	@echo "Options, given as make variables:"
+	@echo ""
+	@echo "  GRAPHICS_BACKEND=x11|wayland"
+	@echo "                      graphics backend for the graphical model."
+	@echo "                      Defaults to the running session: wayland"
+	@echo "                      when WAYLAND_DISPLAY is set, else x11"
+	@echo "  PDISPLAY_OPT=...    optimizer for the Wayland rasterizer,"
+	@echo "                      default -O3; empty for stepping, add"
+	@echo "                      -march=native for the last measure"
+	@echo "  LINK_TYPE=static|dynamic"
+	@echo "                      library linkage, default static"
+	@echo "  STDIO_SOURCE=stdio  stdio override source selection"
+	@echo ""
+	@echo "The Wayland test rig, given in the environment:"
+	@echo ""
+	@echo "  PD_DUMP=<prefix>    write every presented frame as a ppm"
+	@echo "  PD_INPUT=<fifo>     inject input: key/keydown/keyup <xkeycode>,"
+	@echo "                      move <x> <y>, btn <1|2|3> <x> <y>"
+	@echo "  PD_NOBEAT=1         suppress the live publish beat (timing runs)"
+	@echo "                      (the AMI_WL_* spellings are honored as well)"
+	@echo ""
 
 clean:
 	rm -f lsalsadev alsaparms
