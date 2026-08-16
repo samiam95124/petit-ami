@@ -143,6 +143,8 @@ struct pd_display {
     struct wl_output*     out;
     int    outw, outh;      /* output pixels */
     int    outmmw, outmmh;  /* output millimeters */
+    int    scale;           /* output integer scale: buffer pixels per
+                               logical pixel, 1 on an unscaled desktop */
     int    epfd;            /* epoll handed out as the event descriptor */
     int    evfd;            /* eventfd waking the queue */
     int    rtfd;            /* key repeat timerfd */
@@ -1548,8 +1550,10 @@ void pd_winlimits(pd_win* win, int minw, int minh, int maxw, int maxh)
     LK(d);
     if (win->top && win->top->xtop) {
 
-        xdg_toplevel_set_min_size(win->top->xtop, minw, minh);
-        xdg_toplevel_set_max_size(win->top->xtop, maxw, maxh);
+        xdg_toplevel_set_min_size(win->top->xtop,
+            (minw+d->scale-1)/d->scale, (minh+d->scale-1)/d->scale);
+        xdg_toplevel_set_max_size(win->top->xtop,
+            (maxw+d->scale-1)/d->scale, (maxh+d->scale-1)/d->scale);
         wl_display_flush(d->dpy);
 
     }
@@ -1695,7 +1699,9 @@ static void sizebufs(pd_display* d, pd_win* win)
 
     t = win->top;
     if (!t) return;
-    if (t->bufw == win->w && t->bufh == win->h && t->buf[0]) return;
+    if (t->bufw >= win->w && t->bufh >= win->h &&
+        t->bufw-win->w < d->scale && t->bufh-win->h < d->scale &&
+        t->buf[0]) return;
     for (i = 0; i < 2; i++)
         if (t->buf[i]) {
 
@@ -1704,17 +1710,23 @@ static void sizebufs(pd_display* d, pd_win* win)
             t->buf[i] = NULL;
 
         }
-    t->bufw = win->w; t->bufh = win->h;
-    sz = (size_t)win->w*win->h*4;
+    /* the buffer must be a whole number of logical pixels on a side */
+    t->bufw = (win->w+d->scale-1)/d->scale*d->scale;
+    t->bufh = (win->h+d->scale-1)/d->scale*d->scale;
+    sz = (size_t)t->bufw*t->bufh*4;
     for (i = 0; i < 2; i++) {
+
+        size_t px;
 
         fd = mkshmfd(sz);
         if (fd < 0) return;
         t->bufpx[i] = mmap(NULL, sz, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
         t->bufsz[i] = sz;
+        /* the padding rows and columns show as the paper color */
+        for (px = 0; px < sz/4; px++) t->bufpx[i][px] = 0xffffff;
         pool = wl_shm_create_pool(d->shm, fd, sz);
-        t->buf[i] = wl_shm_pool_create_buffer(pool, 0, win->w, win->h,
-                                              win->w*4, WL_SHM_FORMAT_XRGB8888);
+        t->buf[i] = wl_shm_pool_create_buffer(pool, 0, t->bufw, t->bufh,
+                                              t->bufw*4, WL_SHM_FORMAT_XRGB8888);
         wl_buffer_add_listener(t->buf[i], &buf_lis, t);
         wl_shm_pool_destroy(pool);
         close(fd);
@@ -1779,7 +1791,7 @@ static void compose(pd_display* d, pd_win* win)
     if (x2 <= x1 || y2 <= y1) { t->dmg = 0; return; }
     blittree(win, t->bufpx[b], t->bufw, t->bufh, 0, 0, x1, y1, x2, y2);
     wl_surface_attach(t->surf, t->buf[b], 0, 0);
-    wl_surface_damage(t->surf, x1, y1, x2-x1, y2-y1);
+    wl_surface_damage_buffer(t->surf, x1, y1, x2-x1, y2-y1);
     /* Mailbox presentation: a free buffer commits at once, and the
        compositor shows the freshest frame each refresh. One pacing
        callback stays armed at a time; strict wait-for-callback pacing
@@ -1942,7 +1954,7 @@ static void xtconf(void* data, struct xdg_toplevel* xt, int32_t w, int32_t h,
     (void)xt;
     t = win->top;
     if (!t) return;
-    t->confw = w; t->confh = h;
+    t->confw = w*d->scale; t->confh = h*d->scale;
     act = 0; max = 0;
     wl_array_for_each(st, states) {
 
@@ -1987,6 +1999,7 @@ static void mktoplevel(pd_display* d, pd_win* win)
     win->top = t;
     t->surf = wl_compositor_create_surface(d->comp);
     wl_surface_set_user_data(t->surf, win);
+    if (d->scale > 1) wl_surface_set_buffer_scale(t->surf, d->scale);
     t->xsurf = xdg_wm_base_get_xdg_surface(d->wm, t->surf);
     xdg_surface_add_listener(t->xsurf, &xsurf_lis, win);
     t->xtop = xdg_surface_get_toplevel(t->xsurf);
@@ -2108,8 +2121,8 @@ static void ptrenter(void* data, struct wl_pointer* p, uint32_t serial,
     d->enterserial = serial;
     win = surf? wl_surface_get_user_data(surf): NULL;
     d->ptrtop = win;
-    d->ptrx = wl_fixed_to_double(sx);
-    d->ptry = wl_fixed_to_double(sy);
+    d->ptrx = wl_fixed_to_double(sx)*d->scale;
+    d->ptry = wl_fixed_to_double(sy)*d->scale;
     d->ptrwin = ptrroute(d, &x, &y);
     d->curshown = -2; /* the enter must set a cursor or none shows */
     setcursor(d, d->ptrwin);
@@ -2136,8 +2149,8 @@ static void ptrmotion(void* data, struct wl_pointer* p, uint32_t time,
     pd_evt      e;
 
     (void)p;
-    d->ptrx = wl_fixed_to_double(sx);
-    d->ptry = wl_fixed_to_double(sy);
+    d->ptrx = wl_fixed_to_double(sx)*d->scale;
+    d->ptry = wl_fixed_to_double(sy)*d->scale;
     nw = ptrroute(d, &x, &y);
     if (nw != d->ptrwin) {
 
@@ -2491,7 +2504,12 @@ static void outmode(void* data, struct wl_output* o, uint32_t flags,
 
 static void outdone(void* data, struct wl_output* o) { (void)data; (void)o; }
 static void outscale(void* data, struct wl_output* o, int32_t f)
-{ (void)data; (void)o; (void)f; }
+{
+    pd_display* d = data;
+
+    (void)o;
+    if (f > d->scale) d->scale = f;
+}
 
 static const struct wl_output_listener out_lis = {
     outgeom, outmode, outdone, outscale
@@ -2561,10 +2579,26 @@ pd_display* pd_open(void)
     d->curshown = -1;
     d->outw = 1920; d->outh = 1080;   /* until the output reports */
     d->outmmw = 508; d->outmmh = 285; /* 96 dpi, the desktop fiction */
+    d->scale = 1;
     d->reg = wl_display_get_registry(d->dpy);
     wl_registry_add_listener(d->reg, &reg_lis, d);
     wl_display_roundtrip(d->dpy); /* globals */
     wl_display_roundtrip(d->dpy); /* seat caps, keymap, output modes */
+    {
+        const char* sv = rigenv("PD_SCALE", "AMI_WL_SCALE");
+
+        if (sv && atoi(sv) >= 1) d->scale = atoi(sv);
+    }
+    if (d->scale > 1) {
+
+        /* A scaled desktop: buffers carry scale x scale pixels per
+           logical pixel, and density follows the desktop convention of
+           96 dpi per scale step -- the same figure the X backend reads
+           from Xft.dpi -- so a point is the same size on either backend */
+        d->outmmw = d->outw*254/(960*d->scale);
+        d->outmmh = d->outh*254/(960*d->scale);
+
+    } else
     /* An output reporting nonsense physical size (headless compositors
        report millimeters equal to pixels; broken EDID reports zeros) would
        shrink or explode every font. Outside plausible density, keep the
@@ -2664,14 +2698,16 @@ static void injline(pd_display* d, char* ln)
     else if (sscanf(ln, "keyup %d", &a) == 1)
         keyevt(d, pd_etkeyup, a, (uint32_t)nowms());
     else if (sscanf(ln, "move %d %d", &x, &y) == 2)
-        ptrmotion(d, NULL, (uint32_t)nowms(), wl_fixed_from_int(x),
-                  wl_fixed_from_int(y));
+        ptrmotion(d, NULL, (uint32_t)nowms(),
+                  wl_fixed_from_double((double)x/d->scale),
+                  wl_fixed_from_double((double)y/d->scale));
     else if (sscanf(ln, "btn %d %d %d", &a, &x, &y) == 3) {
 
         int bc = a == 1? 0x110: a == 2? 0x112: 0x111;
 
-        ptrmotion(d, NULL, (uint32_t)nowms(), wl_fixed_from_int(x),
-                  wl_fixed_from_int(y));
+        ptrmotion(d, NULL, (uint32_t)nowms(),
+                  wl_fixed_from_double((double)x/d->scale),
+                  wl_fixed_from_double((double)y/d->scale));
         ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 1);
         ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 0);
 
