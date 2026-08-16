@@ -1766,21 +1766,6 @@ static void sizebufs(pd_display* d, pd_win* win)
         t->bufbusy[i] = 0;
 
     }
-    /* The compositor blends only where blending happens: everything
-       is opaque but the corner boxes (the whole rectangle, squared) */
-    {
-        struct wl_region* rg = wl_compositor_create_region(d->comp);
-        int lw = win->w/d->scale, lh = win->h/d->scale;
-
-        if (roundon(t) && lw > 2*CORNERRAD && lh > 2*CORNERRAD) {
-
-            wl_region_add(rg, 0, CORNERRAD, lw, lh-2*CORNERRAD);
-            wl_region_add(rg, CORNERRAD, 0, lw-2*CORNERRAD, lh);
-
-        } else wl_region_add(rg, 0, 0, lw, lh);
-        wl_surface_set_opaque_region(t->surf, rg);
-        wl_region_destroy(rg);
-    }
     /* full redraw next commit */
     t->dmg = 1; t->dx1 = 0; t->dy1 = 0; t->dx2 = win->w; t->dy2 = win->h;
 }
