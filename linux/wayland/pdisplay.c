@@ -62,6 +62,11 @@
 
 #include "pdisplay.h"
 
+/* Toplevel corner radius in logical pixels, as the desktop rounds its
+   own windows; maximized windows square off, as the desktop squares
+   them */
+#define CORNERRAD 12
+
 /* canvas: pixel content of a window or free canvas. Depth 1 canvases
    (glyph stipples) store one word per pixel holding 0 or 1; uniform
    addressing costs a little memory on tiny bitmaps and saves every op
@@ -188,6 +193,7 @@ static void flushtops(pd_display* d);
 static void setcursor(pd_display* d, pd_win* w);
 static void mktoplevel(pd_display* d, pd_win* w);
 static void sizebufs(pd_display* d, pd_win* win);
+static int  roundon(wltop* t);
 
 /*******************************************************************************
 
@@ -1745,17 +1751,15 @@ static void sizebufs(pd_display* d, pd_win* win)
     sz = (size_t)t->bufw*t->bufh*4;
     for (i = 0; i < 2; i++) {
 
-        size_t px;
-
         fd = mkshmfd(sz);
         if (fd < 0) return;
         t->bufpx[i] = mmap(NULL, sz, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
         t->bufsz[i] = sz;
-        /* the padding rows and columns show as the paper color */
-        for (px = 0; px < sz/4; px++) t->bufpx[i][px] = 0xffffff;
+        /* mmap's zero pages leave the padding rows and columns
+           transparent, invisible beside the rounded corners */
         pool = wl_shm_create_pool(d->shm, fd, sz);
         t->buf[i] = wl_shm_pool_create_buffer(pool, 0, t->bufw, t->bufh,
-                                              t->bufw*4, WL_SHM_FORMAT_XRGB8888);
+                                              t->bufw*4, WL_SHM_FORMAT_ARGB8888);
         wl_buffer_add_listener(t->buf[i], &buf_lis, t);
         wl_shm_pool_destroy(pool);
         close(fd);
@@ -1794,6 +1798,73 @@ static void blittree(pd_win* w, uint32_t* dst, int dw, int dh, int ox, int oy,
         blittree(c, dst, dw, dh, ox+c->x, oy+c->y, cx1, cy1, cx2, cy2);
 }
 
+/* Content pixels carry no alpha; the buffer format does. Stamp the
+   damaged rows opaque */
+static void alphaover(uint32_t* px, int stride, int x1, int y1, int x2,
+                      int y2)
+{
+    uint32_t* p;
+    int       x, y;
+
+    for (y = y1; y < y2; y++) {
+
+        p = &px[(size_t)y*stride+x1];
+        for (x = x1; x < x2; x++) *p++ |= 0xff000000;
+
+    }
+}
+
+/* Round the frame's corners: pixels outside the corner radius go
+   transparent, the edge covered proportionally. The format is
+   premultiplied, so coverage scales the color channels with the
+   alpha */
+static void roundcorners(pd_display* d, pd_win* win, uint32_t* px,
+                         int stride, int x1, int y1, int x2, int y2)
+{
+    double rad = (double)CORNERRAD*d->scale;
+    double cx, cy, dx, dy, dist, cov;
+    int    corner, bx, by, x, y, a;
+    uint32_t c;
+
+    for (corner = 0; corner < 4; corner++) {
+
+        bx = (corner&1)? win->w-(int)rad: 0;
+        by = (corner&2)? win->h-(int)rad: 0;
+        cx = (corner&1)? win->w-rad: rad;
+        cy = (corner&2)? win->h-rad: rad;
+        for (y = by; y < by+(int)rad; y++) {
+
+            if (y < y1 || y >= y2) continue;
+            for (x = bx; x < bx+(int)rad; x++) {
+
+                if (x < x1 || x >= x2) continue;
+                dx = x+0.5-cx; dy = y+0.5-cy;
+                dist = sqrt(dx*dx+dy*dy);
+                cov = rad-dist+0.5;
+                if (cov >= 1.0) continue;
+                if (cov <= 0) { px[(size_t)y*stride+x] = 0; continue; }
+                a = (int)(cov*255.0+0.5);
+                c = px[(size_t)y*stride+x];
+                px[(size_t)y*stride+x] =
+                    ((uint32_t)a<<24)|
+                    ((((c>>16&0xff)*a/255))<<16)|
+                    ((((c>>8&0xff)*a/255))<<8)|
+                    ((c&0xff)*a/255);
+
+            }
+
+        }
+
+    }
+}
+
+/* the corner cut decides per commit: an Ami-framed toplevel rounds,
+   a maximized one squares */
+static int roundon(wltop* t)
+{
+    return ((t->titw > 0 || t->borderw > 0) && !t->maximized);
+}
+
 /* compose and commit a toplevel's damage */
 static void compose(pd_display* d, pd_win* win)
 {
@@ -1819,6 +1890,36 @@ static void compose(pd_display* d, pd_win* win)
     if (b != t->curbuf) { x1 = 0; y1 = 0; x2 = win->w; y2 = win->h; }
     if (x2 <= x1 || y2 <= y1) { t->dmg = 0; return; }
     blittree(win, t->bufpx[b], t->bufw, t->bufh, 0, 0, x1, y1, x2, y2);
+    alphaover(t->bufpx[b], t->bufw, x1, y1, x2, y2);
+    if (roundon(t))
+        roundcorners(d, win, t->bufpx[b], t->bufw, x1, y1, x2, y2);
+    /* The corner boxes recompose every commit: a corner's pixels mix
+       content and rounding state settled at different moments, and a
+       stale corner survives any damage that misses it. Four small
+       blits buy corners that are always current */
+    {
+        int rad = CORNERRAD*d->scale;
+        int k, bx, by, bx2, by2;
+
+        for (k = 0; k < 4; k++) {
+
+            bx = (k&1)? win->w-rad: 0;
+            by = (k&2)? win->h-rad: 0;
+            if (bx < 0) bx = 0;
+            if (by < 0) by = 0;
+            bx2 = bx+rad > win->w? win->w: bx+rad;
+            by2 = by+rad > win->h? win->h: by+rad;
+            if (bx2 <= bx || by2 <= by) continue;
+            blittree(win, t->bufpx[b], t->bufw, t->bufh, 0, 0,
+                     bx, by, bx2, by2);
+            alphaover(t->bufpx[b], t->bufw, bx, by, bx2, by2);
+            if (roundon(t))
+                roundcorners(d, win, t->bufpx[b], t->bufw, bx, by,
+                             bx2, by2);
+            wl_surface_damage_buffer(t->surf, bx, by, bx2-bx, by2-by);
+
+        }
+    }
     wl_surface_attach(t->surf, t->buf[b], 0, 0);
     wl_surface_damage_buffer(t->surf, x1, y1, x2-x1, y2-y1);
     /* Mailbox presentation: a free buffer commits at once, and the

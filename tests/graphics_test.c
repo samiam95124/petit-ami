@@ -235,7 +235,7 @@
 * No scaling picture draw        0.00    0.000000                              *
 *                                                                              *
 * Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
-* Ubuntu 26.04 LTS, native Wayland backend (graphics_wl/pdisplay),             *
+* Ubuntu 26.04 LTS, native Wayland backend (linux/wayland, pdisplay -O3),      *
 * GNOME Mutter compositor, pdisplay at -O3                                     *
 *                                                                              *
 * Type                        Seconds   Per fig                                *

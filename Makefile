@@ -781,17 +781,19 @@ linux/dumpsynthplug.o: linux/dumpsynthplug.c include/sound.h Makefile
 linux/terminal.o: linux/terminal.c include/terminal.h Makefile
 	$(CC) $(CFLAGS) -c linux/terminal.c -o linux/terminal.o
 	
-linux/graphics.o: linux/graphics.c include/graphics.h Makefile
-	$(CC) $(CFLAGS) -c linux/graphics.c -o linux/graphics.o
+linux/x11/graphics.o: linux/x11/graphics.c include/graphics.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/x11/graphics.c -o linux/x11/graphics.o
 
 #
-# The Wayland graphics backend: same library contract as linux/graphics.o,
+# The Wayland graphics backend: same library contract as the X backend,
 # selected by linking these objects in its place. pdisplay carries the
 # platform display interface (pdisplay.h) on Wayland: the window tree,
 # rasterization, input, and presentation the backend draws through.
 #
-linux/graphics_wl.o: linux/graphics_wl.c linux/pdisplay.h include/graphics.h Makefile
-	$(CC) $(CFLAGS) -Ilinux -c linux/graphics_wl.c -o linux/graphics_wl.o
+linux/wayland/graphics.o: linux/wayland/graphics.c \
+	linux/wayland/pdisplay.h include/graphics.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/wayland/graphics.c \
+	    -o linux/wayland/graphics.o
 
 # pdisplay carries the rasterizer's pixel loops; the optimizer is worth
 # 2x-24x across the primitive benchmarks there, and -O3 buys a further
@@ -801,15 +803,18 @@ linux/graphics_wl.o: linux/graphics_wl.c linux/pdisplay.h include/graphics.h Mak
 # this file matters more than speed, or add -march=native locally for
 # the last measure at the cost of binary portability
 PDISPLAY_OPT ?= -O3
-linux/pdisplay.o: linux/pdisplay.c linux/pdisplay.h \
-	linux/wlproto/xdg-shell-client-protocol.h Makefile
-	$(CC) $(CFLAGS) $(PDISPLAY_OPT) -Ilinux -c linux/pdisplay.c -o linux/pdisplay.o
+linux/wayland/pdisplay.o: linux/wayland/pdisplay.c linux/wayland/pdisplay.h \
+	linux/wayland/wlproto/xdg-shell-client-protocol.h Makefile
+	$(CC) $(CFLAGS) $(PDISPLAY_OPT) -Ilinux -c linux/wayland/pdisplay.c \
+	    -o linux/wayland/pdisplay.o
 
-linux/wlproto/xdg-shell-protocol.o: linux/wlproto/xdg-shell-protocol.c Makefile
-	$(CC) $(CFLAGS) -c linux/wlproto/xdg-shell-protocol.c \
-	    -o linux/wlproto/xdg-shell-protocol.o
+linux/wayland/wlproto/xdg-shell-protocol.o: \
+	linux/wayland/wlproto/xdg-shell-protocol.c Makefile
+	$(CC) $(CFLAGS) -c linux/wayland/wlproto/xdg-shell-protocol.c \
+	    -o linux/wayland/wlproto/xdg-shell-protocol.o
 
-WLGRAPH = linux/graphics_wl.o linux/pdisplay.o linux/wlproto/xdg-shell-protocol.o
+WLGRAPH = linux/wayland/graphics.o linux/wayland/pdisplay.o \
+	linux/wayland/wlproto/xdg-shell-protocol.o
 WLLIBS = -lwayland-client -lwayland-cursor -lxkbcommon
 
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
@@ -916,9 +921,9 @@ bsd/terminal.o: linux/terminal.c include/terminal.h Makefile
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c linux/terminal.c -o bsd/terminal.o
 
-bsd/graphics.o: linux/graphics.c include/graphics.h Makefile
+bsd/graphics.o: linux/x11/graphics.c include/graphics.h Makefile
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -I/usr/local/include -c linux/graphics.c \
+	$(CC) $(CFLAGS) -I/usr/local/include -c linux/x11/graphics.c \
 	-o bsd/graphics.o
 
 
@@ -1120,11 +1125,11 @@ lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 		-o lib/petit_ami_termc.so
 
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
-	linux/graphics.o linux/system_event.o \
+	linux/x11/graphics.o linux/system_event.o \
 	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
-		linux/graphics.o linux/system_event.o \
+		linux/x11/graphics.o linux/system_event.o \
 		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 		cpp/graphics.o -lstdc++ -o lib/petit_ami_graph.so
 
@@ -1186,11 +1191,11 @@ lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
 	    portable/managerc.o portable/txtterminal.o \
 	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
-lib/graph_core.o: $(CORE_COMMON) linux/graphics.o linux/system_event.o \
+lib/graph_core.o: $(CORE_COMMON) linux/x11/graphics.o linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
 	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
-	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/graphics.o \
+	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/x11/graphics.o \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
 	    portable/pdfgraph.o \
 	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
@@ -1212,8 +1217,8 @@ lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_graph.a
 	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o
 
-# the Wayland graphics model: graphics_wl and its shim linked in place of
-# linux/graphics.o, all else identical
+# the Wayland graphics model: the wayland backend objects in place of
+# linux/x11/graphics.o, all else identical
 lib/graphw_core.o: $(CORE_COMMON) $(WLGRAPH) linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
 	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
