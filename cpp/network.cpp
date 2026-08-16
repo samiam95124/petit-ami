@@ -46,9 +46,10 @@ FILE* opennet(unsigned long addr, long port, long secure)
 FILE* opennetv6(unsigned long long addrh, unsigned long long addrl,
                 long port, long secure)
     { return ami_opennetv6(addrh, addrl, port, secure); }
-long  maxmsg(unsigned long addr) { return ami_maxmsg(addr); }
-long  maxmsgv6(unsigned long long addrh, unsigned long long addrl)
-    { return ami_maxmsgv6(addrh, addrl); }
+long  maxmsg(unsigned long addr, long secure)
+    { return ami_maxmsg(addr, secure); }
+long  maxmsgv6(unsigned long long addrh, unsigned long long addrl, long secure)
+    { return ami_maxmsgv6(addrh, addrl, secure); }
 long  relymsg(unsigned long addr) { return ami_relymsg(addr); }
 long  relymsgv6(unsigned long long addrh, unsigned long long addrl)
     { return ami_relymsgv6(addrh, addrl); }

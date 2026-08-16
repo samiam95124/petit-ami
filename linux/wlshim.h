@@ -154,6 +154,9 @@ typedef struct _Visual Visual;
 #define ClientMessage    33
 #define MappingNotify    34
 #define LASTEvent        36
+/* wlshim extension, outside the X space: the compositor's frame callback
+   delivered as an event, enabled per toplevel by wlshim_frameevents() */
+#define FrameNotify      40
 
 /* event masks */
 #define NoEventMask             0L
@@ -720,6 +723,7 @@ void   wlshim_frame(Display* d, Window w, int titx, int tity, int titw,
 /* toplevel minimize and maximize through the shell */
 void   wlshim_minimize(Display* d, Window w);
 void   wlshim_maximize(Display* d, Window w, int on);
+void   wlshim_frameevents(Display* d, Window w, int on);
 
 /* dump a window's composed surface buffer to a PPM file; the test rig's
    capture path, independent of any compositor screenshot facility */

@@ -330,7 +330,7 @@ typedef struct paevtque {
  *
  */
 
-char *keytab[ami_etterm+1+MAXFKEY] = {
+static char *keytab[ami_etterm+1+MAXFKEY] = {
 
     /* Common controls are:
     Codes                   Meaning                   IBM-PC keyboard equivalents */
@@ -412,7 +412,7 @@ char *keytab[ami_etterm+1+MAXFKEY] = {
 /*
  * bit count table for UTF-8
  */
-unsigned char utf8bits[] = {
+static unsigned char utf8bits[] = {
 
     0, /* 0000 */
     1, /* 0001 */
@@ -720,8 +720,8 @@ static long   maxpow10 = 1000000000L;
 static int    numjoy;         /* number of joysticks found */
 
 static int    frmfid;         /* framing timer fid */
-volatile char inpbuf[MAXLIN]; /* input line buffer */
-volatile int  inpptr;         /* input line index */
+static volatile char inpbuf[MAXLIN]; /* input line buffer */
+static volatile int  inpptr;         /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
 static int    dmpevt;         /* enable dump Petit-Ami messages */
 static int    inpsev;         /* keyboard input system event number */

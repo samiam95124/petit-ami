@@ -120,6 +120,9 @@ struct wlwin {
     wltop*  top;      /* toplevel data if root child */
     char*   title;
     Cursor  cursor;
+    int     frmevt;   /* deliver frame callbacks as FrameNotify. On the
+                         window, not the toplevel data: the request may
+                         arrive before the window maps */
 
 };
 
@@ -202,6 +205,7 @@ struct _XDisplay {
     XErrorHandler errh;
     int    dumpseq;
     int    injfd;           /* rig input injection stream, -1 if none */
+    Time   livems;          /* last draw-path publish, for the live beat */
 
 };
 
@@ -384,6 +388,18 @@ static void dmg(Drawable dr, int x, int y, int w, int h)
         if (y2 > t->dy2) t->dy2 = y2;
 
     }
+    /* The other half of immediate-mode reconciliation: a program drawing
+       in a tight loop never returns to the event machinery, and nothing
+       else would publish its damage -- the screen freezes while memory
+       animates. Publish from the draw path itself at a beat fast enough
+       to read as continuous motion. Callers hold the lock */
+    {
+        Display* d = &thedpy;
+        Time now = nowms();
+
+        if (now-d->livems >= 33 && !getenv("AMI_WL_NOBEAT"))
+            { d->livems = now; pump(d); }
+    }
 }
 
 /* the pixel store: every drawing operation lands here, applying the GC
@@ -423,18 +439,53 @@ static int stipbit(GC gc, int x, int y)
     return (c->px[(size_t)sy*c->w+sx] != 0);
 }
 
+/* Horizontal span, the rasterizer's hot path: clip once, hoist the GC
+   function out of the loop, and run the row as bare stores the compiler
+   vectorizes. Every area primitive reduces to these rows; this one loop
+   is most of the distance between per-pixel dispatch and the fill rates
+   the X server bought with the GPU */
+static void hspan(canvas* c, GC gc, int x, int y, int w)
+{
+    uint32_t* p;
+    uint32_t  col;
+    int       i;
+
+    if (y < 0 || y >= c->h) return;
+    if (x < 0) { w += x; x = 0; }
+    if (x+w > c->w) w = c->w-x;
+    if (w <= 0) return;
+    if (gc->fillstyle == FillStippled) {
+
+        /* the stipple test is per pixel by nature; stay on the slow path */
+        for (i = 0; i < w; i++)
+            if (stipbit(gc, x+i, y)) plot(c, x+i, y, gc->fg, gc->func);
+        return;
+
+    }
+    p = &c->px[(size_t)y*c->w+x];
+    col = gc->fg;
+    switch (gc->func) {
+
+        case GXnoop:  break;
+        case GXclear: col = 0; /* fallthrough: clear is copy of zero */
+        case GXcopy:
+        default:      for (i = 0; i < w; i++) *p++ = col;  break;
+        case GXxor:   col &= 0xffffff;
+                      for (i = 0; i < w; i++) *p++ ^= col; break;
+        case GXand:   col |= 0xff000000;
+                      for (i = 0; i < w; i++) *p++ &= col; break;
+        case GXor:    col &= 0xffffff;
+                      for (i = 0; i < w; i++) *p++ |= col; break;
+
+    }
+}
+
 /* filled rectangle, honoring fill style */
 static void fillrect(canvas* c, GC gc, int x, int y, int w, int h)
 {
-    int i, j;
+    int j;
 
-    for (j = y; j < y+h; j++)
-        for (i = x; i < x+w; i++) {
-
-            if (gc->fillstyle == FillStippled && !stipbit(gc, i, j)) continue;
-            plot(c, i, j, gc->fg, gc->func);
-
-        }
+    for (j = y; j < y+h; j++) hspan(c, gc, x, j, w);
 }
 
 /* solid or dashed unit line via Bresenham; wide lines are quads below */
@@ -518,13 +569,7 @@ static void fillpoly(canvas* c, GC gc, XPoint* pt, int n)
 
             x1 = (int)ceilf(xs[i]);
             x2 = (int)floorf(xs[i+1]);
-            for (k = x1; k <= x2; k++) {
-
-                if (gc->fillstyle == FillStippled && !stipbit(gc, k, y))
-                    continue;
-                plot(c, k, y, gc->fg, gc->func);
-
-            }
+            hspan(c, gc, x1, y, x2-x1+1);
 
         }
 
@@ -1872,6 +1917,16 @@ static void framedone(void* data, struct wl_callback* cb, uint32_t tm)
         compose(d, win);
 
     }
+    /* the compositor's frame pacing, surfaced to the client when asked:
+       this is the true beginning-of-refresh signal for this surface */
+    if (win->frmevt) {
+
+        XEvent e;
+
+        evbase(d, &e, FrameNotify, win);
+        enq(d, &e);
+
+    }
 }
 
 static void flushtops(Display* d)
@@ -2280,8 +2335,26 @@ static void ptraxis(void* data, struct wl_pointer* p, uint32_t time,
     }
 }
 
+/* the seat v5 grouping and axis-detail events: Ami's model takes nothing
+   from them, but every slot a bound version can deliver must be filled —
+   libwayland aborts on a NULL listener entry */
+static void ptrframe(void* data, struct wl_pointer* p)
+{ (void)data; (void)p; }
+
+static void ptraxissrc(void* data, struct wl_pointer* p, uint32_t src)
+{ (void)data; (void)p; (void)src; }
+
+static void ptraxisstop(void* data, struct wl_pointer* p, uint32_t time,
+                        uint32_t axis)
+{ (void)data; (void)p; (void)time; (void)axis; }
+
+static void ptraxisdisc(void* data, struct wl_pointer* p, uint32_t axis,
+                        int32_t steps)
+{ (void)data; (void)p; (void)axis; (void)steps; }
+
 static const struct wl_pointer_listener ptr_lis = {
-    ptrenter, ptrleave, ptrmotion, ptrbutton, ptraxis
+    ptrenter, ptrleave, ptrmotion, ptrbutton, ptraxis,
+    ptrframe, ptraxissrc, ptraxisstop, ptraxisdisc
 };
 
 /* keyboard */
@@ -2928,6 +3001,26 @@ void wlshim_frame(Display* d, Window w, int titx, int tity, int titw,
         win->top->titx = titx; win->top->tity = tity;
         win->top->titw = titw; win->top->tith = tith;
         win->top->borderw = borderw;
+
+    }
+    ULK(d);
+}
+
+/* Deliver the compositor's frame pacing as FrameNotify events for the
+   toplevel above w: the display's own refresh beat, in place of a
+   free-running timer. Callbacks flow only while the compositor is
+   presenting the surface -- the caller carries the floor for the
+   withheld case */
+void wlshim_frameevents(Display* d, Window w, int on)
+{
+    wlwin* p;
+
+    LK(d);
+    p = (wlwin*)w;
+    if (p && *(otag*)p == ot_win) {
+
+        while (p->parent && p->parent->parent) p = p->parent;
+        p->frmevt = on;
 
     }
     ULK(d);

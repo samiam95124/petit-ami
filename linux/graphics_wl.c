@@ -614,6 +614,7 @@ typedef struct winrec {
     int          frmrun;            /* framing timer is running */
     int          timers[AMI_MAXTIM]; /* timer id array */
     int          frmsev;            /* frame timer system event */
+    long         framecbms;         /* last callback-driven frame event, ms */
     int          focus;             /* screen in focus */
     picptr       pictbl[MAXPIC];    /* loadable pictures table */
     int          bufmod;            /* buffered screen mode */
@@ -846,7 +847,7 @@ typedef enum {
 } errcod;
 
 /* mode to function table */
-int mod2fnc[mdor+1] = {
+static int mod2fnc[mdor+1] = {
 
     GXcopy, /* mdnorm */
     GXnoop, /* mdinvis */
@@ -1250,16 +1251,16 @@ static int        xerrbyp;        /* bypass the xerror() handler */
 static int        evtcnt;         /* count of PA event diagnostics output */
 
 /* code storage for XWindow state atoms */
-Atom cmaxhorz; /* horizontally maximized */
-Atom cmaxvert; /* vertically maximized */
-Atom cfocused; /* focused */
-Atom chidden;  /* hidden (iconized) */
+static Atom cmaxhorz; /* horizontally maximized */
+static Atom cmaxvert; /* vertically maximized */
+static Atom cfocused; /* focused */
+static Atom chidden;  /* hidden (iconized) */
 
 /* XWindow frame characteristics */
-int               frmextwdt[frmcfgsys+1];   /* frame extra width */
-int               frmexthgt[frmcfgsys+1];   /* frame extra height */
-int               frmoffx[frmcfgsys+1];     /* frame offset to client x */
-int               frmoffy[frmcfgsys+1];     /* frame offset to client y */
+static int        frmextwdt[frmcfgsys+1];   /* frame extra width */
+static int        frmexthgt[frmcfgsys+1];   /* frame extra height */
+static int        frmoffx[frmcfgsys+1];     /* frame offset to client x */
+static int        frmoffy[frmcfgsys+1];     /* frame offset to client y */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -6022,6 +6023,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
     /* clear timer array */
     for (ti = 0; ti < 10; ti++) win->timers[ti] = 0;
     win->frmsev = 0; /* clear frame timer */
+    win->framecbms = 0; /* no callback-driven frame event yet */
     /* clear loadable pictures table */
     for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin] = NULL;
     /* clear the screen array */
@@ -13187,6 +13189,19 @@ static void winstat(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
 }
 
+/* monotonic milliseconds, for pacing the frame beat */
+
+static long framems(void)
+
+{
+
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (ts.tv_sec*1000+ts.tv_nsec/1000000);
+
+}
+
 /* XWindow event process */
 
 static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
@@ -13632,8 +13647,14 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             if (mx >= cbx && mx < cbx + bsz &&
                 my >= cby && my < cby + bsz) {
 
-                /* close button clicked: send terminate */
+                /* close button clicked: send terminate. For a toplevel this
+                   is the user ordering exit, as the delete message from a
+                   window manager marks it -- without fend, autohold would
+                   discard the terminate and the window could never be
+                   dismissed after main() returns. A child's close is only
+                   an event to the program */
                 er->etype = ami_etterm;
+                if (!win->parwin) fend = TRUE;
                 *keep = TRUE;
 
             } else if (mx >= mabx && mx < mabx + bsz &&
@@ -13973,6 +13994,20 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
         }
 
+    } else if (e->type == FrameNotify) {
+
+        /* The compositor's frame callback: the display's own refresh
+           beat for this surface, delivered while the compositor is
+           presenting it. Mark the beat so the floor timer (ievent)
+           stays silent, and deliver as the frame event */
+        win->framecbms = framems();
+        if (win->frmrun) {
+
+            er->etype = ami_etframe; /* set frame event */
+            *keep = TRUE; /* set found */
+
+        }
+
     } else if (e->type == EnterNotify) {
 
         er->etype = ami_ethover; /* set hover event */
@@ -14150,11 +14185,20 @@ static void ievent(FILE* f, ami_evtrec* er)
 
                 if (sidtab[sev.lse-1]->frm) {
 
-                    /* frame event */
-                    er->etype = ami_etframe; /* set frame event occurred */
-                    /* set window number */
-                    er->winid = sidtab[sev.lse-1]->win->wid;
-                    keep = TRUE; /* set event found */
+                    /* The 30-a-second floor under the compositor's frame
+                       callbacks: while callbacks flow (FrameNotify,
+                       xwinevt) they carry the beat at the display rate
+                       and this timer stays silent. When the compositor
+                       withholds them, the floor keeps animation running */
+                    win = sidtab[sev.lse-1]->win;
+                    if (framems()-win->framecbms >= 40) {
+
+                        /* frame event */
+                        er->etype = ami_etframe; /* set frame event occurred */
+                        er->winid = win->wid; /* set window number */
+                        keep = TRUE; /* set event found */
+
+                    }
 
                 } else {
 
@@ -14405,16 +14449,25 @@ static void frametimer_ivf(FILE* f, long e)
     win = txt2win(f); /* get window from file */
     if (e) { /* set framing timer to run */
 
-        sid = system_event_addsetim(win->frmsev, 166, TRUE);
+        /* The beat itself comes from the compositor's frame callbacks
+           (FrameNotify), which track the display's true refresh rate.
+           This timer is the floor under them: 30 a second, live only
+           when the compositor withholds callbacks (window hidden, or
+           nothing being presented), so animation logic never stalls */
+        sid = system_event_addsetim(win->frmsev, 334, TRUE);
         win->frmsev = sid;
         /* get system event entry */
         getsee(sid); /* allocate system event entry */
         sidtab[sid-1]->win = win; /* set window assocated */
         sidtab[sid-1]->frm = TRUE; /* set is the framing timer */
+        win->frmrun = TRUE; /* set framing timer running */
+        wlshim_frameevents(padisplay, win->xmwhan, TRUE);
 
     } else {
 
         system_event_deasetim(win->frmsev);
+        win->frmrun = FALSE; /* set framing timer not running */
+        wlshim_frameevents(padisplay, win->xmwhan, FALSE);
 
     }
 
