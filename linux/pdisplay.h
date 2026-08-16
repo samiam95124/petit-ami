@@ -113,6 +113,7 @@ typedef enum {
     pd_etresize,  /* compositor sized win: w, h are the client area */
     pd_etredraw,  /* region must be repainted: x, y, w, h */
     pd_etclose,   /* user ordered the window closed */
+    pd_etmap,     /* win reached the screen */
     pd_etframe,   /* compositor frame pacing tick for win */
     pd_etmin,     /* window minimized state changes */
     pd_etmax,
@@ -138,6 +139,8 @@ typedef struct {
     int       x, y;   /* pointer events: window coordinates */
     int       btn;    /* button events */
     int       w, h;   /* resize */
+    unsigned long token; /* resize: the pd_winsize request answered,
+                            zero when the compositor originated it */
     int       rx, ry, rw, rh; /* redraw region */
     uint32_t  time;  /* platform timestamp, ms */
 
@@ -176,8 +179,29 @@ void    pd_windel(pd_win* w);
 
 void    pd_winmap(pd_win* w, int visible);
 void    pd_winmove(pd_win* w, int x, int y);
-void    pd_winsize(pd_win* w, int width, int height);
+
+/* sizing returns a request token; the pd_etresize answering it carries
+   the same token, and a compositor-initiated resize carries zero. The
+   caller tells its own requests' echoes from fresh sizings by token */
+unsigned long pd_winsize(pd_win* w, int width, int height);
+
 void    pd_winraise(pd_win* w);
+void    pd_winlower(pd_win* w);
+
+/* window geometry and map state as the layer holds them */
+void    pd_wingeom(pd_win* w, int* x, int* y, int* width, int* height,
+                   int* mapped);
+
+/* size bounds the compositor honors during interactive resize;
+   zeros lift a bound */
+void    pd_winlimits(pd_win* w, int minw, int minh, int maxw, int maxh);
+
+/* route all pointer input to w until released, as a drag holds it */
+void    pd_grab(pd_win* w, int on);
+
+/* current pointer position in w's coordinates; returns nonzero with
+   the pointer inside w */
+int     pd_pointer(pd_win* w, int* x, int* y);
 
 /* the compositor-facing identity of a toplevel */
 void    pd_wintitle(pd_win* w, const char* title);
@@ -287,5 +311,17 @@ withheld.
 int  pd_evtfd(pd_display* d);
 int  pd_evtnext(pd_display* d, pd_evt* e, int block);
 void pd_frameevents(pd_win* w, int on);
+
+/* view the head of the queue without taking it; zero when empty */
+int  pd_evtpeek(pd_display* d, pd_evt* e);
+
+/* take the next queued event of the given type for the given window
+   (any window with NULL), leaving the rest in order; zero when none.
+   The coalescing drains ride on this */
+int  pd_evtcheck(pd_display* d, pd_win* w, pd_etype t, pd_evt* e);
+
+/* place an event on the queue as if the platform delivered it; the
+   backend's cross-thread sends arrive through here */
+void pd_evtpost(pd_display* d, const pd_evt* e);
 
 #endif /* PDISPLAY_H */

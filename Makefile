@@ -786,30 +786,30 @@ linux/graphics.o: linux/graphics.c include/graphics.h Makefile
 
 #
 # The Wayland graphics backend: same library contract as linux/graphics.o,
-# selected by linking these objects in its place. wlshim implements the X
-# window and drawing model on Wayland so the backend proper stays
-# structurally parallel to the Xlib version.
+# selected by linking these objects in its place. pdisplay carries the
+# platform display interface (pdisplay.h) on Wayland: the window tree,
+# rasterization, input, and presentation the backend draws through.
 #
-linux/graphics_wl.o: linux/graphics_wl.c linux/wlshim.h include/graphics.h Makefile
-	$(CC) $(CFLAGS) -c linux/graphics_wl.c -o linux/graphics_wl.o
+linux/graphics_wl.o: linux/graphics_wl.c linux/pdisplay.h include/graphics.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/graphics_wl.c -o linux/graphics_wl.o
 
-# wlshim carries the rasterizer's pixel loops; the optimizer is worth
+# pdisplay carries the rasterizer's pixel loops; the optimizer is worth
 # 2x-24x across the primitive benchmarks there, and -O3 buys a further
 # 1.3x-2x on fills and lines over -O2 (arcs give a little back). The
 # header benchmark table in tests/graphics_test.c was recorded at -O3.
-# -g3 stays for symbols; set WLSHIM_OPT= (empty) if stepping through
+# -g3 stays for symbols; set PDISPLAY_OPT= (empty) if stepping through
 # this file matters more than speed, or add -march=native locally for
 # the last measure at the cost of binary portability
-WLSHIM_OPT ?= -O3
-linux/wlshim.o: linux/wlshim.c linux/wlshim.h \
+PDISPLAY_OPT ?= -O3
+linux/pdisplay.o: linux/pdisplay.c linux/pdisplay.h \
 	linux/wlproto/xdg-shell-client-protocol.h Makefile
-	$(CC) $(CFLAGS) $(WLSHIM_OPT) -Ilinux -c linux/wlshim.c -o linux/wlshim.o
+	$(CC) $(CFLAGS) $(PDISPLAY_OPT) -Ilinux -c linux/pdisplay.c -o linux/pdisplay.o
 
 linux/wlproto/xdg-shell-protocol.o: linux/wlproto/xdg-shell-protocol.c Makefile
 	$(CC) $(CFLAGS) -c linux/wlproto/xdg-shell-protocol.c \
 	    -o linux/wlproto/xdg-shell-protocol.o
 
-WLGRAPH = linux/graphics_wl.o linux/wlshim.o linux/wlproto/xdg-shell-protocol.o
+WLGRAPH = linux/graphics_wl.o linux/pdisplay.o linux/wlproto/xdg-shell-protocol.o
 WLLIBS = -lwayland-client -lwayland-cursor -lxkbcommon
 
 linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
