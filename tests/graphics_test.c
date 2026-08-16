@@ -234,6 +234,60 @@
 * Picture draw                   1.22    0.001278                              *
 * No scaling picture draw        0.00    0.000000                              *
 *                                                                              *
+* Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
+* Ubuntu 26.04 LTS, native Wayland backend (graphics_wl/wlshim),               *
+* GNOME Mutter compositor, wlshim at -O3                                       *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                   4.89    0.000001                              *
+* line width 10                  4.99    0.000004                              *
+* rectangle width 1              4.94    0.000003                              *
+* rectangle width 10             5.51    0.000008                              *
+* rounded rectangle width 1      4.71    0.000008                              *
+* rounded rectangle width 10     5.16    0.000037                              *
+* filled rectangle               5.29    0.000002                              *
+* filled rounded rectangle       4.98    0.000032                              *
+* ellipse width 1                4.93    0.000021                              *
+* ellipse width 10               4.48    0.000130                              *
+* filled ellipse                 4.90    0.000211                              *
+* arc width 1                    4.99    0.000008                              *
+* arc width 10                   4.34    0.000008                              *
+* filled arc                     4.67    0.000072                              *
+* filled chord                   4.67    0.000068                              *
+* filled triangle                4.47    0.000012                              *
+* text                           4.96    0.000007                              *
+* background invisible text      5.07    0.000005                              *
+* Picture draw                   6.00    0.001068                              *
+* No scaling picture draw        4.53    0.000360                              *
+*                                                                              *
+* Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
+* Ubuntu 26.04 LTS, Xlib backend under XWayland,                               *
+* GNOME Mutter compositor                                                      *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                   4.39    0.000011                              *
+* line width 10                  4.35    0.000011                              *
+* rectangle width 1              5.24    0.000053                              *
+* rectangle width 10             5.04    0.000018                              *
+* rounded rectangle width 1      0.00    0.000000                              *
+* rounded rectangle width 10     8.83    0.011639                              *
+* filled rectangle               5.11    0.000009                              *
+* filled rounded rectangle       4.44    0.000510                              *
+* ellipse width 1                5.15    0.002032                              *
+* ellipse width 10               6.38    0.002170                              *
+* filled ellipse                 0.36    0.000150                              *
+* arc width 1                    5.00    0.002236                              *
+* arc width 10                   5.23    0.002526                              *
+* filled arc                     5.04    0.000171                              *
+* filled chord                   5.01    0.000171                              *
+* filled triangle                5.08    0.000012                              *
+* text                           5.19    0.003722                              *
+* background invisible text      5.28    0.003697                              *
+* Picture draw                   5.11    0.003563                              *
+* No scaling picture draw        5.41    0.000141                              *
+*                                                                              *
 *******************************************************************************/
 
 /* base C defines */
@@ -1268,7 +1322,7 @@ static void fpictnsspeed(int w, int t, long* s)
 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 
 {
 
@@ -1286,6 +1340,10 @@ int main(void)
     if (setjmp(terminate_buf)) goto terminate;
     ami_curvis(stdout, FALSE);
     ami_binvis(stdout);
+    /* "graphics_test bench" runs the benchmark section alone, without
+       walking the interactive patterns: for timing comparisons and the
+       headless rig */
+    if (argc > 1 && !strcmp(argv[1], "bench")) goto benchmarks;
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %ld y -> %ld\n", ami_maxx(stdout),
@@ -1452,11 +1510,11 @@ int main(void)
 
     }
 
-    /* *************************** Vertical lines test ************************* */
+    /* ************************** Horizontal lines test ************************ */
 
     putchar('\f');
     grid();
-    prtcen(ami_maxy(stdout), "Vertical lines test");
+    prtcen(ami_maxy(stdout), "Horizontal lines test");
     yspace = ami_maxyg(stdout)/20;
     xspace = ami_maxxg(stdout)/50;
     y = yspace;
@@ -1472,11 +1530,11 @@ int main(void)
     ami_linewidth(stdout, 1);
     waitnext();
 
-    /* ************************* Horizontal lines test ************************* */
+    /* ************************** Vertical lines test ************************** */
 
     putchar('\f');
     grid();
-    prtcen(ami_maxy(stdout), "Horizontal lines test");
+    prtcen(ami_maxy(stdout), "Vertical lines test");
     yspace = ami_maxyg(stdout)/20;
     xspace = ami_maxxg(stdout)/20;
     x = xspace;
@@ -1528,64 +1586,20 @@ int main(void)
      *                                                                          *
      **************************************************************************/
 
-    /* ********************** Vertical lines test — dashed ********************* */
-
-    putchar('\f');
-    grid();
-    ami_linestyle(stdout, ami_lsdash);
-    yspace = ami_maxyg(stdout)/20;
-    xspace = ami_maxxg(stdout)/50;
-    y = yspace;
-    w = 1;
-    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)) {
-
-        ami_linewidth(stdout, w);
-        ami_line(stdout, xspace, y, ami_maxxg(stdout)-xspace, y);
-        y = y+yspace;
-        w = w+1;
-
-    }
-    ami_linewidth(stdout, 1);
-    ami_linestyle(stdout, ami_lssolid);
-    prtcen(ami_maxy(stdout), "Vertical lines test (dashed)");
-    waitnext();
-
-    /* ********************** Vertical lines test — dotted ********************* */
-
-    putchar('\f');
-    grid();
-    ami_linestyle(stdout, ami_lsdot);
-    yspace = ami_maxyg(stdout)/20;
-    xspace = ami_maxxg(stdout)/50;
-    y = yspace;
-    w = 1;
-    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)) {
-
-        ami_linewidth(stdout, w);
-        ami_line(stdout, xspace, y, ami_maxxg(stdout)-xspace, y);
-        y = y+yspace;
-        w = w+1;
-
-    }
-    ami_linewidth(stdout, 1);
-    ami_linestyle(stdout, ami_lssolid);
-    prtcen(ami_maxy(stdout), "Vertical lines test (dotted)");
-    waitnext();
-
     /* ********************* Horizontal lines test — dashed ******************** */
 
     putchar('\f');
     grid();
     ami_linestyle(stdout, ami_lsdash);
     yspace = ami_maxyg(stdout)/20;
-    xspace = ami_maxxg(stdout)/20;
-    x = xspace;
+    xspace = ami_maxxg(stdout)/50;
+    y = yspace;
     w = 1;
-    while (x+w/2 < ami_maxxg(stdout)-20) {
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)) {
 
         ami_linewidth(stdout, w);
-        ami_line(stdout, x, yspace, x, ami_maxyg(stdout)-ami_chrsizy(stdout));
-        x = x+xspace;
+        ami_line(stdout, xspace, y, ami_maxxg(stdout)-xspace, y);
+        y = y+yspace;
         w = w+1;
 
     }
@@ -1600,6 +1614,28 @@ int main(void)
     grid();
     ami_linestyle(stdout, ami_lsdot);
     yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/50;
+    y = yspace;
+    w = 1;
+    while (y+w/2 < ami_maxyg(stdout)-ami_chrsizy(stdout)) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, xspace, y, ami_maxxg(stdout)-xspace, y);
+        y = y+yspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "Horizontal lines test (dotted)");
+    waitnext();
+
+    /* ********************** Vertical lines test — dashed ********************* */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdash);
+    yspace = ami_maxyg(stdout)/20;
     xspace = ami_maxxg(stdout)/20;
     x = xspace;
     w = 1;
@@ -1613,7 +1649,29 @@ int main(void)
     }
     ami_linewidth(stdout, 1);
     ami_linestyle(stdout, ami_lssolid);
-    prtcen(ami_maxy(stdout), "Horizontal lines test (dotted)");
+    prtcen(ami_maxy(stdout), "Vertical lines test (dashed)");
+    waitnext();
+
+    /* ********************** Vertical lines test — dotted ********************* */
+
+    putchar('\f');
+    grid();
+    ami_linestyle(stdout, ami_lsdot);
+    yspace = ami_maxyg(stdout)/20;
+    xspace = ami_maxxg(stdout)/20;
+    x = xspace;
+    w = 1;
+    while (x+w/2 < ami_maxxg(stdout)-20) {
+
+        ami_linewidth(stdout, w);
+        ami_line(stdout, x, yspace, x, ami_maxyg(stdout)-ami_chrsizy(stdout));
+        x = x+xspace;
+        w = w+1;
+
+    }
+    ami_linewidth(stdout, 1);
+    ami_linestyle(stdout, ami_lssolid);
+    prtcen(ami_maxy(stdout), "Vertical lines test (dotted)");
     waitnext();
 
     /* ********************* 45 degree lines test — dashed ********************* */
@@ -3422,6 +3480,8 @@ int main(void)
     }
 
     /* ************************** Benchmarks **************************** */
+
+    benchmarks:
 
     ami_bover(stdout);
 
