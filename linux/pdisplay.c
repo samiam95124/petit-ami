@@ -965,10 +965,39 @@ void pd_rect(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h)
     LK(d);
     if (c && !drnoop(dr)) {
 
-        anyline(c, dr, x, y, x+w, y);
-        anyline(c, dr, x+w, y, x+w, y+h);
-        anyline(c, dr, x+w, y+h, x, y+h);
-        anyline(c, dr, x, y+h, x, y);
+        if (dr->lw > 1 && dr->lstyle == pd_linesolid && !dr->stipple) {
+
+            /* The frame as four fills with square-joined corners, the
+               join the server gave a wide rectangle. Butt-capped side
+               lines leave the outer corner squares void. The bands
+               partition the frame, so xor and friends touch each pixel
+               once */
+            float hw = dr->lw/2.0f;
+            int   xo = lroundf(x-hw),   yo = lroundf(y-hw);
+            int   xi = lroundf(x+hw),   yi = lroundf(y+hw);
+            int   x2 = lroundf(x+w-hw), y2 = lroundf(y+h-hw);
+            int   xe = lroundf(x+w+hw), ye = lroundf(y+h+hw);
+
+            if (xi >= x2 || yi >= y2)
+                /* the walls meet: the frame is solid */
+                fillrect(c, dr, xo, yo, xe-xo, ye-yo);
+            else {
+
+                fillrect(c, dr, xo, yo, xe-xo, yi-yo);   /* top */
+                fillrect(c, dr, xo, y2, xe-xo, ye-y2);   /* bottom */
+                fillrect(c, dr, xo, yi, xi-xo, y2-yi);   /* left */
+                fillrect(c, dr, x2, yi, xe-x2, y2-yi);   /* right */
+
+            }
+
+        } else {
+
+            anyline(c, dr, x, y, x+w, y);
+            anyline(c, dr, x+w, y, x+w, y+h);
+            anyline(c, dr, x+w, y+h, x, y+h);
+            anyline(c, dr, x, y+h, x, y);
+
+        }
         candmg(c, x-dr->lw, y-dr->lw, w+2*dr->lw+1, h+2*dr->lw+1);
 
     }
