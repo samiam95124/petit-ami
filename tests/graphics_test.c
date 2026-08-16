@@ -235,31 +235,31 @@
 * No scaling picture draw        0.00    0.000000                              *
 *                                                                              *
 * Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
-* Ubuntu 26.04 LTS, native Wayland backend (graphics_wl/wlshim),               *
-* GNOME Mutter compositor, wlshim at -O3                                       *
+* Ubuntu 26.04 LTS, native Wayland backend (graphics_wl/pdisplay),             *
+* GNOME Mutter compositor, pdisplay at -O3                                     *
 *                                                                              *
 * Type                        Seconds   Per fig                                *
 * --------------------------------------------------                           *
-* line width 1                   5.11    0.000001                              *
-* line width 10                  4.71    0.000004                              *
-* rectangle width 1              5.00    0.000003                              *
-* rectangle width 10             5.31    0.000009                              *
-* rounded rectangle width 1      5.17    0.000008                              *
-* rounded rectangle width 10     4.99    0.000036                              *
-* filled rectangle               5.29    0.000003                              *
-* filled rounded rectangle       4.99    0.000026                              *
-* ellipse width 1                5.29    0.000003                              *
-* ellipse width 10               5.00    0.000004                              *
-* filled ellipse                 5.01    0.000004                              *
-* arc width 1                    5.01    0.000007                              *
-* arc width 10                   5.00    0.000007                              *
-* filled arc                     4.91    0.000052                              *
-* filled chord                   4.95    0.000049                              *
-* filled triangle                5.00    0.000012                              *
-* text                           5.01    0.000006                              *
-* background invisible text      5.00    0.000004                              *
-* Picture draw                   5.38    0.001029                              *
-* No scaling picture draw        4.99    0.000396                              *
+* line width 1                   4.88    0.000001                              *
+* line width 10                  5.03    0.000006                              *
+* rectangle width 1              5.01    0.000003                              *
+* rectangle width 10             5.02    0.000011                              *
+* rounded rectangle width 1      4.45    0.000008                              *
+* rounded rectangle width 10     4.74    0.000045                              *
+* filled rectangle               4.98    0.000003                              *
+* filled rounded rectangle       5.28    0.000035                              *
+* ellipse width 1                5.05    0.000004                              *
+* ellipse width 10               4.81    0.000005                              *
+* filled ellipse                 4.73    0.000005                              *
+* arc width 1                    5.41    0.000009                              *
+* arc width 10                   5.00    0.000009                              *
+* filled arc                     5.03    0.000060                              *
+* filled chord                   4.95    0.000062                              *
+* filled triangle                5.00    0.000014                              *
+* text                           5.27    0.000004                              *
+* background invisible text      4.68    0.000003                              *
+* Picture draw                   6.23    0.000802                              *
+* No scaling picture draw        5.46    0.000010                              *
 *                                                                              *
 * Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
 * Ubuntu 26.04 LTS, Xlib backend under XWayland,                               *
