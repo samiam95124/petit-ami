@@ -1498,6 +1498,13 @@ graphics_testw: $(GLIBSWD) tests/graphics_test.c stub/screen_capture_stub.o
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
 	    -lfreetype -lfontconfig -lm -lpthread -o bin/graphics_testw
 
+# The GTK edition of the graphics_test benchmarks, for rasterizer and
+# complexity comparison against the Ami backends. Needs libgtk-4-dev.
+graphics_test_gtk: tests/graphics_test_gtk.c
+	$(CC) $(CFLAGS) tests/graphics_test_gtk.c \
+	    $(shell pkg-config --cflags --libs gtk4) -lm \
+	    -o bin/graphics_test_gtk
+
 widget_testw: $(GLIBSWD) tests/widget_test.c
 	$(CC) $(CFLAGS) tests/widget_test.c \
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \

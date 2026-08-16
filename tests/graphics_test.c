@@ -240,26 +240,26 @@
 *                                                                              *
 * Type                        Seconds   Per fig                                *
 * --------------------------------------------------                           *
-* line width 1                   4.89    0.000001                              *
-* line width 10                  4.99    0.000004                              *
-* rectangle width 1              4.94    0.000003                              *
-* rectangle width 10             5.51    0.000008                              *
-* rounded rectangle width 1      4.71    0.000008                              *
-* rounded rectangle width 10     5.16    0.000037                              *
-* filled rectangle               5.29    0.000002                              *
-* filled rounded rectangle       4.98    0.000032                              *
-* ellipse width 1                4.93    0.000021                              *
-* ellipse width 10               4.48    0.000130                              *
-* filled ellipse                 4.90    0.000211                              *
-* arc width 1                    4.99    0.000008                              *
-* arc width 10                   4.34    0.000008                              *
-* filled arc                     4.67    0.000072                              *
-* filled chord                   4.67    0.000068                              *
-* filled triangle                4.47    0.000012                              *
-* text                           4.96    0.000007                              *
-* background invisible text      5.07    0.000005                              *
-* Picture draw                   6.00    0.001068                              *
-* No scaling picture draw        4.53    0.000360                              *
+* line width 1                   5.11    0.000001                              *
+* line width 10                  4.71    0.000004                              *
+* rectangle width 1              5.00    0.000003                              *
+* rectangle width 10             5.31    0.000009                              *
+* rounded rectangle width 1      5.17    0.000008                              *
+* rounded rectangle width 10     4.99    0.000036                              *
+* filled rectangle               5.29    0.000003                              *
+* filled rounded rectangle       4.99    0.000026                              *
+* ellipse width 1                5.29    0.000003                              *
+* ellipse width 10               5.00    0.000004                              *
+* filled ellipse                 5.01    0.000004                              *
+* arc width 1                    5.01    0.000007                              *
+* arc width 10                   5.00    0.000007                              *
+* filled arc                     4.91    0.000052                              *
+* filled chord                   4.95    0.000049                              *
+* filled triangle                5.00    0.000012                              *
+* text                           5.01    0.000006                              *
+* background invisible text      5.00    0.000004                              *
+* Picture draw                   5.38    0.001029                              *
+* No scaling picture draw        4.99    0.000396                              *
 *                                                                              *
 * Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
 * Ubuntu 26.04 LTS, Xlib backend under XWayland,                               *
@@ -287,6 +287,35 @@
 * background invisible text      5.28    0.003697                              *
 * Picture draw                   5.11    0.003563                              *
 * No scaling picture draw        5.41    0.000141                              *
+*                                                                              *
+* Benchmark results, Linux AMD Ryzen 9 5950x 16-core x 32,                     *
+* Ubuntu 26.04 LTS, GTK4/Cairo edition (tests/graphics_test_gtk.c):            *
+* Cairo image surface, antialiasing off, shapes rasterized offscreen           *
+* and presented only between benchmarks (no display cost in the                *
+* timed loops, unlike the native Wayland rows above)                           *
+*                                                                              *
+* Type                        Seconds   Per fig                                *
+* --------------------------------------------------                           *
+* line width 1                   4.58    0.000003                              *
+* line width 10                  4.75    0.000005                              *
+* rectangle width 1              4.99    0.000001                              *
+* rectangle width 10             5.03    0.000002                              *
+* rounded rectangle width 1      5.02    0.000007                              *
+* rounded rectangle width 10     4.58    0.000010                              *
+* filled rectangle               4.72    0.000006                              *
+* filled rounded rectangle       5.03    0.000010                              *
+* ellipse width 1                5.02    0.000017                              *
+* ellipse width 10               5.49    0.000024                              *
+* filled ellipse                 5.02    0.000016                              *
+* arc width 1                    5.27    0.000010                              *
+* arc width 10                   4.74    0.000014                              *
+* filled arc                     5.02    0.000012                              *
+* filled chord                   5.17    0.000011                              *
+* filled triangle                5.01    0.000017                              *
+* text                           5.30    0.000002                              *
+* background invisible text      4.70    0.000002                              *
+* Picture draw                   5.56    0.001404                              *
+* No scaling picture draw        5.04    0.000121                              *
 *                                                                              *
 *******************************************************************************/
 
