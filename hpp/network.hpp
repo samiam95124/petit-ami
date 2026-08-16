@@ -37,8 +37,9 @@ void  addrnetv6(const char* name, unsigned long long* addrh,
 FILE* opennet(unsigned long addr, long port, long secure = 0);
 FILE* opennetv6(unsigned long long addrh, unsigned long long addrl,
                 long port, long secure = 0);
-long  maxmsg(unsigned long addr);
-long  maxmsgv6(unsigned long long addrh, unsigned long long addrl);
+long  maxmsg(unsigned long addr, long secure = 0);
+long  maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+               long secure = 0);
 long  relymsg(unsigned long addr);
 long  relymsgv6(unsigned long long addrh, unsigned long long addrl);
 long  openmsg(unsigned long addr, long port, long secure = 0);
