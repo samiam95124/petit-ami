@@ -851,7 +851,7 @@ typedef enum {
 } errcod;
 
 /* mode to function table */
-int mod2fnc[mdor+1] = {
+static int mod2fnc[mdor+1] = {
 
     GXcopy, /* mdnorm */
     GXnoop, /* mdinvis */
@@ -1255,16 +1255,16 @@ static int        xerrbyp;        /* bypass the xerror() handler */
 static int        evtcnt;         /* count of PA event diagnostics output */
 
 /* code storage for XWindow state atoms */
-Atom cmaxhorz; /* horizontally maximized */
-Atom cmaxvert; /* vertically maximized */
-Atom cfocused; /* focused */
-Atom chidden;  /* hidden (iconized) */
+static Atom cmaxhorz; /* horizontally maximized */
+static Atom cmaxvert; /* vertically maximized */
+static Atom cfocused; /* focused */
+static Atom chidden;  /* hidden (iconized) */
 
 /* XWindow frame characteristics */
-int               frmextwdt[frmcfgsys+1];   /* frame extra width */
-int               frmexthgt[frmcfgsys+1];   /* frame extra height */
-int               frmoffx[frmcfgsys+1];     /* frame offset to client x */
-int               frmoffy[frmcfgsys+1];     /* frame offset to client y */
+static int        frmextwdt[frmcfgsys+1];   /* frame extra width */
+static int        frmexthgt[frmcfgsys+1];   /* frame extra height */
+static int        frmoffx[frmcfgsys+1];     /* frame offset to client x */
+static int        frmoffy[frmcfgsys+1];     /* frame offset to client y */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -1358,6 +1358,30 @@ since the error dialog must work when the module is in a bad state.
 
 *******************************************************************************/
 
+/* Dots per meter from the Xft.dpi resource, or 0 if not set. Under
+   XWayland the core geometry is synthesized for 96 dpi regardless of the
+   real display; the desktop hands the effective dpi to X clients through
+   the root resource database, which is where the toolkits read it */
+
+static long xftdpm(void)
+
+{
+
+    char*  rms; /* resource manager string */
+    char*  p;   /* resource position */
+    double dpi; /* dots per inch */
+
+    rms = XResourceManagerString(padisplay);
+    if (!rms) return (0); /* no resource database */
+    p = strstr(rms, "Xft.dpi:");
+    if (!p) return (0); /* resource not set */
+    dpi = atof(p+8);
+    if (dpi < 24 || dpi > 1000) return (0); /* not a sane value */
+
+    return ((long)(dpi*1000/25.4+0.5)); /* to dots per meter */
+
+}
+
 static double dlgscale(void)
 
 {
@@ -1366,10 +1390,15 @@ static double dlgscale(void)
     int    size; /* display size in millimeters */
     double dpm;  /* dots per meter */
 
-    res = DisplayHeight(padisplay, pascreen);
-    size = DisplayHeightMM(padisplay, pascreen);
-    if (size <= 0) return (1.0); /* no metrics, use the nominal size */
-    dpm = (double)res*1000/size; /* find dots per meter */
+    dpm = xftdpm(); /* the desktop's effective dpi, when declared */
+    if (!dpm) {
+
+        res = DisplayHeight(padisplay, pascreen);
+        size = DisplayHeightMM(padisplay, pascreen);
+        if (size <= 0) return (1.0); /* no metrics, use the nominal size */
+        dpm = (double)res*1000/size; /* find dots per meter */
+
+    }
     if (dpm < DLGNOMDPM) return (1.0); /* do not shrink */
 
     return (dpm/DLGNOMDPM);
@@ -6095,6 +6124,23 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
     XWUNLOCK();
     win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
     win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
+    /* the desktop's declared effective dpi overrides the core geometry:
+       under XWayland the core is a fixed 96 dpi whatever the display */
+    {
+
+        long dpm = xftdpm();
+
+        if (dpm) {
+
+            win->sdpmx = dpm;
+            win->sdpmy = dpm;
+            /* keep the physical sizes consistent with the density */
+            win->shsize = win->shres*1000/dpm;
+            win->svsize = win->svres*1000/dpm;
+
+        }
+
+    }
 
 #ifdef PRTPWM
     dbg_printf(dlinfo, "Display width in pixels:  %d\n", win->shres);
