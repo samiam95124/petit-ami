@@ -12508,6 +12508,12 @@ static void mouseevent(winptr win, pd_evt* e)
         win->nmpy = e->y/win->linespace+1; /* get mouse y */
         win->nmpxg = e->x+1; /* get mouse graphical x */
         win->nmpyg = e->y+1; /* get mouse graphical y */
+        /* The pointer is over the client area, whose cursor inherits from
+           the master. The frame's hover shape must not follow it in: the
+           last motion before crossing inward is always on the resize ring,
+           and the arrows would ride into the whole client */
+        if (win->childfrm && e->win == win->xwhan)
+            pd_cursor(win->xmwhan, pd_curarrow);
 
     } else if (e->etype == pd_etbtndown) {
 
@@ -15558,6 +15564,15 @@ void ami_dragwin(FILE* f)
     int    dragging;        /* drag in progress */
 
     win = txt2win(f); /* get window context */
+
+    /* a toplevel is placed by the compositor: hand it the drag, riding
+       the press that brought us here */
+    if (!win->parwin) {
+
+        pd_windrag(win->xmwhan);
+        return;
+
+    }
 
     /* snapshot the pointer's root position and the window's parent-relative
        position at the instant the drag begins; their difference is the

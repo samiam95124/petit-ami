@@ -59,10 +59,14 @@ rdmsg short buffer truncates             pass
 
 maxmsg sane                              pass
     maximum message for loopback: 65507 bytes
+maxmsg secure honors the DTLS record     pass
+    maximum secure message for loopback: 16384 bytes
 relymsg loopback is reliable             pass
     loopback delivery reliable: yes
 maxmsgv6 sane                            pass
     maximum message for v6 loopback: 65488 bytes
+maxmsgv6 secure honors the DTLS record   pass
+    maximum secure message for v6 loopback: 16384 bytes
 relymsgv6 loopback is reliable           pass
     v6 loopback delivery reliable: yes
 maxmsg sized message deliverable         pass
@@ -91,4 +95,4 @@ certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
 
-Network test complete: 43 passes, 0 fails
+Network test complete: 45 passes, 0 fails
