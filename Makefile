@@ -688,7 +688,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
-     wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
+     wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
@@ -707,7 +707,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
-     wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
+     wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
@@ -725,7 +725,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
-     wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
+     wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
@@ -743,7 +743,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
-     wator watorg pong pongg breakout backgammon checkers chess defenders editor editorg getpage getpageg getmail \
+     wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
@@ -1757,8 +1757,26 @@ pongg: $(GLIBSD) graph_games/pong.c
 #
 # Breakout game for graphics
 #
-breakout: $(GLIBSD) graph_games/breakout.c
-	$(CC) $(CFLAGS) graph_games/breakout.c $(GLIBS) -o bin/breakout
+breakout: $(CLIBSD) terminal_games/breakout.c
+	$(CC) $(CFLAGS) terminal_games/breakout.c $(CLIBS) -o bin/breakout
+
+#
+# Breakout game, windowed character edition
+#
+breakoutw: $(LIBPFX)termc$(LIBEXT) terminal_games/breakoutw.c
+	$(CC) $(CFLAGS) terminal_games/breakoutw.c $(CLIBSC) -o bin/breakoutw
+
+#
+# Breakout game, graphical
+#
+breakoutg: $(GLIBSD) graph_games/breakoutg.c
+	$(CC) $(CFLAGS) graph_games/breakoutg.c $(GLIBS) -o bin/breakoutg
+
+#
+# Breakout game, windowed demonstrator edition
+#
+breakoutwg: $(GLIBSD) graph_games/breakoutwg.c
+	$(CC) $(CFLAGS) graph_games/breakoutwg.c $(GLIBS) -o bin/breakoutwg
 
 #
 # Breakout run remotely: linked with graph_client, the display and the
