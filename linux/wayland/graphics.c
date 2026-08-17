@@ -253,18 +253,25 @@ static enum { /* debug levels */
 #define MAXJOY 10  /* number of joysticks possible */
 
 /* child frame dimensions (Ami-drawn frames for child windows).
-   Title bar height is based on the window's font line height so it scales
-   with text size; border and button sizes are proportional to title bar. */
-#define CFRM_TITBAR_H(win)  ((int)((win)->linespace * 2.2))
+   Title bar height is based on the window's initial font line height so it
+   scales with the configured text size; border and button sizes are
+   proportional to the title bar. The metrics freeze at window creation
+   (the frm* fields): the chrome must hold still while the client changes
+   fonts under it. */
+#define CFRM_TITBAR_H(win)  ((win)->frmtbh)
 #define CFRM_BORDER_W       4  /* resize border width in pixels */
+/* input grab ring for resize: wider than the drawn border and scaled with
+   the text size, so the edge is a hittable target on high densities. The
+   ring rides over the client edge; the drawn frame stays CFRM_BORDER_W */
+#define CFRM_GRAB_W(win)    ((win)->frmgrab)
 #define CFRM_CORNER         16 /* corner resize grab length in pixels: near a
                                   corner the edge band widens to this so the
                                   diagonal resize is not a tiny CFRM_BORDER_W
                                   square that is nearly impossible to hit */
-#define CFRM_BUTTON_SZ(win) ((int)((win)->linespace * 1.1))
+#define CFRM_BUTTON_SZ(win) ((win)->frmbsz)
 #define CFRM_BUTTON_GAP     6  /* gap between buttons */
 #define CFRM_BUTTON_MG      8  /* button margin from edge */
-#define CFRM_TITLE_SZ(win)  ((int)((win)->gfhigh * 1.15))
+#define CFRM_TITLE_SZ(win)  ((win)->frmtsz)
 
 /* The frame palette follows the desktop's color scheme: the Adwaita
    light header on a light desktop, the dark one on a dark desktop. The
@@ -777,6 +784,14 @@ typedef struct winrec {
     int          cwoy;              /* client window offset from parent
                                        origin y */
     int          childfrm;          /* TRUE if using Ami-drawn child frame */
+    int          mstchild;          /* TRUE if this window is a child of the
+                                       parent master (menu component), whose
+                                       Ami frame offsets its origin */
+    int          frmtbh;            /* frame title bar height, frozen at
+                                       window creation */
+    int          frmbsz;            /* frame button diameter, frozen */
+    int          frmtsz;            /* frame title font size, frozen */
+    int          frmgrab;           /* frame resize grab ring width, frozen */
     char*        wintitle;          /* window title string (for child frames) */
     pd_draw*           frmgc;             /* pd_draw* for drawing on xmwhan (child frame) */
     int          minimized;         /* TRUE if child frame is minimized */
@@ -4956,17 +4971,31 @@ arrow on borders, diagonal arrow on corners.
 *******************************************************************************/
 
 /* Determine which resize edges the pointer (mx,my) is over for a child frame of
-   master size mw x mh. Edges are CFRM_BORDER_W thick; within CFRM_CORNER of a
-   corner the grab widens along both edges so the diagonal (corner) resize is
-   easy to hit rather than a tiny CFRM_BORDER_W square. Shared by the cursor
-   feedback and the resize hit test so the two never disagree. */
-static void childfrm_resize_edges(int mx, int my, int mw, int mh,
+   master size mw x mh. Edges are CFRM_GRAB_W thick, thinning to the drawn
+   CFRM_BORDER_W beside the title row so the title and its buttons keep
+   their clicks; within CFRM_CORNER of a corner the grab widens along both
+   edges so the diagonal (corner) resize is easy to hit rather than a tiny
+   square. Shared by the cursor feedback and the resize hit test so the two
+   never disagree. */
+/* subclient offsets within the master: the Ami frame, plus the menu bar
+   strip below the title when a menu is active */
+static int subclix(winptr win)
+    { return (win->childfrm? win->cwox: 0); }
+static int subcliy(winptr win)
+    { return ((win->childfrm? win->cwoy: 0)+(win->menu? win->menuspcy: 0)); }
+
+static void childfrm_resize_edges(winptr win, int mx, int my, int mw, int mh,
                                   int* left, int* right, int* top, int* bottom)
 {
-    int on_left   = mx < CFRM_BORDER_W;
-    int on_right  = mx >= mw - CFRM_BORDER_W;
-    int on_top    = my < CFRM_BORDER_W;
-    int on_bottom = my >= mh - CFRM_BORDER_W;
+    int bw     = CFRM_GRAB_W(win);
+    int hastit = win->cwoy > win->cwox;
+    int titrow = hastit && my < win->cwoy;
+    int topw   = hastit? CFRM_BORDER_W: bw;
+    int sidew  = titrow? CFRM_BORDER_W: bw;
+    int on_left   = mx < sidew;
+    int on_right  = mx >= mw - sidew;
+    int on_top    = my < topw;
+    int on_bottom = my >= mh - bw;
     int near_left   = mx < CFRM_CORNER;
     int near_right  = mx >= mw - CFRM_CORNER;
     int near_top    = my < CFRM_CORNER;
@@ -4988,7 +5017,7 @@ static void childfrm_set_cursor(winptr win, int mx, int my)
     pd_curshape c;
 
     if (win->minimized) { on_left = on_right = on_top = on_bottom = 0; }
-    else childfrm_resize_edges(mx, my, mw, mh,
+    else childfrm_resize_edges(win, mx, my, mw, mh,
                                &on_left, &on_right, &on_top, &on_bottom);
 
     if (on_left && on_top)          c = pd_cursizenwse;
@@ -5124,9 +5153,22 @@ static void childfrm_draw(winptr win, int mw, int mh)
     int bx_min;       /* minimize button x */
     int tlen;         /* title text pixel length */
     int title_size;   /* title font pixel size */
+    int hastit;       /* title bar present in the frame geometry */
 
     if (!win->childfrm || !win->frmgc || !win->linespace) return;
     if (!win->frame) return; /* frame is turned off — nothing to draw */
+    /* the geometry carries the chrome: a title bar reserves more height at
+       the top than the border width (sysbar off leaves border only) */
+    hastit = win->cwoy > win->cwox;
+    /* Paint against the layer's live master size, not the caller's tracked
+       one: a configure can land between the caller reading its tracking
+       and this paint, and chrome laid out for the stale width leaves the
+       bar half-painted at one size and titled for another */
+    {
+        int gx, gy, gm;
+
+        pd_wingeom(win->xmwhan, &gx, &gy, &mw, &mh, &gm);
+    }
 
     /* mw/mh are the master (xmwhan) outer dimensions, supplied by the caller.
        Every caller sets win->xmwr to match the XResize/XMoveResize it issues on
@@ -5157,11 +5199,16 @@ static void childfrm_draw(winptr win, int mw, int mh)
     bx_max   = bx_close - bsz - CFRM_BUTTON_GAP;
     bx_min   = bx_max   - bsz - CFRM_BUTTON_GAP;
 
-    if (win->wintitle && win->wintitle[0] && win->ftface) {
+    if (hastit && win->wintitle && win->wintitle[0] && win->ftface) {
 
         int len = strlen(win->wintitle);
         int tleft = CFRM_BUTTON_MG; /* title left margin */
         int avail = bx_min - CFRM_BUTTON_GAP - tleft; /* space for title */
+
+        /* the face carries whatever size the client last drew with;
+           measurement must run at the chrome's own title size or the
+           layout truncates and justifies against phantom widths */
+        FT_Set_Pixel_Sizes(win->ftface, title_size, title_size);
         tlen = ft_text_width(win->ftface, win->wintitle, len);
         int ty = (tbh + title_size) / 2 - 2;
 
@@ -5206,7 +5253,7 @@ static void childfrm_draw(winptr win, int mw, int mh)
 
     }
 
-    {
+    if (hastit) {
         /* the scheme's button circles; glyphs dim without focus */
         const frmpal* pal = framepal();
         unsigned long btn_bg = pal->btnbg;
@@ -5253,11 +5300,18 @@ static void childfrm_draw(winptr win, int mw, int mh)
        a title press becomes an interactive move and a border press an
        interactive resize. The declared title stops short of the buttons,
        whose presses must reach us. */
-    if (!win->parwin)
-        pd_winframe(win->xmwhan,
-                     CFRM_BORDER_W, CFRM_BORDER_W,
-                     bx_min - CFRM_BUTTON_GAP - CFRM_BORDER_W,
-                     tbh - CFRM_BORDER_W, CFRM_BORDER_W);
+    if (!win->parwin) {
+
+        if (hastit)
+            pd_winframe(win->xmwhan,
+                         CFRM_BORDER_W, CFRM_BORDER_W,
+                         bx_min - CFRM_BUTTON_GAP - CFRM_BORDER_W,
+                         tbh - CFRM_BORDER_W, CFRM_GRAB_W(win));
+        else
+            /* border only: no title region to drag by */
+            pd_winframe(win->xmwhan, 0, 0, 0, 0, CFRM_GRAB_W(win));
+
+    }
 
     pd_flush(padisplay);
 
@@ -5569,8 +5623,20 @@ static void winvis(winptr win)
         /* present the master window onscreen */
         snc = 0;
         pd_winmap(win->xmwhan, 1);
-        /* place */
-        pd_winmove(win->xmwhan, win->xmwr.x, win->xmwr.y);
+        /* place; a master child's origin carries the parent frame offset */
+        {
+
+            int ox = 0, oy = 0;
+
+            if (win->parwin && win->mstchild && win->parwin->childfrm) {
+
+                ox = win->parwin->cwox;
+                oy = win->parwin->cwoy;
+
+            }
+            pd_winmove(win->xmwhan, win->xmwr.x+ox, win->xmwr.y+oy);
+
+        }
         pd_flush(padisplay);
 
         /* wait for the window to be displayed */
@@ -5859,6 +5925,14 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
     stdchrx = win->charspace;
     stdchry = win->linespace;
 
+    /* freeze the frame metrics from the window's initial font: the chrome
+       holds still while the client changes fonts under it */
+    win->frmtbh = (int)(win->linespace*2.2);
+    win->frmbsz = (int)(win->linespace*1.1);
+    win->frmtsz = (int)(win->gfhigh*1.15);
+    win->frmgrab = win->linespace/3 > CFRM_BORDER_W?
+                   win->linespace/3: CFRM_BORDER_W;
+
     /* set buffer size required for character spacing at default character grid
        size */
     win->gmaxxg = maxxd*win->charspace;
@@ -5905,6 +5979,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
         /* child window or toplevel: Ami draws its own frame on xmwhan */
         win->childfrm = TRUE;
+        win->mstchild = FALSE;
         win->minimized = FALSE;
         win->pfw = CFRM_BORDER_W * 2;
         win->pfh = CFRM_TITBAR_H(win) + CFRM_BORDER_W;
@@ -5920,8 +5995,9 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     } else {
 
-        /* menu component: frameless */
+        /* menu component: frameless, placed within the parent master */
         win->childfrm = FALSE;
+        win->mstchild = TRUE;
         win->pfw = frmextwdt[frmcfgall];
         win->pfh = frmexthgt[frmcfgall];
         win->cwox = frmoffx[frmcfgall];
@@ -12794,8 +12870,8 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 snc = 0;
                 if (win->childfrm) {
 
-                    /* keep the subclient offset by the frame thickness */
-                    pd_winmove(win->xwhan, win->cwox, win->cwoy);
+                    /* keep the subclient below the frame and menu bar */
+                    pd_winmove(win->xwhan, subclix(win), subcliy(win));
                     pd_winsize(win->xwhan, xwc.width, xwc.height);
 
                 } else {
@@ -12817,8 +12893,9 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
             if (win->menu) {
 
                 mwin = txt2win(win->menu->wf); /* index window */
-                /* find resulting size of menu bar */
-                xwc.width = e->w; /* width is client */
+                /* find resulting size of menu bar: the client width,
+                   inside the frame */
+                xwc.width = e->w-(win->childfrm? win->pfw: 0);
                 xwc.height = win->menuspcy; /* height is menu text */
                 /* check menu bar has changed size */
                 if (xwc.width != mwin->xmwr.w || xwc.height != mwin->xmwr.h) {
@@ -12868,6 +12945,8 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
             *keep = TRUE; /* set found */
             if (!win->bufmod) {
 
+                ami_evtrec er2;
+
                 /* reset tracking sizes */
                 win->gmaxxg = er->rszxg; /* graphics x */
                 win->gmaxyg = er->rszyg; /* graphics y */
@@ -12880,6 +12959,17 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
                 win->screens[win->curdsp-1]->maxx = win->gmaxx; /* character size */
                 win->screens[win->curdsp-1]->maxy = win->gmaxy;
+                /* The repaint that must follow the resize, queued behind it
+                   so the client reads the new size first. The platform
+                   exposes only what a grow reveals and a shrink reveals
+                   nothing, but an unbuffered client repaints its whole
+                   scene against the new size */
+                er2.etype = ami_etredraw;
+                er2.rsx = 1;
+                er2.rsy = 1;
+                er2.rex = win->gmaxxg;
+                er2.rey = win->gmaxyg;
+                isendevent(win, &er2);
 
             }
 
@@ -13084,12 +13174,15 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
             }
 #endif
 
-            /* hit test: close, max, min buttons (right-aligned) */
+            /* hit test: close, max, min buttons (right-aligned); the title
+               bar and its buttons exist only when the geometry reserves the
+               title row (sysbar off leaves border only) */
+            int hastit = win->cwoy > win->cwox;
             int cbx = mw - bsz - CFRM_BUTTON_MG;
             int cby = (tbh - bsz) / 2;
             int mabx = cbx - bsz - CFRM_BUTTON_GAP;
             int mibx = mabx - bsz - CFRM_BUTTON_GAP;
-            if (mx >= cbx && mx < cbx + bsz &&
+            if (hastit && mx >= cbx && mx < cbx + bsz &&
                 my >= cby && my < cby + bsz) {
 
                 /* close button clicked: send terminate. For a toplevel this
@@ -13102,7 +13195,7 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 if (!win->parwin) fend = TRUE;
                 *keep = TRUE;
 
-            } else if (mx >= mabx && mx < mabx + bsz &&
+            } else if (hastit && mx >= mabx && mx < mabx + bsz &&
                        my >= cby && my < cby + bsz) {
 
                 /* max button: when minimized, restore to previous size; a
@@ -13114,7 +13207,7 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 *keep = FALSE;
                 return;
 
-            } else if (mx >= mibx && mx < mibx + bsz &&
+            } else if (hastit && mx >= mibx && mx < mibx + bsz &&
                        my >= cby && my < cby + bsz) {
 
                 /* min button: a toplevel minimizes through the shell, a
@@ -13124,7 +13217,7 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 *keep = FALSE;
                 return;
 
-            } else if (my >= CFRM_BORDER_W && my < tbh &&
+            } else if (hastit && my >= CFRM_BORDER_W && my < tbh &&
                        mx >= CFRM_BORDER_W && mx < mw - CFRM_BORDER_W) {
 
                 /* title bar (excluding the top resize border and side
@@ -13135,6 +13228,14 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 int origy = win->xmwr.y;
                 pd_evt de;
                 int dragging = TRUE;
+                /* The drag anchors in the parent's coordinate space: event
+                   coordinates are relative to the grabbed window, which is
+                   the thing moving, and a delta measured from a moving
+                   origin feeds back into itself and shakes */
+                pd_win* pspace = win->parwin? win->parwin->xwhan: NULL;
+                int ppx = 0, ppy = 0;
+
+                if (pspace) pd_pointer(pspace, &ppx, &ppy);
 
                 /* grab pointer for drag tracking */
                 pd_grab(win->xmwhan, 1);
@@ -13156,8 +13257,20 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                             if (pk.etype != pd_etmouse) break;
                             nextxevt(padisplay, &de);
                         }
-                        int dx = de.x - startx;
-                        int dy = de.y - starty;
+                        int dx, dy;
+                        if (pspace) {
+
+                            int cpx, cpy;
+
+                            pd_pointer(pspace, &cpx, &cpy);
+                            dx = cpx-ppx; dy = cpy-ppy;
+
+                        } else {
+
+                            dx = de.x - startx;
+                            dy = de.y - starty;
+
+                        }
                         win->xmwr.x = origx + dx;
                         win->xmwr.y = origy + dy;
                         pd_winmove(win->xmwhan,
@@ -13207,7 +13320,7 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                    corner grab as the hover cursor, so a corner drag resizes on
                    both axes over the widened corner zone, not just a 4px square) */
                 int rsz_left, rsz_right, rsz_top, rsz_bottom;
-                childfrm_resize_edges(mx, my, win->xmwr.w, win->xmwr.h,
+                childfrm_resize_edges(win, mx, my, win->xmwr.w, win->xmwr.h,
                                       &rsz_left, &rsz_right, &rsz_top, &rsz_bottom);
                 int startx = e->x;
                 int starty = e->y;
@@ -13217,6 +13330,13 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                 int origh = win->xmwr.h;
                 pd_evt de;
                 int resizing = TRUE;
+                /* anchored in the parent's coordinate space, as the move
+                   drag above: a left or top edge resize moves this window's
+                   origin, and deltas measured from it feed back and shake */
+                pd_win* pspace = win->parwin? win->parwin->xwhan: NULL;
+                int ppx = 0, ppy = 0;
+
+                if (pspace) pd_pointer(pspace, &ppx, &ppy);
 
                 pd_grab(win->xmwhan, 1);
 
@@ -13230,8 +13350,20 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                            resize+repaint instead of one per intermediate point
                            (see the drag loop above) */
                         while (pd_evtcheck(padisplay, NULL, pd_etmouse, &de));
-                        int dx = de.x - startx;
-                        int dy = de.y - starty;
+                        int dx, dy;
+                        if (pspace) {
+
+                            int cpx, cpy;
+
+                            pd_pointer(pspace, &cpx, &cpy);
+                            dx = cpx-ppx; dy = cpy-ppy;
+
+                        } else {
+
+                            dx = de.x - startx;
+                            dy = de.y - starty;
+
+                        }
                         int nx = origx;
                         int ny = origy;
                         int nw = origw;
@@ -14490,6 +14622,15 @@ static void buffer_ivf(FILE* f, long e)
         win->screens[win->curdsp-1]->maxy = win->gmaxy;
         xwc.width = win->gmaxxg; /* set XWindow width and height */
         xwc.height = win->gmaxyg;
+        /* the master carries the Ami-drawn frame around the client, and
+           the menu bar when one is active */
+        if (win->childfrm) {
+
+            xwc.width += win->pfw;
+            xwc.height += win->pfh;
+
+        }
+        if (win->menu) xwc.height += win->menuspcy;
         /* Only if it is a change. A configure that asks for the size the
            window already has is not an error and not refused -- it
            simply produces no pd_etresize, and the wait below is then
@@ -14501,6 +14642,13 @@ static void buffer_ivf(FILE* f, long e)
 
             snc = 0;
             pd_winsize(win->xmwhan, xwc.width, xwc.height);
+            if (win->childfrm) {
+
+                /* the subclient rides inside the frame, below any menu */
+                pd_winmove(win->xwhan, subclix(win), subcliy(win));
+                pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
+
+            }
             /* change saved size to match */
             win->xmwr.w = xwc.width;
             win->xmwr.h = xwc.height;
@@ -14716,9 +14864,12 @@ static void menu_resize(FILE* f, winptr win, int menuon)
                   BIT(ami_wmframe)*win->frame|BIT(ami_wmsize)*win->size|
                   BIT(ami_wmsysbar)*win->sysbar);
     ami_setsizg(f, wx, wy);
-    /* move subclient window down past menu bar */
+    /* seat the subclient below the frame and menu bar; the size resets
+       too, as setsizg computed it before the menu state settled */
     snc = 0;
-    pd_winmove(win->xwhan, 0, yes);
+    pd_winmove(win->xwhan, subclix(win),
+               (win->childfrm? win->cwoy: 0)+yes);
+    pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
 
     /* the subclient is a child of the master: its move applies
        synchronously, and a no-change move sends no notify, so there is
@@ -15093,8 +15244,11 @@ static void getsizg_ivf(FILE* f, long* x, long* y)
     win = txt2win(f); /* get window context */
     /* the layer tracks the master window's granted geometry */
     pd_wingeom(win->xmwhan, &wx, &wy, &ww, &wh, &wm);
-    *x = ww+win->pfw;
-    *y = wh+win->pfh;
+    /* an Ami child frame is drawn inside the master, so the master geometry
+       already covers it; an external frame adds its extents on top */
+    *x = ww;
+    *y = wh;
+    if (!win->childfrm) { *x += win->pfw; *y += win->pfh; }
 
 }
 
@@ -15171,7 +15325,9 @@ static void setsizg_ivf(FILE* f, long x, long y)
     if (win->parwin) { x = L2PW(win->parwin, x); y = L2PH(win->parwin, y); }
     /* change to client terms with zero clip */
     xwc.width = x-win->pfw; if (xwc.width < 1) xwc.width = 1;
-    xwc.height = y-win->pfh; if (xwc.height < 1) xwc.height = 1;
+    xwc.height = y-win->pfh;
+    if (win->menu) xwc.height -= win->menuspcy;
+    if (xwc.height < 1) xwc.height = 1;
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
     if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
@@ -15181,9 +15337,10 @@ static void setsizg_ivf(FILE* f, long x, long y)
         if (win->childfrm) {
 
             /* For child-framed windows: x/y are total master dimensions.
-               Master = x,y. Subclient = (x-pfw, y-pfh) at offset (cwox,cwoy). */
+               Master = x,y. Subclient = the client remainder, seated below
+               the frame and any menu bar. */
             pd_winsize(win->xmwhan, x, y);
-            pd_winmove(win->xwhan, win->cwox, win->cwoy);
+            pd_winmove(win->xwhan, subclix(win), subcliy(win));
             pd_winsize(win->xwhan, xwc.width, xwc.height);
             win->xmwr.w = x;
             win->xmwr.h = y;
@@ -15323,12 +15480,24 @@ static void setposg_ivf(FILE* f, long x, long y)
     /* don't repeat positions, it will cause a no-op in windows manager */
     if (x-1 != win->xmwr.x || y-1 != win->xmwr.y) {
 
-        /* reconfigure window; if child, apply parent's viewport scale */
+        /* reconfigure window; if child, apply parent's viewport scale. A
+           master child (menu component) positions within the parent
+           master, whose Ami frame offsets the coordinate origin */
         snc = 0;
-        if (win->parwin)
+        if (win->parwin) {
+
+            int ox = 0, oy = 0;
+
+            if (win->mstchild && win->parwin->childfrm) {
+
+                ox = win->parwin->cwox;
+                oy = win->parwin->cwoy;
+
+            }
             pd_winmove(win->xmwhan,
-                        L2PX(win->parwin, x-1), L2PY(win->parwin, y-1));
-        else
+                        L2PX(win->parwin, x-1)+ox, L2PY(win->parwin, y-1)+oy);
+
+        } else
             pd_winmove(win->xmwhan, x-1, y-1);
 
 #ifdef WAITWMR
@@ -15633,6 +15802,25 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_wi
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
+    if (win->childfrm) {
+
+        /* the Ami-drawn frame: full chrome, border only without the
+           system bar, nothing with the frame off */
+        if (!(BIT(ami_wmframe) & ms)) { *wx = cx; *wy = cy; }
+        else if (!(BIT(ami_wmsysbar) & ms)) {
+
+            *wx = cx + CFRM_BORDER_W*2;
+            *wy = cy + CFRM_BORDER_W*2;
+
+        } else {
+
+            *wx = cx + CFRM_BORDER_W*2;
+            *wy = cy + CFRM_TITBAR_H(win) + CFRM_BORDER_W;
+
+        }
+        return;
+
+    }
     *wx = cx+frmextwdt[frmcfgall]; /* find framed size */
     *wy = cy+frmexthgt[frmcfgall];
     /* we only allow one frame mode at a time, so we process here in priority
@@ -15717,7 +15905,12 @@ static void frame_ivf(FILE* f, long e)
 
     if (win->childfrm) {
 
-        /* Ami-drawn child frame: adjust offsets and geometry */
+        /* Ami-drawn child frame: adjust offsets and geometry. The change
+           test is on the geometry itself: the mode flags are cleared
+           wholesale by every frame control, so they cannot carry which
+           chrome is actually on screen */
+        int opfh = win->pfh, opfw = win->pfw;
+
         if (e) {
 
             win->pfw = CFRM_BORDER_W * 2;
@@ -15733,21 +15926,27 @@ static void frame_ivf(FILE* f, long e)
             win->cwoy = 0;
 
         }
+        chg = opfw != win->pfw || opfh != win->pfh;
 
         if (chg) {
 
-            /* resize master window */
+            /* resize master window, holding frame, menu bar, and client */
             win->xmwr.w = win->gmaxxg + win->pfw;
-            win->xmwr.h = win->gmaxyg + win->pfh;
+            win->xmwr.h = win->gmaxyg + win->pfh +
+                          (win->menu? win->menuspcy: 0);
             pd_winsize(win->xmwhan,
                           win->xmwr.w, win->xmwr.h);
             /* reposition and resize subclient within master */
-            pd_winmove(win->xwhan, win->cwox, win->cwoy);
+            pd_winmove(win->xwhan, subclix(win), subcliy(win));
             pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
 
             restore(win);
-            /* redraw the frame when it is turned back on */
+            /* redraw the frame when it is turned back on; off clears the
+               declared drag and resize regions with it, or a frameless
+               window would still drag by its phantom title */
             if (e) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+            else if (!win->parwin)
+                pd_winframe(win->xmwhan, 0, 0, 0, 0, 0);
 
         }
 
@@ -15821,6 +16020,16 @@ static void sizable_ivf(FILE* f, long e)
     win->size = !!e; /* set new status of size bars */
     enbxsiz(win->xmwhan, e); /* enable/disable size bars */
 
+    if (win->childfrm) {
+
+        /* Ami-drawn child frame: the chrome keeps its title and border;
+           sizing is governed by the limits enbxsiz pins */
+        win->frame = TRUE;
+        win->sysbar = TRUE;
+        return;
+
+    }
+
     if (e) {
 
         /* find net extra width of frame from client area */
@@ -15887,6 +16096,52 @@ static void sysbar_ivf(FILE* f, long e)
     win->sysbar = FALSE;
     win->sysbar = !!e; /* set new status of system bar */
     enbxsys(win->xmwhan, e); /* enable/disable system bar */
+
+    if (win->childfrm) {
+
+        /* Ami-drawn child frame: the system bar is the title bar. Off keeps
+           the resize border and drops the title. The change test is on the
+           geometry itself: the mode flags are cleared wholesale by every
+           frame control, so they cannot carry which chrome is on screen */
+        int opfh = win->pfh, opfw = win->pfw;
+
+        win->frame = TRUE;
+        if (e) {
+
+            win->pfw = CFRM_BORDER_W * 2;
+            win->pfh = CFRM_TITBAR_H(win) + CFRM_BORDER_W;
+            win->cwox = CFRM_BORDER_W;
+            win->cwoy = CFRM_TITBAR_H(win);
+
+        } else {
+
+            win->pfw = CFRM_BORDER_W * 2;
+            win->pfh = CFRM_BORDER_W * 2;
+            win->cwox = CFRM_BORDER_W;
+            win->cwoy = CFRM_BORDER_W;
+
+        }
+        chg = opfw != win->pfw || opfh != win->pfh;
+
+        if (chg) {
+
+            /* resize master window, holding frame, menu bar, and client */
+            win->xmwr.w = win->gmaxxg + win->pfw;
+            win->xmwr.h = win->gmaxyg + win->pfh +
+                          (win->menu? win->menuspcy: 0);
+            pd_winsize(win->xmwhan, win->xmwr.w, win->xmwr.h);
+            /* reposition and resize subclient within master */
+            pd_winmove(win->xwhan, subclix(win), subcliy(win));
+            pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
+
+            restore(win);
+            childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+
+        }
+
+        return;
+
+    }
 
     if (e) {
 

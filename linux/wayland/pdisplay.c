@@ -102,6 +102,11 @@ typedef struct wltop {
     struct wl_callback* fcb; /* outstanding frame callback */
     int64_t fcbtime;        /* when it was armed */
     int    commitpend;      /* damage waiting on frame callback */
+    int    applying;        /* a compositor resize is being applied: hold
+                               commits so every configure answers with one
+                               fully reconfigured frame, keeping the
+                               compositor's resize anchoring in step */
+    int64_t applyms;        /* when the application began, for the bailout */
     int    titx, tity, titw, tith; /* interactive move rectangle */
     int    borderw;         /* resize border width, 0 if none */
 
@@ -138,6 +143,9 @@ typedef struct evq {
 struct pd_display {
 
     struct wl_display*    dpy;
+    /* buffer releases ride their own queue: the live beat drains it for
+       free buffers without dispatching configures into a draw in flight */
+    struct wl_event_queue* bufq;
     struct wl_registry*   reg;
     struct wl_compositor* comp;
     struct wl_shm*        shm;
@@ -269,6 +277,30 @@ static void mkevt(pd_evt* e, pd_etype t, pd_win* w)
     e->time = (uint32_t)nowms();
 }
 
+/* a resize that grows a window reveals fresh canvas; queue redraw events
+   for the right and bottom strips so the client repaints what the growth
+   exposed */
+static void expodmg(pd_display* d, pd_win* win, int ow, int oh)
+{
+    pd_evt e;
+
+    if (win->w > ow) {
+
+        mkevt(&e, pd_etredraw, win);
+        e.rx = ow; e.ry = 0; e.rw = win->w-ow; e.rh = win->h;
+        enq(d, &e);
+
+    }
+    if (win->h > oh) {
+
+        mkevt(&e, pd_etredraw, win);
+        e.rx = 0; e.ry = oh;
+        e.rw = (ow < win->w)? ow: win->w; e.rh = win->h-oh;
+        enq(d, &e);
+
+    }
+}
+
 /*******************************************************************************
 
 Canvas management and rasterization
@@ -330,6 +362,25 @@ static void sizecanvas(pd_win* w, int nw, int nh)
     w->can = n;
 }
 
+/* The live beat's publisher: drain buffer releases from their own queue
+   and push composed damage out. The default queue stays undispatched, so
+   a configure cannot run inside the draw call that raised the beat */
+static void beatpump(pd_display* d)
+{
+    struct pollfd pf;
+
+    if (!d->dpy) return;
+    while (wl_display_prepare_read_queue(d->dpy, d->bufq) != 0)
+        wl_display_dispatch_queue_pending(d->dpy, d->bufq);
+    wl_display_flush(d->dpy);
+    pf.fd = wl_display_get_fd(d->dpy);
+    pf.events = POLLIN;
+    if (poll(&pf, 1, 0) > 0) wl_display_read_events(d->dpy);
+    else wl_display_cancel_read(d->dpy);
+    wl_display_dispatch_queue_pending(d->dpy, d->bufq);
+    flushtops(d);
+}
+
 /* accumulate damage on the toplevel containing a window; rect in window
    coordinates */
 static void windmg(pd_win* p, int x, int y, int w, int h)
@@ -358,13 +409,17 @@ static void windmg(pd_win* p, int x, int y, int w, int h)
        in a tight loop never returns to the event machinery, and nothing
        else would publish its damage -- the screen freezes while memory
        animates. Publish from the draw path itself at a beat fast enough
-       to read as continuous motion. Callers hold the lock */
+       to read as continuous motion. The beat publishes only: dispatching
+       inbound events here would run a compositor resize in the middle of
+       the very draw call that raised the beat, freeing the canvas under
+       it. Inbound traffic waits for the event loop. Callers hold the
+       lock */
     {
         pd_display* d = &thedpy;
         int64_t now = nowms();
 
         if (now-d->livems >= 33 && !rigenv("PD_NOBEAT", "AMI_WL_NOBEAT"))
-            { d->livems = now; pump(d); }
+            { d->livems = now; beatpump(d); }
     }
 }
 
@@ -1500,9 +1555,11 @@ unsigned long pd_winsize(pd_win* win, int width, int height)
     pd_display* d = &thedpy;
     unsigned long tok;
     pd_evt e;
+    int ow, oh;
 
     LK(d);
     tok = ++d->sizetok;
+    ow = win->w; oh = win->h;
     win->w = width; win->h = height;
     sizecanvas(win, width, height);
     if (win->parent == &d->root && win->top) sizebufs(d, win);
@@ -1512,6 +1569,7 @@ unsigned long pd_winsize(pd_win* win, int width, int height)
     e.w = width; e.h = height;
     e.token = tok;
     enq(d, &e);
+    expodmg(d, win, ow, oh);
     ULK(d);
     return (tok);
 }
@@ -1760,6 +1818,7 @@ static void sizebufs(pd_display* d, pd_win* win)
         pool = wl_shm_create_pool(d->shm, fd, sz);
         t->buf[i] = wl_shm_pool_create_buffer(pool, 0, t->bufw, t->bufh,
                                               t->bufw*4, WL_SHM_FORMAT_ARGB8888);
+        wl_proxy_set_queue((struct wl_proxy*)t->buf[i], d->bufq);
         wl_buffer_add_listener(t->buf[i], &buf_lis, t);
         wl_shm_pool_destroy(pool);
         close(fd);
@@ -1874,6 +1933,14 @@ static void compose(pd_display* d, pd_win* win)
 
     t = win->top;
     if (!t || !t->configured || !win->mapped || !t->dmg) return;
+    /* a resize mid-application holds its commit; the bailout keeps a
+       caller that never finishes from freezing the window */
+    if (t->applying) {
+
+        if (nowms()-t->applyms < 50) { t->commitpend = 1; return; }
+        t->applying = 0;
+
+    }
     sizebufs(d, win);
     b = t->curbuf;
     if (t->bufbusy[b]) b = 1-b;
@@ -2035,6 +2102,7 @@ static void xsconf(void* data, struct xdg_surface* s, uint32_t serial)
     pd_display* d = &thedpy;
     wltop*      t;
     pd_evt      e;
+    int         ow, oh;
 
     t = win->top;
     if (!t) return;
@@ -2045,13 +2113,20 @@ static void xsconf(void* data, struct xdg_surface* s, uint32_t serial)
 
         /* The compositor resized us. Apply the size before reporting, so
            the caller reacts to a fait accompli, and the resize carries
-           token zero: the compositor originated it */
+           token zero: the compositor originated it. Commits hold until
+           the caller finishes reconfiguring (frame, children, chrome):
+           publishing the half-applied state would hand the compositor
+           interim sizes and make its resize anchoring wander */
+        ow = win->w; oh = win->h;
         win->w = t->confw; win->h = t->confh;
+        t->applying = 1;
+        t->applyms = nowms();
         sizecanvas(win, win->w, win->h);
         sizebufs(d, win);
         mkevt(&e, pd_etresize, win);
         e.w = t->confw; e.h = t->confh;
         enq(d, &e);
+        expodmg(d, win, ow, oh);
 
     }
     if (!t->mapnoted) {
@@ -2209,10 +2284,42 @@ static unsigned btnmask(int b)
 }
 
 /* route a pointer event: honor the grab, else hit test */
+/* Resize edges grabbed at (px,py) on a toplevel's declared frame ring, 0
+   when off the ring. The ring is borderw wide and rides over the client
+   edge, thinning to the title inset beside the title row so the title and
+   its buttons keep their presses; near a corner the edge band widens so
+   the diagonal grab is not a tiny square */
+static unsigned frmedges(pd_win* win, int px, int py)
+{
+    wltop*   t = win->top;
+    int      w, h, bw, topw, sidew, cz, titrow;
+    unsigned edges = 0;
+
+    if (!t || t->borderw <= 0 || t->maximized) return (0);
+    w = win->w; h = win->h;
+    if (px < 0 || py < 0 || px >= w || py >= h) return (0);
+    bw = t->borderw;
+    titrow = t->tith > 0 && py < t->tity+t->tith;
+    topw = t->tith > 0 && t->tity < bw? t->tity: bw;
+    sidew = titrow && t->titx < bw? t->titx: bw;
+    if (!(px < sidew || py < topw || px >= w-sidew || py >= h-bw))
+        return (0);
+    cz = bw*4 > 16? bw*4: 16;
+    if (py < topw || (py < cz && (px < cz || px >= w-cz)))
+        edges |= XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+    if (py >= h-bw || (py >= h-cz && (px < cz || px >= w-cz)))
+        edges |= XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+    if (px < sidew || (px < cz && (py < cz || py >= h-cz)))
+        edges |= XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+    if (px >= w-sidew || (px >= w-cz && (py < cz || py >= h-cz)))
+        edges |= XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+    return (edges);
+}
+
 static pd_win* ptrroute(pd_display* d, int* x, int* y)
 {
     pd_win* w;
-    int     ox, oy;
+    int     ox, oy, px, py;
 
     if (d->grab) {
 
@@ -2222,7 +2329,16 @@ static pd_win* ptrroute(pd_display* d, int* x, int* y)
 
     }
     if (!d->ptrtop) return (NULL);
-    w = hittest(d->ptrtop, (int)d->ptrx, (int)d->ptry, x, y);
+    /* the frame ring owns the pointer where it rides over the client
+       edge, the way invisible resize handles behave */
+    px = (int)d->ptrx; py = (int)d->ptry;
+    if (frmedges(d->ptrtop, px, py)) {
+
+        *x = px; *y = py;
+        return (d->ptrtop);
+
+    }
+    w = hittest(d->ptrtop, px, py, x, y);
     return (w);
 }
 
@@ -2326,31 +2442,12 @@ static void ptrbutton(void* data, struct wl_pointer* p, uint32_t serial,
     if (state && b == 1 && !d->grab && t && t->top && w == t) {
 
         int px = (int)d->ptrx, py = (int)d->ptry;
-        int bw = t->top->borderw;
+        unsigned edges = frmedges(t, px, py);
 
-        if (bw > 0 && (px < bw || py < bw || px >= t->w-bw ||
-                       py >= t->h-bw)) {
+        if (edges) {
 
-            /* corner zones widen so a diagonal grab is not a tiny square */
-            int cz = bw*4 > 16? bw*4: 16;
-            unsigned edges = 0;
-
-            if (py < bw || (py < cz && (px < cz || px >= t->w-cz)))
-                edges |= XDG_TOPLEVEL_RESIZE_EDGE_TOP;
-            if (py >= t->h-bw ||
-                (py >= t->h-cz && (px < cz || px >= t->w-cz)))
-                edges |= XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
-            if (px < bw || (px < cz && (py < cz || py >= t->h-cz)))
-                edges |= XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
-            if (px >= t->w-bw ||
-                (px >= t->w-cz && (py < cz || py >= t->h-cz)))
-                edges |= XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
-            if (edges) {
-
-                xdg_toplevel_resize(t->top->xtop, d->seat, serial, edges);
-                return;
-
-            }
+            xdg_toplevel_resize(t->top->xtop, d->seat, serial, edges);
+            return;
 
         }
         if (t->top->titw > 0 &&
@@ -2702,6 +2799,7 @@ pd_display* pd_open(void)
     memset(d, 0, sizeof(thedpy));
     d->dpy = wl_display_connect(NULL);
     if (!d->dpy) return (NULL);
+    d->bufq = wl_display_create_queue(d->dpy);
     pthread_mutexattr_init(&ma);
     pthread_mutexattr_settype(&ma, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&d->lk, &ma);
@@ -2841,6 +2939,32 @@ static void injline(pd_display* d, char* ln)
         ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 1);
         ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 0);
 
+    } else if (sscanf(ln, "conf %d %d", &x, &y) == 2) {
+
+        /* a synthesized compositor resize, in buffer pixels: what an
+           interactive resize delivers, minus the pointer */
+        if (d->ptrtop && d->ptrtop->top) {
+
+            pd_win* w = d->ptrtop;
+            pd_evt  e;
+            int     ow, oh;
+
+            w->top->confw = x; w->top->confh = y;
+            if (x > 0 && y > 0 && (x != w->w || y != w->h)) {
+
+                ow = w->w; oh = w->h;
+                w->w = x; w->h = y;
+                sizecanvas(w, x, y);
+                sizebufs(d, w);
+                mkevt(&e, pd_etresize, w);
+                e.w = x; e.h = y;
+                enq(d, &e);
+                expodmg(d, w, ow, oh);
+
+            }
+
+        }
+
     }
 }
 
@@ -2899,6 +3023,8 @@ static void pump(pd_display* d)
     if (poll(&pf, 1, 0) > 0) wl_display_read_events(d->dpy);
     else wl_display_cancel_read(d->dpy);
     wl_display_dispatch_pending(d->dpy);
+    /* buffer releases ride their own queue; drain it here too */
+    wl_display_dispatch_queue_pending(d->dpy, d->bufq);
     /* clear the queue wake */
     { uint64_t c; while (read(d->evfd, &c, 8) > 0); }
     /* key repeat expirations synthesize presses */
@@ -2921,7 +3047,12 @@ void pd_present(pd_win* win, int x, int y, int width, int height)
 
 void pd_flush(pd_display* d)
 {
+    pd_win* c;
+
     LK(d);
+    /* the caller declares its state complete: held resizes commit */
+    for (c = d->root.childs; c; c = c->sibnext)
+        if (c->top) c->top->applying = 0;
     flushtops(d);
     ULK(d);
 }
