@@ -208,7 +208,10 @@ void    pd_wintitle(pd_win* w, const char* title);
 
 /* declare the interactive regions of an owner-drawn frame: the title
    rectangle drags the window, a border of the given width resizes it.
-   Zero widths clear the declarations */
+   The border is an input width: the grab ring rides over the client
+   edge, thinning to the title inset beside the title row, so the caller
+   may draw a slimmer frame than it declares. Zero widths clear the
+   declarations */
 void    pd_winframe(pd_win* w, int titx, int tity, int titw, int tith,
                     int borderw);
 
