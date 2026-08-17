@@ -171,6 +171,9 @@ struct pd_display {
     double ptrx, ptry;      /* surface coordinates */
     unsigned mods;          /* modifier and button mask, PD_M encoding */
     pd_win* grab;           /* pointer grab window */
+    pd_win* igrab;          /* implicit grab: the window holding a button
+                               press owns the pointer until release, so the
+                               release always reaches the presser */
     uint32_t inserial;      /* last input serial, for interactive move */
     /* keyboard state */
     pd_win* focus;          /* explicit input focus window */
@@ -1493,6 +1496,7 @@ void pd_windel(pd_win* win)
     if (d->focus == win) d->focus = NULL;
     if (d->kbdtop == win) d->kbdtop = NULL;
     if (d->grab == win) d->grab = NULL;
+    if (d->igrab == win) d->igrab = NULL;
     droptop(d, win);
     unlinkchild(win);
     freecanvas(win->can);
@@ -1733,6 +1737,22 @@ void pd_maximize(pd_win* win, int on)
 
         if (on) xdg_toplevel_set_maximized(win->top->xtop);
         else xdg_toplevel_unset_maximized(win->top->xtop);
+        wl_display_flush(d->dpy);
+
+    }
+    ULK(d);
+}
+
+void pd_windrag(pd_win* win)
+{
+    pd_display* d = &thedpy;
+
+    LK(d);
+    if (win->top && win->top->xtop) {
+
+        /* the compositor owns the move from here; the press that started
+           it releases through the implicit grab when the pointer leaves */
+        xdg_toplevel_move(win->top->xtop, d->seat, d->inserial);
         wl_display_flush(d->dpy);
 
     }
@@ -2328,6 +2348,15 @@ static pd_win* ptrroute(pd_display* d, int* x, int* y)
         return (d->grab);
 
     }
+    if (d->igrab) {
+
+        /* the press window holds the pointer until release, so drags
+           track and the release arrives even outside its bounds */
+        winorg(d->igrab, &ox, &oy);
+        *x = (int)d->ptrx-ox; *y = (int)d->ptry-oy;
+        return (d->igrab);
+
+    }
     if (!d->ptrtop) return (NULL);
     /* the frame ring owns the pointer where it rides over the client
        edge, the way invisible resize handles behave */
@@ -2381,6 +2410,29 @@ static void ptrleave(void* data, struct wl_pointer* p, uint32_t serial,
     pd_display* d = data;
 
     (void)p; (void)serial; (void)surf;
+    /* A press in flight cannot follow the pointer off the surface: the
+       compositor stops the stream at the edge. Release the press to its
+       owner, or a widget under a runaway drag stays pressed forever */
+    if (d->igrab) {
+
+        pd_evt e;
+        int    ox, oy, b;
+
+        winorg(d->igrab, &ox, &oy);
+        for (b = 1; b <= 3; b++)
+            if (d->mods & btnmask(b)) {
+
+                d->mods &= ~btnmask(b);
+                mkevt(&e, pd_etbtnup, d->igrab);
+                e.btn = b;
+                e.x = (int)d->ptrx-ox;
+                e.y = (int)d->ptry-oy;
+                enq(d, &e);
+
+            }
+        d->igrab = NULL;
+
+    }
     crossevt(d, d->ptrwin, pd_etleave);
     d->ptrtop = NULL;
     d->ptrwin = NULL;
@@ -2460,6 +2512,10 @@ static void ptrbutton(void* data, struct wl_pointer* p, uint32_t serial,
         }
 
     }
+    /* a press takes the implicit grab: the presser owns the pointer until
+       the last button releases. Frame presses returned above; the
+       compositor owns those interactions */
+    if (state && w && !d->grab && !d->igrab) d->igrab = w;
     if (w) {
 
         mkevt(&e, state? pd_etbtndown: pd_etbtnup, w);
@@ -2467,6 +2523,26 @@ static void ptrbutton(void* data, struct wl_pointer* p, uint32_t serial,
         e.x = x; e.y = y;
         e.time = time;
         enq(d, &e);
+
+    }
+    if (!state && d->igrab &&
+        !(d->mods & (PD_MBTN1|PD_MBTN2|PD_MBTN3))) {
+
+        /* last button up: the grab releases, and the pointer re-routes to
+           whatever is under it now, with the crossings that implies */
+        pd_win* nw;
+        int     nx, ny;
+
+        d->igrab = NULL;
+        nw = ptrroute(d, &nx, &ny);
+        if (nw != d->ptrwin) {
+
+            crossevt(d, d->ptrwin, pd_etleave);
+            crossevt(d, nw, pd_etenter);
+            d->ptrwin = nw;
+            setcursor(d, nw);
+
+        }
 
     }
 }
@@ -2938,6 +3014,35 @@ static void injline(pd_display* d, char* ln)
                   wl_fixed_from_double((double)y/d->scale));
         ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 1);
         ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 0);
+
+    } else if (sscanf(ln, "btndown %d %d %d", &a, &x, &y) == 3) {
+
+        int bc = a == 1? 0x110: a == 2? 0x112: 0x111;
+
+        ptrmotion(d, NULL, (uint32_t)nowms(),
+                  wl_fixed_from_double((double)x/d->scale),
+                  wl_fixed_from_double((double)y/d->scale));
+        ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 1);
+
+    } else if (sscanf(ln, "btnup %d %d %d", &a, &x, &y) == 3) {
+
+        int bc = a == 1? 0x110: a == 2? 0x112: 0x111;
+
+        ptrmotion(d, NULL, (uint32_t)nowms(),
+                  wl_fixed_from_double((double)x/d->scale),
+                  wl_fixed_from_double((double)y/d->scale));
+        ptrbutton(d, NULL, 0, (uint32_t)nowms(), bc, 0);
+
+    } else if (sscanf(ln, "target %d", &a) == 1) {
+
+        /* aim the synthetic pointer at the a'th mapped toplevel */
+        int i = 0;
+
+        d->ptrtop = NULL;
+        for (c = d->root.childs; c; c = c->sibnext)
+            if (c->mapped && c->top && i++ == a) { d->ptrtop = c; break; }
+        d->kbdtop = d->ptrtop;
+        d->ptrwin = NULL;
 
     } else if (sscanf(ln, "conf %d %d", &x, &y) == 2) {
 

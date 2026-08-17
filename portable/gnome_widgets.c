@@ -144,6 +144,7 @@ static enum { /* debug levels */
 #define TD_PROGACTCEN         RGB(146, 77,  139)  /* progress bar active center */
 #define TD_PROGACTEDG         RGB(129, 68,  123)  /* progress bar active edge */
 #define TD_LSTHOV             BW(230)             /* list background for hover */
+#define TD_LSTSEL             BW(208)             /* list background for selection */
 #define TD_OUTLINE2           BW(206)             /* numselbox, dropbox outline */
 #define TD_DROPARROW          BW(61)              /* dropbox arrow */
 #define TD_DROPTEXT           BW(0)               /* dropbox text */
@@ -238,6 +239,7 @@ typedef enum {
     th_progactcen,         /* progress bar active center */
     th_progactedg,         /* progress bar active edge */
     th_lsthov,             /* list background for hover */
+    th_lstsel,             /* list background for selection */
     th_outline2,           /* numselbox, dropbox outline */
     th_droparrow,          /* dropbox arrow */
     th_droptext,           /* dropbox text */
@@ -323,6 +325,7 @@ typedef struct ccolor {
     /** Button outline focus */               unsigned long bof;
     /** Button text normal */                 unsigned long btn;
     /** Button text disabled */               unsigned long btd;
+    /** Surface behind the rounded corners */ unsigned long bsr;
 
 } ccolor;
 
@@ -359,6 +362,7 @@ typedef struct wigrec {
     /** string list */                        ami_strptr strlst;
     /** string selected, 0 if none */         long      ss;
     /** string hovered, 0 if none */          long      sh;
+    /** list selection held, 0 if none */     long      lsel;
     /** list box: first entry shown, 1 based */ long    top;
     /** List box column stops, in pixels from the left of the box. An
        entry is split at tabs and each field placed at its stop; a
@@ -878,6 +882,7 @@ static void wiginit(void* vwg)
     wp->strlst = NULL; /* clear string list */
     wp->ss = 0; /* no string selected */
     wp->sh = 0; /* no string hovered */
+    wp->lsel = 0; /* no list selection held */
     wp->top = 1; /* the list starts at its first entry */
     wp->ntabs = 0; /* no columns: the entry is one string */
     wp->cid = 0; /* clear child id */
@@ -1197,6 +1202,10 @@ static void cbutton_draw(
     long md; /* checkbox center line */
     long cb; /* bounding box of check figure */
 
+    /* the surround first: the square behind the rounded corners shows the
+       surface the button sits on, not the window's blank canvas */
+    fcolorp(wg->wf, wg->cbc->bsr);
+    ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
     /* color the background */
     if (wg->pressed) fcolorp(wg->wf, wg->cbc->bbp);
     else fcolorp(wg->wf, wg->cbc->bbn);
@@ -2591,7 +2600,9 @@ static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
 
 {
 
-    if (wg->hover && idx == wg->ss)
+    if (idx == wg->lsel)
+        fcolort(wg->wf, th_lstsel); /* the held selection */
+    else if (wg->hover && idx == wg->ss)
         fcolort(wg->wf, th_lsthov); /* hover background */
     else ami_fcolor(wg->wf, ami_white); /* normal background */
     ami_frect(wg->wf, 4, y, ami_maxxg(wg->wf)-3, y+ami_chrsizy(wg->wf)-1);
@@ -2750,6 +2761,17 @@ static void listbox_event(
            a mouse move */
         if (wg->ss) { /* there is a string select */
 
+            /* the clicked entry holds the selection shading, as a GTK
+               list row does */
+            long oldsel = wg->lsel;
+
+            wg->lsel = wg->ss;
+            if (oldsel != wg->lsel) {
+
+                listbox_line_idx(wg, oldsel);
+                listbox_line_idx(wg, wg->lsel);
+
+            }
             /* send event back to parent window */
             er.etype = ami_etlstbox; /* set button event */
             er.lstbid = wg->id; /* set id */
@@ -6565,7 +6587,8 @@ static void iquerycolor(
         themetable[th_canceloutline],   /* outline normal */
         themetable[th_canceloutline],   /* outline focused */
         themetable[th_canceltextfocus], /* text normal */
-        themetable[th_canceltextfocus]  /* text disabled */
+        themetable[th_canceltextfocus], /* text disabled */
+        themetable[th_title]            /* surround: the system bar */
 
     };
 
@@ -6577,7 +6600,8 @@ static void iquerycolor(
         themetable[th_selectoutline],      /* outline normal */
         themetable[th_selectoutlinefocus], /* outline focused */
         themetable[th_selecttextfocus],    /* text normal */
-        themetable[th_selecttextfocus]     /* text disabled */
+        themetable[th_selecttextfocus],    /* text disabled */
+        themetable[th_title]               /* surround: the system bar */
 
     };
 
@@ -6589,7 +6613,8 @@ static void iquerycolor(
         themetable[th_plusoutline],      /* outline normal */
         themetable[th_plusoutlinefocus], /* outline focused */
         themetable[th_plustextfocus],    /* text normal */
-        themetable[th_plustextfocus]     /* text disabled */
+        themetable[th_plustextfocus],    /* text disabled */
+        RGB(255, 255, 255)               /* surround: the dialog body */
 
     };
 
@@ -6679,6 +6704,8 @@ static void iquerycolor(
             /* set outline as 70 percent lumenosity of that */
             wp->cbc->bon = PERRGB(themetable[th], 70);
             wp->cbc->bof = PERRGB(themetable[th], 70);
+            /* the surround: the swatches sit on the dialog body */
+            wp->cbc->bsr = RGB(255, 255, 255);
             if (bwmap[th-th_querycolor1]) { /* set white checkmark */
 
                 wp->cbc->btn = BW(255);
@@ -7157,12 +7184,14 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     ccolor cancel_cbc = {
         themetable[th_cancelbackfocus], themetable[th_cancelbackfocus],
         themetable[th_canceloutline],   themetable[th_canceloutline],
-        themetable[th_canceltextfocus], themetable[th_canceltextfocus]
+        themetable[th_canceltextfocus], themetable[th_canceltextfocus],
+        themetable[th_title]
     };
     ccolor select_cbc = {
         themetable[th_selectbackfocus],    themetable[th_selectbackfocus],
         themetable[th_selectoutline],      themetable[th_selectoutlinefocus],
-        themetable[th_selecttextfocus],    themetable[th_selecttextfocus]
+        themetable[th_selecttextfocus],    themetable[th_selecttextfocus],
+        themetable[th_title]
     };
 
     /* split input s into directory + filename */
@@ -7521,13 +7550,15 @@ static void iqueryfind(
     ccolor cancel_cbc = {
         themetable[th_cancelbackfocus], themetable[th_cancelbackfocus],
         themetable[th_canceloutline],   themetable[th_canceloutline],
-        themetable[th_canceltextfocus], themetable[th_canceltextfocus]
+        themetable[th_canceltextfocus], themetable[th_canceltextfocus],
+        themetable[th_title]
     };
     /* colors for Find Next button */
     ccolor select_cbc = {
         themetable[th_selectbackfocus],    themetable[th_selectbackfocus],
         themetable[th_selectoutline],      themetable[th_selectoutlinefocus],
-        themetable[th_selecttextfocus],    themetable[th_selecttextfocus]
+        themetable[th_selecttextfocus],    themetable[th_selecttextfocus],
+        themetable[th_title]
     };
 
     /* create the dialog window */
@@ -7769,12 +7800,14 @@ static void iqueryfindrep(
     ccolor cancel_cbc = {
         themetable[th_cancelbackfocus], themetable[th_cancelbackfocus],
         themetable[th_canceloutline],   themetable[th_canceloutline],
-        themetable[th_canceltextfocus], themetable[th_canceltextfocus]
+        themetable[th_canceltextfocus], themetable[th_canceltextfocus],
+        themetable[th_title]
     };
     ccolor select_cbc = {
         themetable[th_selectbackfocus],    themetable[th_selectbackfocus],
         themetable[th_selectoutline],      themetable[th_selectoutlinefocus],
-        themetable[th_selecttextfocus],    themetable[th_selecttextfocus]
+        themetable[th_selecttextfocus],    themetable[th_selecttextfocus],
+        themetable[th_title]
     };
 
     wid = ami_getwinid();
@@ -8024,12 +8057,14 @@ static void iqueryfont(
     ccolor cancel_cbc = {
         themetable[th_cancelbackfocus], themetable[th_cancelbackfocus],
         themetable[th_canceloutline],   themetable[th_canceloutline],
-        themetable[th_canceltextfocus], themetable[th_canceltextfocus]
+        themetable[th_canceltextfocus], themetable[th_canceltextfocus],
+        themetable[th_title]
     };
     ccolor select_cbc = {
         themetable[th_selectbackfocus],    themetable[th_selectbackfocus],
         themetable[th_selectoutline],      themetable[th_selectoutlinefocus],
-        themetable[th_selecttextfocus],    themetable[th_selecttextfocus]
+        themetable[th_selecttextfocus],    themetable[th_selecttextfocus],
+        themetable[th_title]
     };
 
     eff_in = effect ? *effect : 0;
@@ -8365,7 +8400,7 @@ static const char* themnam[th_endmarker] = {
     "chkradout", "scrollback", "scrollbar", "scrollbarpressed",
     "numseldiv", "numselud", "texterr", "proginacen",
     "proginaedg", "progactcen", "progactedg", "lsthov",
-    "outline2", "droparrow", "droptext", "sldint",
+    "lstsel", "outline2", "droparrow", "droptext", "sldint",
     "tabdis", "tabback", "tabsel", "tabfocus",
     "cancelbackfocus", "canceltextfocus", "canceloutline", "selectbackfocus",
     "selectback", "selecttextfocus", "selecttext", "selectoutline",
@@ -8631,6 +8666,7 @@ static void init_widgets()
     themetable[th_progactcen]         = TD_PROGACTCEN;
     themetable[th_progactedg]         = TD_PROGACTEDG;
     themetable[th_lsthov]             = TD_LSTHOV;
+    themetable[th_lstsel]             = TD_LSTSEL;
     themetable[th_outline2]           = TD_OUTLINE2;
     themetable[th_droparrow]          = TD_DROPARROW;
     themetable[th_droptext]           = TD_DROPTEXT;

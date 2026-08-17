@@ -148,7 +148,7 @@ Group 7: temporary files
 
 test 700: "/tmp/tmp.*.1" "/tmp/tmp.*.2" distinct=1 s/b 1
 test 701: 1 s/b 1 (name does not pre-exist)
-test 702: 1 s/b 1 (length 18 < L_tmpnam 64)
+test 702: 1 s/b 1 (length 16 < L_tmpnam 64)
 test 703: 1 s/b 1 (tmpnam(NULL) returns a name)
 test 704: 1 s/b 1 (tmpfile opens)
 test 705: "scratch data" s/b "scratch data"

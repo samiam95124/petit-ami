@@ -219,6 +219,10 @@ void    pd_winframe(pd_win* w, int titx, int tity, int titw, int tith,
 void    pd_minimize(pd_win* w);
 void    pd_maximize(pd_win* w, int on);
 
+/* hand the toplevel to the compositor for an interactive move, riding
+   the most recent button press */
+void    pd_windrag(pd_win* w);
+
 /* standard cursor shapes over a window */
 typedef enum {
 
