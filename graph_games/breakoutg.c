@@ -24,11 +24,21 @@
 
 #define   SECOND      10000                   /* one second */
 #define   OSEC        (SECOND/8)              /* 1/8 second */
-#define   BALMOV      50                      /* ball move timer */
-#define   NEWBAL      SECOND                  /* wait for new ball time */
+#define   BALMOV      75                      /* ball move timer: one step each
+                                                 7.5ms, machine independent;
+                                                 lower for a faster ball */
+#define   NEWBAL      (SECOND/BALMOV)         /* ticks to wait for new ball */
+#define   FANWAIT     ((OSEC*13+SECOND)/BALMOV) /* ticks to wait out fanfare */
 #define   BALLCLR     ami_blue                 /* ball ami_color */
 #define   WALLCLR     ami_cyan                 /* wall ami_color */
 #define   PADCLR      ami_green                /* paddle ami_color */
+#define   CAPCLR      ami_yellow               /* paddle color when captured */
+#define   CAPDWELL    (SECOND/BALMOV)          /* ticks of held press to capture */
+#define   RELDWELL    (SECOND/BALMOV)          /* ticks of held press to release */
+#define   PADEDGE     0.9                     /* how hard the strike point turns
+                                                 the ball, in speed fractions */
+#define   MINVERT     0.30                    /* minimum vertical speed fraction,
+                                                 keeping shots off horizontal */
 #define   BOUNCETIME  250                     /* time to play bounce note */
 #define   WALLNOTE    (AMI_NOTE_D+AMI_OCTAVE_6) /* note to play off wall */
 #define   BRICKNOTE   (AMI_NOTE_E+AMI_OCTAVE_7) /* note to play off brick */
@@ -44,26 +54,26 @@ typedef struct { /* rectangle */
 } rectangle;
 
 int       padx;                       /* paddle position x */
-int       bdx;                        /* ball direction x */
-int       bdy;                        /* ball direction y */
-int       bsx;                        /* ball position save x */
-int       bsy;                        /* ball position save y */
+float     bvx;                        /* ball velocity x, pixels per tick */
+float     bvy;                        /* ball velocity y, pixels per tick */
+float     bfx;                        /* ball exact position x */
+float     bfy;                        /* ball exact position y; the rectangle
+                                         is the rounding of the exact position,
+                                         so any angle resolves to pixels the
+                                         way a line draw does */
 int       baltim;                     /* ball start timer */
 ami_evtrec er;                         /* event record */
 long      jchr;                       /* number of pixels to joystick
                                          movement */
 int       score;                      /* score */
 int       scrsiz;                     /* score size */
-int       scrchg;                     /* score has changed */
 int       bac;                        /* ball accelerator */
 rectangle paddle;                     /* paddle rectangle */
-rectangle ball, balsav;               /* ball rectangle */
+rectangle ball;                       /* ball rectangle */
 rectangle wallt, walll, wallr, wallb; /* WALL rectangles */
 rectangle bricks[BRKROW][BRKCOL];     /* brick array */
 int       brki;                       /* brick was intersected */
 int       fldbrk;                     /* bricks hit this field */
-int       bip;                        /* middle of ball intersection with
-                                         paddle */
 int       wall;                       /* wall thickness */
 int       brkh;                       /* brick height */
 int       brkbrd;                     /* brick border */
@@ -73,6 +83,18 @@ int       padh;                       /* height of paddle */
 int       pwdis;                      /* distance of paddle from bottom wall */
 int       padw;                       /* paddle width */
 int       hpadw;                      /* half paddle width */
+int       padstp;                     /* paddle step per key event */
+int       curpag;                     /* current display page for the flip */
+long      joylst;                     /* last joystick x reported */
+int       joyini;                     /* joystick baseline taken */
+int       mcap;                       /* paddle is captured to the mouse */
+int       lstmx;                      /* last mouse position x */
+int       lstmy;                      /* last mouse position y */
+int       btndn;                      /* mouse button is down */
+int       relarm;                     /* button released since capture: the
+                                         next held press releases */
+int       dwltim;                     /* held-press countdown to capture */
+int       reltim;                     /* held-press countdown to release */
 
 /*******************************************************************************
 
@@ -324,32 +346,11 @@ void clrrect(rectangle* r)
 
 /*******************************************************************************
 
-Draw screen
-
-Draws a new screen, with borders.
-
-********************************************************************************/
-
-void drwscn(void)
-
-{
-
-    putchar('\n'); /* clear screen */
-    /* draw walls */
-    drwrect(&wallt, WALLCLR); /* top */
-    drwrect(&walll, WALLCLR); /* left */
-    drwrect(&wallr, WALLCLR); /* right */
-    drwrect(&wallb, WALLCLR); /* bottom */
-    ami_fcolor(stdout, ami_black);
-    wrtcen(ami_maxyg(stdout)-wall+1, "BREAKOUT VS. 1.0");
-
-}
-
-/*******************************************************************************
-
 Draw wall
 
-Redraws the brick wall.
+Redraws the brick wall. A brick already knocked out (its rectangle cleared)
+leaves its place empty; the color sequence steps by position so the standing
+bricks keep their colors as neighbors disappear.
 
 ********************************************************************************/
 
@@ -364,11 +365,55 @@ void drwwall(void)
     for (r = 0; r < BRKROW; r++)
         for (c = 0; c < BRKCOL; c++) {
 
-        drwbrect(&bricks[r][c], clr);
+        if (bricks[r][c].x1) drwbrect(&bricks[r][c], clr);
         if (clr < ami_magenta) clr++;
         else clr = ami_red;
 
     }
+
+}
+
+/*******************************************************************************
+
+Draw frame
+
+Draws the complete game scene into the hidden page, then flips it to the
+display. This is double buffered animation on the ball6 model: two screen
+surfaces alternate, the update surface always the one not shown, and the
+select at the top of each frame both reveals the page drawn last frame and
+turns the stale one into this frame's canvas. Every frame is drawn whole --
+no erasing on a visible surface, so nothing flickers, however fast or slow
+the machine.
+
+********************************************************************************/
+
+void drwframe(void)
+
+{
+
+    /* reveal the page drawn last frame; the other becomes the canvas */
+    ami_select(stdout, !curpag+1, curpag+1);
+    putchar('\f'); /* clear the canvas page */
+    /* each surface carries its own attributes; dress this one */
+    ami_font(stdout, AMI_FONT_SIGN);
+    ami_bold(stdout, TRUE);
+    ami_fontsiz(stdout, wall-2);
+    ami_binvis(stdout);
+    /* draw walls */
+    drwrect(&wallt, WALLCLR); /* top */
+    drwrect(&walll, WALLCLR); /* left */
+    drwrect(&wallr, WALLCLR); /* right */
+    drwrect(&wallb, WALLCLR); /* bottom */
+    ami_fcolor(stdout, ami_black);
+    wrtcen(ami_maxyg(stdout)-wall+1, "BREAKOUT VS. 1.0");
+    /* the score rides the top wall */
+    ami_fcolor(stdout, ami_black);
+    ami_cursorg(stdout, ami_maxxg(stdout)/2-scrsiz/2, 2);
+    printf("SCORE %5d\n", score);
+    drwwall(); /* the standing bricks */
+    drwrect(&paddle, mcap? CAPCLR: PADCLR); /* the paddle, showing capture */
+    if (ball.x1 > 0) drwrect(&ball, BALLCLR); /* the ball, when in play */
+    curpag = !curpag; /* the page just drawn shows at the next frame */
 
 }
 
@@ -386,14 +431,10 @@ void padpos(int x)
 
     if (x-hpadw <= walll.x2) x = walll.x2+hpadw+1; /* clip to ends */
     if (x+hpadw >= wallr.x1) x = wallr.x1-hpadw-1;
-    /* erase old location */
-    ami_fcolor(stdout, ami_white);
-    ami_frect(stdout, padx-hpadw, ami_maxyg(stdout)-wall-padh-pwdis,
-                     padx+hpadw, ami_maxyg(stdout)-wall-pwdis);
     padx = x; /* set new location */
     setrct(&paddle, x-hpadw, ami_maxyg(stdout)-wall-padh-pwdis,
                     x+hpadw, ami_maxyg(stdout)-wall-pwdis);
-    drwrect(&paddle, PADCLR); /* draw paddle */
+    /* the next frame draws it where it now stands */
 
 }
 
@@ -458,11 +499,152 @@ void interbrick(void)
         for (c = 0; c < BRKCOL; c++) if (intsec(&ball, &bricks[r][c])) {
 
         brki = TRUE; /* set intersected */
-        drwrect(&bricks[r][c], ami_white); /* erase from screen */
-        clrrect(&bricks[r][c]); /* clear brick data */
+        clrrect(&bricks[r][c]); /* clear brick data; it stops being drawn */
         score++; /* count hits */
-        scrchg = TRUE; /* set changed */
         fldbrk++; /* add to bricks this field */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Move ball
+
+Advances the ball one step and resolves its collisions: walls, paddle,
+bricks, and the bottom. One step is small -- the frame beat calls this
+several times per frame, so the ball cannot tunnel through what it should
+bounce from, the same way ball6 repeats its moves per frame.
+
+********************************************************************************/
+
+/* set the ball rectangle from the exact position */
+
+void balrect(void)
+
+{
+
+    setrct(&ball, round(bfx), round(bfy), round(bfx)+balls, round(bfy)+balls);
+
+}
+
+void movball(void)
+
+{
+
+    float u;   /* paddle strike offset, -1 left edge to 1 right edge */
+    float spd; /* ball speed */
+    float mag; /* velocity magnitude for renormalizing */
+
+    if (ball.x1 > 0) { /* ball on screen */
+
+        /* advance the exact position and rederive the rectangle */
+        bfx += bvx;
+        bfy += bvy;
+        balrect();
+        /* check off screen motions */
+        if (intsec(&ball, &walll) || intsec(&ball, &wallr)) {
+
+            /* hit left or right wall: reflect and replay the move */
+            bfx -= bvx;
+            bvx = -bvx;
+            bfx += bvx;
+            balrect();
+#ifdef SOUND
+            /* start bounce note */
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, WALLNOTE, LONG_MAX);
+            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, WALLNOTE, LONG_MAX);
+#endif
+
+        } else if (intsec(&ball, &wallt)) { /* hits top */
+
+            bfy -= bvy;
+            bvy = -bvy;
+            bfy += bvy;
+            balrect();
+#ifdef SOUND
+            /* start bounce note */
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, WALLNOTE, LONG_MAX);
+            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, WALLNOTE, LONG_MAX);
+#endif
+
+        } else if (intsec(&ball, &paddle)) {
+
+            /* A real paddle: the strike point turns the ball. The incoming
+               angle carries through as the reflected velocity, then the
+               offset of the strike from paddle center adds its own turn,
+               the edges throwing the sharpest angles. Speed is preserved,
+               and the shot is held off horizontal so it always climbs */
+            bfx -= bvx; /* stand at the strike */
+            bfy -= bvy;
+            balrect();
+            u = ((bfx+hballs)-(paddle.x1+hpadw))/(float)(hpadw+hballs);
+            if (u < -1.0) u = -1.0;
+            if (u > 1.0) u = 1.0;
+            spd = sqrt(bvx*bvx+bvy*bvy);
+            bvy = -bvy; /* reflect vertical */
+            bvx = bvx+u*spd*PADEDGE; /* the strike turns it */
+            /* renormalize to the speed */
+            mag = sqrt(bvx*bvx+bvy*bvy);
+            bvx = bvx*spd/mag;
+            bvy = bvy*spd/mag;
+            /* hold the shot off horizontal */
+            if (bvy > -spd*MINVERT) {
+
+                bvy = -spd*MINVERT;
+                mag = sqrt(spd*spd-bvy*bvy);
+                bvx = bvx < 0.0? -mag: mag;
+
+            }
+            bfx += bvx; /* replay the move on the new heading */
+            bfy += bvy;
+            balrect();
+            /* if the ball is still below the paddle plane, move
+               it up until it is not */
+            if (ball.y2 >= paddle.y1) {
+
+                bfy -= ball.y2-paddle.y1+1;
+                balrect();
+
+            }
+#ifdef SOUND
+            /* start bounce note */
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, WALLNOTE, LONG_MAX);
+            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, WALLNOTE, LONG_MAX);
+#endif
+
+        } else { /* check brick hits */
+
+            interbrick(); /* check brick intersection */
+            if (brki) { /* there was a brick hit */
+
+                bfy -= bvy; /* reflect and replay */
+                bvy = -bvy;
+                bfy += bvy;
+                balrect();
+#ifdef SOUND
+                /* start bounce note */
+                ami_noteon(AMI_SYNTH_OUT, 0, 1, BRICKNOTE, LONG_MAX);
+                ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, BRICKNOTE, LONG_MAX);
+#endif
+
+            }
+
+        };
+        if (intsec(&ball, &wallb)) { /* ball out of bounds */
+
+            clrrect(&ball); /* set ball not on screen */
+            /* start time on new ball wait */
+            baltim = NEWBAL;
+#ifdef SOUND
+            /* start fail note */
+            ami_noteon(AMI_SYNTH_OUT, 0, 1, FAILNOTE, LONG_MAX);
+            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+FAILTIME, 1, FAILNOTE, LONG_MAX);
+#endif
+
+        }
+        /* in play, the next frame draws the ball where it
+           now stands */
 
     }
 
@@ -490,187 +672,139 @@ int main(void)
     pwdis = padh/4; /* set distance of paddle to wall */
     padw = ami_maxxg(stdout)/8; /* set paddle width */
     hpadw = padw/2; /* half paddle width */
+    padstp = ami_maxxg(stdout)/50; /* paddle key step scales with the field */
+    dwltim = CAPDWELL; /* arm the capture dwell */
     ami_bold(stdout, TRUE);
     ami_fontsiz(stdout, wall-2); /* font fits in the wall */
     ami_binvis(stdout); /* no background writes */
-    ami_timer(stdout, 1, BALMOV, TRUE); /* enable timer */
+    ami_timer(stdout, 1, BALMOV, TRUE); /* the ball physics timer */
+    curpag = FALSE; /* start the page flip on the first surface */
+    ami_frametimer(stdout, TRUE); /* frame events pace the drawing */
 
     newgame: /* start new game */
 
-    padx = ami_maxxg(stdout)/2; /* find initial paddle position */
-    padpos(padx); /* display paddle */
-    clrrect(&ball); /* set ball not on screen */
-    baltim = 0; /* set ball ready to start */
-    /* set up wall rectangles */
+    /* set up wall rectangles first; the paddle placement clips to them */
     setrct(&wallt, 1, 1, ami_maxxg(stdout), wall); /* top */
     setrct(&walll, 1, 1, wall, ami_maxyg(stdout)); /* left */
     /* right */
     setrct(&wallr, ami_maxxg(stdout)-wall, 1, ami_maxxg(stdout), ami_maxyg(stdout));
     /* bottom */
     setrct(&wallb, 1, ami_maxyg(stdout)-wall, ami_maxxg(stdout), ami_maxyg(stdout));
+    padx = ami_maxxg(stdout)/2; /* find initial paddle position */
+    padpos(padx); /* place paddle */
+    clrrect(&ball); /* set ball not on screen */
     scrsiz = ami_strsiz(stdout, "SCORE 0000"); /* set nominal size of score string */
-    scrchg = TRUE; /* set score changed */
-    drwscn(); /* draw game screen */
     score = 0; /* clear score */
-    baltim = NEWBAL/BALMOV; /* set starting ball time */
+    baltim = NEWBAL; /* set starting ball time */
     do { /* game loop */
 
         setwall(); /* initialize bricks */
-        drwwall(); /* redraw the wall */
         fldbrk = 0; /* clear bricks hit this field */
         do { /* fields */
 
             if (ball.x1 == 0 && baltim == 0) {
 
                 /* ball not on screen, and time to wait expired, send out ball */
-                setrct(&ball, wall+1, ami_maxyg(stdout)-4*wall-balls,
-                               wall+1+balls, ami_maxyg(stdout)-4*wall);
-                bdx = +ami_maxxg(stdout)/300; /* set direction of travel */
-                bdy = -ami_maxyg(stdout)/150;
-                /* draw the ball */
-                ami_fcolor(stdout, BALLCLR);
-                drwrect(&ball, BALLCLR);
-                scrchg = TRUE; /* set changed */
-
-            }
-            if (scrchg) { /* process score change */
-
-                /* erase score */
-                ami_fcolor(stdout, WALLCLR);
-                ami_frect(stdout, ami_maxxg(stdout)/2-scrsiz/2, 1,
-                                 ami_maxxg(stdout)/2+scrsiz/2, wall);
-                /* place updated score on screen */
-                ami_fcolor(stdout, ami_black);
-                ami_cursorg(stdout, ami_maxxg(stdout)/2-scrsiz/2, 2);
-                printf("SCORE %5d\n", score);
-                scrchg = FALSE; /* reset score change flag */
+                bfx = wall+1; /* launch position */
+                bfy = ami_maxyg(stdout)-4*wall-balls;
+                bvx = ami_maxxg(stdout)/300.0; /* set direction of travel */
+                bvy = -(ami_maxyg(stdout)/150.0);
+                balrect();
 
             }
             do { ami_event(stdin, &er); /* wait relevant events */
             } while (er.etype != ami_etterm && er.etype != ami_etleft &&
                      er.etype != ami_etright && er.etype != ami_etfun &&
-                     er.etype != ami_ettim && er.etype != ami_etjoymov);
+                     er.etype != ami_ettim && er.etype != ami_etjoymov &&
+                     er.etype != ami_etframe && er.etype != ami_etmoumovg &&
+                     er.etype != ami_etmouba && er.etype != ami_etmoubd);
             if (er.etype == ami_etterm) goto endgame; /* game exits */
             if (er.etype == ami_etfun) goto newgame; /* restart game */
-            /* process paddle movements */
-            if (er.etype == ami_etleft) padpos(padx-5); /* move left */
-            else if (er.etype == ami_etright) padpos(padx+5); /* move right */
-            else if (er.etype == ami_etjoymov) /* move joystick */
-                padpos(ami_maxxg(stdout)/2+er.joypx/jchr);
-            else if (er.etype == ami_ettim) { /* move timer */
+            /* the frame beat: draw the scene as it now stands and flip */
+            if (er.etype == ami_etframe) drwframe();
+            /* the physics beat: step the ball and the waits */
+            if (er.etype == ami_ettim && er.timnum == 1) {
 
-                if (er.timnum == 1) { /* ball timer */
+                movball();
+                /* if the ball timer is running, decrement it */
+                if (baltim > 0) baltim--;
+                if (!mcap) {
 
-                    if (ball.x1 > 0) { /* ball on screen */
+                    /* the capture dwell: the button held down on the
+                       paddle for the dwell time takes it; the paddle
+                       then follows the mouse with the button up */
+                    if (btndn &&
+                        lstmx >= paddle.x1 && lstmx <= paddle.x2 &&
+                        lstmy >= paddle.y1 && lstmy <= paddle.y2) {
 
-                        balsav = ball; /* save ball position */
-                        offrect(&ball, bdx, bdy); /* move the ball */
-                        /* check off screen motions */
-                        if (intsec(&ball, &walll) || intsec(&ball, &wallr)) {
+                        if (dwltim > 0) dwltim--;
+                        if (!dwltim) {
 
-                            /* hit left or right wall */
-                            ball = balsav; /* restore */
-                            bdx = -bdx; /* change direction */
-                            offrect(&ball, bdx, bdy); /* recalculate */
-#ifdef SOUND
-                            /* start bounce note */
-                            ami_noteon(AMI_SYNTH_OUT, 0, 1, WALLNOTE, LONG_MAX);
-                            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, WALLNOTE, LONG_MAX);
-#endif
+                            mcap = TRUE; /* the mouse takes the paddle */
+                            relarm = FALSE; /* this press spends itself */
+                            reltim = RELDWELL;
 
-                        } else if (intsec(&ball, &wallt)) { /* hits top */
+                        }
 
-                            ball = balsav; /* restore */
-                            bdy = -bdy; /* change direction */
-                            offrect(&ball, bdx, bdy); /* recalculate */
-#ifdef SOUND
-                            /* start bounce note */
-                            ami_noteon(AMI_SYNTH_OUT, 0, 1, WALLNOTE, LONG_MAX);
-                            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, WALLNOTE, LONG_MAX);
-#endif
+                    } else dwltim = CAPDWELL; /* released or off rearms */
 
-                        } else if (intsec(&ball, &paddle)) {
+                } else {
 
-                            ball = balsav; /* restore */
-                            /* find which 5th of the paddle was struck */
-                            bip = (ball.x1+hballs-paddle.x1)/(padw/5);
-                            /* clip to 5th */
-                            if (bip < 0) bip = 0;
-                            if (bip > 5) bip = 5;
-                            switch (bip) {
+                    /* the release dwell: a fresh press held for the
+                       dwell time lets the paddle go. The press that
+                       captured must lift first, or one long hold would
+                       capture and release in a single stroke */
+                    if (!btndn) { relarm = TRUE; reltim = RELDWELL; }
+                    else if (relarm) {
 
-                                case 0: bdx = -2; break; /* left hard */
-                                case 1: bdx = -1; break; /* soft soft */
-                                case 2: ;         break; /* center reflects */
-                                case 3: bdx = +1; break; /* right soft */
-                                case 4: bdx = +2; break; /* right hard */
-                                case 5: bdx = +2; break; /* right hard */
+                        if (reltim > 0) reltim--;
+                        if (!reltim) {
 
-                            }
-                            bdy = -bdy; /* reflect y */
-                            offrect(&ball, bdx, bdy); /* recalculate */
-                            /* if the ball is still below the paddle plane, move
-                               it up until it is not */
-                            if (ball.y2 >= paddle.y1)
-                                offrect(&ball, 0, -(ball.y2-paddle.y1+1));
-#ifdef SOUND
-                            /* start bounce note */
-                            ami_noteon(AMI_SYNTH_OUT, 0, 1, WALLNOTE, LONG_MAX);
-                            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, WALLNOTE, LONG_MAX);
-#endif
-
-                        } else { /* check brick hits */
-
-                            interbrick(); /* check brick intersection */
-                            if (brki) { /* there was a brick hit */
-
-                                ball = balsav; /* restore */
-                                bdy = -bdy; /* change direction */
-                                offrect(&ball, bdx, bdy); /* recalculate */
-#ifdef SOUND
-                                /* start bounce note */
-                                ami_noteon(AMI_SYNTH_OUT, 0, 1, BRICKNOTE, LONG_MAX);
-                                ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+BOUNCETIME, 1, BRICKNOTE, LONG_MAX);
-#endif
-
-                            }
-
-                        };
-                        if (intsec(&ball, &wallb)) { /* ball out of bounds */
-
-                            drwrect(&balsav, ami_white);
-                            clrrect(&ball); /* set ball not on screen */
-                            /* start time on new ball wait */
-                            baltim = NEWBAL/BALMOV;
-#ifdef SOUND
-                            /* start fail note */
-                            ami_noteon(AMI_SYNTH_OUT, 0, 1, FAILNOTE, LONG_MAX);
-                            ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+FAILTIME, 1, FAILNOTE, LONG_MAX);
-#endif
-
-                        } else { /* ball in play */
-
-                            /* erase only the leftover part of the old ball */
-                            ami_fcolor(stdout, ami_white);
-                            if (bdx < 0) /* ball move left */
-                                ami_frect(stdout, ball.x2+1, balsav.y1,
-                                                 balsav.x2, balsav.y2);
-                            else /* move move right */
-                                ami_frect(stdout, balsav.x1, balsav.y1,
-                                                 ball.x1-1, balsav.y2);
-                            if (bdy < 0) /* ball move up */
-                                ami_frect(stdout, balsav.x1, ball.y2+1,
-                                                 balsav.x2, balsav.y2);
-                            else /* move move ami_down */
-                                ami_frect(stdout, balsav.x1, balsav.y1,
-                                                 balsav.x2, ball.y1-1);
-                            drwrect(&ball, BALLCLR); /* redraw the ball */
+                            mcap = FALSE;
+                            dwltim = CAPDWELL;
 
                         }
 
                     }
-                    /* if the ball timer is running, decrement it */
-                    if (baltim > 0) baltim--;
+
+                }
+
+            }
+            /* process paddle movements */
+            if (er.etype == ami_etleft) { /* move left */
+
+                mcap = FALSE; /* the keys take the paddle back */
+                dwltim = CAPDWELL; /* and the capture dwell rearms */
+                padpos(padx-padstp);
+
+            } else if (er.etype == ami_etright) { /* move right */
+
+                mcap = FALSE;
+                dwltim = CAPDWELL;
+                padpos(padx+padstp);
+
+            } else if (er.etype == ami_etmoumovg) { /* mouse moves */
+
+                lstmx = er.moupxg; /* track position */
+                lstmy = er.moupyg;
+                if (mcap) padpos(lstmx); /* the paddle rides the mouse */
+
+            } else if (er.etype == ami_etmouba && er.amoubn == 1)
+                btndn = TRUE; /* the held press drives the dwell clocks */
+            else if (er.etype == ami_etmoubd && er.dmoubn == 1)
+                btndn = FALSE;
+            else if (er.etype == ami_etjoymov) { /* move joystick */
+
+                /* The paddle follows the joystick only when the stick
+                   itself moves: an idle stick reports steadily, and
+                   letting it hold the paddle would override the keys */
+                if (!joyini) { joyini = TRUE; joylst = er.joypx; }
+                else if (er.joypx != joylst) {
+
+                    joylst = er.joypx;
+                    mcap = FALSE; /* the stick takes the paddle back */
+                    dwltim = CAPDWELL;
+                    padpos(ami_maxxg(stdout)/2+er.joypx/jchr);
 
                 }
 
@@ -691,8 +825,7 @@ int main(void)
         ami_noteon(AMI_SYNTH_OUT,  ami_curtimeout()+OSEC*11, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
         ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+OSEC*13, 1, AMI_NOTE_D+AMI_OCTAVE_6, LONG_MAX);
 #endif
-        baltim = (OSEC*13+NEWBAL)/BALMOV; /* wait fanfare */
-        drwrect(&ball, ami_white); /* clear ball */
+        baltim = FANWAIT; /* wait fanfare */
         clrrect(&ball); /* set ball not on screen */
 
     } while (TRUE); /* forever */

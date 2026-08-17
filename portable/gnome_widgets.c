@@ -6384,6 +6384,7 @@ static void ialert(
     focus = FALSE; /* set not in focus */
     tc = th_text; /* set focused text */
     wid = ami_getwinid(); /* get anonymous window id */
+    in = NULL; /* a fresh input side, not a shared one */
     ami_openwin(&in, &out, NULL, wid); /* create window */
     ami_buffer(out, FALSE); /* turn off buffering */
     ami_auto(out, FALSE); /* turn off auto */
@@ -6630,6 +6631,7 @@ static void iquerycolor(
 
 
     wid = ami_getwinid(); /* get anonymous window id */
+    in = NULL; /* a fresh input side, not a shared one */
     ami_openwin(&in, &out, NULL, wid); /* create window */
     ami_buffer(out, FALSE); /* turn off buffering */
     ami_auto(out, FALSE); /* turn off auto */
@@ -7215,6 +7217,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     if (curdir[0] == 0) { curdir[0] = '.'; curdir[1] = 0; }
 
     wid = ami_getwinid();
+    in = NULL; /* a fresh input side, not a shared one */
     ami_openwin(&in, &out, NULL, wid);
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
@@ -7563,6 +7566,7 @@ static void iqueryfind(
 
     /* create the dialog window */
     wid = ami_getwinid();
+    in = NULL; /* a fresh input side, not a shared one */
     ami_openwin(&in, &out, NULL, wid);
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
@@ -7811,6 +7815,7 @@ static void iqueryfindrep(
     };
 
     wid = ami_getwinid();
+    in = NULL; /* a fresh input side, not a shared one */
     ami_openwin(&in, &out, NULL, wid);
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
@@ -8076,6 +8081,7 @@ static void iqueryfont(
     italic_on = !!(eff_in & (1 << ami_qfteitalic));
 
     wid = ami_getwinid();
+    in = NULL; /* a fresh input side, not a shared one */
     ami_openwin(&in, &out, NULL, wid);
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
