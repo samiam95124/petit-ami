@@ -400,6 +400,13 @@ typedef enum {
 
 static jmp_buf   terminate_buf;
 static int       framenum = 0;
+/* "auto" on the command line: walk every pattern without waiting for a
+   keypress, so the run can be compared against a standard by the
+   regression harness. Every wait for the user answers at once, the
+   patterns that are driven by the user (scrolling, the mouse, the
+   viewport) show their first screen and pass on, and the benchmarks,
+   whose output is timings and never the same twice, are left out. */
+static int       autorun = FALSE;
 static char      fns[100];
 static int       x, y;
 static int       xs, ys;
@@ -468,6 +475,7 @@ static void waitchar(long t, int* st)
 
     ami_evtrec er;
 
+    if (autorun) { *st = TRUE; return; } /* end the pattern at once */
     *st = FALSE; /* set no space terminate */
     ami_timer(stdout, 1, t, FALSE);
     do { ami_event(stdin, &er); }
@@ -496,6 +504,7 @@ static void waitnext(void)
     /* capture test screens */
     screen_capture();
 
+    if (autorun) return; /* the pattern is captured; on to the next */
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -709,6 +718,7 @@ static int chkbrk(void)
     ami_evtrec er; /* event record */
     int done;
 
+    if (autorun) return (TRUE); /* one frame of it is enough */
     done = FALSE;
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etframe && er.etype != ami_etterm &&
@@ -807,6 +817,7 @@ static void squares(void)
     }
     ami_select(stdout, 1, 1); /* restore buffer surfaces */
     ami_fover(stdout); /* restore foreground overwrite */
+    if (autorun) waitnext(); /* capture where the squares got to */
 
 }
 
@@ -1373,6 +1384,14 @@ int main(int argc, char* argv[])
        walking the interactive patterns: for timing comparisons and the
        headless rig */
     if (argc > 1 && !strcmp(argv[1], "bench")) goto benchmarks;
+    /* "graphics_test auto" walks every pattern with no input at all and
+       exits at the end of them, which is how the regression runs it */
+    if (argc > 1 && !strcmp(argv[1], "auto")) {
+
+        autorun = TRUE;
+        ami_autohold(FALSE); /* end when the patterns end */
+
+    }
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %ld y -> %ld\n", ami_maxx(stdout),
@@ -3274,7 +3293,7 @@ int main(int argc, char* argv[])
     prtcen(3, "Note that edges will clear to green as screen moves");
     prtcen(ami_maxy(stdout), "Graphical scrolling test");
     ami_bcolor(stdout, ami_green);
-    do {
+    if (autorun) waitnext(); else do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etup) ami_scrollg(stdout, 0, -1);
@@ -3295,7 +3314,7 @@ int main(int argc, char* argv[])
     prtcen(ami_maxy(stdout), "Graphical mouse movement test");
     x = -1;
     y = -1;
-    do {
+    if (autorun) waitnext(); else do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etmoumovg) {
@@ -3435,6 +3454,7 @@ int main(int argc, char* argv[])
             ami_viewscale(stdout, vsx, vsy);
             ami_viewoffg(stdout, vox, voy);
             /* wait for key */
+            if (autorun) { waitnext(); done = 1; continue; }
             do { ami_event(stdin, &er); } while (er.etype != ami_etenter &&
                 er.etype != ami_etterm && er.etype != ami_etpagu &&
                 er.etype != ami_etpagd && er.etype != ami_etup &&
@@ -3509,6 +3529,10 @@ int main(int argc, char* argv[])
     }
 
     /* ************************** Benchmarks **************************** */
+
+    /* the benchmarks report times, which are never the same twice, so an
+       automatic run ends before them */
+    if (autorun) goto terminate;
 
     benchmarks:
 

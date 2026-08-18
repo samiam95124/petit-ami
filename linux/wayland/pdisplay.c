@@ -1944,6 +1944,44 @@ static int roundon(wltop* t)
     return ((t->titw > 0 || t->borderw > 0) && !t->maximized);
 }
 
+/*******************************************************************************
+
+Snapshot a window
+
+Composes a window and everything below it into a buffer of its own and
+hands it back, the picture as it would be presented. This is what a
+screen capture wants: the client draws into canvases, one per window, and
+only the composition carries the widgets, menus and child frames that
+stand on top of a window. The caller frees the buffer. The rounded
+corners a toplevel wears on screen are left off: they are a property of
+the desktop it sits on, not of what the program drew.
+
+*******************************************************************************/
+
+uint32_t* pd_winsnap(pd_display* d, pd_win* win, int* width, int* height)
+{
+    uint32_t* px;
+    int       w, h;
+
+    if (!d || !win) return (NULL);
+    LK(d);
+    w = win->w;
+    h = win->h;
+    if (w <= 0 || h <= 0) { ULK(d); return (NULL); }
+    px = calloc((size_t)w*h, sizeof(uint32_t));
+    if (px) {
+
+        blittree(win, px, w, h, 0, 0, 0, 0, w, h);
+        alphaover(px, w, 0, 0, w, h);
+
+    }
+    ULK(d);
+    if (width) *width = w;
+    if (height) *height = h;
+
+    return (px);
+}
+
 /* compose and commit a toplevel's damage */
 static void compose(pd_display* d, pd_win* win)
 {

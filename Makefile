@@ -1596,11 +1596,11 @@ endif
 # Test windows management model compliant output
 #
 ifeq ($(OSTYPE),Darwin)
-management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
+management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
 else
-management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
+management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
 endif
 
 #
@@ -1624,8 +1624,9 @@ endif
 #
 # Test windows widget compliant output
 #
-widget_test: $(GLIBSD) tests/widget_test.c
-	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
+widget_test: $(GLIBSD) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) \
+	    $(XLIBS) -o bin/widget_test
 
 
 #

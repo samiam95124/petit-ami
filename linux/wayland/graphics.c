@@ -16960,10 +16960,12 @@ static void ami_deinit_graphics()
 The window a screen capture reads
 
 Hands the screen capture module (linux/wayland/screen_capture.c) the
-client area of the first window open on the display. Under X the capturer
-found the window by walking the manager's client list and matching the
-process id; a Wayland client has its own canvas and no such list, so the
-backend simply says which window it is.
+master window of the first window open on the display -- the toplevel, the
+whole of what the program presents, frame and all, and the root of the
+tree that carries its child windows, widgets and menus. Under X the
+capturer found the window by walking the manager's client list and
+matching the process id; a Wayland client has no such list, so the backend
+simply says which window it is.
 
 *******************************************************************************/
 
@@ -16974,8 +16976,8 @@ pd_win* grx_capturewin(void)
     int fi;
 
     for (fi = 0; fi < MAXFIL; fi++)
-        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
-            return (opnfil[fi]->win->xwhan);
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xmwhan)
+            return (opnfil[fi]->win->xmwhan);
 
     return (NULL);
 

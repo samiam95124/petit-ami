@@ -247,6 +247,10 @@ entry locks only the canvases it touches.
 pd_canvas* pd_cannew(pd_display* d, int w, int h);
 void       pd_candel(pd_canvas* c);
 pd_canvas* pd_wincanvas(pd_win* w);
+/* Compose a window and everything below it into a buffer of its own: the
+   picture as presented, carrying the child windows a canvas alone does
+   not. The caller frees it. Used by the screen capture. */
+uint32_t*  pd_winsnap(pd_display* d, pd_win* win, int* width, int* height);
 void       pd_cansize(pd_canvas* c, int* w, int* h);
 
 /* raw pixel access for loaders; the caller brackets its own access

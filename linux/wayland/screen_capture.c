@@ -14,9 +14,10 @@
 *                                                                              *
 * Output format matches linux/screen_capture.c and macosx/screen_capture.c    *
 * (concatenated PNGs) so test_images files are portable across platforms for  *
-* cross-platform regression comparison. The client area is captured, which is  *
-* what the X11 capturer grabs there: the window frame belongs to the desktop   *
-* in that world, and to the decorations module in this one.                    *
+* cross-platform regression comparison. The whole window is captured, frame   *
+* and all: under Wayland the frame is the program's own, drawn by the          *
+* decorations module, and the widgets and menus that stand on a window are     *
+* windows in their own right, so only the composed picture carries them.       *
 *                                                                              *
 * There is nothing to discover and no compositor to ask. A Wayland client      *
 * draws its window into a canvas of its own, and that canvas is the picture:   *
@@ -89,10 +90,9 @@ static void write_png_frame(FILE *f, uint8_t *rgb_rows, int width, int height) {
 
 void screen_capture(void) {
     pd_win    *win;
-    pd_canvas *can;
     uint32_t  *pix;
     uint8_t   *rgb;
-    int        w, h, stride, x, y;
+    int        w, h, x, y;
 
     if (cap_disabled || !cap_file) return;
 
@@ -104,20 +104,19 @@ void screen_capture(void) {
         }
         return;
     }
-    can = pd_wincanvas(win);
-    if (!can) return;
-    pd_cansize(can, &w, &h);
-    if (w <= 0 || h <= 0) return;
+    /* the composed picture: the window with its children standing on it */
+    pix = pd_winsnap(grx_padisplay, win, &w, &h);
+    if (!pix) return;
 
     rgb = malloc((size_t)w*h*3);
     if (!rgb) {
+        free(pix);
         fprintf(stderr, "screen_capture: out of memory\n");
         return;
     }
-    pix = pd_canlock(can, &stride);
     for (y = 0; y < h; y++) {
 
-        uint32_t *sp = pix+(size_t)y*stride;
+        uint32_t *sp = pix+(size_t)y*w;
         uint8_t  *dp = rgb+(size_t)y*w*3;
 
         for (x = 0; x < w; x++) {
@@ -131,12 +130,12 @@ void screen_capture(void) {
         }
 
     }
-    pd_canunlock(can);
 
     write_png_frame(cap_file, rgb, w, h);
     cap_frame_count++;
 
     free(rgb);
+    free(pix);
 }
 
 /* ---------- module lifecycle ---------- */
