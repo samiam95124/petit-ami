@@ -9191,6 +9191,14 @@ static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, lon
     sc->xcxt->mix = mod2fnc[sc->fmod];
     if (x2-x1 >= y2-y1) { /* x >= y */
 
+        /* Limit the rounding ellipse to the rectangle first: the
+           component sizes below are figured from it, and a radius larger
+           than the rectangle sized them for a shape the corner arcs then
+           did not draw, leaving a rectangular lump standing out of the
+           side (see the scrollbar thumb of a fat scroll bar). */
+        if (xs > x2-x1+1) xs = x2-x1+1;
+        if (ys > y2-y1+1) ys = y2-y1+1;
+
         /* find the widths and heights of components, and find minimums */
         wm = x2-x1+1; /* set width of middle */
         if (wm < 1) wm = 1;
@@ -9203,8 +9211,6 @@ static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, lon
         htb = ys/2; /* set height of top and bottom */
         if (y2-y1+1-hm < htb) htb = y2-y1+1-hm;
         if (htb < 0) htb = 0;
-        if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
-        if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
             /* middle rectangle */
@@ -9255,6 +9261,11 @@ static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, lon
 
     } else { /* y > x */
 
+        /* the rounding ellipse is limited before the components are
+           figured from it, as above */
+        if (xs > x2-x1+1) xs = x2-x1+1;
+        if (ys > y2-y1+1) ys = y2-y1+1;
+
         /* find the widths and heights of components, and find minimums */
         wm = x2-x1+1-xs; /* set width of middle */
         if (xs%2) wm++; /* distribute fraction to middle */
@@ -9267,8 +9278,6 @@ static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, lon
         hlr = y2-y1+1-ys; /* set height of top and bottom */
         if (ys%2) hlr++; /* distribute fraction to left and right height */
         if (hlr < 0) hlr = 0;
-        if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
-        if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
             /* middle rectangle */
@@ -9285,7 +9294,7 @@ static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, lon
             pd_farcpie(sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
             pd_farcpie(sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            pd_farcpie(sc->xbuf, sc->xcxt, x2-xs-1, y2-ys, xs, ys, 270*64,
+            pd_farcpie(sc->xbuf, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
 
         }
