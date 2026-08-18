@@ -791,9 +791,26 @@ linux/x11/graphics.o: linux/x11/graphics.c include/graphics.h Makefile
 # rasterization, input, and presentation the backend draws through.
 #
 linux/wayland/graphics.o: linux/wayland/graphics.c \
-	linux/wayland/pdisplay.h include/graphics.h Makefile
+	linux/wayland/graphics_i.h linux/wayland/pdisplay.h include/graphics.h \
+	Makefile
 	$(CC) $(CFLAGS) -Ilinux -c linux/wayland/graphics.c \
 	    -o linux/wayland/graphics.o
+
+# The desktop decorations: window frames and onscreen menus, one module per
+# desktop, holding just what that desktop draws differently. Both link into
+# every program and the one whose desktop is running registers itself at
+# load, the same way the widget packages do. graphics_i.h is the seam.
+linux/wayland/gnome/decorations.o: linux/wayland/gnome/decorations.c \
+	linux/wayland/graphics_i.h linux/wayland/pdisplay.h include/graphics.h \
+	Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/wayland/gnome/decorations.c \
+	    -o linux/wayland/gnome/decorations.o
+
+linux/wayland/plasma/decorations.o: linux/wayland/plasma/decorations.c \
+	linux/wayland/graphics_i.h linux/wayland/pdisplay.h include/graphics.h \
+	Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/wayland/plasma/decorations.c \
+	    -o linux/wayland/plasma/decorations.o
 
 # pdisplay carries the rasterizer's pixel loops; the optimizer is worth
 # 2x-24x across the primitive benchmarks there, and -O3 buys a further
@@ -813,7 +830,8 @@ linux/wayland/wlproto/xdg-shell-protocol.o: \
 	$(CC) $(CFLAGS) -c linux/wayland/wlproto/xdg-shell-protocol.c \
 	    -o linux/wayland/wlproto/xdg-shell-protocol.o
 
-WLGRAPH = linux/wayland/graphics.o linux/wayland/pdisplay.o \
+WLGRAPH = linux/wayland/graphics.o linux/wayland/gnome/decorations.o \
+	linux/wayland/plasma/decorations.o linux/wayland/pdisplay.o \
 	linux/wayland/wlproto/xdg-shell-protocol.o
 WLLIBS = -lwayland-client -lwayland-cursor -lxkbcommon
 
@@ -1224,11 +1242,11 @@ lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
 # the Wayland graphics model: the wayland backend objects in place of
 # linux/x11/graphics.o, all else identical
 lib/graphw_core.o: $(CORE_COMMON) $(WLGRAPH) linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
+	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o \
 	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
 	ld -r -o lib/graphw_core.o $(CORE_COMMON) $(WLGRAPH) \
-	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
 	    portable/pdfgraph.o \
 	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
 
