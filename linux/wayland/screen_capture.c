@@ -14,10 +14,12 @@
 *                                                                              *
 * Output format matches linux/screen_capture.c and macosx/screen_capture.c    *
 * (concatenated PNGs) so test_images files are portable across platforms for  *
-* cross-platform regression comparison. The whole window is captured, frame   *
-* and all: under Wayland the frame is the program's own, drawn by the          *
-* decorations module, and the widgets and menus that stand on a window are     *
-* windows in their own right, so only the composed picture carries them.       *
+* cross-platform regression comparison. The client area is captured, as it    *
+* is there: the frame around it is drawn focused or unfocused at the           *
+* desktop's discretion, and a standard carrying that would fail whenever the   *
+* user was looking elsewhere. What is captured is the composed picture, not    *
+* the window's canvas -- the widgets, menus and child windows standing on a    *
+* window are windows in their own right, and only the composition has them.    *
 *                                                                              *
 * There is nothing to discover and no compositor to ask. A Wayland client      *
 * draws its window into a canvas of its own, and that canvas is the picture:   *
