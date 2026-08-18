@@ -2,20 +2,21 @@
 
 \file
 
-\brief WIDGETS PACKAGE FOR GNOME APPEARANCE
+\brief WIDGETS PACKAGE FOR KDE PLASMA APPEARANCE
 
-Copyright (C) 2021 Scott A. Franco
+Copyright (C) 2026 Scott A. Franco
 
-2021/08/08 S. A. Franco
+2026/08/17 S. A. Franco
 
-This is the Gnome look and feel widget package for Petit-Ami. This is used for
-systems that don't have a standard widget package, like XWindows. It uses
-Petit-Ami graphics statements to construct and operate widgets, and thus is
-portable to any system with Petit-Ami up to the graphical management level.
+This is the KDE Plasma look and feel widget package for Petit-Ami, formed
+from the Gnome package and restyled to the Breeze theme: the Breeze blue
+accent, flat light surfaces, small corner radii, and dialogs carrying their
+buttons at the bottom right in the Qt order. It uses Petit-Ami graphics
+statements to construct and operate widgets, and thus is portable to any
+system with Petit-Ami up to the graphical management level.
 
-Although it is portable, the look and feel should match the system it is on.
-Thus this package implements the Gnome look and feel, or at least a reasonable
-subset of it.
+The package registers itself only when the desktop is KDE (XDG_CURRENT_DESKTOP),
+its Gnome sibling only when it is not, so one binary serves both desktops.
 
                           BSD LICENSE INFORMATION
 
@@ -124,51 +125,51 @@ static enum { /* debug levels */
  * To increase or decrease luminescence, add or subtract a BW() value from
  * another color or B&W value, but be careful not to overflow.
  */
-#define TD_BACKPRESSED        BW(211)             /* button background pressed */
-#define TD_BACK               BW(252)             /* button background not pressed */
-#define TD_BACKHOVER          BW(230)             /* button background for hover */
-#define TD_OUTLINE1           BW(196)             /* button outline */
-#define TD_TEXT               BW(61)              /* widget face text */
-#define TD_TEXTDIS            BW(191)             /* widget face text disabled */
-#define TD_FOCUS              RGB(236, 174, 152)  /* widget focused outline */
-#define TD_CHKRAD             RGB(146, 77,  139)  /* checkbox/radio button selected */
-#define TD_CHKRADOUT          BW(186)             /* checkbox/radio button outline */
-#define TD_SCROLLBACK         BW(210)             /* scrollbar background */
-#define TD_SCROLLBAR          BW(135)             /* scrollbar not pressed */
-#define TD_SCROLLBARPRESSED   RGB(195, 65,  19)   /* scrollbar pressed */
-#define TD_NUMSELDIV          BW(239)             /* numselbox divider */
-#define TD_NUMSELUD           BW(164)             /* numselbox up/down figures */
-#define TD_TEXTERR            RGB(255, 61,  61)   /* widget face text in error */
-#define TD_PROGINACEN         BW(222)             /* progress bar inactive center */
-#define TD_PROGINAEDG         BW(196)             /* progress bar inactive edge */
-#define TD_PROGACTCEN         RGB(146, 77,  139)  /* progress bar active center */
-#define TD_PROGACTEDG         RGB(129, 68,  123)  /* progress bar active edge */
-#define TD_LSTHOV             BW(230)             /* list background for hover */
-#define TD_LSTSEL             BW(208)             /* list background for selection */
-#define TD_OUTLINE2           BW(206)             /* numselbox, dropbox outline */
-#define TD_DROPARROW          BW(61)              /* dropbox arrow */
+#define TD_BACKPRESSED        RGB(194,224,245)    /* button background pressed */
+#define TD_BACK               RGB(252,252,252)    /* button background not pressed */
+#define TD_BACKHOVER          RGB(236,246,252)    /* button background for hover */
+#define TD_OUTLINE1           RGB(182,185,187)    /* button outline */
+#define TD_TEXT               RGB(35,38,41)       /* widget face text */
+#define TD_TEXTDIS            RGB(168,169,170)    /* widget face text disabled */
+#define TD_FOCUS              RGB(61,174,233)     /* widget focused outline */
+#define TD_CHKRAD             RGB(61,174,233)     /* checkbox/radio button selected */
+#define TD_CHKRADOUT          RGB(127,140,141)    /* checkbox/radio button outline */
+#define TD_SCROLLBACK         RGB(239,240,241)    /* scrollbar background */
+#define TD_SCROLLBAR          RGB(159,161,163)    /* scrollbar not pressed */
+#define TD_SCROLLBARPRESSED   RGB(61,174,233)     /* scrollbar pressed */
+#define TD_NUMSELDIV          RGB(220,222,224)    /* numselbox divider */
+#define TD_NUMSELUD           RGB(119,123,126)    /* numselbox up/down figures */
+#define TD_TEXTERR            RGB(218,68,83)      /* widget face text in error */
+#define TD_PROGINACEN         RGB(214,216,218)    /* progress bar inactive center */
+#define TD_PROGINAEDG         RGB(200,202,204)    /* progress bar inactive edge */
+#define TD_PROGACTCEN         RGB(61,174,233)     /* progress bar active center */
+#define TD_PROGACTEDG         RGB(52,148,199)     /* progress bar active edge */
+#define TD_LSTHOV             RGB(214,236,248)    /* list background for hover */
+#define TD_LSTSEL             RGB(168,214,240)    /* list background for selection */
+#define TD_OUTLINE2           RGB(182,185,187)    /* numselbox, dropbox outline */
+#define TD_DROPARROW          RGB(35,38,41)       /* dropbox arrow */
 #define TD_DROPTEXT           BW(0)               /* dropbox text */
-#define TD_SLDINT             BW(233)             /* slider track internal */
-#define TD_TABDIS             BW(154)             /* tab unselected text */
-#define TD_TABBACK            BW(247)             /* tab background */
-#define TD_TABSEL             RGB(233, 84, 32)    /* tab selected underbar */
+#define TD_SLDINT             RGB(217,219,221)    /* slider track internal */
+#define TD_TABDIS             RGB(112,116,120)    /* tab unselected text */
+#define TD_TABBACK            RGB(239,240,241)    /* tab background */
+#define TD_TABSEL             RGB(61,174,233)     /* tab selected underbar */
 #define TD_TABFOCUS           (TD_TABSEL+BW(20))  /* tab focus box */
-#define TD_CANCELBACKFOCUS    BW(72)              /* Cancel background in focus */
-#define TD_CANCELTEXTFOCUS    BW(247)             /* Cancel text in focus */
-#define TD_CANCELOUTLINE      BW(42)              /* Cancel outline unfocused */
-#define TD_SELECTBACKFOCUS    RGB(17,164,40)      /* Select background in focus */
-#define TD_SELECTBACK         RGB(16,155,38)      /* Select background in normal */
+#define TD_CANCELBACKFOCUS    RGB(252,252,252)    /* Cancel background in focus */
+#define TD_CANCELTEXTFOCUS    RGB(35,38,41)       /* Cancel text in focus */
+#define TD_CANCELOUTLINE      RGB(182,185,187)    /* Cancel outline unfocused */
+#define TD_SELECTBACKFOCUS    RGB(61,174,233)     /* Select background in focus */
+#define TD_SELECTBACK         RGB(61,174,233)     /* Select background in normal */
 #define TD_SELECTTEXTFOCUS    BW(255)             /* Select text in focus */
-#define TD_SELECTTEXT         BW(220)             /* Select text in focus */
-#define TD_SELECTOUTLINE      RGB(16,155,38)      /* Select outline unfocused */
-#define TD_SELECTOUTLINEFOCUS RGB(16,155,38)      /* Select outline focused */
+#define TD_SELECTTEXT         RGB(252,252,252)    /* Select text in focus */
+#define TD_SELECTOUTLINE      RGB(41,128,185)     /* Select outline unfocused */
+#define TD_SELECTOUTLINEFOCUS RGB(41,128,185)     /* Select outline focused */
 #define TD_PLUSBACKFOCUS      RGB(252,252,252)    /* Select background in focus */
 #define TD_PLUSBACK           RGB(252,252,252)    /* Select background in normal */
 #define TD_PLUSTEXTFOCUS      BW(61)              /* Select text in focus */
 #define TD_PLUSTEXT           BW(61)              /* Select text in focus */
-#define TD_PLUSOUTLINE        BW(196)             /* Select outline unfocused */
-#define TD_PLUSOUTLINEFOCUS   BW(196)             /* Select outline focused */
-#define TD_TITLE              BW(48)              /* GTK dialog titlebar color */
+#define TD_PLUSOUTLINE        RGB(182,185,187)    /* Select outline unfocused */
+#define TD_PLUSOUTLINEFOCUS   RGB(182,185,187)    /* Select outline focused */
+#define TD_TITLE              RGB(239,240,241)    /* dialog titlebar: Breeze window */
 
 /* colors in the querycolor select grid */
 #define TD_QUERYCOLOR1        RGB(239,41,41)
@@ -1209,13 +1210,13 @@ static void cbutton_draw(
     /* color the background */
     if (wg->pressed) fcolorp(wg->wf, wg->cbc->bbp);
     else fcolorp(wg->wf, wg->cbc->bbn);
-    ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 20, 20);
+    ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 6, 6);
     /* outline */
     ami_linewidth(wg->wf, 3);
     /* a disabled widget does not show the focus ring; see button_draw */
     if (wg->focus && wg->enb) fcolorp(wg->wf, wg->cbc->bof);
     else fcolorp(wg->wf, wg->cbc->bon);
-    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 20, 20);
+    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 6, 6);
     if (wg->enb) fcolorp(wg->wf, wg->cbc->btn);
     else fcolorp(wg->wf, wg->cbc->btd);
     if (wg->select && wg->check) { /* use check instead of text */
@@ -1321,21 +1322,20 @@ static void button_draw(
 {
 
     /* color the background; a selected button keeps the pressed in look,
-       giving a persistent active state for modal buttons, and a hovered
-       button lights up */
+       giving a persistent active state for modal buttons. Hover shows on
+       the outline, the Breeze way, not the face */
     if (wg->pressed || wg->select) fcolort(wg->wf, th_backpressed);
-    else if (wg->hover && wg->enb) fcolort(wg->wf, th_backhover);
     else fcolort(wg->wf, th_back);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf),
               ami_maxyg(wg->wf));
-    /* Outline. A disabled widget does not show the focus ring: it cannot be
-       operated, so advertising focus on it misleads (windows denies focus to
-       disabled widgets outright) */
+    /* Outline: the Breeze blue on focus or hover. A disabled widget shows
+       neither: it cannot be operated, so advertising focus on it misleads
+       (windows denies focus to disabled widgets outright) */
     ami_linewidth(wg->wf, 4);
-    if (wg->focus && wg->enb) fcolort(wg->wf, th_focus);
+    if ((wg->focus || wg->hover) && wg->enb) fcolort(wg->wf, th_focus);
     else fcolort(wg->wf, th_outline1);
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1,
-             ami_maxyg(wg->wf)-1, 20, 20);
+             ami_maxyg(wg->wf)-1, 6, 6);
     if (wg->enb) fcolort(wg->wf, th_text);
     else fcolort(wg->wf, th_textdis);
     ami_cursorg(wg->wf,
@@ -1436,7 +1436,7 @@ static void checkbox_draw(
 
         fcolort(wg->wf, th_focus);
         ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1,
-                 ami_maxyg(wg->wf)-1, 20, 20);
+                 ami_maxyg(wg->wf)-1, 6, 6);
 
     }
     /* draw text */
@@ -1456,7 +1456,7 @@ static void checkbox_draw(
 
         /* place selected checkmark */
         fcolort(wg->wf, th_chkrad);
-        ami_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
+        ami_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 4, 4);
         ami_fcolor(wg->wf, ami_white);
         ami_linewidth(wg->wf, 4);
         ami_line(wg->wf, sqm-cb/2, md-cb*.10,
@@ -1469,10 +1469,10 @@ static void checkbox_draw(
 
         /* place non-selected checkmark background */
         ami_fcolor(wg->wf, ami_white);
-        ami_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
+        ami_frrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 4, 4);
         ami_linewidth(wg->wf, 2);
         fcolort(wg->wf, th_chkradout);
-        ami_rrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 10, 10);
+        ami_rrect(wg->wf, sqo, md-sq/2, sqo+sq, md+sq/2, 4, 4);
 
     }
 
@@ -1551,7 +1551,7 @@ static void radiobutton_draw(
 
         fcolort(wg->wf, th_focus);
         ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1,
-                 ami_maxyg(wg->wf)-1, 20, 20);
+                 ami_maxyg(wg->wf)-1, 6, 6);
 
     }
     /* draw text */
@@ -1568,11 +1568,13 @@ static void radiobutton_draw(
 
     if (wg->select) {
 
-        /* place select figure */
-        fcolort(wg->wf, th_chkrad);
-        ami_fellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
+        /* the Breeze figure: a blue ring holding a blue dot */
         ami_fcolor(wg->wf, ami_white);
-        ami_fellipse(wg->wf, crm-cr/6, md-cr/6, crm+cr/6, md+cr/6);
+        ami_fellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
+        ami_linewidth(wg->wf, 3);
+        fcolort(wg->wf, th_chkrad);
+        ami_ellipse(wg->wf, cro, md-cr/2, cro+cr, md+cr/2);
+        ami_fellipse(wg->wf, crm-cr/5, md-cr/5, crm+cr/5, md+cr/5);
 
     } else {
 
@@ -1685,14 +1687,15 @@ static void scrollvert_draw(
     /* color the background */
     fcolort(wg->wf, th_scrollback);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
-    if (wg->pressed && (inbar || wg->grab))
-        /* color as pressed */
+    /* the Breeze thumb: a slim pill riding the track center, blue under
+       the pointer or drag */
+    if ((wg->pressed && (inbar || wg->grab)) || (wg->hover && inbar))
         fcolort(wg->wf, th_scrollbarpressed);
     else
-        /* color as not pressed */
         fcolort(wg->wf, th_scrollbar);
-    ami_frrect(wg->wf, ENDSPACE, ENDSPACE+sclposp, ami_maxxg(wg->wf)-ENDSPACE, ENDSPACE+sclposp+sclsizp,
-              10, 10);
+    ami_frrect(wg->wf, ami_maxxg(wg->wf)*0.30, ENDSPACE+sclposp,
+              ami_maxxg(wg->wf)*0.70, ENDSPACE+sclposp+sclsizp,
+              ami_maxxg(wg->wf)*0.20, ami_maxxg(wg->wf)*0.20);
 
 }
 
@@ -1827,14 +1830,15 @@ static void scrollhoriz_draw(
     /* color the background */
     fcolort(wg->wf, th_scrollback);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
-    if (wg->pressed && (inbar || wg->grab))
-        /* color as pressed */
+    /* the Breeze thumb: a slim pill riding the track center, blue under
+       the pointer or drag */
+    if ((wg->pressed && (inbar || wg->grab)) || (wg->hover && inbar))
         fcolort(wg->wf, th_scrollbarpressed);
     else
-        /* color as not pressed */
         fcolort(wg->wf, th_scrollbar);
-    ami_frrect(wg->wf, ENDSPACE+sclposp, ENDSPACE, ENDSPACE+sclposp+sclsizp, ami_maxyg(wg->wf)-ENDSPACE,
-              10, 10);
+    ami_frrect(wg->wf, ENDSPACE+sclposp, ami_maxyg(wg->wf)*0.30,
+              ENDSPACE+sclposp+sclsizp, ami_maxyg(wg->wf)*0.70,
+              ami_maxyg(wg->wf)*0.20, ami_maxyg(wg->wf)*0.20);
 
 }
 
@@ -2042,7 +2046,7 @@ static void editbox_draw(
 
         }
         ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1,
-                 ami_maxyg(wg->wf)-1, 20, 20);
+                 ami_maxyg(wg->wf)-1, 6, 6);
 
     }
     /* text */
@@ -2376,7 +2380,7 @@ static void numselbox_draw(
         fcolort(wg->wf, th_outline1);
 
     }
-    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 20, 20);
+    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 6, 6);
 
 }
 
@@ -2510,19 +2514,19 @@ static void progbar_draw(
     /* draw inactive background */
     fcolort(wg->wf, th_proginacen);
     ami_linewidth(wg->wf, 2);
-    ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 10, 10);
+    ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 4, 4);
     /* draw inactive edget */
     fcolort(wg->wf, th_proginaedg);
-    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 10, 10);
+    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 4, 4);
     /* find right side of prog bar */
     pbpp = round((double)wg->ppos*ami_maxxg(wg->wf)/LONG_MAX);
     /* now draw active */
     fcolort(wg->wf, th_progactcen);
     ami_linewidth(wg->wf, 2);
-    ami_frrect(wg->wf, 1, 1, pbpp, ami_maxyg(wg->wf), 10, 10);
+    ami_frrect(wg->wf, 1, 1, pbpp, ami_maxyg(wg->wf), 4, 4);
     /* draw inactive edget */
     fcolort(wg->wf, th_progactedg);
-    ami_rrect(wg->wf, 2, 2,pbpp-1, ami_maxyg(wg->wf)-1, 10, 10);
+    ami_rrect(wg->wf, 2, 2,pbpp-1, ami_maxyg(wg->wf)-1, 4, 4);
 
 }
 
@@ -2684,11 +2688,11 @@ static void listbox_draw(
 
     /* draw background */
     ami_fcolor(wg->wf, ami_white);
-    ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 10, 10);
+    ami_frrect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf), 4, 4);
     /* draw outline */
     fcolort(wg->wf, th_outline1);
     ami_linewidth(wg->wf, 2);
-    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 10, 10);
+    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 4, 4);
     /* from the entry the view starts at, for as many as the box holds */
     listbox_clamp(wg);
     sp = wg->strlst; /* index top of stringlist */
@@ -2891,7 +2895,7 @@ static void dropbox_draw(
         fcolort(wg->wf, th_outline2);
 
     }
-    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 20, 20);
+    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 6, 6);
 
     /* draw divider lines */
     ami_linewidth(wg->wf, 2);
@@ -3188,24 +3192,25 @@ static void slidehoriz_draw(
     /* color scale track */
     fcolort(wg->wf, th_sldint);
     ami_frrect(wg->wf, margin, mid-thk*0.5, ami_maxxg(wg->wf)-margin,
-              mid+thk*0.5, 10, 10);
+              mid+thk*0.5, 4, 4);
     ami_linewidth(wg->wf, 2);
     fcolort(wg->wf, th_outline2);
     ami_rrect(wg->wf, margin, mid-thk*0.5, ami_maxxg(wg->wf)-margin,
-             mid+thk*0.5, 10, 10);
+             mid+thk*0.5, 4, 4);
     /* color active side */
     fcolort(wg->wf, th_progactcen);
-    ami_frrect(wg->wf, margin, mid-thk*0.5, sldposp, mid+thk*0.5, 10, 10);
+    ami_frrect(wg->wf, margin, mid-thk*0.5, sldposp, mid+thk*0.5, 4, 4);
     /* draw slider */
     ami_fcolor(wg->wf, ami_white);
     ami_fellipse(wg->wf, sldposp-sldsizp*0.5, mid-sldsizp*0.5,
                        sldposp+sldsizp*0.5, mid+sldsizp*0.5);
-    if (wg->pressed && (insld || wg->grab))
-        /* color as pressed */
-        fcolort(wg->wf, th_droptext);
+    if ((wg->pressed && (insld || wg->grab)) || wg->hover)
+        /* engaged: the Breeze blue */
+        fcolort(wg->wf, th_focus);
     else
-        /* color as not pressed */
+        /* at rest */
         fcolort(wg->wf, th_outline2);
+    ami_linewidth(wg->wf, 3);
     ami_ellipse(wg->wf, sldposp-sldsizp*0.5, mid-sldsizp*0.5,
                       sldposp+sldsizp*0.5, mid+sldsizp*0.5);
 
@@ -3356,14 +3361,14 @@ static void slidevert_draw(
     /* color scale track */
     fcolort(wg->wf, th_sldint);
     ami_frrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5,
-              ami_maxyg(wg->wf)-margin, 10, 10);
+              ami_maxyg(wg->wf)-margin, 4, 4);
     ami_linewidth(wg->wf, 2);
     fcolort(wg->wf, th_outline2);
     ami_rrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5,
-             ami_maxyg(wg->wf)-margin, 10, 10);
+             ami_maxyg(wg->wf)-margin, 4, 4);
     /* color active side */
     fcolort(wg->wf, th_progactcen);
-    ami_frrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5, sldposp, 10, 10);
+    ami_frrect(wg->wf, mid-thk*0.5, margin, mid+thk*0.5, sldposp, 4, 4);
     /* draw slider */
     ami_fcolor(wg->wf, ami_white);
     ami_fellipse(wg->wf, mid-sldsizp*0.5, sldposp-sldsizp*0.5,
@@ -6451,21 +6456,6 @@ static void ialert(
                 /* draw background */
                 ami_fcolor(out, ami_backcolor);
                 ami_frect(out, 1, 1, ami_maxxg(out), ami_maxyg(out));
-                ami_fcolor(out, ami_white);
-                ami_frect(out, 1, ami_maxyg(out)-ami_chrsizy(out)*2,
-                                ami_maxxg(out), ami_maxyg(out));;
-                fcolort(out, th_outline1);
-                ami_linewidth(out, 2);
-                ami_line(out, 1, ami_maxyg(out)-ami_chrsizy(out)*2,
-                                ami_maxxg(out), ami_maxyg(out)-ami_chrsizy(out)*2);
-                if (focus) { /* in focus */
-
-                    ami_linewidth(out, 4);
-                    fcolort(out, th_focus);
-                    ami_rect(out, 2, ami_maxyg(out)-ami_chrsizy(out)*2+2,
-                                    ami_maxxg(out)-1, ami_maxyg(out)-1);
-
-                }
 
                 /* draw circle i */
                 fcolort(out, tc);
@@ -6491,10 +6481,24 @@ static void ialert(
                                 ami_chrsizy(out)*2.5);
                 fputs(message, out); /* place message */
 
-                /* draw ok button */
+                /* The OK button, a Breeze button at the bottom right;
+                   the focus ring rides its outline */
+                fcolort(out, th_back);
+                ami_frrect(out, ami_maxxg(out)-ami_chrsizy(out)*5,
+                                ami_maxyg(out)-ami_chrsizy(out)*1.8,
+                                ami_maxxg(out)-ami_chrsizy(out)*0.7,
+                                ami_maxyg(out)-ami_chrsizy(out)*0.4, 6, 6);
+                ami_linewidth(out, 3);
+                if (focus) fcolort(out, th_focus);
+                else fcolort(out, th_outline1);
+                ami_rrect(out, ami_maxxg(out)-ami_chrsizy(out)*5,
+                               ami_maxyg(out)-ami_chrsizy(out)*1.8,
+                               ami_maxxg(out)-ami_chrsizy(out)*0.7,
+                               ami_maxyg(out)-ami_chrsizy(out)*0.4, 6, 6);
                 fcolort(out, tc);
-                ami_cursorg(out, ami_maxxg(out)*0.5-ami_strsiz(out, "OK")*0.5,
-                                ami_maxyg(out)-ami_chrsizy(out)*1.5);
+                ami_cursorg(out, ami_maxxg(out)-ami_chrsizy(out)*2.85-
+                                 ami_strsiz(out, "OK")*0.5,
+                                ami_maxyg(out)-ami_chrsizy(out)*1.6);
                 fputs("OK", out);
 
                 break;
@@ -6639,9 +6643,9 @@ static void iquerycolor(
     ami_font(out, AMI_FONT_SIGN); /* set sign font */
     ami_binvis(out); /* no background write */
     ami_frame(out, FALSE); /* turn off sizing bars */
-    /* size the dialog */
+    /* size the dialog, with room for the bottom button row */
     ami_setsizg(out, ami_chrsizy(out)*25.8,
-                    ami_chrsizy(out)*15.2);
+                    ami_chrsizy(out)*17.4);
 
     /* the first paint is requested, not left to fate (see ialert) */
     er.etype = ami_etredraw;
@@ -6659,22 +6663,28 @@ static void iquerycolor(
     wpy = sy-y/2;
     ami_setposg(out, wpx, wpy); /* set center position */
 
-    titbot = ami_maxyg(out)*0.165; /* set bottom of system bar */
-    mgt = titbot*mg; /* set margins */
+    titbot = ami_chrsizy(out)*1.6; /* slim Breeze title bar */
+    mgt = ami_chrsizy(out)*0.5; /* set margins */
 
-    /* place cancel button */
+    /* The buttons sit at the bottom right in the Qt order, the
+       affirmative left of Cancel */
+    /* place cancel button, rightmost */
     wp = getwig(); /* get widget entry */
     wp->cbc = &cancel_cbc; /* set colors */
-    widget(out, mgt, mgt,
-                mgt+ami_strsiz(out, cancel)+ami_chrsizy(out)*1.5, titbot-mgt,
+    widget(out, ami_maxxg(out)-mgt-ami_strsiz(out, cancel)-ami_chrsizy(out)*1.5,
+                ami_maxyg(out)-ami_chrsizy(out)*1.9,
+                ami_maxxg(out)-mgt,
+                ami_maxyg(out)-ami_chrsizy(out)*0.4,
                 cancel, 1, wtcbutton, &wp);
 
-    /* place select button */
+    /* place select button to its left */
     wp = getwig(); /* get widget entry */
     wp->cbc = &select_cbc; /* set colors */
-    widget(out, ami_maxxg(out)-(mgt+ami_strsiz(out, selects)+ami_chrsizy(out)*1.9),
-                mgt,
-                ami_maxxg(out)-mgt, titbot-mgt,
+    widget(out, ami_maxxg(out)-mgt-ami_strsiz(out, cancel)-ami_chrsizy(out)*2.0-
+                ami_strsiz(out, selects)-ami_chrsizy(out)*1.5,
+                ami_maxyg(out)-ami_chrsizy(out)*1.9,
+                ami_maxxg(out)-mgt-ami_strsiz(out, cancel)-ami_chrsizy(out)*2.0,
+                ami_maxyg(out)-ami_chrsizy(out)*0.4,
                 selects, 2, wtcbutton, &wp);
 
     /* calculate spacing for the color grid */
@@ -6687,7 +6697,7 @@ static void iquerycolor(
     /* based on that, find size of individual buttons */
     cbx = (ami_maxxg(out)-gsidep*2-ggapvp*8)/9;
     cby =
-        (ami_maxyg(out)-(titbot+gtopp*2+ggaphp*2+ggapp+ami_chrsizy(out)*2))/5;
+        (ami_maxyg(out)-(titbot+gtopp*2+ggaphp*2+ggapp+ami_chrsizy(out)*4))/5;
 
     /* place color buttons */
     th = th_querycolor1; /* set 1st color button */
@@ -6767,7 +6777,7 @@ static void iquerycolor(
                 fcolort(out, th_title);
                 ami_frect(out, 1, 1, ami_maxxg(out), titbot);
                 /* draw title */
-                ami_fcolor(out, ami_white);
+                fcolort(out, th_text);
                 ami_bold(out, TRUE);
                 ami_cursorg(out, ami_maxxg(out)*0.5-ami_strsiz(out, title)*0.5,
                                 titbot*0.5-ami_chrsizy(out)*0.5);
@@ -7227,17 +7237,15 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     ami_frame(out, FALSE);
 
     chrsz = ami_chrsizy(out);
-    /* The header bar carries the two buttons, one at each end,
-       with the title between them, which is where a desktop file
-       dialog puts them. It is deep enough for a button to sit in. */
-    titbot = chrsz*2.2;
+    /* A slim Breeze title bar; the buttons sit at the bottom right */
+    titbot = chrsz*1.6;
     /* The horizontal is laid out in character widths and the vertical in
        character heights. Both were the height before, so every width came
        out twice what it read as: the dialog was half again wider than the
        screen it had to fit. */
     chrw = ami_strsiz(out, "0");
 
-    ami_setsizg(out, chrw*79, titbot+chrsz*24);
+    ami_setsizg(out, chrw*79, titbot+chrsz*26.2);
 
     ami_scnceng(out, &sx, &sy);
     ami_getsizg(out, &x, &y);
@@ -7276,18 +7284,19 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                 chrw*78, titbot+chrsz*21.2, "", QFL_ID_NAME, wteditbox, &wp);
     if (curfile[0]) ami_putwidgettext(out, QFL_ID_NAME, curfile);
 
+    /* the buttons at the bottom right, the affirmative left of Cancel */
     /* OK button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrw*70, chrsz*0.35, chrw*78, chrsz*1.85,
+    widget(out, chrw*58, titbot+chrsz*24.4, chrw*67, titbot+chrsz*25.9,
                 title[0] == 'S'? "Save": "Open",
                 QFL_ID_OK, wtcbutton, &wp);
 
     /* Cancel button */
     wp = getwig();
     wp->cbc = &cancel_cbc;
-    widget(out, chrw, chrsz*0.35, chrw*9, chrsz*1.85, "Cancel",
-                QFL_ID_CANCEL, wtcbutton, &wp);
+    widget(out, chrw*69, titbot+chrsz*24.4, chrw*78, titbot+chrsz*25.9,
+                "Cancel", QFL_ID_CANCEL, wtcbutton, &wp);
 
     mpy = 0;
     cancelled = FALSE;
@@ -7306,7 +7315,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                 ami_frect(out, 1, 1, ami_maxxg(out), ami_maxyg(out));
                 fcolort(out, th_title);
                 ami_frect(out, 1, 1, ami_maxxg(out), titbot);
-                ami_fcolor(out, ami_white);
+                fcolort(out, th_text);
                 ami_bold(out, TRUE);
                 /* centered between the buttons at the ends */
                 ami_cursorg(out, ami_maxxg(out)/2-
@@ -7602,18 +7611,19 @@ static void iqueryfind(
                 chrsz*23, titbot+chrsz*2.0, "", QFN_ID_EDIT, wteditbox, &wp);
     if (s && s[0]) ami_putwidgettext(out, QFN_ID_EDIT, s);
 
+    /* the buttons at the bottom right, the affirmative left of Cancel */
     /* Find Next button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrsz*24, titbot+chrsz*0.5,
-                chrsz*33, titbot+chrsz*2.0, "Find Next",
+    widget(out, chrsz*13, titbot+chrsz*7.2,
+                chrsz*23, titbot+chrsz*8.6, "Find Next",
                 QFN_ID_FIND, wtcbutton, &wp);
 
     /* Cancel button */
     wp = getwig();
     wp->cbc = &cancel_cbc;
-    widget(out, chrsz*24, titbot+chrsz*2.5,
-                chrsz*33, titbot+chrsz*4.0, "Cancel",
+    widget(out, chrsz*24, titbot+chrsz*7.2,
+                chrsz*33, titbot+chrsz*8.6, "Cancel",
                 QFN_ID_CANCEL, wtcbutton, &wp);
 
     /* Match case checkbox */
@@ -7659,7 +7669,7 @@ static void iqueryfind(
                 /* title bar */
                 fcolort(out, th_title);
                 ami_frect(out, 1, 1, ami_maxxg(out), titbot);
-                ami_fcolor(out, ami_white);
+                fcolort(out, th_text);
                 ami_bold(out, TRUE);
                 ami_cursorg(out, chrsz, titbot*0.5 - chrsz*0.5);
                 fputs(title, out);
@@ -7827,7 +7837,7 @@ static void iqueryfindrep(
     chrsz = ami_chrsizy(out);
     titbot = chrsz*1.6;
 
-    ami_setsizg(out, chrsz*36, titbot+chrsz*11);
+    ami_setsizg(out, chrsz*45, titbot+chrsz*11);
 
     /* the first paint is requested, not left to fate (see ialert) */
     er.etype = ami_etredraw;
@@ -7855,32 +7865,34 @@ static void iqueryfindrep(
                 chrsz*24, titbot+chrsz*3.7, "", QFR_ID_EDITR, wteditbox, &wp);
     if (r && r[0]) ami_putwidgettext(out, QFR_ID_EDITR, r);
 
+    /* the buttons in one row at the bottom right, the affirmatives
+       left of Cancel in the Qt order */
     /* Find Next button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrsz*25, titbot+chrsz*0.5,
-                chrsz*35, titbot+chrsz*1.8, "Find Next",
+    widget(out, chrsz*1.0, titbot+chrsz*9.2,
+                chrsz*11.0, titbot+chrsz*10.6, "Find Next",
                 QFR_ID_FIND, wtcbutton, &wp);
 
     /* Replace button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrsz*25, titbot+chrsz*2.0,
-                chrsz*35, titbot+chrsz*3.3, "Replace",
+    widget(out, chrsz*11.5, titbot+chrsz*9.2,
+                chrsz*21.5, titbot+chrsz*10.6, "Replace",
                 QFR_ID_REPLACE, wtcbutton, &wp);
 
     /* Replace All button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrsz*25, titbot+chrsz*3.5,
-                chrsz*35, titbot+chrsz*4.8, "Replace All",
+    widget(out, chrsz*22.0, titbot+chrsz*9.2,
+                chrsz*33.0, titbot+chrsz*10.6, "Replace All",
                 QFR_ID_REPALL, wtcbutton, &wp);
 
     /* Cancel button */
     wp = getwig();
     wp->cbc = &cancel_cbc;
-    widget(out, chrsz*25, titbot+chrsz*5.0,
-                chrsz*35, titbot+chrsz*6.3, "Cancel",
+    widget(out, chrsz*33.5, titbot+chrsz*9.2,
+                chrsz*44.0, titbot+chrsz*10.6, "Cancel",
                 QFR_ID_CANCEL, wtcbutton, &wp);
 
     /* Match case checkbox */
@@ -7923,7 +7935,7 @@ static void iqueryfindrep(
                 ami_frect(out, 1, 1, ami_maxxg(out), ami_maxyg(out));
                 fcolort(out, th_title);
                 ami_frect(out, 1, 1, ami_maxxg(out), titbot);
-                ami_fcolor(out, ami_white);
+                fcolort(out, th_text);
                 ami_bold(out, TRUE);
                 ami_cursorg(out, chrsz, titbot*0.5 - chrsz*0.5);
                 fputs(title, out);
@@ -8175,17 +8187,18 @@ static void iqueryfont(
                 chrsz*35, titbot+chrsz*8.4, "Italic", 8, wtcheckbox, &wp);
     if (italic_on) ami_selectwidget(out, 8, TRUE);
 
+    /* the buttons at the bottom right, OK left of Cancel */
     /* OK button */
     wp = getwig();
     wp->cbc = &select_cbc;
-    widget(out, chrsz*32, titbot+chrsz*1.1,
-                chrsz*41, titbot+chrsz*2.5, "OK", 2, wtcbutton, &wp);
+    widget(out, chrsz*22, titbot+chrsz*17.2,
+                chrsz*31, titbot+chrsz*18.6, "OK", 2, wtcbutton, &wp);
 
     /* Cancel button */
     wp = getwig();
     wp->cbc = &cancel_cbc;
-    widget(out, chrsz*32, titbot+chrsz*2.8,
-                chrsz*41, titbot+chrsz*4.2, "Cancel", 1, wtcbutton, &wp);
+    widget(out, chrsz*32, titbot+chrsz*17.2,
+                chrsz*41, titbot+chrsz*18.6, "Cancel", 1, wtcbutton, &wp);
 
     mpy = 0;
     cancelled = FALSE;
@@ -8203,7 +8216,7 @@ static void iqueryfont(
                 ami_frect(out, 1, 1, ami_maxxg(out), ami_maxyg(out));
                 fcolort(out, th_title);
                 ami_frect(out, 1, 1, ami_maxxg(out), titbot);
-                ami_fcolor(out, ami_white);
+                fcolort(out, th_text);
                 ami_bold(out, TRUE);
                 ami_cursorg(out, chrsz, titbot*0.5 - chrsz*0.5);
                 fputs(title, out);
@@ -8542,9 +8555,9 @@ Widgets startup
 
 *******************************************************************************/
 
-/* The KDE desktops are served by the Plasma package when it is linked
-   in; this package serves the rest. The two share every symbol
-   privately, so both ride in the same binary and the session decides */
+/* This package serves the KDE desktops; the Gnome package serves the
+   rest. The two share every symbol privately, so both ride in the same
+   binary and the session decides */
 static int desksel(void)
 
 {
@@ -8560,7 +8573,7 @@ static void init_widgets()
 
 {
 
-    if (desksel()) return; /* the Plasma package takes the KDE desktops */
+    if (!desksel()) return; /* not our desktop */
 
     /* Register with the widget base: the tracking tables, the event
        intercept, the close intercept and the widget lifecycle are all
@@ -8855,7 +8868,7 @@ static void deinit_widgets()
     ami_queryfindrep_t    cppqueryfindrep;
     ami_queryfont_t       cppqueryfont;
 
-    if (desksel()) return; /* the Plasma package takes the KDE desktops */
+    if (!desksel()) return; /* not our desktop */
 
     /* Unregister from the widget base, which takes down any widgets
        still standing; the last package out restores the event and close
