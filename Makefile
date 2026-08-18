@@ -968,6 +968,10 @@ portable/gnome_widgets.o: portable/gnome_widgets.c
 	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
 		-o portable/gnome_widgets.o
 
+portable/plasma_widgets.o: portable/plasma_widgets.c
+	$(CC) $(CFLAGS) -c portable/plasma_widgets.c \
+		-o portable/plasma_widgets.o
+
 portable/pdfgraph.o: portable/pdfgraph.c include/graphics.h
 	$(CC) $(CFLAGS) -c portable/pdfgraph.c \
 		-o portable/pdfgraph.o
@@ -1079,11 +1083,11 @@ lib/libami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 lib/libami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
     bsd/graphics.o bsd/system_event.o \
-	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
+	portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
 	ar rcs lib/libami_graph.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
-	    portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
+	    portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
 	
 else
 
@@ -1126,11 +1130,11 @@ lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 
 lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 	linux/x11/graphics.o linux/system_event.o \
-	portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
+	portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
 		linux/x11/graphics.o linux/system_event.o \
-		portable/gnome_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
+		portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 		cpp/graphics.o -lstdc++ -o lib/petit_ami_graph.so
 
 #
@@ -1192,11 +1196,11 @@ lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
 	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/x11/graphics.o linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o portable/pdfgraph.o \
+	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o \
 	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
 	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/x11/graphics.o \
-	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
 	    portable/pdfgraph.o \
 	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
 
