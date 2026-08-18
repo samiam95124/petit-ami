@@ -16969,28 +16969,54 @@ static void ami_deinit_graphics()
 
 /** ****************************************************************************
 
-The window a screen capture reads
+Take a screen capture
 
-Hands the screen capture module (linux/wayland/screen_capture.c) the
-master window of the first window open on the display -- the toplevel, the
-whole of what the program presents, frame and all, and the root of the
-tree that carries its child windows, widgets and menus. Under X the
-capturer found the window by walking the manager's client list and
-matching the process id; a Wayland client has no such list, so the backend
-simply says which window it is.
+Composes the client area of the first window open on the display, and with
+it the tree of child windows, widgets and menus that stands on it, into a
+buffer the caller frees. This is what the screen capture module
+(linux/wayland/screen_capture.c) records.
+
+Two things are left out of the picture on purpose, both because they are
+the desktop's to decide rather than the program's, and a standard made of
+them would fail whenever the user was looking elsewhere:
+
+The frame around the client area, which is drawn light or dark by whether
+the window holds the keyboard. The client area is also what the X capturer
+grabs, so the pictures stay comparable across the two.
+
+The text cursor, which is solid in a focused window and hollow in one that
+is not. It is taken down for the snapshot and put back after.
+
+Under X the capturer found the window by walking the manager's client list
+and matching the process id; a Wayland client has no such list, so the
+backend takes its own picture.
 
 *******************************************************************************/
 
-pd_win* grx_capturewin(void)
+uint32_t* grx_capture(int* width, int* height)
 
 {
 
-    int fi;
+    int       fi;
+    winptr    win;
+    uint32_t* px;
 
+    /* the window the picture is of */
+    win = NULL;
+    for (fi = 0; fi < MAXFIL && !win; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
+            win = opnfil[fi]->win;
+    if (!win) return (NULL);
+
+    /* the cursor is not part of the picture: take every one down */
     for (fi = 0; fi < MAXFIL; fi++)
-        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xmwhan)
-            return (opnfil[fi]->win->xmwhan);
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
+            curoff(opnfil[fi]->win);
+    px = pd_winsnap(grx_padisplay, win->xwhan, width, height);
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
+            curon(opnfil[fi]->win);
 
-    return (NULL);
+    return (px);
 
 }

@@ -38,6 +38,8 @@
 
 /* ---------- module state ---------- */
 
+static char   cap_name[1024] = CAPTURE_FILENAME;
+static int    cap_opened     = 0;   /* the file has been made */
 static HANDLE    cap_file        = INVALID_HANDLE_VALUE;
 static HWND      cap_window      = NULL;   /* discovered lazily on first capture */
 static uint32_t  cap_frame_count = 0;
@@ -190,9 +192,30 @@ static void write_png_frame(HANDLE h, uint8_t *rgb_rows, int width, int height)
 
 /* ---------- public entry point ---------- */
 
+/* Name the file the pictures go to, before the first of them is taken.
+   Later than that the file is already open and the name is ignored. */
+
+void screen_capture_name(const char* fn)
+{
+    if (!fn || !*fn || cap_opened) return;
+    snprintf(cap_name, sizeof(cap_name), "%s", fn);
+}
+
+/* the file is made at the first capture, so a name can be given first */
+static void capopen(void)
+{
+    cap_opened = 1;
+    DeleteFileA(cap_name);
+    cap_file = CreateFileA(cap_name, GENERIC_WRITE, 0, NULL,
+                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (cap_file == INVALID_HANDLE_VALUE) cap_disabled = 1;
+}
+
 void screen_capture(void)
 {
-    if (cap_disabled || cap_file == INVALID_HANDLE_VALUE) return;
+    if (cap_disabled) return;
+    if (!cap_opened) capopen();
+    if (cap_file == INVALID_HANDLE_VALUE) return;
 
     if (cap_window == NULL) {
         cap_window = find_pa_window();
@@ -211,18 +234,6 @@ void screen_capture(void)
 
 /* ---------- module lifecycle ---------- */
 
-__attribute__((constructor(103)))
-static void screen_capture_init(void)
-{
-    DeleteFileA(CAPTURE_FILENAME);
-    cap_file = CreateFileA(CAPTURE_FILENAME, GENERIC_WRITE, 0, NULL,
-                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (cap_file == INVALID_HANDLE_VALUE) {
-        cap_disabled = 1;
-        return;
-    }
-}
-
 __attribute__((destructor(103)))
 static void screen_capture_fini(void)
 {
@@ -231,7 +242,7 @@ static void screen_capture_fini(void)
         CloseHandle(cap_file);
         cap_file = INVALID_HANDLE_VALUE;
         if (cap_frame_count == 0) {
-            DeleteFileA(CAPTURE_FILENAME);
+            DeleteFileA(cap_name);
         }
     }
 }

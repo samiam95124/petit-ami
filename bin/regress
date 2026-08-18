@@ -112,13 +112,12 @@ runtest()
     graphics_test|management_test|widget_test)
         # "auto" walks every screen without waiting for a keypress. What
         # these tests produce is not text but the screens themselves: the
-        # capture module appends each to test_images, and that file is the
-        # listing they are judged on.
-        rm -f test_images
-        timeout 300 "bin/$1" auto < /dev/null > "tests/$1.out" 2>&1
-        if [ -f test_images ]; then mv -f test_images "tests/$1.lst"
-        else rm -f "tests/$1.lst"
-        fi
+        # capture module appends each to the file named after it, and that
+        # file is the listing they are judged on. Each test is given its
+        # own, so two runs beside each other do not write over one another.
+        rm -f "tests/$1.lst"
+        timeout 300 "bin/$1" auto "tests/$1.lst" < /dev/null \
+            > "tests/$1.out" 2>&1
         ;;
 
     *)

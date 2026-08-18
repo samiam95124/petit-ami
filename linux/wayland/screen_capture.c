@@ -8,16 +8,21 @@
 * signature at the start, IEND chunk at the end) so readers can walk them     *
 * sequentially.                                                                *
 *                                                                              *
-* The file is opened by a module constructor and closed by a destructor.       *
-* The caller only needs to call screen_capture() at each interesting moment    *
-* (e.g. just before waitnext() in a test program).                             *
+* The file is opened at the first capture and closed by a destructor. The      *
+* caller only needs to call screen_capture() at each interesting moment (e.g.  *
+* just before waitnext() in a test program); screen_capture_name() ahead of    *
+* the first one puts the pictures somewhere other than test_images, which is   *
+* how the regression gives each test a file of its own and keeps two runs at   *
+* once from writing over each other.                                           *
 *                                                                              *
 * Output format matches linux/screen_capture.c and macosx/screen_capture.c    *
 * (concatenated PNGs) so test_images files are portable across platforms for  *
-* cross-platform regression comparison. The whole window is captured, frame   *
-* and all: under Wayland the frame is the program's own, drawn by the          *
-* decorations module, and the widgets and menus that stand on a window are     *
-* windows in their own right, so only the composed picture carries them.       *
+* cross-platform regression comparison. The client area is captured, as it    *
+* is there: the frame around it is drawn focused or unfocused at the           *
+* desktop's discretion, and a standard carrying that would fail whenever the   *
+* user was looking elsewhere. What is captured is the composed picture, not    *
+* the window's canvas -- the widgets, menus and child windows standing on a    *
+* window are windows in their own right, and only the composition has them.    *
 *                                                                              *
 * There is nothing to discover and no compositor to ask. A Wayland client      *
 * draws its window into a canvas of its own, and that canvas is the picture:   *
@@ -46,6 +51,8 @@
 /* ---------- module state ---------- */
 
 static FILE     *cap_file        = NULL;
+static char      cap_name[1024] = CAPTURE_FILENAME;
+static int       cap_opened     = 0;   /* the file has been made */
 static uint32_t  cap_frame_count = 0;
 static int       cap_disabled    = 0;
 static int       cap_nowin       = 0;   /* "no window" already reported */
@@ -86,27 +93,45 @@ static void write_png_frame(FILE *f, uint8_t *rgb_rows, int width, int height) {
     fflush(f);
 }
 
-/* ---------- public entry point ---------- */
+/* ---------- public entry points ---------- */
+
+/* Name the file the pictures go to, before the first of them is taken.
+   Later than that the file is already open and the name is ignored. */
+
+void screen_capture_name(const char* fn) {
+    if (!fn || !*fn || cap_opened) return;
+    snprintf(cap_name, sizeof(cap_name), "%s", fn);
+}
+
+/* the file is made at the first capture, so a name can be given first */
+static void capopen(void) {
+    cap_opened = 1;
+    remove(cap_name);
+    cap_file = fopen(cap_name, "wb");
+    if (!cap_file) {
+        perror("screen_capture: fopen");
+        cap_disabled = 1;
+    }
+}
 
 void screen_capture(void) {
-    pd_win    *win;
     uint32_t  *pix;
     uint8_t   *rgb;
     int        w, h, x, y;
 
-    if (cap_disabled || !cap_file) return;
+    if (cap_disabled) return;
+    if (!cap_opened) capopen();
+    if (!cap_file) return;
 
-    win = grx_capturewin(); /* the window the backend presents */
-    if (!win) {
+    /* the composed picture: the client area with everything standing on it */
+    pix = grx_capture(&w, &h);
+    if (!pix) {
         if (!cap_nowin) {
             fprintf(stderr, "screen_capture: no Petit-Ami window found\n");
             cap_nowin = 1;
         }
         return;
     }
-    /* the composed picture: the window with its children standing on it */
-    pix = pd_winsnap(grx_padisplay, win, &w, &h);
-    if (!pix) return;
 
     rgb = malloc((size_t)w*h*3);
     if (!rgb) {
@@ -140,16 +165,6 @@ void screen_capture(void) {
 
 /* ---------- module lifecycle ---------- */
 
-__attribute__((constructor))
-static void screen_capture_init(void) {
-    remove(CAPTURE_FILENAME);
-    cap_file = fopen(CAPTURE_FILENAME, "wb");
-    if (!cap_file) {
-        perror("screen_capture: fopen " CAPTURE_FILENAME);
-        cap_disabled = 1;
-    }
-}
-
 __attribute__((destructor))
 static void screen_capture_fini(void) {
     if (cap_file) {
@@ -157,13 +172,13 @@ static void screen_capture_fini(void) {
         fclose(cap_file);
         cap_file = NULL;
         if (cap_frame_count == 0) {
-            remove(CAPTURE_FILENAME);
+            remove(cap_name);
         } else if (!isatty(fileno(stderr))) {
             /* The summary is for harness runs with stderr captured. On a
                terminal it landed on the program's final screen, printing
                over whatever the test left there. */
             fprintf(stderr, "screen_capture: wrote %u frames to %s\n",
-                    cap_frame_count, CAPTURE_FILENAME);
+                    cap_frame_count, cap_name);
         }
     }
 }

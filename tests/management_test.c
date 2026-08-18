@@ -84,6 +84,7 @@ static enum { /* debug levels */
                                 fflush(stderr); } while (0)
 
 extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
 
 /* "management_test auto" walks every screen with no input at all,
    capturing each, and exits at the end: this is how the regression runs
@@ -370,11 +371,14 @@ int main(int argc, char* argv[])
     if (setjmp(terminate_buf)) goto terminate;
 
     /* "management_test auto" runs every screen with no input, for the
-       regression; it ends when the screens do */
+       regression; it ends when the screens do. A second argument names
+       the file the screens are captured to, so runs beside each other do
+       not write over one another */
     if (argc > 1 && !strcmp(argv[1], "auto")) {
 
         autorun = TRUE;
         ami_autohold(FALSE);
+        if (argc > 2) screen_capture_name(argv[2]);
 
     }
 

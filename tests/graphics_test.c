@@ -334,6 +334,7 @@
 
 /* externals */
 extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
 
 /*
  * Debug print system
@@ -1385,11 +1386,14 @@ int main(int argc, char* argv[])
        headless rig */
     if (argc > 1 && !strcmp(argv[1], "bench")) goto benchmarks;
     /* "graphics_test auto" walks every pattern with no input at all and
-       exits at the end of them, which is how the regression runs it */
+       exits at the end of them, which is how the regression runs it. A
+       second argument names the file the screens are captured to, so runs
+       beside each other do not write over one another */
     if (argc > 1 && !strcmp(argv[1], "auto")) {
 
         autorun = TRUE;
         ami_autohold(FALSE); /* end when the patterns end */
+        if (argc > 2) screen_capture_name(argv[2]);
 
     }
     printf("Graphics screen test vs. 0.1\n");

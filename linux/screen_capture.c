@@ -41,6 +41,8 @@
 /* ---------- module state ---------- */
 
 static FILE     *cap_file     = NULL;
+static char      cap_name[1024] = CAPTURE_FILENAME;
+static int       cap_opened   = 0;      /* the file has been made */
 static Display  *cap_display  = NULL;
 static Window    cap_window   = 0;      /* discovered lazily on first capture */
 static uint32_t  cap_frame_count = 0;
@@ -240,8 +242,29 @@ static void write_png_frame(FILE *f, uint8_t *rgb_rows, int width, int height) {
 
 /* ---------- public entry point ---------- */
 
+/* Name the file the pictures go to, before the first of them is taken.
+   Later than that the file is already open and the name is ignored. */
+
+void screen_capture_name(const char* fn) {
+    if (!fn || !*fn || cap_opened) return;
+    snprintf(cap_name, sizeof(cap_name), "%s", fn);
+}
+
+/* the file is made at the first capture, so a name can be given first */
+static void capopen(void) {
+    cap_opened = 1;
+    remove(cap_name);
+    cap_file = fopen(cap_name, "wb");
+    if (!cap_file) {
+        perror("screen_capture: fopen");
+        cap_disabled = 1;
+    }
+}
+
 void screen_capture(void) {
-    if (cap_disabled || !cap_file || !cap_display) return;
+    if (cap_disabled || !cap_display) return;
+    if (!cap_opened) capopen();
+    if (!cap_file) return;
 
     if (cap_window == 0) {
         cap_window = find_pa_window(cap_display);
@@ -297,15 +320,6 @@ static void screen_capture_init(void) {
         cap_disabled = 1;
         return;
     }
-    remove(CAPTURE_FILENAME);
-    cap_file = fopen(CAPTURE_FILENAME, "wb");
-    if (!cap_file) {
-        perror("screen_capture: fopen " CAPTURE_FILENAME);
-        XCloseDisplay(cap_display);
-        cap_display = NULL;
-        cap_disabled = 1;
-        return;
-    }
 }
 
 __attribute__((destructor))
@@ -315,13 +329,13 @@ static void screen_capture_fini(void) {
         fclose(cap_file);
         cap_file = NULL;
         if (cap_frame_count == 0) {
-            remove(CAPTURE_FILENAME);
+            remove(cap_name);
         } else if (!isatty(fileno(stderr))) {
             /* The summary is for harness runs with stderr captured. On a
                terminal it landed on the program's final screen, printing
                over whatever the test left there. */
             fprintf(stderr, "screen_capture: wrote %u frames to %s\n",
-                    cap_frame_count, CAPTURE_FILENAME);
+                    cap_frame_count, cap_name);
         }
     }
     if (cap_display) {
