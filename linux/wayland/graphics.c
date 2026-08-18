@@ -12320,6 +12320,9 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
         fwin = win; /* set parent to self */
         if (!fwin) fwin = win->parwin; /* set parent of child window */
         fwin = fndfocus(fwin); /* find focus window */
+        /* a menu component never takes the keyboard: see the focus note in
+           the mouse handler. The window the key arrived on keeps it */
+        if (fwin && fwin->mstchild) fwin = NULL;
         if (fwin) er->winid = fwin->wid; /* send keys to focus window */
         if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
 
@@ -12805,14 +12808,23 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
 #ifndef NOFAKEFOCUS
         /* Check we fake focus here. This is a mouse button 1 click in a child
            window. */
-        if (*keep && er->etype == ami_etmouba && er->amoubn == 1 && !win->focus) {
+        if (*keep && er->etype == ami_etmouba && er->amoubn == 1 &&
+            !win->focus && !win->mstchild) {
 
             /* A button 1 click in an unfocused window fakes focus onto it. This
                fires whenever the window is not marked focused -- a child window
                the WM never focuses, and also any top-level window under a bare
                X server with no window manager to assign input focus at all.
                remfocus returning 0 (no window currently holds focus) is normal
-               in the bare-X case and not an error. */
+               in the bare-X case and not an error.
+
+               A menu component is passed over. Those windows are ours, not
+               the program's: they carry a buried window id no program knows,
+               and the menu handler answers only the events it draws and
+               presses by. Focus landing on one takes the keyboard away from
+               the program -- press a menu, and every key after it is stamped
+               with the menu's id and swallowed, so the program never sees
+               another return until something else is clicked. */
             remfocus(root(win), win); /* drop focus from whatever holds it */
             curoff(win); /* remove cursor */
             win->focus = TRUE; /* put focus */
@@ -16952,5 +16964,33 @@ static void ami_deinit_graphics()
     fprintf(stderr, "Image frame total:     %lu\n", imgtot);
 
 #endif
+
+}
+
+/** ****************************************************************************
+
+The window a screen capture reads
+
+Hands the screen capture module (linux/wayland/screen_capture.c) the
+master window of the first window open on the display -- the toplevel, the
+whole of what the program presents, frame and all, and the root of the
+tree that carries its child windows, widgets and menus. Under X the
+capturer found the window by walking the manager's client list and
+matching the process id; a Wayland client has no such list, so the backend
+simply says which window it is.
+
+*******************************************************************************/
+
+pd_win* grx_capturewin(void)
+
+{
+
+    int fi;
+
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xmwhan)
+            return (opnfil[fi]->win->xmwhan);
+
+    return (NULL);
 
 }

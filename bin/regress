@@ -31,7 +31,10 @@
 # services_test also prints environment and locale state, so it runs under a
 # controlled minimal environment. The .cmp files still contain some machine
 # specific text (home paths, country, timezone); regenerate them with
-# --update when moving to a new machine, then review the result.
+# --update when moving to a new machine, then review the result. The
+# picture standards are machine specific throughout -- they are pictures of
+# this screen, at this size, in these fonts -- so they always want
+# regenerating on a new machine.
 #
 
 # find repository root from this script's location and work there
@@ -47,7 +50,12 @@ for arg in "$@"; do
     fi
 
 done
-if [ -z "$tests" ]; then tests="stdio_test services_test network_test"; fi
+if [ -z "$tests" ]; then
+
+    tests="stdio_test services_test network_test graphics_test \
+           management_test widget_test"
+
+fi
 
 #
 # Mask run-varying fields. Applied when regenerating .cmp files. Fixed width
@@ -101,6 +109,18 @@ runtest()
              > "tests/$1.lst" 2>&1
         ;;
 
+    graphics_test|management_test|widget_test)
+        # "auto" walks every screen without waiting for a keypress. What
+        # these tests produce is not text but the screens themselves: the
+        # capture module appends each to test_images, and that file is the
+        # listing they are judged on.
+        rm -f test_images
+        timeout 300 "bin/$1" auto < /dev/null > "tests/$1.out" 2>&1
+        if [ -f test_images ]; then mv -f test_images "tests/$1.lst"
+        else rm -f "tests/$1.lst"
+        fi
+        ;;
+
     *)
         timeout 300 "bin/$1" < /dev/null > "tests/$1.lst" 2>&1
         ;;
@@ -108,6 +128,9 @@ runtest()
     esac
 
 }
+
+# the PNG signature, for counting the screens in a capture stream
+pngsig=$(printf '\211PNG')
 
 fails=0
 for t in $tests; do
@@ -119,7 +142,59 @@ for t in $tests; do
         continue
 
     fi
+    case "$t" in
+
+    graphics_test|management_test|widget_test) pict=1 ;;
+    *)                                         pict=0 ;;
+
+    esac
+    if [ "$pict" = "1" ] && [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ]; then
+
+        # it draws on a screen, and there is none here
+        echo "$t: skipped, no display"
+        continue
+
+    fi
     runtest "$t"
+    if [ "$pict" = "1" ]; then
+
+        # a stream of PNGs: compared whole, since a picture has no fields
+        # that vary from run to run to be masked
+        if [ ! -f "tests/$t.lst" ]; then
+
+            echo "$t: *** fail *** (no test_images produced)"
+            fails=$((fails+1))
+            continue
+
+        fi
+        if [ "$update" = "1" ]; then
+
+            cp "tests/$t.lst" "tests/$t.cmp"
+            echo "$t: tests/$t.cmp regenerated, please review with bin/testviewer"
+
+        elif cmp -s "tests/$t.lst" "tests/$t.cmp"; then
+
+            rm -f "tests/$t.dif"
+            echo "$t: pass"
+
+        else
+
+            {
+                echo "screens differ from tests/$t.cmp"
+                echo "standard: $(wc -c < "tests/$t.cmp") bytes,\
+ $(grep -a -o "$pngsig" "tests/$t.cmp" | wc -l) screens"
+                echo "this run: $(wc -c < "tests/$t.lst") bytes,\
+ $(grep -a -o "$pngsig" "tests/$t.lst" | wc -l) screens"
+                cmp "tests/$t.cmp" "tests/$t.lst" 2>&1
+                echo "view either with: bin/testviewer <file>"
+            } > "tests/$t.dif"
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+
+        fi
+        continue
+
+    fi
     if [ "$update" = "1" ]; then
 
         mask < "tests/$t.lst" > "tests/$t.cmp"

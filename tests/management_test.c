@@ -85,6 +85,54 @@ static enum { /* debug levels */
 
 extern void screen_capture(void);
 
+/* "management_test auto" walks every screen with no input at all,
+   capturing each, and exits at the end: this is how the regression runs
+   it. Child windows and menus are windows of their own and paint from
+   events, so an automatic run pumps events for a moment to let the screen
+   settle before capturing it, then answers the wait with a return. */
+static int autorun = FALSE;
+
+#define AUTOSETL 3000 /* settle time before a capture, 100us units */
+#define AUTOTIM  9    /* timer the settle runs on */
+
+static void autosettle(void)
+
+{
+
+    ami_evtrec er;
+
+    ami_timer(stdout, AUTOTIM, AUTOSETL, FALSE);
+    do {
+
+        ami_event(stdin, &er);
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != ami_ettim || er.timnum != AUTOTIM);
+
+}
+
+/* Every wait for the user comes through here. An automatic run lets the
+   screen settle and answers with the return the screen was waiting for;
+   the capture is taken by waitnextt, which stamps the frame. */
+static void nextevt(ami_evtrec* er)
+
+{
+
+    if (autorun) {
+
+        autosettle();
+        /* the return the screen waits for, from the main window: a wait
+           that takes only its own window's return must see one */
+        er->etype = ami_etenter;
+        er->winid = 1;
+
+        return;
+
+    }
+    ami_event(stdin, er);
+
+}
+
 /* wait return to be pressed, or handle terminate */
 
 static void waitnextt(int keeptitle)
@@ -105,9 +153,10 @@ static void waitnextt(int keeptitle)
 
     }
 
+    if (autorun) autosettle(); /* let the screen finish before it is taken */
     screen_capture();
 
-    do { ami_event(stdin, &er); }
+    do { nextevt(&er); }
     while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
@@ -127,7 +176,7 @@ static void waitnextprint(void)
 
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etchar)
             printf("Window: %ld char: %c\n", er.winid, er.echar);
 
@@ -272,7 +321,7 @@ static void frametest(const string s)
     frameinside(s, x, y);
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etredraw) frameinside(s, x, y);
         if (er.etype == ami_etresize) {
 
@@ -312,13 +361,22 @@ static ami_color nextcolor(ami_color c)
 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 
 {
 
     long xr;
 
     if (setjmp(terminate_buf)) goto terminate;
+
+    /* "management_test auto" runs every screen with no input, for the
+       regression; it ends when the screens do */
+    if (argc > 1 && !strcmp(argv[1], "auto")) {
+
+        autorun = TRUE;
+        ami_autohold(FALSE);
+
+    }
 
     ami_auto(stdout, OFF);
     ami_curvis(stdout, OFF);
@@ -560,7 +618,7 @@ int main(void)
 
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etchar) if (er.echar == ' ') { /* flip front/back */
 
             fb = !fb;
@@ -692,7 +750,7 @@ int main(void)
     sblue = OFF;
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
@@ -746,7 +804,7 @@ int main(void)
     printf("defined position\n");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
@@ -911,7 +969,7 @@ int main(void)
     printf("(if framed), test entering characters to windows.            \n");
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etchar) {
 
             if (er.winid == 2) fputc(er.echar, win2);
@@ -967,7 +1025,7 @@ int main(void)
     printf("characters to windows.                                       \n");
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etchar) {
 
             if (er.winid == 2) fputc(er.echar, win2);
@@ -1080,7 +1138,7 @@ int main(void)
     fprintf(win4, "I am child window 3\n");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         /* repaint the parent on a main-window (winid 1) redraw or resize */
         if ((er.etype == ami_etredraw || er.etype == ami_etresize) &&
             er.winid == 1) {
@@ -1146,7 +1204,7 @@ int main(void)
     fprintf(win4, "I am child window 3");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         /* repaint the parent on a main-window (winid 1) redraw or resize; re-fit
            children only on an actual parent resize -- see the note in stacking
            resize test pixel 1 above */
@@ -1189,7 +1247,7 @@ int main(void)
     ami_binvis(stdout);
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etredraw || er.etype == ami_etresize) {
 
             /* clear screen without overwriting frame */
@@ -1230,7 +1288,7 @@ int main(void)
     nrmcnt = 0; /* clear normalize counter */
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         /* count minimize, maximize, normalize */
         if (er.etype == ami_etmax) maxcnt = maxcnt+1;
         if (er.etype == ami_etmin) mincnt = mincnt+1;
@@ -1490,9 +1548,15 @@ int main(void)
     ami_bover(stdout);
     printf("Child windows should all be closed\n");
     printf("\n");
-    printf("Child windows place and remove %d iterations %f seconds\n", 100,
-           et*0.0001);
-    printf("%f per iteration\n", et*0.0001/100);
+    /* the times are never the same twice, so an automatic run, which is
+       judged on the screens themselves, leaves them off the screen */
+    if (!autorun) {
+
+        printf("Child windows place and remove %d iterations %f seconds\n",
+               100, et*0.0001);
+        printf("%f per iteration\n", et*0.0001/100);
+
+    }
     waitnext();
 
     terminate: /* terminate */

@@ -830,6 +830,13 @@ linux/wayland/wlproto/xdg-shell-protocol.o: \
 	$(CC) $(CFLAGS) -c linux/wayland/wlproto/xdg-shell-protocol.c \
 	    -o linux/wayland/wlproto/xdg-shell-protocol.o
 
+# Screen capture for the test programs: not part of the library, since it
+# is only linked by the tests that call it and carries libpng with it.
+linux/wayland/screen_capture.o: linux/wayland/screen_capture.c \
+	linux/wayland/graphics_i.h linux/wayland/pdisplay.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/wayland/screen_capture.c \
+	    -o linux/wayland/screen_capture.o
+
 WLGRAPH = linux/wayland/graphics.o linux/wayland/gnome/decorations.o \
 	linux/wayland/plasma/decorations.o linux/wayland/pdisplay.o \
 	linux/wayland/wlproto/xdg-shell-protocol.o
@@ -1461,18 +1468,27 @@ genwaveg: $(GLIBSD) sound_programs/genwave.c
 #
 # Screen capture object (platform-dependent)
 #
+# SCREEN_CAPTURE_OBJ serves the terminal model programs, GSCREEN_CAPTURE_OBJ
+# the graphical ones. They part company only on Wayland: a capture there is
+# a read of the window's own canvas, which a graphical program has and a
+# terminal one does not -- its screen belongs to the terminal emulator, and
+# no client may read another's window without going through a portal.
+#
 ifeq ($(OSTYPE),Windows_NT)
 SCREEN_CAPTURE_OBJ = windows/screen_capture.o
+GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 else ifeq ($(OSTYPE),Darwin)
 SCREEN_CAPTURE_OBJ = macosx/screen_capture.o
+GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 else ifeq ($(OSTYPE),FreeBSD)
 SCREEN_CAPTURE_OBJ = bsd/screen_capture.o
+GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 else ifeq ($(GRAPHICS_BACKEND),wayland)
-# the Linux capturer reads windows through X and cannot see a native
-# Wayland surface; the rig's AMI_WL_DUMP carries capture instead
 SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
+GSCREEN_CAPTURE_OBJ = linux/wayland/screen_capture.o
 else
 SCREEN_CAPTURE_OBJ = linux/screen_capture.o
+GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 endif
 
 #
@@ -1498,32 +1514,33 @@ terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 endif
 
 ifeq ($(OSTYPE),Darwin)
-terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/terminal_testg
+terminal_testg: $(GLIBSD) tests/terminal_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/terminal_testg
 else
-terminal_testg: $(GLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/terminal_testg
+terminal_testg: $(GLIBSD) tests/terminal_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/terminal_testg
 endif
 
 #
 # Test graph model compliant output
 #
 ifeq ($(OSTYPE),Darwin)
-graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/graphics_test
+graphics_test: $(GLIBSD) tests/graphics_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/graphics_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/graphics_test
 else
-graphics_test: $(GLIBSD) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/graphics_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/graphics_test
+graphics_test: $(GLIBSD) tests/graphics_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/graphics_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/graphics_test
 endif
 
 #
 # Graphics test on the Wayland backend: the same program, the backend
 # swapped by link option
 #
-graphics_testw: $(GLIBSWD) tests/graphics_test.c stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/graphics_test.c stub/screen_capture_stub.o \
+graphics_testw: $(GLIBSWD) tests/graphics_test.c \
+	linux/wayland/screen_capture.o
+	$(CC) $(CFLAGS) tests/graphics_test.c linux/wayland/screen_capture.o \
 	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
-	    -lfreetype -lfontconfig -lm -lpthread -o bin/graphics_testw
+	    -lfreetype -lfontconfig -lm -lpthread -lpng -lz -o bin/graphics_testw
 
 # The GTK edition of the graphics_test benchmarks, for rasterizer and
 # complexity comparison against the Ami backends. Needs libgtk-4-dev.
@@ -1579,11 +1596,11 @@ endif
 # Test windows management model compliant output
 #
 ifeq ($(OSTYPE),Darwin)
-management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
+management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
 else
-management_test: $(GLIBSD) tests/management_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(SCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
+management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
 endif
 
 #
@@ -1607,8 +1624,9 @@ endif
 #
 # Test windows widget compliant output
 #
-widget_test: $(GLIBSD) tests/widget_test.c
-	$(CC) $(CFLAGS) tests/widget_test.c $(GLIBS) -o bin/widget_test 
+widget_test: $(GLIBSD) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) \
+	    $(XLIBS) -o bin/widget_test
 
 
 #
