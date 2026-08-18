@@ -49,7 +49,7 @@
                                   diagonal resize is not a tiny CFRM_BORDER_W
                                   square that is nearly impossible to hit */
 #define CFRM_BUTTON_SZ(win) ((win)->frmbsz)
-#define CFRM_BUTTON_GAP     10 /* gap between buttons */
+#define CFRM_BUTTON_GAP     0  /* Breeze sets its button boxes adjacent */
 #define CFRM_BUTTON_MG      10 /* button margin from edge */
 #define CFRM_TITLE_SZ(win)  ((win)->frmtsz)
 #define CFRM_MIN_W          200 /* width of a minimized child window */
@@ -258,7 +258,9 @@ static void pl_frmmetrics(winptr win)
 {
 
     win->frmtbh = (int)(win->linespace*1.9);
-    win->frmbsz = (int)(win->linespace*0.9);
+    /* the button box is nearly the height of the bar, as Breeze's is; the
+       glyph inside takes a little under half of it */
+    win->frmbsz = (int)(win->linespace*1.6);
     win->frmtsz = (int)(win->gfhigh*1.1);
     win->frmgrab = win->linespace/3 > CFRM_BORDER_W?
                    win->linespace/3: CFRM_BORDER_W;
@@ -494,32 +496,63 @@ static void pl_frmdraw(winptr win, int mw, int mh)
 
     if (hastit) {
 
-        /* Breeze buttons are glyphs on the bar itself: a bar for
-           minimize, a box for maximize, a cross for close. They dim
-           with the title when the window loses focus */
+        /* Breeze buttons are glyphs on the bar itself, no circle behind
+           them: a chevron down for minimize, a chevron up for maximize --
+           a diamond when the window is already maximized, which is
+           Breeze's restore -- and a cross for close. They dim with the
+           title when the window loses focus */
         const frmpal* pal = framepal();
-        int margin = bsz/4;
+        int margin = bsz*5/16;      /* glyph inset in the button box */
+        int gxc = bsz/2;            /* glyph center */
+        int gyc = bsz/2;
+        /* the glyphs are all built on one half span: the chevrons rise it
+           over a span of twice it, so their arms lie at 45 degrees, the
+           cross squares off the same box, and the diamond takes it as
+           the half diagonal -- which is how Breeze draws all three */
+        int hs  = (bsz-margin*2)/2;
 
         win->frmgc->fg = win->focus? pal->btnfg: pal->btnfgun;
         win->frmgc->lw = 2; win->frmgc->lstyle = pd_linesolid;
 
-        /* minimize: a bar low in the box */
+        /* minimize: a chevron pointing down */
         pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
-                bx_min + margin, by + bsz - margin,
-                bx_min + bsz - margin, by + bsz - margin);
+                bx_min+gxc-hs, by+gyc-hs/2, bx_min+gxc, by+gyc+hs/2);
+        pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                bx_min+gxc, by+gyc+hs/2, bx_min+gxc+hs, by+gyc-hs/2);
 
-        /* maximize: an open box */
-        pd_rect(pd_wincanvas(win->xmwhan), win->frmgc,
-                bx_max + margin, by + margin,
-                bsz - margin*2, bsz - margin*2);
+        if (win->winstate == 1) {
 
-        /* close: a cross */
-        pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
-                bx_close + margin, by + margin,
-                bx_close + bsz - margin - 1, by + bsz - margin - 1);
-        pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
-                bx_close + bsz - margin - 1, by + margin,
-                bx_close + margin, by + bsz - margin - 1);
+            /* restore: a diamond, the maximized window's own glyph */
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_max+gxc, by+gyc-hs, bx_max+gxc+hs, by+gyc);
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_max+gxc+hs, by+gyc, bx_max+gxc, by+gyc+hs);
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_max+gxc, by+gyc+hs, bx_max+gxc-hs, by+gyc);
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_max+gxc-hs, by+gyc, bx_max+gxc, by+gyc-hs);
+
+        } else {
+
+            /* maximize: a chevron pointing up */
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_max+gxc-hs, by+gyc+hs/2, bx_max+gxc, by+gyc-hs/2);
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_max+gxc, by+gyc-hs/2, bx_max+gxc+hs, by+gyc+hs/2);
+
+        }
+
+        /* close: a cross, square and a shade narrower than the chevrons,
+           as Breeze draws it */
+        {
+            int xh = hs*5/6; /* half the cross, on both axes */
+
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_close+gxc-xh, by+gyc-xh, bx_close+gxc+xh, by+gyc+xh);
+            pd_line(pd_wincanvas(win->xmwhan), win->frmgc,
+                    bx_close+gxc+xh, by+gyc-xh, bx_close+gxc-xh, by+gyc+xh);
+
+        }
 
         win->frmgc->lw = 1; win->frmgc->lstyle = pd_linesolid;
 
