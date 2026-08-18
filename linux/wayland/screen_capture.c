@@ -91,24 +91,21 @@ static void write_png_frame(FILE *f, uint8_t *rgb_rows, int width, int height) {
 /* ---------- public entry point ---------- */
 
 void screen_capture(void) {
-    pd_win    *win;
     uint32_t  *pix;
     uint8_t   *rgb;
     int        w, h, x, y;
 
     if (cap_disabled || !cap_file) return;
 
-    win = grx_capturewin(); /* the window the backend presents */
-    if (!win) {
+    /* the composed picture: the client area with everything standing on it */
+    pix = grx_capture(&w, &h);
+    if (!pix) {
         if (!cap_nowin) {
             fprintf(stderr, "screen_capture: no Petit-Ami window found\n");
             cap_nowin = 1;
         }
         return;
     }
-    /* the composed picture: the window with its children standing on it */
-    pix = pd_winsnap(grx_padisplay, win, &w, &h);
-    if (!pix) return;
 
     rgb = malloc((size_t)w*h*3);
     if (!rgb) {
