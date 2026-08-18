@@ -323,6 +323,12 @@ void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
                         int x, int y, char* s, int len);
 int  grx_ft_text_width(FT_Face face, const char* s, int len);
 
+/* The window the backend presents, for the screen capture module: the
+   client area of the first window open on it, or NULL if none is. A
+   Wayland client draws into a canvas of its own, so a capture is a read
+   of that canvas rather than a grab from the compositor. */
+pd_win* grx_capturewin(void);
+
 /* ===========================================================================
 
    The decorations interface
