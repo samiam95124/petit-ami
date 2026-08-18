@@ -8,9 +8,12 @@
 * signature at the start, IEND chunk at the end) so readers can walk them     *
 * sequentially.                                                                *
 *                                                                              *
-* The file is opened by a module constructor and closed by a destructor.       *
-* The caller only needs to call screen_capture() at each interesting moment    *
-* (e.g. just before waitnext() in a test program).                             *
+* The file is opened at the first capture and closed by a destructor. The      *
+* caller only needs to call screen_capture() at each interesting moment (e.g.  *
+* just before waitnext() in a test program); screen_capture_name() ahead of    *
+* the first one puts the pictures somewhere other than test_images, which is   *
+* how the regression gives each test a file of its own and keeps two runs at   *
+* once from writing over each other.                                           *
 *                                                                              *
 * Output format matches linux/screen_capture.c and macosx/screen_capture.c    *
 * (concatenated PNGs) so test_images files are portable across platforms for  *
@@ -48,6 +51,8 @@
 /* ---------- module state ---------- */
 
 static FILE     *cap_file        = NULL;
+static char      cap_name[1024] = CAPTURE_FILENAME;
+static int       cap_opened     = 0;   /* the file has been made */
 static uint32_t  cap_frame_count = 0;
 static int       cap_disabled    = 0;
 static int       cap_nowin       = 0;   /* "no window" already reported */
@@ -88,14 +93,35 @@ static void write_png_frame(FILE *f, uint8_t *rgb_rows, int width, int height) {
     fflush(f);
 }
 
-/* ---------- public entry point ---------- */
+/* ---------- public entry points ---------- */
+
+/* Name the file the pictures go to, before the first of them is taken.
+   Later than that the file is already open and the name is ignored. */
+
+void screen_capture_name(const char* fn) {
+    if (!fn || !*fn || cap_opened) return;
+    snprintf(cap_name, sizeof(cap_name), "%s", fn);
+}
+
+/* the file is made at the first capture, so a name can be given first */
+static void capopen(void) {
+    cap_opened = 1;
+    remove(cap_name);
+    cap_file = fopen(cap_name, "wb");
+    if (!cap_file) {
+        perror("screen_capture: fopen");
+        cap_disabled = 1;
+    }
+}
 
 void screen_capture(void) {
     uint32_t  *pix;
     uint8_t   *rgb;
     int        w, h, x, y;
 
-    if (cap_disabled || !cap_file) return;
+    if (cap_disabled) return;
+    if (!cap_opened) capopen();
+    if (!cap_file) return;
 
     /* the composed picture: the client area with everything standing on it */
     pix = grx_capture(&w, &h);
@@ -139,16 +165,6 @@ void screen_capture(void) {
 
 /* ---------- module lifecycle ---------- */
 
-__attribute__((constructor))
-static void screen_capture_init(void) {
-    remove(CAPTURE_FILENAME);
-    cap_file = fopen(CAPTURE_FILENAME, "wb");
-    if (!cap_file) {
-        perror("screen_capture: fopen " CAPTURE_FILENAME);
-        cap_disabled = 1;
-    }
-}
-
 __attribute__((destructor))
 static void screen_capture_fini(void) {
     if (cap_file) {
@@ -156,13 +172,13 @@ static void screen_capture_fini(void) {
         fclose(cap_file);
         cap_file = NULL;
         if (cap_frame_count == 0) {
-            remove(CAPTURE_FILENAME);
+            remove(cap_name);
         } else if (!isatty(fileno(stderr))) {
             /* The summary is for harness runs with stderr captured. On a
                terminal it landed on the program's final screen, printing
                over whatever the test left there. */
             fprintf(stderr, "screen_capture: wrote %u frames to %s\n",
-                    cap_frame_count, CAPTURE_FILENAME);
+                    cap_frame_count, cap_name);
         }
     }
 }
