@@ -5686,8 +5686,8 @@ before the client program runs.
 
 *******************************************************************************/
 
-static void ami_init_terminal (int argc, char* argv[]) __attribute__((constructor (106)));
-static void ami_init_terminal(int argc, char* argv[])
+static void ami_init_terminal (void) __attribute__((constructor (106)));
+static void ami_init_terminal(void)
 
 {
 

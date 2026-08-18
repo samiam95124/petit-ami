@@ -318,6 +318,60 @@ else
 endif
 
 #
+# Which C library? glibc, the system's own, or musl.
+#
+# LIBC=musl builds against musl instead, through musl-gcc. Petit-Ami carries
+# its own stdio and reaches the system through read/write/open/close, so the
+# library it stands on is nearly immaterial to it; what musl does not carry
+# is the kernel's own headers, which are handed to it below.
+#
+# How far this goes depends on the libraries a model wants rather than on
+# Petit-Ami. The terminal model and the tools need nothing but the C library
+# and build whole. The sound, network and graphical models want alsa,
+# fluidsynth, openssl, freetype, fontconfig and the display libraries, and
+# the ones installed on a glibc system cannot be linked against musl: they
+# are glibc programs themselves. Building those wants a musl build of each,
+# which is what an Alpine root or a musl cross sysroot is; point MUSLROOT at
+# one and its headers and libraries are used.
+#
+LIBC ?= glibc
+
+# The objects are built in place, one set of paths for any C library, so a
+# build that changes it under them would mix the two -- and the mixture only
+# shows itself at link, as a missing glibc symbol. A stamp marks which
+# library the objects standing in the tree were built against.
+LIBCSTAMP := lib/.libc-$(LIBC)
+ifeq ($(filter clean,$(MAKECMDGOALS)),) # clean is how the mixture is undone
+ifneq ($(filter-out $(LIBCSTAMP),$(wildcard lib/.libc-*)),)
+$(error the objects here were built against another C library: \
+run "make clean" before building with LIBC=$(LIBC))
+endif
+$(shell mkdir -p lib; touch $(LIBCSTAMP))
+endif
+
+ifeq ($(LIBC),musl)
+
+    CC = musl-gcc
+    # musl ships no kernel headers: a directory of links to the system's is
+    # made and given to it, since taking /usr/include whole would bring
+    # glibc's own headers with it
+    MUSLKHDR := lib/musl-headers
+    $(shell mkdir -p $(MUSLKHDR); \
+            ln -sfn /usr/include/linux $(MUSLKHDR)/linux; \
+            ln -sfn /usr/include/$(shell uname -m)-linux-gnu/asm \
+                    $(MUSLKHDR)/asm; \
+            ln -sfn /usr/include/asm-generic $(MUSLKHDR)/asm-generic)
+    CFLAGS += -I$(MUSLKHDR)
+    ifdef MUSLROOT
+
+        CFLAGS += -I$(MUSLROOT)/include
+        LDFLAGS += -L$(MUSLROOT)/lib
+
+    endif
+
+endif
+
+#
 # Add flags by OS
 #
 ifeq ($(OSTYPE),Windows_NT)
@@ -470,7 +524,17 @@ endif
 # X and png link tail for programs that use them directly (the test
 # harness's screen capture).
 #
+ifeq ($(LIBC),musl)
+
+# X11, libpng and zlib are glibc builds here: a musl program links none of
+# them, and the screen capture that wants them stands in stubbed
+XLIBS =
+
+else
+
 XLIBS = -lX11 -lpng -lz
+
+endif
 
 #
 # Collected libraries
@@ -634,8 +698,14 @@ else
 	# shared. The sound and network tails cost nothing when unused:
 	# with the members not pulled, as-needed linking drops them.
 	# stdc++: the plain core carries the sound C++ wrapper
+    ifeq ($(LIBC),musl)
+	# none of those libraries are musl builds here: see the LIBC note
+	PLIBS += -lm -lpthread
+	CLIBS += -lm -lpthread
+    else
 	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+    endif
     ifeq ($(GRAPHICS_BACKEND),wayland)
 	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
 	         -lwayland-client -lwayland-cursor -lxkbcommon \
@@ -1206,12 +1276,26 @@ CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o
 lib/plain_core.o: $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/plain_core.o $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
 
+ifeq ($(LIBC),musl)
+
+# The terminal model on musl. The C++ wrappers are left out: they are C++,
+# and the C++ runtime installed here is a glibc build. Everything else is
+# the same core.
+lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	portable/txtterminal.o linux/system_event.o
+	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	    portable/txtterminal.o linux/system_event.o
+
+else
+
 lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
 	portable/txtterminal.o \
 	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
 	    portable/txtterminal.o \
 	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+
+endif
 
 lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
 	portable/txtterminal.o \
@@ -1234,9 +1318,23 @@ lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_plain.a
 	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o
 
+ifeq ($(LIBC),musl)
+
+# Sound and network stand in stubbed on musl: alsa, fluidsynth and openssl
+# are glibc builds here and cannot be linked against it. A program that
+# calls them says so and stops; one that does not is none the wiser. With
+# MUSLROOT naming a musl build of the three, take the stubs back out.
+lib/libami_term.a: lib/term_core.o stub/sound.o stub/network.o
+	rm -f lib/libami_term.a
+	ar rcs lib/libami_term.a lib/term_core.o stub/sound.o stub/network.o
+
+else
+
 lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_term.a
 	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o
+
+endif
 
 lib/libami_termc.a: lib/termc_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_termc.a
@@ -1483,6 +1581,9 @@ GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 else ifeq ($(OSTYPE),FreeBSD)
 SCREEN_CAPTURE_OBJ = bsd/screen_capture.o
 GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
+else ifeq ($(LIBC),musl)
+SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
+GSCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
 else ifeq ($(GRAPHICS_BACKEND),wayland)
 SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
 GSCREEN_CAPTURE_OBJ = linux/wayland/screen_capture.o
@@ -2140,6 +2241,7 @@ clean:
 	rm -f bin/services_test1 bin/connectnet bin/connectnetg bin/clock bin/calc
 	find . -name "*.o" -type f -delete
 	rm -f lib/*.a
+	rm -f lib/.libc-*
 	rm -f lib/*.so
 	rm -f bin/*.exe
 	
@@ -2157,6 +2259,7 @@ clean:
 # exclude the tar.gz itself.
 #
 ################################################################################
+
 
 #dist:
 #	cd ..

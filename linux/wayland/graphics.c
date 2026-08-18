@@ -16260,8 +16260,8 @@ Gralib startup
 
 *******************************************************************************/
 
-static void ami_init_graphics (int argc, char *argv[]) __attribute__((constructor (102)));
-static void ami_init_graphics(int argc, char *argv[])
+static void ami_init_graphics (void) __attribute__((constructor (102)));
+static void ami_init_graphics(void)
 
 {
 

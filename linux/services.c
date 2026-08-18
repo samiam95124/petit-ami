@@ -3554,8 +3554,8 @@ Note the environment is unordered.
    102+ call ami_config -> ami_getusr -> ami_getenv, which need the env list to
    resolve $HOME; if services ran at the same priority (link-order dependent),
    that lookup could fail and the user-home config would be missed. */
-static void ami_init_services (int argc, char* argv[]) __attribute__((constructor (101)));
-static void ami_init_services(int argc, char* argv[])
+static void ami_init_services (void) __attribute__((constructor (101)));
+static void ami_init_services(void)
 
 {
 
@@ -3663,10 +3663,13 @@ static void ami_init_services(int argc, char* argv[])
 
     }
 
-    /* find program path */
-    l = strlen(argv[0]); /* get length */
+    /* Find program path. It comes from program_invocation_name rather than
+       argv[0]: the C library hands the initializers of a program its
+       arguments only by extension, glibc doing so and musl not, while both
+       set this before any initializer runs. */
+    l = strlen(program_invocation_name); /* get length */
     prgpth = malloc(l+1); /* allocate string */
-    strcpy(prgpth, argv[0]);
+    strcpy(prgpth, program_invocation_name);
 
     /* clear thread table */
     for (i = 0; i < MAXTHREAD; i++) threadtbl[i] = NULL;
