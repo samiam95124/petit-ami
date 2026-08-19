@@ -3023,7 +3023,7 @@ static void iscroll(scnptr sc, long x, long y)
                         /* move lines up */
                         memcpy(&sc[(yi-1)*bufx], &sc[(yi+y-1)*bufx],
                            bufx*sizeof(scnrec));
-                for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
+                for (yi = 1; yi <= labs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= bufx; xi++) {
 
                     sp = &SCNBUF(sc, xi, yi);
@@ -3078,7 +3078,7 @@ static void iscroll(scnptr sc, long x, long y)
                             memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at left */
-                    for (xi = 1; xi <= abs(x); xi++) {
+                    for (xi = 1; xi <= labs(x); xi++) {
 
                         sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */

@@ -1075,7 +1075,22 @@ lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
 	ar rcs lib/libami_term.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/terminal.o \
 	    utils/config.o utils/option.o macosx/stdio.o
-	
+
+# The termc variant is the terminal library with the character mode window
+# manager (managerc) always included. managerc is constructor-registered and
+# transparent by default, so nothing references its symbols; partial-link it
+# with terminal.o into one member (ld -r) so archive selectivity cannot drop
+# it when a program references only the terminal API.
+macosx/termc.o: macosx/terminal.o portable/managerc.o
+	ld -r -o macosx/termc.o macosx/terminal.o portable/managerc.o
+
+lib/libami_termc.a: macosx/services.o macosx/sound.o macosx/network.o \
+    macosx/system_event.o macosx/termc.o utils/config.o utils/option.o \
+    macosx/stdio.o
+	ar rcs lib/libami_termc.a macosx/services.o macosx/sound.o \
+	    macosx/network.o macosx/system_event.o macosx/termc.o \
+	    utils/config.o utils/option.o macosx/stdio.o
+
 lib/libami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/graphics.o macosx/graphics_cocoa.o \
     utils/config.o utils/option.o macosx/stdio.o
@@ -1624,9 +1639,19 @@ endif
 #
 # Test windows widget compliant output
 #
+ifeq ($(OSTYPE),Darwin)
+widget_test: $(GLIBSD) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) \
+	    -o bin/widget_test
+else ifeq ($(OSTYPE),Windows_NT)
+widget_test: $(GLIBSD) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) \
+	    -lpng -lz -o bin/widget_test
+else
 widget_test: $(GLIBSD) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/widget_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) \
 	    $(XLIBS) -o bin/widget_test
+endif
 
 
 #

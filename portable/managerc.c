@@ -1408,7 +1408,7 @@ Sets the root foreground color if it has changed.
 
 *******************************************************************************/
 
-static int setfcolor(ami_color c)
+static void setfcolor(ami_color c)
 
 {
 
@@ -1432,7 +1432,7 @@ Sets the root background color if it has changed.
 
 *******************************************************************************/
 
-static int setbcolor(ami_color c)
+static void setbcolor(ami_color c)
 
 {
 
