@@ -240,7 +240,17 @@ static int pa_win_is_child(pa_winhan h);
 
 - (CGContextRef)createOneBitmapWidth:(int)w height:(int)h
 {
-    CGFloat       scale = self.window ? [self.window backingScaleFactor] : 1.0;
+    /* All screen buffers use a fixed 1x scale (1 pixel == 1 point). This
+       must be consistent across every buffer: screen 0 is created during
+       PAWindow init (window nil) while the page-flip screens are created
+       later (window attached), so keying off backingScaleFactor gave a
+       mix of 1x and 2x buffers -- the flip then alternated between fitted
+       and doubled frames. A fixed 1x also keeps the per-flush pixel copy
+       (done on every draw op) cheap, which matters for the double-buffered
+       games; a Retina buffer quadruples that copy and starves the frame
+       timer. drawRect scales the 1x snapshot up to the window crisply
+       enough. */
+    CGFloat       scale = 1.0;
     int           pw    = (int)(w * scale);
     int           ph    = (int)(h * scale);
     CGColorSpaceRef cs  = CGColorSpaceCreateDeviceRGB();
@@ -1474,8 +1484,13 @@ void pa_cocoa_flush(pa_winhan win)
         pthread_mutex_lock(&evt_mutex);
         CGImageRef old = v->displayImage;
         v->displayImage = snap;
-        v->dispW = (int)w;
-        v->dispH = (int)h;
+        /* drawRect draws the snapshot into a POINT-sized rect (its context
+           is in points), so dispW/dispH are the point dimensions, not the
+           bitmap's pixel width/height. These are equal at the fixed 1x
+           scale, but keeping them decoupled means a scaled buffer would
+           still present at the correct window size instead of doubling. */
+        v->dispW = v->bmpW;
+        v->dispH = v->bmpH;
         pthread_mutex_unlock(&evt_mutex);
         if (old) CGImageRelease(old);
         dispatch_async(dispatch_get_main_queue(), ^{
