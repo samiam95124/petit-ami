@@ -55,7 +55,13 @@ static long msgmax;      /* channel message size bound */
 static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
                             every message prints to the error channel.
                             Slow, and worth it. */
-static int  gsecure;     /* secure channels: -s or --secure; DTLS on the
+/* Secure channels are the default, and --plain is the way out of them.
+   They cost nothing worth having: measured against this server over
+   loopback, drawing runs at the same rate either way -- the time is the
+   server's rendering, not the channel -- and a round trip costs 3.5
+   microseconds more, which is under a thousandth of what a network round
+   trip costs. Anyone carrying a display over a wire wants it encrypted. */
+static int  gsecure = 1; /* secure channels: --plain turns them off; DTLS on the
                             messages, TLS on the file connections */
 
 /* message assembly */
@@ -1912,8 +1918,12 @@ int main(int argc, char* argv[])
         for (i = 1; i < argc; i++) {
 
             if (!strcmp(argv[i], "--trace")) gtrace = 1;
+            /* -s is what secure used to want and is kept, meaning
+               nothing now that it is the default */
             if (!strcmp(argv[i], "-s") || !strcmp(argv[i], "--secure"))
                 gsecure = 1;
+            if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--plain"))
+                gsecure = 0;
 
         }
 

@@ -358,9 +358,14 @@ static void gn_frmdraw(winptr win, int mw, int mh)
         int tleft = CFRM_BUTTON_MG; /* title left margin */
         int avail = bx_min - CFRM_BUTTON_GAP - tleft; /* space for title */
 
-        /* the face carries whatever size the client last drew with;
+        /* The face carries whatever size the client last drew with;
            measurement must run at the chrome's own title size or the
-           layout truncates and justifies against phantom widths */
+           layout truncates and justifies against phantom widths. The
+           lock is held from here through the drawing: the face is shared,
+           and a program drawing from another thread -- the remote display
+           server does -- would otherwise render through it in between and
+           leave it at its own size. */
+        grx_ftlock();
         FT_Set_Pixel_Sizes(win->ftface, title_size, title_size);
         tlen = grx_ft_text_width(win->ftface, win->wintitle, len);
         int ty = (tbh + title_size) / 2 - 2;
@@ -403,6 +408,7 @@ static void gn_frmdraw(winptr win, int mw, int mh)
             }
 
         }
+        grx_ftunlock();
 
     }
 

@@ -1827,17 +1827,15 @@ breakoutwg: $(GLIBSD) graph_games/breakoutwg.c
 # remote protocol.
 #
 breakoutgr: graph_games/breakoutg.c portable/graph_client.o \
-	stub/graph_secure.c stub/screen_capture_stub.o
+	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) graph_games/breakoutg.c portable/graph_client.o \
-	    stub/graph_secure.c \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/breakoutgr
 
 breakoutwgr: graph_games/breakoutwg.c portable/graph_client.o \
-	stub/graph_secure.c stub/screen_capture_stub.o
+	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) graph_games/breakoutwg.c portable/graph_client.o \
-	    stub/graph_secure.c \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/breakoutwgr
