@@ -240,7 +240,17 @@ static int pa_win_is_child(pa_winhan h);
 
 - (CGContextRef)createOneBitmapWidth:(int)w height:(int)h
 {
-    CGFloat       scale = self.window ? [self.window backingScaleFactor] : 1.0;
+    /* All screen buffers use a fixed 1x scale (1 pixel == 1 point). This
+       must be consistent across every buffer: screen 0 is created during
+       PAWindow init (window nil) while the page-flip screens are created
+       later (window attached), so keying off backingScaleFactor gave a
+       mix of 1x and 2x buffers -- the flip then alternated between fitted
+       and doubled frames. A fixed 1x also keeps the per-flush pixel copy
+       (done on every draw op) cheap, which matters for the double-buffered
+       games; a Retina buffer quadruples that copy and starves the frame
+       timer. drawRect scales the 1x snapshot up to the window crisply
+       enough. */
+    CGFloat       scale = 1.0;
     int           pw    = (int)(w * scale);
     int           ph    = (int)(h * scale);
     CGColorSpaceRef cs  = CGColorSpaceCreateDeviceRGB();
@@ -1447,40 +1457,61 @@ CGContextRef pa_cocoa_get_context(pa_winhan win)
     return pw->view->screens[pw->view->updscr];
 }
 
+/* Snapshot the display screen into displayImage and ask the view to redraw
+   (threaded mode). Copies the bitmap into an independent CGImage so the
+   worker can keep drawing while the main thread presents. */
+static void present_display(PAView* v)
+{
+    CGContextRef ctx = v->screens[v->dspscr];
+    if (!ctx) return;
+    size_t w = CGBitmapContextGetWidth(ctx);
+    size_t h = CGBitmapContextGetHeight(ctx);
+    size_t bpr = CGBitmapContextGetBytesPerRow(ctx);
+    void* data = CGBitmapContextGetData(ctx);
+    if (!data || w == 0 || h == 0) return;
+    CFDataRef pixelData = CFDataCreate(NULL, (const UInt8*)data, h * bpr);
+    if (!pixelData) return;
+    CGColorSpaceRef cs = CGBitmapContextGetColorSpace(ctx);
+    CGDataProviderRef dp = CGDataProviderCreateWithCFData(pixelData);
+    CFRelease(pixelData);
+    CGImageRef snap = CGImageCreate(w, h,
+        CGBitmapContextGetBitsPerComponent(ctx),
+        CGBitmapContextGetBitsPerPixel(ctx),
+        bpr, cs, CGBitmapContextGetBitmapInfo(ctx),
+        dp, NULL, false, kCGRenderingIntentDefault);
+    CGDataProviderRelease(dp);
+    if (!snap) return;
+    pthread_mutex_lock(&evt_mutex);
+    CGImageRef old = v->displayImage;
+    v->displayImage = snap;
+    /* drawRect draws the snapshot into a POINT-sized rect (its context is
+       in points), so dispW/dispH are the point dimensions, not the bitmap's
+       pixel width/height. These are equal at the fixed 1x scale, but keeping
+       them decoupled means a scaled buffer would still present at the
+       correct window size instead of doubling. */
+    v->dispW = v->bmpW;
+    v->dispH = v->bmpH;
+    pthread_mutex_unlock(&evt_mutex);
+    if (old) CGImageRelease(old);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [v setNeedsDisplay:YES];
+    });
+}
+
 void pa_cocoa_flush(pa_winhan win)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
     if (threaded_mode) {
         PAView* v = pw->view;
-        CGContextRef ctx = v->screens[v->dspscr];
-        if (!ctx) return;
-        size_t w = CGBitmapContextGetWidth(ctx);
-        size_t h = CGBitmapContextGetHeight(ctx);
-        size_t bpr = CGBitmapContextGetBytesPerRow(ctx);
-        void* data = CGBitmapContextGetData(ctx);
-        if (!data || w == 0 || h == 0) return;
-        CFDataRef pixelData = CFDataCreate(NULL, (const UInt8*)data, h * bpr);
-        if (!pixelData) return;
-        CGColorSpaceRef cs = CGBitmapContextGetColorSpace(ctx);
-        CGDataProviderRef dp = CGDataProviderCreateWithCFData(pixelData);
-        CFRelease(pixelData);
-        CGImageRef snap = CGImageCreate(w, h,
-            CGBitmapContextGetBitsPerComponent(ctx),
-            CGBitmapContextGetBitsPerPixel(ctx),
-            bpr, cs, CGBitmapContextGetBitmapInfo(ctx),
-            dp, NULL, false, kCGRenderingIntentDefault);
-        CGDataProviderRelease(dp);
-        if (!snap) return;
-        pthread_mutex_lock(&evt_mutex);
-        CGImageRef old = v->displayImage;
-        v->displayImage = snap;
-        v->dispW = (int)w;
-        v->dispH = (int)h;
-        pthread_mutex_unlock(&evt_mutex);
-        if (old) CGImageRelease(old);
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [v setNeedsDisplay:YES];
-        });
+        /* When the update and display screens differ, the program is
+           double-buffering (ami_select): drawing goes to an off-screen
+           page and must not touch the display until it is flipped in.
+           Presenting here would snapshot the stable on-screen page once
+           per primitive -- dozens of redundant redraws per frame that
+           flood the compositor and make the animation flicker. The flip
+           (pa_cocoa_select_screens) presents the revealed page instead. */
+        if (v->updscr != v->dspscr) return;
+        present_display(v);
     } else {
         [pw->view setNeedsDisplay:YES];
         [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
@@ -1592,10 +1623,11 @@ void pa_cocoa_select_screens(pa_winhan win, int upd, int dsp)
     int old_dsp = v->dspscr;
     v->dspscr = dsp;
     if (dsp != old_dsp) {
+        /* the flip: reveal the newly-selected display page. In threaded
+           mode present it (flush skips off-screen draws, so this is the
+           one place the double-buffered display advances per frame). */
         if (threaded_mode) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [v setNeedsDisplay:YES];
-            });
+            present_display(v);
         } else {
             [v setNeedsDisplay:YES];
         }
