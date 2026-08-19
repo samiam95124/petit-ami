@@ -122,6 +122,10 @@ typedef struct winrec {
     int         visible;
     int         frame, sizable, sysbar;
     int         bufmod;        /* double-buffer on */
+    int         gauto;         /* window-level auto scroll/wrap state; new or
+                                  reselected screens inherit it (matches the
+                                  reference: ami_auto is a window property, not
+                                  a per-screen one) */
     int         focus;
     int         fautohold;     /* auto hold on exit */
     int         frmrun;        /* frame timer running */
@@ -613,6 +617,8 @@ static void win_init(winptr win, int wid, int parwid, int w, int h)
     if (win->maxx < 1) win->maxx = 1;
     if (win->maxy < 1) win->maxy = 1;
 
+    win->gauto = TRUE; /* window-level auto default; screens inherit below */
+
     /* init all screens */
     for (int i = 0; i < MAXCON; i++) {
         scnptr sc   = &win->screens[i];
@@ -627,7 +633,7 @@ static void win_init(winptr win, int wid, int parwid, int w, int h)
         sc->bmod    = mdnorm;
         sc->lwidth  = 1.0;
         sc->font    = fntlst;
-        sc->autof   = TRUE;
+        sc->autof   = win->gauto;
         sc->textpath = LONG_MAX / 4; /* default: east (normal reading) */
         sc->offx    = 0;
         sc->offy    = 0;
@@ -1545,6 +1551,7 @@ void ami_auto(FILE* f, long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->autof = e;
+    win->gauto = e; /* window-level: a later screen select inherits this */
 }
 
 void ami_curvis(FILE* f, long e)
@@ -1587,6 +1594,11 @@ void ami_select(FILE* f, long u, long d)
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON) return;
     win->curupd = u;
     win->curdsp = d;
+    /* the selected update screen inherits the window's auto mode, so a
+       program that set ami_auto once (on another screen) still gets it
+       here -- otherwise a page-flip page keeps the default and scrolls
+       when the other page does not, making the frame jump. */
+    win->screens[u-1].autof = win->gauto;
     pa_cocoa_select_screens(win->han, u - 1, d - 1);
 }
 
