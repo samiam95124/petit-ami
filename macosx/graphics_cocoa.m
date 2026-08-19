@@ -2535,13 +2535,16 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, long pos)
  *----------------------------------------------------------------------------*/
 
 /* Layout-compatible mirror of ami_menurec so we can walk the tree */
+/* Layout-compatible mirror of ami_menurec (include/graphics.h). The
+   integer fields are 'long' there, not 'int': on LP64 the difference is
+   16 bytes, which would shift 'face' and read a garbage/NULL string. */
 typedef struct pa_menu_node {
     struct pa_menu_node* next;
     struct pa_menu_node* branch;
-    int onoff;
-    int oneof;
-    int bar;
-    int id;
+    long onoff;
+    long oneof;
+    long bar;
+    long id;
     char* face;
 } pa_menu_node;
 
@@ -2582,7 +2585,8 @@ static void buildMenu(NSMenu* menu, pa_menu_node* list, PAMenuTarget* target)
 {
     menu.autoenablesItems = NO;
     for (pa_menu_node* m = list; m; m = m->next) {
-        NSString* title = [NSString stringWithUTF8String:m->face];
+        NSString* title = m->face ? [NSString stringWithUTF8String:m->face]
+                                  : @"";
         if (m->branch) {
             NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:title
                                                           action:nil
