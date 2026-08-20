@@ -1884,7 +1884,16 @@ long ami_rdmsg(long fn, void* msg, unsigned long len)
                          (struct sockaddr *) &opnfil[fn]->saddr.s4, &al);
 
         }
-        if (r == SOCKET_ERROR) wskerr();
+        if (r == SOCKET_ERROR) {
+
+            /* Unix recvfrom truncates a datagram larger than the buffer and
+               returns the buffer length; Windows copies the truncated data
+               to the buffer the same way but then reports WSAEMSGSIZE. Give
+               it the Unix behavior, which rdmsg is specified to have. */
+            if (WSAGetLastError() == WSAEMSGSIZE) r = len;
+            else wskerr();
+
+        }
 
     }
 
