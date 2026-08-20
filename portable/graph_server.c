@@ -979,8 +979,20 @@ static void dispatch(void)
             fflush(f);
             break;
         case GR_MCLOSEWIN:
+            /* The window list changes under the pump, so it stands down
+               first, as it does for a dialog and for the winddown. Left
+               running, it can be inside the display library handling an
+               event for this very window while this thread frees it, and
+               reach a file that is gone:
+
+                 evpump -> ami_event -> xwinevt -> txt2win -> fileno
+
+               An open is bracketed for the same reason: the pump walks
+               the same list the open is adding to. */
+            pausepump();
             fclose(f);
             h2f[rhdr()->wid] = NULL;
+            resumepump();
             break;
 
         /* ----------------------------------------------- terminal level */
@@ -1185,7 +1197,9 @@ static void dispatch(void)
             par = gi(); h = gi(); a = gi();
             if (h < 1 || h >= MAXHND || h2f[h])
                 sesserr("Invalid window handle");
+            pausepump();
             ami_openwin(&inf, &outf, par? wf(par): NULL, a);
+            resumepump();
             h2f[h] = outf;
             h2lw[h] = a;
             break;
