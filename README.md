@@ -38,6 +38,10 @@ each time.
 
 https://github.com/user-attachments/assets/5204f94b-4840-4060-a838-fe2f6590f905
 
+Note that not all transports carry sound, so some of the demos in the video
+do not carry sound. Note however that the Ami remote transport does carry
+sound ! In fact it is the only transport out of Wayland, X11 and WayPipe that does.
+
 Click to play on Youtube:
 
 [![Ami: breakout in Linux, Windows and Mac OS X, in multiple modes](https://img.youtube.com/vi/BLPet3lhYbM/maxresdefault.jpg)](https://youtu.be/BLPet3lhYbM)
