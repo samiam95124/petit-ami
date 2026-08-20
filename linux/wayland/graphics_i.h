@@ -322,6 +322,12 @@ void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
                         int pixel_size_x, int pixel_size_y,
                         int x, int y, char* s, int len);
 int  grx_ft_text_width(FT_Face face, const char* s, int len);
+/* The font lock. The calls above take it themselves; this is for holding
+   it across a run of them, as a title does -- measured at one size, then
+   drawn -- so that another thread cannot render through the same face in
+   between and leave it set up for itself. */
+void grx_ftlock(void);
+void grx_ftunlock(void);
 
 /* Take a screen capture: the client area of the first window open on the
    display, composed with the child windows, widgets and menus standing on

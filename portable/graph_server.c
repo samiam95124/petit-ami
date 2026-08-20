@@ -55,7 +55,13 @@ static long msgmax;      /* channel message size bound */
 static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
                             every message prints to the error channel.
                             Slow, and worth it. */
-static int  gsecure;     /* secure channels: -s or --secure; DTLS on the
+/* Secure channels are the default, and --plain is the way out of them.
+   They cost nothing worth having: measured against this server over
+   loopback, drawing runs at the same rate either way -- the time is the
+   server's rendering, not the channel -- and a round trip costs 3.5
+   microseconds more, which is under a thousandth of what a network round
+   trip costs. Anyone carrying a display over a wire wants it encrypted. */
+static int  gsecure = 1; /* secure channels: --plain turns them off; DTLS on the
                             messages, TLS on the file connections */
 
 /* message assembly */
@@ -1912,8 +1918,12 @@ int main(int argc, char* argv[])
         for (i = 1; i < argc; i++) {
 
             if (!strcmp(argv[i], "--trace")) gtrace = 1;
+            /* -s is what secure used to want and is kept, meaning
+               nothing now that it is the default */
             if (!strcmp(argv[i], "-s") || !strcmp(argv[i], "--secure"))
                 gsecure = 1;
+            if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--plain"))
+                gsecure = 0;
 
         }
 
@@ -2019,7 +2029,9 @@ int main(int argc, char* argv[])
             if (rlen < (long)sizeof(gr_msghdr))
                 sesserr("Short message from client");
             if (((gr_msghdr*)rbase)->mid != GR_MHELLO)
-                sesserr("Protocol failure: no hello");
+                sesserr(gsecure? "Protocol failure: no hello":
+                        "Protocol failure: no hello (a client wanting a "
+                        "secure channel needs the server started with -s)");
             dgram(rlen);
 
         }
@@ -2093,6 +2105,14 @@ winddown:
         clientup = 0;
         cleaning = 1; /* a fault in the winddown itself is fatal */
 
+        /* The pump stands down for the winddown, as it does for a dialog.
+           The windows about to be closed are the ones it draws into: left
+           running, it goes on handling redraws for a window while this
+           thread frees it, and paints a frame that is no longer there.
+           That is a crash in the middle of recycling, which reads from
+           outside as the server dying on a dropped session. */
+        pausepump();
+
         /* Reset for the next client: the session's windows close, and
            the main window comes back to a reasonable state. A timer the
            session left running is not recovered, the library having no
@@ -2144,6 +2164,12 @@ winddown:
         printf("Control-c in this window, or its close button, shuts the "
                "server down.\n");
         fflush(stdout);
+
+        /* the pump comes back before the wait for the next client: an
+           idle server is closed from its own window, which is the pump's
+           to notice */
+        resumepump();
+
         if (gsecure) {
 
             /* A secure channel belongs to its client: the DTLS

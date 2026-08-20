@@ -698,7 +698,8 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
-     line4 line5 clock calc
+     line4 line5 clock calc \
+     graph_server breakoutgr breakoutwgr
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -1866,14 +1867,24 @@ breakoutwg: $(GLIBSD) graph_games/breakoutwg.c
 
 #
 # Breakout run remotely: linked with graph_client, the display and the
-# sound served by graph_server.
+# sound served by graph_server. Two editions, matching the two graphical
+# ones: breakoutgr draws in its own window, breakoutwgr carries the menus
+# and the help and about windows, which is the fuller exercise of the
+# remote protocol.
 #
-breakoutr: graph_games/breakout.c portable/graph_client.o stub/graph_secure.c
-	$(CC) $(CFLAGS) graph_games/breakout.c portable/graph_client.o \
-	    stub/graph_secure.c \
+breakoutgr: graph_games/breakoutg.c portable/graph_client.o \
+	stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) graph_games/breakoutg.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/breakoutr
+	    -lssl -lcrypto -lm -lpthread -o bin/breakoutgr
+
+breakoutwgr: graph_games/breakoutwg.c portable/graph_client.o \
+	stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) graph_games/breakoutwg.c portable/graph_client.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/breakoutwgr
 
 #
 # Text editor

@@ -19,7 +19,8 @@
 *                                                                              *
 * The server is named by environment: GRAPH_SERVER holds the address, a name  *
 * or dotted form, 127.0.0.1 if unset; GRAPH_PORT holds the command port,      *
-* GR_DEFPORT if unset. The connection is made at program start and the        *
+* GR_DEFPORT if unset. The channels are secure unless GRAPH_PLAIN is set,     *
+* and the server must agree: it is secure unless started with --plain.        * The connection is made at program start and the        *
 * program errors if there is no server.                                       *
 *                                                                              *
 * The ordinary write stream of a window travels as write messages: the        *
@@ -2058,7 +2059,10 @@ static void ami_init_graph_client(void)
     sp = getenv("GRAPH_PORT");
     srvport = sp && sp[0]? atol(sp): GR_DEFPORT;
     gtrace = getenv("GRAPH_TRACE") != NULL;
-    gsecure = getenv("GRAPH_SECURE") != NULL;
+    /* Secure channels are the default, as they are in the server, and
+       GRAPH_PLAIN is the way out of them. GRAPH_SECURE is still honoured
+       and now says only what is already so. */
+    gsecure = getenv("GRAPH_PLAIN") == NULL;
     ami_addrnet((char*)sa, &srvaddr);
     msgmax = ami_maxmsg(srvaddr, gsecure);
     if (msgmax < 1024) error("Message channel too small");

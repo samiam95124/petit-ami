@@ -193,7 +193,33 @@ static void notexevt(pd_evt* e);
 static int  waitxevt(int type, pd_win* wh, unsigned long since, pd_evt* out);
 static void waitxmap(pd_win* wh, unsigned long since);
 
-/* forward declarations for FreeType helper functions */
+/* The font is drawn under a lock.
+   
+   A FreeType face is not thread safe, and it is shared: the glyph cache
+   hangs off it, and rendering a character frees and reallocates the slot
+   inside it. Two threads drawing text through the same face free the same
+   block twice and the heap is broken from then on, which shows up much
+   later in whatever allocates next.
+   
+   One thread is the ordinary case, but not the only one: a program can
+   draw from a thread while another is inside event(), and the remote
+   display server does exactly that -- its dispatch thread draws what the
+   client asked for while its event pump redraws window frames. The lock
+   is recursive because the drawing calls nest, string upon character upon
+   glyph. */
+static pthread_mutex_t ftlock;
+
+/* forward declarations for FreeType helper functions. The _un names are
+   the work; the ones without hold the font lock across it */
+static void ft_draw_char_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                            int pixel_size_x, int pixel_size_y,
+                            int x, int y, char c);
+static void ft_draw_char_rotated_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                                    int pixel_size_x, int pixel_size_y,
+                                    float angle_rad, int x, int y, char c);
+static void ft_cache_clear_un(void);
+static void ft_invalidate_face_un(FT_Face face);
+
 static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
                          int pixel_size_x, int pixel_size_y,
                          int x, int y, char c);
@@ -3061,7 +3087,7 @@ typedef struct {
 static glyphcache gcache[GLYPH_CACHE_SIZE];
 
 /* Invalidate all cache entries that reference a given face */
-static void ft_invalidate_face(FT_Face face)
+static void ft_invalidate_face_un(FT_Face face)
 
 {
 
@@ -3164,9 +3190,9 @@ alpha mask, honoring the draw record's mix mode.
 
 *******************************************************************************/
 
-static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
-                         int pixel_size_x, int pixel_size_y,
-                         int x, int y, char c)
+static void ft_draw_char_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                            int pixel_size_x, int pixel_size_y,
+                            int x, int y, char c)
 
 {
 
@@ -3188,9 +3214,9 @@ Renders a string onto an X11 pd_canvas* using cached glyph stipples.
 
 *******************************************************************************/
 
-void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
-                           int pixel_size_x, int pixel_size_y,
-                           int x, int y, char* s, int len)
+static void ft_draw_string_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                              int pixel_size_x, int pixel_size_y,
+                              int x, int y, char* s, int len)
 
 {
 
@@ -3214,7 +3240,7 @@ Returns the total pixel width of a string rendered with the given face.
 
 *******************************************************************************/
 
-int grx_ft_text_width(FT_Face face, const char* s, int len)
+static int ft_text_width_un(FT_Face face, const char* s, int len)
 
 {
 
@@ -3245,10 +3271,10 @@ identically.
 
 *******************************************************************************/
 
-static void ft_draw_char_rotated(pd_canvas* d, pd_draw* gc, FT_Face face,
-                                 int pixel_size_x, int pixel_size_y,
-                                 float angle_rad,
-                                 int x, int y, char c)
+static void ft_draw_char_rotated_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                                    int pixel_size_x, int pixel_size_y,
+                                    float angle_rad,
+                                    int x, int y, char c)
 
 {
 
@@ -3310,7 +3336,7 @@ Clears all cached glyph pixmaps. Called when font system is shutting down.
 
 *******************************************************************************/
 
-static void ft_cache_clear(void)
+static void ft_cache_clear_un(void)
 
 {
 
@@ -3325,6 +3351,99 @@ static void ft_cache_clear(void)
     }
 
 }
+
+/*******************************************************************************
+
+The font, taken under the lock
+
+Everything above works on a shared FT_Face and its glyph cache, which
+FreeType does not make thread safe: rendering a character frees and
+reallocates a slot inside the face, and two threads doing that at once
+free the same block twice. The library is drawn from one thread in the
+ordinary way, but not always -- a program may draw from one thread while
+another sits in event(), and the remote display server does exactly that,
+its dispatch thread drawing what the client asked for while its event
+pump redraws the window frames. These are the ways in, and they hold the
+lock; grx_ftlock is for a caller that must hold it across several of
+them, as the decorations do to measure a title and then draw it.
+
+*******************************************************************************/
+
+void grx_ftlock(void) { pthread_mutex_lock(&ftlock); }
+void grx_ftunlock(void) { pthread_mutex_unlock(&ftlock); }
+
+static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
+                         int pixel_size_x, int pixel_size_y,
+                         int x, int y, char c)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_draw_char_un(d, gc, face, pixel_size_x, pixel_size_y, x, y, c);
+    pthread_mutex_unlock(&ftlock);
+
+}
+
+void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
+                        int pixel_size_x, int pixel_size_y,
+                        int x, int y, char* s, int len)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_draw_string_un(d, gc, face, pixel_size_x, pixel_size_y, x, y, s, len);
+    pthread_mutex_unlock(&ftlock);
+
+}
+
+int grx_ft_text_width(FT_Face face, const char* s, int len)
+
+{
+
+    int w;
+
+    pthread_mutex_lock(&ftlock);
+    w = ft_text_width_un(face, s, len);
+    pthread_mutex_unlock(&ftlock);
+
+    return (w);
+
+}
+
+static void ft_draw_char_rotated(pd_canvas* d, pd_draw* gc, FT_Face face,
+                                 int pixel_size_x, int pixel_size_y,
+                                 float angle_rad,
+                                 int x, int y, char c)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_draw_char_rotated_un(d, gc, face, pixel_size_x, pixel_size_y,
+                            angle_rad, x, y, c);
+    pthread_mutex_unlock(&ftlock);
+
+}
+
+static void ft_cache_clear(void)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_cache_clear_un();
+    pthread_mutex_unlock(&ftlock);
+
+}
+
+static void ft_invalidate_face(FT_Face face)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_invalidate_face_un(face);
+    pthread_mutex_unlock(&ftlock);
+
+}
+
 
 /*******************************************************************************
 
@@ -16593,6 +16712,18 @@ static void ami_init_graphics(int argc, char *argv[])
     /* set internal states */
     fend = FALSE; /* set no end of program ordered */
     fautohold = TRUE; /* set automatically hold self terminators */
+
+    /* the font lock, before any window exists to draw in */
+    {
+
+        pthread_mutexattr_t ma;
+
+        pthread_mutexattr_init(&ma);
+        pthread_mutexattr_settype(&ma, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&ftlock, &ma);
+        pthread_mutexattr_destroy(&ma);
+
+    }
 
     fntlst = NULL; /* clear font list */
     fntcnt = 0;
