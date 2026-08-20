@@ -41,6 +41,7 @@
 #include <graph_remote.h>
 #include <widget_base.h>
 #include <sound.h>
+#include <services.h>
 #include <setjmp.h>
 #include <execinfo.h>
 
@@ -76,7 +77,7 @@ static long           rlen;
 
 /* the event channel is written by the pump thread and, for errors, the
    main thread; the lock keeps the messages whole */
-static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
+static long            evsend;     /* services lock: one sender at a time */
 static int             evsendheld; /* the send holds it; a fault must free it */
 
 /* The display library is multithreadable and carries its own locks: the
@@ -92,7 +93,7 @@ static int  hellopend;   /* a mid-session hello opened the next session */
    from the display, the close button or a control-c typed in the
    window, on an idle server as cancellation. It stops only for the
    process exit, which must not tear the library down around it. */
-static pthread_t pump;     /* the pump thread */
+static long      pump;     /* the pump, by services thread id */
 static int       pumpstop; /* exiting: leave the library and return */
 
 /* The pump stands down while a modal dialog runs. A dialog pumps its
@@ -125,7 +126,7 @@ static char sesti;           /* input time base started */
 
 static jmp_buf   pumpjmp;    /* the pump's escape from a dead send */
 static int       pumpjmpset; /* it is armed */
-static pthread_t pumptid;    /* the pump's thread */
+static int       onpump;     /* set on the pump's own thread */
 static jmp_buf   closejmp;   /* escape for a failing deliberate close */
 static int       inclose;    /* a deliberate close is in progress */
 
@@ -173,15 +174,20 @@ static jmp_buf sesjmp;    /* recycle point */
 static int     pumping;   /* the pump thread is up */
 static int     cleaning;  /* winding down; a second fault is fatal */
 
-/* the display thread's work mailbox; see ondisplay() below */
-static pthread_mutex_t joblock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  jobdone = PTHREAD_COND_INITIALIZER;
+/* The display thread's work mailbox; see ondisplay() below. The lock and
+   the signal are services' own, so the handoff is the same on any system
+   services runs on: waitsig releases the lock, waits, and takes it back. */
+static long            joblock;    /* services concurrency lock */
+static long            jobdone;    /* services signal: the job is finished */
+static long            pumpgone;   /* and this one: the pump has stopped */
 static void          (*jobfn)(void*); /* the call to make, NULL for none */
 static void*           jobarg;
 static int             jobsts;     /* the job took a session error */
 static char            jobmsg[256];/* and this is what it was */
 static jmp_buf         jobjmp;     /* the pump's own way out of a fault */
 static int             jobjmpset;
+static int             injob;      /* the pump is inside a posted job */
+static int             inpumpevt;  /* the pump is forwarding an event */
 
 
 static void sesserr(const char* es)
@@ -191,7 +197,7 @@ static void sesserr(const char* es)
     /* On the display's thread inside a posted job the way out is back to
        the poster: it owns the session and the session's jump, and it is
        the one that reports and drops. */
-    if (!cleaning && jobjmpset && pthread_equal(pthread_self(), pumptid)) {
+    if (!cleaning && jobjmpset) { /* only the pump sets it, and only in a job */
 
         snprintf(jobmsg, sizeof(jobmsg), "%s", es);
         longjmp(jobjmp, 1);
@@ -692,11 +698,11 @@ static void evsend1(gr_msgevt* we)
     memcpy(ebuf+sizeof(gr_msghdr), we, sizeof(gr_msgevt));
     /* the write does not return on failure, it jumps: the flag is how the
        fault path knows to free this */
-    pthread_mutex_lock(&evsend);
+    ami_lock(evsend);
     evsendheld = 1;
     ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
     evsendheld = 0;
-    pthread_mutex_unlock(&evsend);
+    ami_unlock(evsend);
 
 }
 
@@ -714,20 +720,20 @@ static void neterr(const char* es)
     if (evsendheld) {
 
         evsendheld = 0;
-        pthread_mutex_unlock(&evsend);
+        ami_unlock(evsend);
 
     }
     if (inclose) longjmp(closejmp, 1); /* the close completes */
     /* Inside a posted job this is a reply that could not be sent, and the
        wire thread is waiting on that job: the way out is back to it, or it
        waits for a job that will never finish. sesserr takes that route. */
-    if (jobjmpset && pthread_equal(pthread_self(), pumptid)) {
+    if (jobjmpset) { /* a reply that could not go: back to the poster */
 
         clientup = 0;
         sesserr("Network channel failed");
 
     }
-    if (pthread_equal(pthread_self(), pumptid)) {
+    if (inpumpevt) { /* an event that could not go */
 
         /* The client is gone. The pump idles on; the wire thread, asleep
            in its channel read, is woken by shutting the command socket
@@ -777,8 +783,7 @@ static void jt(const char* what)
 
     if (jobtrace < 0) jobtrace = getenv("GS_JOBTRACE") != NULL;
     if (!jobtrace) return;
-    n = snprintf(b, sizeof(b), "[%s] %s\n",
-                 pthread_equal(pthread_self(), pumptid)? "pump": "wire", what);
+    n = snprintf(b, sizeof(b), "[%s] %s\n", onpump? "pump": "wire", what);
     write(2, b, n);
 
 }
@@ -805,18 +810,18 @@ static void ondisplay(void (*fn)(void*), void* arg)
 
 {
 
-    if (pthread_equal(pthread_self(), pumptid)) { fn(arg); return; }
-    pthread_mutex_lock(&joblock);
+    if (injob) { fn(arg); return; } /* already on the display's thread */
+    ami_lock(joblock);
     jobfn = fn;
     jobarg = arg;
     jobsts = 0;
-    pthread_mutex_unlock(&joblock);
+    ami_unlock(joblock);
     jt("posted");
     wakepump();
     jt("woke the pump, waiting");
-    pthread_mutex_lock(&joblock);
-    while (jobfn) pthread_cond_wait(&jobdone, &joblock);
-    pthread_mutex_unlock(&joblock);
+    ami_lock(joblock);
+    while (jobfn) ami_waitsig(joblock, jobdone);
+    ami_unlock(joblock);
     jt("job done");
     /* a fault in the job is taken here, on the thread that owns the session */
     if (jobsts) sesserr(jobmsg);
@@ -833,24 +838,26 @@ static void runjob(void)
     void (*fn)(void*);
     void*  arg;
 
-    pthread_mutex_lock(&joblock);
+    ami_lock(joblock);
     fn = jobfn;
     arg = jobarg;
-    pthread_mutex_unlock(&joblock);
+    ami_unlock(joblock);
     if (!fn) return;
     jt("running a job");
     if (!setjmp(jobjmp)) {
 
         jobjmpset = 1;
+        injob = 1;
         fn(arg);
         jobsts = 0;
 
     } else jobsts = 1; /* the job faulted; the poster reports it */
     jobjmpset = 0;
-    pthread_mutex_lock(&joblock);
+    injob = 0;
+    ami_lock(joblock);
     jobfn = NULL;
-    pthread_cond_broadcast(&jobdone);
-    pthread_mutex_unlock(&joblock);
+    ami_sendsig(jobdone);
+    ami_unlock(joblock);
     jt("job finished, back to the display");
 
 }
@@ -928,7 +935,9 @@ static void job_winddown(void* a)
 }
 
 
-static void* evpump(void* arg)
+static int pumpstopped; /* the pump has left; stoppump waits on this */
+
+static void evpump(void)
 
 {
 
@@ -937,25 +946,24 @@ static void* evpump(void* arg)
     gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
     ami_evtrec    er;
 
-    (void)arg;
-    pumptid = pthread_self();
+    onpump = 1; /* everything below this is the pump's */
+    jt("pump entered");
     for (;;) {
 
         if (setjmp(pumpjmp)) {
 
             /* a send failed under this pass: the client is gone and
-               the event is dropped; the session drop is the dispatch
+               the event is dropped; the session drop is the wire
                thread's to notice */
 
         }
         pumpjmpset = 1;
+        inpumpevt = 0; /* whatever the last pass was doing, it is over */
         /* the wire thread's work first: it is waiting on it, and the
            display is this thread's to give */
         runjob();
-        jt("waiting on the display");
         ami_event(stdin, &er);
-        jt("the display answered");
-        if (pumpstop) return (NULL); /* the process is exiting */
+        if (pumpstop) break; /* the process is exiting */
         if ((long)er.etype == GR_EVWAKE) continue; /* ours: a job, or the stop */
         if (gtrace && !clientup)
             fprintf(stderr, "gs.e %-15s w%ld (idle)\n",
@@ -973,6 +981,7 @@ static void* evpump(void* arg)
 
         }
         if (!clientup) continue; /* idle: nobody to forward to */
+        inpumpevt = 1; /* a send that fails under here is an event's */
         (void)h;
         memset(we, 0, sizeof(gr_msgevt));
         we->winid = lw2h(er.winid);
@@ -1013,10 +1022,15 @@ static void* evpump(void* arg)
             }
 
         }
+        inpumpevt = 0;
 
     }
-
-    return (NULL);
+    /* the stop was asked for and taken; whoever waits can go */
+    jt("pump leaving");
+    ami_lock(joblock);
+    pumpstopped = 1;
+    ami_sendsig(pumpgone);
+    ami_unlock(joblock);
 
 }
 
@@ -1028,11 +1042,21 @@ static void stoppump(void)
 
     ami_evtrec wake;
 
+    /* The pump is made after the first client is waited for, so a server
+       stopped before any client has ever connected has none. There is
+       nothing to wake and nothing to wait for. */
+    if (pump < 1) return;
+    jt("stoppump: asking");
     pumpstop = 1;
     memset(&wake, 0, sizeof(wake));
     wake.etype = (ami_evtcod)GR_EVWAKE;
     ami_sendevent(stdout, &wake);
-    pthread_join(pump, NULL);
+    /* services has no join: the pump says when it has gone */
+    jt("stoppump: waiting");
+    ami_lock(joblock);
+    while (!pumpstopped) ami_waitsig(joblock, pumpgone);
+    ami_unlock(joblock);
+    jt("stoppump: the pump has gone");
 
 }
 
@@ -1073,7 +1097,7 @@ static void sigmask_early(void)
 
 }
 
-static void* sigrun(void* arg)
+static void sigrun(void)
 
 {
 
@@ -1083,13 +1107,12 @@ static void* sigrun(void* arg)
     gr_msghdr*    h = (gr_msghdr*)ebuf;
     gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
 
-    (void)arg;
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
     sigaddset(&set, SIGTERM);
     for (;;) {
 
-        if (sigwait(&set, &sig)) return (NULL);
+        if (sigwait(&set, &sig)) return;
         if (!clientup || sigasked) { stoppump(); exit(1); }
         sigasked = 1;
         if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
@@ -1100,13 +1123,11 @@ static void* sigrun(void* arg)
         memset(we, 0, sizeof(gr_msgevt));
         we->winid = 1;
         we->etype = (long)ami_etterm;
-        pthread_mutex_lock(&evsend);
+        ami_lock(evsend);
         ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
-        pthread_mutex_unlock(&evsend);
+        ami_unlock(evsend);
 
     }
-
-    return (NULL);
 
 }
 
@@ -2101,7 +2122,6 @@ int main(int argc, char* argv[])
     signal(SIGFPE, crashbt);
 
     const char* sp;
-    pthread_t   st;
     sigset_t    sset;
     unsigned long la;
 
@@ -2127,7 +2147,12 @@ int main(int argc, char* argv[])
        to terminate, as the close button does; the mask went up in the
        first constructor, before any thread existed */
     (void)sset;
-    pthread_create(&st, NULL, sigrun, NULL);
+    /* the locks and signals the handoff runs on, before any thread */
+    joblock = ami_initlock();
+    evsend = ami_initlock();
+    jobdone = ami_initsig();
+    pumpgone = ami_initsig();
+    ami_newthread(sigrun);
     /* The server never holds its final screen: it is infrastructure,
        and its exit must release the display and the ports at once. The
        hold belongs to programs, and a session's program never exits
@@ -2194,8 +2219,8 @@ int main(int argc, char* argv[])
 
     /* the pump lives across sessions: idle it discards, and the display
        can cancel an idle server */
-    if (pthread_create(&pump, NULL, evpump, NULL))
-        error("Cannot start event pump");
+    pump = ami_newthread(evpump);
+    if (pump < 1) error("Cannot start event pump");
 
     /* the session loop: serve a client, reset, wait for the next; a
        session error jumps back here, winds down, and recycles. The
