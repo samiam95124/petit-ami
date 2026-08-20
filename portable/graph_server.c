@@ -1054,7 +1054,12 @@ static void dispatch(void)
             memcpy(s1, rbuf+roff, a);
             ami_wrtstrn(f, s1, a);
             break;
-        case GR_MSIZBUF: a = gi(); b = gi(); ami_sizbuf(f, a, b); break;
+        case GR_MSIZBUF:
+            /* a size reallocates the window's buffer, and the pump draws
+               that window's frame into it. See the group at GR_MSIZBUFG. */
+            a = gi(); b = gi();
+            pausepump(); ami_sizbuf(f, a, b); resumepump();
+            break;
         case GR_MTITLE: gstr(s1, MAXSTR); ami_title(f, s1); break;
         case GR_MFCOLORC:
             a = gi(); b = gi(); c = gi(); ami_fcolorc(f, a, b, c); break;
@@ -1205,16 +1210,39 @@ static void dispatch(void)
             break;
 
         }
-        case GR_MBUFFER: a = gi(); ami_buffer(f, a); break;
-        case GR_MSIZBUFG: a = gi(); b = gi(); ami_sizbufg(f, a, b); break;
+        /* The sizes stand the pump down, as the open and the close do.
+           A size reallocates the window's buffer while the pump may be
+           drawing that window's frame into it, which is a write into
+           freed memory and a fault in the plot rather than in the font:
+
+             evpump -> ami_event -> xwinevt -> frmdraw
+             -> grx_ft_draw_string -> ft_draw_char -> plot
+
+           The font lock does not reach this: it makes the face safe to
+           share, not the surface drawn on. tests/window_race_test.c is
+           what found it and is what says it is closed. */
+        case GR_MBUFFER:
+            a = gi();
+            pausepump(); ami_buffer(f, a); resumepump();
+            break;
+        case GR_MSIZBUFG:
+            a = gi(); b = gi();
+            pausepump(); ami_sizbufg(f, a, b); resumepump();
+            break;
         case GR_MGETSIZ:
             ami_getsiz(f, &o1, &o2);
             rbegin(); ri(o1); ri(o2); rsend(); break;
         case GR_MGETSIZG:
             ami_getsizg(f, &o1, &o2);
             rbegin(); ri(o1); ri(o2); rsend(); break;
-        case GR_MSETSIZ: a = gi(); b = gi(); ami_setsiz(f, a, b); break;
-        case GR_MSETSIZG: a = gi(); b = gi(); ami_setsizg(f, a, b); break;
+        case GR_MSETSIZ:
+            a = gi(); b = gi();
+            pausepump(); ami_setsiz(f, a, b); resumepump();
+            break;
+        case GR_MSETSIZG:
+            a = gi(); b = gi();
+            pausepump(); ami_setsizg(f, a, b); resumepump();
+            break;
         case GR_MSETPOS: a = gi(); b = gi(); ami_setpos(f, a, b); break;
         case GR_MSETPOSG: a = gi(); b = gi(); ami_setposg(f, a, b); break;
         case GR_MDRAGWIN: ami_dragwin(f); break;
