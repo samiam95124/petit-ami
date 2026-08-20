@@ -31,6 +31,13 @@ graphical library:
 
 ![the character mail client on a graphical window](doc/images/mail_charwin.png)
 
+And the whole of it in motion. Breakout, run eight ways: in characters
+and in pixels, on this machine, over ssh, over Ami's own remote display
+protocol, over waypipe, and on Mac OS X and Windows -- the same program
+each time. Click to play:
+
+[![Ami: breakout in Linux, Windows and Mac OS X, in multiple modes](https://img.youtube.com/vi/BLPet3lhYbM/maxresdefault.jpg)](https://youtu.be/BLPet3lhYbM)
+
 ---
 
 The AMI tk is a toolkit based on the idea that carefully crafted display
