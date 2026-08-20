@@ -10,8 +10,8 @@ Place random balls
 #include <localdefs.h>
 #include <graphics.h>
 
-int ballsize;
-int halfball;
+long ballsize;
+long halfball;
 
 int waitframe(void)
 
@@ -29,7 +29,7 @@ int waitframe(void)
 
 }
 
-void drawball(ami_color c, int  x, int y)
+void drawball(ami_color c, long x, long y)
 
 {
 
@@ -40,11 +40,11 @@ void drawball(ami_color c, int  x, int y)
 
 /* Find random number between 0 and N. */
 
-static int randn(int limit)
+static long randn(long limit)
 
 {
 
-    return ((long)limit+1)*rand()/RAND_MAX;
+    return (limit+1)*rand()/RAND_MAX;
 
 }
 

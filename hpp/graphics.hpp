@@ -130,6 +130,8 @@ typedef enum {
     /** drop edit box signals done */   etdrebox,
     /** slider position */              etsldpos,
     /** tab bar select */               ettabbar,
+    /** enlarge what is displayed */    etusize,
+    /** reduce what is displayed */     etdsize,
 
     /* Reserved extra code areas, these are module defined. */
     etsys    = 0x1000, /**< start of base system reserved codes */
@@ -142,141 +144,141 @@ typedef enum {
 /* event record */
 typedef struct {
 
-    /* identifier of window for event */ int winid;
+    /* identifier of window for event */ long winid;
     /* event type */                     evtcod etype;
-    /* event was handled */              int handled;
+    /* event was handled */              long handled;
     union {
 
         /* these events require parameter data */
 
         /** etchar: ANSI character returned */  char echar;
-        /** ettim: timer handle that matured */ int timnum;
+        /** ettim: timer handle that matured */ long timnum;
         /** etmoumov: */
         struct {
 
-            /** mouse number */   int mmoun;
-            /** mouse movement */ int moupx, moupy;
+            /** mouse number */   long mmoun;
+            /** mouse movement */ long moupx, moupy;
 
         };
         /* etmouba */
         struct {
 
-            /** mouse handle */  int amoun;
-            /** button number */ int amoubn;
+            /** mouse handle */  long amoun;
+            /** button number */ long amoubn;
 
         };
         /* etmoubd */
         struct {
 
-            /** mouse handle */  int dmoun;
-            /** button number */ int dmoubn;
+            /** mouse handle */  long dmoun;
+            /** button number */ long dmoubn;
 
         };
         /* etjoyba */
         struct {
 
-            /** joystick number */ int ajoyn;
-            /** button number */   int ajoybn;
+            /** joystick number */ long ajoyn;
+            /** button number */   long ajoybn;
 
         };
         /* etjoybd */
         struct {
 
-            /** joystick number */ int djoyn;
-            /** button number */   int djoybn;
+            /** joystick number */ long djoyn;
+            /** button number */   long djoybn;
 
         };
         /* etjoymov */
         struct {
 
-            /** joystick number */      int mjoyn;
-            /** joystick coordinates */ int joypx, joypy, joypz;
-                                        int joyp4, joyp5, joyp6;
+            /** joystick number */      long mjoyn;
+            /** joystick coordinates */ long joypx, joypy, joypz;
+                                        long joyp4, joyp5, joyp6;
 
         };
         /* etfun */
-        /** function key */ int fkey;
+        /** function key */ long fkey;
         /* etresize */
         struct {
 
-            int rszx, rszy, rszxg, rszyg;
+            long rszx, rszy, rszxg, rszyg;
 
         };
 
         /** etmoumovg: */
         struct {
 
-            /** mouse number */   int mmoung;
-            /** mouse movement */ int moupxg, moupyg;
+            /** mouse number */   long mmoung;
+            /** mouse movement */ long moupxg, moupyg;
 
         };
         /** etredraw */
         struct {
 
             /** bounding rectangle */
-            int rsx, rsy, rex, rey;
+            long rsx, rsy, rex, rey;
 
         };
         /* etmenus */
-        int menuid; /**< menu item selected */
+        long menuid; /**< menu item selected */
         /* etbutton */
-        int butid; /**< button id */
+        long butid; /**< button id */
         /* etchkbox */
-        int ckbxid; /**< checkbox id */
+        long ckbxid; /**< checkbox id */
         /* etradbut */
-        int radbid; /**< radio button id */
+        long radbid; /**< radio button id */
         /* etsclull */
-        int sclulid; /**< scroll up/left line id */
+        long sclulid; /**< scroll up/left line id */
         /* etscldrl */
-        int scldrid; /**< scroll down/right line id */
+        long scldrid; /**< scroll down/right line id */
         /* etsclulp */
-        int sclupid; /**< scroll up/left page id */
+        long sclupid; /**< scroll up/left page id */
         /* etscldrp */
-        int scldpid; /**< scroll down/right page id */
+        long scldpid; /**< scroll down/right page id */
         /* etsclpos */
         struct {
 
-            int sclpid; /**< scroll bar id */
-            int sclpos; /**< scroll bar position */
+            long sclpid; /**< scroll bar id */
+            long sclpos; /**< scroll bar position */
 
         };
         /* etedtbox */
-        int edtbid; /**< edit box complete id */
+        long edtbid; /**< edit box complete id */
         /* etnumbox */
         struct {
 
-            int numbid; /**< num sel box id */
-            int numbsl; /**< num select value */
+            long numbid; /**< num sel box id */
+            long numbsl; /**< num select value */
 
         };
         /* etlstbox */
         struct {
 
-            int lstbid; /**< list box id */
-            int lstbsl; /**< list box select number */
+            long lstbid; /**< list box id */
+            long lstbsl; /**< list box select number */
 
         };
         /* etdrpbox */
         struct {
 
-            int drpbid; /**< drop box id */
-            int drpbsl; /**< drop box select */
+            long drpbid; /**< drop box id */
+            long drpbsl; /**< drop box select */
 
         };
         /* etdrebox */
-        int drebid; /**< drop edit box id */
+        long drebid; /**< drop edit box id */
         /* etsldpos */
         struct {
 
-            int sldpid; /**< slider id */
-            int sldpos; /**< slider position */
+            long sldpid; /**< slider id */
+            long sldpos; /**< slider position */
 
         };
         /* ettabbar */
         struct {
 
-            int tabid;  /**< tab bar id */
-            int tabsel; /**< tab select */
+            long tabid;  /**< tab bar id */
+            long tabsel; /**< tab select */
 
         };
 
@@ -293,16 +295,16 @@ typedef struct menurec {
 
         menuptr next;   /**< next menu item in list */
         menuptr branch; /**< menu branch */
-        int     onoff;  /**< on/off highlight */
-        int     oneof;  /**< "one of" highlight */
-        int     bar;    /**< place bar under */
-        int     id;     /**< id of menu item */
+        long     onoff;  /**< on/off highlight */
+        long     oneof;  /**< "one of" highlight */
+        long     bar;    /**< place bar under */
+        long     id;     /**< id of menu item */
         char*   face;   /**< text to place on button */
 
 } menurec;
 
 /* standard menu selector */
-typedef int stdmenusel;
+typedef long stdmenusel;
 
 /* windows mode sets */
 typedef enum {
@@ -312,7 +314,7 @@ typedef enum {
     wmsysbar /**< system bar on/off */
 
 } winmod;
-typedef int winmodset;
+typedef long winmodset;
 
 /* string set for list box */
 typedef struct strrec* strptr;
@@ -328,28 +330,28 @@ typedef enum { totop, toright, tobottom, toleft } tabori;
 
 /* settable items in find query */
 typedef enum { qfncase, qfnup, qfnre } qfnopt;
-typedef int qfnopts;
+typedef long qfnopts;
 
 /* settable items in replace query */
 typedef enum { qfrcase, qfrup, qfrre, qfrfind, qfrallfil, qfralllin } qfropt;
-typedef int qfropts;
+typedef long qfropts;
 
 /* effects in font query */
 typedef enum { qfteblink, qftereverse, qfteunderline, qftesuperscript,
                qftesubscript, qfteitalic, qftebold, qftestrikeout,
                qftestandout, qftecondensed, qfteextended, qftexlight,
                qftelight, qftexbold, qftehollow, qfteraised } qfteffect;
-typedef int qfteffects;
+typedef long qfteffects;
 
 /* procedural interface */
 
 /* text */
-void cursor(FILE* f, int x, int y);
-void cursor(int x, int y);
-int  maxx(FILE* f);
-int  maxx(void);
-int  maxy(FILE* f);
-int  maxy(void);
+void cursor(FILE* f, long x, long y);
+void cursor(long x, long y);
+long  maxx(FILE* f);
+long  maxx(void);
+long  maxy(FILE* f);
+long  maxy(void);
 void home(FILE* f);
 void home(void);
 void del(FILE* f);
@@ -362,75 +364,75 @@ void left(FILE* f);
 void left(void);
 void right(FILE* f);
 void right(void);
-void blink(FILE* f, int e);
-void blink(int e);
-void reverse(FILE* f, int e);
-void reverse(int e);
-void underline(FILE* f, int e);
-void underline(int e);
-void superscript(FILE* f, int e);
-void superscript(int e);
-void subscript(FILE* f, int e);
-void subscript(int e);
-void italic(FILE* f, int e);
-void italic(int e);
-void bold(FILE* f, int e);
-void bold(int e);
-void strikeout(FILE* f, int e);
-void strikeout(int e);
-void standout(FILE* f, int e);
-void standout(int e);
+void blink(FILE* f, long e);
+void blink(long e);
+void reverse(FILE* f, long e);
+void reverse(long e);
+void underline(FILE* f, long e);
+void underline(long e);
+void superscript(FILE* f, long e);
+void superscript(long e);
+void subscript(FILE* f, long e);
+void subscript(long e);
+void italic(FILE* f, long e);
+void italic(long e);
+void bold(FILE* f, long e);
+void bold(long e);
+void strikeout(FILE* f, long e);
+void strikeout(long e);
+void standout(FILE* f, long e);
+void standout(long e);
 void fcolor(FILE* f, color c);
 void fcolor(color c);
 void bcolor(FILE* f, color c);
 void bcolor(color c);
-void autom(FILE* f, int e);
-void autom(int e);
-void curvis(FILE* f, int e);
-void curvis(int e);
-void scroll(FILE* f, int x, int y);
-void scroll(int x, int y);
-int  curx(FILE* f);
-int  curx(void);
-int  cury(FILE* f);
-int  cury(void);
-int  curbnd(FILE* f);
-int  curbnd(void);
-void select(FILE* f, int u, int d);
-void select(int u, int d);
+void autom(FILE* f, long e);
+void autom(long e);
+void curvis(FILE* f, long e);
+void curvis(long e);
+void scroll(FILE* f, long x, long y);
+void scroll(long x, long y);
+long  curx(FILE* f);
+long  curx(void);
+long  cury(FILE* f);
+long  cury(void);
+long  curbnd(FILE* f);
+long  curbnd(void);
+void select(FILE* f, long u, long d);
+void select(long u, long d);
 void event(FILE* f, evtrec* er);
 void event(evtrec* er);
-void timer(FILE* f, int i, long t, int r);
-void timer(int i, long t, int r);
-void killtimer(FILE* f, int i);
-void killtimer(int i);
-int  mouse(FILE* f);
-int  mouse(void);
-int  mousebutton(FILE* f, int m);
-int  mousebutton(int m);
-int  joystick(FILE* f);
-int  joystick(void);
-int  joybutton(FILE* f, int j);
-int  joybutton(int j);
-int  joyaxis(FILE* f, int j);
-int  joyaxis(int j);
-void settab(FILE* f, int t);
-void settab(int t);
-void restab(FILE* f, int t);
-void restab(int t);
+void timer(FILE* f, long i, long t, long r);
+void timer(long i, long t, long r);
+void killtimer(FILE* f, long i);
+void killtimer(long i);
+long  mouse(FILE* f);
+long  mouse(void);
+long  mousebutton(FILE* f, long m);
+long  mousebutton(long m);
+long  joystick(FILE* f);
+long  joystick(void);
+long  joybutton(FILE* f, long j);
+long  joybutton(long j);
+long  joyaxis(FILE* f, long j);
+long  joyaxis(long j);
+void settab(FILE* f, long t);
+void settab(long t);
+void restab(FILE* f, long t);
+void restab(long t);
 void clrtab(FILE* f);
 void clrtab(void);
-int  funkey(FILE* f);
-int  funkey(void);
-void frametimer(FILE* f, int e);
-void frametimer(int e);
-void autohold(int e);
+long  funkey(FILE* f);
+long  funkey(void);
+void frametimer(FILE* f, long e);
+void frametimer(long e);
+void autohold(long e);
 void wrtstr(FILE* f, char* s);
 void wrtstr(char* s);
-void wrtstrn(FILE* f, char* s, int n);
-void wrtstrn(char* s, int n);
-void sizbuf(FILE* f, int x, int y);
-void sizbuf(int x, int y);
+void wrtstrn(FILE* f, char* s, long n);
+void wrtstrn(char* s, long n);
+void sizbuf(FILE* f, long x, long y);
+void sizbuf(long x, long y);
 void title(FILE* f, char* ts);
 void title(char* ts);
 void eventover(evtcod e, pevthan eh, pevthan* oeh);
@@ -439,44 +441,44 @@ void sendevent(FILE* f, evtrec* er);
 void sendevent(evtrec* er);
 
 /* graphical */
-int  maxxg(FILE* f);
-int  maxxg(void);
-int  maxyg(FILE* f);
-int  maxyg(void);
-int  curxg(FILE* f);
-int  curxg(void);
-int  curyg(FILE* f);
-int  curyg(void);
-void line(FILE* f, int x1, int y1, int x2, int y2);
-void line(int x1, int y1, int x2, int y2);
-void linewidth(FILE* f, int w);
-void linewidth(int w);
-void rect(FILE* f, int x1, int y1, int x2, int y2);
-void rect(int x1, int y1, int x2, int y2);
-void frect(FILE* f, int x1, int y1, int x2, int y2);
-void frect(int x1, int y1, int x2, int y2);
-void rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-void rrect(int x1, int y1, int x2, int y2, int xs, int ys);
-void frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-void frrect(int x1, int y1, int x2, int y2, int xs, int ys);
-void ellipse(FILE* f, int x1, int y1, int x2, int y2);
-void ellipse(int x1, int y1, int x2, int y2);
-void fellipse(FILE* f, int x1, int y1, int x2, int y2);
-void fellipse(int x1, int y1, int x2, int y2);
-void arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-void arc(int x1, int y1, int x2, int y2, int sa, int ea);
-void farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-void farc(int x1, int y1, int x2, int y2, int sa, int ea);
-void fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-void fchord(int x1, int y1, int x2, int y2, int sa, int ea);
-void ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3);
-void ftriangle(int x1, int y1, int x2, int y2, int x3, int y3);
-void cursorg(FILE* f, int x, int y);
-void cursorg(int x, int y);
-int  baseline(FILE* f);
-int  baseline(void);
-void setpixel(FILE* f, int x, int y);
-void setpixel(int x, int y);
+long  maxxg(FILE* f);
+long  maxxg(void);
+long  maxyg(FILE* f);
+long  maxyg(void);
+long  curxg(FILE* f);
+long  curxg(void);
+long  curyg(FILE* f);
+long  curyg(void);
+void line(FILE* f, long x1, long y1, long x2, long y2);
+void line(long x1, long y1, long x2, long y2);
+void linewidth(FILE* f, long w);
+void linewidth(long w);
+void rect(FILE* f, long x1, long y1, long x2, long y2);
+void rect(long x1, long y1, long x2, long y2);
+void frect(FILE* f, long x1, long y1, long x2, long y2);
+void frect(long x1, long y1, long x2, long y2);
+void rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys);
+void rrect(long x1, long y1, long x2, long y2, long xs, long ys);
+void frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys);
+void frrect(long x1, long y1, long x2, long y2, long xs, long ys);
+void ellipse(FILE* f, long x1, long y1, long x2, long y2);
+void ellipse(long x1, long y1, long x2, long y2);
+void fellipse(FILE* f, long x1, long y1, long x2, long y2);
+void fellipse(long x1, long y1, long x2, long y2);
+void arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+void arc(long x1, long y1, long x2, long y2, long sa, long ea);
+void farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+void farc(long x1, long y1, long x2, long y2, long sa, long ea);
+void fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+void fchord(long x1, long y1, long x2, long y2, long sa, long ea);
+void ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3);
+void ftriangle(long x1, long y1, long x2, long y2, long x3, long y3);
+void cursorg(FILE* f, long x, long y);
+void cursorg(long x, long y);
+long  baseline(FILE* f);
+long  baseline(void);
+void setpixel(FILE* f, long x, long y);
+void setpixel(long x, long y);
 void fover(FILE* f);
 void fover(void);
 void bover(FILE* f);
@@ -497,301 +499,241 @@ void for_(FILE* f);
 void for_(void);
 void bor(FILE* f);
 void bor(void);
-int  chrsizx(FILE* f);
-int  chrsizx(void);
-int  chrsizy(FILE* f);
-int  chrsizy(void);
-int  fonts(FILE* f);
-int  fonts(void);
-void font(FILE* f, int fc);
-void font(int fc);
-void fontnam(FILE* f, int fc, char* fns, int fnsl);
-void fontnam(int fc, char* fns, int fnsl);
-void fontsiz(FILE* f, int s);
-void fontsiz(int s);
-void chrspcy(FILE* f, int s);
-void chrspcy(int s);
-void chrspcx(FILE* f, int s);
-void chrspcx(int s);
-int  dpmx(FILE* f);
-int  dpmx(void);
-int  dpmy(FILE* f);
-int  dpmy(void);
-int  strsiz(FILE* f, const char* s);
-int  strsiz(const char* s);
-int  chrpos(FILE* f, const char* s, int p);
-int  chrpos(const char* s, int p);
-void writejust(FILE* f, const char* s, int n);
-void writejust(const char* s, int n);
-int  justpos(FILE* f, const char* s, int p, int n);
-int  justpos(const char* s, int p, int n);
-void condensed(FILE* f, int e);
-void condensed(int e);
-void extended(FILE* f, int e);
-void extended(int e);
-void xlight(FILE* f, int e);
-void xlight(int e);
-void light(FILE* f, int e);
-void light(int e);
-void xbold(FILE* f, int e);
-void xbold(int e);
-void hollow(FILE* f, int e);
-void hollow(int e);
-void raised(FILE* f, int e);
-void raised(int e);
-void settabg(FILE* f, int t);
-void settabg(int t);
-void restabg(FILE* f, int t);
-void restabg(int t);
-void fcolorg(FILE* f, int r, int g, int b);
-void fcolorg(int r, int g, int b);
-void fcolorc(FILE* f, int r, int g, int b);
-void fcolorc(int r, int g, int b);
-void bcolorg(FILE* f, int r, int g, int b);
-void bcolorg(int r, int g, int b);
-void bcolorc(FILE* f, int r, int g, int b);
-void bcolorc(int r, int g, int b);
-void loadpict(FILE* f, int p, char* fn);
-void loadpict(int p, char* fn);
-int  pictsizx(FILE* f, int p);
-int  pictsizx(int p);
-int  pictsizy(FILE* f, int p);
-int  pictsizy(int p);
-void picture(FILE* f, int p, int x1, int y1, int x2, int y2);
-void picture(int p, int x1, int y1, int x2, int y2);
-void delpict(FILE* f, int p);
-void delpict(int p);
-void scrollg(FILE* f, int x, int y);
-void scrollg(int x, int y);
-void path(FILE* f, int a);
-void path(int a);
+long  chrsizx(FILE* f);
+long  chrsizx(void);
+long  chrsizy(FILE* f);
+long  chrsizy(void);
+long  fonts(FILE* f);
+long  fonts(void);
+void font(FILE* f, long fc);
+void font(long fc);
+void fontnam(FILE* f, long fc, char* fns, long fnsl);
+void fontnam(long fc, char* fns, long fnsl);
+void fontsiz(FILE* f, long s);
+void fontsiz(long s);
+void chrspcy(FILE* f, long s);
+void chrspcy(long s);
+void chrspcx(FILE* f, long s);
+void chrspcx(long s);
+long  dpmx(FILE* f);
+long  dpmx(void);
+long  dpmy(FILE* f);
+long  dpmy(void);
+long  strsiz(FILE* f, const char* s);
+long  strsiz(const char* s);
+long  chrpos(FILE* f, const char* s, long p);
+long  chrpos(const char* s, long p);
+void writejust(FILE* f, const char* s, long n);
+void writejust(const char* s, long n);
+long  justpos(FILE* f, const char* s, long p, long n);
+long  justpos(const char* s, long p, long n);
+void condensed(FILE* f, long e);
+void condensed(long e);
+void extended(FILE* f, long e);
+void extended(long e);
+void xlight(FILE* f, long e);
+void xlight(long e);
+void light(FILE* f, long e);
+void light(long e);
+void xbold(FILE* f, long e);
+void xbold(long e);
+void hollow(FILE* f, long e);
+void hollow(long e);
+void raised(FILE* f, long e);
+void raised(long e);
+void settabg(FILE* f, long t);
+void settabg(long t);
+void restabg(FILE* f, long t);
+void restabg(long t);
+void fcolorg(FILE* f, long r, long g, long b);
+void fcolorg(long r, long g, long b);
+void fcolorc(FILE* f, long r, long g, long b);
+void fcolorc(long r, long g, long b);
+void bcolorg(FILE* f, long r, long g, long b);
+void bcolorg(long r, long g, long b);
+void bcolorc(FILE* f, long r, long g, long b);
+void bcolorc(long r, long g, long b);
+void loadpict(FILE* f, long p, char* fn);
+void loadpict(long p, char* fn);
+long  pictsizx(FILE* f, long p);
+long  pictsizx(long p);
+long  pictsizy(FILE* f, long p);
+long  pictsizy(long p);
+void picture(FILE* f, long p, long x1, long y1, long x2, long y2);
+void picture(long p, long x1, long y1, long x2, long y2);
+void delpict(FILE* f, long p);
+void delpict(long p);
+void scrollg(FILE* f, long x, long y);
+void scrollg(long x, long y);
+void blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                long sy2, long dx1, long dy1, long dx2, long dy2);
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2,
+                long dx1, long dy1, long dx2, long dy2);
+void path(FILE* f, long a);
+void path(long a);
 
 /* window management */
-void openwin(FILE** infile, FILE** outfile, FILE* parent, int wid);
-void buffer(FILE* f, int e);
-void buffer(int e);
-void sizbufg(FILE* f, int x, int y);
-void sizbufg(int x, int y);
-void getsiz(FILE* f, int* x, int* y);
-void getsiz(int* x, int* y);
-void getsizg(FILE* f, int* x, int* y);
-void getsizg(int* x, int* y);
-void setsiz(FILE* f, int x, int y);
-void setsiz(int x, int y);
-void setsizg(FILE* f, int x, int y);
-void setsizg(int x, int y);
-void setpos(FILE* f, int x, int y);
-void setpos(int x, int y);
-void setposg(FILE* f, int x, int y);
-void setposg(int x, int y);
-void scnsiz(FILE* f, int* x, int* y);
-void scnsiz(int* x, int* y);
-void scnsizg(FILE* f, int* x, int* y);
-void scnsizg(int* x, int* y);
-void scncen(FILE* f, int* x, int* y);
-void scncen(int* x, int* y);
-void scnceng(FILE* f, int* x, int* y);
-void scnceng(int* x, int* y);
-void winclient(FILE* f, int cx, int cy, int* wx, int* wy, winmodset ms);
-void winclient(int cx, int cy, int* wx, int* wy, winmodset ms);
-void winclientg(FILE* f, int cx, int cy, int* wx, int* wy, winmodset ms);
-void winclientg(int cx, int cy, int* wx, int* wy, winmodset ms);
+void openwin(FILE** infile, FILE** outfile, FILE* parent, long wid);
+void buffer(FILE* f, long e);
+void buffer(long e);
+void sizbufg(FILE* f, long x, long y);
+void sizbufg(long x, long y);
+void getsiz(FILE* f, long* x, long* y);
+void getsiz(long* x, long* y);
+void getsizg(FILE* f, long* x, long* y);
+void getsizg(long* x, long* y);
+void setsiz(FILE* f, long x, long y);
+void setsiz(long x, long y);
+void setsizg(FILE* f, long x, long y);
+void setsizg(long x, long y);
+void setpos(FILE* f, long x, long y);
+void setpos(long x, long y);
+void setposg(FILE* f, long x, long y);
+void setposg(long x, long y);
+void scnsiz(FILE* f, long* x, long* y);
+void scnsiz(long* x, long* y);
+void scnsizg(FILE* f, long* x, long* y);
+void scnsizg(long* x, long* y);
+void scncen(FILE* f, long* x, long* y);
+void scncen(long* x, long* y);
+void scnceng(FILE* f, long* x, long* y);
+void scnceng(long* x, long* y);
+void winclient(FILE* f, long cx, long cy, long* wx, long* wy, winmodset ms);
+void winclient(long cx, long cy, long* wx, long* wy, winmodset ms);
+void winclientg(FILE* f, long cx, long cy, long* wx, long* wy, winmodset ms);
+void winclientg(long cx, long cy, long* wx, long* wy, winmodset ms);
 void front(FILE* f);
 void front(void);
 void back(FILE* f);
 void back(void);
-void frame(FILE* f, int e);
-void frame(int e);
-void sizable(FILE* f, int e);
-void sizable(int e);
-void sysbar(FILE* f, int e);
-void sysbar(int e);
+void frame(FILE* f, long e);
+void frame(long e);
+void sizable(FILE* f, long e);
+void sizable(long e);
+void sysbar(FILE* f, long e);
+void sysbar(long e);
 void menu(FILE* f, menuptr m);
 void menu(menuptr m);
-void menuena(FILE* f, int id, int onoff);
-void menuena(int id, int onoff);
-void menusel(FILE* f, int id, int select);
-void menusel(int id, int select);
+void menuena(FILE* f, long id, long onoff);
+void menuena(long id, long onoff);
+void menusel(FILE* f, long id, long select);
+void menusel(long id, long select);
 void stdmenu(stdmenusel sms, menuptr* sm, menuptr pm);
-int  getwinid(void);
+long  getwinid(void);
 void focus(FILE* f);
 void focus(void);
 
 /* widgets/controls */
-int  getwigid(FILE* f);
-int  getwigid(void);
-void killwidget(FILE* f, int id);
-void killwidget(int id);
-void selectwidget(FILE* f, int id, int e);
-void selectwidget(int id, int e);
-void enablewidget(FILE* f, int id, int e);
-void enablewidget(int id, int e);
-void getwidgettext(FILE* f, int id, char* s, int sl);
-void getwidgettext(int id, char* s, int sl);
-void putwidgettext(FILE* f, int id, char* s);
-void putwidgettext(int id, char* s);
-void sizwidget(FILE* f, int id, int x, int y);
-void sizwidget(int id, int x, int y);
-void sizwidgetg(FILE* f, int id, int x, int y);
-void sizwidgetg(int id, int x, int y);
-void poswidget(FILE* f, int id, int x, int y);
-void poswidget(int id, int x, int y);
-void poswidgetg(FILE* f, int id, int x, int y);
-void poswidgetg(int id, int x, int y);
-void backwidget(FILE* f, int id);
-void backwidget(int id);
-void frontwidget(FILE* f, int id);
-void frontwidget(int id);
-void focuswidget(FILE* f, int id);
-void focuswidget(int id);
-void buttonsiz(FILE* f, char* s, int* w, int* h);
-void buttonsiz(char* s, int* w, int* h);
-void buttonsizg(FILE* f, char* s, int* w, int* h);
-void buttonsizg(char* s, int* w, int* h);
-void button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void button(int x1, int y1, int x2, int y2, char* s, int id);
-void buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void buttong(int x1, int y1, int x2, int y2, char* s, int id);
-void checkboxsiz(FILE* f, char* s, int* w, int* h);
-void checkboxsiz(char* s, int* w, int* h);
-void checkboxsizg(FILE* f, char* s, int* w, int* h);
-void checkboxsizg(char* s, int* w, int* h);
-void checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void checkbox(int x1, int y1, int x2, int y2, char* s, int id);
-void checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void checkboxg(int x1, int y1, int x2, int y2, char* s, int id);
-void radiobuttonsiz(FILE* f, char* s, int* w, int* h);
-void radiobuttonsiz(char* s, int* w, int* h);
-void radiobuttonsizg(FILE* f, char* s, int* w, int* h);
-void radiobuttonsizg(char* s, int* w, int* h);
-void radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void radiobutton(int x1, int y1, int x2, int y2, char* s, int id);
-void radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void radiobuttong(int x1, int y1, int x2, int y2, char* s, int id);
-void groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void groupsiz(char* s, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void groupsizg(char* s, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void group(int x1, int y1, int x2, int y2, char* s, int id);
-void groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void groupg(int x1, int y1, int x2, int y2, char* s, int id);
-void background(FILE* f, int x1, int y1, int x2, int y2, int id);
-void background(int x1, int y1, int x2, int y2, int id);
-void backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void backgroundg(int x1, int y1, int x2, int y2, int id);
-void scrollvertsiz(FILE* f, int* w, int* h);
-void scrollvertsiz(int* w, int* h);
-void scrollvertsizg(FILE* f, int* w, int* h);
-void scrollvertsizg(int* w, int* h);
-void scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id);
-void scrollvert(int x1, int y1, int x2, int y2, int id);
-void scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void scrollvertg(int x1, int y1, int x2, int y2, int id);
-void scrollhorizsiz(FILE* f, int* w, int* h);
-void scrollhorizsiz(int* w, int* h);
-void scrollhorizsizg(FILE* f, int* w, int* h);
-void scrollhorizsizg(int* w, int* h);
-void scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id);
-void scrollhoriz(int x1, int y1, int x2, int y2, int id);
-void scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void scrollhorizg(int x1, int y1, int x2, int y2, int id);
-void scrollpos(FILE* f, int id, int r);
-void scrollpos(int id, int r);
-void scrollsiz(FILE* f, int id, int r);
-void scrollsiz(int id, int r);
-void numselboxsiz(FILE* f, int l, int u, int* w, int* h);
-void numselboxsiz(int l, int u, int* w, int* h);
-void numselboxsizg(FILE* f, int l, int u, int* w, int* h);
-void numselboxsizg(int l, int u, int* w, int* h);
-void numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id);
-void numselbox(int x1, int y1, int x2, int y2, int l, int u, int id);
-void numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id);
-void numselboxg(int x1, int y1, int x2, int y2, int l, int u, int id);
-void editboxsiz(FILE* f, char* s, int* w, int* h);
-void editboxsiz(char* s, int* w, int* h);
-void editboxsizg(FILE* f, char* s, int* w, int* h);
-void editboxsizg(char* s, int* w, int* h);
-void editbox(FILE* f, int x1, int y1, int x2, int y2, int id);
-void editbox(int x1, int y1, int x2, int y2, int id);
-void editboxg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void editboxg(int x1, int y1, int x2, int y2, int id);
-void progbarsiz(FILE* f, int* w, int* h);
-void progbarsiz(int* w, int* h);
-void progbarsizg(FILE* f, int* w, int* h);
-void progbarsizg(int* w, int* h);
-void progbar(FILE* f, int x1, int y1, int x2, int y2, int id);
-void progbar(int x1, int y1, int x2, int y2, int id);
-void progbarg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void progbarg(int x1, int y1, int x2, int y2, int id);
-void progbarpos(FILE* f, int id, int pos);
-void progbarpos(int id, int pos);
-void listboxsiz(FILE* f, strptr sp, int* w, int* h);
-void listboxsiz(strptr sp, int* w, int* h);
-void listboxsizg(FILE* f, strptr sp, int* w, int* h);
-void listboxsizg(strptr sp, int* w, int* h);
-void listbox(FILE* f, int x1, int y1, int x2, int y2, strptr sp, int id);
-void listbox(int x1, int y1, int x2, int y2, strptr sp, int id);
-void listboxg(FILE* f, int x1, int y1, int x2, int y2, strptr sp, int id);
-void listboxg(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropboxsiz(FILE* f, strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropboxsiz(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropboxsizg(FILE* f, strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropboxsizg(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropbox(FILE* f, int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropbox(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropboxg(FILE* f, int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropboxg(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropeditboxsiz(FILE* f, strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditboxsiz(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditboxsizg(FILE* f, strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditboxsizg(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditbox(FILE* f, int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropeditbox(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropeditboxg(int x1, int y1, int x2, int y2, strptr sp, int id);
-void slidehorizsiz(FILE* f, int* w, int* h);
-void slidehorizsiz(int* w, int* h);
-void slidehorizsizg(FILE* f, int* w, int* h);
-void slidehorizsizg(int* w, int* h);
-void slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void slidehoriz(int x1, int y1, int x2, int y2, int mark, int id);
-void slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void slidehorizg(int x1, int y1, int x2, int y2, int mark, int id);
-void slidevertsiz(FILE* f, int* w, int* h);
-void slidevertsiz(int* w, int* h);
-void slidevertsizg(FILE* f, int* w, int* h);
-void slidevertsizg(int* w, int* h);
-void slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void slidevert(int x1, int y1, int x2, int y2, int mark, int id);
-void slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void slidevertg(int x1, int y1, int x2, int y2, int mark, int id);
-void tabbarsiz(FILE* f, tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void tabbarsiz(tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void tabbarsizg(FILE* f, tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void tabbarsizg(tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void tabbarclient(FILE* f, tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy);
-void tabbarclient(tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy);
-void tabbarclientg(FILE* f, tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy);
-void tabbarclientg(tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy);
-void tabbar(FILE* f, int x1, int y1, int x2, int y2, strptr sp, tabori tor, int id);
-void tabbar(int x1, int y1, int x2, int y2, strptr sp, tabori tor, int id);
-void tabbarg(FILE* f, int x1, int y1, int x2, int y2, strptr sp, tabori tor, int id);
-void tabbarg(int x1, int y1, int x2, int y2, strptr sp, tabori tor, int id);
-void tabsel(FILE* f, int id, int tn);
-void tabsel(int id, int tn);
+long  getwigid(FILE* f);
+long  getwigid(void);
+void killwidget(FILE* f, long id);
+void killwidget(long id);
+void selectwidget(FILE* f, long id, long e);
+void selectwidget(long id, long e);
+void enablewidget(FILE* f, long id, long e);
+void enablewidget(long id, long e);
+void getwidgettext(FILE* f, long id, char* s, long sl);
+void getwidgettext(long id, char* s, long sl);
+void putwidgettext(FILE* f, long id, char* s);
+void putwidgettext(long id, char* s);
+void sizwidget(FILE* f, long id, long x, long y);
+void sizwidget(long id, long x, long y);
+void sizwidgetg(FILE* f, long id, long x, long y);
+void sizwidgetg(long id, long x, long y);
+void poswidget(FILE* f, long id, long x, long y);
+void poswidget(long id, long x, long y);
+void poswidgetg(FILE* f, long id, long x, long y);
+void poswidgetg(long id, long x, long y);
+void backwidget(FILE* f, long id);
+void backwidget(long id);
+void frontwidget(FILE* f, long id);
+void frontwidget(long id);
+void focuswidget(FILE* f, long id);
+void focuswidget(long id);
+void buttonsiz(FILE* f, char* s, long* w, long* h);
+void buttonsiz(char* s, long* w, long* h);
+void buttonsizg(FILE* f, char* s, long* w, long* h);
+void buttonsizg(char* s, long* w, long* h);
+void checkboxsiz(FILE* f, char* s, long* w, long* h);
+void checkboxsiz(char* s, long* w, long* h);
+void checkboxsizg(FILE* f, char* s, long* w, long* h);
+void checkboxsizg(char* s, long* w, long* h);
+void radiobuttonsiz(FILE* f, char* s, long* w, long* h);
+void radiobuttonsiz(char* s, long* w, long* h);
+void radiobuttonsizg(FILE* f, char* s, long* w, long* h);
+void radiobuttonsizg(char* s, long* w, long* h);
+void groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void groupsiz(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void groupsizg(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void scrollvertsiz(FILE* f, long* w, long* h);
+void scrollvertsiz(long* w, long* h);
+void scrollvertsizg(FILE* f, long* w, long* h);
+void scrollvertsizg(long* w, long* h);
+void scrollhorizsiz(FILE* f, long* w, long* h);
+void scrollhorizsiz(long* w, long* h);
+void scrollhorizsizg(FILE* f, long* w, long* h);
+void scrollhorizsizg(long* w, long* h);
+void scrollpos(FILE* f, long id, long r);
+void scrollpos(long id, long r);
+void scrollsiz(FILE* f, long id, long r);
+void scrollsiz(long id, long r);
+void numselboxsiz(FILE* f, long l, long u, long* w, long* h);
+void numselboxsiz(long l, long u, long* w, long* h);
+void numselboxsizg(FILE* f, long l, long u, long* w, long* h);
+void numselboxsizg(long l, long u, long* w, long* h);
+void editboxsiz(FILE* f, char* s, long* w, long* h);
+void editboxsiz(char* s, long* w, long* h);
+void editboxsizg(FILE* f, char* s, long* w, long* h);
+void editboxsizg(char* s, long* w, long* h);
+void progbarsiz(FILE* f, long* w, long* h);
+void progbarsiz(long* w, long* h);
+void progbarsizg(FILE* f, long* w, long* h);
+void progbarsizg(long* w, long* h);
+void progbarpos(FILE* f, long id, long pos);
+void progbarpos(long id, long pos);
+void listboxsiz(FILE* f, strptr sp, long* w, long* h);
+void listboxsiz(strptr sp, long* w, long* h);
+void listboxsizg(FILE* f, strptr sp, long* w, long* h);
+void listboxsizg(strptr sp, long* w, long* h);
+void dropboxsiz(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropboxsizg(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsiz(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsizg(FILE* f, strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void slidehorizsiz(FILE* f, long* w, long* h);
+void slidehorizsiz(long* w, long* h);
+void slidehorizsizg(FILE* f, long* w, long* h);
+void slidehorizsizg(long* w, long* h);
+void slidevertsiz(FILE* f, long* w, long* h);
+void slidevertsiz(long* w, long* h);
+void slidevertsizg(FILE* f, long* w, long* h);
+void slidevertsizg(long* w, long* h);
+void tabbarsiz(FILE* f, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarsizg(FILE* f, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarclient(FILE* f, tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabbarclientg(FILE* f, tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabsel(FILE* f, long id, long tn);
+void tabsel(long id, long tn);
 
 /* dialogs */
 void alert(char* title, char* message);
-void querycolor(int* r, int* g, int* b);
-void queryopen(char* s, int sl);
-void querysave(char* s, int sl);
-void queryfind(char* s, int sl, qfnopts* opt);
-void queryfindrep(char* s, int sl, char* r, int rl, qfropts* opt);
-void queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-               int* bg, int* bb, qfteffects* effect);
-void queryfont(int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-               int* bg, int* bb, qfteffects* effect);
+void querycolor(long* r, long* g, long* b);
+void queryopen(char* s, long sl);
+void querysave(char* s, long sl);
+void queryfind(char* s, long sl, qfnopts* opt);
+void queryfindrep(char* s, long sl, char* r, long rl, qfropts* opt);
+void queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+               long* bg, long* bb, qfteffects* effect);
+void queryfont(long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+               long* bg, long* bb, qfteffects* effect);
 
 /* object based interface */
 class graph {
@@ -804,76 +746,83 @@ public:
 /* constructor */
 graph();
 
+/* destructor */
+~graph();
+
+/* copying is refused: two objects would free one event hook */
+graph(const graph&) = delete;
+graph& operator=(const graph&) = delete;
+
 /* methods */
 
 /* text */
-void cursor(int x, int y);
-int  maxx(void);
-int  maxy(void);
+void cursor(long x, long y);
+long  maxx(void);
+long  maxy(void);
 void home(void);
 void del(void);
 void up(void);
 void down(void);
 void left(void);
 void right(void);
-void blink(int e);
-void reverse(int e);
-void underline(int e);
-void superscript(int e);
-void subscript(int e);
-void italic(int e);
-void bold(int e);
-void strikeout(int e);
-void standout(int e);
+void blink(long e);
+void reverse(long e);
+void underline(long e);
+void superscript(long e);
+void subscript(long e);
+void italic(long e);
+void bold(long e);
+void strikeout(long e);
+void standout(long e);
 void fcolor(color c);
 void bcolor(color c);
-void autom(int e);
-void curvis(int e);
-void scroll(int x, int y);
-int  curx(void);
-int  cury(void);
-int  curbnd(void);
-void select(int u, int d);
+void autom(long e);
+void curvis(long e);
+void scroll(long x, long y);
+long  curx(void);
+long  cury(void);
+long  curbnd(void);
+void select(long u, long d);
 void event(evtrec* er);
-void timer(int i, long t, int r);
-void killtimer(int i);
-int  mouse(void);
-int  mousebutton(int m);
-int  joystick(void);
-int  joybutton(int j);
-int  joyaxis(int j);
-void settab(int t);
-void restab(int t);
+void timer(long i, long t, long r);
+void killtimer(long i);
+long  mouse(void);
+long  mousebutton(long m);
+long  joystick(void);
+long  joybutton(long j);
+long  joyaxis(long j);
+void settab(long t);
+void restab(long t);
 void clrtab(void);
-int  funkey(void);
-void frametimer(int e);
-void autohold(int e);
+long  funkey(void);
+void frametimer(long e);
+void autohold(long e);
 void wrtstr(char* s);
-void wrtstrn(char* s, int n);
-void sizbuf(int x, int y);
+void wrtstrn(char* s, long n);
+void sizbuf(long x, long y);
 void title(char* ts);
 void sendevent(evtrec* er);
 
 /* graphical */
-int  maxxg(void);
-int  maxyg(void);
-int  curxg(void);
-int  curyg(void);
-void line(int x1, int y1, int x2, int y2);
-void linewidth(int w);
-void rect(int x1, int y1, int x2, int y2);
-void frect(int x1, int y1, int x2, int y2);
-void rrect(int x1, int y1, int x2, int y2, int xs, int ys);
-void frrect(int x1, int y1, int x2, int y2, int xs, int ys);
-void ellipse(int x1, int y1, int x2, int y2);
-void fellipse(int x1, int y1, int x2, int y2);
-void arc(int x1, int y1, int x2, int y2, int sa, int ea);
-void farc(int x1, int y1, int x2, int y2, int sa, int ea);
-void fchord(int x1, int y1, int x2, int y2, int sa, int ea);
-void ftriangle(int x1, int y1, int x2, int y2, int x3, int y3);
-void cursorg(int x, int y);
-int  baseline(void);
-void setpixel(int x, int y);
+long  maxxg(void);
+long  maxyg(void);
+long  curxg(void);
+long  curyg(void);
+void line(long x1, long y1, long x2, long y2);
+void linewidth(long w);
+void rect(long x1, long y1, long x2, long y2);
+void frect(long x1, long y1, long x2, long y2);
+void rrect(long x1, long y1, long x2, long y2, long xs, long ys);
+void frrect(long x1, long y1, long x2, long y2, long xs, long ys);
+void ellipse(long x1, long y1, long x2, long y2);
+void fellipse(long x1, long y1, long x2, long y2);
+void arc(long x1, long y1, long x2, long y2, long sa, long ea);
+void farc(long x1, long y1, long x2, long y2, long sa, long ea);
+void fchord(long x1, long y1, long x2, long y2, long sa, long ea);
+void ftriangle(long x1, long y1, long x2, long y2, long x3, long y3);
+void cursorg(long x, long y);
+long  baseline(void);
+void setpixel(long x, long y);
 void fover(void);
 void bover(void);
 void finvis(void);
@@ -884,231 +833,764 @@ void fand(void);
 void band(void);
 void for_(void);
 void bor(void);
-int  chrsizx(void);
-int  chrsizy(void);
-int  fonts(void);
-void font(int fc);
-void fontnam(int fc, char* fns, int fnsl);
-void fontsiz(int s);
-void chrspcy(int s);
-void chrspcx(int s);
-int  dpmx(void);
-int  dpmy(void);
-int  strsiz(const char* s);
-int  chrpos(const char* s, int p);
-void writejust(const char* s, int n);
-int  justpos(const char* s, int p, int n);
-void condensed(int e);
-void extended(int e);
-void xlight(int e);
-void light(int e);
-void xbold(int e);
-void hollow(int e);
-void raised(int e);
-void settabg(int t);
-void restabg(int t);
-void fcolorg(int r, int g, int b);
-void fcolorc(int r, int g, int b);
-void bcolorg(int r, int g, int b);
-void bcolorc(int r, int g, int b);
-void loadpict(int p, char* fn);
-int  pictsizx(int p);
-int  pictsizy(int p);
-void picture(int p, int x1, int y1, int x2, int y2);
-void delpict(int p);
-void scrollg(int x, int y);
-void path(int a);
+long  chrsizx(void);
+long  chrsizy(void);
+long  fonts(void);
+void font(long fc);
+void fontnam(long fc, char* fns, long fnsl);
+void fontsiz(long s);
+void chrspcy(long s);
+void chrspcx(long s);
+long  dpmx(void);
+long  dpmy(void);
+long  strsiz(const char* s);
+long  chrpos(const char* s, long p);
+void writejust(const char* s, long n);
+long  justpos(const char* s, long p, long n);
+void condensed(long e);
+void extended(long e);
+void xlight(long e);
+void light(long e);
+void xbold(long e);
+void hollow(long e);
+void raised(long e);
+void settabg(long t);
+void restabg(long t);
+void fcolorg(long r, long g, long b);
+void fcolorc(long r, long g, long b);
+void bcolorg(long r, long g, long b);
+void bcolorc(long r, long g, long b);
+void loadpict(long p, char* fn);
+long  pictsizx(long p);
+long  pictsizy(long p);
+void picture(long p, long x1, long y1, long x2, long y2);
+void delpict(long p);
+void scrollg(long x, long y);
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2, long dx1, long dy1, long dx2, long dy2);
+void path(long a);
 
 /* window management */
-void buffer(int e);
-void sizbufg(int x, int y);
-void getsiz(int* x, int* y);
-void getsizg(int* x, int* y);
-void setsiz(int x, int y);
-void setsizg(int x, int y);
-void setpos(int x, int y);
-void setposg(int x, int y);
-void scnsiz(int* x, int* y);
-void scnsizg(int* x, int* y);
-void scncen(int* x, int* y);
-void scnceng(int* x, int* y);
-void winclient(int cx, int cy, int* wx, int* wy, winmodset ms);
-void winclientg(int cx, int cy, int* wx, int* wy, winmodset ms);
+void buffer(long e);
+void sizbufg(long x, long y);
+void getsiz(long* x, long* y);
+void getsizg(long* x, long* y);
+void setsiz(long x, long y);
+void setsizg(long x, long y);
+void setpos(long x, long y);
+void setposg(long x, long y);
+void scnsiz(long* x, long* y);
+void scnsizg(long* x, long* y);
+void scncen(long* x, long* y);
+void scnceng(long* x, long* y);
+void winclient(long cx, long cy, long* wx, long* wy, winmodset ms);
+void winclientg(long cx, long cy, long* wx, long* wy, winmodset ms);
 void front(void);
 void back(void);
-void frame(int e);
-void sizable(int e);
-void sysbar(int e);
+void frame(long e);
+void sizable(long e);
+void sysbar(long e);
 void menu(menuptr m);
-void menuena(int id, int onoff);
-void menusel(int id, int select);
+void menuena(long id, long onoff);
+void menusel(long id, long select);
 void focus(void);
 
 /* widgets */
-int  getwigid(void);
-void killwidget(int id);
-void selectwidget(int id, int e);
-void enablewidget(int id, int e);
-void getwidgettext(int id, char* s, int sl);
-void putwidgettext(int id, char* s);
-void sizwidget(int id, int x, int y);
-void sizwidgetg(int id, int x, int y);
-void poswidget(int id, int x, int y);
-void poswidgetg(int id, int x, int y);
-void backwidget(int id);
-void frontwidget(int id);
-void focuswidget(int id);
-void buttonsiz(char* s, int* w, int* h);
-void buttonsizg(char* s, int* w, int* h);
-void button(int x1, int y1, int x2, int y2, char* s, int id);
-void buttong(int x1, int y1, int x2, int y2, char* s, int id);
-void checkboxsiz(char* s, int* w, int* h);
-void checkboxsizg(char* s, int* w, int* h);
-void checkbox(int x1, int y1, int x2, int y2, char* s, int id);
-void checkboxg(int x1, int y1, int x2, int y2, char* s, int id);
-void radiobuttonsiz(char* s, int* w, int* h);
-void radiobuttonsizg(char* s, int* w, int* h);
-void radiobutton(int x1, int y1, int x2, int y2, char* s, int id);
-void radiobuttong(int x1, int y1, int x2, int y2, char* s, int id);
-void groupsiz(char* s, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void groupsizg(char* s, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void group(int x1, int y1, int x2, int y2, char* s, int id);
-void groupg(int x1, int y1, int x2, int y2, char* s, int id);
-void background(int x1, int y1, int x2, int y2, int id);
-void backgroundg(int x1, int y1, int x2, int y2, int id);
-void scrollvertsiz(int* w, int* h);
-void scrollvertsizg(int* w, int* h);
-void scrollvert(int x1, int y1, int x2, int y2, int id);
-void scrollvertg(int x1, int y1, int x2, int y2, int id);
-void scrollhorizsiz(int* w, int* h);
-void scrollhorizsizg(int* w, int* h);
-void scrollhoriz(int x1, int y1, int x2, int y2, int id);
-void scrollhorizg(int x1, int y1, int x2, int y2, int id);
-void scrollpos(int id, int r);
-void scrollsiz(int id, int r);
-void numselboxsiz(int l, int u, int* w, int* h);
-void numselboxsizg(int l, int u, int* w, int* h);
-void numselbox(int x1, int y1, int x2, int y2, int l, int u, int id);
-void numselboxg(int x1, int y1, int x2, int y2, int l, int u, int id);
-void editboxsiz(char* s, int* w, int* h);
-void editboxsizg(char* s, int* w, int* h);
-void editbox(int x1, int y1, int x2, int y2, int id);
-void editboxg(int x1, int y1, int x2, int y2, int id);
-void progbarsiz(int* w, int* h);
-void progbarsizg(int* w, int* h);
-void progbar(int x1, int y1, int x2, int y2, int id);
-void progbarg(int x1, int y1, int x2, int y2, int id);
-void progbarpos(int id, int pos);
-void listboxsiz(strptr sp, int* w, int* h);
-void listboxsizg(strptr sp, int* w, int* h);
-void listbox(int x1, int y1, int x2, int y2, strptr sp, int id);
-void listboxg(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropboxsiz(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropboxsizg(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropbox(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropboxg(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropeditboxsiz(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditboxsizg(strptr sp, int* cw, int* ch, int* ow, int* oh);
-void dropeditbox(int x1, int y1, int x2, int y2, strptr sp, int id);
-void dropeditboxg(int x1, int y1, int x2, int y2, strptr sp, int id);
-void slidehorizsiz(int* w, int* h);
-void slidehorizsizg(int* w, int* h);
-void slidehoriz(int x1, int y1, int x2, int y2, int mark, int id);
-void slidehorizg(int x1, int y1, int x2, int y2, int mark, int id);
-void slidevertsiz(int* w, int* h);
-void slidevertsizg(int* w, int* h);
-void slidevert(int x1, int y1, int x2, int y2, int mark, int id);
-void slidevertg(int x1, int y1, int x2, int y2, int mark, int id);
-void tabbarsiz(tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void tabbarsizg(tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy);
-void tabbarclient(tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy);
-void tabbarclientg(tabori tor, int w, int h, int* cw, int* ch, int* ox, int* oy);
-void tabbar(int x1, int y1, int x2, int y2, strptr sp, tabori tor, int id);
-void tabbarg(int x1, int y1, int x2, int y2, strptr sp, tabori tor, int id);
-void tabsel(int id, int tn);
+long  getwigid(void);
+void killwidget(long id);
+void selectwidget(long id, long e);
+void enablewidget(long id, long e);
+void getwidgettext(long id, char* s, long sl);
+void putwidgettext(long id, char* s);
+void sizwidget(long id, long x, long y);
+void sizwidgetg(long id, long x, long y);
+void poswidget(long id, long x, long y);
+void poswidgetg(long id, long x, long y);
+void backwidget(long id);
+void frontwidget(long id);
+void focuswidget(long id);
+void buttonsiz(char* s, long* w, long* h);
+void buttonsizg(char* s, long* w, long* h);
+void checkboxsiz(char* s, long* w, long* h);
+void checkboxsizg(char* s, long* w, long* h);
+void radiobuttonsiz(char* s, long* w, long* h);
+void radiobuttonsizg(char* s, long* w, long* h);
+void groupsiz(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void groupsizg(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void scrollvertsiz(long* w, long* h);
+void scrollvertsizg(long* w, long* h);
+void scrollhorizsiz(long* w, long* h);
+void scrollhorizsizg(long* w, long* h);
+void scrollpos(long id, long r);
+void scrollsiz(long id, long r);
+void numselboxsiz(long l, long u, long* w, long* h);
+void numselboxsizg(long l, long u, long* w, long* h);
+void editboxsiz(char* s, long* w, long* h);
+void editboxsizg(char* s, long* w, long* h);
+void progbarsiz(long* w, long* h);
+void progbarsizg(long* w, long* h);
+void progbarpos(long id, long pos);
+void listboxsiz(strptr sp, long* w, long* h);
+void listboxsizg(strptr sp, long* w, long* h);
+void dropboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void slidehorizsiz(long* w, long* h);
+void slidehorizsizg(long* w, long* h);
+void slidevertsiz(long* w, long* h);
+void slidevertsizg(long* w, long* h);
+void tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabsel(long id, long tn);
 
 /* dialogs */
-void queryfont(int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-               int* bg, int* bb, qfteffects* effect);
+void queryfont(long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+               long* bg, long* bb, qfteffects* effect);
+
+void button(long x1, long y1, long x2, long y2, char* s, long id);
+void buttong(long x1, long y1, long x2, long y2, char* s, long id);
+void checkbox(long x1, long y1, long x2, long y2, char* s, long id);
+void checkboxg(long x1, long y1, long x2, long y2, char* s, long id);
+void radiobutton(long x1, long y1, long x2, long y2, char* s, long id);
+void radiobuttong(long x1, long y1, long x2, long y2, char* s, long id);
+void group(long x1, long y1, long x2, long y2, char* s, long id);
+void groupg(long x1, long y1, long x2, long y2, char* s, long id);
+void background(long x1, long y1, long x2, long y2, long id);
+void backgroundg(long x1, long y1, long x2, long y2, long id);
+void scrollvert(long x1, long y1, long x2, long y2, long id);
+void scrollvertg(long x1, long y1, long x2, long y2, long id);
+void scrollhoriz(long x1, long y1, long x2, long y2, long id);
+void scrollhorizg(long x1, long y1, long x2, long y2, long id);
+void numselbox(long x1, long y1, long x2, long y2, long l, long u, long id);
+void numselboxg(long x1, long y1, long x2, long y2, long l, long u, long id);
+void editbox(long x1, long y1, long x2, long y2, long id);
+void editboxg(long x1, long y1, long x2, long y2, long id);
+void progbar(long x1, long y1, long x2, long y2, long id);
+void progbarg(long x1, long y1, long x2, long y2, long id);
+void listbox(long x1, long y1, long x2, long y2, strptr sp, long id);
+void listboxg(long x1, long y1, long x2, long y2, strptr sp, long id);
+void dropbox(long x1, long y1, long x2, long y2, strptr sp, long id);
+void dropboxg(long x1, long y1, long x2, long y2, strptr sp, long id);
+void dropeditbox(long x1, long y1, long x2, long y2, strptr sp, long id);
+void dropeditboxg(long x1, long y1, long x2, long y2, strptr sp, long id);
+void slidehoriz(long x1, long y1, long x2, long y2, long mark, long id);
+void slidehorizg(long x1, long y1, long x2, long y2, long mark, long id);
+void slidevert(long x1, long y1, long x2, long y2, long mark, long id);
+void slidevertg(long x1, long y1, long x2, long y2, long mark, long id);
+void tabbar(long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id);
+void tabbarg(long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id);
 
 static void graphCB(evtrec* er);
 
 /* virtual callbacks */
-virtual int evchar(char c);
-virtual int evup(void);
-virtual int evdown(void);
-virtual int evleft(void);
-virtual int evright(void);
-virtual int evleftw(void);
-virtual int evrightw(void);
-virtual int evhome(void);
-virtual int evhomes(void);
-virtual int evhomel(void);
-virtual int evend(void);
-virtual int evends(void);
-virtual int evendl(void);
-virtual int evscrl(void);
-virtual int evscrr(void);
-virtual int evscru(void);
-virtual int evscrd(void);
-virtual int evpagd(void);
-virtual int evpagu(void);
-virtual int evtab(void);
-virtual int eventer(void);
-virtual int evinsert(void);
-virtual int evinsertl(void);
-virtual int evinsertt(void);
-virtual int evdel(void);
-virtual int evdell(void);
-virtual int evdelcf(void);
-virtual int evdelcb(void);
-virtual int evcopy(void);
-virtual int evcopyl(void);
-virtual int evcan(void);
-virtual int evstop(void);
-virtual int evcont(void);
-virtual int evprint(void);
-virtual int evprintb(void);
-virtual int evprints(void);
-virtual int evfun(int k);
-virtual int evmenu(void);
-virtual int evmouba(int m, int b);
-virtual int evmoubd(int m, int b);
-virtual int evmoumov(int m, int x, int y);
-virtual int evtim(int t);
-virtual int evjoyba(int j, int b);
-virtual int evjoybd(int j, int b);
-virtual int evjoymov(int j, int x, int y, int z);
-virtual int evresize(void);
-virtual int evfocus(void);
-virtual int evnofocus(void);
-virtual int evhover(void);
-virtual int evnohover(void);
-virtual int evterm(void);
-virtual int evframe(void);
-virtual int evmoumovg(int m, int x, int y);
-virtual int evredraw(int x1, int y1, int x2, int y2);
-virtual int evmin(void);
-virtual int evmax(void);
-virtual int evnorm(void);
-virtual int evmenus(int id);
-virtual int evbutton(int id);
-virtual int evchkbox(int id);
-virtual int evradbut(int id);
-virtual int evsclull(int id);
-virtual int evscldrl(int id);
-virtual int evsclulp(int id);
-virtual int evscldrp(int id);
-virtual int evsclpos(int id, int pos);
-virtual int evedtbox(int id);
-virtual int evnumbox(int id, int val);
-virtual int evlstbox(int id, int sel);
-virtual int evdrpbox(int id, int sel);
-virtual int evdrebox(int id);
-virtual int evsldpos(int id, int pos);
-virtual int evtabbar(int id, int sel);
+virtual long evchar(char c);
+virtual long evup(void);
+virtual long evdown(void);
+virtual long evleft(void);
+virtual long evright(void);
+virtual long evleftw(void);
+virtual long evrightw(void);
+virtual long evhome(void);
+virtual long evhomes(void);
+virtual long evhomel(void);
+virtual long evend(void);
+virtual long evends(void);
+virtual long evendl(void);
+virtual long evscrl(void);
+virtual long evscrr(void);
+virtual long evscru(void);
+virtual long evscrd(void);
+virtual long evpagd(void);
+virtual long evpagu(void);
+virtual long evtab(void);
+virtual long eventer(void);
+virtual long evinsert(void);
+virtual long evinsertl(void);
+virtual long evinsertt(void);
+virtual long evdel(void);
+virtual long evdell(void);
+virtual long evdelcf(void);
+virtual long evdelcb(void);
+virtual long evcopy(void);
+virtual long evcopyl(void);
+virtual long evcan(void);
+virtual long evstop(void);
+virtual long evcont(void);
+virtual long evprint(void);
+virtual long evprintb(void);
+virtual long evprints(void);
+virtual long evfun(long k);
+virtual long evmenu(void);
+virtual long evmouba(long m, long b);
+virtual long evmoubd(long m, long b);
+virtual long evmoumov(long m, long x, long y);
+virtual long evtim(long t);
+virtual long evjoyba(long j, long b);
+virtual long evjoybd(long j, long b);
+virtual long evjoymov(long j, long x, long y, long z);
+virtual long evresize(void);
+virtual long evfocus(void);
+virtual long evnofocus(void);
+virtual long evhover(void);
+virtual long evnohover(void);
+virtual long evterm(void);
+virtual long evframe(void);
+virtual long evmoumovg(long m, long x, long y);
+virtual long evredraw(long x1, long y1, long x2, long y2);
+virtual long evmin(void);
+virtual long evmax(void);
+virtual long evnorm(void);
+virtual long evmenus(long id);
+virtual long evbutton(long id);
+virtual long evchkbox(long id);
+virtual long evradbut(long id);
+virtual long evsclull(long id);
+virtual long evscldrl(long id);
+virtual long evsclulp(long id);
+virtual long evscldrp(long id);
+virtual long evsclpos(long id, long pos);
+virtual long evedtbox(long id);
+virtual long evnumbox(long id, long val);
+virtual long evlstbox(long id, long sel);
+virtual long evdrpbox(long id, long sel);
+virtual long evdrebox(long id);
+virtual long evsldpos(long id, long pos);
+virtual long evtabbar(long id, long sel);
+virtual long evusize(void);
+virtual long evdsize(void);
 
 }; /* class graph */
+
+
+/*******************************************************************************
+
+The window and widget objects
+
+A window object is one window: the main one, a child of another window,
+or an independent top level. Every drawing and configuration call is a
+method, the object converts to FILE* so the stdio calls and the C
+interface speak to it directly, and the event virtuals below fire for
+this window's events alone: the wrapper routes each event by the window
+id in its record to the object that holds that window. Any number of
+window objects may exist, and events for windows with no object fall
+through to the procedural loop untouched.
+
+A widget is made on a window by constructing one of the typed widget
+classes; the id is allocated for you unless given. Widget events are
+routed to the widget object first -- a button's pressed(), a slider's
+moved() -- then, unhandled, to the window's virtual with the id, then
+to the chain. The destructor kills the widget.
+
+The widget creators do not appear as free functions of the namespace,
+since C++ will not let a class and a function share a name: the classes
+are the creators. The C interface keeps them all.
+
+One rule of order: make a widget's window before the widget, and let
+the widget die before its window -- which member order in a subclassed
+window does by itself, members being destroyed before their base. A
+window destroyed first disarms the widgets it still carries, so their
+destructors do not reach into a closed window.
+
+*******************************************************************************/
+
+class widget;
+void windowCB(evtrec* er); /* the wrapper's chain hook */
+
+class window {
+
+friend class widget;
+friend void windowCB(evtrec* er);
+
+protected:
+
+FILE* wf;     /* the window, which is what every C call takes */
+long  wid;    /* its logical id, which events carry */
+long  owned;  /* it was opened here, and closes here */
+long  nextid; /* widget ids not yet given out */
+widget* wlist; /* the widgets made on this window */
+
+public:
+
+/* constructor: attach to the main window */
+window();
+
+/* constructor: open a window, a child of the given parent, or an
+   independent top level when the parent is NULL */
+window(window* parent);
+
+/* destructor */
+virtual ~window();
+
+/* copying is refused: two objects would free one window */
+window(const window&) = delete;
+window& operator=(const window&) = delete;
+
+/* the window, for the stdio calls and the C interface */
+operator FILE*(void);
+
+/* the logical window id, as events carry it */
+long id(void);
+
+/* the next widget id not yet given out */
+long newid(void);
+
+/* methods */
+void cursor(long x, long y);
+long  maxx(void);
+long  maxy(void);
+void home(void);
+void del(void);
+void up(void);
+void down(void);
+void left(void);
+void right(void);
+void blink(long e);
+void reverse(long e);
+void underline(long e);
+void superscript(long e);
+void subscript(long e);
+void italic(long e);
+void bold(long e);
+void strikeout(long e);
+void standout(long e);
+void fcolor(color c);
+void bcolor(color c);
+void autom(long e);
+void curvis(long e);
+void scroll(long x, long y);
+long  curx(void);
+long  cury(void);
+long  curbnd(void);
+void select(long u, long d);
+void timer(long i, long t, long r);
+void killtimer(long i);
+long  mouse(void);
+long  mousebutton(long m);
+long  joystick(void);
+long  joybutton(long j);
+long  joyaxis(long j);
+void settab(long t);
+void restab(long t);
+void clrtab(void);
+long  funkey(void);
+void frametimer(long e);
+void autohold(long e);
+void wrtstr(char* s);
+void wrtstrn(char* s, long n);
+void sizbuf(long x, long y);
+void title(char* ts);
+void sendevent(evtrec* er);
+long  maxxg(void);
+long  maxyg(void);
+long  curxg(void);
+long  curyg(void);
+void line(long x1, long y1, long x2, long y2);
+void linewidth(long w);
+void rect(long x1, long y1, long x2, long y2);
+void frect(long x1, long y1, long x2, long y2);
+void rrect(long x1, long y1, long x2, long y2, long xs, long ys);
+void frrect(long x1, long y1, long x2, long y2, long xs, long ys);
+void ellipse(long x1, long y1, long x2, long y2);
+void fellipse(long x1, long y1, long x2, long y2);
+void arc(long x1, long y1, long x2, long y2, long sa, long ea);
+void farc(long x1, long y1, long x2, long y2, long sa, long ea);
+void fchord(long x1, long y1, long x2, long y2, long sa, long ea);
+void ftriangle(long x1, long y1, long x2, long y2, long x3, long y3);
+void cursorg(long x, long y);
+long  baseline(void);
+void setpixel(long x, long y);
+void fover(void);
+void bover(void);
+void finvis(void);
+void binvis(void);
+void fxor(void);
+void bxor(void);
+void fand(void);
+void band(void);
+void for_(void);
+void bor(void);
+long  chrsizx(void);
+long  chrsizy(void);
+long  fonts(void);
+void font(long fc);
+void fontnam(long fc, char* fns, long fnsl);
+void fontsiz(long s);
+void chrspcy(long s);
+void chrspcx(long s);
+long  dpmx(void);
+long  dpmy(void);
+long  strsiz(const char* s);
+long  chrpos(const char* s, long p);
+void writejust(const char* s, long n);
+long  justpos(const char* s, long p, long n);
+void condensed(long e);
+void extended(long e);
+void xlight(long e);
+void light(long e);
+void xbold(long e);
+void hollow(long e);
+void raised(long e);
+void settabg(long t);
+void restabg(long t);
+void fcolorg(long r, long g, long b);
+void fcolorc(long r, long g, long b);
+void bcolorg(long r, long g, long b);
+void bcolorc(long r, long g, long b);
+void loadpict(long p, char* fn);
+long  pictsizx(long p);
+long  pictsizy(long p);
+void picture(long p, long x1, long y1, long x2, long y2);
+void delpict(long p);
+void scrollg(long x, long y);
+void blockcopyg(long s, long d, long sx1, long sy1, long sx2, long sy2, long dx1, long dy1, long dx2, long dy2);
+void path(long a);
+void buffer(long e);
+void sizbufg(long x, long y);
+void getsiz(long* x, long* y);
+void getsizg(long* x, long* y);
+void setsiz(long x, long y);
+void setsizg(long x, long y);
+void setpos(long x, long y);
+void setposg(long x, long y);
+void scnsiz(long* x, long* y);
+void scnsizg(long* x, long* y);
+void scncen(long* x, long* y);
+void scnceng(long* x, long* y);
+void winclient(long cx, long cy, long* wx, long* wy, winmodset ms);
+void winclientg(long cx, long cy, long* wx, long* wy, winmodset ms);
+void front(void);
+void back(void);
+void frame(long e);
+void sizable(long e);
+void sysbar(long e);
+void menu(menuptr m);
+void menuena(long id, long onoff);
+void menusel(long id, long select);
+void focus(void);
+long  getwigid(void);
+void killwidget(long id);
+void selectwidget(long id, long e);
+void enablewidget(long id, long e);
+void getwidgettext(long id, char* s, long sl);
+void putwidgettext(long id, char* s);
+void sizwidget(long id, long x, long y);
+void sizwidgetg(long id, long x, long y);
+void poswidget(long id, long x, long y);
+void poswidgetg(long id, long x, long y);
+void backwidget(long id);
+void frontwidget(long id);
+void focuswidget(long id);
+void buttonsiz(char* s, long* w, long* h);
+void buttonsizg(char* s, long* w, long* h);
+void checkboxsiz(char* s, long* w, long* h);
+void checkboxsizg(char* s, long* w, long* h);
+void radiobuttonsiz(char* s, long* w, long* h);
+void radiobuttonsizg(char* s, long* w, long* h);
+void groupsiz(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void groupsizg(char* s, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void scrollvertsiz(long* w, long* h);
+void scrollvertsizg(long* w, long* h);
+void scrollhorizsiz(long* w, long* h);
+void scrollhorizsizg(long* w, long* h);
+void scrollpos(long id, long r);
+void scrollsiz(long id, long r);
+void numselboxsiz(long l, long u, long* w, long* h);
+void numselboxsizg(long l, long u, long* w, long* h);
+void editboxsiz(char* s, long* w, long* h);
+void editboxsizg(char* s, long* w, long* h);
+void progbarsiz(long* w, long* h);
+void progbarsizg(long* w, long* h);
+void progbarpos(long id, long pos);
+void listboxsiz(strptr sp, long* w, long* h);
+void listboxsizg(strptr sp, long* w, long* h);
+void dropboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsiz(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void dropeditboxsizg(strptr sp, long* cw, long* ch, long* ow, long* oh);
+void slidehorizsiz(long* w, long* h);
+void slidehorizsizg(long* w, long* h);
+void slidevertsiz(long* w, long* h);
+void slidevertsizg(long* w, long* h);
+void tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy);
+void tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy);
+void tabsel(long id, long tn);
+void queryfont(long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+                      long* bg, long* bb, qfteffects* effect);
+
+/* the event virtuals, fired for this window's events alone */
+virtual long evchar(char c);
+virtual long evup(void);
+virtual long evdown(void);
+virtual long evleft(void);
+virtual long evright(void);
+virtual long evleftw(void);
+virtual long evrightw(void);
+virtual long evhome(void);
+virtual long evhomes(void);
+virtual long evhomel(void);
+virtual long evend(void);
+virtual long evends(void);
+virtual long evendl(void);
+virtual long evscrl(void);
+virtual long evscrr(void);
+virtual long evscru(void);
+virtual long evscrd(void);
+virtual long evpagd(void);
+virtual long evpagu(void);
+virtual long evtab(void);
+virtual long eventer(void);
+virtual long evinsert(void);
+virtual long evinsertl(void);
+virtual long evinsertt(void);
+virtual long evdel(void);
+virtual long evdell(void);
+virtual long evdelcf(void);
+virtual long evdelcb(void);
+virtual long evcopy(void);
+virtual long evcopyl(void);
+virtual long evcan(void);
+virtual long evstop(void);
+virtual long evcont(void);
+virtual long evprint(void);
+virtual long evprintb(void);
+virtual long evprints(void);
+virtual long evfun(long k);
+virtual long evmenu(void);
+virtual long evmouba(long m, long b);
+virtual long evmoubd(long m, long b);
+virtual long evmoumov(long m, long x, long y);
+virtual long evtim(long t);
+virtual long evjoyba(long j, long b);
+virtual long evjoybd(long j, long b);
+virtual long evjoymov(long j, long x, long y, long z);
+virtual long evresize(void);
+virtual long evfocus(void);
+virtual long evnofocus(void);
+virtual long evhover(void);
+virtual long evnohover(void);
+virtual long evterm(void);
+virtual long evframe(void);
+virtual long evmoumovg(long m, long x, long y);
+virtual long evredraw(long x1, long y1, long x2, long y2);
+virtual long evmin(void);
+virtual long evmax(void);
+virtual long evnorm(void);
+virtual long evmenus(long id);
+virtual long evbutton(long id);
+virtual long evchkbox(long id);
+virtual long evradbut(long id);
+virtual long evsclull(long id);
+virtual long evscldrl(long id);
+virtual long evsclulp(long id);
+virtual long evscldrp(long id);
+virtual long evsclpos(long id, long pos);
+virtual long evedtbox(long id);
+virtual long evnumbox(long id, long val);
+virtual long evlstbox(long id, long sel);
+virtual long evdrpbox(long id, long sel);
+virtual long evdrebox(long id);
+virtual long evsldpos(long id, long pos);
+virtual long evtabbar(long id, long sel);
+virtual long evusize(void);
+virtual long evdsize(void);
+
+}; /* class window */
+
+class widget {
+
+friend class window;
+friend void windowCB(evtrec* er);
+
+protected:
+
+window& w;    /* the window the widget is on */
+long    wid;  /* the widget id within it */
+long    dead; /* the window went first: do not reach after it */
+widget* next; /* next widget on the window */
+
+/* the base registers; the typed class creates */
+widget(window& wo, long id);
+
+public:
+
+/* destructor: kills the widget */
+virtual ~widget();
+
+/* copying is refused: two objects would free one widget */
+widget(const widget&) = delete;
+widget& operator=(const widget&) = delete;
+
+/* the widget id */
+long id(void);
+
+/* operations, all from the C widget set */
+void kill(void);
+void select(long e);
+void enable(long e);
+void gettext(char* s, long sl);
+void puttext(const char* s);
+void pos(long x, long y);
+void siz(long x, long y);
+void back(void);
+void front(void);
+void focus(void);
+
+/* the event virtuals; a typed widget overrides what it answers */
+virtual long pressed(void);        /* button */
+virtual long clicked(void);        /* checkbox, radio button */
+virtual long done(void);           /* edit box, drop edit box */
+virtual long selected(long v);     /* list, drop, number select, tab bar */
+virtual long moved(long v);        /* slider, scroll bar position */
+virtual long upline(void);         /* scroll bar steps */
+virtual long downline(void);
+virtual long uppage(void);
+virtual long downpage(void);
+
+}; /* class widget */
+
+/* the typed widgets: constructing one makes it */
+class button: public widget {
+
+public:
+
+button(window& wo, long x1, long y1, long x2, long y2, const char* s,
+       long id = 0);
+
+}; /* class button */
+
+class checkbox: public widget {
+
+public:
+
+checkbox(window& wo, long x1, long y1, long x2, long y2, const char* s,
+         long id = 0);
+
+}; /* class checkbox */
+
+class radiobutton: public widget {
+
+public:
+
+radiobutton(window& wo, long x1, long y1, long x2, long y2, const char* s,
+            long id = 0);
+
+}; /* class radiobutton */
+
+class group: public widget {
+
+public:
+
+group(window& wo, long x1, long y1, long x2, long y2, const char* s,
+      long id = 0);
+
+}; /* class group */
+
+class background: public widget {
+
+public:
+
+background(window& wo, long x1, long y1, long x2, long y2, long id = 0);
+
+}; /* class background */
+
+class scrollvert: public widget {
+
+public:
+
+scrollvert(window& wo, long x1, long y1, long x2, long y2, long id = 0);
+
+}; /* class scrollvert */
+
+class scrollhoriz: public widget {
+
+public:
+
+scrollhoriz(window& wo, long x1, long y1, long x2, long y2, long id = 0);
+
+}; /* class scrollhoriz */
+
+class numselbox: public widget {
+
+public:
+
+numselbox(window& wo, long x1, long y1, long x2, long y2, long l, long u,
+          long id = 0);
+
+}; /* class numselbox */
+
+class editbox: public widget {
+
+public:
+
+editbox(window& wo, long x1, long y1, long x2, long y2, long id = 0);
+
+}; /* class editbox */
+
+class progbar: public widget {
+
+public:
+
+progbar(window& wo, long x1, long y1, long x2, long y2, long id = 0);
+
+}; /* class progbar */
+
+class listbox: public widget {
+
+public:
+
+listbox(window& wo, long x1, long y1, long x2, long y2, strptr sp,
+        long id = 0);
+
+}; /* class listbox */
+
+class dropbox: public widget {
+
+public:
+
+dropbox(window& wo, long x1, long y1, long x2, long y2, strptr sp,
+        long id = 0);
+
+}; /* class dropbox */
+
+class dropeditbox: public widget {
+
+public:
+
+dropeditbox(window& wo, long x1, long y1, long x2, long y2, strptr sp,
+            long id = 0);
+
+}; /* class dropeditbox */
+
+class slidehoriz: public widget {
+
+public:
+
+slidehoriz(window& wo, long x1, long y1, long x2, long y2, long mark,
+           long id = 0);
+
+}; /* class slidehoriz */
+
+class slidevert: public widget {
+
+public:
+
+slidevert(window& wo, long x1, long y1, long x2, long y2, long mark,
+          long id = 0);
+
+}; /* class slidevert */
+
+class tabbar: public widget {
+
+public:
+
+tabbar(window& wo, long x1, long y1, long x2, long y2, strptr sp,
+       tabori tor, long id = 0);
+
+}; /* class tabbar */
 
 } /* namespace graphics */
 

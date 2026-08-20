@@ -25,6 +25,11 @@
 *                                                                              *
 * int system_event_addseinp(int fid);                                          *
 *                                                                              *
+* void system_event_deaseinp(int sid);                                         *
+*                                                                              *
+* Deactivates the input monitor with the given system event number. Used when  *
+* the underlying device goes away, such as a joystick disconnect.              *
+*                                                                              *
 * Registers an input file to be monitored for input ready, or one or more      *
 * bytes ready to read. The logical system event number is returned.            *
 *                                                                              *
@@ -34,7 +39,7 @@
 * an event when the signal occurs. The logical system event number is          *
 * returned.                                                                    *
 *                                                                              *
-* int system_event_addsetim(int sid, int t, int r);                            *
+* int system_event_addsetim(int sid, long t, long r);                          *
 *                                                                              *
 * Activates a timer with the given time and repeat state. An event occurs when *
 * the timer fires, and may repeat. Both accepts a logical system event number  *
@@ -252,6 +257,57 @@ int system_event_addseinp(int fid)
 
 /** *****************************************************************************
 
+Deactivate input event
+
+Deactivates the input monitor with the given system event number. Used when
+the underlying device goes away, such as a joystick disconnect: an end of
+file input is permanently ready, so leaving it registered would spin the
+event loop. The entry keeps its logical number but never fires again. The
+change list entry is removed and the list compacted, since the wait loop
+re-applies the full change list on every call.
+
+*******************************************************************************/
+
+void system_event_deaseinp(int sid)
+
+{
+
+    struct kevent ke; /* single change entry */
+    int           ci; /* change list index */
+    int           si; /* system table index */
+
+    pthread_mutex_lock(&evtlock); /* take the event lock */
+    if (sid <= 0 || !systab[sid-1] || systab[sid-1]->typ != se_inp) {
+
+        pthread_mutex_unlock(&evtlock); /* release the event lock */
+        fprintf(stderr, "*** System event: Invalid system event id\n");
+        fflush(stderr);
+        exit(1);
+
+    }
+    if (systab[sid-1]->fid >= 0) {
+
+        /* remove the filter from the kqueue now */
+        EV_SET(&ke, systab[sid-1]->fid, EVFILT_READ, EV_DELETE, 0, 0, 0);
+        kevent(kerque, &ke, 1, NULL, 0, NULL);
+        /* remove the registration from the change list and compact,
+           relinking the entries that moved down */
+        ci = systab[sid-1]->ei;
+        while (ci < nchg-1) { chgevt[ci] = chgevt[ci+1]; ci++; }
+        nchg--;
+        for (si = 0; si < MAXSYS; si++)
+            if (systab[si] && systab[si]->ei > systab[sid-1]->ei)
+                systab[si]->ei--;
+        systab[sid-1]->ei = -1; /* unlink */
+        systab[sid-1]->fid = -1; /* mark input dead */
+
+    }
+    pthread_mutex_unlock(&evtlock); /* release the event lock */
+
+}
+
+/** *****************************************************************************
+
 Add signal to system event handler
 
 Adds the given signal number to the system event handler set. Note that this
@@ -271,7 +327,7 @@ int system_event_addsesig(int sig)
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     sid = getsys(); /* get a new system event id */
-    systab[sid-1]->typ = se_inp; /* set type */
+    systab[sid-1]->typ = se_sig; /* set type */
     systab[sid-1]->sig = sig; /* set signal */
 
     /* add this signal to mask set */
@@ -305,7 +361,7 @@ returned.
 
 *******************************************************************************/
 
-int system_event_addsetim(int sid, int t, int r)
+int system_event_addsetim(int sid, long t, long r)
 
 {
 

@@ -40,11 +40,11 @@ static void prtperm(ami_permset p)
 
 }
 
-static void waittime(int t)
+static void waittime(long t)
 
 {
 
-    int ct = ami_clock();
+    long ct = ami_clock();
 
     while (ami_elapsed(ct) < t);
 
@@ -56,10 +56,10 @@ int main(void)
 
     ami_filptr lp;
     ami_envptr ep;
-    int       t;
+    long      t;
     char      s[MAXSTR], s2[MAXSTR], s3[MAXSTR];
     int       c;
-    int       err;
+    long      err;
     char      p[MAXSTR], n[MAXSTR], e[MAXSTR];
     ami_filptr fla;
     FILE*     fp;
@@ -107,15 +107,23 @@ int main(void)
     printf("test11: waiting 1 second\n");
     waittime(SECOND);
     printf("test 11: %ld s/b %d (approximate)\n", ami_elapsed(t), SECOND);
-    printf("test 12: %d s/b 1\n", ami_validfile("c:\\just\\fargle.com"));
-    printf("test 14: %d s/b 1\n", ami_wild("c:\\fargle.c?m"));
-    printf("test 15: %d s/b 1\n", ami_validfile("c:\\far*gle.com"));
-    printf("test 17  %d s/b 1\n", ami_wild("c:\\for?.txt"));
-    printf("test 18: %d s/b 1\n", ami_wild("c:\\for*.txt"));
-    printf("test 19: %d s/b 0\n", ami_wild("c:\\fork.txt"));
+    printf("test 12: %ld s/b 1\n", ami_validfile("c:\\just\\fargle.com"));
+    printf("test 14: %ld s/b 1\n", ami_wild("c:\\fargle.c?m"));
+    printf("test 15: %ld s/b 1\n", ami_validfile("c:\\far*gle.com"));
+    printf("test 17  %ld s/b 1\n", ami_wild("c:\\for?.txt"));
+    printf("test 18: %ld s/b 1\n", ami_wild("c:\\for*.txt"));
+    printf("test 19: %ld s/b 0\n", ami_wild("c:\\fork.txt"));
     ami_setenv("barkbark", "what is this");
     ami_getenv("barkbark", s, MAXSTR);
     printf("test20: %s s/b what is this\n", s);
+    /* Set the same name again. This takes the "found" path in setenv,
+       which replaces the value in place rather than making a new entry,
+       and is where a one byte heap overflow lived: the replacement was
+       allocated without room for the terminator. A longer value than the
+       first makes the overflow certain rather than incidental. */
+    ami_setenv("barkbark", "a considerably longer replacement value");
+    ami_getenv("barkbark", s, MAXSTR);
+    printf("test21: %s s/b a considerably longer replacement value\n", s);
     ami_remenv("barkbark");
     ami_getenv("barkbark", s, MAXSTR);
     printf("test22: \"%s\" s/b \"\"\n", s);
@@ -137,7 +145,7 @@ int main(void)
     printf("s/b This is services_test1 \"\" (empty string)\n");
     printf("test25:\n");
     ami_execw("services_test1", &err);
-    printf("%d\n", err);
+    printf("%ld\n", err);
     printf("s/b\n");
     printf("This is services_test1 \"\"\n");
     printf("0\n");
@@ -154,7 +162,7 @@ int main(void)
     printf("s/b This is services_test1: \"hi there\"\n");
     printf("test27:\n");
     ami_execew("services_test1", ep, &err);
-    printf("%d\n", err);
+    printf("%ld\n", err);
     printf("s/b\n");
     printf("This is services_test1 \"hi there\"\n");
     printf("0\n");
@@ -168,11 +176,19 @@ int main(void)
     ami_setcur(s);
     ami_getcur(s, MAXSTR);
     printf("test 31: %s s/b <the current path>\n", s);
-    ami_brknam("c:\\what\\ho\\junk.com", p, MAXSTR, n, MAXSTR, e, MAXSTR);
+    /* Build the path with the system's own separator. The test used a
+       Windows path with backslashes, which is not a separator on Unix, so
+       brknam correctly returned the whole string as the name and the test
+       appeared to fail everywhere but Windows. */
+    sprintf(s2, "%cwhat%cho%cjunk.com", ami_pthchr(), ami_pthchr(),
+            ami_pthchr());
+    ami_brknam(s2, p, MAXSTR, n, MAXSTR, e, MAXSTR);
     printf("test 32: Path: %s Name: %s Ext: %s ", p, n, e);
-    printf("s/b: Path: c:\\what\\ho\\ Name: junk Ext: com\n");
+    printf("s/b: Path: %cwhat%cho%c Name: junk Ext: com\n", ami_pthchr(),
+           ami_pthchr(), ami_pthchr());
     ami_maknam(s, MAXSTR, p, n, e);
-    printf("test 33: %s s/b c:\\what\\ho\\junk.com\n", s);
+    printf("test 33: %s s/b %cwhat%cho%cjunk.com\n", s, ami_pthchr(),
+           ami_pthchr(), ami_pthchr());
     strcpy(s, "junk");
     ami_fulnam(s, MAXSTR);
     printf("test 36: %s s/b <path>junk\n", s);
@@ -233,22 +249,22 @@ int main(void)
 
     printf("test 51: Option character: %c\n", ami_optchr());
     printf("test 52: Path character: %c\n", ami_pthchr());
-    printf("test 53: Latitude: %d\n", ami_latitude());
-    printf("test 54: longitude: %d\n", ami_longitude());
-    printf("test 55: Altitude: %d\n", ami_altitude());
-    printf("test 56: Country code: %d\n", ami_country());
+    printf("test 53: Latitude: %ld\n", ami_latitude());
+    printf("test 54: longitude: %ld\n", ami_longitude());
+    printf("test 55: Altitude: %ld\n", ami_altitude());
+    printf("test 56: Country code: %ld\n", ami_country());
     ami_countrys(s, 100, ami_country());
     printf("test 57: Country name: %s\n", s);
-    printf("test 58: Timezone: %d\n", ami_timezone());
-    printf("test 59: Daysave: %d\n", ami_daysave());
-    printf("test 60: 24 hour time: %d\n", ami_time24hour());
-    printf("test 61: Language: %d\n", ami_language());
+    printf("test 58: Timezone: %ld\n", ami_timezone());
+    printf("test 59: Daysave: %ld\n", ami_daysave());
+    printf("test 60: 24 hour time: %ld\n", ami_time24hour());
+    printf("test 61: Language: %ld\n", ami_language());
     ami_languages(s, 100, ami_language());
     printf("test 62: Language name: %s\n", s);
     printf("test 63: Decimal character: %c\n", ami_decimal());
     printf("test 64: Separator character: %c\n", ami_numbersep());
-    printf("test 65: Time order: %d\n", ami_timeorder());
-    printf("test 66: Date order: %d\n", ami_dateorder());
+    printf("test 65: Time order: %ld\n", ami_timeorder());
+    printf("test 66: Date order: %ld\n", ami_dateorder());
     printf("test 67: Date separator: %c\n", ami_datesep());
     printf("test 68: time separator: %c\n", ami_timesep());
     printf("test 69: Currency character: %c\n", ami_currchr());

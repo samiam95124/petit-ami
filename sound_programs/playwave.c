@@ -14,7 +14,7 @@ Plays the given midi file.
 #include <sound.h>
 #include <option.h>
 
-int dport = AMI_WAVE_OUT; /* set default wave out */
+long dport = AMI_WAVE_OUT; /* set default wave out */
 
 ami_optrec opttbl[] = {
 
@@ -28,12 +28,13 @@ int main(int argc, char **argv)
 
 {
 
-    int argi = 1;
+    long argi = 1;
+    long argcl = argc;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 2) {
+    if (argcl != 2) {
 
         fprintf(stderr, "Usage: playwave [--port=<port>|-p=<port>] <.wav file>\n");
         exit(1);

@@ -16,11 +16,11 @@ Gets and prints the certificate chain given by the server.
 int main(int argc, char **argv)
 {
 
-    int fn;
+    long fn;
     unsigned long addr;
     char cbuff[4096];
-    int len;
-    int port;
+    long len;
+    long port;
     int i;
 
     if (argc < 3) {
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
        if (len) {
 
            printf("Certificate %d:\n", i);
-           printf("%.*s\n", len, cbuff);
+           printf("%.*s\n", (int)len, cbuff);
            i++; /* next certificate */
 
        }

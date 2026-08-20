@@ -14,6 +14,11 @@
 * performance computing and applications that need to determine their own      *
 * reliable delivery protocols like audio and video data.                       *
 *                                                                              *
+* String output buffers are "critical": a result may occupy the entire        *
+* buffer, in which case the terminating zero is left off. Results shorter     *
+* than the buffer are zero terminated. C callers should use length limited    *
+* reads of such buffers (see strnlen and similar).                            *
+*                                                                              *
 * The Linux version, and in fact probably all versions, rely on stacking atop  *
 * openssl.                                                                     *
 *                                                                              *
@@ -65,7 +70,7 @@ typedef struct ami_certfield {
 
     string               name;     /* name of field */
     string               data;     /* content of field */
-    int              critical; /* is a critical X509 field */
+    long              critical; /* is a critical X509 field */
     struct ami_certfield* fork;     /* sublist */
     struct ami_certfield* next;     /* next entry in list */
 
@@ -74,25 +79,33 @@ typedef struct ami_certfield {
 void ami_addrnet(const string name, unsigned long* addr);
 void ami_addrnetv6(const string name, unsigned long long* addrh,
                   unsigned long long* addrl);
-FILE* ami_opennet(unsigned long addr, int port, int secure);
+FILE* ami_opennet(unsigned long addr, long port, long secure);
 FILE* ami_opennetv6(unsigned long long addrh, unsigned long long addrl,
-                   int port, int secure);
-int ami_maxmsg(unsigned long addr);
-int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl);
-int ami_relymsg(unsigned long addr);
-int ami_relymsgv6(unsigned long long addrh, unsigned long long addrl);
-int ami_openmsg(unsigned long addr, int port, int secure);
-int ami_openmsgv6(unsigned long long addrh, unsigned long long addrl, int port,
-                 int secure);
-void ami_wrmsg(int fn, void* msg, unsigned long len);
-int ami_rdmsg(int fn, void* msg, unsigned long len);
-void ami_clsmsg(int f);
-FILE* ami_waitnet(int port, int secure);
-int ami_waitmsg(int port, int secure);
-int ami_certnet(FILE* f, int which, string cert, int len);
-int ami_certmsg(int fn, int which, string cert, int len);
-void ami_certlistnet(FILE *f, int which, ami_certptr* list);
-void ami_certlistmsg(int fn, int which, ami_certptr* list);
+                   long port, long secure);
+long ami_maxmsg(unsigned long addr, long secure);
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  long secure);
+long ami_relymsg(unsigned long addr);
+long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl);
+long ami_openmsg(unsigned long addr, long port, long secure);
+long ami_openmsgv6(unsigned long long addrh, unsigned long long addrl, long port,
+                 long secure);
+void ami_wrmsg(long fn, void* msg, unsigned long len);
+long ami_rdmsg(long fn, void* msg, unsigned long len);
+void ami_clsmsg(long f);
+FILE* ami_waitnet(long port, long secure);
+/* Install a network error handler. Called with the error text before
+   the abort; a handler that longjmps takes the error, one that returns
+   lets the abort proceed. A server that recycles failed connections
+   catches channel deaths this way: a vanished secure peer surfaces as
+   an error where a clear channel just falls silent. */
+typedef void (*ami_neterrhan_t)(const char* es);
+void ami_neterror(ami_neterrhan_t handler);
+long ami_waitmsg(long port, long secure);
+long ami_certnet(FILE* f, long which, string cert, long len);
+long ami_certmsg(long fn, long which, string cert, long len);
+void ami_certlistnet(FILE *f, long which, ami_certptr* list);
+void ami_certlistmsg(long fn, long which, ami_certptr* list);
 void ami_certlistfree(ami_certptr* list);
 
 #ifdef __cplusplus

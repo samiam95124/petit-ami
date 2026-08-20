@@ -23,14 +23,14 @@
 #define DAYSEC  (HOURSEC*24) /* number of seconds in a day */
 
 ami_evtrec er;  /* event record */
-int       frm; /* frame on/off */
+long      frm; /* frame on/off */
 
 /* find rectangular coordinates from polar, relative to center of circle,
   with given diameter */
 
-void rectcord(int a,          /* angle, 0-359 */
-              int d,          /* diameter of circle */
-              int* x, int* y) /* returns rectangular coordinate */
+void rectcord(long a,          /* angle, 0-359 */
+               long d,          /* diameter of circle */
+               long* x, long* y) /* returns rectangular coordinate */
 
 {
 
@@ -44,15 +44,15 @@ void rectcord(int a,          /* angle, 0-359 */
 
 /* draw polar coordinate line */
 
-void pline(int a,           /* angle of hand */
-           int o,           /* length of hand */
-           int i,           /* distance from center */
-           int cx, int cy,  /* center of circle in x and y */
-           int w)           /* width of hand */
+void pline(long a,           /* angle of hand */
+           long o,           /* length of hand */
+           long i,           /* distance from center */
+           long cx, long cy, /* center of circle in x and y */
+           long w)           /* width of hand */
 
 {
 
-    int sx, sy, ex, ey; /* line start and end */
+    long sx, sy, ex, ey; /* line start and end */
 
     rectcord(a, i, &sx, &sy); /* find startpoint of line */
     rectcord(a, o, &ex, &ey); /* find endpoint of line */
@@ -63,16 +63,16 @@ void pline(int a,           /* angle of hand */
 
 /* update time */
 
-void update(int cx, int cy, /* center of clock in x and y */
-            int d)          /* diameter of clock face */
+void update(long cx, long cy, /* center of clock in x and y */
+            long d)          /* diameter of clock face */
 
 {
 
-    int t;    /* current time */
-    int s;    /* seconds */
-    int m;    /* minutes */
-    int h;    /* hours */
-    int x, y; /* coordinates */
+    long t;    /* current time */
+    long s;    /* seconds */
+    long m;    /* minutes */
+    long h;    /* hours */
+    long x, y; /* coordinates */
     char ds[100]; /* storage for date */
 
     /* break down time to seconds, minutes, hours */
@@ -101,10 +101,10 @@ void drawclock(void)
 
 {
 
-    int d;      /* circle diameter */
-    int cx, cy; /* center of circle */
-    int i;      /* index */
-    int t;      /* length of tick mark */
+    long d;      /* circle diameter */
+    long cx, cy; /* center of circle */
+    long i;      /* index */
+    long t;      /* length of tick mark */
 
     /* erase background */
     ami_fcolor(stdout, ami_white);

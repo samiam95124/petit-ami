@@ -51,8 +51,8 @@ typedef enum {
     PA_WIDGET_RADIO,         /* radio button selected */
     PA_WIDGET_SCROLL_PAGEUP, /* scroll page up/left */
     PA_WIDGET_SCROLL_PAGEDN, /* scroll page down/right */
-    PA_WIDGET_SCROLL_POS,    /* scroll thumb moved; pos 0..INT_MAX */
-    PA_WIDGET_SLIDER_POS,    /* slider moved; pos 0..INT_MAX */
+    PA_WIDGET_SCROLL_POS,    /* scroll thumb moved; pos 0..LONG_MAX */
+    PA_WIDGET_SLIDER_POS,    /* slider moved; pos 0..LONG_MAX */
     PA_WIDGET_EDIT_DONE,     /* edit box completed (return pressed) */
     PA_WIDGET_NUM_DONE,      /* number select box changed; pos = value */
     PA_WIDGET_LIST_SEL,      /* list box selection; pos = 1-based index */
@@ -96,7 +96,7 @@ typedef struct {
         struct { int jn; int ax[6]; }                  joymove;
         struct { int jn; int btn; }                    joybtn;
         struct { int id; }                             menu;
-        struct { int id; int act; int pos; }           widget;
+        struct { int id; int act; long pos; }          widget;
     };
 } pa_rawevent;
 
@@ -211,7 +211,7 @@ void pa_cocoa_group(pa_winhan win, int x, int y, int w, int h,
 void pa_cocoa_background(pa_winhan win, int x, int y, int w, int h, int id);
 void pa_cocoa_editbox(pa_winhan win, int x, int y, int w, int h, int id);
 void pa_cocoa_numselbox(pa_winhan win, int x, int y, int w, int h,
-                        int l, int u, int id);
+                        long l, long u, int id);
 void pa_cocoa_listbox(pa_winhan win, int x, int y, int w, int h,
                       const char** items, int count, int id);
 void pa_cocoa_dropbox(pa_winhan win, int x, int y, int w, int h,
@@ -236,9 +236,10 @@ void pa_cocoa_widget_text(pa_winhan win, int id, const char* s);
 void pa_cocoa_widget_get_text(pa_winhan win, int id, char* s, int sl);
 void pa_cocoa_widget_enable(pa_winhan win, int id, int on);
 void pa_cocoa_widget_select(pa_winhan win, int id, int on);
-void pa_cocoa_scrollbar_pos(pa_winhan win, int id, int pos);
-void pa_cocoa_scrollbar_siz(pa_winhan win, int id, int range);
-void pa_cocoa_progressbar_pos(pa_winhan win, int id, int pos);
+/* pos/range/ratio values are PA full scale, 0..LONG_MAX */
+void pa_cocoa_scrollbar_pos(pa_winhan win, int id, long pos);
+void pa_cocoa_scrollbar_siz(pa_winhan win, int id, long range);
+void pa_cocoa_progressbar_pos(pa_winhan win, int id, long pos);
 
 /*----------------------------------------------------------------------------
  * Menus — builds macOS menu bar from PA menu tree.
@@ -264,15 +265,15 @@ void pa_cocoa_query_save(char* path, int pathlen);
 #define PA_QF_ALLFIL (1 << 4) /* replace all in file */
 #define PA_QF_ALLLIN (1 << 5) /* replace all on line(s) */
 
-/* color components are 0..INT_MAX (PA scale); in/out */
-void pa_cocoa_query_color(int* r, int* g, int* b);
+/* color components are 0..LONG_MAX (PA scale); in/out */
+void pa_cocoa_query_color(long* r, long* g, long* b);
 /* find/find-replace dialogs; opt bits per ami_qfnopt/ami_qfropt */
-void pa_cocoa_query_find(char* s, int sl, int* opt);
-void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, int* opt);
-/* font dialog: family name in/out, size in points, fg/bg 0..INT_MAX */
-void pa_cocoa_query_font(char* family, int famlen, int* size,
-                         int* fr, int* fg, int* fb,
-                         int* br, int* bg, int* bb);
+void pa_cocoa_query_find(char* s, int sl, long* opt);
+void pa_cocoa_query_findrep(char* s, int sl, char* r, int rl, long* opt);
+/* font dialog: family name in/out, size in points, fg/bg 0..LONG_MAX */
+void pa_cocoa_query_font(char* family, int famlen, long* size,
+                         long* fr, long* fg, long* fb,
+                         long* br, long* bg, long* bb);
 
 /*----------------------------------------------------------------------------
  * Miscellaneous

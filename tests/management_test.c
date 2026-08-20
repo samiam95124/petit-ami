@@ -31,14 +31,14 @@
    exact equality (native X11 WMs granted exact sizes and still pass). */
 #define SIZTOLC 1  /* character-cell tolerance */
 #define SIZTOLG 2  /* pixel tolerance          */
-#define SIZOFF(a, b, tol) (abs((a) - (b)) > (tol))
+#define SIZOFF(a, b, tol) (labs((a) - (b)) > (tol))
 
 static jmp_buf terminate_buf;
 static FILE*      win2;
 static FILE*      win3;
 static FILE*      win4;
-static int        x, x2, y, y2;
-static int        ox, oy;       /* original size of window */
+static long       x, x2, y, y2;
+static long       ox, oy;       /* original size of window */
 static int        fb;           /* front/back flipper */
 static ami_evtrec  er;
 static ami_menuptr mp;           /* menu pointer */
@@ -52,9 +52,9 @@ static int        mincnt;       /* minimize counter */
 static int        maxcnt;       /* maximize counter */
 static int        nrmcnt;       /* normalize counter */
 static int        i;
-static int        xs, ys;
-static int        mxs, mys;      /* maximum window size the WM will grant */
-static int        cs;
+static long       xs, ys;
+static long       mxs, mys;      /* maximum window size the WM will grant */
+static long       cs;
 static long       t, et;
 static ami_color   c1, c2, c3;
 
@@ -84,6 +84,55 @@ static enum { /* debug levels */
                                 fflush(stderr); } while (0)
 
 extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
+
+/* "management_test auto" walks every screen with no input at all,
+   capturing each, and exits at the end: this is how the regression runs
+   it. Child windows and menus are windows of their own and paint from
+   events, so an automatic run pumps events for a moment to let the screen
+   settle before capturing it, then answers the wait with a return. */
+static int autorun = FALSE;
+
+#define AUTOSETL 3000 /* settle time before a capture, 100us units */
+#define AUTOTIM  9    /* timer the settle runs on */
+
+static void autosettle(void)
+
+{
+
+    ami_evtrec er;
+
+    ami_timer(stdout, AUTOTIM, AUTOSETL, FALSE);
+    do {
+
+        ami_event(stdin, &er);
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != ami_ettim || er.timnum != AUTOTIM);
+
+}
+
+/* Every wait for the user comes through here. An automatic run lets the
+   screen settle and answers with the return the screen was waiting for;
+   the capture is taken by waitnextt, which stamps the frame. */
+static void nextevt(ami_evtrec* er)
+
+{
+
+    if (autorun) {
+
+        autosettle();
+        /* the return the screen waits for, from the main window: a wait
+           that takes only its own window's return must see one */
+        er->etype = ami_etenter;
+        er->winid = 1;
+
+        return;
+
+    }
+    ami_event(stdin, er);
+
+}
 
 /* wait return to be pressed, or handle terminate */
 
@@ -105,9 +154,10 @@ static void waitnextt(int keeptitle)
 
     }
 
+    if (autorun) autosettle(); /* let the screen finish before it is taken */
     screen_capture();
 
-    do { ami_event(stdin, &er); }
+    do { nextevt(&er); }
     while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
@@ -127,9 +177,9 @@ static void waitnextprint(void)
 
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etchar)
-            printf("Window: %d char: %c\n", er.winid, er.echar);
+            printf("Window: %ld char: %c\n", er.winid, er.echar);
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -138,7 +188,7 @@ static void waitnextprint(void)
 
 /* print centered string */
 
-static void prtcen(int y, const char* s)
+static void prtcen(long y, const char* s)
 
 {
 
@@ -149,7 +199,7 @@ static void prtcen(int y, const char* s)
 
 /* print centered string graphical */
 
-static void prtceng(int y, const char* s)
+static void prtceng(long y, const char* s)
 
 {
 
@@ -244,7 +294,7 @@ static void chrgrid(void)
 
 /* display frame test */
 
-static void frameinside(const string s, int x, int y)
+static void frameinside(const string s, long x, long y)
 
 {
 
@@ -265,14 +315,14 @@ static void frametest(const string s)
 {
 
     ami_evtrec er;
-    int       x, y;
+    long      x, y;
 
     x = ami_maxxg(stdout); /* set size */
     y = ami_maxyg(stdout);
     frameinside(s, x, y);
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etredraw) frameinside(s, x, y);
         if (er.etype == ami_etresize) {
 
@@ -290,7 +340,7 @@ static void frametest(const string s)
 
 /* Finds the largest square that fits into the screen, then applies a ratio to
    that. Used to determine a relative size that fits the screen. */
-static void sqrrat(int* xs, int* ys, float rat)
+static void sqrrat(long* xs, long* ys, float rat)
 
 {
 
@@ -312,30 +362,42 @@ static ami_color nextcolor(ami_color c)
 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 
 {
 
-    int xr;
+    long xr;
 
     if (setjmp(terminate_buf)) goto terminate;
+
+    /* "management_test auto" runs every screen with no input, for the
+       regression; it ends when the screens do. A second argument names
+       the file the screens are captured to, so runs beside each other do
+       not write over one another */
+    if (argc > 1 && !strcmp(argv[1], "auto")) {
+
+        autorun = TRUE;
+        ami_autohold(FALSE);
+        if (argc > 2) screen_capture_name(argv[2]);
+
+    }
 
     ami_auto(stdout, OFF);
     ami_curvis(stdout, OFF);
     printf("Managed screen test vs. 0.1\n");
     printf("\n");
     ami_scnsiz(stdout, &x, &y);
-    printf("Screen size character: x: %d y: %d\n", x, y);
+    printf("Screen size character: x: %ld y: %ld\n", x, y);
     ami_scnsizg(stdout, &x, &y);
-    printf("Screen size pixel: x: %d y: %d\n", x, y);
+    printf("Screen size pixel: x: %ld y: %ld\n", x, y);
     printf("\n");
     ami_getsiz(stdout, &x, &y);
-    printf("Window size character: x: %d y: %d\n", x, y);
+    printf("Window size character: x: %ld y: %ld\n", x, y);
     ami_getsizg(stdout, &ox, &oy);
-    printf("Window size graphical: x: %d y: %d\n", ox, oy);
+    printf("Window size graphical: x: %ld y: %ld\n", ox, oy);
     printf("\n");
-    printf("Client size character: x: %d y: %d\n", ami_maxx(stdout), ami_maxy(stdout));
-    printf("Client size graphical: x: %d y: %d\n", ami_maxxg(stdout), ami_maxyg(stdout));
+    printf("Client size character: x: %ld y: %ld\n", ami_maxx(stdout), ami_maxy(stdout));
+    printf("Client size graphical: x: %ld y: %ld\n", ami_maxxg(stdout), ami_maxyg(stdout));
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
     waitnext();
@@ -391,7 +453,7 @@ int main(void)
     ami_home(stdout);
     printf("Buffer should now be 50 by 50 characters, and\n");
     printf("painted blue\n");
-    printf("maxx: %d maxy: %d\n", ami_maxx(stdout), ami_maxy(stdout));
+    printf("maxx: %ld maxy: %ld\n", ami_maxx(stdout), ami_maxy(stdout));
     printf("Open up window to verify this\n");
     prtcen(ami_maxy(stdout), "Buffer resize character test\n");
     ami_bcolor(stdout, ami_white);
@@ -412,9 +474,9 @@ int main(void)
     ami_line(stdout, 1, 1, 1, ami_maxyg(stdout));
     ami_line(stdout, 1, ami_maxyg(stdout), ami_maxxg(stdout), ami_maxyg(stdout));
     ami_line(stdout, ami_maxxg(stdout), 1, ami_maxxg(stdout), ami_maxyg(stdout));
-    printf("Buffer should now be %d by %d pixels, and\n", xs, ys);
+    printf("Buffer should now be %ld by %ld pixels, and\n", xs, ys);
     printf("painted blue\n");
-    printf("maxxg: %d maxyg: %d\n", ami_maxxg(stdout), ami_maxyg(stdout));
+    printf("maxxg: %ld maxyg: %ld\n", ami_maxxg(stdout), ami_maxyg(stdout));
     printf("Open up window to verify this\n");
     prtcen(ami_maxy(stdout), "Buffer resize graphical test");
     ami_bcolor(stdout, ami_white);
@@ -433,7 +495,7 @@ int main(void)
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
-            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+            printf("*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %d\n",
                    x2, y2, x, 25);
             waitnext();
             longjmp(terminate_buf, 1);
@@ -458,7 +520,7 @@ int main(void)
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
-            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+            printf("*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %d y: %ld\n",
                    x2, y2, 80, y);
             printf("*** Getsiz does not match setsiz\n");
             waitnext();
@@ -499,7 +561,7 @@ int main(void)
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
-            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+            printf("*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %ld\n",
                    x2, y2, x, ys);
             printf("*** Getsiz does ! match setsiz\n");
             waitnext();
@@ -525,7 +587,7 @@ int main(void)
 
             ami_setsiz(stdout, 80, 25);
             putchar('\f');
-            printf("*** Getsiz does not match setsiz, x: %d y: %d vs. x: %d y: %d\n",
+            printf("*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %ld\n",
                    x2, y2, xs, y);
             printf("*** Getsiz does ! match setsiz\n");
             waitnext();
@@ -560,7 +622,7 @@ int main(void)
 
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etchar) if (er.echar == ' ') { /* flip front/back */
 
             fb = !fb;
@@ -692,7 +754,7 @@ int main(void)
     sblue = OFF;
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
@@ -746,7 +808,7 @@ int main(void)
     printf("defined position\n");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
@@ -911,7 +973,7 @@ int main(void)
     printf("(if framed), test entering characters to windows.            \n");
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etchar) {
 
             if (er.winid == 2) fputc(er.echar, win2);
@@ -967,7 +1029,7 @@ int main(void)
     printf("characters to windows.                                       \n");
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etchar) {
 
             if (er.winid == 2) fputc(er.echar, win2);
@@ -1080,7 +1142,7 @@ int main(void)
     fprintf(win4, "I am child window 3\n");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         /* repaint the parent on a main-window (winid 1) redraw or resize */
         if ((er.etype == ami_etredraw || er.etype == ami_etresize) &&
             er.winid == 1) {
@@ -1146,7 +1208,7 @@ int main(void)
     fprintf(win4, "I am child window 3");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         /* repaint the parent on a main-window (winid 1) redraw or resize; re-fit
            children only on an actual parent resize -- see the note in stacking
            resize test pixel 1 above */
@@ -1189,7 +1251,7 @@ int main(void)
     ami_binvis(stdout);
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etredraw || er.etype == ami_etresize) {
 
             /* clear screen without overwriting frame */
@@ -1230,7 +1292,7 @@ int main(void)
     nrmcnt = 0; /* clear normalize counter */
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         /* count minimize, maximize, normalize */
         if (er.etype == ami_etmax) maxcnt = maxcnt+1;
         if (er.etype == ami_etmin) mincnt = mincnt+1;
@@ -1261,7 +1323,7 @@ int main(void)
     ami_linewidth(stdout, 1);
 
     ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (20, 10) client, full frame, window size is: %d,%d\n", x, y);
+    printf("For (20, 10) client, full frame, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1286,7 +1348,7 @@ int main(void)
     printf("System bar off\n");
     ami_sysbar(win2, OFF);
     ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize));
-    printf("For (20, 10) client, no system bar, window size is: %d,%d\n", x, y);
+    printf("For (20, 10) client, no system bar, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1312,7 +1374,7 @@ int main(void)
     ami_sysbar(win2, ON);
     ami_sizable(win2, OFF);
     ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsysbar));
-    printf("For (20, 10) client, no size bars, window size is: %d,%d\n", x, y);
+    printf("For (20, 10) client, no size bars, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1339,7 +1401,7 @@ int main(void)
     ami_sizable(win2, ON);
     ami_frame(win2, OFF);
     ami_winclient(stdout, 20, 10, &x, &y, BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (20, 10) client, no frame, window size is: %d,%d\n", x, y);
+    printf("For (20, 10) client, no frame, window size is: %ld,%ld\n", x, y);
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1373,38 +1435,38 @@ int main(void)
     ami_linewidth(stdout, 1);
     ami_fcolor(win2, ami_cyan);
     ami_winclientg(stdout, xr, xr, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (%d, %d) client, full frame, window size is: %d,%d\n", xr, xr, x, y);
+    printf("For (%ld, %ld) client, full frame, window size is: %ld,%ld\n", xr, xr, x, y);
     ami_setsizg(win2, x, y);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
     ami_curvis(win2, OFF);
-    printf("Check client window has (%d, %d) surface\n", xr, xr);
+    printf("Check client window has (%ld, %ld) surface\n", xr, xr);
     waitnext();
 
     printf("System bar off\n");
     ami_sysbar(win2, OFF);
     ami_winclientg(stdout, xr, xr, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize));
-    printf("For (%d, %d) client, no system bar, window size is: %d,%d\n", xr, xr, x, y);
+    printf("For (%ld, %ld) client, no system bar, window size is: %ld,%ld\n", xr, xr, x, y);
     ami_setsizg(win2, x, y);
     putc('\f', win2);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
-    printf("Check client window has (%d, %d) surface\n", xr, xr);
+    printf("Check client window has (%ld, %ld) surface\n", xr, xr);
     waitnext();
 
     printf("Sizing bars off\n");
     ami_sysbar(win2, ON);
     ami_sizable(win2, OFF);
     ami_winclientg(stdout, xr, xr, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsysbar));
-    printf("For (%d, %d) client, no sizing, window size is: %d,%d\n", xr, xr, x, y);
+    printf("For (%ld, %ld) client, no sizing, window size is: %ld,%ld\n", xr, xr, x, y);
     ami_setsizg(win2, x, y);
     putc('\f', win2);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
-    printf("Check client window has (%d, %d) surface\n", xr, xr);
+    printf("Check client window has (%ld, %ld) surface\n", xr, xr);
     waitnext();
 
     printf("frame off\n");
@@ -1412,13 +1474,13 @@ int main(void)
     ami_sizable(win2, ON);
     ami_frame(win2, OFF);
     ami_winclientg(stdout, xr, xr, &x, &y, BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (%d, %d) client, no frame, window size is: %d,%d\n", xr, xr, x, y);
+    printf("For (%ld, %ld) client, no frame, window size is: %ld,%ld\n", xr, xr, x, y);
     ami_setsizg(win2, x, y);
     putc('\f', win2);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
-    printf("Check client window has (%d, %d) surface\n", xr, xr);
+    printf("Check client window has (%ld, %ld) surface\n", xr, xr);
     waitnext();
 
     fclose(win2);
@@ -1435,7 +1497,7 @@ int main(void)
     ami_linewidth(stdout, 1);
     ami_fcolor(win2, ami_cyan);
     ami_winclientg(stdout, 1, 1, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    printf("For (200, 200) client, full frame, window size minimum is: %d,%d\n", x, y);
+    printf("For (200, 200) client, full frame, window size minimum is: %ld,%ld\n", x, y);
     ami_setsizg(win2, 1, 1);
     ami_getsizg(win2, &x2, &y2);
     waitnext();
@@ -1490,9 +1552,15 @@ int main(void)
     ami_bover(stdout);
     printf("Child windows should all be closed\n");
     printf("\n");
-    printf("Child windows place and remove %d iterations %f seconds\n", 100,
-           et*0.0001);
-    printf("%f per iteration\n", et*0.0001/100);
+    /* the times are never the same twice, so an automatic run, which is
+       judged on the screens themselves, leaves them off the screen */
+    if (!autorun) {
+
+        printf("Child windows place and remove %d iterations %f seconds\n",
+               100, et*0.0001);
+        printf("%f per iteration\n", et*0.0001/100);
+
+    }
     waitnext();
 
     terminate: /* terminate */

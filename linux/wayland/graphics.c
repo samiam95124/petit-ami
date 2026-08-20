@@ -1,6 +1,6 @@
 /** ****************************************************************************
  *                                                                              *
- *                        GRAPHICAL MODE LIBRARY FOR X                          *
+ *                     GRAPHICAL MODE LIBRARY FOR WAYLAND                       *
  *                                                                              *
  *                       Copyright (C) 2019 Scott A. Franco                     *
  *                                                                              *
@@ -69,13 +69,74 @@
  *                                                                              *
  *******************************************************************************/
 
-/* X11 definitions */
-#include <X11/Xlib.h>
-#include <X11/keysym.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
-#include <X11/cursorfont.h>
-#include <X11/extensions/shape.h>
+/* the X window and drawing model implemented on Wayland */
+#include "pdisplay.h"
+#include <xkbcommon/xkbcommon-keysyms.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* local conveniences over the platform layer's event entries */
+static void nextxevt(pd_display* d, pd_evt* e) { pd_evtnext(d, e, 1); }
+static int  evtpending(pd_display* d)
+{ pd_evt pe; return (pd_evtpeek(d, &pe)); }
+
+/* a draw record with the standing defaults */
+static pd_draw* gcnew(void)
+
+{
+
+    pd_draw* g;
+
+    g = calloc(1, sizeof(pd_draw));
+    g->mix = pd_mixcopy;
+    g->lw = 1;
+    g->fg = 0;
+    g->bg = 0xffffff;
+    return (g);
+
+}
+
+/* copy between canvases honoring a mix function; the layer's blit is
+   the copy mode, the bitwise modes combine here */
+static void blitmix(pd_canvas* dst, int dx, int dy, pd_canvas* src,
+                    int sx, int sy, int w, int h, int mix)
+
+{
+
+    uint32_t* dp;
+    uint32_t* sp;
+    int dstride, sstride;
+    int dw, dh, sw, sh;
+    int x, y;
+    uint32_t v;
+
+    if (mix == pd_mixcopy) { pd_blit(dst, dx, dy, src, sx, sy, w, h); return; }
+    pd_cansize(dst, &dw, &dh);
+    pd_cansize(src, &sw, &sh);
+    dp = pd_canlock(dst, &dstride);
+    sp = pd_canlock(src, &sstride);
+    for (y = 0; y < h; y++)
+        for (x = 0; x < w; x++) {
+
+            if (sx+x < 0 || sx+x >= sw || sy+y < 0 || sy+y >= sh) continue;
+            if (dx+x < 0 || dx+x >= dw || dy+y < 0 || dy+y >= dh) continue;
+            v = sp[(size_t)(sy+y)*sstride+sx+x];
+            switch (mix) {
+
+                case pd_mixxor: dp[(size_t)(dy+y)*dstride+dx+x] ^= v&0xffffff; break;
+                case pd_mixand: dp[(size_t)(dy+y)*dstride+dx+x] &= v|0xff000000; break;
+                case pd_mixor:  dp[(size_t)(dy+y)*dstride+dx+x] |= v&0xffffff; break;
+                default:        dp[(size_t)(dy+y)*dstride+dx+x] = v; break;
+
+            }
+
+        }
+    pd_canunlock(src);
+    pd_canunlock(dst);
+
+}
+
+
 
 /* whitebook definitions */
 #include <stdlib.h>
@@ -92,6 +153,7 @@
 #endif
 #include <time.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <stdint.h>
 #include <limits.h>
 #include <stdio.h>
@@ -111,21 +173,35 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <fontconfig/fontconfig.h>
+#include "graphics_i.h" /* backend private interface */
 
 /* external definitions */
 #if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
 extern char *program_invocation_short_name;
 #endif
 
+/* The decorations: the desktop's frames and menu painting live in a
+   decorations module (see graphics_i.h), which registers itself ahead of
+   this one. Every call into the desktop's look goes through here */
+static const decvec* dec;
+
+void grx_decreg(const decvec* v) { dec = v; }
+
+/* forward declarations: the notify waits (defined with the event
+   machinery) */
+static void notexevt(pd_evt* e);
+static int  waitxevt(int type, pd_win* wh, unsigned long since, pd_evt* out);
+static void waitxmap(pd_win* wh, unsigned long since);
+
 /* forward declarations for FreeType helper functions */
-static void ft_draw_char(Drawable d, GC gc, FT_Face face,
+static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
                          int pixel_size_x, int pixel_size_y,
                          int x, int y, char c);
-static void ft_draw_string(Drawable d, GC gc, FT_Face face,
+void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
                            int pixel_size_x, int pixel_size_y,
                            int x, int y, char* s, int len);
-static int  ft_text_width(FT_Face face, const char* s, int len);
-static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
+int  grx_ft_text_width(FT_Face face, const char* s, int len);
+static void ft_draw_char_rotated(pd_canvas* d, pd_draw* gc, FT_Face face,
                                  int pixel_size_x, int pixel_size_y,
                                  float angle_rad,
                                  int x, int y, char c);
@@ -175,29 +251,9 @@ static enum { /* debug levels */
 #define STDCHRY   12
 #define MAXBUF 10  /* maximum number of buffers available */
 #define IOWIN  1   /* logical window number of input/output pair */
-#define MAXCON 10  /* number of screen contexts */
-#define MAXTAB 50  /* total number of tabs possible per screen */
-#define MAXPIC 50  /* total number of loadable pictures */
-#define MAXLIN 250 /* maximum length of input bufferred line */
-#define MAXFIL 1000 /* maximum open files */
 #define MINJST 1   /* minimum pixels for space in justification */
 #define MAXFNM 250 /* number of filename characters in buffer */
 #define MAXJOY 10  /* number of joysticks possible */
-
-/* child frame dimensions (Ami-drawn frames for child windows).
-   Title bar height is based on the window's font line height so it scales
-   with text size; border and button sizes are proportional to title bar. */
-#define CFRM_TITBAR_H(win)  ((int)((win)->linespace * 2.2))
-#define CFRM_BORDER_W       4  /* resize border width in pixels */
-#define CFRM_CORNER         16 /* corner resize grab length in pixels: near a
-                                  corner the edge band widens to this so the
-                                  diagonal resize is not a tiny CFRM_BORDER_W
-                                  square that is nearly impossible to hit */
-#define CFRM_BUTTON_SZ(win) ((int)((win)->linespace * 1.1))
-#define CFRM_BUTTON_GAP     6  /* gap between buttons */
-#define CFRM_BUTTON_MG      8  /* button margin from edge */
-#define CFRM_TITLE_SZ(win)  ((int)((win)->gfhigh * 1.15))
-#define CFRM_MIN_W          200 /* width of a minimized child window */
 
 /* Logical → physical viewport transform. Petit-Ami primitives shift their
    1-based logical coordinates by -1 before calling into X11; the transform
@@ -229,8 +285,6 @@ static enum { /* debug levels */
    closely match xterm. */
 #define POINT  (0.353) /* point size in mm */
 #define STRIKE (1.5)   /* strikeout percentage (from top of cell to baseline */
-#define EXTRAMENUY 10  /* extra space for menu bar y */
-#define EXTRAMENUX 10  /* extra space for menu bar x */
 
 /* Size and offset of missing font character in cell y fractions. We define this
    here because the character set may or may not have such a character. It is
@@ -289,8 +343,6 @@ static enum { /* debug levels */
 #define ERRFIL 2 /* handle to standard error */
 
 /* XWindows call lock/unlock */
-#define XWLOCK() pthread_mutex_lock(&xwlock)
-#define XWUNLOCK() pthread_mutex_unlock(&xwlock)
 
 /* motif window manager decoration bits, used to enable or disable windows
    decorations. These are no longer defined in XLIB, but are operative. */
@@ -321,14 +373,6 @@ typedef ssize_t (*pwrite_t)(int, const void*, size_t);
 typedef int (*popen_t)(const char*, int, int);
 typedef int (*pclose_t)(int);
 typedef off_t (*plseek_t)(int, off_t, int);
-
-/* types of override calls not already declared in graphics.h.
- * This is because these are unpublished as yet.
- */
-typedef void (*ami_viewoffg_t)(FILE* f, int x, int y);
-typedef void (*ami_viewscale_t)(FILE* f, float x, float y);
-typedef int  (*ami_scalex_t)(FILE* f, int x);
-typedef int  (*ami_scaley_t)(FILE* f, int y);
 
 /* system override calls */
 
@@ -402,254 +446,6 @@ typedef enum {
 
 } xwcaps;
 
-typedef struct xcaplst {
-
-    struct xcaplst* next;  /* next entry */
-    int             caps;  /* font capabilities set */
-    char*           path;  /* font file path for this variant */
-    int             index; /* face index in font collection file */
-
-} xcaplst;
-
-/* font description entry */
-typedef struct fontrec {
-
-    char*           fn;     /* name of font */
-    int             fix;    /* fixed pitch font flag */
-    int             caps;   /* set of XWindow font capabilities */
-    xcaplst*        caplst; /* list of all XWindow font capabilities */
-    struct fontrec* next;   /* next font in list */
-
-} fontrec, *fontptr;
-
-typedef enum { mdnorm, mdinvis, mdxor, mdand, mdor } mode; /* color mix modes */
-
-/* Menu tracking. This is a mirror image of the menu we were given by the
-   user. However, we can do with less information than is in the original
-   tree as passed. The menu items are a linear list, since they contain
-   both the menu handle and the relative number 0-n of the item, neither
-   the lack of tree structure nor the order of the list matters. */
-typedef struct metrec* metptr;
-typedef struct metrec {
-
-    metptr next;               /* next entry */
-    metptr branch;             /* menu branch */
-    metptr frame;              /* frame for pulldown menu */
-    metptr head;               /* head of menu pointer */
-    int    menubar;            /* is the menu bar */
-    int    frm;                /* is a frame */
-    int    onoff;              /* the item is on-off highlighted */
-    int    select;             /* the current on/off state of the highlight */
-    metptr oneof;              /* "one of" chain pointer */
-    metptr chnhd;              /* head of "one of" chain */
-    int    ena;                /* enabled/disabled */
-    int    bar;                /* has bar under */
-    int    id;                 /* user id of item */
-    int    fx1, fy1, fx2, fy2; /* subclient position of window */
-    int    prime;              /* is a prime (onscreen) entry */
-    int    pressed;            /* in the pressed state */
-    FILE*  wf;                 /* output file for the menu window */
-    char*  title;              /* title text */
-    FILE*  parent;             /* parent window */
-    FILE*  evtfil;             /* file to post menu events to */
-    int    wid;                /* menu window id */
-
-} metrec;
-
-typedef struct scncon* scnptr;
-typedef struct scncon { /* screen context */
-
-    /* fields used by graph module */
-    int     lwidth;      /* width of lines */
-    ami_lstyle lstyle;   /* style of lines */
-    /* note that the pixel and character dimensions and positions are kept
-      in parallel for both characters and pixels */
-    int     maxx;        /* maximum characters in x */
-    int     maxy;        /* maximum characters in y */
-    int     maxxg;       /* maximum pixels in x */
-    int     maxyg;       /* maximum pixels in y */
-    int     curx;        /* current cursor location x */
-    int     cury;        /* current cursor location y */
-    int     curxg;       /* current cursor location in pixels x */
-    int     curyg;       /* current cursor location in pixels y */
-    int     angle;       /* character drawing angle */
-    int     fcrgb;       /* current writing foreground color in rgb */
-    int     bcrgb;       /* current writing background color in rgb */
-    mode    fmod;        /* foreground mix mode */
-    mode    bmod;        /* background mix mode */
-    fontptr cfont;       /* active font entry */
-    int     cspc;        /* character spacing */
-    int     lspc;        /* line spacing */
-    int     attr;        /* set of active attributes */
-    int     autof;       /* current status of scroll and wrap */
-    int     tab[MAXTAB]; /* tabbing array */
-    int     curv;        /* cursor visible */
-    /* note that view offsets and scaling are experimental features */
-    int     offx;        /* viewport offset x */
-    int     offy;        /* viewport offset y */
-    int     wextx;       /* window extent x */
-    int     wexty;       /* window extent y */
-    int     vextx;       /* viewpor extent x */
-    int     vexty;       /* viewport extent y */
-
-    /* fields used by graphics subsystem */
-    GC      xcxt;        /* graphics context */
-    Pixmap  xbuf;        /* pixmap for screen backing buffer */
-
-} scncon;
-
-typedef struct pict* picptr;
-typedef struct pict { /* picture tracking record */
-
-    struct pict* next; /* list of rescaled images */
-    int          sx; /* size in x */
-    int          sy; /* size in y */
-    XImage*      xi; /* Xwindows image */
-
-} pict;
-
-/* XWindow style rectangle */
-typedef struct {
-
-    int         x, y; /* origin */
-    int         w, h; /* width/height */
-
-} xrect;
-
-/* window description */
-typedef struct winrec* winptr;
-typedef struct winrec {
-
-    winptr       next;              /* next entry (for free list) */
-    /* fields used by graph module */
-    int          parlfn;            /* logical parent */
-    winptr       parwin;            /* link to parent (or NULL for parentless) */
-    int          wid;               /* this window logical id */
-    winptr       childwin;          /* list of child windows */
-    winptr       childlst;          /* list pointer if this is a child */
-    scnptr       screens[MAXCON];   /* screen contexts array */
-    int          curdsp;            /* index for current display screen */
-    int          curupd;            /* index for current update screen */
-    /* global sets. these are the global set parameters that apply to any new
-      created screen buffer */
-    int          gmaxx;             /* maximum x size */
-    int          gmaxy;             /* maximum y size */
-    int          gmaxxg;            /* size of client area in x */
-    int          gmaxyg;            /* size of client area in y */
-    int          bufx;              /* buffer size x characters */
-    int          bufy;              /* buffer size y characters */
-    int          bufxg;             /* buffer size x pixels */
-    int          bufyg;             /* buffer size y pixels */
-    int          gattr;             /* current attributes */
-    int          gauto;             /* state of auto */
-    int          gfcrgb;            /* foreground color in rgb */
-    int          gbcrgb;            /* background color in rgb */
-    int          gcurv;             /* state of cursor visible */
-    fontptr      gcfont;            /* current font select */
-    int          gfhigh;            /* physical em-square pixel size y (FreeType) */
-    int          gfhighx;           /* physical em-square pixel size x (asymmetric) */
-    int          gfhigh_log;        /* logical em-square pixel size y (unscaled) */
-    int          gfcellh;           /* target character cell height (pixels) */
-    float        gfpoint;           /* current font point size */
-    int          mischrx;           /* missing font character x */
-    int          mischry;           /* missing font character y */
-    int          misoffx;           /* missing font offset x */
-    int          misoffy;           /* missing font offset y */
-    mode         gfmod;             /* foreground mix mode */
-    mode         gbmod;             /* background mix mode */
-    int          goffx;             /* viewport offset x (physical pixels) */
-    int          goffy;             /* viewport offset y (physical pixels) */
-    float        vsx;                /* viewport scale x (default 1.0) */
-    float        vsy;                /* viewport scale y (default 1.0) */
-    int          gwextx;            /* window extent x */
-    int          gwexty;            /* window extent y */
-    int          gvextx;            /* viewpor extent x */
-    int          gvexty;            /* viewport extent y */
-    int          termfnt;           /* terminal font number */
-    int          bookfnt;           /* book font number */
-    int          signfnt;           /* sign font number */
-    int          techfnt;           /* technical font number */
-    int          mb1;               /* mouse assert status button 1 */
-    int          mb2;               /* mouse assert status button 2 */
-    int          mb3;               /* mouse assert status button 3 */
-    int          mb4;               /* mouse assert status button 4 */
-    int          mb5;               /* mouse assert status button 5 */
-    int          mpx, mpy;          /* mouse current position */
-    int          mpxg, mpyg;        /* mouse current position graphical */
-    int          nmb1;              /* new mouse assert status button 1 */
-    int          nmb2;              /* new mouse assert status button 2 */
-    int          nmb3;              /* new mouse assert status button 3 */
-    int          nmb4;              /* new mouse assert status button 4 */
-    int          nmb5;              /* new mouse assert status button 5 */
-    int          nmpx, nmpy;        /* new mouse current position */
-    int          nmpxg, nmpyg;      /* new mouse current position graphical */
-    int          linespace;         /* line spacing in pixels */
-    int          charspace;         /* character spacing in pixels */
-    int          chrspcx;           /* extra space between characters */
-    int          chrspcy;           /* extra space between lines */
-    int          curspace;          /* size of cursor, in pixels */
-    int          baseoff;           /* font baseline offset from top */
-    int          menuspcy;          /* amount of space for menu in y (if exists) */
-    int          shift;             /* state of shift key */
-    int          cntrl;             /* state of control key */
-    int          fcurdwn;           /* cursor on screen flag */
-    int          joy1cap;           /* joystick 1 is captured */
-    int          joy2cap;           /* joystick 2 is captured */
-    int          joy1xs;            /* last joystick position 1x */
-    int          joy1ys;            /* last joystick position 1y */
-    int          joy1zs;            /* last joystick position 1z */
-    int          joy2xs;            /* last joystick position 2x */
-    int          joy2ys;            /* last joystick position 2y */
-    int          joy2zs;            /* last joystick position 2z */
-    int          shsize;            /* display screen size x in millimeters */
-    int          svsize;            /* display screen size y in millimeters */
-    int          shres;             /* display screen pixels in x */
-    int          svres;             /* display screen pixels in y */
-    int          sdpmx;             /* display screen find dots per meter x */
-    int          sdpmy;             /* display screen find dots per meter y */
-    char         inpbuf[MAXLIN];    /* input line buffer */
-    int          inpptr;            /* input line index */
-    int          frmrun;            /* framing timer is running */
-    int          timers[AMI_MAXTIM]; /* timer id array */
-    int          frmsev;            /* frame timer system event */
-    int          focus;             /* screen in focus */
-    picptr       pictbl[MAXPIC];    /* loadable pictures table */
-    int          bufmod;            /* buffered screen mode */
-    metptr       metlst;            /* menu tracking list */
-    metptr       menu;              /* "faux menu" bar */
-    int          frame;             /* frame on/off */
-    int          size;              /* size bars on/off */
-    int          sysbar;            /* system bar on/off */
-    int          sizests;           /* last resize status save */
-    int          visible;           /* window is visible */
-    /* window state, 0 = normal, 1 = maximized, 2 = minimized */
-    int          winstate;
-    int          lwinstate;         /* last window state */
-
-    /* fields used by graphics subsystem */
-    Window       xmwhan;            /* master window */
-    Window       xwhan;             /* subclient window */
-    xrect        xmwr;              /* master window rectangle */
-    xrect        xwr;               /* subclient window rectangle */
-    FT_Face      ftface;            /* current FreeType font face */
-    Atom         delmsg;            /* windows manager delete window message */
-    int          pfw;               /* parent/frame width (extra) */
-    int          pfh;               /* parent frame height (extra) */
-    int          cwox;              /* client window offset from parent
-                                       origin x */
-    int          cwoy;              /* client window offset from parent
-                                       origin y */
-    int          childfrm;          /* TRUE if using Ami-drawn child frame */
-    char*        wintitle;          /* window title string (for child frames) */
-    GC           frmgc;             /* GC for drawing on xmwhan (child frame) */
-    int          minimized;         /* TRUE if child frame is minimized */
-    int          minslot;           /* slot index when minimized (for x pos) */
-    xrect        savxmwr;           /* xmwr before minimize, for restore */
-    int          savgmaxxg;         /* gmaxxg before minimize */
-    int          savgmaxyg;         /* gmaxyg before minimize */
-
-} winrec;
-
 /* File tracking.
   Files can be passthrough to the OS, or can be associated with a window. If
   on a window, they can be output, or they can be input. In the case of
@@ -703,7 +499,7 @@ typedef enum {
     etimnum,  /* Invalid timer number */
     ejstsys,  /* Cannot justify system font */
     efnotwin, /* File is not attached to a window */
-    ewinuse,  /* Window id in use */
+    ewinuse,  /* pd_win* id in use */
     efinuse,  /* File already in use */
     einmode,  /* Input side of window in wrong mode */
     edcrel,   /* Cannot release Windows device context */
@@ -844,22 +640,22 @@ typedef enum {
 } errcod;
 
 /* mode to function table */
-int mod2fnc[mdor+1] = {
+static int mod2fnc[mdor+1] = {
 
-    GXcopy, /* mdnorm */
-    GXnoop, /* mdinvis */
-    GXxor,  /* mdxor */
-    GXand,  /* mdand */
-    GXor    /* mdor */
+    pd_mixcopy, /* mdnorm */
+    pd_mixnone, /* mdinvis */
+    pd_mixxor,  /* mdxor */
+    pd_mixand,  /* mdand */
+    pd_mixor    /* mdor */
 
 };
 
-/* XEvent queue structure. Its a bubble list. */
+/* pd_evt queue structure. Its a bubble list. */
 typedef struct xevtque {
 
     struct xevtque* next; /* next in list */
     struct xevtque* last; /* last in list */
-    XEvent          evt;  /* event data */
+    pd_evt          evt;  /* event data */
 
 } xevtque;
 
@@ -880,12 +676,12 @@ typedef struct joyrec {
     int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
-    int ax;     /* joystick x axis save */
-    int ay;     /* joystick y axis save */
-    int az;     /* joystick z axis save */
-    int a4;     /* joystick axis 4 save */
-    int a5;     /* joystick axis 5 save */
-    int a6;     /* joystick axis 6 save */
+    long ax;    /* joystick x axis save */
+    long ay;    /* joystick y axis save */
+    long az;    /* joystick z axis save */
+    long a4;    /* joystick axis 4 save */
+    long a5;    /* joystick axis 5 save */
+    long a6;    /* joystick axis 6 save */
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
@@ -1058,6 +854,7 @@ static ami_scalex_t          scalex_vect;
 static ami_scaley_t          scaley_vect;
 static ami_scrollg_t         scrollg_vect;
 static ami_path_t            path_vect;
+static ami_blockcopyg_t      blockcopyg_vect;
 static ami_title_t           title_vect;
 static ami_openwin_t         openwin_vect;
 static ami_buffer_t          buffer_vect;
@@ -1181,26 +978,16 @@ static ami_queryfont_t       queryfont_vect;
 /* X Windows globals */
 
 static int fend;      /* end of program ordered flag */
-static int fautohold; /* automatic hold on exit flag */
+static long fautohold; /* automatic hold on exit flag */
 static pthread_mutex_t xwlock; /* XWindow call lock */
 
 /* X windows display characteristics.
  *
  * Note that some of these are going to need to move to a per-window structure.
  */
-static Display*   padisplay;      /* current display */
+pd_display*    grx_padisplay;  /* current display */
 static int        pascreen;       /* current screen */
 
-/* cursors used by child-frame edge resize feedback (created lazily) */
-static Cursor cfrm_cursor_left     = 0;
-static Cursor cfrm_cursor_right    = 0;
-static Cursor cfrm_cursor_top      = 0;
-static Cursor cfrm_cursor_bottom   = 0;
-static Cursor cfrm_cursor_btmleft  = 0;
-static Cursor cfrm_cursor_btmright = 0;
-static Cursor cfrm_cursor_topleft  = 0;
-static Cursor cfrm_cursor_topright = 0;
-static Cursor cfrm_cursor_arrow    = 0;
 static int        ctrll, ctrlr;   /* control key active */
 static int        shiftl, shiftr; /* shift key active */
 static int        altl, altr;     /* alt key active */
@@ -1209,7 +996,7 @@ static filptr     opnfil[MAXFIL]; /* open files table */
 static int        xltwin[MAXFIL*2+1]; /* window equivalence table, includes
                                          negatives and 0 */
 static metptr     xltmnu[MAXFIL*2+1]; /* menu entry equivalence table */
-static int        filwin[MAXFIL]; /* file to window equivalence table */
+static long       filwin[MAXFIL]; /* file to window equivalence table */
 static int        esck;           /* previous key was escape */
 static fontptr    fntlst;         /* list of fonts */
 static int        fntcnt;         /* number of fonts */
@@ -1219,12 +1006,22 @@ static int        numjoy;         /* number of joysticks found */
 static joyptr     joytab[MAXJOY]; /* joystick control table */
 static int        frmfid;         /* framing timer fid */
 static int        cfgcap;         /* "configuration" caps */
-static ami_pevthan evthan[ami_ettabbar+1]; /* array of event handler routines */
+static ami_pevthan evthan[ami_etdsize+1]; /* array of event handler routines */
 static ami_pevthan evtshan;        /* single master event handler routine */
-static xevtque*   freque;         /* free XEvent queue entries list */
-static xevtque*   evtque;         /* XEvent input save queue */
+static xevtque*   freque;         /* free pd_evt queue entries list */
+static xevtque*   evtque;         /* pd_evt input save queue */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
+/* The queues are shared data: event() may run on one thread while another
+   enqueues, sendevent() being the designed case. Each queue has its own
+   lock, held only across the link work, per the rule that a lock
+   encompasses just the data it locks. */
+static pthread_mutex_t xevtlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t paevtlock = PTHREAD_MUTEX_INITIALIZER;
+/* the sendevent wake: a cross thread enqueue writes a byte so a blocked
+   event() returns to find it */
+static int        sendwfds[2];    /* wake pipe */
+static int        sendwsev;       /* wake system event id */
 static ami_pevthan menu_event_oeh; /* event callback save for menus */
 static metptr     fremet;         /* free menu entrys list */
 static winptr     winfre;         /* free windows structure list */
@@ -1232,21 +1029,18 @@ static int        stdchrx;        /* standard/reference character size x */
 static int        stdchry;        /* standard/reference character size y */
 static int        errflg;         /* an error has been flagged */
 static int        dspsev;         /* XWindows display system event */
+static int        thmsev;         /* desktop scheme monitor system event */
+static int        thmfd = -1;     /* scheme monitor pipe */
+static int        frmforce;       /* config pinned the frame theme */
 static sevtptr    sidtab[MAXSID]; /* system event table */
-static int        xerrbyp;        /* bypass the xerror() handler */
 static int        evtcnt;         /* count of PA event diagnostics output */
 
-/* code storage for XWindow state atoms */
-Atom cmaxhorz; /* horizontally maximized */
-Atom cmaxvert; /* vertically maximized */
-Atom cfocused; /* focused */
-Atom chidden;  /* hidden (iconized) */
 
 /* XWindow frame characteristics */
-int               frmextwdt[frmcfgsys+1];   /* frame extra width */
-int               frmexthgt[frmcfgsys+1];   /* frame extra height */
-int               frmoffx[frmcfgsys+1];     /* frame offset to client x */
-int               frmoffy[frmcfgsys+1];     /* frame offset to client y */
+static int        frmextwdt[frmcfgsys+1];   /* frame extra width */
+static int        frmexthgt[frmcfgsys+1];   /* frame extra height */
+static int        frmoffx[frmcfgsys+1];     /* frame offset to client x */
+static int        frmoffy[frmcfgsys+1];     /* frame offset to client y */
 
 /* memory statistics/diagnostics */
 static unsigned long memusd;    /* total memory in use for malloc */
@@ -1278,8 +1072,8 @@ static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
 static int conpnt;    /* size of console font in points */
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
-                     int subclient);
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
+                     long subclient);
 
 /** ****************************************************************************
 
@@ -1293,12 +1087,75 @@ If an error dialog cannot be presented to font not found or other error, returns
 
 Notes:
 
-Obviously this could use better ratios and less magic numbers.
+The dialog sizes itself from the display resolution, so it comes out the same
+physical size on any display density. The dimensions below are given for a
+nominal 96 dots per inch display and scaled from there; the scale is never
+taken below 1, so a low density display keeps the original appearance.
+
+The scale is found from the XWindow display metrics directly rather than from
+the Petit-Ami screen record, because this dialog is deliberately standalone:
+it draws with raw XWindow and FreeType so that an error can still be shown
+when the module itself is in a bad state.
 
 *******************************************************************************/
 
-#define NEGCIRCLE    80 /* negative sign circle size */
-#define NEGCIRCLESPC 20 /* space around negative circle */
+/* Dialog dimensions at 96 dots per inch. All are scaled by dlgscale() at
+   use. */
+#define DLGFONT      14  /* dialog font pixel size */
+#define NEGCIRCLE    80  /* negative sign circle size */
+#define NEGCIRCLESPC 20  /* space around negative circle */
+#define DLGDASHX     35  /* negative sign dash position and size */
+#define DLGDASHY     60
+#define DLGDASHW     50
+#define DLGDASHH     10
+#define DLGTITPAD    200 /* padding to clear the title bar controls */
+#define DLGSIDEPAD   40  /* dialog width padding */
+#define DLGHIGH      200 /* dialog height */
+#define DLGBTNPAD    50  /* close button padding around its text */
+#define DLGBTNX      20  /* close button offset from the right edge */
+#define DLGBTNY      125 /* close button top */
+#define DLGBTNH      40  /* close button height */
+#define DLGBTNTXTX   15  /* close button text offset within the button */
+#define DLGBTNTXTY   155 /* close button text baseline */
+#define DLGNOMDPM    3780 /* dots per meter at the nominal 96 dots per inch */
+
+/** ****************************************************************************
+
+Find dialog scale
+
+Returns the factor to scale the error dialog by, from the resolution of the
+display. The dialog dimensions are given for a nominal 96 dots per inch
+display, so a display of twice that density gives 2. The scale is never less
+than 1: on a low density display the dialog keeps its original size rather
+than shrinking below legibility.
+
+Uses the XWindow display metrics rather than the Petit-Ami screen record,
+since the error dialog must work when the module is in a bad state.
+
+*******************************************************************************/
+
+static double dlgscale(void)
+
+{
+
+    int    res;  /* display resolution in pixels */
+    int    size; /* display size in millimeters */
+    double dpm;  /* dots per meter */
+
+    {
+
+        int wpx, wmm;
+
+        pd_screen(grx_padisplay, &wpx, &res, &wmm, &size);
+
+    }
+    if (size <= 0) return (1.0); /* no metrics, use the nominal size */
+    dpm = (double)res*1000/size; /* find dots per meter */
+    if (dpm < DLGNOMDPM) return (1.0); /* do not shrink */
+
+    return (dpm/DLGNOMDPM);
+
+}
 
 static int errdlg(
     /** dialog title */    char* t,
@@ -1307,9 +1164,10 @@ static int errdlg(
 
 {
 
-    Window            w;
-    GC                cxt;
-    XEvent            e;
+    pd_win*           w;
+    pd_draw           cxtv;
+    pd_draw*          cxt;
+    pd_evt            e;
     FT_Face           dlg_face;
     int               dlg_size;
     int               mw, wd;
@@ -1317,13 +1175,24 @@ static int errdlg(
     int               ww, wh;
     int               cw;
     int               bx1, by1, bx2, by2;
-    XWindowAttributes xwa;
+    int               scrw, scrh, scrwmm, scrhmm;
     FcPattern*        pat;
     FcPattern*        match;
     FcResult          result;
     FcChar8*          fcfile;
+    double            sf;    /* display scale factor */
+    int               ncirc; /* negative circle size and spacing */
+    int               nspc;
+    int               btnh;  /* close button height */
+    int               btny;  /* close button top */
 
-    dlg_size = 14; /* dialog font pixel size */
+    /* size everything from the display resolution */
+    sf = dlgscale();
+    dlg_size = DLGFONT*sf; /* dialog font pixel size */
+    ncirc = NEGCIRCLE*sf;
+    nspc = NEGCIRCLESPC*sf;
+    btnh = DLGBTNH*sf;
+    btny = DLGBTNY*sf;
 
     /* find a sans-serif font via fontconfig */
     pat = FcNameParse((FcChar8*)"sans:style=Bold Oblique");
@@ -1351,86 +1220,77 @@ static int errdlg(
     FT_Set_Pixel_Sizes(dlg_face, 0, dlg_size);
 
     /* minimum width for dialog system bar */
-    mw = ft_text_width(dlg_face, t, strlen(t))+200;
+    mw = grx_ft_text_width(dlg_face, t, strlen(t))+DLGTITPAD*sf;
     /* minimum width for dialog contents */
-    wd = NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC+ft_text_width(dlg_face, s, strlen(s));
+    wd = nspc+ncirc+nspc+grx_ft_text_width(dlg_face, s, strlen(s));
     if (wd > mw) mw = wd; /* set minimum overall */
 
-    XWLOCK();
     /* find screen placement */
-    XGetWindowAttributes(padisplay, RootWindow(padisplay, pascreen), &xwa);
+    pd_screen(grx_padisplay, &scrw, &scrh, &scrwmm, &scrhmm);
 
-    ww = mw+40; /* set dialog width and height */
-    wh = 200;
+    ww = mw+DLGSIDEPAD*sf; /* set dialog width and height */
+    wh = DLGHIGH*sf;
     /* create dialog window centered on screen */
-    w = XCreateSimpleWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0,
-                            ww, wh, 5,
-                            BlackPixel(padisplay, pascreen),
-                            WhitePixel(padisplay, pascreen));
-    XSelectInput(padisplay, w, ExposureMask|KeyPressMask|ButtonPressMask);
-    XMapWindow(padisplay, w);
+    w = pd_winnew(grx_padisplay, NULL, 0, 0, ww, wh);
+    pd_winmap(w, 1);
     /* centering works well unless you have dual screens */
-    XMoveWindow(padisplay, w, xwa.width/2-ww/2, 0/*xwa.height/2-wh/2*/);
-    cxt = XCreateGC(padisplay, w, 0, NULL);
+    pd_winmove(w, scrw/2-ww/2, 0);
+    memset(&cxtv, 0, sizeof(cxtv));
+    cxtv.mix = pd_mixcopy;
+    cxtv.lw = 1;
+    cxt = &cxtv;
 
-    XStoreName(padisplay, w, t);
-    XSetIconName(padisplay, w, t);
-    XWUNLOCK();
+    pd_wintitle(w, t);
 
-    cw = ft_text_width(dlg_face, cb, strlen(cb))+50;
+    cw = grx_ft_text_width(dlg_face, cb, strlen(cb))+DLGBTNPAD*sf;
     /* set button rectangle */
-    bx1 = ww-cw-20;
-    by1 = 125;
+    bx1 = ww-cw-DLGBTNX*sf;
+    by1 = btny;
     bx2 = bx1+cw-1;
-    by2 = by1+40-1;
+    by2 = by1+btnh-1;
 
     do {
 
-        XWLOCK();
-        XNextEvent(padisplay, &e);
-        XWUNLOCK();
-        if (e.type == Expose && e.xany.window == w) {
+        nextxevt(grx_padisplay, &e);
+        if (e.etype == pd_etredraw && e.win == w) {
 
-            XWLOCK();
             /* set background color to grey */
-            XSetForeground(padisplay, cxt, 0xe0e0e0);
-            XFillRectangle(padisplay, w, cxt, e.xexpose.x, e.xexpose.y,
-                           e.xexpose.width, e.xexpose.height);
+            cxt->fg = 0xe0e0e0;
+            pd_frect(pd_wincanvas(w), cxt, e.rx, e.ry,
+                           e.rw, e.rh);
             /* draw error circle */
-            XSetForeground(padisplay, cxt, 0xce3c30);
-            XFillArc(padisplay, w, cxt, NEGCIRCLESPC, NEGCIRCLESPC,
-                     NEGCIRCLE, NEGCIRCLE, 0, 360*64);
+            cxt->fg = 0xce3c30;
+            pd_farcpie(pd_wincanvas(w), cxt, nspc, nspc,
+                     ncirc, ncirc, 0, 360*64);
             /* draw dash */
-            XSetForeground(padisplay, cxt, 0xffffff);
-            XFillRectangle(padisplay, w, cxt, 35, 60-5, 50, 10);
+            cxt->fg = 0xffffff;
+            pd_frect(pd_wincanvas(w), cxt, DLGDASHX*sf,
+                           (DLGDASHY-DLGDASHH/2)*sf, DLGDASHW*sf,
+                           DLGDASHH*sf);
             /* set text color */
-            XSetForeground(padisplay, cxt, 0x000000);
+            cxt->fg = 0x000000;
             /* center text on circle to the right */
-            ft_draw_string(w, cxt, dlg_face, dlg_size, dlg_size,
-                           NEGCIRCLESPC+NEGCIRCLE+NEGCIRCLESPC,
-                           NEGCIRCLESPC+NEGCIRCLE/2, s, strlen(s));
+            grx_ft_draw_string(pd_wincanvas(w), cxt, dlg_face, dlg_size, dlg_size,
+                           nspc+ncirc+nspc, nspc+ncirc/2, s, strlen(s));
             /* place close button */
-            XSetForeground(padisplay, cxt, 0xffffff);
-            XFillRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
-            XSetForeground(padisplay, cxt, 0x000000);
-            XDrawRectangle(padisplay, w, cxt, ww-cw-20, 125, cw, 40);
-            ft_draw_string(w, cxt, dlg_face, dlg_size, dlg_size,
-                           ww-cw-20+15, 155, cb, strlen(cb));
-            XWUNLOCK();
+            cxt->fg = 0xffffff;
+            pd_frect(pd_wincanvas(w), cxt, bx1, btny, cw, btnh);
+            cxt->fg = 0x000000;
+            pd_rect(pd_wincanvas(w), cxt, bx1, btny, cw, btnh);
+            grx_ft_draw_string(pd_wincanvas(w), cxt, dlg_face, dlg_size, dlg_size,
+                           bx1+DLGBTNTXTX*sf, DLGBTNTXTY*sf, cb, strlen(cb));
 
-        } else if (e.type == ButtonPress) {
+        } else if (e.etype == pd_etbtndown) {
 
             /* close button press, exit */
-            if (e.xbutton.x >= bx1 && e.xbutton.x <= bx2 &&
-                e.xbutton.y >= by1 && e.xbutton.y <= by2) break;
+            if (e.x >= bx1 && e.x <= bx2 &&
+                e.y >= by1 && e.y <= by2) break;
 
         }
 
     } while (1);
 
-    XWLOCK();
-    XDestroyWindow(padisplay, w);
-    XWUNLOCK();
+    pd_windel(w);
     FT_Done_Face(dlg_face);
 
     return (0); /* exit no error */
@@ -1654,35 +1514,29 @@ static void error(errcod e)
 
 }
 
-/******************************************************************************
+/** ****************************************************************************
 
-XWindow error handler
+Copy critical string
 
-Receives errors from XLIB and handles them here.
+Copies a string to a critical output buffer of the given length. If the
+string fills the buffer, the terminating zero is left off. Otherwise, the
+result is zero terminated.
 
-******************************************************************************/
+*******************************************************************************/
 
-static int xerror(Display* d, XErrorEvent* e)
+static void cpycrit(char* d, long dl, const char* s)
 
 {
 
-    char ebuf[250]; /* buffer for error string */
+    long l; /* length of source string */
 
-    /* if the bypass flag is on, just return ignoring the error */
-    if (xerrbyp) return (0);
-
-    /* by definition the XWindows lock is active, since xerror() will only be
-       called from within XWindows */
-    XWUNLOCK();
-    /* get text of error */
-    XGetErrorText(padisplay, e->error_code, ebuf, 250);
-    fprintf(stderr, "*** Error: Graphics: XWindow: %s\n", ebuf);
-    fflush(stderr); /* make sure error message is output */
-    errflg = TRUE; /* flag error occurred */
-
-    exit(1);
+    l = strlen(s); /* find length of source */
+    if (l > dl) error(eftntl); /* string too large for buffer */
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* zero terminate if buffer not entirely filled */
 
 }
+
 
 /******************************************************************************
 
@@ -1839,6 +1693,8 @@ void prtevtt(ami_evtcod e)
         case ami_etdrebox:  fprintf(stderr, "etdrebox "); break;
         case ami_etsldpos:  fprintf(stderr, "etsldpos "); break;
         case ami_ettabbar:  fprintf(stderr, "ettabbar "); break;
+        case ami_etusize:   fprintf(stderr, "etusize "); break;
+        case ami_etdsize:   fprintf(stderr, "etdsize "); break;
 
         default: fprintf(stderr, "???");
 
@@ -1864,55 +1720,55 @@ void prtevt(ami_evtptr er)
 
     if (dmpevt) {
 
-        fprintf(stderr, "PA Event: %5d Window: %d ", evtcnt++, er->winid);
+        fprintf(stderr, "PA Event: %5d Window: %ld ", evtcnt++, er->winid);
         prtevtt(er->etype);
         switch (er->etype) {
 
             case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-            case ami_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
-            case ami_etmoumov: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+            case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
+            case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
                                       er->mmoun, er->moupx, er->moupy); break;
-            case ami_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+            case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
                                      er->amoun, er->amoubn); break;
-            case ami_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+            case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
                                      er->dmoun, er->dmoubn); break;
-            case ami_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+            case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
                                      er->ajoyn, er->ajoybn); break;
-            case ami_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+            case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
                                      er->djoyn, er->djoybn); break;
-            case ami_etjoymov: fprintf(stderr, ": joystick: %d x: %4d y: %4d z: %4d "
-                                      "a4: %4d a5: %4d a6: %4d", er->mjoyn,
+            case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
+                                      "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
                                       er->joypx, er->joypy, er->joypz,
                                       er->joyp4, er->joyp5, er->joyp6); break;
-            case ami_etresize: fprintf(stderr, ": x: %d y: %d xg: %d yg: %d",
+            case ami_etresize: fprintf(stderr, ": x: %ld y: %ld xg: %ld yg: %ld",
                                       er->rszx, er->rszy,
                                       er->rszxg, er->rszyg); break;
-            case ami_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
-            case ami_etmoumovg: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+            case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
+            case ami_etmoumovg: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
                                        er->mmoung, er->moupxg, er->moupyg); break;
-            case ami_etredraw: fprintf(stderr, ": sx: %4d sy: %4d ex: %4d ey: %4d",
+            case ami_etredraw: fprintf(stderr, ": sx: %4ld sy: %4ld ex: %4ld ey: %4ld",
                                       er->rsx, er->rsy, er->rex, er->rey); break;
-            case ami_etmenus: fprintf(stderr, ": id: %d", er->menuid); break;
-            case ami_etbutton: fprintf(stderr, ": id: %d", er->butid); break;
-            case ami_etchkbox: fprintf(stderr, ": id: %d", er->ckbxid); break;
-            case ami_etradbut: fprintf(stderr, ": id: %d", er->radbid); break;
-            case ami_etsclull: fprintf(stderr, ": id: %d", er->sclulid); break;
-            case ami_etscldrl: fprintf(stderr, ": id: %d", er->scldrid); break;
-            case ami_etsclulp: fprintf(stderr, ": id: %d", er->sclupid); break;
-            case ami_etscldrp: fprintf(stderr, ": id: %d", er->scldpid); break;
-            case ami_etsclpos: fprintf(stderr, ": id: %d position: %d",
+            case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
+            case ami_etbutton: fprintf(stderr, ": id: %ld", er->butid); break;
+            case ami_etchkbox: fprintf(stderr, ": id: %ld", er->ckbxid); break;
+            case ami_etradbut: fprintf(stderr, ": id: %ld", er->radbid); break;
+            case ami_etsclull: fprintf(stderr, ": id: %ld", er->sclulid); break;
+            case ami_etscldrl: fprintf(stderr, ": id: %ld", er->scldrid); break;
+            case ami_etsclulp: fprintf(stderr, ": id: %ld", er->sclupid); break;
+            case ami_etscldrp: fprintf(stderr, ": id: %ld", er->scldpid); break;
+            case ami_etsclpos: fprintf(stderr, ": id: %ld position: %ld",
                                       er->sclpid, er->sclpos); break;
-            case ami_etedtbox: fprintf(stderr, ": id: %d", er->edtbid); break;
-            case ami_etnumbox: fprintf(stderr, ": id: %d number: %d",
+            case ami_etedtbox: fprintf(stderr, ": id: %ld", er->edtbid); break;
+            case ami_etnumbox: fprintf(stderr, ": id: %ld number: %ld",
                                       er->numbid, er->numbsl); break;
-            case ami_etlstbox: fprintf(stderr, ": id: %d select: %d",
+            case ami_etlstbox: fprintf(stderr, ": id: %ld select: %ld",
                                       er->lstbid, er->lstbsl); break;
-            case ami_etdrpbox: fprintf(stderr, ": id: %d select: %d",
+            case ami_etdrpbox: fprintf(stderr, ": id: %ld select: %ld",
                                       er->drpbid, er->drpbsl); break;
-            case ami_etdrebox: fprintf(stderr, ": id: %d", er->drebid); break;
-            case ami_etsldpos: fprintf(stderr, ": id: %d postion: %d",
+            case ami_etdrebox: fprintf(stderr, ": id: %ld", er->drebid); break;
+            case ami_etsldpos: fprintf(stderr, ": id: %ld postion: %ld",
                                       er->sldpid, er->sldpos); break;
-            case ami_ettabbar: fprintf(stderr, ": id: %d select: %d",
+            case ami_ettabbar: fprintf(stderr, ": id: %ld select: %ld",
                                       er->tabid, er->tabsel); break;
             default: ;
 
@@ -1934,75 +1790,46 @@ void prtxevtt(int type)
 
 {
 
-    switch (type) {
+    static const char* nm[] = {
 
-        case 2:  fprintf(stderr, "KeyPress"); break;
-        case 3:  fprintf(stderr, "KeyRelease"); break;
-        case 4:  fprintf(stderr, "ButtonPress"); break;
-        case 5:  fprintf(stderr, "ButtonRelease"); break;
-        case 6:  fprintf(stderr, "MotionNotify"); break;
-        case 7:  fprintf(stderr, "EnterNotify"); break;
-        case 8:  fprintf(stderr, "LeaveNotify"); break;
-        case 9:  fprintf(stderr, "FocusIn"); break;
-        case 10: fprintf(stderr, "FocusOut"); break;
-        case 11: fprintf(stderr, "KeymapNotify"); break;
-        case 12: fprintf(stderr, "Expose"); break;
-        case 13: fprintf(stderr, "GraphicsExpose"); break;
-        case 14: fprintf(stderr, "NoExpose"); break;
-        case 15: fprintf(stderr, "VisibilityNotify"); break;
-        case 16: fprintf(stderr, "CreateNotify"); break;
-        case 17: fprintf(stderr, "DestroyNotify"); break;
-        case 18: fprintf(stderr, "UnmapNotify"); break;
-        case 19: fprintf(stderr, "MapNotify"); break;
-        case 20: fprintf(stderr, "MapRequest"); break;
-        case 21: fprintf(stderr, "ReparentNotify"); break;
-        case 22: fprintf(stderr, "ConfigureNotify"); break;
-        case 23: fprintf(stderr, "ConfigureRequest"); break;
-        case 24: fprintf(stderr, "GravityNotify"); break;
-        case 25: fprintf(stderr, "ResizeRequest"); break;
-        case 26: fprintf(stderr, "CirculateNotify"); break;
-        case 27: fprintf(stderr, "CirculateRequest"); break;
-        case 28: fprintf(stderr, "PropertyNotify"); break;
-        case 29: fprintf(stderr, "SelectionClear"); break;
-        case 30: fprintf(stderr, "SelectionRequest"); break;
-        case 31: fprintf(stderr, "SelectionNotify"); break;
-        case 32: fprintf(stderr, "ColormapNotify"); break;
-        case 33: fprintf(stderr, "ClientMessage"); break;
-        case 34: fprintf(stderr, "MappingNotify"); break;
-        case 35: fprintf(stderr, "GenericEvent"); break;
-        default: fprintf(stderr, "???"); break;
+        "pd_etnone", "pd_etkeydown", "pd_etkeyup", "pd_etmouse",
+        "pd_etbtndown", "pd_etbtnup", "pd_etenter", "pd_etleave",
+        "pd_etfocus", "pd_etnofocus", "pd_etresize", "pd_etredraw",
+        "pd_etclose", "pd_etmap", "pd_etframe", "pd_etmin",
+        "pd_etmax", "pd_etrestore"
 
-    }
+    };
+
+    if (type >= 0 && type < (int)(sizeof(nm)/sizeof(nm[0])))
+        fprintf(stderr, "%s", nm[type]);
+    else fprintf(stderr, "???");
 
 }
 
 /** ****************************************************************************
 
-Print XEvent message
+Print pd_evt message
 
-A diagnostic, prints fields in an XEvent message.
+A diagnostic, prints fields in an pd_evt message.
 
 *******************************************************************************/
 
-void prtxevt(XEvent* e)
+void prtxevt(pd_evt* e)
 
 {
 
-    fprintf(stderr, "X Event: %5ld Window: %lx ", e->xany.serial,
-            e->xany.window);
-    prtxevtt(e->type);
-    switch (e->type) {
+    fprintf(stderr, "Event: %5lu Window: %p ", e->token,
+            (void*)e->win);
+    prtxevtt(e->etype);
+    switch (e->etype) {
 
-        case Expose: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
-                             e->xexpose.x, e->xexpose.y,
-                             e->xexpose.width, e->xexpose.height); break;
-        case ConfigureNotify: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
-                             e->xconfigure.x, e->xconfigure.y,
-                             e->xconfigure.width, e->xconfigure.height); break;
-        case MotionNotify: fprintf(stderr, ": x: %d y: %d",
-                                   e->xmotion.x, e->xmotion.y); break;
-        case PropertyNotify: fprintf(stderr, ": atom: %s",
-                                     XGetAtomName(padisplay, e->xproperty.atom));
+        case pd_etredraw: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
+                             e->rx, e->ry,
+                             e->rw, e->rh); break;
+        case pd_etresize: fprintf(stderr, ": w: %d h: %d token: %lu",
+                             e->w, e->h, e->token); break;
+        case pd_etmouse: fprintf(stderr, ": x: %d y: %d",
+                                   e->x, e->y); break;
 
     }
 
@@ -2090,8 +1917,9 @@ void prtwinety(winptr wp, int indent)
 
     if (wp) {
 
-        fprintf(stderr, "%*cWindow: %p Master: %lx Subclient: %lx\n",
-                        indent, ' ', wp, wp->xmwhan, wp->xwhan);
+        fprintf(stderr, "%*cWindow: %p Master: %p Subclient: %p\n",
+                        indent, ' ', (void*)wp, (void*)wp->xmwhan,
+                        (void*)wp->xwhan);
         indent += 4; /* index next level */
         cp = wp->childwin; /* index child window list */
         while (cp) {
@@ -2130,70 +1958,20 @@ window managers that don't advertise the atom.
 
 *******************************************************************************/
 
-/* Window pending a focus retry after a decoration change. Turning decorations
+/* pd_win* pending a focus retry after a decoration change. Turning decorations
    back on makes Mutter re-decorate, which drops our input focus; the recovery
-   only sticks once that has settled, i.e. when the resulting FocusOut arrives.
-   wmactivate() arms this; the FocusOut handler fires the retry. */
-static Window refocuswin = 0;
+   only sticks once that has settled, i.e. when the resulting pd_etnofocus arrives.
+   wmactivate() arms this; the pd_etnofocus handler fires the retry. */
+static pd_win* refocuswin = 0;
 
-static void wmactivate(Window w, int arm)
+static void wmactivate(pd_win* w, int arm)
 
 {
 
-    XEvent ev;
-    Atom   naw;
-
-    XWLOCK();
-    naw = XInternAtom(padisplay, "_NET_ACTIVE_WINDOW", True);
-    if (naw != None) {
-
-        ev.xclient.type = ClientMessage;
-        ev.xclient.serial = 0;
-        ev.xclient.send_event = True;
-        ev.xclient.display = padisplay;
-        ev.xclient.window = w;
-        ev.xclient.message_type = naw;
-        ev.xclient.format = 32;
-        ev.xclient.data.l[0] = 1; /* source indication: application */
-        ev.xclient.data.l[1] = CurrentTime;
-        ev.xclient.data.l[2] = 0;
-        ev.xclient.data.l[3] = 0;
-        ev.xclient.data.l[4] = 0;
-        XSendEvent(padisplay, DefaultRootWindow(padisplay), False,
-                   SubstructureRedirectMask|SubstructureNotifyMask, &ev);
-        XFlush(padisplay);
-
-    }
-    /* Raise the window too. Turning decorations back on can also drop it in the
-       stacking order (seen at the size-bars-on frame). _NET_ACTIVE_WINDOW is
-       supposed to raise, but it races the re-decoration and may lose, so raise
-       explicitly. */
-    XRaiseWindow(padisplay, w);
-    XFlush(padisplay);
-    /* Also set the input focus directly. The _NET_ACTIVE_WINDOW request can
-       lose a race with the focus change Mutter makes when the decoration hints
-       change; a direct XSetInputFocus is applied immediately by the server.
-       Only focus a viewable window -- XSetInputFocus BadMatches otherwise. */
-    {
-
-        XWindowAttributes wa;
-
-        if (XGetWindowAttributes(padisplay, w, &wa) &&
-            wa.map_state == IsViewable) {
-
-            XSetInputFocus(padisplay, w, RevertToParent, CurrentTime);
-            XFlush(padisplay);
-
-        }
-
-    }
-    XWUNLOCK();
-
-    /* Arm a reactive retry: the immediate attempt above races Mutter's
-       re-decoration and usually loses, so also re-activate when the window
-       actually loses focus (see the FocusOut handler). Only arm when the caller
-       expects a drop (turning decorations on), so we never steal focus back on
-       a later, legitimate focus change. */
+    /* raise the window and let the compositor's own focus policy run;
+       the retry armed here fires from the pd_etnofocus handler */
+    pd_winraise(w);
+    pd_flush(grx_padisplay);
     if (arm) refocuswin = w;
 
 }
@@ -2207,24 +1985,13 @@ flag. Note that decoration properties can only be set/reset one at a time.
 
 *******************************************************************************/
 
-void enbxfrm(Window xwh, int e)
+void enbxfrm(pd_win* xwh, long e)
 
 {
 
-    Atom mwmHintsProperty;
-    mwmhints hints;
-
-    XWLOCK();
-    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS;
-    if (e) hints.decorations = MWM_DECOR_ALL;
-    else hints.decorations = 0; /* everything off */
-    XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
-                    32, PropModeReplace, (unsigned char *)&hints, 5);
-    XWUNLOCK();
-
-    /* Mutter drops input focus when the decoration hints change; ask it to
-       return focus to us so it doesn't strand on the launching terminal. */
+    /* the frame is Ami-drawn on this backend (childfrm); the paint
+       follows the window's own settings. Activation follows the
+       frame change */
     wmactivate(xwh, e);
 
 }
@@ -2242,62 +2009,23 @@ managers.
 
 *******************************************************************************/
 
-void enbxsiz(Window xwh, int e)
+void enbxsiz(pd_win* xwh, long e)
 
 {
 
-    Atom mwmHintsProperty;
-    mwmhints hints;
-    XSizeHints sh;
-
-    XWLOCK();
-
-    /* set motif hints to control decoration and function */
-    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS | MWM_HINTS_FUNCTIONS;
-    if (e) {
-
-        hints.decorations = MWM_DECOR_ALL;
-        hints.functions = MWM_FUNC_ALL;
-
-    } else {
-
-        hints.decorations = MWM_DECOR_TITLE|MWM_DECOR_MENU|MWM_DECOR_MINIMIZE|
-                            MWM_DECOR_MAXIMIZE;
-        hints.functions = MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE|MWM_FUNC_MAXIMIZE|
-                          MWM_FUNC_CLOSE;
-
-    }
-    XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
-                    32, PropModeReplace, (unsigned char *)&hints, 5);
-
-    /* constrain size via WM_NORMAL_HINTS: setting min == max prevents resize
-       on WMs that ignore _MOTIF_WM_HINTS functions */
+    /* Sizing on this backend is governed by the compositor's interactive
+       resize on the declared frame border (pd_winframe) and by size
+       limits. Size bars off pins the window at its current size */
     if (!e) {
 
-        XWindowAttributes a;
-        XGetWindowAttributes(padisplay, xwh, &a);
-        sh.flags = PMinSize | PMaxSize;
-        sh.min_width = a.width;
-        sh.min_height = a.height;
-        sh.max_width = a.width;
-        sh.max_height = a.height;
-        XSetWMNormalHints(padisplay, xwh, &sh);
+        int x, y, w, h, m;
 
-    } else {
+        pd_wingeom(xwh, &x, &y, &w, &h, &m);
+        pd_winlimits(xwh, w, h, w, h);
 
-        sh.flags = PMinSize | PMaxSize;
-        sh.min_width = 1;
-        sh.min_height = 1;
-        sh.max_width = 32767;
-        sh.max_height = 32767;
-        XSetWMNormalHints(padisplay, xwh, &sh);
+    } else pd_winlimits(xwh, 1, 1, 0, 0);
 
-    }
-
-    XWUNLOCK();
-
-    /* re-focus: Mutter drops focus when the decoration hints change */
+    /* re-focus: activation follows the frame change */
     wmactivate(xwh, e);
 
 }
@@ -2311,67 +2039,17 @@ flag. Note that decoration properties can only be set/reset one at a time.
 
 *******************************************************************************/
 
-void enbxsys(Window xwh, int e)
+void enbxsys(pd_win* xwh, long e)
 
 {
 
-    Atom mwmHintsProperty;
-    mwmhints hints;
-
-    XWLOCK();
-    mwmHintsProperty = XInternAtom(padisplay, "_MOTIF_WM_HINTS", 0);
-    hints.flags = MWM_HINTS_DECORATIONS;
-    if (e) hints.decorations = MWM_DECOR_ALL;
-    else hints.decorations = MWM_DECOR_BORDER;
-    XChangeProperty(padisplay, xwh, mwmHintsProperty, mwmHintsProperty,
-                    32, PropModeReplace, (unsigned char *)&hints, 5);
-    XWUNLOCK();
-
-    /* re-focus: Mutter drops focus when the decoration hints change */
+    /* the system bar is part of the Ami-drawn frame on this backend;
+       the frame paint follows the window's own settings. Activation
+       follows the change */
     wmactivate(xwh, e);
 
 }
 
-/** ****************************************************************************
-
-Get window frame measurements
-
-Uses the difference between the given window and it's parent window to find the
-extra width, extra height, and offset to client of the child window.
-
-*******************************************************************************/
-
-void fndfrmdif(Window xw, int* ew, int* eh, int* ox, int* oy)
-
-{
-
-    XWindowAttributes xwga, xpwga; /* XWindow get attributes */
-    Window            pw, rw;
-    Window*           cwl;
-    unsigned          ncw;
-
-    /* get frame measurements */
-    XWLOCK();
-    XQueryTree(padisplay, xw, &rw, &pw, &cwl, &ncw);
-    XGetWindowAttributes(padisplay, pw, &xpwga);
-    XGetWindowAttributes(padisplay, xw, &xwga);
-    XWUNLOCK();
-
-    /* find net extra width of frame from client area */
-    *ew = xpwga.width-xwga.width;
-    *eh = xpwga.height-xwga.height;
-    /* find offset from parent origin to client origin */
-    *ox = xwga.x;
-    *oy = xwga.y;
-
-#ifdef PRTFRM
-    dbg_printf(dlinfo, "Frame extra width all: %d\n", frmextwdt[frmcfgall]);
-    dbg_printf(dlinfo, "Frame extra height all: %d\n", frmexthgt[frmcfgall]);
-    dbg_printf(dlinfo, "Parent to client offset all: x: %d y: %d\n",
-                       frmoffx[frmcfgall], frmoffy[frmcfgall]);
-#endif
-
-}
 
 /** ****************************************************************************
 
@@ -2388,47 +2066,14 @@ void fndfrm(void)
 
 {
 
-    Window            wh;
-    XEvent            xe;
-    Window            pw, rw;
-    Window*           cwl;
-    unsigned          ncw;
-    XWindowAttributes xwga, xpwga; /* XWindow get attributes */
-    GC                xcxt;
-
-    /* measure window frame characteristics */
-    XWLOCK();
-    wh = XCreateWindow(padisplay, RootWindow(padisplay, pascreen), 0, 0, 1, 1,
-                       0, CopyFromParent, InputOutput, CopyFromParent, 0, NULL);
-    /* select what events we want */
-    XSelectInput(padisplay, wh, ExposureMask|KeyPressMask|
-                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
-                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
-                 EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
-    XMapWindow(padisplay, wh);
-    XFlush(padisplay);
-    XWUNLOCK();
-
-    /* wait window present */
-    do {
-
-        XWLOCK();
-        XNextEvent(padisplay, &xe); /* get next event */
-        XWUNLOCK();
-
-    } while (xe.type != MapNotify || xe.xany.window != wh);
-
-    /* get frame measurements */
-    fndfrmdif(wh, &frmextwdt[frmcfgall], &frmexthgt[frmcfgall],
-                  &frmoffx[frmcfgall], &frmoffy[frmcfgall]);
-
-    /* adjust and unmap window */
-    XWLOCK();
-    XMoveWindow(padisplay, wh, 0, 0);
-    XUnmapWindow(padisplay, wh);
-    /* destroy the window */
-    XDestroyWindow(padisplay, wh);
-    XWUNLOCK();
+    /* There is no window manager frame to measure: the compositor draws no
+       frame around a plain xdg toplevel, and when Ami frames its own
+       toplevels it does so through the child frame machinery, which sizes
+       itself. Every frame parameter is zero. */
+    frmextwdt[frmcfgall] = 0;
+    frmexthgt[frmcfgall] = 0;
+    frmoffx[frmcfgall] = 0;
+    frmoffy[frmcfgall] = 0;
 
     /* set frame off parameters to all zeros */
     frmextwdt[frmcfgfrm] = 0;
@@ -2528,16 +2173,17 @@ int colnum(ami_color c)
 
 Translate rgb to XWindow color
 
-Translates a ratioed INT_MAX graph color to the XWindow form, which is a 32
+Translates a ratioed LONG_MAX graph color to the XWindow form, which is a 32
 bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static int rgb2xwin(int r, int g, int b)
+static int rgb2xwin(long r, long g, long b)
 
 {
 
-   return ((r/8388608)*65536+(g/8388608)*256+(b/8388608));
+   return ((int)((r/(LONG_MAX/256+1))*65536+(g/(LONG_MAX/256+1))*256+
+                 (b/(LONG_MAX/256+1))));
 
 }
 
@@ -2893,7 +2539,6 @@ void getfonts(void)
     FcChar8*     fcfoundry;
     FcChar8*     fcfile;
     int          fcweight, fcslant, fcwidth, fcspacing, fcindex;
-    FcBool       fcscalable;
     FcCharSet*   fccs;
 
     /* query fontconfig for all scalable fonts */
@@ -3228,7 +2873,6 @@ void setfnt(winptr win)
 
 {
 
-    fontptr  fp;   /* pointer to current font */
     int      caps; /* matched capabilities set */
     xcaplst* cl;   /* capability list pointer */
     xcaplst* best; /* best matching entry */
@@ -3404,7 +3048,7 @@ typedef struct {
     int      pixel_size_y;  /* em-square pixel size y */
     int      pixel_size_x;  /* em-square pixel size x (asymmetric scaling) */
     int      glyph_index;   /* glyph index in font */
-    Pixmap   stipple;     /* 1-bit depth pixmap */
+    uint8_t*     mask;        /* glyph alpha mask, w*h bytes */
     int      width;       /* bitmap width */
     int      height;      /* bitmap height */
     int      bitmap_left; /* left bearing */
@@ -3427,10 +3071,9 @@ static void ft_invalidate_face(FT_Face face)
 
         if (gcache[i].valid && gcache[i].face == face) {
 
-            if (gcache[i].stipple)
-                XFreePixmap(padisplay, gcache[i].stipple);
+            free(gcache[i].mask);
             gcache[i].valid = 0;
-            gcache[i].stipple = 0;
+            gcache[i].mask = 0;
 
         }
 
@@ -3442,8 +3085,8 @@ static void ft_invalidate_face(FT_Face face)
 
 Find or create cached glyph
 
-Looks up the glyph in the cache. If not found, renders it with FreeType and
-creates a 1-bit Pixmap for stipple-based rendering.
+Looks up the glyph in the cache. If not found, renders it with FreeType
+and keeps the alpha mask for pd_glyph rendering.
 
 *******************************************************************************/
 
@@ -3458,12 +3101,7 @@ static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size_x,
     FT_GlyphSlot slot;
     int w, h, pitch;
     unsigned char* buf;
-    char* data;
-    int bw;
-    int i, j;
-    XImage* ximg;
-    Pixmap pix;
-    GC gc1;
+    int j;
 
     gi = FT_Get_Char_Index(face, (unsigned char)c);
     hash = (gi * 31 + pixel_size_y * 17 + pixel_size_x * 13) % GLYPH_CACHE_SIZE;
@@ -3486,8 +3124,7 @@ static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size_x,
     h = slot->bitmap.rows;
 
     /* evict old entry if present */
-    if (ge->valid && ge->stipple)
-        XFreePixmap(padisplay, ge->stipple);
+    if (ge->valid) free(ge->mask);
 
     ge->face = face;
     ge->pixel_size_y = pixel_size_y;
@@ -3502,39 +3139,17 @@ static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size_x,
 
     if (w == 0 || h == 0) {
 
-        ge->stipple = 0;
+        ge->mask = 0;
         return ge;
 
     }
 
+    /* keep the alpha mask rows for pd_glyph */
     buf = slot->bitmap.buffer;
     pitch = slot->bitmap.pitch;
-
-    /* create 1-bit data from FreeType 8-bit alpha bitmap.
-       Let XCreateImage set native byte/bit order, then use XPutPixel
-       to avoid bit order issues. */
-    bw = (w + 7) / 8; /* bytes per row */
-    data = (char*)calloc(bw * h, 1);
-
-    ximg = XCreateImage(padisplay, DefaultVisual(padisplay, pascreen),
-                        1, XYBitmap, 0, data, w, h, 8, bw);
+    ge->mask = malloc((size_t)w*h);
     for (j = 0; j < h; j++)
-        for (i = 0; i < w; i++)
-            XPutPixel(ximg, i, j, (buf[j * pitch + i] > 127) ? 1 : 0);
-
-
-    pix = XCreatePixmap(padisplay, DefaultRootWindow(padisplay), w, h, 1);
-    {
-        XGCValues gcv;
-        gcv.foreground = 1;
-        gcv.background = 0;
-        gc1 = XCreateGC(padisplay, pix, GCForeground | GCBackground, &gcv);
-    }
-    XPutImage(padisplay, pix, gc1, ximg, 0, 0, 0, 0, w, h);
-    XFreeGC(padisplay, gc1);
-
-    XDestroyImage(ximg); /* frees data */
-    ge->stipple = pix;
+        memcpy(ge->mask+(size_t)j*w, buf+(size_t)j*pitch, w);
 
     return ge;
 
@@ -3544,12 +3159,12 @@ static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size_x,
 
 Draw single character using FreeType
 
-Renders a character glyph onto an X11 Drawable using a cached 1-bit stipple
-Pixmap. This respects the GC function mode (normal, XOR, AND, OR).
+Renders a character glyph through the layer's glyph blit, from the cached
+alpha mask, honoring the draw record's mix mode.
 
 *******************************************************************************/
 
-static void ft_draw_char(Drawable d, GC gc, FT_Face face,
+static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
                          int pixel_size_x, int pixel_size_y,
                          int x, int y, char c)
 
@@ -3558,14 +3173,10 @@ static void ft_draw_char(Drawable d, GC gc, FT_Face face,
     glyphcache* ge;
 
     ge = ft_cache_glyph(face, pixel_size_x, pixel_size_y, c);
-    if (!ge || !ge->stipple) return;
+    if (!ge || !ge->mask) return;
 
-    XSetStipple(padisplay, gc, ge->stipple);
-    XSetFillStyle(padisplay, gc, FillStippled);
-    XSetTSOrigin(padisplay, gc, x + ge->bitmap_left, y - ge->bitmap_top);
-    XFillRectangle(padisplay, d, gc, x + ge->bitmap_left, y - ge->bitmap_top,
-                   ge->width, ge->height);
-    XSetFillStyle(padisplay, gc, FillSolid);
+    pd_glyph(d, gc, x + ge->bitmap_left, y - ge->bitmap_top,
+             ge->mask, ge->width, ge->height, ge->width, 8);
 
 }
 
@@ -3573,11 +3184,11 @@ static void ft_draw_char(Drawable d, GC gc, FT_Face face,
 
 Draw string using FreeType
 
-Renders a string onto an X11 Drawable using cached glyph stipples.
+Renders a string onto an X11 pd_canvas* using cached glyph stipples.
 
 *******************************************************************************/
 
-static void ft_draw_string(Drawable d, GC gc, FT_Face face,
+void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
                            int pixel_size_x, int pixel_size_y,
                            int x, int y, char* s, int len)
 
@@ -3603,7 +3214,7 @@ Returns the total pixel width of a string rendered with the given face.
 
 *******************************************************************************/
 
-static int ft_text_width(FT_Face face, const char* s, int len)
+int grx_ft_text_width(FT_Face face, const char* s, int len)
 
 {
 
@@ -3626,16 +3237,15 @@ static int ft_text_width(FT_Face face, const char* s, int len)
 
 Draw rotated character using FreeType
 
-Renders a character at an arbitrary angle onto an X11 Drawable. The glyph
-is rasterized pre-rotated by FreeType itself (via FT_Set_Transform), which
-gives proper subpixel-accurate rotation with no aliasing artifacts from
-manual pixel sampling. The 8-bit alpha output is thresholded to 1-bit and
-drawn as a stipple, matching the non-rotated ft_draw_char path so GC
-function modes (XOR, AND, OR) apply identically.
+Renders a character at an arbitrary angle. The glyph is rasterized
+pre-rotated by FreeType itself (via FT_Set_Transform), which gives proper
+subpixel-accurate rotation; the layer's glyph blit renders the mask with
+the same thresholding as the unrotated path, so mix modes apply
+identically.
 
 *******************************************************************************/
 
-static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
+static void ft_draw_char_rotated(pd_canvas* d, pd_draw* gc, FT_Face face,
                                  int pixel_size_x, int pixel_size_y,
                                  float angle_rad,
                                  int x, int y, char c)
@@ -3646,12 +3256,8 @@ static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
     FT_Matrix    mat;
     int          w, h, pitch;
     unsigned char* buf;
-    int          i, j, bw;
-    char*        data;
-    XImage*      ximg;
-    Pixmap       pix;
-    GC           gc1;
-    int          gx, gy;
+    uint8_t*     mask;
+    int          j;
 
     FT_Set_Pixel_Sizes(face, pixel_size_x, pixel_size_y);
 
@@ -3684,39 +3290,15 @@ static void ft_draw_char_rotated(Drawable d, GC gc, FT_Face face,
     buf = slot->bitmap.buffer;
     pitch = slot->bitmap.pitch;
 
-    /* Threshold 8-bit alpha to a 1-bit bitmap. Petit-Ami's text is 1-bit
-       everywhere (see ft_cache_glyph) so this matches the non-rotated
-       path's rendering character. */
-    bw = (w + 7) / 8;
-    data = (char*)calloc(bw * h, 1);
-    ximg = XCreateImage(padisplay, DefaultVisual(padisplay, pascreen),
-                        1, XYBitmap, 0, data, w, h, 8, bw);
+    /* pack the mask rows and hand them to the layer's glyph blit;
+       FreeType's bitmap_left/bitmap_top already reflect the rotated
+       glyph's bounding box */
+    mask = malloc((size_t)w*h);
     for (j = 0; j < h; j++)
-        for (i = 0; i < w; i++)
-            XPutPixel(ximg, i, j, (buf[j * pitch + i] > 127) ? 1 : 0);
-
-    pix = XCreatePixmap(padisplay, DefaultRootWindow(padisplay), w, h, 1);
-    {
-        XGCValues gcv;
-        gcv.foreground = 1;
-        gcv.background = 0;
-        gc1 = XCreateGC(padisplay, pix, GCForeground | GCBackground, &gcv);
-    }
-    XPutImage(padisplay, pix, gc1, ximg, 0, 0, 0, 0, w, h);
-    XFreeGC(padisplay, gc1);
-    XDestroyImage(ximg); /* frees data */
-
-    /* FreeType updated bitmap_left/bitmap_top to reflect the rotated glyph's
-       bounding box — no manual offset correction needed. */
-    gx = x + slot->bitmap_left;
-    gy = y - slot->bitmap_top;
-    XSetStipple(padisplay, gc, pix);
-    XSetFillStyle(padisplay, gc, FillStippled);
-    XSetTSOrigin(padisplay, gc, gx, gy);
-    XFillRectangle(padisplay, d, gc, gx, gy, w, h);
-    XSetFillStyle(padisplay, gc, FillSolid);
-
-    XFreePixmap(padisplay, pix);
+        memcpy(mask+(size_t)j*w, buf+(size_t)j*pitch, w);
+    pd_glyph(d, gc, x + slot->bitmap_left, y - slot->bitmap_top,
+             mask, w, h, w, 8);
+    free(mask);
 
 }
 
@@ -3734,15 +3316,13 @@ static void ft_cache_clear(void)
 
     int i;
 
-    XWLOCK();
     for (i = 0; i < GLYPH_CACHE_SIZE; i++) {
 
-        if (gcache[i].valid && gcache[i].stipple)
-            XFreePixmap(padisplay, gcache[i].stipple);
+        free(gcache[i].mask);
         gcache[i].valid = 0;
+        gcache[i].mask = 0;
 
     }
-    XWUNLOCK();
 
 }
 
@@ -3806,11 +3386,9 @@ static void clrbuf(scnptr sc)
 
 {
 
-    XWLOCK();
-    XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-    XFillRectangle(padisplay, sc->xbuf, sc->xcxt, 0, 0, sc->maxxg, sc->maxyg);
-    XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-    XWUNLOCK();
+    sc->xcxt->fg = sc->bcrgb;
+    pd_frect(sc->xbuf, sc->xcxt, 0, 0, sc->maxxg, sc->maxyg);
+    sc->xcxt->fg = sc->fcrgb;
 
 }
 
@@ -3921,7 +3499,7 @@ done.
 
 *******************************************************************************/
 
-static void delpic(winptr win, int p)
+static void delpic(winptr win, long p)
 
 {
 
@@ -3932,9 +3510,7 @@ static void delpic(winptr win, int p)
         /* remove top entry */
         pp = win->pictbl[p-1];
         win->pictbl[p-1] = pp->next;
-        XWLOCK();
-        XDestroyImage(pp->xi); /* release image */
-        XWUNLOCK();
+        pd_candel(pp->xi); /* release image */
         putpic(pp); /* release image entry */
 
     }
@@ -4002,7 +3578,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(int wid)
+static winptr lwn2win(long wid)
 
 {
 
@@ -4067,14 +3643,14 @@ static FILE* out2inp(FILE* f)
 
 /*******************************************************************************
 
-Rescale XWindows image
+Rescale image canvas
 
 Rescales an image from the source to the destination. Both scaling up and down
 are possible, as well as changing the aspect ratio. Uses bilinear interpolation.
 
 *******************************************************************************/
 
-void rescale(XImage* dp, XImage* sp)
+void rescale(pd_canvas* dp, pd_canvas* sp)
 
 {
 
@@ -4083,30 +3659,35 @@ void rescale(XImage* dp, XImage* sp)
     float xr, yr;
     int xd, yd;
     int b, r, g;
-    unsigned int* src;
-    unsigned int* dest;
+    uint32_t* src;
+    uint32_t* dest;
+    int sw, sh, dw, dh;
+    int sstride, dstride;
     int si, di;
 
-    xr = ((float)(sp->width-1))/dp->width; /* find scaling ratio x */
-    yr = ((float)(sp->height-1))/dp->height; /* find scaling ratio y */
-    src = (unsigned int*)(sp->data); /* index source pixmap */
-    dest = (unsigned int*)(dp->data); /* index destination pixmap */
-    di = 0; /* set destination index */
+    pd_cansize(sp, &sw, &sh);
+    pd_cansize(dp, &dw, &dh);
+    src = pd_canlock(sp, &sstride);
+    dest = pd_canlock(dp, &dstride);
+
+    xr = ((float)(sw-1))/dw; /* find scaling ratio x */
+    yr = ((float)(sh-1))/dh; /* find scaling ratio y */
 
     /* copy and scale source to destination */
-    for (dy = 0; dy < dp->height; dy++) {
+    for (dy = 0; dy < dh; dy++) {
 
-        for (dx = 0; dx < dp->width; dx++) {
+        di = dy*dstride; /* set destination index */
+        for (dx = 0; dx < dw; dx++) {
 
             sx = xr*dx; /* find source x location */
             sy = yr*dy; /* find source y location */
             xd = (xr*dx)-sx;
             yd = (yr*dy)-sy;
-            si = (sy*sp->width+sx); /* find net source index */
+            si = (sy*sstride+sx); /* find net source index */
             px1 = src[si]; /* get this pixel */
             px2 = src[si+1]; /* get right pixel */
-            px3 = src[si+sp->width]; /* get down pixel */
-            px4 = src[si+sp->width+1]; /* get down/right pixel */
+            px3 = src[si+sstride]; /* get down pixel */
+            px4 = src[si+sstride+1]; /* get down/right pixel */
 
             b = (px1&0xff)*(1-xd)*(1-yd)+(px2&0xff)*xd*(1-yd)+
                    (px3&0xff)*yd*(1-xd)+(px4&0xff)*xd*yd;
@@ -4122,6 +3703,8 @@ void rescale(XImage* dp, XImage* sp)
         }
 
     }
+    pd_canunlock(sp);
+    pd_canunlock(dp);
 
 }
 
@@ -4129,22 +3712,22 @@ void rescale(XImage* dp, XImage* sp)
 
 Convert Petit-Ami ratioed angles to XWindow 64ths angles
 
-PA uses 0 to INT_MAX clockwise angular measurements. Xwindows uses 64 degree
+PA uses 0 to LONG_MAX clockwise angular measurements. Xwindows uses 64 degree
 measurements, with 0 degress at the 3'oclock position, and counterclockwise
 drawing direction. Converts PA angles to XWindow angles.
 
 *******************************************************************************/
 
-#define DEGREE (INT_MAX/360)
+#define DEGREE (LONG_MAX/360)
 
-int rat2a64(int a)
+int rat2a64(long a)
 
 {
 
     /* normalize for 90 degrees origin */
-    a -= INT_MAX/4; /* normalize for 90 degrees */
-    if (a < 0) a += INT_MAX;
-    a /= INT_MAX/(360*64); /* convert to 64ths degrees */
+    a -= LONG_MAX/4; /* normalize for 90 degrees */
+    if (a < 0) a += LONG_MAX;
+    a /= LONG_MAX/(360*64); /* convert to 64ths degrees */
     if (a) a = 360*64-a;
 
     return (a); /* return counterclockwise */
@@ -4159,12 +3742,31 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* The window free list and the disposal deferrals are shared between
+   the thread that opens and closes windows and a thread inside event
+   processing; the lock covers exactly that data. A close landing while
+   another thread is inside event processing cannot recycle the record
+   out from under it: the record leaves the lookup tables at once, and
+   its disposal waits on the deferred list until event processing
+   ends. */
+typedef struct windefer {
+
+    struct windefer* next; /* next deferral */
+    winptr           win;  /* the record awaiting disposal */
+
+} windefer;
+
+static pthread_mutex_t winfrelock = PTHREAD_MUTEX_INITIALIZER;
+static int             evtbusy;    /* threads inside event processing */
+static windefer*       windeflst;  /* disposals awaiting the event end */
+
 static winptr getwin(void)
 
 {
 
     winptr p;
 
+    pthread_mutex_lock(&winfrelock);
     if (winfre) { /* there is a freed entry */
 
         p = winfre; /* index top entry */
@@ -4177,6 +3779,7 @@ static winptr getwin(void)
         wintot += sizeof(winrec); /* add to total memory used */
 
     }
+    pthread_mutex_unlock(&winfrelock);
 
     return (p);
 
@@ -4190,12 +3793,38 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the disposal proper: screens and record; the lock is held */
+static void dispwin(winptr p)
+
+{
+
+    int si;
+
+    for (si = 0; si < MAXCON; si++)
+        if (p->screens[si]) { ifree(p->screens[si]); p->screens[si] = NULL; }
+    p->next = winfre; /* push to list */
+    winfre = p;
+
+}
+
 static void putwin(winptr p)
 
 {
 
-    p->next = winfre; /* push to list */
-    winfre = p;
+    windefer* dp;
+
+    pthread_mutex_lock(&winfrelock);
+    if (evtbusy) {
+
+        /* a thread is inside event processing and may be standing on
+           this record; the disposal waits for it */
+        dp = imalloc(sizeof(windefer));
+        dp->win = p;
+        dp->next = windeflst;
+        windeflst = dp;
+
+    } else dispwin(p);
+    pthread_mutex_unlock(&winfrelock);
 
 }
 
@@ -4207,6 +3836,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds xevtlock */
 static xevtque* getxevt(void)
 
 {
@@ -4232,6 +3862,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds xevtlock */
 static void putxevt(xevtque* p)
 
 {
@@ -4243,18 +3874,20 @@ static void putxevt(xevtque* p)
 
 /** ****************************************************************************
 
-Place XEvent into input queue
+Place pd_evt into input queue
 
 *******************************************************************************/
 
-static void enquexevt(XEvent* e)
+static void enquexevt(pd_evt* e)
 
 {
 
     xevtque* p;
 
+    pthread_mutex_lock(&xevtlock);
+
     p = getxevt(); /* get a queue entry */
-    memcpy(&p->evt, e, sizeof(XEvent)); /* copy event to queue entry */
+    memcpy(&p->evt, e, sizeof(pd_evt)); /* copy event to queue entry */
     if (evtque) { /* there are entries in queue */
 
         /* we push TO next (current) and take FROM last (final) */
@@ -4271,22 +3904,24 @@ static void enquexevt(XEvent* e)
         evtque = p; /* place in list */
 
     }
+    pthread_mutex_unlock(&xevtlock);
 
 }
 
 /** ****************************************************************************
 
-Remove XEvent from input queue
+Remove pd_evt from input queue
 
 *******************************************************************************/
 
-static void dequexevt(XEvent* e)
+static int dequexevt(pd_evt* e)
 
 {
 
     xevtque* p;
 
-    if (!evtque) error(esystem); /* should not be called empty */
+    pthread_mutex_lock(&xevtlock);
+    if (!evtque) { pthread_mutex_unlock(&xevtlock); return (FALSE); }
     /* we push TO next (current) and take FROM last (final) */
     p = evtque->last; /* index final entry */
     if (p->next == p) evtque = NULL; /* only one entry, clear list */
@@ -4296,8 +3931,11 @@ static void dequexevt(XEvent* e)
         p->next->last = p->last; /* point current at last */
 
     }
-    memcpy(e, &p->evt, sizeof(XEvent)); /* copy out to caller */
+    memcpy(e, &p->evt, sizeof(pd_evt)); /* copy out to caller */
     putxevt(p); /* release queue entry to free */
+    pthread_mutex_unlock(&xevtlock);
+
+    return (TRUE);
 
 }
 
@@ -4310,7 +3948,7 @@ or -1 if not found.
 
 *******************************************************************************/
 
-static int fndevt(Window w)
+static int fndevt(pd_win* w)
 
 {
 
@@ -4339,21 +3977,21 @@ static int fndevt(Window w)
 
 Event coalescing
 
-X delivers redundant events individually -- a train of ConfigureNotify while a
-window is dragged, or a storm of partial Expose rectangles -- and does not
+X delivers redundant events individually -- a train of pd_etresize while a
+window is dragged, or a storm of partial pd_etredraw rectangles -- and does not
 compact them for us (contrary to popular belief; it only offers hints like the
-Expose "count" field). Redrawing once per event makes interactive resize/move
+pd_etredraw "count" field). Redrawing once per event makes interactive resize/move
 crawl, especially under XWayland where the stream is bursty.
 
 coalesce() folds such a burst into a single event before it becomes a PA event.
-For ConfigureNotify only the latest geometry matters, so we keep the last. Expose
+For pd_etresize only the latest geometry matters, so we keep the last. pd_etredraw
 carries a redraw rectangle, so we cannot just keep the last; we union all pending
 rectangles into one so nothing is left unpainted. Both the internal save queue
 (filled by peekxevt during WM waits) and the live X queue are drained.
 
 Discrete events (keys, buttons, focus, map, ...) are never coalesced.
 
-MotionNotify is coalesced keep-newest: only the latest pointer position matters,
+pd_etmouse is coalesced keep-newest: only the latest pointer position matters,
 and under XWayland the motion stream arrives faster than widgets can repaint, so
 stale positions pile up in the queue and each one drives a redundant redraw (the
 pointer visibly lags the cursor -- a slider "chasing" the mouse). Folding a run
@@ -4364,20 +4002,21 @@ motion rather than rely on the coalesced PA event stream.
 
 *******************************************************************************/
 
-/* Remove one queued XEvent matching (type, window) from the internal save queue.
+/* Remove one queued pd_evt matching (type, window) from the internal save queue.
    Returns TRUE and fills *out if found. The queue runs newest-first from the
    front, so the first match returned is the newest. */
-static int takexevt(int type, Window w, XEvent* out)
+static int takexevt(int type, pd_win* w, pd_evt* out)
 
 {
 
     xevtque* p;
 
-    if (!evtque) return (FALSE);
+    pthread_mutex_lock(&xevtlock);
+    if (!evtque) { pthread_mutex_unlock(&xevtlock); return (FALSE); }
     p = evtque;
     do {
 
-        if (p->evt.type == type && p->evt.xany.window == w) {
+        if (p->evt.etype == type && p->evt.win == w) {
 
             /* unlink p from the circular list */
             if (p->next == p) evtque = NULL; /* was the only entry */
@@ -4388,8 +4027,9 @@ static int takexevt(int type, Window w, XEvent* out)
                 if (evtque == p) evtque = p->next;
 
             }
-            memcpy(out, &p->evt, sizeof(XEvent));
+            memcpy(out, &p->evt, sizeof(pd_evt));
             putxevt(p); /* release entry */
+            pthread_mutex_unlock(&xevtlock);
 
             return (TRUE);
 
@@ -4398,67 +4038,65 @@ static int takexevt(int type, Window w, XEvent* out)
 
     } while (evtque && p != evtque);
 
+    pthread_mutex_unlock(&xevtlock);
+
     return (FALSE);
 
 }
 
 static int coalescible(int type)
-    { return (type == ConfigureNotify || type == Expose ||
-              type == MotionNotify); }
+    { return (type == pd_etresize || type == pd_etredraw ||
+              type == pd_etmouse); }
 
-static void coalesce(XEvent* e)
+static void coalesce(pd_evt* e)
 
 {
 
-    XEvent tmp;
-    Window w;
+    pd_evt tmp;
+    pd_win* w;
     int    t;
 
-    if (!coalescible(e->type)) return; /* not a redundant type */
-    w = e->xany.window;
-    t = e->type;
+    if (!coalescible(e->etype)) return; /* not a redundant type */
+    w = e->win;
+    t = e->etype;
 
-    if (t == Expose) {
+    if (t == pd_etredraw) {
 
         /* union all pending expose rectangles for this window into one */
-        int x1 = e->xexpose.x;
-        int y1 = e->xexpose.y;
-        int x2 = x1 + e->xexpose.width;
-        int y2 = y1 + e->xexpose.height;
+        int x1 = e->rx;
+        int y1 = e->ry;
+        int x2 = x1 + e->rw;
+        int y2 = y1 + e->rh;
 
-        while (takexevt(Expose, w, &tmp)) {
+        while (takexevt(pd_etredraw, w, &tmp)) {
 
-            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
-            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
-            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
-            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
-
-        }
-        XWLOCK();
-        while (XCheckTypedWindowEvent(padisplay, w, Expose, &tmp)) {
-
-            if (tmp.xexpose.x < x1) x1 = tmp.xexpose.x;
-            if (tmp.xexpose.y < y1) y1 = tmp.xexpose.y;
-            if (tmp.xexpose.x+tmp.xexpose.width  > x2) x2 = tmp.xexpose.x+tmp.xexpose.width;
-            if (tmp.xexpose.y+tmp.xexpose.height > y2) y2 = tmp.xexpose.y+tmp.xexpose.height;
+            if (tmp.rx < x1) x1 = tmp.rx;
+            if (tmp.ry < y1) y1 = tmp.ry;
+            if (tmp.rx+tmp.rw  > x2) x2 = tmp.rx+tmp.rw;
+            if (tmp.ry+tmp.rh > y2) y2 = tmp.ry+tmp.rh;
 
         }
-        XWUNLOCK();
-        e->xexpose.x      = x1;
-        e->xexpose.y      = y1;
-        e->xexpose.width  = x2-x1;
-        e->xexpose.height = y2-y1;
-        e->xexpose.count  = 0;
+        while (pd_evtcheck(grx_padisplay, w, pd_etredraw, &tmp)) {
+
+            if (tmp.rx < x1) x1 = tmp.rx;
+            if (tmp.ry < y1) y1 = tmp.ry;
+            if (tmp.rx+tmp.rw  > x2) x2 = tmp.rx+tmp.rw;
+            if (tmp.ry+tmp.rh > y2) y2 = tmp.ry+tmp.rh;
+
+        }
+        e->rx      = x1;
+        e->ry      = y1;
+        e->rw  = x2-x1;
+        e->rh = y2-y1;
 
     } else {
 
-        /* ConfigureNotify: only the newest matters. Internal-queue matches are
+        /* pd_etresize: only the newest matters. Internal-queue matches are
            older than the X queue; take the newest internal match (first), drain
            the rest, then let the X queue (newest of all) win. */
         if (takexevt(t, w, &tmp)) { *e = tmp; while (takexevt(t, w, &tmp)); }
-        XWLOCK();
-        while (XCheckTypedWindowEvent(padisplay, w, t, &tmp)) *e = tmp;
-        XWUNLOCK();
+        while (pd_evtcheck(grx_padisplay, w, t, &tmp))
+            { notexevt(&tmp); *e = tmp; }
 
     }
 
@@ -4476,13 +4114,126 @@ Should have timeouts.
 
 *******************************************************************************/
 
-static void peekxevt(XEvent* e)
+/* Recently mapped X windows. A thread that maps a window cannot hunt the
+   event stream for its pd_etmap: another thread's event processing may
+   consume it first. Every reader of X events notes map notifies here, and
+   the mapper waits on this data, locked only for the touch, per the rule
+   that a lock encompasses just the data it locks. */
+
+#define NOTERING 32
+static pd_evt          notering[NOTERING]; /* awaitable notifies seen */
+static int             notein;
+static pthread_mutex_t notelock = PTHREAD_MUTEX_INITIALIZER;
+
+/* the types a thread may wait on: the map and configure notifies */
+static int noteable(int type)
+    { return (type == pd_etmap || type == pd_etresize); }
+
+static void notexevt(pd_evt* e)
 
 {
 
-    XWLOCK();
-    XNextEvent(padisplay, e); /* get next event */
-    XWUNLOCK();
+    if (noteable(e->etype)) {
+
+        pthread_mutex_lock(&notelock);
+        notering[notein] = *e;
+        notein = (notein+1)%NOTERING;
+        pthread_mutex_unlock(&notelock);
+
+    }
+
+}
+
+/* Take the newest noted event of the type for the window, consuming every
+   match. Only a note generated at or after the provoking request, by its
+   X serial, can satisfy the wait: with other threads reading and noting
+   events continuously, the ring holds history, and a stale configure
+   would hand a resize the size the window used to be. */
+static int sawxevt(int type, pd_win* w, unsigned long since, pd_evt* out)
+
+{
+
+    int i, j, r = 0;
+
+    pthread_mutex_lock(&notelock);
+    for (j = 0; j < NOTERING; j++) {
+
+        i = (notein+NOTERING-1-j)%NOTERING; /* newest first */
+        if (notering[i].etype == type && notering[i].win == w) {
+
+            if (!r && notering[i].token >= since)
+                { *out = notering[i]; r = 1; }
+            memset(&notering[i], 0, sizeof(pd_evt));
+
+        }
+
+    }
+    pthread_mutex_unlock(&notelock);
+
+    return (r);
+
+}
+
+/* Wait for a notify of the type for the window, provoked by the request
+   before serial since. Whoever reads it, this thread or another, the
+   table carries it; we read events only when they are there to read,
+   filing them for normal processing, and never hold the display lock
+   across a wait. The wait is bounded: a window manager that answers a
+   request with nothing at all leaves the caller its own computed
+   geometry, signaled by the zero return, rather than hanging it. */
+#define WAITXMS 2000 /* the bound, in polls of a millisecond */
+
+static int waitxevt(int type, pd_win* wh, unsigned long since, pd_evt* out)
+
+{
+
+    pd_evt e;
+    int    got;
+    int    idle = 0;
+
+    for (;;) {
+
+        if (sawxevt(type, wh, since, out)) return (1);
+        got = 0;
+        if (evtpending(grx_padisplay)) { nextxevt(grx_padisplay, &e); got = 1; }
+        if (got) { notexevt(&e); enquexevt(&e); }
+        else {
+
+            if (++idle >= WAITXMS) return (0);
+            usleep(1000);
+
+        }
+
+    }
+
+}
+
+static void waitxmap(pd_win* wh, unsigned long since)
+
+{
+
+    pd_evt e;
+
+    waitxevt(pd_etmap, wh, since, &e);
+
+}
+
+static void peekxevt(pd_evt* e)
+
+{
+
+    int got;
+
+    for (;;) {
+
+        /* never hold the display lock across the wait for traffic */
+        got = evtpending(grx_padisplay);
+        if (got) nextxevt(grx_padisplay, e); /* get next event */
+        if (got) break;
+        usleep(1000);
+
+    }
+    notexevt(e); /* a notify is data others may be waiting on */
     enquexevt(e); /* place in input queue */
     /* there is another diagnostic in ami_event(), but you might want to see
        these events immediately */
@@ -4498,6 +4249,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds paevtlock */
 static paevtque* getpaevt(void)
 
 {
@@ -4523,6 +4275,7 @@ Either gets a new entry from malloc or returns a previously freed entry.
 
 *******************************************************************************/
 
+/* the caller holds paevtlock */
 static void putpaevt(paevtque* p)
 
 {
@@ -4570,6 +4323,7 @@ static void enquepaevt(ami_evtrec* e)
 
     paevtque* p;
 
+    pthread_mutex_lock(&paevtlock);
     p = getpaevt(); /* get a queue entry */
     memcpy(&p->evt, e, sizeof(ami_evtrec)); /* copy event to queue entry */
     if (paqevt) { /* there are entries in queue */
@@ -4588,6 +4342,9 @@ static void enquepaevt(ami_evtrec* e)
         paqevt = p; /* place in list */
 
     }
+    pthread_mutex_unlock(&paevtlock);
+    /* wake a blocked event() on another thread to find the entry */
+    if (sendwfds[1]) write(sendwfds[1], "w", 1);
 
 }
 
@@ -4597,13 +4354,14 @@ Remove PA event from input queue
 
 *******************************************************************************/
 
-static void dequepaevt(ami_evtrec* e)
+static int dequepaevt(ami_evtrec* e)
 
 {
 
     paevtque* p;
 
-    if (!paqevt) error(esystem); /* should not be called empty */
+    pthread_mutex_lock(&paevtlock);
+    if (!paqevt) { pthread_mutex_unlock(&paevtlock); return (FALSE); }
     /* we push TO next (current) and take FROM last (final) */
     p = paqevt->last; /* index final entry */
     if (p->next == p) paqevt = NULL; /* only one entry, clear list */
@@ -4615,6 +4373,9 @@ static void dequepaevt(ami_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(ami_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
+    pthread_mutex_unlock(&paevtlock);
+
+    return (TRUE);
 
 }
 
@@ -4624,13 +4385,14 @@ Remove all matching window PA events from input queue
 
 *******************************************************************************/
 
-static void remquepawin(int winid)
+static void remquepawin(long winid)
 
 {
 
     paevtque* p;
     paevtque* p2;
 
+    pthread_mutex_lock(&paevtlock);
     p = paqevt; /* index root entry */
     while (p) {
 
@@ -4662,6 +4424,8 @@ static void remquepawin(int winid)
         }
 
     }
+
+    pthread_mutex_unlock(&paevtlock);
 
 }
 
@@ -4725,27 +4489,25 @@ static void curdrw(winptr win)
     scnptr sc;  /* pointer to current screen */
 
     sc = win->screens[win->curupd-1]; /* index current update screen */
-    XWLOCK();
-    XSetForeground(padisplay, sc->xcxt, colnum(ami_white));
-    XSetFunction(padisplay, sc->xcxt, GXxor); /* set reverse */
+    sc->xcxt->fg = colnum(ami_white);
+    sc->xcxt->mix = pd_mixxor; /* set reverse */
     if (win->focus)
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+        pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                        L2PX(win, sc->curxg-1), L2PY(win, sc->curyg-1),
                        L2PW(win, win->charspace), L2PH(win, win->linespace));
     else {
 
-        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+        pd_rect(pd_wincanvas(win->xwhan), sc->xcxt,
                        L2PX(win, sc->curxg-1), L2PY(win, sc->curyg-1),
                        L2PW(win, win->charspace), L2PH(win, win->linespace));
-        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+        pd_rect(pd_wincanvas(win->xwhan), sc->xcxt,
                        L2PX(win, sc->curxg-1+1), L2PY(win, sc->curyg-1+1),
                        L2PW(win, win->charspace-2), L2PH(win, win->linespace-2));
 
     }
-    XSetFunction(padisplay, sc->xcxt, GXcopy); /* set overwrite */
-    if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-    XWUNLOCK();
+    sc->xcxt->mix = pd_mixcopy; /* set overwrite */
+    if (BIT(sarev) & sc->attr) sc->xcxt->fg = sc->bcrgb;
+    else sc->xcxt->fg = sc->fcrgb;
 
 }
 
@@ -4814,7 +4576,6 @@ static void cursts(winptr win)
 
 {
 
-    int b;
 
     if (win->screens[win->curdsp-1]->curv &&
         icurbnd(win->screens[win->curdsp-1])) {
@@ -4852,74 +4613,41 @@ arrow on borders, diagonal arrow on corners.
 
 *******************************************************************************/
 
-/* Determine which resize edges the pointer (mx,my) is over for a child frame of
-   master size mw x mh. Edges are CFRM_BORDER_W thick; within CFRM_CORNER of a
-   corner the grab widens along both edges so the diagonal (corner) resize is
-   easy to hit rather than a tiny CFRM_BORDER_W square. Shared by the cursor
-   feedback and the resize hit test so the two never disagree. */
-static void childfrm_resize_edges(int mx, int my, int mw, int mh,
-                                  int* left, int* right, int* top, int* bottom)
-{
-    int on_left   = mx < CFRM_BORDER_W;
-    int on_right  = mx >= mw - CFRM_BORDER_W;
-    int on_top    = my < CFRM_BORDER_W;
-    int on_bottom = my >= mh - CFRM_BORDER_W;
-    int near_left   = mx < CFRM_CORNER;
-    int near_right  = mx >= mw - CFRM_CORNER;
-    int near_top    = my < CFRM_CORNER;
-    int near_bottom = my >= mh - CFRM_CORNER;
-    /* on an edge -- plus, when also on a perpendicular edge and within the
-       corner length of it, promote the hit to that corner (L-shaped grab) */
-    *left   = on_left   || ((on_top || on_bottom) && near_left);
-    *right  = on_right  || ((on_top || on_bottom) && near_right);
-    *top    = on_top    || ((on_left || on_right) && near_top);
-    *bottom = on_bottom || ((on_left || on_right) && near_bottom);
-}
+/* subclient offsets within the master: the Ami frame, plus the menu bar
+   strip below the title when a menu is active */
+static int subclix(winptr win)
+    { return (win->childfrm? win->cwox: 0); }
+static int subcliy(winptr win)
+    { return ((win->childfrm? win->cwoy: 0)+(win->menu? win->menuspcy: 0)); }
 
+/* Set the cursor for where the pointer is over the frame: the arrow
+   away from the edges, the matching resize arrow on one. Which edges the
+   point is over is the decorations' to say, since the grab widths are
+   drawn by them. */
 static void childfrm_set_cursor(winptr win, int mx, int my)
 {
     int mw = win->xmwr.w;
     int mh = win->xmwr.h;
-    /* when minimized, all edges show the arrow cursor — no resizing */
+    /* when minimized, all edges show the arrow cursor -- no resizing */
     int on_left, on_right, on_top, on_bottom;
-    Cursor c;
+    pd_curshape c;
 
     if (win->minimized) { on_left = on_right = on_top = on_bottom = 0; }
-    else childfrm_resize_edges(mx, my, mw, mh,
-                               &on_left, &on_right, &on_top, &on_bottom);
+    else dec->frmedges(win, mx, my, mw, mh,
+                       &on_left, &on_right, &on_top, &on_bottom);
 
-    /* lazy-init cursors on first use */
-    if (!cfrm_cursor_arrow) {
-        XWLOCK();
-        cfrm_cursor_arrow    = XCreateFontCursor(padisplay, XC_left_ptr);
-        cfrm_cursor_left     = XCreateFontCursor(padisplay, XC_left_side);
-        cfrm_cursor_right    = XCreateFontCursor(padisplay, XC_right_side);
-        cfrm_cursor_top      = XCreateFontCursor(padisplay, XC_top_side);
-        cfrm_cursor_bottom   = XCreateFontCursor(padisplay, XC_bottom_side);
-        cfrm_cursor_btmleft  = XCreateFontCursor(padisplay, XC_bottom_left_corner);
-        cfrm_cursor_btmright = XCreateFontCursor(padisplay, XC_bottom_right_corner);
-        cfrm_cursor_topleft  = XCreateFontCursor(padisplay, XC_top_left_corner);
-        cfrm_cursor_topright = XCreateFontCursor(padisplay, XC_top_right_corner);
-        XWUNLOCK();
-    }
+    if (on_left && on_top)          c = pd_cursizenwse;
+    else if (on_right && on_top)    c = pd_cursizenesw;
+    else if (on_left && on_bottom)  c = pd_cursizenesw;
+    else if (on_right && on_bottom) c = pd_cursizenwse;
+    else if (on_left || on_right)   c = pd_cursizeh;
+    else if (on_top || on_bottom)   c = pd_cursizev;
+    else                            c = pd_curarrow;
 
-    if (on_left && on_top)          c = cfrm_cursor_topleft;
-    else if (on_right && on_top)    c = cfrm_cursor_topright;
-    else if (on_left && on_bottom)  c = cfrm_cursor_btmleft;
-    else if (on_right && on_bottom) c = cfrm_cursor_btmright;
-    else if (on_left)               c = cfrm_cursor_left;
-    else if (on_right)              c = cfrm_cursor_right;
-    else if (on_top)                c = cfrm_cursor_top;
-    else if (on_bottom)             c = cfrm_cursor_bottom;
-    else                            c = cfrm_cursor_arrow;
-
-    XWLOCK();
-    XDefineCursor(padisplay, win->xmwhan, c);
-    XWUNLOCK();
+    pd_cursor(win->xmwhan, c);
 }
 
 /* forward declarations */
-static void childfrm_draw(winptr win, int mw, int mh);
 static void restore(winptr win);
 
 /* Find the lowest unused minimize slot among siblings of win. The slot is the
@@ -4959,10 +4687,10 @@ static int childfrm_find_minslot(winptr win)
 static void childfrm_minslot_pos(winptr win, int slot, int* x, int* y)
 {
 
-    int min_w = CFRM_MIN_W;
-    int min_h = CFRM_TITBAR_H(win);
+    int min_w, min_h;
     int parent_w, parent_h, slots_per_row;
 
+    dec->frmminsize(win, &min_w, &min_h);
     parent_w = win->parwin ? win->parwin->xwr.w : min_w;
     parent_h = win->parwin ? win->parwin->xwr.h : min_h;
     slots_per_row = parent_w / min_w;
@@ -4987,19 +4715,16 @@ static void childfrm_minimize(winptr win)
     /* assign a slot and compute its position */
     win->minslot = childfrm_find_minslot(win);
     childfrm_minslot_pos(win, win->minslot, &x, &y);
-    min_w = CFRM_MIN_W;
-    min_h = CFRM_TITBAR_H(win);
+    dec->frmminsize(win, &min_w, &min_h);
     win->xmwr.x = x;
     win->xmwr.y = y;
     win->xmwr.w = min_w;
     win->xmwr.h = min_h;
     win->minimized = TRUE;
-    XWLOCK();
-    XMoveResizeWindow(padisplay, win->xmwhan, x, y, min_w, min_h);
+    pd_winmove(win->xmwhan, x, y); pd_winsize(win->xmwhan, min_w, min_h);
     /* hide the subclient — we only want to show the title bar */
-    XUnmapWindow(padisplay, win->xwhan);
-    XWUNLOCK();
-    childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+    pd_winmap(win->xwhan, 0);
+    dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
 }
 
@@ -5012,166 +4737,48 @@ static void childfrm_restore(winptr win)
     win->gmaxxg = win->savgmaxxg;
     win->gmaxyg = win->savgmaxyg;
     win->minimized = FALSE;
-    XWLOCK();
-    XMoveResizeWindow(padisplay, win->xmwhan,
-                      win->xmwr.x, win->xmwr.y,
-                      win->xmwr.w, win->xmwr.h);
-    XMapWindow(padisplay, win->xwhan);
-    XWUNLOCK();
+    pd_winmove(win->xmwhan, win->xmwr.x, win->xmwr.y);
+    pd_winsize(win->xmwhan, win->xmwr.w, win->xmwr.h);
+    pd_winmap(win->xwhan, 1);
     restore(win);
-    childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+    dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
 }
 
 /** ****************************************************************************
 
-Draw child window frame
+Follow the desktop's color scheme
 
-Renders the Ami-drawn frame chrome on xmwhan for child windows. This includes
-the title bar, close button, and resize border. Called after restore() and on
-Expose events for xmwhan.
+The desktop can switch schemes mid run. The decorations know how their
+desktop announces it and hand back a descriptor to watch; it rides the
+system event loop, and when a change lands the frames of the open
+windows repaint in the new palette.
 
 *******************************************************************************/
 
-static void childfrm_draw(winptr win, int mw, int mh)
+static void thememonitor(void)
 
 {
 
-    int tbh;          /* title bar height */
-    int bsz;          /* button diameter */
-    int by;           /* button y position */
-    int bx_close;     /* close button x */
-    int bx_max;       /* maximize button x */
-    int bx_min;       /* minimize button x */
-    int tlen;         /* title text pixel length */
-    int title_size;   /* title font pixel size */
+    if (frmforce) return; /* the config pinned the theme */
+    thmfd = dec->thememon(); /* ask the desktop to be told of changes */
+    if (thmfd >= 0) thmsev = system_event_addseinp(thmfd);
 
-    if (!win->childfrm || !win->frmgc || !win->linespace) return;
-    if (!win->frame) return; /* frame is turned off — nothing to draw */
+}
 
-    /* mw/mh are the master (xmwhan) outer dimensions, supplied by the caller.
-       Every caller sets win->xmwr to match the XResize/XMoveResize it issues on
-       xmwhan immediately before drawing, so the frame geometry is already known
-       and there is no need to ask the server for it. The former XSync +
-       XGetGeometry round trip here blocked on the compositor once per call and
-       made interactive resize crawl, badly under XWayland. */
-    tbh = CFRM_TITBAR_H(win);
-    bsz = CFRM_BUTTON_SZ(win);
-    title_size = CFRM_TITLE_SZ(win);
+static void themechange(void)
 
-    XWLOCK();
+{
 
-    /* fill the master frame background as a plain rectangle. The frame has
-       square corners: rounded corners are not workable for a nested child
-       window (the shape mask that would round them also clips the window's
-       input region, making the corner un-grabbable, and X does not alpha-
-       composite nested children against their parent), so we keep them square
-       and fully grabbable. */
-    XSetForeground(padisplay, win->frmgc, 0x303030); /* dark frame bg */
-    XFillRectangle(padisplay, win->xmwhan, win->frmgc, 0, 0, mw, mh);
+    int fi;
 
-    /* draw title text - centered, using FreeType for native font rendering.
-       If the title is too wide for the available space (between left edge and
-       the leftmost button), truncate and append "..." */
-    /* button row layout: minimize | maximize | close, right-aligned */
-    by = (tbh - bsz) / 2;
-    bx_close = mw - bsz - CFRM_BUTTON_MG;
-    bx_max   = bx_close - bsz - CFRM_BUTTON_GAP;
-    bx_min   = bx_max   - bsz - CFRM_BUTTON_GAP;
-
-    if (win->wintitle && win->wintitle[0] && win->ftface) {
-
-        int len = strlen(win->wintitle);
-        int tleft = CFRM_BUTTON_MG; /* title left margin */
-        int avail = bx_min - CFRM_BUTTON_GAP - tleft; /* space for title */
-        tlen = ft_text_width(win->ftface, win->wintitle, len);
-        int ty = (tbh + title_size) / 2 - 2;
-
-        XSetForeground(padisplay, win->frmgc, 0xffffff);
-        if (tlen <= avail) {
-
-            /* title fits: center it in the available space */
-            int tx = tleft + (avail - tlen) / 2;
-            ft_draw_string(win->xmwhan, win->frmgc, win->ftface,
-                           title_size, title_size,
-                           tx, ty, win->wintitle, len);
-
-        } else {
-
-            /* truncate with "..." */
-            int dotw = ft_text_width(win->ftface, "...", 3);
-            if (avail > dotw) {
-
-                int tw = 0;
-                int tl;
-                for (tl = 0; tl < len; tl++) {
-
-                    int cw = 0;
-                    if (FT_Load_Char(win->ftface,
-                                     (unsigned char)win->wintitle[tl],
-                                     FT_LOAD_DEFAULT) == 0)
-                        cw = (int)(win->ftface->glyph->advance.x >> 6);
-                    if (tw + cw + dotw > avail) break;
-                    tw += cw;
-
-                }
-                ft_draw_string(win->xmwhan, win->frmgc, win->ftface,
-                               title_size, title_size,
-                               tleft, ty, win->wintitle, tl);
-                ft_draw_string(win->xmwhan, win->frmgc, win->ftface,
-                               title_size, title_size,
-                               tleft + tw, ty, "...", 3);
-
-            }
-
-        }
-
-    }
-
-    {
-        /* button colors depend on focus state */
-        unsigned long btn_bg = 0x303030; /* min/max match title bar bg always */
-        unsigned long btn_fg = win->focus ? 0xffffff : 0x808080;
-        unsigned long cls_bg = win->focus ? 0xe04040 : 0x303030;
-
-        /* draw minimize button (circle with horizontal line) */
-        XSetForeground(padisplay, win->frmgc, btn_bg);
-        XFillArc(padisplay, win->xmwhan, win->frmgc,
-                 bx_min, by, bsz, bsz, 0, 360*64);
-        XSetForeground(padisplay, win->frmgc, btn_fg);
-        XSetLineAttributes(padisplay, win->frmgc, 2, LineSolid, CapButt, JoinMiter);
-        XDrawLine(padisplay, win->xmwhan, win->frmgc,
-                  bx_min + bsz/4, by + bsz - bsz/3,
-                  bx_min + bsz - bsz/4, by + bsz - bsz/3);
-
-        /* draw maximize button (circle with square outline) */
-        XSetForeground(padisplay, win->frmgc, btn_bg);
-        XFillArc(padisplay, win->xmwhan, win->frmgc,
-                 bx_max, by, bsz, bsz, 0, 360*64);
-        XSetForeground(padisplay, win->frmgc, btn_fg);
-        XDrawRectangle(padisplay, win->xmwhan, win->frmgc,
-                       bx_max + bsz/4, by + bsz/4,
-                       bsz - bsz/2, bsz - bsz/2);
-
-        /* draw close button (circle with X) */
-        XSetForeground(padisplay, win->frmgc, cls_bg);
-        XFillArc(padisplay, win->xmwhan, win->frmgc,
-                 bx_close, by, bsz, bsz, 0, 360*64);
-        XSetForeground(padisplay, win->frmgc, btn_fg);
-        {
-            int margin = bsz / 4;
-            XDrawLine(padisplay, win->xmwhan, win->frmgc,
-                      bx_close + margin, by + margin,
-                      bx_close + bsz - margin - 1, by + bsz - margin - 1);
-            XDrawLine(padisplay, win->xmwhan, win->frmgc,
-                      bx_close + bsz - margin - 1, by + margin,
-                      bx_close + margin, by + bsz - margin - 1);
-        }
-        XSetLineAttributes(padisplay, win->frmgc, 1, LineSolid, CapButt, JoinMiter);
-    }
-
-    XFlush(padisplay);
-    XWUNLOCK();
+    if (!dec->themechg(thmfd)) return; /* no change to the palette */
+    /* repaint every framed window in the new palette */
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->childfrm &&
+            opnfil[fi]->win->xmwhan)
+            dec->frmdraw(opnfil[fi]->win, opnfil[fi]->win->xmwr.w,
+                         opnfil[fi]->win->xmwr.h);
 
 }
 
@@ -5188,7 +4795,6 @@ static void restore(winptr win) /* window to restore */
 
 {
 
-    int rgb;
     scnptr sc;
     int winw, winh; /* client area size */
 
@@ -5199,24 +4805,18 @@ static void restore(winptr win) /* window to restore */
         /* set colors and attributes */
         if (BIT(sarev) & sc->attr)  { /* reverse */
 
-            XWLOCK();
-            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-            XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
-            XWUNLOCK();
+            sc->xcxt->fg = sc->bcrgb;
+            sc->xcxt->bg = sc->fcrgb;
 
         } else {
 
-            XWLOCK();
-            XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-            XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            XWUNLOCK();
+            sc->xcxt->bg = sc->bcrgb;
+            sc->xcxt->fg = sc->fcrgb;
 
         }
         /* copy buffer to screen - ensure no clip mask interferes */
-        XWLOCK();
-        XSetClipMask(padisplay, sc->xcxt, None);
-        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, 0, 0,
-                  sc->maxxg, sc->maxyg, 0, 0);
+        pd_blit(pd_wincanvas(win->xwhan), 0, 0, sc->xbuf, 0, 0,
+                sc->maxxg, sc->maxyg);
 
         /* if the buffer is smaller than the client area, clear the margins
            to the background color */
@@ -5226,31 +4826,30 @@ static void restore(winptr win) /* window to restore */
 
             /* set background color as foreground for fill */
             if (BIT(sarev) & sc->attr)
-                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                sc->xcxt->fg = sc->fcrgb;
             else
-                XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                sc->xcxt->fg = sc->bcrgb;
             /* right margin: from buffer right edge to window right edge,
                full height */
             if (sc->maxxg < winw)
-                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                                sc->maxxg, 0, winw - sc->maxxg, winh);
             /* bottom margin: from buffer bottom to window bottom,
                buffer width only (right strip already covered above) */
             if (sc->maxyg < winh)
-                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                                0, sc->maxyg, sc->maxxg, winh - sc->maxyg);
             /* restore foreground color */
             if (BIT(sarev) & sc->attr)
-                XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                sc->xcxt->fg = sc->bcrgb;
             else
-                XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                sc->xcxt->fg = sc->fcrgb;
 
         }
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
         /* redraw Ami-drawn child frame if applicable */
-        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+        if (win->childfrm) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
     }
 
@@ -5258,7 +4857,7 @@ static void restore(winptr win) /* window to restore */
 
 /* Restore only the rectangle (x,y,w,h) of a buffered window's client area from
    its backing buffer, instead of the whole buffer as restore() does. Used to
-   service Expose during a child-window drag: the exposed sliver is tiny next to
+   service pd_etredraw during a child-window drag: the exposed sliver is tiny next to
    a large parent, so blitting just it -- rather than the entire parent buffer on
    every move -- is what keeps a fast drag up with the pointer. The rect is
    filled with the background first, then the buffer-covered part is copied on
@@ -5276,13 +4875,11 @@ static void restore_rect(winptr win, int x, int y, int w, int h)
     if (!(win->bufmod && win->visible)) return; /* nothing buffered to restore */
 
     curoff(win); /* hide the cursor for drawing */
-    XWLOCK();
-    XSetClipMask(padisplay, sc->xcxt, None);
     /* background fill for the whole exposed rect (covers any beyond-buffer part;
        the buffered part is immediately overwritten by the copy below) */
-    XSetForeground(padisplay, sc->xcxt,
-                   (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb);
-    XFillRectangle(padisplay, win->xwhan, sc->xcxt, x, y, w, h);
+    sc->xcxt->fg =
+                   (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb;
+    pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x, y, w, h);
     /* copy the part of the rect the buffer covers, from the buffer */
     cx = x; cy = y; cw = w; ch = h;
     if (cx < 0) { cw += cx; cx = 0; }
@@ -5290,12 +4887,10 @@ static void restore_rect(winptr win, int x, int y, int w, int h)
     if (cx + cw > sc->maxxg) cw = sc->maxxg - cx;
     if (cy + ch > sc->maxyg) ch = sc->maxyg - cy;
     if (cw > 0 && ch > 0)
-        XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt,
-                  cx, cy, cw, ch, cx, cy);
-    /* leave the GC foreground as the normal drawing color */
-    XSetForeground(padisplay, sc->xcxt,
-                   (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb);
-    XWUNLOCK();
+        pd_blit(pd_wincanvas(win->xwhan), cx, cy, sc->xbuf, cx, cy, cw, ch);
+    /* leave the pd_draw* foreground as the normal drawing color */
+    sc->xcxt->fg =
+                   (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb;
     curon(win); /* show the cursor */
 
 }
@@ -5309,15 +4904,15 @@ static void restore_rect(winptr win, int x, int y, int w, int h)
 
    An unbuffered window normally repaints from the application's own redraw
    handler, but the app cannot run it while we hold the drag loop, and consuming
-   the Expose here would otherwise swallow the redraw it needs -- leaving a
+   the pd_etredraw here would otherwise swallow the redraw it needs -- leaving a
    permanent trail. Clearing keeps it clean during the drag; drag_repaint_full()
    regenerates the content on release. */
-static void drag_expose(winptr ewin, Window w, int x, int y, int wd, int ht)
+static void drag_expose(winptr ewin, pd_win* w, int x, int y, int wd, int ht)
 
 {
 
     if (ewin->childfrm && ewin->xmwhan == w)
-        childfrm_draw(ewin, ewin->xmwr.w, ewin->xmwr.h);
+        dec->frmdraw(ewin, ewin->xmwr.w, ewin->xmwr.h);
     else if (ewin->bufmod)
         restore_rect(ewin, x, y, wd, ht);
     else {
@@ -5330,24 +4925,21 @@ static void drag_expose(winptr ewin, Window w, int x, int y, int wd, int ht)
            beyond-buffer region, to erase the trail live during the drag. The
            real content is regenerated by drag_repaint_full() on release. */
         scnptr sc = ewin->screens[ewin->curdsp-1];
-        XWLOCK();
-        XSetClipMask(padisplay, sc->xcxt, None);
-        XSetForeground(padisplay, sc->xcxt,
-                       (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb);
-        XFillRectangle(padisplay, w, sc->xcxt, x, y, wd, ht);
-        /* leave the GC foreground as the normal drawing color */
-        XSetForeground(padisplay, sc->xcxt,
-                       (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb);
-        XWUNLOCK();
+        sc->xcxt->fg =
+                       (BIT(sarev) & sc->attr) ? sc->fcrgb : sc->bcrgb;
+        pd_frect(pd_wincanvas(w), sc->xcxt, x, y, wd, ht);
+        /* leave the pd_draw* foreground as the normal drawing color */
+        sc->xcxt->fg =
+                       (BIT(sarev) & sc->attr) ? sc->bcrgb : sc->fcrgb;
 
     }
 
 }
 
 /* Force a full repaint of win at the end of a drag. A buffered window blits its
-   whole buffer; an unbuffered window has a full Expose regenerated so the
+   whole buffer; an unbuffered window has a full pd_etredraw regenerated so the
    application's redraw handler repaints its content once we return (the drag
-   consumed the real Expose events). */
+   consumed the real pd_etredraw events). */
 static void drag_repaint_full(winptr win)
 
 {
@@ -5355,9 +4947,14 @@ static void drag_repaint_full(winptr win)
     if (win->bufmod) restore(win);
     else {
 
-        XWLOCK();
-        XClearArea(padisplay, win->xwhan, 0, 0, 0, 0, True);
-        XWUNLOCK();
+        pd_evt re;
+
+        memset(&re, 0, sizeof(re));
+        re.etype = pd_etredraw;
+        re.win = win->xwhan;
+        re.rw = win->xwr.w;
+        re.rh = win->xwr.h;
+        pd_evtpost(grx_padisplay, &re);
 
     }
 
@@ -5374,63 +4971,37 @@ handle. If "no window delay" flag is set, presents the window immediately.
 
 /*******************************************************************************
 
-Flush pending Xlib draw requests on the internal display connection.
+Flush pending draw output on the display connection.
 
-External tools (e.g. the screen_capture module) that connect to the same X
-server on their own connection cannot see draws that have been issued by
-Petit-Ami but are still buffered inside its Xlib output queue. Calling
-this function forces those requests to the server synchronously so a
-subsequent XGetImage on any connection observes the up-to-date window.
+Pushes accumulated damage to the compositor synchronously, so an
+external observer sees the window as drawn to this point.
 
 *******************************************************************************/
 
 void pa_xflush(void)
 {
-    if (padisplay) {
-        XWLOCK();
-        XSync(padisplay, False);
-        XWUNLOCK();
+    if (grx_padisplay) {
+        pd_sync(grx_padisplay);
     }
 }
 
-static Window createwindow(Window parent, int x, int y, int w, int h)
+static pd_win* createwindow(pd_win* parent, int x, int y, int w, int h)
 
 {
 
-    Window wh; /* XWindow handle */
-    XEvent e; /* XWindow event */
+    pd_win* wh; /* XWindow handle */
 
-    /* create our window with no background */
-    XWLOCK();
-    wh = XCreateWindow(padisplay, parent, 0, 0, w, h, 0, CopyFromParent,
-                      InputOutput, CopyFromParent, 0, NULL);
-
-    /* advertise our PID so external tools (e.g. screen_capture) can find
-       our windows reliably via EWMH _NET_WM_PID */
-    {
-        Atom pid_atom = XInternAtom(padisplay, "_NET_WM_PID", False);
-        unsigned long pid_val = (unsigned long)getpid();
-        XChangeProperty(padisplay, wh, pid_atom, XA_CARDINAL, 32,
-                        PropModeReplace, (unsigned char *)&pid_val, 1);
-    }
-
-    /* select what events we want */
-    XSelectInput(padisplay, wh, ExposureMask|KeyPressMask|
-                 KeyReleaseMask|PointerMotionMask|ButtonPressMask|
-                 ButtonReleaseMask|StructureNotifyMask|FocusChangeMask|
-                 EnterWindowMask|LeaveWindowMask|PropertyChangeMask);
-    XWUNLOCK();
+    /* create our window; the layer delivers every event class */
+    wh = pd_winnew(grx_padisplay, parent, 0, 0, w, h);
 
 /* now handled in winvis */
 #ifdef NOWDELAY
     /* present the window onscreen */
-    XWLOCK();
-    XMapWindow(padisplay, wh);
-    XFlush(padisplay);
-    XWUNLOCK();
+    pd_winmap(wh, 1);
+    pd_flush(grx_padisplay);
 
     /* wait for the window to be displayed */
-    do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != wh);
+    do { peekxevt(&e); } while (e.etype !=  pd_etmap || e.win != wh);
 #endif
 
     return (wh);
@@ -5450,7 +5021,7 @@ static void winvis(winptr win)
 
 {
 
-    XEvent e; /* XWindow event */
+    unsigned long snc; /* serial of the provoking request */
 
 #ifndef NOWDELAY
    if (!win->visible) { /* not already visible */
@@ -5459,25 +5030,34 @@ static void winvis(winptr win)
         if (win->parwin) winvis(win->parwin);
 
         /* present the master window onscreen */
-        XWLOCK();
-        XMapWindow(padisplay, win->xmwhan);
-        /* place */
-        XMoveWindow(padisplay, win->xmwhan, win->xmwr.x, win->xmwr.y);
-        XFlush(padisplay);
-        XWUNLOCK();
+        snc = 0;
+        pd_winmap(win->xmwhan, 1);
+        /* place; a master child's origin carries the parent frame offset */
+        {
+
+            int ox = 0, oy = 0;
+
+            if (win->parwin && win->mstchild && win->parwin->childfrm) {
+
+                ox = win->parwin->cwox;
+                oy = win->parwin->cwoy;
+
+            }
+            pd_winmove(win->xmwhan, win->xmwr.x+ox, win->xmwr.y+oy);
+
+        }
+        pd_flush(grx_padisplay);
 
         /* wait for the window to be displayed */
-        do { peekxevt(&e);
-        } while (e.type !=  MapNotify || e.xany.window != win->xmwhan);
+        waitxmap(win->xmwhan, snc);
 
         /* present the subclient window onscreen */
-        XWLOCK();
-        XMapWindow(padisplay, win->xwhan);
-        XFlush(padisplay);
-        XWUNLOCK();
+        snc = 0;
+        pd_winmap(win->xwhan, 1);
+        pd_flush(grx_padisplay);
 
         /* wait for the window to be displayed */
-        do { peekxevt(&e); } while (e.type !=  MapNotify || e.xany.window != win->xwhan);
+        waitxmap(win->xwhan, snc);
 
         win->visible = TRUE; /* set now visible */
         restore(win); /* restore window */
@@ -5501,8 +5081,6 @@ static void iniscn(winptr win, scnptr sc)
 {
 
     int      i, x;
-    int      r;
-    int      depth;
 
     sc->maxx = win->gmaxx; /* set character dimensions */
     sc->maxy = win->gmaxy;
@@ -5512,7 +5090,7 @@ static void iniscn(winptr win, scnptr sc)
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
-    sc->angle = INT_MAX/4; /* set character draw at 90 degrees */
+    sc->angle = LONG_MAX/4; /* set character draw at 90 degrees */
     sc->fcrgb = win->gfcrgb; /* set colors and attributes */
     sc->bcrgb = win->gbcrgb;
     sc->attr = win->gattr;
@@ -5542,35 +5120,26 @@ static void iniscn(winptr win, scnptr sc)
     }
 
     /* create graphics context for screen */
-    XWLOCK();
-    sc->xcxt = XCreateGC(padisplay, win->xwhan, 0, NULL);
-    XWUNLOCK();
+    sc->xcxt = gcnew();
 
     /* set colors && attributes */
     if (BIT(sarev) & sc->attr) { /* reverse */
 
-        XWLOCK();
-        XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XWUNLOCK();
+        sc->xcxt->bg = sc->bcrgb;
+        sc->xcxt->fg = sc->bcrgb;
 
     } else {
 
-        XWLOCK();
-        XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-        XWUNLOCK();
+        sc->xcxt->bg = sc->bcrgb;
+        sc->xcxt->fg = sc->fcrgb;
 
     }
 
-    XWLOCK();
     /* set line attributes */
-    XSetLineAttributes(padisplay, sc->xcxt, 1, LineSolid, CapButt, JoinMiter);
+    sc->xcxt->lw = 1; sc->xcxt->lstyle = pd_linesolid;
 
     /* set up pixmap backing buffer */
-    depth = DefaultDepth(padisplay, pascreen);
-    sc->xbuf = XCreatePixmap(padisplay, win->xwhan, sc->maxxg, sc->maxyg, depth);
-    XWUNLOCK();
+    sc->xbuf = pd_cannew(grx_padisplay, sc->maxxg, sc->maxyg);
 
     /* save buffer size */
     win->bufx = win->gmaxx;
@@ -5583,21 +5152,17 @@ static void iniscn(winptr win, scnptr sc)
 
 #if 0
     /* draw grid for character cell diagnosis */
-    XWLOCK();
-    XSetForeground(padisplay, sc->xcxt, colnum(ami_cyan));
+    sc->xcxt->fg = colnum(ami_cyan);
     for (y = 0; y < sc->maxyg; y += win->linespace)
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, 0, y, sc->maxxg, y);
+        pd_line(sc->xbuf, sc->xcxt, 0, y, sc->maxxg, y);
     for (x = 0; x < sc->maxxg; x += win->charspace)
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x, 0, x, sc->maxyg);
-    XSetForeground(padisplay, sc->xcxt, colnum(ami_black));
-    XWUNLOCK();
+        pd_line(sc->xbuf, sc->xcxt, x, 0, x, sc->maxyg);
+    sc->xcxt->fg = colnum(ami_black);
 #endif
 
 #if 0
     /* reveal the background (diagnostic) */
-    XWLOCK();
-    XSetBackground(padisplay, sc->xcxt, colnum(ami_yellow));
-    XWUNLOCK();
+    sc->xcxt->bg = colnum(ami_yellow);
 #endif
 
 }
@@ -5628,25 +5193,16 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn, int wid, int subclient)
+static void opnwin(int fn, int pfn, long wid, int subclient)
 
 {
 
-    int                  r;     /* result holder */
-    int                  b;     /* int result holder */
-    ami_evtrec            er;    /* event holding record */
     int                  ti;    /* index for repeat array */
     int                  pin;   /* index for loadable pictures array */
     int                  si;    /* index for current display screen */
     winptr               win;   /* window pointer */
     winptr               pwin;  /* parent window pointer */
-    XSetWindowAttributes xwsa;  /* XWindow set attributes */
-    XWindowAttributes    xwga, xpwga; /* XWindow get attributes */
-    XEvent               e;     /* XWindow event */
-    char                 buf[250];
-    Window               pw, rw;
-    Window*              cwl;
-    unsigned             ncw;
+    pd_win*              pw;
 
     win = lfn2win(fn); /* get a pointer to the window */
     /* find parent */
@@ -5672,11 +5228,16 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->mpy = 1;
     win->mpxg = 1;
     win->mpyg = 1;
-    win->nmb1 = FALSE;
-    win->nmb2 = FALSE;
-    win->nmb3 = FALSE;
-    win->nmb4 = FALSE;
-    win->nmb5 = FALSE;
+    win->nmb1 = 0; /* no pending presses */
+    win->nmb2 = 0;
+    win->nmb3 = 0;
+    win->nmb4 = 0;
+    win->nmb5 = 0;
+    win->rmb1 = 0; /* no pending releases */
+    win->rmb2 = 0;
+    win->rmb3 = 0;
+    win->rmb4 = 0;
+    win->rmb5 = 0;
     win->nmpx = 1;
     win->nmpy = 1;
     win->nmpxg = 1;
@@ -5704,6 +5265,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     /* clear timer array */
     for (ti = 0; ti < 10; ti++) win->timers[ti] = 0;
     win->frmsev = 0; /* clear frame timer */
+    win->framecbms = 0; /* no callback-driven frame event yet */
     /* clear loadable pictures table */
     for (pin = 0; pin < MAXPIC; pin++) win->pictbl[pin] = NULL;
     /* clear the screen array */
@@ -5743,12 +5305,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->xwhan = 0;
 
     /* get screen parameters */
-    XWLOCK();
-    win->shsize = DisplayWidthMM(padisplay, pascreen); /* size x in millimeters */
-    win->svsize = DisplayHeightMM(padisplay, pascreen); /* size y in millimeters */
-    win->shres = DisplayWidth(padisplay, pascreen);
-    win->svres = DisplayHeight(padisplay, pascreen);
-    XWUNLOCK();
+    pd_screen(grx_padisplay, &win->shres, &win->svres, &win->shsize, &win->svsize);
     win->sdpmx = win->shres*1000/win->shsize; /* find dots per meter x */
     win->sdpmy = win->svres*1000/win->svsize; /* find dots per meter y */
 
@@ -5777,6 +5334,10 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     stdchrx = win->charspace;
     stdchry = win->linespace;
 
+    /* freeze the frame metrics from the window's initial font: the chrome
+       holds still while the client changes fonts under it */
+    dec->frmmetrics(win);
+
     /* set buffer size required for character spacing at default character grid
        size */
     win->gmaxxg = maxxd*win->charspace;
@@ -5795,7 +5356,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
 
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
-    win->menuspcy = win->linespace+EXTRAMENUY;
+    win->menuspcy = dec->menuheight(win);
 
     /* set parent window, either the given or the root window */
     if (pwin) { /* there is a parent window */
@@ -5803,7 +5364,7 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
         if (subclient) pw = pwin->xwhan; /* make child of subclient */
         else pw = pwin->xmwhan; /* make child of master (menu components) */
 
-    } else pw = RootWindow(padisplay, pascreen); /* root */
+    } else pw = NULL; /* a toplevel */
 
     /* create master window */
     win->xmwr.x = 0; /* set current rectangle */
@@ -5814,35 +5375,32 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
                                  win->xmwr.w, win->xmwr.h);
 
     /* hook close event from windows manager */
-    XWLOCK();
-    win->delmsg = XInternAtom(padisplay, "WM_DELETE_WINDOW", FALSE);
-    XSetWMProtocols(padisplay, win->xmwhan, &win->delmsg, 1);
-    XWUNLOCK();
 
-    /* set up child frame or WM frame parameters */
-    if (pwin && subclient) {
+    /* Set up frame parameters. On Wayland the compositor draws no frame
+       around a toplevel; Ami frames its own toplevels through the same
+       child frame machinery the MDI children use. Only menu components
+       (children of the master) stay frameless. */
+    if ((pwin && subclient) || !pwin) {
 
-        /* child window: Ami draws its own frame on xmwhan */
+        /* child window or toplevel: Ami draws its own frame on xmwhan */
         win->childfrm = TRUE;
+        win->mstchild = FALSE;
         win->minimized = FALSE;
-        win->pfw = CFRM_BORDER_W * 2;
-        win->pfh = CFRM_TITBAR_H(win) + CFRM_BORDER_W;
-        win->cwox = CFRM_BORDER_W;
-        win->cwoy = CFRM_TITBAR_H(win);
+        dec->frmgeom(win, BIT(ami_wmframe)|BIT(ami_wmsize)|BIT(ami_wmsysbar),
+                     &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
 
         /* size master to include frame around client area */
-        XWLOCK();
-        XResizeWindow(padisplay, win->xmwhan,
+        pd_winsize(win->xmwhan,
                       win->gmaxxg + win->pfw,
                       win->gmaxyg + win->pfh);
-        XWUNLOCK();
         win->xmwr.w = win->gmaxxg + win->pfw;
         win->xmwr.h = win->gmaxyg + win->pfh;
 
     } else {
 
-        /* top-level window: WM provides the frame */
+        /* menu component: frameless, placed within the parent master */
         win->childfrm = FALSE;
+        win->mstchild = TRUE;
         win->pfw = frmextwdt[frmcfgall];
         win->pfh = frmexthgt[frmcfgall];
         win->cwox = frmoffx[frmcfgall];
@@ -5858,37 +5416,32 @@ static void opnwin(int fn, int pfn, int wid, int subclient)
     win->xwhan = createwindow(win->xmwhan, win->xwr.x, win->xwr.y,
                                            win->xwr.w, win->xwr.h);
 
-    /* create GC for drawing on xmwhan (used for child frame rendering) */
+    /* the frame offsets position the subclient; createwindow itself places
+       every window at the parent origin */
     if (win->childfrm) {
 
-        XWLOCK();
-        win->frmgc = XCreateGC(padisplay, win->xmwhan, 0, NULL);
-        XWUNLOCK();
+        pd_winmove(win->xwhan, win->xwr.x, win->xwr.y);
 
     }
 
-    /* set window title */
-    XWLOCK();
+    /* create pd_draw* for drawing on xmwhan (used for child frame rendering) */
     if (win->childfrm) {
 
-        /* store title for Ami-drawn frame */
+        win->frmgc = gcnew();
+
+    }
+
+    /* Set window title. The Ami frame carries it, and the shell title is
+       set as well: task bars and window switchers on the desktop read the
+       shell's, not ours */
 #if defined(__MACH__) || defined(__FreeBSD__)
-        win->wintitle = strdup(getprogname());
+    if (win->childfrm) win->wintitle = strdup(getprogname());
+    pd_wintitle(win->xmwhan, getprogname());
 #else
+    if (win->childfrm)
         win->wintitle = strdup(program_invocation_short_name);
+    pd_wintitle(win->xmwhan, program_invocation_short_name);
 #endif
-
-    } else {
-
-        /* set WM title for top-level windows */
-#if defined(__MACH__) || defined(__FreeBSD__)
-        XStoreName(padisplay, win->xmwhan, getprogname());
-#else
-        XStoreName(padisplay, win->xmwhan, program_invocation_short_name);
-#endif
-
-    }
-    XWUNLOCK();
 
     iniscn(win, win->screens[0]); /* initalize screen buffer */
     restore(win); /* update to screen */
@@ -5907,16 +5460,12 @@ static void clswin(int fn)
 
 {
 
-    int    r;   /* result holder */
-    int    b;   /* int result holder */
     winptr win; /* window pointer */
 
     win = lfn2win(fn); /* get a pointer to the window */
-    XWLOCK();
     /* destroy the window */
-    XDestroyWindow(padisplay, win->xwhan);
-    XDestroyWindow(padisplay, win->xmwhan);
-    XWUNLOCK();
+    pd_windel(win->xwhan);
+    pd_windel(win->xmwhan);
 
 }
 
@@ -5936,18 +5485,11 @@ static void clsfil(int fn)
 
 {
 
-    int    si; /* index for screens */
     filptr fp;
 
     fp = opnfil[fn];
-    if (fp->win) { /* there is a window component */
-
-        /* release all of the screen buffers */
-        for (si = 0; si < MAXCON; si++)
-            if (fp->win->screens[si]) ifree(fp->win->screens[si]);
-        putwin(fp->win); /* release the window data */
-
-    }
+    if (fp->win) /* there is a window component */
+        putwin(fp->win); /* release the window data, screens with it */
     fp->win = NULL; /* set end open */
     fp->inw = FALSE;
     fp->inl = -1;
@@ -6012,7 +5554,7 @@ static void closewin(int ofn)
 {
 
     int       ifn;  /* input file id */
-    int       wid;  /* window id */
+    long      wid;  /* window id */
     winptr    win;  /* window data structure */
     winptr    pwin; /* parent window */
     ami_evtrec er;   /* PA event record */
@@ -6056,7 +5598,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   int wid, int subclient)
+                   long wid, int subclient)
 
 {
 
@@ -6145,7 +5687,7 @@ If the entry exists more than once, it generates an error.
 *******************************************************************************/
 
 /* search subtree for meny entry */
-static metptr fndmenu_tree(metptr mp, int id)
+static metptr fndmenu_tree(metptr mp, long id)
 
 {
 
@@ -6175,7 +5717,7 @@ static metptr fndmenu_tree(metptr mp, int id)
 
 }
 
-static metptr fndmenu(winptr win, int id)
+static metptr fndmenu(winptr win, long id)
 
 {
 
@@ -6251,6 +5793,7 @@ static void pulmen(
     winptr win;
     int    fx, fy;
     int    wc;
+    int    itmext, frmpad, barext;
 
     win = txt2win(f); /* index window structure */
     /* find cumulative width of branch entries */
@@ -6265,22 +5808,24 @@ static void pulmen(
         p = p->next; /* next in list */
 
     }
-    /* pad to sides, 2 squares, left for select, right for branch arrows),
-       plus extra padding */
-    mw += win->menuspcy*2+win->menuspcy/2;
+    /* pad the entries out, and the frame around them, as the desktop
+       wants them */
+    dec->menumetrics(win, &itmext, &frmpad, &barext);
+    mw += itmext;
     /* present frame */
-    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+4-1, y+wc*win->menuspcy+4-1, mp->frame);
+    openmenu(out2inp(f), mp->evtfil, x, y, x+mw+frmpad-1,
+             y+wc*win->menuspcy+frmpad-1, mp->frame);
     /* present the branch list as children of the frame */
     p = mp->branch;
-    fx = 3; /* set frame coordinates, upper left+2 */
-    fy = 3;
+    fx = frmpad-1; /* set frame coordinates, inside the frame border */
+    fy = frmpad-1;
     while (p) { /* traverse */
 
         /* open menu item */
         openmenu(out2inp(f), mp->frame->wf, fx, fy, fx+mw-1, fy+win->menuspcy-1, p);
         p->fx1 = x; /* set base location in client  */
         p->fy1 = y;
-        p->fx2 = x+mw+4-1;
+        p->fx2 = x+mw+frmpad-1;
         p->fy2 = y+win->menuspcy-1;
         p = p->next; /* next entry */
         fy += win->menuspcy; /* next location */
@@ -6301,6 +5846,14 @@ static void remmen(metptr mp)
         /* if window file is open, close it */
         if (mp->wf && !mp->prime) {
 
+            /* Clear the window to menu tracking entry with it. The entry
+               was left in place, so the next window to be given this id
+               -- ids return to use as windows close, and a menu opens
+               and closes them freely -- had its events dispatched to
+               this entry, whose file is now gone: the next dialog to
+               open drew through a null file and died with "File is
+               invalid". */
+            xltmnu[mp->wid+MAXFIL] = NULL;
             fclose(mp->wf); /* close */
             mp->wf = NULL; /* clear file link */
             mp->pressed = FALSE; /* remove any press status */
@@ -6318,39 +5871,6 @@ static void remmen(metptr mp)
 
 static void menu_release_all(metptr mp, metptr skip);
 
-/* draw menu button title */
-static void menu_draw(metptr mp)
-
-{
-
-    if (mp->title) { /* there is a title */
-
-        if (mp->ena) ami_fcolor(mp->wf, ami_black);
-        else ami_fcolorg(mp->wf, INT_MAX/256*150, INT_MAX/256*150,
-                               INT_MAX/256*150);
-        if (mp->prime)
-            ami_cursorg(mp->wf, 1,
-                       ami_maxyg(mp->wf)/2-ami_chrsizy(mp->wf)/2);
-        else ami_cursorg(mp->wf, ami_maxyg(mp->wf),
-                                ami_maxyg(mp->wf)/2-ami_chrsizy(mp->wf)/2);
-        fprintf(mp->wf, "%s", mp->title); /* place button title */
-        /* if selected and on/off highlighted, place checkmark */
-        if (mp->select && !mp->prime) {
-
-            ami_fcolor(mp->wf, ami_black);
-            ami_linewidth(mp->wf, 4);
-            ami_line(mp->wf, ami_maxyg(mp->wf)/4, ami_maxyg(mp->wf)/2,
-                            ami_maxyg(mp->wf)/2, ami_maxyg(mp->wf)-ami_maxyg(mp->wf)/3);
-            ami_line(mp->wf, ami_maxyg(mp->wf)/2, ami_maxyg(mp->wf)-ami_maxyg(mp->wf)/3,
-                            ami_maxyg(mp->wf)-ami_maxyg(mp->wf)/6, ami_maxyg(mp->wf)/3);
-            ami_linewidth(mp->wf, 1);
-
-        }
-
-    }
-
-}
-
 /* handle menu button press */
 static void menu_press(metptr mp)
 
@@ -6358,18 +5878,12 @@ static void menu_press(metptr mp)
 
     winptr par; /* window parent */
     int x, y;
-    metptr fp;
 
     par = NULL; /* set no parent (floating menu) */
     if (mp->parent) par = txt2win(mp->parent); /* index parent window */
     /* process button press */
     mp->pressed = TRUE;
-    ami_fcolorg(mp->wf, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4, INT_MAX-INT_MAX/4);
-    ami_frect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
-    menu_draw(mp); /* draw menu title */
-    /* draw underbar */
-    ami_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
-    ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-4, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
+    dec->menupaint(mp, decmpress); /* show it pressed */
     /* if it is a branch, present floating menu */
     if (mp->branch) {
 
@@ -6399,13 +5913,7 @@ static void menu_release(metptr mp)
 {
 
     mp->pressed = FALSE;
-    ami_fcolor(mp->wf, ami_white);
-    ami_frect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
-    menu_draw(mp); /* draw menu title */
-    ami_fcolorg(mp->wf,
-               INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
-    ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-1,
-                        ami_maxxg(mp->wf), ami_maxyg(mp->wf));
+    dec->menupaint(mp, decmnorm); /* show it at rest */
 
 }
 
@@ -6431,7 +5939,6 @@ static void menu_event(ami_evtrec* ev)
     ami_evtrec er; /* outbound menu event */
     metptr    mp; /* tracking entry for meny entries */
     winptr    par; /* window parent */
-    int x, y;
 
     /* if not our window, send it on */
     mp = xltmnu[ev->winid+MAXFIL]; /* get possible menu entry */
@@ -6442,48 +5949,7 @@ static void menu_event(ami_evtrec* ev)
         if (mp->parent) par = txt2win(mp->parent); /* index parent window */
         if (ev->etype == ami_etredraw) { /* redraw the window */
 
-            /* color the background */
-            ami_fcolor(mp->wf, ami_white);
-            ami_frect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
-            menu_draw(mp); /* draw menu title */
-            if (mp->pressed) {
-
-                /* draw underbar */
-                ami_fcolorg(mp->wf, INT_MAX/256*233, INT_MAX/256*84, INT_MAX/256*32);
-                ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-4, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
-
-            } else if (mp->prime) { /* draw divider line */
-
-                ami_fcolorg(mp->wf,
-                           INT_MAX/256*223, INT_MAX/256*223, INT_MAX/256*223);
-                ami_frect(mp->wf, 1, ami_maxyg(mp->wf)-1,
-                                    ami_maxxg(mp->wf), ami_maxyg(mp->wf));
-
-            }
-            if (mp->frm) { /* box the frame */
-
-                ami_fcolorg(mp->wf,
-                           INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
-                ami_rect(mp->wf, 1, 1, ami_maxxg(mp->wf), ami_maxyg(mp->wf));
-                ami_rect(mp->wf, 2, 2, ami_maxxg(mp->wf)-1, ami_maxyg(mp->wf)-1);
-
-            }
-            if (mp->bar && !mp->prime) { /* draw bar under */
-
-                ami_fcolorg(mp->wf,
-                           INT_MAX/256*150, INT_MAX/256*150, INT_MAX/256*150);
-                ami_line(mp->wf, 1, ami_maxyg(mp->wf), ami_maxxg(mp->wf),
-                        ami_maxyg(mp->wf));
-
-            }
-            if (!mp->prime && mp->branch && !mp->menubar) {
-
-                ami_fcolor(mp->wf, ami_black);
-                ami_ftriangle(mp->wf, ami_maxxg(mp->wf)-ami_maxyg(mp->wf)/2, ami_maxyg(mp->wf)/3,
-                                     ami_maxxg(mp->wf)-ami_maxyg(mp->wf)/4, ami_maxyg(mp->wf)/2,
-                                     ami_maxxg(mp->wf)-ami_maxyg(mp->wf)/2, ami_maxyg(mp->wf)-ami_maxyg(mp->wf)/3);
-
-            }
+            dec->menupaint(mp, decmexpose); /* repaint the entry */
 
         } else if (ev->etype == ami_etmouba && ev->amoubn == 1) {
 
@@ -6546,9 +6012,11 @@ static void actmenu(FILE* f)
     int w;      /* width of menu face text */
     FILE* bf;   /* menu bar file */
     FILE* inf;  /* input file for output window */
+    int itmext, frmpad, barext; /* menu layout metrics */
 
     win = txt2win(f); /* get window context */
     inf = out2inp(f); /* get input file for window */
+    dec->menumetrics(win, &itmext, &frmpad, &barext);
     /* open the menu bar */
     openmenu(inf, f, 1, 1, ami_maxxg(f), win->menuspcy, win->menu);
     bf = win->menu->wf; /* get the menu bar file */
@@ -6559,11 +6027,11 @@ static void actmenu(FILE* f)
         /* find width of face text in menu bar terms */
         w = ami_strsiz(bf, mp->title);
         /* open menu item here */
-        openmenu(inf, f, x, 1, x+w+EXTRAMENUX, win->menuspcy, mp);
+        openmenu(inf, f, x, 1, x+w+barext, win->menuspcy, mp);
         mp->fx1 = x; /* save rectangle */
         mp->fy1 = 1;
         mp->prime = TRUE; /* set is a prime (onscreen) menu */
-        x = x+w+EXTRAMENUX; /* go next menu position */
+        x = x+w+barext; /* go next menu position */
         mp = mp->next; /* next top menu item */
 
     }
@@ -6608,12 +6076,10 @@ static void iclear(winptr win)
     if (indisp(win)) { /* also process to display */
 
         curoff(win); /* hide the cursor */
-        XWLOCK();
-        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt, 0, 0,
+        sc->xcxt->fg = sc->bcrgb;
+        pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, 0, 0,
                                   sc->maxxg, sc->maxyg);
-        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-        XWUNLOCK();
+        sc->xcxt->fg = sc->fcrgb;
         curon(win); /* show the cursor */
 
     }
@@ -6638,11 +6104,11 @@ to the window.
 
 *******************************************************************************/
 
-static void iscrollg(winptr win, int x, int y)
+static void iscrollg(winptr win, long x, long y)
 
 {
 
-    int dx, dy, dw, dh; /* destination coordinates and sizes */
+    int dx, dy; /* destination coordinates */
     int sx, sy, sw, sh; /* destination coordinates */
     struct { /* fill rectangle */
 
@@ -6711,34 +6177,28 @@ static void iscrollg(winptr win, int x, int y)
         }
         if (win->bufmod) { /* apply to buffer */
 
-            XWLOCK();
-            XCopyArea(padisplay, sc->xbuf, sc->xbuf, sc->xcxt,
-                      sx, sy, sw, sh, dx, dy);
-            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            pd_scroll(sc->xbuf, dx, dy, sx, sy, sw, sh);
+            sc->xcxt->fg = sc->bcrgb;
             /* fill vacated x */
-            if (x) XFillRectangle(padisplay, sc->xbuf, sc->xcxt, frx.x, frx.y,
+            if (x) pd_frect(sc->xbuf, sc->xcxt, frx.x, frx.y,
                                   frx.w, frx.h);
             /* fill vacated y */
-            if (y) XFillRectangle(padisplay, sc->xbuf, sc->xcxt, fry.x, fry.y,
+            if (y) pd_frect(sc->xbuf, sc->xcxt, fry.x, fry.y,
                                   fry.w, fry.h);
-            XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            XWUNLOCK();
+            sc->xcxt->fg = sc->fcrgb;
 
         } else { /* scroll on screen */
 
             curoff(win); /* hide the cursor for drawing */
-            XWLOCK();
-            XCopyArea(padisplay, win->xwhan, win->xwhan, sc->xcxt,
-                      sx, sy, sw, sh, dx, dy);
-            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+            pd_scroll(pd_wincanvas(win->xwhan), dx, dy, sx, sy, sw, sh);
+            sc->xcxt->fg = sc->bcrgb;
             /* fill vacated x */
-            if (x) XFillRectangle(padisplay, win->xwhan, sc->xcxt, frx.x, frx.y,
+            if (x) pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, frx.x, frx.y,
                                   frx.w, frx.h);
             /* fill vacated y */
-            if (y) XFillRectangle(padisplay, win->xwhan, sc->xcxt, fry.x, fry.y,
+            if (y) pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, fry.x, fry.y,
                                   fry.w, fry.h);
-            XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-            XWUNLOCK();
+            sc->xcxt->fg = sc->fcrgb;
             curon(win); /* show the cursor */
 
         }
@@ -6757,7 +6217,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(winptr win, int x, int y)
+static void icursor(winptr win, long x, long y)
 
 {
 
@@ -6781,7 +6241,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-static void icursorg(winptr win, int x, int y)
+static void icursorg(winptr win, long x, long y)
 
 {
 
@@ -6829,7 +6289,7 @@ Move cursor up internal
 Moves the cursor position up one line. If the cursor is at screen top, and auto
 is on, the screen is scrolled up, meaning that the screen contents are moved
 down a line of text. If auto is off, the cursor can simply continue into
-negative space as long as it stays within the bounds -INT_MAX to INT_MAX.
+negative space as long as it stays within the bounds -LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
@@ -6851,7 +6311,7 @@ static void iup(winptr win)
     } else if (sc->autof)
         iscrollg(win, 0*win->charspace, -1*win->linespace); /* scroll up */
     /* check won't overflow */
-    else if (sc->cury > -INT_MAX) {
+    else if (sc->cury > -LONG_MAX) {
 
         curoff(win); /* hide the cursor */
         sc->cury--; /* set new position */
@@ -6869,7 +6329,7 @@ Move cursor down internal
 Moves the cursor position down one line. If the cursor is at screen bottom, and
 auto is on, the screen is scrolled down, meaning that the screen contents are
 moved up a line of text. If auto is off, the cursor can simply continue into
-undrawn space as long as it stays within the bounds of -INT_MAX to INT_MAX.
+undrawn space as long as it stays within the bounds of -LONG_MAX to LONG_MAX.
 
 *******************************************************************************/
 
@@ -6890,7 +6350,7 @@ static void idown(winptr win)
 
     } else if (sc->autof)
         iscrollg(win, 0*win->charspace, +1*win->linespace); /* scroll down */
-    else if (sc->cury < INT_MAX) {
+    else if (sc->cury < LONG_MAX) {
 
         curoff(win); /* hide the cursor */
         sc->cury++; /* set new position */
@@ -6939,7 +6399,7 @@ static void ileft(winptr win)
         } else {
 
             /* check won't overflow */
-            if (sc->curx > -INT_MAX) {
+            if (sc->curx > -LONG_MAX) {
 
                 curoff(win); /* hide the cursor */
                 sc->curx--; /* update position */
@@ -6990,7 +6450,7 @@ static void iright(winptr win)
         /* check won't overflow */
         } else {
 
-            if (sc->curx < INT_MAX) {
+            if (sc->curx < LONG_MAX) {
 
                 curoff(win); /* hide the cursor */
                 sc->curx++; /* update position */
@@ -7020,7 +6480,7 @@ static void itab(winptr win)
 {
 
     int i;
-    int x;
+    long x;
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
@@ -7049,7 +6509,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void isettabg(winptr win, int t)
+static void isettabg(winptr win, long t)
 
 {
 
@@ -7083,7 +6543,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void irestabg(winptr win, int t)
+static void irestabg(winptr win, long t)
 
 {
 
@@ -7131,7 +6591,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(winptr win, int e)
+static void iauto(winptr win, long e)
 
 {
 
@@ -7146,7 +6606,7 @@ static void iauto(winptr win, int e)
            position must land on a character cell boundary for x and y. */
         if ((sc->curxg-1) % win->charspace) error(eatoofg);
         if ((sc->curyg-1) % win->linespace) error(eatoofg);
-        if (sc->angle != INT_MAX/4) error(eatoang);
+        if (sc->angle != LONG_MAX/4) error(eatoang);
         if (!icurbnd(sc)) error(eatoecb);
 
     }
@@ -7168,7 +6628,7 @@ XWindows text.
 
 *******************************************************************************/
 
-static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
+static void drwchr90(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
 
 {
 
@@ -7185,14 +6645,12 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
     if (sc->bmod != mdinvis) { /* background is visible */
 
-        XWLOCK();
         /* set background function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
-        XSetFillStyle(padisplay, sc->xcxt, FillSolid); /* ensure solid fill */
+        sc->xcxt->mix = mod2fnc[sc->bmod];
         /* set background to foreground to draw character background */
-        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-        else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, d, sc->xcxt, px, py, pcs, pls);
+        if (BIT(sarev) & sc->attr) sc->xcxt->fg = sc->fcrgb;
+        else sc->xcxt->fg = sc->bcrgb;
+        pd_frect(d, sc->xcxt, px, py, pcs, pls);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor) {
@@ -7202,38 +6660,36 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
                 ft_draw_char(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
                              px, py+pbo, c);
             else /* does not exist, draw missing character box */
-                XDrawRectangle(padisplay, d, sc->xcxt,
+                pd_rect(d, sc->xcxt,
                                px+pmox, py+pmoy, pmx, pmy);
 
         }
         /* restore colors */
         if (BIT(sarev) & sc->attr)
-            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            sc->xcxt->fg = sc->bcrgb;
+        else sc->xcxt->fg = sc->fcrgb;
         /* reset background function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
     if (sc->fmod != mdinvis) {
 
-        XWLOCK();
         /* set foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        sc->xcxt->mix = mod2fnc[sc->fmod];
         if (ce) /* character exists */
             /* draw character */
             ft_draw_char(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
                          px, py+pbo, c);
         else /* does not exist, draw missing character box */
-            XDrawRectangle(padisplay, d, sc->xcxt,
+            pd_rect(d, sc->xcxt,
                            px+pmox, py+pmoy, pmx, pmy);
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
             /* double line, may need ajusting for low DP displays */
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+pbo+1, px+pcs, py+pbo+1);
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+pbo+2, px+pcs, py+pbo+2);
 
         }
@@ -7241,17 +6697,16 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         /* check draw strikeout */
         if (sc->attr & BIT(sastkout)) {
 
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+(int)(pbo/STRIKE),
                       px+pcs, py+(int)(pbo/STRIKE));
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+(int)(pbo/STRIKE)+1,
                       px+pcs, py+(int)(pbo/STRIKE)+1);
 
         }
         /* reset foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
 
@@ -7262,11 +6717,11 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 Add vector to position
 
 Adds a vector specified by angle and length to an x-y position and returns that.
-The angle for the vector is using PA 12'oclock INT_MAX ratioed angles clockwise.
+The angle for the vector is using PA 12'oclock LONG_MAX ratioed angles clockwise.
 
 *******************************************************************************/
 
-static void addvect(int* x, int* y, float a, int l)
+static void addvect(long* x, long* y, float a, long l)
 
 {
 
@@ -7283,16 +6738,16 @@ Draws a rectangle rotated by an angle.
 
 *******************************************************************************/
 
-/* convert PA INT_MAX ratio angle to RADIAN measure */
-#define RADIAN(a) ((double)2*M_PI/INT_MAX*a)
+/* convert PA LONG_MAX ratio angle to RADIAN measure */
+#define RADIAN(a) ((double)2*M_PI/LONG_MAX*a)
 
-static void drwrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
+static void drwrecta(pd_canvas* d, scnptr sc, long a, int x, int y, int w, int h)
 
 {
 
-    int x1, x2, x3, x4;
-    int y1, y2, y3, y4;
-    int c;
+    long x1, x2, x3, x4;
+    long y1, y2, y3, y4;
+    long c;
     double ac;
 
     x1 = x2 = x3 = x4= x;
@@ -7302,10 +6757,10 @@ static void drwrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
     c = sqrt((double)w*w+(double)h*h);
     ac = atan((double)h/w);
     addvect(&x3, &y3, ac+RADIAN(a), c);
-    XDrawLine(padisplay, d, sc->xcxt, x1, y1, x2, y2);
-    XDrawLine(padisplay, d, sc->xcxt, x2, y2, x3, y3);
-    XDrawLine(padisplay, d, sc->xcxt, x3, y3, x4, y4);
-    XDrawLine(padisplay, d, sc->xcxt, x4, y4, x1, y1);
+    pd_line(d, sc->xcxt, x1, y1, x2, y2);
+    pd_line(d, sc->xcxt, x2, y2, x3, y3);
+    pd_line(d, sc->xcxt, x3, y3, x4, y4);
+    pd_line(d, sc->xcxt, x4, y4, x1, y1);
 
 }
 
@@ -7317,15 +6772,15 @@ Draws a filled rectangle rotated by an angle.
 
 *******************************************************************************/
 
-static void drwfrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
+static void drwfrecta(pd_canvas* d, scnptr sc, long a, int x, int y, int w, int h)
 
 {
 
-    int x1, x2, x3, x4;
-    int y1, y2, y3, y4;
-    int c;
+    long x1, x2, x3, x4;
+    long y1, y2, y3, y4;
+    long c;
     double ac;
-    XPoint xp[4];
+    int xp[8];
 
     x1 = x2 = x3 = x4= x;
     y1 = y2 = y3 = y4= y;
@@ -7334,15 +6789,15 @@ static void drwfrecta(Drawable d, scnptr sc, int a, int x, int y, int w, int h)
     c = sqrt((double)w*w+(double)h*h);
     ac = atan((double)h/w);
     addvect(&x3, &y3, ac+RADIAN(a), c);
-    xp[0].x = x1;
-    xp[0].y = y1;
-    xp[1].x = x2;
-    xp[1].y = y2;
-    xp[2].x = x3;
-    xp[2].y = y3;
-    xp[3].x = x4;
-    xp[3].y = y4;
-    XFillPolygon(padisplay, d, sc->xcxt, xp, 4, Nonconvex, CoordModeOrigin);
+    xp[0] = x1;
+    xp[1] = y1;
+    xp[2] = x2;
+    xp[3] = y2;
+    xp[4] = x3;
+    xp[5] = y3;
+    xp[6] = x4;
+    xp[7] = y4;
+    pd_fpoly(d, sc->xcxt, xp, 4);
 
 }
 
@@ -7359,16 +6814,16 @@ This routine handles drawing at any angle.
 *******************************************************************************/
 
 /* Convert PA angle notation to XRot notation, 360 degrees 0 at right */
-#define ROTANGLE(a) (360-(double)a*360/INT_MAX+90)
+#define ROTANGLE(a) (360-(double)a*360/LONG_MAX+90)
 
-static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
+static void drwchr(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
 
 {
 
     char cb[2];      /* character buffer */
-    int  xb, yb;     /* rotated baseline */
-    int  xull, yull, xulr, yulr; /* underline 1 */
-    int  xsol, ysol, xsor, ysor; /* underline 1 */
+    long xb, yb;     /* rotated baseline */
+    long xull, yull, xulr, yulr; /* underline 1 */
+    long xsol, ysol, xsor, ysor; /* underline 1 */
 
     /* transform starting position and sizes for viewport scaling */
     int px  = L2PX(win, sc->curxg-1);
@@ -7408,12 +6863,11 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
     cb[1] = 0;
     if (sc->bmod != mdinvis) { /* background is visible */
 
-        XWLOCK();
         /* set background function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+        sc->xcxt->mix = mod2fnc[sc->bmod];
         /* set background to foreground to draw character background */
-        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-        else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+        if (BIT(sarev) & sc->attr) sc->xcxt->fg = sc->fcrgb;
+        else sc->xcxt->fg = sc->bcrgb;
         drwfrecta(d, sc, sc->angle, px, py, pcs, pls);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
@@ -7429,18 +6883,16 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
 
         }
         /* restore colors */
-        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        if (BIT(sarev) & sc->attr) sc->xcxt->fg = sc->bcrgb;
+        else sc->xcxt->fg = sc->fcrgb;
         /* reset background function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
     if (sc->fmod != mdinvis) {
 
-        XWLOCK();
         /* set foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        sc->xcxt->mix = mod2fnc[sc->fmod];
         if (ce) /* character exists */
             /* draw character */
             ft_draw_char_rotated(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
@@ -7452,25 +6904,22 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, Drawable d, char c)
         if (sc->attr & BIT(saundl)){
 
             /* double line, may need ajusting for low DP displays */
-            XSetLineAttributes(padisplay, sc->xcxt, 2, LineSolid, CapButt, JoinMiter);
-            XDrawLine(padisplay, d, sc->xcxt, xull, yull, xulr, yulr);
-            XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, LineSolid, CapButt,
-                               JoinMiter);
+            sc->xcxt->lw = 2; sc->xcxt->lstyle = pd_linesolid;
+            pd_line(d, sc->xcxt, xull, yull, xulr, yulr);
+            sc->xcxt->lw = sc->lwidth; sc->xcxt->lstyle = pd_linesolid;
 
         }
 
         /* check draw strikeout */
         if (sc->attr & BIT(sastkout)) {
 
-            XSetLineAttributes(padisplay, sc->xcxt, 2, LineSolid, CapButt, JoinMiter);
-            XDrawLine(padisplay, d, sc->xcxt, xsol, ysol, xsor, ysor);
-            XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, LineSolid, CapButt,
-                               JoinMiter);
+            sc->xcxt->lw = 2; sc->xcxt->lstyle = pd_linesolid;
+            pd_line(d, sc->xcxt, xsol, ysol, xsor, ysor);
+            sc->xcxt->lw = sc->lwidth; sc->xcxt->lstyle = pd_linesolid;
 
         }
         /* reset foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
 
@@ -7537,7 +6986,7 @@ static void plcchr(winptr win, char c)
         if (win->bufmod) { /* buffer is active */
 
             /* draw character to buffer */
-            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
+            if (sc->angle == LONG_MAX/4) drwchr90(win, sc, cs, ce, sc->xbuf, c);
             else drwchr(win, sc, cs, ce, sc->xbuf, c);
 
         }
@@ -7545,13 +6994,13 @@ static void plcchr(winptr win, char c)
 
             curoff(win); /* hide the cursor */
             /* draw character to active screen */
-            if (sc->angle == INT_MAX/4) drwchr90(win, sc, cs, ce, win->xwhan, c);
-            else drwchr(win, sc, cs, ce, win->xwhan, c);
+            if (sc->angle == LONG_MAX/4) drwchr90(win, sc, cs, ce, pd_wincanvas(win->xwhan), c);
+            else drwchr(win, sc, cs, ce, pd_wincanvas(win->xwhan), c);
             curon(win); /* show the cursor */
 
         }
         /* advance to next character */
-        if (sc->angle == INT_MAX/4) {
+        if (sc->angle == LONG_MAX/4) {
 
             if (sc->cfont->fix) iright(win); /* move cursor right character */
             else { /* perform proportional version */
@@ -8128,9 +7577,9 @@ to the window.
 
 void _pa_scrollg_ovr(ami_scrollg_t nfp, ami_scrollg_t* ofp)
     { *ofp = scrollg_vect; scrollg_vect = nfp; }
-void ami_scrollg(FILE* f, int x, int y) { (*scrollg_vect)(f, x, y); }
+void ami_scrollg(FILE* f, long x, long y) { (*scrollg_vect)(f, x, y); }
 
-static void scrollg_ivf(FILE* f, int x, int y)
+static void scrollg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8143,9 +7592,9 @@ static void scrollg_ivf(FILE* f, int x, int y)
 
 void _pa_scroll_ovr(ami_scroll_t nfp, ami_scroll_t* ofp)
     { *ofp = scroll_vect; scroll_vect = nfp; }
-void ami_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
+void ami_scroll(FILE* f, long x, long y) { (*scroll_vect)(f, x, y); }
 
-static void scroll_ivf(FILE* f, int x, int y)
+static void scroll_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8167,9 +7616,9 @@ Moves the cursor to the specified x and y location.
 
 void _pa_cursor_ovr(ami_cursor_t nfp, ami_cursor_t* ofp)
     { *ofp = cursor_vect; cursor_vect = nfp; }
-void ami_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
+void ami_cursor(FILE* f, long x, long y) { (*cursor_vect)(f, x, y); }
 
-static void cursor_ivf(FILE* f, int x, int y)
+static void cursor_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8190,9 +7639,9 @@ Moves the cursor to the specified x and y location in pixels.
 
 void _pa_cursorg_ovr(ami_cursorg_t nfp, ami_cursorg_t* ofp)
     { *ofp = cursorg_vect; cursorg_vect = nfp; }
-void ami_cursorg(FILE* f, int x, int y) { (*cursorg_vect)(f, x, y); }
+void ami_cursorg(FILE* f, long x, long y) { (*cursorg_vect)(f, x, y); }
 
-static void cursorg_ivf(FILE* f, int x, int y)
+static void cursorg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -8214,9 +7663,9 @@ to the font baseline. The baseline is the line all characters rest on.
 
 void _pa_baseline_ovr(ami_baseline_t nfp, ami_baseline_t* ofp)
     { *ofp = baseline_vect; baseline_vect = nfp; }
-int ami_baseline(FILE* f) { return ((*baseline_vect)(f)); }
+long ami_baseline(FILE* f) { return ((*baseline_vect)(f)); }
 
-static int baseline_ivf(FILE* f)
+static long baseline_ivf(FILE* f)
 
 {
 
@@ -8241,9 +7690,9 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxx_ovr(ami_maxx_t nfp, ami_maxx_t* ofp)
     { *ofp = maxx_vect; maxx_vect = nfp; }
-int ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
+long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
 
-static int maxx_ivf(FILE* f)
+static long maxx_ivf(FILE* f)
 
 {
 
@@ -8266,9 +7715,9 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxy_ovr(ami_maxy_t nfp, ami_maxy_t* ofp)
     { *ofp = maxy_vect; maxy_vect = nfp; }
-int ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
+long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
 
-static int maxy_ivf(FILE* f)
+static long maxy_ivf(FILE* f)
 
 {
 
@@ -8291,9 +7740,9 @@ pixels.
 
 void _pa_maxxg_ovr(ami_maxxg_t nfp, ami_maxxg_t* ofp)
     { *ofp = maxxg_vect; maxxg_vect = nfp; }
-int ami_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
+long ami_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
 
-static int maxxg_ivf(FILE* f)
+static long maxxg_ivf(FILE* f)
 
 {
 
@@ -8316,9 +7765,9 @@ pixels.
 
 void _pa_maxyg_ovr(ami_maxyg_t nfp, ami_maxyg_t* ofp)
     { *ofp = maxyg_vect; maxyg_vect = nfp; }
-int ami_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
+long ami_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
 
-static int maxyg_ivf(FILE* f)
+static long maxyg_ivf(FILE* f)
 
 {
 
@@ -8461,9 +7910,9 @@ Graphical mode does not implement blink mode.
 
 void _pa_blink_ovr(ami_blink_t nfp, ami_blink_t* ofp)
     { *ofp = blink_vect; blink_vect = nfp; }
-void ami_blink(FILE* f, int e) { (*blink_vect)(f, e); }
+void ami_blink(FILE* f, long e) { (*blink_vect)(f, e); }
 
-static void blink_ivf(FILE* f, int e)
+static void blink_ivf(FILE* f, long e)
 
 {
 
@@ -8482,9 +7931,9 @@ and foreground writing colors.
 
 void _pa_reverse_ovr(ami_reverse_t nfp, ami_reverse_t* ofp)
     { *ofp = reverse_vect; reverse_vect = nfp; }
-void ami_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
+void ami_reverse(FILE* f, long e) { (*reverse_vect)(f, e); }
 
-static void reverse_ivf(FILE* f, int e)
+static void reverse_ivf(FILE* f, long e)
 
 {
 
@@ -8497,15 +7946,15 @@ static void reverse_ivf(FILE* f, int e)
 
         sc->attr |= BIT(sarev); /* set attribute active */
         win->gattr |= BIT(sarev);
-        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
+        sc->xcxt->fg = sc->bcrgb;
+        sc->xcxt->bg = sc->fcrgb;
 
     } else { /* turn it off */
 
         sc->attr &= ~BIT(sarev); /* set attribute inactive */
         win->gattr &= ~BIT(sarev);
-        XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+        sc->xcxt->bg = sc->bcrgb;
+        sc->xcxt->fg = sc->fcrgb;
 
     }
 
@@ -8522,9 +7971,9 @@ Note that the attributes can only be set singly.
 
 void _pa_underline_ovr(ami_underline_t nfp, ami_underline_t* ofp)
     { *ofp = underline_vect; underline_vect = nfp; }
-void ami_underline(FILE* f, int e) { (*underline_vect)(f, e); }
+void ami_underline(FILE* f, long e) { (*underline_vect)(f, e); }
 
-static void underline_ivf(FILE* f, int e)
+static void underline_ivf(FILE* f, long e)
 
 {
 
@@ -8560,9 +8009,9 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 void _pa_superscript_ovr(ami_superscript_t nfp, ami_superscript_t* ofp)
     { *ofp = superscript_vect; superscript_vect = nfp; }
-void ami_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
+void ami_superscript(FILE* f, long e) { (*superscript_vect)(f, e); }
 
-static void superscript_ivf(FILE* f, int e)
+static void superscript_ivf(FILE* f, long e)
 
 {
 
@@ -8598,9 +8047,9 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 void _pa_subscript_ovr(ami_subscript_t nfp, ami_subscript_t* ofp)
     { *ofp = subscript_vect; subscript_vect = nfp; }
-void ami_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
+void ami_subscript(FILE* f, long e) { (*subscript_vect)(f, e); }
 
-static void subscript_ivf(FILE* f, int e)
+static void subscript_ivf(FILE* f, long e)
 
 {
 
@@ -8634,9 +8083,9 @@ Note that the attributes can only be set singly.
 
 void _pa_italic_ovr(ami_italic_t nfp, ami_italic_t* ofp)
     { *ofp = italic_vect; italic_vect = nfp; }
-void ami_italic(FILE* f, int e) { (*italic_vect)(f, e); }
+void ami_italic(FILE* f, long e) { (*italic_vect)(f, e); }
 
-static void italic_ivf(FILE* f, int e)
+static void italic_ivf(FILE* f, long e)
 
 {
 
@@ -8675,9 +8124,9 @@ Note that the attributes can only be set singly.
 
 void _pa_bold_ovr(ami_bold_t nfp, ami_bold_t* ofp)
     { *ofp = bold_vect; bold_vect = nfp; }
-void ami_bold(FILE* f, int e) { (*bold_vect)(f, e); }
+void ami_bold(FILE* f, long e) { (*bold_vect)(f, e); }
 
-static void bold_ivf(FILE* f, int e)
+static void bold_ivf(FILE* f, long e)
 
 {
 
@@ -8718,9 +8167,9 @@ just placed.
 
 void _pa_strikeout_ovr(ami_strikeout_t nfp, ami_strikeout_t* ofp)
     { *ofp = strikeout_vect; strikeout_vect = nfp; }
-void ami_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
+void ami_strikeout(FILE* f, long e) { (*strikeout_vect)(f, e); }
 
-static void strikeout_ivf(FILE* f, int e)
+static void strikeout_ivf(FILE* f, long e)
 
 {
 
@@ -8754,9 +8203,9 @@ Note that the attributes can only be set singly.
 
 void _pa_standout_ovr(ami_standout_t nfp, ami_standout_t* ofp)
     { *ofp = standout_vect; standout_vect = nfp; }
-void ami_standout(FILE* f, int e) { (*standout_vect)(f, e); }
+void ami_standout(FILE* f, long e) { (*standout_vect)(f, e); }
 
-static void standout_ivf(FILE* f, int e)
+static void standout_ivf(FILE* f, long e)
 
 {
 
@@ -8788,10 +8237,8 @@ static void fcolor_ivf(FILE* f, ami_color c)
     sc->fcrgb = colnum(c); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* set screen color according to reverse */
-    XWLOCK();
-    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
-    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-    XWUNLOCK();
+    if (BIT(sarev) & sc->attr) sc->xcxt->bg = sc->fcrgb;
+    else sc->xcxt->fg = sc->fcrgb;
 
 }
 
@@ -8805,9 +8252,9 @@ Sets the foreground color from individual r, g, b values.
 
 void _pa_fcolorc_ovr(ami_fcolorc_t nfp, ami_fcolorc_t* ofp)
     { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
-void ami_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
+void ami_fcolorc(FILE* f, long r, long g, long b) { (*fcolorc_vect)(f, r, g, b); }
 
-static void fcolorc_ivf(FILE* f, int r, int g, int b)
+static void fcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8819,10 +8266,8 @@ static void fcolorc_ivf(FILE* f, int r, int g, int b)
     sc->fcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* set screen color according to reverse */
-    XWLOCK();
-    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
-    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-    XWUNLOCK();
+    if (BIT(sarev) & sc->attr) sc->xcxt->bg = sc->fcrgb;
+    else sc->xcxt->fg = sc->fcrgb;
 
 }
 
@@ -8841,9 +8286,9 @@ fcolorg for backward compatiblity to the days before overloads.
 
 void _pa_fcolorg_ovr(ami_fcolorg_t nfp, ami_fcolorg_t* ofp)
     { *ofp = fcolorg_vect; fcolorg_vect = nfp; }
-void ami_fcolorg(FILE* f, int r, int g, int b) { (*fcolorg_vect)(f, r, g, b); }
+void ami_fcolorg(FILE* f, long r, long g, long b) { (*fcolorg_vect)(f, r, g, b); }
 
-static void fcolorg_ivf(FILE* f, int r, int g, int b)
+static void fcolorg_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8855,10 +8300,8 @@ static void fcolorg_ivf(FILE* f, int r, int g, int b)
     sc->fcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gfcrgb = sc->fcrgb;
     /* set screen color according to reverse */
-    XWLOCK();
-    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->fcrgb);
-    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-    XWUNLOCK();
+    if (BIT(sarev) & sc->attr) sc->xcxt->bg = sc->fcrgb;
+    else sc->xcxt->fg = sc->fcrgb;
 
 }
 
@@ -8885,11 +8328,9 @@ static void bcolor_ivf(FILE* f, ami_color c)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = colnum(c); /* set color status */
     win->gbcrgb = sc->bcrgb;
-    XWLOCK();
     /* set screen color according to reverse */
-    if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-    else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-    XWUNLOCK();
+    if (BIT(sarev) & sc->attr) sc->xcxt->fg = sc->bcrgb;
+    else sc->xcxt->bg = sc->bcrgb;
 
 }
 
@@ -8903,9 +8344,9 @@ Sets the background color from individual r, g, b values.
 
 void _pa_bcolorc_ovr(ami_bcolorc_t nfp, ami_bcolorc_t* ofp)
     { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
-void ami_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
+void ami_bcolorc(FILE* f, long r, long g, long b) { (*bcolorc_vect)(f, r, g, b); }
 
-static void bcolorc_ivf(FILE* f, int r, int g, int b)
+static void bcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8916,11 +8357,9 @@ static void bcolorc_ivf(FILE* f, int r, int g, int b)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb;
-    XWLOCK();
     /* set screen color according to reverse */
-    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-    else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-    XWUNLOCK();
+    if (BIT(sarev) & sc->attr) sc->xcxt->bg = sc->bcrgb;
+    else sc->xcxt->bg = sc->bcrgb;
 
 }
 
@@ -8936,9 +8375,9 @@ up, we will be ready.
 
 void _pa_bcolorg_ovr(ami_bcolorg_t nfp, ami_bcolorg_t* ofp)
     { *ofp = bcolorg_vect; bcolorg_vect = nfp; }
-void ami_bcolorg(FILE* f, int r, int g, int b) { (*bcolorg_vect)(f, r, g, b); }
+void ami_bcolorg(FILE* f, long r, long g, long b) { (*bcolorg_vect)(f, r, g, b); }
 
-static void bcolorg_ivf(FILE* f, int r, int g, int b)
+static void bcolorg_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -8949,11 +8388,9 @@ static void bcolorg_ivf(FILE* f, int r, int g, int b)
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->bcrgb = rgb2xwin(r, g, b); /* set color status */
     win->gbcrgb = sc->bcrgb; /* copy to master */
-    XWLOCK();
     /* set screen color according to reverse */
-    if (BIT(sarev) & sc->attr) XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-    else XSetBackground(padisplay, sc->xcxt, sc->bcrgb);
-    XWUNLOCK();
+    if (BIT(sarev) & sc->attr) sc->xcxt->bg = sc->bcrgb;
+    else sc->xcxt->bg = sc->bcrgb;
 
 }
 
@@ -8967,9 +8404,9 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 void _pa_curbnd_ovr(ami_curbnd_t nfp, ami_curbnd_t* ofp)
     { *ofp = curbnd_vect; curbnd_vect = nfp; }
-int ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
+long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
 
-static int curbnd_ivf(FILE* f)
+static long curbnd_ivf(FILE* f)
 
 {
 
@@ -9008,9 +8445,9 @@ anywhere.
 
 void _pa_auto_ovr(ami_auto_t nfp, ami_auto_t* ofp)
     { *ofp = auto_vect; auto_vect = nfp; }
-void ami_auto(FILE* f, int e) { (*auto_vect)(f, e); }
+void ami_auto(FILE* f, long e) { (*auto_vect)(f, e); }
 
-static void auto_ivf(FILE* f, int e)
+static void auto_ivf(FILE* f, long e)
 
 {
 
@@ -9031,9 +8468,9 @@ Enable or disable cursor visibility.
 
 void _pa_curvis_ovr(ami_curvis_t nfp, ami_curvis_t* ofp)
     { *ofp = curvis_vect; curvis_vect = nfp; }
-void ami_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
+void ami_curvis(FILE* f, long e) { (*curvis_vect)(f, e); }
 
-static void curvis_ivf(FILE* f, int e)
+static void curvis_ivf(FILE* f, long e)
 
 {
 
@@ -9056,9 +8493,9 @@ Returns the current location of the cursor in x.
 
 void _pa_curx_ovr(ami_curx_t nfp, ami_curx_t* ofp)
     { *ofp = curx_vect; curx_vect = nfp; }
-int ami_curx(FILE* f) { return ((*curx_vect)(f)); }
+long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
 
-static int curx_ivf(FILE* f)
+static long curx_ivf(FILE* f)
 
 {
 
@@ -9080,9 +8517,9 @@ Returns the current location of the cursor in y.
 
 void _pa_cury_ovr(ami_cury_t nfp, ami_cury_t* ofp)
     { *ofp = cury_vect; cury_vect = nfp; }
-int ami_cury(FILE* f) { return ((*cury_vect)(f)); }
+long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
 
-static int cury_ivf(FILE* f)
+static long cury_ivf(FILE* f)
 
 {
 
@@ -9104,9 +8541,9 @@ Returns the current location of the cursor in x, in pixels.
 
 void _pa_curxg_ovr(ami_curxg_t nfp, ami_curxg_t* ofp)
     { *ofp = curxg_vect; curxg_vect = nfp; }
-int ami_curxg(FILE* f) { return ((*curxg_vect)(f)); }
+long ami_curxg(FILE* f) { return ((*curxg_vect)(f)); }
 
-static int curxg_ivf(FILE* f)
+static long curxg_ivf(FILE* f)
 
 {
 
@@ -9128,9 +8565,9 @@ Returns the current location of the cursor in y, in pixels.
 
 void _pa_curyg_ovr(ami_curyg_t nfp, ami_curyg_t* ofp)
     { *ofp = curyg_vect; curyg_vect = nfp; }
-int ami_curyg(FILE* f) { return ((*curyg_vect)(f)); }
+long ami_curyg(FILE* f) { return ((*curyg_vect)(f)); }
 
-static int curyg_ivf(FILE* f)
+static long curyg_ivf(FILE* f)
 
 {
 
@@ -9158,9 +8595,9 @@ forces a screen refresh, which can be important when working on terminals.
 
 void _pa_select_ovr(ami_select_t nfp, ami_select_t* ofp)
     { *ofp = select_vect; select_vect = nfp; }
-void ami_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
+void ami_select(FILE* f, long u, long d) { (*select_vect)(f, u, d); }
 
-static void select_ivf(FILE* f, int u, int d)
+static void select_ivf(FILE* f, long u, long d)
 
 {
 
@@ -9217,7 +8654,7 @@ Note: Does not deal with missing characters in font.
 
 *******************************************************************************/
 
-static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
+static void drwstr90(winptr win, scnptr sc, int tw, pd_canvas* d, char* s, int l)
 
 {
 
@@ -9230,44 +8667,40 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
 
     if (sc->bmod != mdinvis) { /* background is visible */
 
-        XWLOCK();
         /* set background function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
-        XSetFillStyle(padisplay, sc->xcxt, FillSolid); /* ensure solid fill */
+        sc->xcxt->mix = mod2fnc[sc->bmod];
         /* set background to foreground to draw character background */
-        if (BIT(sarev) & sc->attr) XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-        else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        XFillRectangle(padisplay, d, sc->xcxt, px, py, ptw, pls);
+        if (BIT(sarev) & sc->attr) sc->xcxt->fg = sc->fcrgb;
+        else sc->xcxt->fg = sc->bcrgb;
+        pd_frect(d, sc->xcxt, px, py, ptw, pls);
         /* xor is non-destructive, and we can restore it. And and or are
            destructive, and would require a combining buffer to perform */
         if (sc->bmod == mdxor)
             /* restore surface under text */
-            ft_draw_string(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
+            grx_ft_draw_string(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
                            px, py+pbo, s, l);
         /* restore colors */
         if (BIT(sarev) & sc->attr)
-            XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-        else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+            sc->xcxt->fg = sc->bcrgb;
+        else sc->xcxt->fg = sc->fcrgb;
         /* reset background function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
     if (sc->fmod != mdinvis) {
 
-        XWLOCK();
         /* set foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
+        sc->xcxt->mix = mod2fnc[sc->fmod];
         /* draw character */
-        ft_draw_string(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
+        grx_ft_draw_string(d, sc->xcxt, win->ftface, win->gfhighx, win->gfhigh,
                        px, py+pbo, s, l);
         /* check draw underline */
         if (sc->attr & BIT(saundl)){
 
             /* double line, may need ajusting for low DP displays */
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+pbo+1, px+ptw, py+pbo+1);
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+pbo+2, px+ptw, py+pbo+2);
 
         }
@@ -9275,17 +8708,16 @@ static void drwstr90(winptr win, scnptr sc, int tw, Drawable d, char* s, int l)
         /* check draw strikeout */
         if (sc->attr & BIT(sastkout)) {
 
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+(int)(pbo/STRIKE),
                       px+ptw, py+(int)(pbo/STRIKE));
-            XDrawLine(padisplay, d, sc->xcxt,
+            pd_line(d, sc->xcxt,
                       px, py+(int)(pbo/STRIKE)+1,
                       px+ptw, py+(int)(pbo/STRIKE)+1);
 
         }
         /* reset foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
 
@@ -9321,9 +8753,9 @@ advantage.
 
 void _pa_wrtstrn_ovr(ami_wrtstrn_t nfp, ami_wrtstrn_t* ofp)
     { *ofp = wrtstrn_vect; wrtstrn_vect = nfp; }
-void ami_wrtstrn(FILE* f, char* s, int l) { (*wrtstrn_vect)(f, s, l); }
+void ami_wrtstrn(FILE* f, char* s, long l) { (*wrtstrn_vect)(f, s, l); }
 
-static void wrtstrn_ivf(FILE* f, char* s, int l)
+static void wrtstrn_ivf(FILE* f, char* s, long l)
 
 {
 
@@ -9336,9 +8768,9 @@ static void wrtstrn_ivf(FILE* f, char* s, int l)
     sc = win->screens[win->curupd-1];
     if (sc->autof) error(estrato); /* autowrap is on */
     if (!win->visible) winvis(win); /* make sure we are displayed */
-    if (sc->angle == INT_MAX/4) { /* text is normal (90 degrees) */
+    if (sc->angle == LONG_MAX/4) { /* text is normal (90 degrees) */
 
-        tw = ft_text_width(win->ftface, s, l); /* find text width in pixels */
+        tw = grx_ft_text_width(win->ftface, s, l); /* find text width in pixels */
         if (win->bufmod) { /* buffer is active */
 
             /* draw string */
@@ -9349,7 +8781,7 @@ static void wrtstrn_ivf(FILE* f, char* s, int l)
 
             curoff(win); /* hide the cursor */
             /* draw string */
-            drwstr90(win, sc, tw, win->xwhan, s, l);
+            drwstr90(win, sc, tw, pd_wincanvas(win->xwhan), s, l);
             curon(win); /* show the cursor */
 
         }
@@ -9396,7 +8828,6 @@ static void wrtstr_ivf(FILE* f, char* s)
 
 {
 
-    int    l;   /* length of string */
 
     ami_wrtstrn(f, s, strlen(s));
 
@@ -9438,16 +8869,16 @@ Draws a single line in the foreground color.
 
 void _pa_line_ovr(ami_line_t nfp, ami_line_t* ofp)
     { *ofp = line_vect; line_vect = nfp; }
-void ami_line(FILE* f, int x1, int y1, int x2, int y2)
+void ami_line(FILE* f, long x1, long y1, long x2, long y2)
     { (*line_vect)(f, x1, y1, x2, y2); }
 
-static void line_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void line_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9463,36 +8894,28 @@ static void line_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the line */
-        XWLOCK();
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt,
+        pd_line(sc->xbuf, sc->xcxt,
                   L2PX(win, x1-1), L2PY(win, y1-1),
                   L2PX(win, x2-1), L2PY(win, y2-1));
-        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
-        XWLOCK();
         /* draw the line */
-        XDrawLine(padisplay, win->xwhan, sc->xcxt,
+        pd_line(pd_wincanvas(win->xwhan), sc->xcxt,
                   L2PX(win, x1-1), L2PY(win, y1-1),
                   L2PX(win, x2-1), L2PY(win, y2-1));
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -9506,16 +8929,16 @@ Draws a rectangle in foreground color.
 
 void _pa_rect_ovr(ami_rect_t nfp, ami_rect_t* ofp)
     { *ofp = rect_vect; rect_vect = nfp; }
-void ami_rect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
     { (*rect_vect)(f, x1, y1, x2, y2); }
 
-static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void rect_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9531,17 +8954,13 @@ static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
-        XWLOCK();
-        XDrawRectangle(padisplay, sc->xbuf, sc->xcxt,
+        pd_rect(sc->xbuf, sc->xcxt,
                        L2PX(win, x1-1), L2PY(win, y1-1),
                        L2PW(win, x2-x1), L2PH(win, y2-y1));
-        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
@@ -9549,18 +8968,14 @@ static void rect_ivf(FILE* f, int x1, int y1, int x2, int y2)
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
-        XWLOCK();
-        XDrawRectangle(padisplay, win->xwhan, sc->xcxt,
+        pd_rect(pd_wincanvas(win->xwhan), sc->xcxt,
                        L2PX(win, x1-1), L2PY(win, y1-1),
                        L2PW(win, x2-x1), L2PH(win, y2-y1));
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -9574,16 +8989,16 @@ Draws a filled rectangle in foreground color.
 
 void _pa_frect_ovr(ami_frect_t nfp, ami_frect_t* ofp)
     { *ofp = frect_vect; frect_vect = nfp; }
-void ami_frect(FILE* f, int x1, int y1, int x2, int y2)
+void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
     { (*frect_vect)(f, x1, y1, x2, y2); }
 
-static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void frect_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9599,17 +9014,13 @@ static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the rectangle */
-        XWLOCK();
-        XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
+        pd_frect(sc->xbuf, sc->xcxt,
                        L2PX(win, x1-1), L2PY(win, y1-1),
                        L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
-        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
@@ -9617,18 +9028,14 @@ static void frect_ivf(FILE* f, int x1, int y1, int x2, int y2)
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
-        XWLOCK();
-        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+        pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                        L2PX(win, x1-1), L2PY(win, y1-1),
                        L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -9644,16 +9051,16 @@ In XWindow, this has to be constructed, since there is no equivalent function.
 
 void _pa_rrect_ovr(ami_rrect_t nfp, ami_rrect_t* ofp)
     { *ofp = rrect_vect; rrect_vect = nfp; }
-void ami_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
     { (*rrect_vect)(f, x1, y1, x2, y2, xs, ys); }
 
-static void rrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+static void rrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9681,55 +9088,49 @@ static void rrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
     if (ys > y2-y1+1) ys = y2-y1+1;
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
-        XWLOCK();
         /* stroke the sides */
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, x2-xs/2, y1);
-        XDrawLine(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2, x2-xs/2, y2);
+        pd_line(sc->xbuf, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
+        pd_line(sc->xbuf, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
+        pd_line(sc->xbuf, sc->xcxt, x1+xs/2, y1, x2-xs/2, y1);
+        pd_line(sc->xbuf, sc->xcxt, x1+xs/2, y2, x2-xs/2, y2);
         /* draw corner arcs */
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
+        pd_arc(sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+        pd_arc(sc->xbuf, sc->xcxt, x2-xs, y1, xs, ys, 0, 90*64);
 
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+        pd_arc(sc->xbuf, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
                  90*64);
 
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+        pd_arc(sc->xbuf, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
                  90*64);
-        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
 
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
-        XWLOCK();
         /* stroke the sides */
-        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
-        XDrawLine(padisplay, win->xwhan, sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
-        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, x2-xs/2, y1);
-        XDrawLine(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2, x2-xs/2, y2);
+        pd_line(pd_wincanvas(win->xwhan), sc->xcxt, x1, y1+ys/2, x1, y2-ys/2);
+        pd_line(pd_wincanvas(win->xwhan), sc->xcxt, x2, y1+ys/2, x2, y2-ys/2);
+        pd_line(pd_wincanvas(win->xwhan), sc->xcxt, x1+xs/2, y1, x2-xs/2, y1);
+        pd_line(pd_wincanvas(win->xwhan), sc->xcxt, x1+xs/2, y2, x2-xs/2, y2);
         /* draw corner arcs */
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
+        pd_arc(pd_wincanvas(win->xwhan), sc->xcxt, x1, y1, xs, ys,
                  90*64, 90*64);
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y1, xs, ys,
+        pd_arc(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs, y1, xs, ys,
                  0, 90*64);
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys, xs, ys, 180*64,
+        pd_arc(pd_wincanvas(win->xwhan), sc->xcxt, x1, y2-ys, xs, ys, 180*64,
                  90*64);
 
-        XDrawArc(padisplay, win->xwhan, sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
+        pd_arc(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs, y2-ys, xs, ys, 270*64,
                  90*64);
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -9748,16 +9149,16 @@ x or y sizes.
 
 void _pa_frrect_ovr(ami_frrect_t nfp, ami_frrect_t* ofp)
     { *ofp = frrect_vect; frrect_vect = nfp; }
-void ami_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
     { (*frrect_vect)(f, x1, y1, x2, y2, xs, ys); }
 
-static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
+static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int wm;     /* width of middle rectangle */
     int hm;     /* height of middle rectangle */
     int wtb;    /* width of top/bottom rectangle */
@@ -9787,10 +9188,16 @@ static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
     x2 = L2PX(win, x2); y2 = L2PY(win, y2);
     xs = L2PW(win, xs); ys = L2PH(win, ys);
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (x2-x1 >= y2-y1) { /* x >= y */
+
+        /* Limit the rounding ellipse to the rectangle first: the
+           component sizes below are figured from it, and a radius larger
+           than the rectangle sized them for a shape the corner arcs then
+           did not draw, leaving a rectangular lump standing out of the
+           side (see the scrollbar thumb of a fat scroll bar). */
+        if (xs > x2-x1+1) xs = x2-x1+1;
+        if (ys > y2-y1+1) ys = y2-y1+1;
 
         /* find the widths and heights of components, and find minimums */
         wm = x2-x1+1; /* set width of middle */
@@ -9804,61 +9211,60 @@ static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         htb = ys/2; /* set height of top and bottom */
         if (y2-y1+1-hm < htb) htb = y2-y1+1-hm;
         if (htb < 0) htb = 0;
-        if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
-        if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
-            XWLOCK();
             /* middle rectangle */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wm, hm);
+            pd_frect(sc->xbuf, sc->xcxt, x1, y1+ys/2, wm, hm);
 
             /* top */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wtb, htb);
+            pd_frect(sc->xbuf, sc->xcxt, x1+xs/2, y1, wtb, htb);
 
             /* bottom */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2+1, wtb, htb);
+            pd_frect(sc->xbuf, sc->xcxt, x1+xs/2, y2-ys/2+1, wtb, htb);
 
             /* draw corner arcs */
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
+            pd_farcpie(sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+            pd_farcpie(sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
 
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
+            pd_farcpie(sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
 
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
+            pd_farcpie(sc->xbuf, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
-            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             if (!win->visible)  winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
-            XWLOCK();
             /* middle rectangle */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wm, hm);
+            pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x1, y1+ys/2, wm, hm);
 
             /* top */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wtb, htb);
+            pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x1+xs/2, y1, wtb, htb);
 
             /* bottom */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y2-ys/2+1, wtb, htb);
+            pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x1+xs/2, y2-ys/2+1, wtb, htb);
 
             /* draw corner arcs */
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x1, y1, xs, ys,
                      90*64, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y1, xs, ys,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs+1, y1, xs, ys,
                      0, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
-            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
 
     } else { /* y > x */
+
+        /* the rounding ellipse is limited before the components are
+           figured from it, as above */
+        if (xs > x2-x1+1) xs = x2-x1+1;
+        if (ys > y2-y1+1) ys = y2-y1+1;
 
         /* find the widths and heights of components, and find minimums */
         wm = x2-x1+1-xs; /* set width of middle */
@@ -9872,61 +9278,53 @@ static void frrect_ivf(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys)
         hlr = y2-y1+1-ys; /* set height of top and bottom */
         if (ys%2) hlr++; /* distribute fraction to left and right height */
         if (hlr < 0) hlr = 0;
-        if (xs > x2-x1+1) xs = x2-x1+1; /* limit rounding elipse */
-        if (ys > y2-y1+1) ys = y2-y1+1;
         if (win->bufmod) { /* buffer is active */
 
-            XWLOCK();
             /* middle rectangle */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1+xs/2, y1, wm, hm);
+            pd_frect(sc->xbuf, sc->xcxt, x1+xs/2, y1, wm, hm);
 
             /* left */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x1, y1+ys/2, wlr, hlr);
+            pd_frect(sc->xbuf, sc->xcxt, x1, y1+ys/2, wlr, hlr);
 
             /* right */
-            XFillRectangle(padisplay, sc->xbuf, sc->xcxt, x2-xs/2+1, y1+ys/2, wlr, hlr);
+            pd_frect(sc->xbuf, sc->xcxt, x2-xs/2+1, y1+ys/2, wlr, hlr);
 
             /* draw corner arcs */
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
+            pd_farcpie(sc->xbuf, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+            pd_farcpie(sc->xbuf, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
+            pd_farcpie(sc->xbuf, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, x2-xs-1, y2-ys, xs, ys, 270*64,
+            pd_farcpie(sc->xbuf, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
-            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
 
             if (!win->visible)  winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
-            XWLOCK();
             /* middle rectangle */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1+xs/2, y1, wm, hm);
+            pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x1+xs/2, y1, wm, hm);
 
             /* left */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x1, y1+ys/2, wlr, hlr);
+            pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x1, y1+ys/2, wlr, hlr);
 
             /* right */
-            XFillRectangle(padisplay, win->xwhan, sc->xcxt, x2-xs/2+1, y1+ys/2, wlr, hlr);
+            pd_frect(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs/2+1, y1+ys/2, wlr, hlr);
 
             /* draw corner arcs */
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x1, y1, xs, ys, 90*64, 90*64);
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs+1, y1, xs, ys, 0, 90*64);
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x1, y2-ys+1, xs, ys, 180*64,
                      90*64);
-            XFillArc(padisplay, win->xwhan, sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt, x2-xs+1, y2-ys+1, xs, ys, 270*64,
                      90*64);
-            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -9940,16 +9338,16 @@ Draws an ellipse with the current foreground color and line width.
 
 void _pa_ellipse_ovr(ami_ellipse_t nfp, ami_ellipse_t* ofp)
     { *ofp = ellipse_vect; ellipse_vect = nfp; }
-void ami_ellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
     { (*ellipse_vect)(f, x1, y1, x2, y2); }
 
-static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void ellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9965,18 +9363,14 @@ static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
-        XWLOCK();
-        XDrawArc(padisplay, sc->xbuf, sc->xcxt,
+        pd_arc(sc->xbuf, sc->xcxt,
                  L2PX(win, x1-1), L2PY(win, y1-1),
                  L2PW(win, x2-x1), L2PH(win, y2-y1),
                  0, 360*64);
-        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
@@ -9984,19 +9378,15 @@ static void ellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
-        XWLOCK();
-        XDrawArc(padisplay, win->xwhan, sc->xcxt,
+        pd_arc(pd_wincanvas(win->xwhan), sc->xcxt,
                  L2PX(win, x1-1), L2PY(win, y1-1),
                  L2PW(win, x2-x1), L2PH(win, y2-y1),
                  0, 360*64);
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -10010,16 +9400,16 @@ Draws a filled ellipse with the current foreground color.
 
 void _pa_fellipse_ovr(ami_fellipse_t nfp, ami_fellipse_t* ofp)
     { *ofp = fellipse_vect; fellipse_vect = nfp; }
-void ami_fellipse(FILE* f, int x1, int y1, int x2, int y2)
+void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
     { (*fellipse_vect)(f, x1, y1, x2, y2); }
 
-static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
+static void fellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -10035,18 +9425,14 @@ static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
 
     }
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the ellipse */
-        XWLOCK();
-        XFillArc(padisplay, sc->xbuf, sc->xcxt,
+        pd_farcpie(sc->xbuf, sc->xcxt,
                  L2PX(win, x1-1), L2PY(win, y1-1),
                  L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                  0, 360*64);
-        XWUNLOCK();
 
     }
     if (indisp(win)) { /* do it again for the current screen */
@@ -10054,19 +9440,15 @@ static void fellipse_ivf(FILE* f, int x1, int y1, int x2, int y2)
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
-        XWLOCK();
-        XFillArc(padisplay, win->xwhan, sc->xcxt,
+        pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt,
                  L2PX(win, x1-1), L2PY(win, y1-1),
                  L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                  0, 360*64);
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -10100,16 +9482,16 @@ Negative angles are allowed.
 
 void _pa_arc_ovr(ami_arc_t nfp, ami_arc_t* ofp)
     { *ofp = arc_vect; arc_vect = nfp; }
-void ami_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     { (*arc_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+static void arc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -10134,18 +9516,14 @@ static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         else a2 = a2-a1;
 
         /* set foreground function */
-        XWLOCK();
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[sc->fmod];
         if (win->bufmod) { /* buffer is active */
 
             /* draw the arc */
-            XWLOCK();
-            XDrawArc(padisplay, sc->xbuf, sc->xcxt,
+            pd_arc(sc->xbuf, sc->xcxt,
                      L2PX(win, x1-1), L2PY(win, y1-1),
                      L2PW(win, x2-x1), L2PH(win, y2-y1),
             		 a1, a2);
-            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
@@ -10153,19 +9531,15 @@ static void arc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             /* draw the arc */
-            XWLOCK();
-            XDrawArc(padisplay, win->xwhan, sc->xcxt,
+            pd_arc(pd_wincanvas(win->xwhan), sc->xcxt,
                      L2PX(win, x1-1), L2PY(win, y1-1),
                      L2PW(win, x2-x1), L2PH(win, y2-y1),
             		 a1, a2);
-            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
         /* reset foreground function */
-        XWLOCK();
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
 
@@ -10185,16 +9559,16 @@ this.
 
 void _pa_farc_ovr(ami_farc_t nfp, ami_farc_t* ofp)
     { *ofp = farc_vect; farc_vect = nfp; }
-void ami_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     { (*farc_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+static void farc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -10219,18 +9593,14 @@ static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         else a2 = a2-a1;
 
         /* set foreground function */
-        XWLOCK();
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[sc->fmod];
         if (win->bufmod) { /* buffer is active */
 
             /* draw the ellipse */
-            XWLOCK();
-            XFillArc(padisplay, sc->xbuf, sc->xcxt,
+            pd_farcpie(sc->xbuf, sc->xcxt,
                      L2PX(win, x1-1), L2PY(win, y1-1),
                      L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                      a1, a2);
-            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
@@ -10238,19 +9608,15 @@ static void farc_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
-            XWLOCK();
-            XFillArc(padisplay, win->xwhan, sc->xcxt,
+            pd_farcpie(pd_wincanvas(win->xwhan), sc->xcxt,
                      L2PX(win, x1-1), L2PY(win, y1-1),
                      L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                      a1, a2);
-            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
         /* reset foreground function */
-        XWLOCK();
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
 
@@ -10267,16 +9633,16 @@ as for the arc function above.
 
 void _pa_fchord_ovr(ami_fchord_t nfp, ami_fchord_t* ofp)
     { *ofp = fchord_vect; fchord_vect = nfp; }
-void ami_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     { (*fchord_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
+static void fchord_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    int tx, ty; /* temps */
+    long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -10301,17 +9667,12 @@ static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
         else a2 = a2-a1;
 
         /* set foreground function */
-        XWLOCK();
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-        XSetArcMode(padisplay, sc->xcxt, ArcChord); /* set chord mode */
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[sc->fmod];
         if (win->bufmod) { /* buffer is active */
 
             /* draw the ellipse */
-            XWLOCK();
-            XFillArc(padisplay, sc->xbuf, sc->xcxt, L2PX(win, x1-1), L2PY(win, y1-1), L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
+            pd_farcchord(sc->xbuf, sc->xcxt, L2PX(win, x1-1), L2PY(win, y1-1), L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                      a1, a2);
-            XWUNLOCK();
 
         }
         if (indisp(win)) { /* do it again for the current screen */
@@ -10319,18 +9680,13 @@ static void fchord_ivf(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea)
             if (!win->visible) winvis(win); /* make sure we are displayed */
             curoff(win); /* hide the cursor */
             /* draw the ellipse */
-            XWLOCK();
-            XFillArc(padisplay, win->xwhan, sc->xcxt, L2PX(win, x1-1), L2PY(win, y1-1), L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
+            pd_farcchord(pd_wincanvas(win->xwhan), sc->xcxt, L2PX(win, x1-1), L2PY(win, y1-1), L2PW(win, x2-x1+1), L2PH(win, y2-y1+1),
                      a1, a2);
-            XWUNLOCK();
             curon(win); /* show the cursor */
 
         }
-        XWLOCK();
-        XSetArcMode(padisplay, sc->xcxt, ArcPieSlice); /* set pie mode */
         /* reset foreground function */
-        XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-        XWUNLOCK();
+        sc->xcxt->mix = mod2fnc[mdnorm];
 
     }
 
@@ -10346,35 +9702,30 @@ Draws a filled triangle in the current foreground color.
 
 void _pa_ftriangle_ovr(ami_ftriangle_t nfp, ami_ftriangle_t* ofp)
     { *ofp = ftriangle_vect; ftriangle_vect = nfp; }
-void ami_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
     { (*ftriangle_vect)(f, x1, y1, x2, y2, x3, y3); }
 
-static void ftriangle_ivf(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3)
+static void ftriangle_ivf(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    XPoint pa[3]; /* XWindow points array */
+    int pa[6]; /* triangle point pairs */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
-    /* place the triangle points in the X array */
-    pa[0].x = L2PX(win, x1-1);  pa[0].y = L2PY(win, y1-1);
-    pa[1].x = L2PX(win, x2-1);  pa[1].y = L2PY(win, y2-1);
-    pa[2].x = L2PX(win, x3-1);  pa[2].y = L2PY(win, y3-1);
+    /* place the triangle points in the array */
+    pa[0] = L2PX(win, x1-1);  pa[1] = L2PY(win, y1-1);
+    pa[2] = L2PX(win, x2-1);  pa[3] = L2PY(win, y2-1);
+    pa[4] = L2PX(win, x3-1);  pa[5] = L2PY(win, y3-1);
 
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the triangle */
-        XWLOCK();
-        XFillPolygon(padisplay, sc->xbuf, sc->xcxt, pa, 3, Convex,
-                     CoordModeOrigin);
-        XWUNLOCK();
+        pd_fpoly(sc->xbuf, sc->xcxt, pa, 3);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
@@ -10382,17 +9733,12 @@ static void ftriangle_ivf(FILE* f, int x1, int y1, int x2, int y2, int x3, int y
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the ellipse */
-        XWLOCK();
-        XFillPolygon(padisplay, win->xwhan, sc->xcxt, pa, 3, Convex,
-                     CoordModeOrigin);
-        XWUNLOCK();
+        pd_fpoly(pd_wincanvas(win->xwhan), sc->xcxt, pa, 3);
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -10406,9 +9752,9 @@ Sets a single logical pixel to the foreground color.
 
 void _pa_setpixel_ovr(ami_setpixel_t nfp, ami_setpixel_t* ofp)
     { *ofp = setpixel_vect; setpixel_vect = nfp; }
-void ami_setpixel(FILE* f, int x, int y) { (*setpixel_vect)(f, x, y); }
+void ami_setpixel(FILE* f, long x, long y) { (*setpixel_vect)(f, x, y); }
 
-static void setpixel_ivf(FILE* f, int x, int y)
+static void setpixel_ivf(FILE* f, long x, long y)
 
 {
 
@@ -10418,17 +9764,13 @@ static void setpixel_ivf(FILE* f, int x, int y)
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         curoff(win); /* hide the cursor */
         /* draw the pixel */
-        XWLOCK();
-        XDrawPoint(padisplay, sc->xbuf, sc->xcxt,
+        pd_point(sc->xbuf, sc->xcxt,
                    L2PX(win, x-1), L2PY(win, y-1));
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
@@ -10437,17 +9779,13 @@ static void setpixel_ivf(FILE* f, int x, int y)
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the pixel */
-        XWLOCK();
-        XDrawPoint(padisplay, win->xwhan, sc->xcxt,
+        pd_point(pd_wincanvas(win->xwhan), sc->xcxt,
                    L2PX(win, x-1), L2PY(win, y-1));
-        XWUNLOCK();
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -10719,58 +10057,28 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
-/* Push the current lwidth/lstyle pair into the X GC. Shared by
-   linewidth_ivf and linestyle_ivf — setting either field re-applies both.
-
-   XSetDashes values are absolute pixels (X11 does not scale them with line
-   width), so we scale them ourselves here. Dashes stay visually proportional
-   as width grows, with a minimum floor so width-1 lines still read as
-   dashed/dotted rather than nearly-solid. Values clamped to 127 (signed char
-   range used by XSetDashes). */
+/* Apply the screen's line width and pattern to its draw record; the
+   layer draws the dash and dot patterns */
 static void applylineattrs(scnptr sc)
 
 {
 
-    int  xstyle;
-    int  on, off;
-    char dashes[2];
-    int  w;
-
     switch (sc->lstyle) {
-        case ami_lsdash: xstyle = LineOnOffDash; break;
-        case ami_lsdot:  xstyle = LineOnOffDash; break;
-        default:         xstyle = LineSolid;     break;
-    }
-    XSetLineAttributes(padisplay, sc->xcxt, sc->lwidth, xstyle,
-                       CapButt, JoinMiter);
 
-    if (sc->lstyle == ami_lsdash) {
-
-        w = sc->lwidth > 0 ? sc->lwidth : 1;
-        on  = w*4;  if (on  < 16) on  = 16;  if (on  > 127) on  = 127;
-        off = w*2;  if (off <  8) off =  8;  if (off > 127) off = 127;
-        dashes[0] = (char)on;
-        dashes[1] = (char)off;
-        XSetDashes(padisplay, sc->xcxt, 0, dashes, 2);
-
-    } else if (sc->lstyle == ami_lsdot) {
-
-        w = sc->lwidth > 0 ? sc->lwidth : 1;
-        on  = w;       if (on  <  2) on  =  2;  if (on  > 127) on  = 127;
-        off = w*3;     if (off <  6) off =  6;  if (off > 127) off = 127;
-        dashes[0] = (char)on;
-        dashes[1] = (char)off;
-        XSetDashes(padisplay, sc->xcxt, 0, dashes, 2);
+        case ami_lsdash: sc->xcxt->lstyle = pd_linedash; break;
+        case ami_lsdot:  sc->xcxt->lstyle = pd_linedot; break;
+        default:         sc->xcxt->lstyle = pd_linesolid; break;
 
     }
+    sc->xcxt->lw = sc->lwidth;
 
 }
 
 void _pa_linewidth_ovr(ami_linewidth_t nfp, ami_linewidth_t* ofp)
     { *ofp = linewidth_vect; linewidth_vect = nfp; }
-void ami_linewidth(FILE* f, int w) { (*linewidth_vect)(f, w); }
+void ami_linewidth(FILE* f, long w) { (*linewidth_vect)(f, w); }
 
-static void linewidth_ivf(FILE* f, int w)
+static void linewidth_ivf(FILE* f, long w)
 
 {
 
@@ -10780,9 +10088,7 @@ static void linewidth_ivf(FILE* f, int w)
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1]; /* index update screen */
     sc->lwidth = w; /* set the line width */
-    XWLOCK();
     applylineattrs(sc); /* push width + current style into X */
-    XWUNLOCK();
 
 }
 
@@ -10811,9 +10117,7 @@ static void linestyle_ivf(FILE* f, ami_lstyle style)
     win = txt2win(f);
     sc = win->screens[win->curupd-1];
     sc->lstyle = style;
-    XWLOCK();
     applylineattrs(sc);
-    XWUNLOCK();
 
 }
 
@@ -10829,9 +10133,9 @@ character in the character set.
 
 void _pa_chrsizx_ovr(ami_chrsizx_t nfp, ami_chrsizx_t* ofp)
     { *ofp = chrsizx_vect; chrsizx_vect = nfp; }
-int ami_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
+long ami_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
 
-static int chrsizx_ivf(FILE* f)
+static long chrsizx_ivf(FILE* f)
 
 {
 
@@ -10855,9 +10159,9 @@ Returns the character height.
 
 void _pa_chrsizy_ovr(ami_chrsizy_t nfp, ami_chrsizy_t* ofp)
     { *ofp = chrsizy_vect; chrsizy_vect = nfp; }
-int ami_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
+long ami_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
 
-static int chrsizy_ivf(FILE* f)
+static long chrsizy_ivf(FILE* f)
 
 {
 
@@ -10881,9 +10185,9 @@ Finds the total number of installed fonts.
 
 void _pa_fonts_ovr(ami_fonts_t nfp, ami_fonts_t* ofp)
     { *ofp = fonts_vect; fonts_vect = nfp; }
-int ami_fonts(FILE* f) { return ((*fonts_vect)(f)); }
+long ami_fonts(FILE* f) { return ((*fonts_vect)(f)); }
 
-static int fonts_ivf(FILE* f)
+static long fonts_ivf(FILE* f)
 
 {
 
@@ -10901,9 +10205,9 @@ Changes the current font to the indicated logical font number.
 
 void _pa_font_ovr(ami_font_t nfp, ami_font_t* ofp)
     { *ofp = font_vect; font_vect = nfp; }
-void ami_font(FILE* f, int fc) { (*font_vect)(f, fc); }
+void ami_font(FILE* f, long fc) { (*font_vect)(f, fc); }
 
-static void font_ivf(FILE* f, int fc)
+static void font_ivf(FILE* f, long fc)
 
 {
 
@@ -10938,21 +10242,22 @@ static void font_ivf(FILE* f, int fc)
 
 Find name of font
 
-Returns the name of a font by number.
+Returns the name of a font by number. The name is returned in a critical
+buffer: if the name exactly fills the buffer, the terminating zero is left
+off, and it is an error if the name cannot fit in the buffer.
 
 *******************************************************************************/
 
 void _pa_fontnam_ovr(ami_fontnam_t nfp, ami_fontnam_t* ofp)
     { *ofp = fontnam_vect; fontnam_vect = nfp; }
-void ami_fontnam(FILE* f, int fc, char* fns, int fnsl)
+void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
     { (*fontnam_vect)(f, fc, fns, fnsl); }
 
-static void fontnam_ivf(FILE* f, int fc, char* fns, int fnsl)
+static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
 
 {
 
     fontptr fp; /* pointer to font entries */
-    int i; /* string index */
 
     if (fc <= 0) error(einvftn); /* invalid number */
     fp = fntlst; /* index top of list */
@@ -10963,8 +10268,7 @@ static void fontnam_ivf(FILE* f, int fc, char* fns, int fnsl)
        if (!fp) error(einvftn); /* check null */
 
     }
-    if (strlen(fp->fn) > fnsl+1) error(eftntl);
-    strcpy(fns, fp->fn);
+    cpycrit(fns, fnsl, fp->fn); /* copy name to critical result buffer */
 
 }
 
@@ -10979,9 +10283,9 @@ and line spacing are changed, as well as the baseline.
 
 void _pa_fontsiz_ovr(ami_fontsiz_t nfp, ami_fontsiz_t* ofp)
     { *ofp = fontsiz_vect; fontsiz_vect = nfp; }
-void ami_fontsiz(FILE* f, int s) { (*fontsiz_vect)(f, s); }
+void ami_fontsiz(FILE* f, long s) { (*fontsiz_vect)(f, s); }
 
-static void fontsiz_ivf(FILE* f, int s)
+static void fontsiz_ivf(FILE* f, long s)
 
 {
 
@@ -11077,9 +10381,9 @@ as "leading".
 
 void _pa_chrspcy_ovr(ami_chrspcy_t nfp, ami_chrspcy_t* ofp)
     { *ofp = chrspcy_vect; chrspcy_vect = nfp; }
-void ami_chrspcy(FILE* f, int s) { (*chrspcy_vect)(f, s); }
+void ami_chrspcy(FILE* f, long s) { (*chrspcy_vect)(f, s); }
 
-static void chrspcy_ivf(FILE* f, int s)
+static void chrspcy_ivf(FILE* f, long s)
 
 {
 
@@ -11101,9 +10405,9 @@ as "spacing".
 
 void _pa_chrspcx_ovr(ami_chrspcx_t nfp, ami_chrspcx_t* ofp)
     { *ofp = chrspcx_vect; chrspcx_vect = nfp; }
-void ami_chrspcx(FILE* f, int s) { (*chrspcx_vect)(f, s); }
+void ami_chrspcx(FILE* f, long s) { (*chrspcx_vect)(f, s); }
 
-static void chrspcx_ivf(FILE* f, int s)
+static void chrspcx_ivf(FILE* f, long s)
 
 {
 
@@ -11124,9 +10428,9 @@ Returns the number of dots per meter resolution in x.
 
 void _pa_dpmx_ovr(ami_dpmx_t nfp, ami_dpmx_t* ofp)
     { *ofp = dpmx_vect; dpmx_vect = nfp; }
-int ami_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
+long ami_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
 
-static int dpmx_ivf(FILE* f)
+static long dpmx_ivf(FILE* f)
 
 {
 
@@ -11148,9 +10452,9 @@ Returns the number of dots per meter resolution in y.
 
 void _pa_dpmy_ovr(ami_dpmy_t nfp, ami_dpmy_t* ofp)
     { *ofp = dpmy_vect; dpmy_vect = nfp; }
-int ami_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
+long ami_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
 
-static int dpmy_ivf(FILE* f)
+static long dpmy_ivf(FILE* f)
 
 {
 
@@ -11173,9 +10477,9 @@ character spacing and kerning.
 
 void _pa_strsiz_ovr(ami_strsiz_t nfp, ami_strsiz_t* ofp)
     { *ofp = strsiz_vect; strsiz_vect = nfp; }
-int ami_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
+long ami_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
 
-static int strsiz_ivf(FILE* f, const char* s)
+static long strsiz_ivf(FILE* f, const char* s)
 
 {
 
@@ -11183,7 +10487,7 @@ static int strsiz_ivf(FILE* f, const char* s)
     int    rv;
 
     win = txt2win(f); /* get window pointer from text file */
-    rv = ft_text_width(win->ftface, s, strlen(s)); /* return value */
+    rv = grx_ft_text_width(win->ftface, s, strlen(s)); /* return value */
 
     return (rv);
 
@@ -11199,10 +10503,10 @@ Finds the pixel offset to the given character in the string.
 
 void _pa_chrpos_ovr(ami_chrpos_t nfp, ami_chrpos_t* ofp)
     { *ofp = chrpos_vect; chrpos_vect = nfp; }
-int ami_chrpos(FILE* f, const char* s, int p) 
+long ami_chrpos(FILE* f, const char* s, long p) 
     { return ((*chrpos_vect)(f, s, p)); }
 
-static int chrpos_ivf(FILE* f, const char* s, int p)
+static long chrpos_ivf(FILE* f, const char* s, long p)
 
 {
 
@@ -11211,7 +10515,7 @@ static int chrpos_ivf(FILE* f, const char* s, int p)
 
     if (p < 0 || p > strlen(s)) error(estrinx); /* out of range */
     win = txt2win(f); /* get window pointer from text file */
-    rv = ft_text_width(win->ftface, s, p); /* return value */
+    rv = grx_ft_text_width(win->ftface, s, p); /* return value */
 
     return (rv);
 
@@ -11231,9 +10535,9 @@ distributes the space amoung the spaces present in the string.
 
 void _pa_writejust_ovr(ami_writejust_t nfp, ami_writejust_t* ofp)
     { *ofp = writejust_vect; writejust_vect = nfp; }
-void ami_writejust(FILE* f, const char* s, int n) { (*writejust_vect)(f, s, n); }
+void ami_writejust(FILE* f, const char* s, long n) { (*writejust_vect)(f, s, n); }
 
-static void writejust_ivf(FILE* f, const char* s, int n)
+static void writejust_ivf(FILE* f, const char* s, long n)
 
 {
 
@@ -11284,23 +10588,21 @@ static void writejust_ivf(FILE* f, const char* s, int n)
 
                 if (sc->bmod != mdinvis) { /* background is visible */
 
-                    XWLOCK();
                     /* set background function */
-                    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+                    sc->xcxt->mix = mod2fnc[sc->bmod];
                     /* set background to foreground to draw character background */
                     if (BIT(sarev) & sc->attr)
-                        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                    else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                    XFillRectangle(padisplay, sc->xbuf, sc->xcxt,
+                        sc->xcxt->fg = sc->fcrgb;
+                    else sc->xcxt->fg = sc->bcrgb;
+                    pd_frect(sc->xbuf, sc->xcxt,
                                    sc->curxg-1, sc->curyg-1,
                                    cbs, win->linespace);
                     /* restore colors */
                     if (BIT(sarev) & sc->attr)
-                        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                        sc->xcxt->fg = sc->bcrgb;
+                    else sc->xcxt->fg = sc->fcrgb;
                     /* reset background function */
-                    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-                    XWUNLOCK();
+                    sc->xcxt->mix = mod2fnc[mdnorm];
 
                 }
 
@@ -11312,23 +10614,21 @@ static void writejust_ivf(FILE* f, const char* s, int n)
                 curoff(win); /* hide the cursor */
                 if (sc->bmod != mdinvis) { /* background is visible */
 
-                    XWLOCK();
                     /* set background function */
-                    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->bmod]);
+                    sc->xcxt->mix = mod2fnc[sc->bmod];
                     /* set background to foreground to draw character background */
                     if (BIT(sarev) & sc->attr)
-                        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                    else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                    XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                        sc->xcxt->fg = sc->fcrgb;
+                    else sc->xcxt->fg = sc->bcrgb;
+                    pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                                    sc->curxg-1, sc->curyg-1,
                                    cbs, win->linespace);
                     /* restore colors */
                     if (BIT(sarev) & sc->attr)
-                        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                        sc->xcxt->fg = sc->bcrgb;
+                    else sc->xcxt->fg = sc->fcrgb;
                     /* reset background function */
-                    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-                    XWUNLOCK();
+                    sc->xcxt->mix = mod2fnc[mdnorm];
 
                 }
                 curon(win); /* show the cursor */
@@ -11359,10 +10659,10 @@ spaces, with the fractional part lost.
 
 void _pa_justpos_ovr(ami_justpos_t nfp, ami_justpos_t* ofp)
     { *ofp = justpos_vect; justpos_vect = nfp; }
-int ami_justpos(FILE* f, const char* s, int p, int n)
+long ami_justpos(FILE* f, const char* s, long p, long n)
     { return ((*justpos_vect)(f, s, p, n)); }
 
-static int justpos_ivf(FILE* f, const char* s, int p, int n)
+static long justpos_ivf(FILE* f, const char* s, long p, long n)
 
 {
 
@@ -11373,7 +10673,6 @@ static int justpos_ivf(FILE* f, const char* s, int p, int n)
     int    ss;  /* spaces total size */
     int    sz;  /* critical size, chars+min space */
     int    cs;  /* size of characters only */
-    int    cbs; /* character background spacing */
     int    cp;  /* character pixel position */
     int    crp; /* character result position */
     int    i;
@@ -11439,9 +10738,9 @@ Not implemented yet.
 
 void _pa_condensed_ovr(ami_condensed_t nfp, ami_condensed_t* ofp)
     { *ofp = condensed_vect; condensed_vect = nfp; }
-void ami_condensed(FILE* f, int e) { (*condensed_vect)(f, e); }
+void ami_condensed(FILE* f, long e) { (*condensed_vect)(f, e); }
 
-static void condensed_ivf(FILE* f, int e)
+static void condensed_ivf(FILE* f, long e)
 
 {
 
@@ -11484,9 +10783,9 @@ Not implemented yet.
 
 void _pa_extended_ovr(ami_extended_t nfp, ami_extended_t* ofp)
     { *ofp = extended_vect; extended_vect = nfp; }
-void ami_extended(FILE* f, int e) { (*extended_vect)(f, e); }
+void ami_extended(FILE* f, long e) { (*extended_vect)(f, e); }
 
-static void extended_ivf(FILE* f, int e)
+static void extended_ivf(FILE* f, long e)
 
 {
 
@@ -11529,9 +10828,9 @@ Not implemented yet.
 
 void _pa_xlight_ovr(ami_xlight_t nfp, ami_xlight_t* ofp)
     { *ofp = xlight_vect; xlight_vect = nfp; }
-void ami_xlight(FILE* f, int e) { (*xlight_vect)(f, e); }
+void ami_xlight(FILE* f, long e) { (*xlight_vect)(f, e); }
 
-static void xlight_ivf(FILE* f, int e)
+static void xlight_ivf(FILE* f, long e)
 
 {
 
@@ -11574,9 +10873,9 @@ Not implemented yet.
 
 void _pa_light_ovr(ami_light_t nfp, ami_light_t* ofp)
     { *ofp = light_vect; light_vect = nfp; }
-void ami_light(FILE* f, int e) { (*light_vect)(f, e); }
+void ami_light(FILE* f, long e) { (*light_vect)(f, e); }
 
-static void light_ivf(FILE* f, int e)
+static void light_ivf(FILE* f, long e)
 
 {
 
@@ -11619,9 +10918,9 @@ Not implemented yet.
 
 void _pa_xbold_ovr(ami_xbold_t nfp, ami_xbold_t* ofp)
     { *ofp = xbold_vect; xbold_vect = nfp; }
-void ami_xbold(FILE* f, int e) { (*xbold_vect)(f, e); }
+void ami_xbold(FILE* f, long e) { (*xbold_vect)(f, e); }
 
-static void xbold_ivf(FILE* f, int e)
+static void xbold_ivf(FILE* f, long e)
 
 {
 
@@ -11664,9 +10963,9 @@ Not implemented yet.
 
 void _pa_hollow_ovr(ami_hollow_t nfp, ami_hollow_t* ofp)
     { *ofp = hollow_vect; hollow_vect = nfp; }
-void ami_hollow(FILE* f, int e) { (*hollow_vect)(f, e); }
+void ami_hollow(FILE* f, long e) { (*hollow_vect)(f, e); }
 
-static void hollow_ivf(FILE* f, int e)
+static void hollow_ivf(FILE* f, long e)
 
 {
 
@@ -11709,9 +11008,9 @@ Not implemented yet.
 
 void _pa_raised_ovr(ami_raised_t nfp, ami_raised_t* ofp)
     { *ofp = raised_vect; raised_vect = nfp; }
-void ami_raised(FILE* f, int e) { (*raised_vect)(f, e); }
+void ami_raised(FILE* f, long e) { (*raised_vect)(f, e); }
 
-static void raised_ivf(FILE* f, int e)
+static void raised_ivf(FILE* f, long e)
 
 {
 
@@ -11749,14 +11048,13 @@ Deletes a loaded picture.
 
 void _pa_delpict_ovr(ami_delpict_t nfp, ami_delpict_t* ofp)
     { *ofp = delpict_vect; delpict_vect = nfp; }
-void ami_delpict(FILE* f, int p) { (*delpict_vect)(f, p); }
+void ami_delpict(FILE* f, long p) { (*delpict_vect)(f, p); }
 
-static void delpict_ivf(FILE* f, int p)
+static void delpict_ivf(FILE* f, long p)
 
 {
 
     winptr win; /* window pointer */
-    picptr pp; /* image pointer */
 
     win = txt2win(f); /* get window pointer from text file */
     if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
@@ -11764,6 +11062,117 @@ static void delpict_ivf(FILE* f, int p)
     delpic(win, p); /* delete all of the scaled copies */
 
 }
+
+/** ****************************************************************************
+
+Copy a pixel block between buffers
+
+Copies a block of pixels from a source screen buffer bounding box to a
+destination buffer bounding box, in the same or a different buffer of the
+window. The block is stretched or compressed as needed to fit the
+destination box. The current foreground write mode applies, so xor, and
+and or copies serve masking and stencil work. If the destination is the
+displayed screen, the window shows the result at once.
+
+*******************************************************************************/
+
+void _pa_blockcopyg_ovr(ami_blockcopyg_t nfp, ami_blockcopyg_t* ofp)
+    { *ofp = blockcopyg_vect; blockcopyg_vect = nfp; }
+void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                    long sy2, long dx1, long dy1, long dx2, long dy2)
+    { (*blockcopyg_vect)(f, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
+
+static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
+                           long sx2, long sy2, long dx1, long dy1,
+                           long dx2, long dy2)
+
+{
+
+    winptr win; /* window record pointer */
+    scnptr ss;  /* source screen */
+    scnptr ds;  /* destination screen */
+    scnptr cs;  /* current update screen, holder of the write mode */
+    long   t;   /* swap temp */
+    int    psx, psy, psw, psh; /* source box, physical */
+    int    pdx, pdy, pdw, pdh; /* destination box, physical */
+    int    fnc; /* X function for the write mode */
+
+    win = txt2win(f); /* get window from file */
+    if (!win->bufmod) error(ebufoff); /* buffers only exist in buffered mode */
+    if (s < 1 || s > MAXCON || d < 1 || d > MAXCON)
+        error(einvscn); /* invalid screen number */
+    /* create either buffer if it does not exist yet, as select() does */
+    if (!win->screens[s-1]) {
+
+        win->screens[s-1] = imalloc(sizeof(scncon));
+        scncnt++;
+        scntot += sizeof(scncon);
+        iniscn(win, win->screens[s-1]);
+
+    }
+    if (!win->screens[d-1]) {
+
+        win->screens[d-1] = imalloc(sizeof(scncon));
+        scncnt++;
+        scntot += sizeof(scncon);
+        iniscn(win, win->screens[d-1]);
+
+    }
+    ss = win->screens[s-1];
+    ds = win->screens[d-1];
+    cs = win->screens[win->curupd-1];
+    if (cs->fmod == mdinvis) return; /* invisible drops the copy whole */
+    /* rationalize both rectangles to top left/bottom right */
+    if (sx1 > sx2) { t = sx1; sx1 = sx2; sx2 = t; }
+    if (sy1 > sy2) { t = sy1; sy1 = sy2; sy2 = t; }
+    if (dx1 > dx2) { t = dx1; dx1 = dx2; dx2 = t; }
+    if (dy1 > dy2) { t = dy1; dy1 = dy2; dy2 = t; }
+    /* transform to physical pixels */
+    psx = L2PX(win, sx1-1);
+    psy = L2PY(win, sy1-1);
+    psw = L2PW(win, sx2-sx1+1);
+    psh = L2PH(win, sy2-sy1+1);
+    pdx = L2PX(win, dx1-1);
+    pdy = L2PY(win, dy1-1);
+    pdw = L2PW(win, dx2-dx1+1);
+    pdh = L2PH(win, dy2-dy1+1);
+    if (psw < 1 || psh < 1 || pdw < 1 || pdh < 1) return; /* nothing to copy */
+    fnc = mod2fnc[cs->fmod]; /* the current foreground write mode */
+    if (psw == pdw && psh == pdh) { /* sizes match: copy direct */
+
+        blitmix(ds->xbuf, pdx, pdy, ss->xbuf, psx, psy, psw, psh, fnc);
+
+    } else { /* stretch or compress through scaling canvases */
+
+        pd_canvas* si; /* source canvas */
+        pd_canvas* di; /* destination canvas */
+
+        si = pd_cannew(grx_padisplay, psw, psh);
+        di = pd_cannew(grx_padisplay, pdw, pdh);
+        pd_blit(si, 0, 0, ss->xbuf, psx, psy, psw, psh);
+        rescale(di, si); /* scale source to destination */
+        blitmix(ds->xbuf, pdx, pdy, di, 0, 0, pdw, pdh, fnc);
+        pd_candel(si); /* release both canvases */
+        pd_candel(di);
+
+    }
+    if (d == win->curdsp) { /* the destination is on display */
+
+        if (!win->visible) winvis(win); /* make sure we are displayed */
+        curoff(win); /* hide the cursor */
+        /* the buffer holds the composed result: present the destination
+           box as it now stands */
+        pd_blit(pd_wincanvas(win->xwhan), pdx, pdy, ds->xbuf, pdx, pdy,
+                pdw, pdh);
+        curon(win); /* show the cursor */
+
+    }
+    /* the copy is a complete act: push the requests to the server, so the
+       result is onscreen before the caller's next step */
+    pd_flush(grx_padisplay);
+
+}
+
 
 /** ****************************************************************************
 
@@ -11851,9 +11260,9 @@ static unsigned int read16(FILE* f)
 
 void _pa_loadpict_ovr(ami_loadpict_t nfp, ami_loadpict_t* ofp)
     { *ofp = loadpict_vect; loadpict_vect = nfp; }
-void ami_loadpict(FILE* f, int p, char* fn) { (*loadpict_vect)(f, p, fn); }
+void ami_loadpict(FILE* f, long p, char* fn) { (*loadpict_vect)(f, p, fn); }
 
-static void loadpict_ivf(FILE* f, int p, char* fn)
+static void loadpict_ivf(FILE* f, long p, char* fn)
 
 {
 
@@ -11865,9 +11274,9 @@ static void loadpict_ivf(FILE* f, int p, char* fn)
     unsigned int ph; /* picture height */
     byte r, g, b; /* colors */
     int pad;
-    Visual* vi;
-    byte* frmdat;
-    byte* pp;
+    uint32_t* frmdat;
+    int stride;
+    uint32_t* pp;
     int x, y;
     unsigned int t;
     int i;
@@ -11918,37 +11327,33 @@ static void loadpict_ivf(FILE* f, int p, char* fn)
     /* set picture size */
     ip->sx = pw;
     ip->sy = ph;
-    /* create image structure */
-    vi = DefaultVisual(padisplay, 0); /* define direct map color */
-    frmdat = (byte*)imalloc(pw*ph*4); /* allocate image frame */
+    /* create the picture canvas */
+    ip->xi = pd_cannew(grx_padisplay, pw, ph);
     imgcnt++;
     imgtot += pw*ph*4;
-    /* create truecolor image */
-    XWLOCK();
-    ip->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, (char*)frmdat,
-                          pw, ph, 32, 0);
-    XWUNLOCK();
+    frmdat = pd_canlock(ip->xi, &stride);
 
     /* find end of row padding */
     pad = 0;
     if (pw*3%4) pad = 4-(pw*3%4);
-    pp = frmdat+pw*ph*4-pw*4; /* index last line */
+    pp = frmdat+(size_t)(ph-1)*stride; /* index last line */
     /* fill picture with data */
     for (y = ph-1; y >= 0; y--) { /* fill bottom to top */
 
         for (x = 0; x < pw; x++) { /* fill left to right */
 
-            *pp++ = getbyt(pf); /* get blue */
-            *pp++ = getbyt(pf); /* get green */
-            *pp++ = getbyt(pf); /* get red */
-            pp++; /* skip alpha */
+            b = getbyt(pf); /* get blue */
+            g = getbyt(pf); /* get green */
+            r = getbyt(pf); /* get red */
+            *pp++ = 0xff000000|(uint32_t)r<<16|(uint32_t)g<<8|b;
 
         }
         /* remove padding */
         for (i = 0; i < pad; i++) getbyt(pf);
-        pp -= pw*4*2; /* go back one line */
+        pp -= (size_t)stride*2-((size_t)stride-pw); /* go back one line */
 
     }
+    pd_canunlock(ip->xi);
     fclose(pf); /* close the input file */
 
 }
@@ -11963,9 +11368,9 @@ Returns the size in x of the logical picture.
 
 void _pa_pictsizx_ovr(ami_pictsizx_t nfp, ami_pictsizx_t* ofp)
     { *ofp = pictsizx_vect; pictsizx_vect = nfp; }
-int ami_pictsizx(FILE* f, int p) { return ((*pictsizx_vect)(f, p)); }
+long ami_pictsizx(FILE* f, long p) { return ((*pictsizx_vect)(f, p)); }
 
-static int pictsizx_ivf(FILE* f, int p)
+static long pictsizx_ivf(FILE* f, long p)
 
 {
 
@@ -11989,9 +11394,9 @@ Returns the size in y of the logical picture.
 
 void _pa_pictsizy_ovr(ami_pictsizy_t nfp, ami_pictsizy_t* ofp)
     { *ofp = pictsizy_vect; pictsizy_vect = nfp; }
-int ami_pictsizy(FILE* f, int p) { return ((*pictsizy_vect)(f, p)); }
+long ami_pictsizy(FILE* f, long p) { return ((*pictsizy_vect)(f, p)); }
 
-static int pictsizy_ivf(FILE* f, int p)
+static long pictsizy_ivf(FILE* f, long p)
 
 {
 
@@ -12018,20 +11423,18 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 void _pa_picture_ovr(ami_picture_t nfp, ami_picture_t* ofp)
     { *ofp = picture_vect; picture_vect = nfp; }
-void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2)
+void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
     { (*picture_vect)(f, p, x1, y1, x2, y2); }
 
-static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
+static void picture_ivf(FILE* f, long p, long x1, long y1, long x2, long y2)
 
 {
 
     winptr  win; /* window record pointer */
     scnptr  sc;  /* screen buffer */
-    int     tx, ty; /* temps */
+    long    tx, ty; /* temps */
     int     pw, ph; /* picture width and height */
     picptr  pp, fp; /* picture entry pointers */
-    byte*   frmdat;
-    Visual* vi;
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -12071,31 +11474,20 @@ static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
         /* set picture size */
         fp->sx = pw;
         fp->sy = ph;
-        /* create image structure */
-        vi = DefaultVisual(padisplay, 0); /* define direct map color */
-        frmdat = (byte*)imalloc(pw*ph*4); /* allocate image frame */
+        /* create the scaled canvas */
+        fp->xi = pd_cannew(grx_padisplay, pw, ph);
         imgcnt++;
         imgtot += pw*ph*4;
-        /* create truecolor image */
-        XWLOCK();
-        fp->xi = XCreateImage(padisplay, vi, 24, ZPixmap, 0, (char*)frmdat,
-                              pw, ph, 32, 0);
-        XWUNLOCK();
-        rescale(fp->xi, pp->xi); /* rescale to new image */
+        rescale(fp->xi, pp->xi); /* rescale to new canvas */
 
     }
     /* set foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[sc->fmod]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[sc->fmod];
     if (win->bufmod) { /* buffer is active */
 
         /* draw the picture */
-        XWLOCK();
-        XPutImage(padisplay, sc->xbuf, sc->xcxt, fp->xi, 0, 0,
-                  L2PX(win, x1-1), L2PY(win, y1-1),
-                  L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
-        XWUNLOCK();
+        blitmix(sc->xbuf, L2PX(win, x1-1), L2PY(win, y1-1), fp->xi, 0, 0,
+                L2PW(win, x2-x1+1), L2PH(win, y2-y1+1), sc->xcxt->mix);
 
     }
     if (indisp(win)) { /* do it again for the current screen */
@@ -12103,18 +11495,14 @@ static void picture_ivf(FILE* f, int p, int x1, int y1, int x2, int y2)
         if (!win->visible) winvis(win); /* make sure we are displayed */
         curoff(win); /* hide the cursor */
         /* draw the rectangle */
-        XWLOCK();
-        XPutImage(padisplay, win->xwhan, sc->xcxt, fp->xi, 0, 0,
-                  L2PX(win, x1-1), L2PY(win, y1-1),
-                  L2PW(win, x2-x1+1), L2PH(win, y2-y1+1));
-        XWUNLOCK();
+        blitmix(pd_wincanvas(win->xwhan), L2PX(win, x1-1), L2PY(win, y1-1),
+                fp->xi, 0, 0,
+                L2PW(win, x2-x1+1), L2PH(win, y2-y1+1), sc->xcxt->mix);
         curon(win); /* show the cursor */
 
     }
     /* reset foreground function */
-    XWLOCK();
-    XSetFunction(padisplay, sc->xcxt, mod2fnc[mdnorm]);
-    XWUNLOCK();
+    sc->xcxt->mix = mod2fnc[mdnorm];
 
 }
 
@@ -12129,9 +11517,9 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 void _pa_viewoffg_ovr(ami_viewoffg_t nfp, ami_viewoffg_t* ofp)
     { *ofp = viewoffg_vect; viewoffg_vect = nfp; }
-void ami_viewoffg(FILE* f, int x, int y) { (*viewoffg_vect)(f, x, y); }
+void ami_viewoffg(FILE* f, long x, long y) { (*viewoffg_vect)(f, x, y); }
 
-static void viewoffg_ivf(FILE* f, int x, int y)
+static void viewoffg_ivf(FILE* f, long x, long y)
 
 {
 
@@ -12196,9 +11584,9 @@ scaled drawing.
 
 void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp)
     { *ofp = scalex_vect; scalex_vect = nfp; }
-int ami_scalex(FILE* f, int x) { return ((*scalex_vect)(f, x)); }
+long ami_scalex(FILE* f, long x) { return ((*scalex_vect)(f, x)); }
 
-static int scalex_ivf(FILE* f, int x)
+static long scalex_ivf(FILE* f, long x)
 
 {
 
@@ -12212,9 +11600,9 @@ static int scalex_ivf(FILE* f, int x)
 
 void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp)
     { *ofp = scaley_vect; scaley_vect = nfp; }
-int ami_scaley(FILE* f, int y) { return ((*scaley_vect)(f, y)); }
+long ami_scaley(FILE* f, long y) { return ((*scaley_vect)(f, y)); }
 
-static int scaley_ivf(FILE* f, int y)
+static long scaley_ivf(FILE* f, long y)
 
 {
 
@@ -12246,8 +11634,23 @@ static void joyevt(ami_evtrec* er, int* keep, joyptr jp)
 
 #if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
     struct js_event ev;
+    ssize_t rl;
 
-    read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
+    if (jp->fid < 0) return; /* joystick already disconnected */
+    rl = read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
+    if (rl != sizeof(ev)) {
+
+        /* The joystick was disconnected: an end of file input is permanently
+           ready, so stop monitoring it or the event loop would spin. The
+           joystick keeps its logical number, but delivers no further events
+           or positions */
+        system_event_deaseinp(jp->sid);
+        close(jp->fid);
+        jp->fid = -1;
+
+        return;
+
+    }
     if (!(ev.type & JS_EVENT_INIT)) {
 
         if (ev.type & JS_EVENT_BUTTON) {
@@ -12274,12 +11677,12 @@ static void joyevt(ami_evtrec* er, int* keep, joyptr jp)
         if (ev.type & JS_EVENT_AXIS) {
 
             /* update the axies */
-            if (ev.number == 0) jp->ax = ev.value*(INT_MAX/32768);
-            else if (ev.number == 1) jp->ay = ev.value*(INT_MAX/32768);
-            else if (ev.number == 2) jp->az = ev.value*(INT_MAX/32768);
-            else if (ev.number == 3) jp->a4 = ev.value*(INT_MAX/32768);
-            else if (ev.number == 4) jp->a5 = ev.value*(INT_MAX/32768);
-            else if (ev.number == 5) jp->a6 = ev.value*(INT_MAX/32768);
+            if (ev.number == 0) jp->ax = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 1) jp->ay = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 2) jp->az = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 3) jp->a4 = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 4) jp->a5 = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 5) jp->a6 = ev.value*(LONG_MAX/32768);
 
             /* we support up to 6 axes on a joystick. After 6, they get thrown
                out, leaving just the buttons to respond */
@@ -12335,84 +11738,89 @@ static void mouseupdate(winptr win, ami_evtrec* er, int* keep)
         win->mpyg = win->nmpyg;
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb1 > win->mb1) {
+    /* Drain pending button edges after moves. A button is asserted only while
+       not already asserted, and deasserted only while asserted, so presses and
+       releases are delivered in strict alternation and in order -- a click that
+       queued behind pending motion still surfaces once the moves drain, and a
+       press is never cancelled by a following release. */
+    } else if (!win->mb1 && win->nmb1) {
 
        er->etype = ami_etmouba; /* button 1 assert */
        er->amoun = 1; /* mouse 1 */
        er->amoubn = 1; /* button 1 */
-       win->mb1 = win->nmb1; /* update status */
+       win->nmb1--; win->mb1 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb2 > win->mb2) {
+    } else if (!win->mb2 && win->nmb2) {
 
        er->etype = ami_etmouba; /* button 2 assert */
        er->amoun = 1; /* mouse 1 */
        er->amoubn = 2; /* button 2 */
-       win->mb2 = win->nmb2; /* update status */
+       win->nmb2--; win->mb2 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb3 > win->mb3) {
+    } else if (!win->mb3 && win->nmb3) {
 
        er->etype = ami_etmouba; /* button 3 assert */
        er->amoun = 1; /* mouse 1 */
        er->amoubn = 3; /* button 3 */
-       win->mb3 = win->nmb3; /* update status */
+       win->nmb3--; win->mb3 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb4 > win->mb4) {
+    } else if (!win->mb4 && win->nmb4) {
 
        er->etype = ami_etmouba; /* button 4 assert */
        er->amoun = 1; /* mouse 1 */
-       er->amoubn = 4; /* button 3 */
-       win->mb4 = win->nmb4; /* update status */
+       er->amoubn = 4; /* button 4 */
+       win->nmb4--; win->mb4 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb5 > win->mb5) {
+    } else if (!win->mb5 && win->nmb5) {
 
        er->etype = ami_etmouba; /* button 5 assert */
        er->amoun = 1; /* mouse 1 */
-       er->amoubn = 5; /* button 3 */
-       win->mb5 = win->nmb5; /* update status */
+       er->amoubn = 5; /* button 5 */
+       win->nmb5--; win->mb5 = TRUE; /* consume press, mark asserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb1 < win->mb1) {
+    } else if (win->mb1 && win->rmb1) {
 
        er->etype = ami_etmoubd; /* button 1 deassert */
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 1; /* button 1 */
-       win->mb1 = win->nmb1; /* update status */
+       win->rmb1--; win->mb1 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb2 < win->mb2) {
+    } else if (win->mb2 && win->rmb2) {
 
        er->etype = ami_etmoubd; /* button 2 deassert */
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 2; /* button 2 */
-       win->mb2 = win->nmb2; /* update status */
+       win->rmb2--; win->mb2 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb3 < win->mb3) {
+    } else if (win->mb3 && win->rmb3) {
 
        er->etype = ami_etmoubd; /* button 3 deassert */
        er->dmoun = 1; /* mouse 1 */
        er->dmoubn = 3; /* button 3 */
-       win->mb3 = win->nmb3; /* update status */
+       win->rmb3--; win->mb3 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb4 < win->mb4) {
+    } else if (win->mb4 && win->rmb4) {
 
        er->etype = ami_etmoubd; /* button 4 deassert */
        er->dmoun = 1; /* mouse 1 */
-       er->dmoubn = 4; /* button 3 */
-       win->mb4 = win->nmb4; /* update status */
+       er->dmoubn = 4; /* button 4 */
+       win->rmb4--; win->mb4 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
-    } else if (win->nmb5 < win->mb5) {
+    } else if (win->mb5 && win->rmb5) {
 
        er->etype = ami_etmoubd; /* button 5 deassert */
        er->dmoun = 1; /* mouse 1 */
-       er->dmoubn = 5; /* button 3 */
-       win->mb5 = win->nmb5; /* update status */
+       er->dmoubn = 5; /* button 5 */
+       win->rmb5--; win->mb5 = FALSE; /* consume release, mark deasserted */
        *keep = TRUE; /* set to keep */
 
     }
@@ -12422,32 +11830,40 @@ static void mouseupdate(winptr win, ami_evtrec* er, int* keep)
 /* Register mouse status.
    Get mouse status from XWindow event to window data flags. */
 
-static void mouseevent(winptr win, XEvent* e)
+static void mouseevent(winptr win, pd_evt* e)
 
 {
 
-    if (e->type == MotionNotify) {
+    if (e->etype == pd_etmouse) {
 
-        win->nmpx = e->xmotion.x/win->charspace+1; /* get mouse x */
-        win->nmpy = e->xmotion.y/win->linespace+1; /* get mouse y */
-        win->nmpxg = e->xmotion.x+1; /* get mouse graphical x */
-        win->nmpyg = e->xmotion.y+1; /* get mouse graphical y */
+        win->nmpx = e->x/win->charspace+1; /* get mouse x */
+        win->nmpy = e->y/win->linespace+1; /* get mouse y */
+        win->nmpxg = e->x+1; /* get mouse graphical x */
+        win->nmpyg = e->y+1; /* get mouse graphical y */
+        /* The pointer is over the client area, whose cursor inherits from
+           the master. The frame's hover shape must not follow it in: the
+           last motion before crossing inward is always on the resize ring,
+           and the arrows would ride into the whole client */
+        if (win->childfrm && e->win == win->xwhan)
+            pd_cursor(win->xmwhan, pd_curarrow);
 
-    } else if (e->type == ButtonPress) {
+    } else if (e->etype == pd_etbtndown) {
 
-        if (e->xbutton.button == Button1) win->nmb1 = TRUE;
-        else if (e->xbutton.button == Button2) win->nmb2 = TRUE;
-        else if (e->xbutton.button == Button3) win->nmb3 = TRUE;
-        else if (e->xbutton.button == Button4) win->nmb4 = TRUE;
-        else if (e->xbutton.button == Button5) win->nmb5 = TRUE;
+        /* queue a press (counted, not levelled -- see mouseupdate) */
+        if (e->btn == 1) win->nmb1++;
+        else if (e->btn == 2) win->nmb2++;
+        else if (e->btn == 3) win->nmb3++;
+        else if (e->btn == 4) win->nmb4++;
+        else if (e->btn == 5) win->nmb5++;
 
-    } else if (e->type == ButtonRelease) {
+    } else if (e->etype == pd_etbtnup) {
 
-        if (e->xbutton.button == Button1) win->nmb1 = FALSE;
-        else if (e->xbutton.button == Button2) win->nmb2 = FALSE;
-        else if (e->xbutton.button == Button3) win->nmb3 = FALSE;
-        else if (e->xbutton.button == Button4) win->nmb4 = FALSE;
-        else if (e->xbutton.button == Button5) win->nmb5 = FALSE;
+        /* queue a release */
+        if (e->btn == 1) win->rmb1++;
+        else if (e->btn == 2) win->rmb2++;
+        else if (e->btn == 3) win->rmb3++;
+        else if (e->btn == 4) win->rmb4++;
+        else if (e->btn == 5) win->rmb5++;
 
     }
 
@@ -12541,7 +11957,7 @@ static void prtfocus(int level, winptr win)
 
     while (win) {
 
-        dbg_printf(dlinfo, "%*cWindow: %d focus: %d\n", level, ' ', win->wid, win->focus);
+        dbg_printf(dlinfo, "%*cWindow: %ld focus: %d\n", level, ' ', win->wid, win->focus);
         /* find focus in children of this window */
         prtfocus(level+4, win->childwin);
         win = win->childlst; /* link next child */
@@ -12612,93 +12028,42 @@ static int remfocus(winptr win, winptr curwin)
 
 }
 
-/* process Xwindow status messages */
-static void winstat(winptr win, ami_evtrec* er, XEvent* e, int* keep)
+/* process window shell state events: the layer reports minimize,
+   maximize, and restore transitions directly */
+static void winstat(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
 
 {
 
-    int               maxhorz;
-    int               maxvert;
-    int               focused;
-    int               hidden;
-    int               status;
-    Atom              prop;
-    Atom              type;
-    int               format;
-    unsigned long     length;
-    unsigned long     after;
-    unsigned char*    dp;
-    ami_evtrec         er2;
-    XWindowAttributes xwa; /* XWindow attributes */
-    XEvent            xe;  /* XWindow event */
-    int               m;
+    if (e->etype == pd_etmin) {
 
-    XWLOCK();
-    m = !strcmp(XGetAtomName(padisplay, e->xproperty.atom), "_NET_WM_STATE");
-    XWUNLOCK();
-    if (m) {
+        win->lwinstate = win->winstate;
+        win->winstate = 2;
+        if (win->lwinstate != win->winstate) {
 
-        after = 1L;
-        focused = 0;
-        maxhorz = 0;
-        maxvert = 0;
-        hidden = 0;
-        do {
+            er->etype = ami_etmin; /* set minimize event */
+            *keep = TRUE;
 
-            XWLOCK();
-            status = XGetWindowProperty(padisplay, win->xmwhan, e->xproperty.atom,
-                                        0L, after, 0,
-                                        4/*XA_ATOM*/, &type, &format,
-                                        &length, &after, &dp);
-            XWUNLOCK();
-            if (status == Success && type == 4/*XA_ATOM*/ && dp && format == 32 && length) {
+        }
 
-                for (int i = 0; i < length; i++) {
+    } else if (e->etype == pd_etmax) {
 
-                    prop = ((Atom*)dp)[i];
+        win->lwinstate = win->winstate;
+        win->winstate = 1;
+        if (win->lwinstate != win->winstate) {
 
-                    if (prop == cfocused) focused = 1;
-                    if (prop == cmaxhorz) maxhorz = 1;
-                    if (prop == cmaxvert) maxvert = 1;
-                    if (prop == chidden) hidden = 1;
+            er->etype = ami_etmax; /* set maximize event */
+            *keep = TRUE;
 
-                }
+        }
 
-            }
+    } else if (e->etype == pd_etrestore) {
 
-        } while (after);
-        if (hidden) {
+        win->lwinstate = win->winstate;
+        win->winstate = 0;
+        if (win->lwinstate != win->winstate) {
 
-            win->lwinstate = win->winstate;
-            win->winstate = 2;
-            if (win->lwinstate != win->winstate) {
-
-                er->etype = ami_etmin; /* set minimize event */
-                *keep = TRUE;
-
-            }
-
-        } else if (maxhorz || maxvert) {
-
-            win->lwinstate = win->winstate;
-            win->winstate = 1;
-            if (win->lwinstate != win->winstate) {
-
-                er->etype = ami_etmax; /* set maximize event */
-                *keep = TRUE;
-
-            }
-
-        } else if (focused) {
-
-            win->lwinstate = win->winstate;
-            win->winstate = 0;
-            if (win->lwinstate != win->winstate) {
-
-                er->etype = ami_etnorm; /* set normalize event */
-                *keep = TRUE;
-
-            }
+            er->etype = ami_etnorm; /* set normalize event */
+            *keep = TRUE;
 
         }
 
@@ -12706,94 +12071,101 @@ static void winstat(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
 }
 
-/* XWindow event process */
+/* monotonic milliseconds, for pacing the frame beat */
 
-static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
+static long framems(void)
 
 {
 
-    KeySym         ks;
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (ts.tv_sec*1000+ts.tv_nsec/1000000);
+
+}
+
+/* XWindow event process */
+
+static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
+
+{
+
+    uint32_t       ks;
     scnptr         sc;  /* screen pointer */
     rectangle      r1, r2, ri, rr, rb;
-    XWindowChanges xwc; /* XWindow values */
-    XEvent         xe;
+    struct { int width, height; } xwc; /* requested size values */
+    pd_evt         xe;
     winptr         mwin;
-    ami_evtrec      er2;
-    winptr         wp;
-    int            ff;  /* found focus flag */
     winptr         fwin; /* focus window */
+    unsigned long  snc; /* serial of the provoking request */
 
     sc = win->screens[win->curdsp-1]; /* index screen */
 
-    /* handle Expose on xmwhan for child-framed windows: repaint the frame */
-    if (e->type == Expose && win->childfrm &&
-        win->xmwhan == e->xany.window) {
+    /* handle pd_etredraw on xmwhan for child-framed windows: repaint the frame */
+    if (e->etype == pd_etredraw && win->childfrm &&
+        win->xmwhan == e->win) {
 
-        childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+        dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
-    } else if (e->type == Expose && win->xmwhan != e->xany.window) {
+    } else if (e->etype == pd_etredraw && win->xmwhan != e->win) {
 
         if (win->bufmod) { /* use buffer to satisfy event */
 
             curoff(win); /* remove cursor */
             /* make expose mask into rectangle */
-            setrect(&r1, e->xexpose.x, e->xexpose.y,
-                    e->xexpose.x+e->xexpose.width-1,
-                    e->xexpose.y+e->xexpose.height-1);
+            setrect(&r1, e->rx, e->ry,
+                    e->rx+e->rw-1,
+                    e->ry+e->rh-1);
             /* make buffer into 0,0 rectangle */
             setrect(&r2, 0, r2.y1 = 0, win->gmaxxg-1, win->gmaxyg-1);
             if (intersect(&r1, &r2)) {
 
                 intersection(&ri, &r1, &r2); /* find intersection of those */
-                XWLOCK();
-                XCopyArea(padisplay, sc->xbuf, win->xwhan, sc->xcxt, ri.x1, ri.y1,
-                      ri.x2-ri.x1+1, ri.y2-ri.y1+1, ri.x1, ri.y1);
+                pd_blit(pd_wincanvas(win->xwhan), ri.x1, ri.y1, sc->xbuf,
+                        ri.x1, ri.y1, ri.x2-ri.x1+1, ri.y2-ri.y1+1);
                 subrect(&r2, &r1, &rr, &rb); /* find subtraction r1-r2 */
                 /* check any result */
                 if (!zerorect(&rr) || !zerorect(&rb)) {
 
                     /* set background color to foreground */
                     if (BIT(sarev) & sc->attr)
-                        XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                    else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
+                        sc->xcxt->fg = sc->fcrgb;
+                    else sc->xcxt->fg = sc->bcrgb;
                     /* paint right */
                     if (!zerorect(&rr))
-                        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                        pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                                        rr.x1, rr.y1,
                                        rr.x2-rr.x1+1, rr.y2-rr.y1+1);
                     /* paint bottom */
                     if (!zerorect(&rb))
-                        XFillRectangle(padisplay, win->xwhan, sc->xcxt,
+                        pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
                                        rb.x1, rb.y1,
                                        rb.x2-rb.x1+1, rb.y2-rb.y1+1);
                     /* restore foreground color */
                     if (BIT(sarev) & sc->attr)
-                        XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                    else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
+                        sc->xcxt->fg = sc->bcrgb;
+                    else sc->xcxt->fg = sc->fcrgb;
                     /* we shouldn't need to do this, but I have seen unpainted
                        of the window if not while resizing */
-                    XFlush(padisplay);
+                    pd_flush(grx_padisplay);
 
                 }
-                XWUNLOCK();
 
             } else {
 
                 /* paint right or bottom off buffer space */
-                XWLOCK();
                 /* set background color to foreground */
                 if (BIT(sarev) & sc->attr)
-                    XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                else XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                XFillRectangle(padisplay, win->xwhan, sc->xcxt,
-                               e->xexpose.x, e->xexpose.y,
-                               e->xexpose.width, e->xexpose.height);
+                    sc->xcxt->fg = sc->fcrgb;
+                else sc->xcxt->fg = sc->bcrgb;
+                pd_frect(pd_wincanvas(win->xwhan), sc->xcxt,
+                               e->rx, e->ry,
+                               e->rw, e->rh);
                 /* restore foreground color */
                 if (BIT(sarev) & sc->attr)
-                    XSetForeground(padisplay, sc->xcxt, sc->bcrgb);
-                else XSetForeground(padisplay, sc->xcxt, sc->fcrgb);
-                XFlush(padisplay);
-                XWUNLOCK();
+                    sc->xcxt->fg = sc->bcrgb;
+                else sc->xcxt->fg = sc->fcrgb;
+                pd_flush(grx_padisplay);
 
             }
             curon(win); /* replace cursor */
@@ -12801,24 +12173,24 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
         } else { /* let the client handle it */
 
             er->etype = ami_etredraw; /* set redraw event */
-            er->rsx = e->xexpose.x+1; /* set redraw rectangle */
-            er->rsy = e->xexpose.y+1;
-            er->rex = e->xexpose.x+e->xexpose.width;
-            er->rey = e->xexpose.y+e->xexpose.height;
+            er->rsx = e->rx+1; /* set redraw rectangle */
+            er->rsy = e->ry+1;
+            er->rex = e->rx+e->rw;
+            er->rey = e->ry+e->rh;
             *keep = TRUE; /* set found */
 
         }
 
-    } else if (e->type == ConfigureNotify) {
+    } else if (e->etype == pd_etresize) {
 
-        if (win->xmwhan == e->xany.window) { /* it's the master window */
+        if (win->xmwhan == e->win) { /* it's the master window */
 
             /* update master window tracking dimensions */
-            win->xmwr.w = e->xconfigure.width;
-            win->xmwr.h = e->xconfigure.height;
+            win->xmwr.w = e->w;
+            win->xmwr.h = e->h;
             /* find size of subclient */
-            xwc.width = e->xconfigure.width; /* set frameless offset to client */
-            xwc.height = e->xconfigure.height;
+            xwc.width = e->w; /* set frameless offset to client */
+            xwc.height = e->h;
             /* for child-framed windows, subtract frame thickness */
             if (win->childfrm) {
 
@@ -12833,30 +12205,22 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             /* check subclient window has changed size */
             if (xwc.width != win->xwr.w || xwc.height != win->xwr.h) {
 
-                XWLOCK();
+                snc = 0;
                 if (win->childfrm) {
 
-                    /* keep the subclient offset by the frame thickness */
-                    XMoveResizeWindow(padisplay, win->xwhan,
-                                      win->cwox, win->cwoy,
-                                      xwc.width, xwc.height);
+                    /* keep the subclient below the frame and menu bar */
+                    pd_winmove(win->xwhan, subclix(win), subcliy(win));
+                    pd_winsize(win->xwhan, xwc.width, xwc.height);
 
                 } else {
 
-                    XConfigureWindow(padisplay, win->xwhan, CWWidth|CWHeight, &xwc);
+                    pd_winsize(win->xwhan, xwc.width, xwc.height);
 
                 }
-                XWUNLOCK();
-#ifdef WAITWMR
-                /* wait for the next configure for this window. Do not require an
-                   exact size match: Wayland/XWayland (and tiling WMs) may clamp
-                   or override the requested size, so demanding the exact value
-                   would loop forever. Adopt the actual granted size instead. */
-                do { peekxevt(&xe); /* peek next event */
-                } while (xe.type != ConfigureNotify || xe.xany.window != win->xwhan);
-                xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
-                xwc.height = xe.xconfigure.height;
-#endif
+                /* the subclient is a child of the master: its configure
+                   applies synchronously and grants what was asked, so
+                   there is nothing to wait on */
+                (void)snc;
                 /* change saved size to match */
                 win->xwr.w = xwc.width;
                 win->xwr.h = xwc.height;
@@ -12867,44 +12231,59 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             if (win->menu) {
 
                 mwin = txt2win(win->menu->wf); /* index window */
-                /* find resulting size of menu bar */
-                xwc.width = e->xconfigure.width; /* width is client */
+                /* find resulting size of menu bar: the client width,
+                   inside the frame */
+                xwc.width = e->w-(win->childfrm? win->pfw: 0);
                 xwc.height = win->menuspcy; /* height is menu text */
                 /* check menu bar has changed size */
                 if (xwc.width != mwin->xmwr.w || xwc.height != mwin->xmwr.h) {
 
-                    XWLOCK();
-                    XConfigureWindow(padisplay, mwin->xmwhan, CWWidth|CWHeight, &xwc);
-                    XWUNLOCK();
+                    snc = 0;
+                    pd_winsize(mwin->xmwhan, xwc.width, xwc.height);
+                    /* The subclient with it. Only the master was being
+                       configured, so the strip's own idea of how wide it
+                       is never changed -- and the repaint that follows
+                       draws to that width, stopping short of the new
+                       edge and leaving what the widening exposed
+                       unpainted. */
+                    pd_winsize(mwin->xwhan, xwc.width, xwc.height);
 #ifdef WAITWMR
-                    /* wait for the next configure for this window (any size --
-                       the WM may clamp the request; see note above) */
-                    do { peekxevt(&xe); /* peek next event */
-                    } while (xe.type != ConfigureNotify || xe.xany.window != mwin->xmwhan);
-                    xwc.width = xe.xconfigure.width;   /* adopt WM-granted size */
-                    xwc.height = xe.xconfigure.height;
+                    /* wait for the next configure (any size -- the WM may
+                       clamp the request); a child menu window configures
+                       synchronously and is not waited on */
+                    if (!mwin->parwin &&
+                        waitxevt(pd_etresize, mwin->xmwhan, snc, &xe)) {
+
+                        xwc.width = xe.w;   /* adopt granted */
+                        xwc.height = xe.h;
+
+                    }
 #endif
                     /* change saved size to match */
                     mwin->xmwr.w = xwc.width;
                     mwin->xmwr.h = xwc.height;
+                    mwin->xwr.w = xwc.width; /* the subclient's too */
+                    mwin->xwr.h = xwc.height;
 
                 }
 
             }
 
             /* redraw child frame after master resize */
-            if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+            if (win->childfrm) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
         } else { /* its the subclient window */
 
             /* size of window has changed, send event */
             er->etype = ami_etresize; /* set resize event */
-            er->rszxg = e->xconfigure.width; /* set graphics size */
-            er->rszyg = e->xconfigure.height;
-            er->rszx = e->xconfigure.width/win->charspace; /* set character size */
-            er->rszy = e->xconfigure.height/win->linespace;
+            er->rszxg = e->w; /* set graphics size */
+            er->rszyg = e->h;
+            er->rszx = e->w/win->charspace; /* set character size */
+            er->rszy = e->h/win->linespace;
             *keep = TRUE; /* set found */
             if (!win->bufmod) {
+
+                ami_evtrec er2;
 
                 /* reset tracking sizes */
                 win->gmaxxg = er->rszxg; /* graphics x */
@@ -12918,20 +12297,32 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 win->screens[win->curdsp-1]->maxyg = win->gmaxyg;
                 win->screens[win->curdsp-1]->maxx = win->gmaxx; /* character size */
                 win->screens[win->curdsp-1]->maxy = win->gmaxy;
+                /* The repaint that must follow the resize, queued behind it
+                   so the client reads the new size first. The platform
+                   exposes only what a grow reveals and a shrink reveals
+                   nothing, but an unbuffered client repaints its whole
+                   scene against the new size */
+                er2.etype = ami_etredraw;
+                er2.rsx = 1;
+                er2.rsy = 1;
+                er2.rex = win->gmaxxg;
+                er2.rey = win->gmaxyg;
+                isendevent(win, &er2);
 
             }
 
         }
 
-    } else if (e->type == KeyPress) {
+    } else if (e->etype == pd_etkeydown) {
 
-        XWLOCK();
-        ks = XLookupKeysym(&e->xkey, ((e->xkey.state & ShiftMask) == 0 ? 0 : 1));
-        XWUNLOCK();
+        ks = e->keysym; /* the layer translates through xkb */
         er->etype = ami_etchar; /* place default code */
         fwin = win; /* set parent to self */
         if (!fwin) fwin = win->parwin; /* set parent of child window */
         fwin = fndfocus(fwin); /* find focus window */
+        /* a menu component never takes the keyboard: see the focus note in
+           the mouse handler. The window the key arrived on keeps it */
+        if (fwin && fwin->mstchild) fwin = NULL;
         if (fwin) er->winid = fwin->wid; /* send keys to focus window */
         if (ks >= ' ' && ks <= 0x7e && !ctrll && !ctrlr && !altl && !altr) {
 
@@ -12947,64 +12338,64 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
             switch (ks) {
 
                 /* process control characters */
-                case XK_BackSpace: er->etype = ami_etdelcb; break;
-                case XK_Tab:       er->etype = ami_ettab; break;
-                case XK_Return:    er->etype = ami_etenter; break;
-                case XK_Escape:    if (esck)
+                case XKB_KEY_BackSpace: er->etype = ami_etdelcb; break;
+                case XKB_KEY_Tab:       er->etype = ami_ettab; break;
+                case XKB_KEY_Return:    er->etype = ami_etenter; break;
+                case XKB_KEY_Escape:    if (esck)
                                        { er->etype = ami_etcan; esck = FALSE; }
                                    else esck = TRUE;
                                    break;
-                case XK_Delete:    if (shiftl || shiftr) er->etype = ami_etdel;
+                case XKB_KEY_Delete:    if (shiftl || shiftr) er->etype = ami_etdel;
                                    else if (ctrll || ctrlr) er->etype = ami_etdell;
                                    else er->etype = ami_etdelcf;
                                    break;
 
-                case XK_Home:      if (ctrll || ctrlr) er->etype = ami_ethome;
+                case XKB_KEY_Home:      if (ctrll || ctrlr) er->etype = ami_ethome;
                                    else er->etype = ami_ethomel;
                                    break;
-                case XK_Left:      if (ctrll || ctrlr) er->etype = ami_etleftw;
+                case XKB_KEY_Left:      if (ctrll || ctrlr) er->etype = ami_etleftw;
                                    else er->etype = ami_etleft;
                                    break;
-                case XK_Up:        if (ctrll || ctrlr) er->etype = ami_etscru;
+                case XKB_KEY_Up:        if (ctrll || ctrlr) er->etype = ami_etscru;
                                    else er->etype = ami_etup;
                                    break;
-                case XK_Right:     if (ctrll || ctrlr) er->etype = ami_etrightw;
+                case XKB_KEY_Right:     if (ctrll || ctrlr) er->etype = ami_etrightw;
                                    else er->etype = ami_etright; break;
-                case XK_Down:      if (ctrll || ctrlr) er->etype = ami_etscrd;
+                case XKB_KEY_Down:      if (ctrll || ctrlr) er->etype = ami_etscrd;
                                    else er->etype = ami_etdown;
                                    break;
-                case XK_Page_Up:   if (ctrll || ctrlr) er->etype = ami_etscrl;
+                case XKB_KEY_Page_Up:   if (ctrll || ctrlr) er->etype = ami_etscrl;
                                    else er->etype = ami_etpagu;
                                    break;
-                case XK_Page_Down: if (ctrll || ctrlr) er->etype = ami_etscrr;
+                case XKB_KEY_Page_Down: if (ctrll || ctrlr) er->etype = ami_etscrr;
                                    else er->etype = ami_etpagd;
                                    break;
-                case XK_End:       if (ctrll || ctrlr) er->etype = ami_etend;
+                case XKB_KEY_End:       if (ctrll || ctrlr) er->etype = ami_etend;
                                    else er->etype = ami_etendl;
                                    break;
 
-                case XK_Insert:    er->etype = ami_etinsertt; break;
+                case XKB_KEY_Insert:    er->etype = ami_etinsertt; break;
 
-                case XK_F1:
-                case XK_F2:
-                case XK_F3:
-                case XK_F4:
-                case XK_F5:
-                case XK_F6:
-                case XK_F7:
-                case XK_F8:
-                case XK_F9:
-                case XK_F10:
-                case XK_F11:
-                case XK_F12:
+                case XKB_KEY_F1:
+                case XKB_KEY_F2:
+                case XKB_KEY_F3:
+                case XKB_KEY_F4:
+                case XKB_KEY_F5:
+                case XKB_KEY_F6:
+                case XKB_KEY_F7:
+                case XKB_KEY_F8:
+                case XKB_KEY_F9:
+                case XKB_KEY_F10:
+                case XKB_KEY_F11:
+                case XKB_KEY_F12:
                     /* X11 gives us all 12 function keys for our use, plus
                        are sequential */
                     er->etype = ami_etfun; /* function key */
-                    er->fkey = ks-XK_F1+1;
+                    er->fkey = ks-XKB_KEY_F1+1;
                     break;
 
-                case XK_C:
-                case XK_c:         if (ctrll || ctrlr) {
+                case XKB_KEY_C:
+                case XKB_KEY_c:         if (ctrll || ctrlr) {
 
                                        er->etype = ami_etterm;
                                        fend = TRUE;
@@ -13012,38 +12403,55 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                                    }
                                    else if (altl || altr) er->etype = ami_etcopy;
                                    break;
-                case XK_S:
-                case XK_s:         if (ctrll || ctrlr)
+                case XKB_KEY_S:
+                case XKB_KEY_s:         if (ctrll || ctrlr)
                                        er->etype = ami_etstop;
                                    break;
-                case XK_Q:
-                case XK_q:         if (ctrll || ctrlr)
+                case XKB_KEY_Q:
+                case XKB_KEY_q:         if (ctrll || ctrlr)
                                        er->etype = ami_etcont;
                                    break;
-                case XK_P:
-                case XK_p:         if (ctrll || ctrlr)
+                case XKB_KEY_P:
+                case XKB_KEY_p:         if (ctrll || ctrlr)
                                        er->etype = ami_etprint;
                                    break;
-                case XK_H:
-                case XK_h:         if (ctrll || ctrlr)
+                case XKB_KEY_H:
+                case XKB_KEY_h:         if (ctrll || ctrlr)
                                        er->etype = ami_ethomes;
                                    break;
-                case XK_E:
-                case XK_e:         if (ctrll || ctrlr)
+                case XKB_KEY_E:
+                case XKB_KEY_e:         if (ctrll || ctrlr)
                                        er->etype = ami_etends;
                                    break;
-                case XK_V:
-                case XK_v:         if (ctrll || ctrlr)
+                case XKB_KEY_V:
+                case XKB_KEY_v:         if (ctrll || ctrlr)
                                        er->etype = ami_etinsert;
                                    break;
 
-                case XK_Shift_L:   shiftl = TRUE; break; /* Left shift */
-                case XK_Shift_R:   shiftr = TRUE; break; /* Right shift */
-                case XK_Control_L: ctrll = TRUE; break;  /* Left control */
-                case XK_Control_R: ctrlr = TRUE; break;  /* Right control */
-                case XK_Alt_L:     altl = TRUE; break;  /* Left alt */
-                case XK_Alt_R:     altr = TRUE; break;  /* Right alt */
-                case XK_Caps_Lock: capslock = !capslock; /* Caps lock */
+                /* Larger and smaller, the way the browsers do it. There
+                   are two of each key on a PC keyboard, the "=+" and "-_"
+                   of the main pad and the "+" and "-" of the numeric one,
+                   and both are taken. The main pad key gives "=" plain and
+                   "+" shifted, and control-= is as common a way to ask for
+                   this as control-+, so both arrive here. */
+                case XKB_KEY_equal:
+                case XKB_KEY_plus:
+                case XKB_KEY_KP_Add:      if (ctrll || ctrlr)
+                                         er->etype = ami_etusize;
+                                     break;
+                case XKB_KEY_minus:
+                case XKB_KEY_underscore:
+                case XKB_KEY_KP_Subtract: if (ctrll || ctrlr)
+                                         er->etype = ami_etdsize;
+                                     break;
+
+                case XKB_KEY_Shift_L:   shiftl = TRUE; break; /* Left shift */
+                case XKB_KEY_Shift_R:   shiftr = TRUE; break; /* Right shift */
+                case XKB_KEY_Control_L: ctrll = TRUE; break;  /* Left control */
+                case XKB_KEY_Control_R: ctrlr = TRUE; break;  /* Right control */
+                case XKB_KEY_Alt_L:     altl = TRUE; break;  /* Left alt */
+                case XKB_KEY_Alt_R:     altr = TRUE; break;  /* Right alt */
+                case XKB_KEY_Caps_Lock: capslock = !capslock; /* Caps lock */
 
             }
             if (er->etype != ami_etchar)
@@ -13051,48 +12459,47 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
         }
 
-    } else if (e->type == KeyRelease) {
+    } else if (e->etype == pd_etkeyup) {
 
         /* Petit-ami does not track key releases, but we need to account for
           control and shift keys up/down */
-        XWLOCK();
-        ks = XLookupKeysym(&e->xkey, 0); /* find code */
-        XWUNLOCK();
+        ks = e->keysym; /* find code */
         switch (ks) {
 
-            case XK_Shift_L:   shiftl = FALSE; break; /* Left shift */
-            case XK_Shift_R:   shiftr = FALSE; break; /* Right shift */
-            case XK_Control_L: ctrll = FALSE; break;  /* Left control */
-            case XK_Control_R: ctrlr = FALSE; break;  /* Right control */
-            case XK_Alt_L:     altl = FALSE; break;  /* Left alt */
-            case XK_Alt_R:     altr = FALSE; break;  /* Right alt */
+            case XKB_KEY_Shift_L:   shiftl = FALSE; break; /* Left shift */
+            case XKB_KEY_Shift_R:   shiftr = FALSE; break; /* Right shift */
+            case XKB_KEY_Control_L: ctrll = FALSE; break;  /* Left control */
+            case XKB_KEY_Control_R: ctrlr = FALSE; break;  /* Right control */
+            case XKB_KEY_Alt_L:     altl = FALSE; break;  /* Left alt */
+            case XKB_KEY_Alt_R:     altr = FALSE; break;  /* Right alt */
 
         }
 
-    } else if (win->childfrm && win->xmwhan == e->xany.window &&
-               (e->type == ButtonPress || e->type == ButtonRelease ||
-                e->type == MotionNotify)) {
+    } else if (win->childfrm && win->xmwhan == e->win &&
+               (e->etype == pd_etbtndown || e->etype == pd_etbtnup ||
+                e->etype == pd_etmouse)) {
 
         /* update cursor shape based on hover position */
-        if (e->type == MotionNotify) {
-            childfrm_set_cursor(win, e->xmotion.x, e->xmotion.y);
+        if (e->etype == pd_etmouse) {
+            childfrm_set_cursor(win, e->x, e->y);
         }
 
         /* child frame mouse interaction: title bar drag, close button, resize */
-        if (e->type == ButtonPress && e->xbutton.button == Button1) {
+        if (e->etype == pd_etbtndown && e->btn == 1) {
 
-            int mx = e->xbutton.x;
-            int my = e->xbutton.y;
-            int mw = win->xmwr.w;
-            int tbh = CFRM_TITBAR_H(win);
-            int bsz = CFRM_BUTTON_SZ(win);
+            int mx = e->x;
+            int my = e->y;
+            int rsz_left, rsz_right, rsz_top, rsz_bottom;
+            int onedge;
+
+            dec->frmedges(win, mx, my, win->xmwr.w, win->xmwr.h,
+                          &rsz_left, &rsz_right, &rsz_top, &rsz_bottom);
+            onedge = rsz_left || rsz_right || rsz_top || rsz_bottom;
 
             /* selecting a child: raise it to the top of the stacking
                order so it appears in front of its siblings, and
                give it focus */
-            XWLOCK();
-            XRaiseWindow(padisplay, win->xmwhan);
-            XWUNLOCK();
+            pd_winraise(win->xmwhan);
 #ifndef NOFAKEFOCUS
             if (!win->focus) {
 
@@ -13106,117 +12513,128 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                 curoff(win);
                 win->focus = TRUE;
                 curon(win);
-                childfrm_draw(win, win->xmwr.w, win->xmwr.h);
-                XWLOCK();
-                XSetInputFocus(padisplay, win->xmwhan, RevertToNone,
-                               CurrentTime);
-                XWUNLOCK();
+                dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
             }
 #endif
 
-            /* hit test: close, max, min buttons (right-aligned) */
-            int cbx = mw - bsz - CFRM_BUTTON_MG;
-            int cby = (tbh - bsz) / 2;
-            int mabx = cbx - bsz - CFRM_BUTTON_GAP;
-            int mibx = mabx - bsz - CFRM_BUTTON_GAP;
-            if (mx >= cbx && mx < cbx + bsz &&
-                my >= cby && my < cby + bsz) {
+            /* hit test: the chrome buttons. Where they sit is the
+               decorations' business, so they answer what is under the
+               pointer */
+            dechit hit = dec->frmhit(win, mx, my);
 
-                /* close button clicked: send terminate */
+            if (hit == dechclose) {
+
+                /* close button clicked: send terminate. For a toplevel this
+                   is the user ordering exit, as the delete message from a
+                   window manager marks it -- without fend, autohold would
+                   discard the terminate and the window could never be
+                   dismissed after main() returns. A child's close is only
+                   an event to the program */
                 er->etype = ami_etterm;
+                if (!win->parwin) fend = TRUE;
                 *keep = TRUE;
 
-            } else if (mx >= mabx && mx < mabx + bsz &&
-                       my >= cby && my < cby + bsz) {
+            } else if (hit == dechmax) {
 
-                /* max button: when minimized, restore to previous size */
+                /* max button: when minimized, restore to previous size; a
+                   toplevel's maximize toggles through the shell */
                 if (win->minimized) childfrm_restore(win);
+                else if (!win->parwin)
+                    pd_maximize(win->xmwhan,
+                                    win->winstate != 1);
                 *keep = FALSE;
                 return;
 
-            } else if (mx >= mibx && mx < mibx + bsz &&
-                       my >= cby && my < cby + bsz) {
+            } else if (hit == dechmin) {
 
-                /* min button: collapse to title-bar slot at bottom of parent */
-                if (!win->minimized) childfrm_minimize(win);
+                /* min button: a toplevel minimizes through the shell, a
+                   child collapses to a title-bar slot in its parent */
+                if (!win->parwin) pd_minimize(win->xmwhan);
+                else if (!win->minimized) childfrm_minimize(win);
                 *keep = FALSE;
                 return;
 
-            } else if (my >= CFRM_BORDER_W && my < tbh &&
-                       mx >= CFRM_BORDER_W && mx < mw - CFRM_BORDER_W) {
+            } else if (hit == dechtitle) {
 
                 /* title bar (excluding the top resize border and side
                    resize borders that overlap the title bar): initiate drag */
-                int startx = e->xbutton.x_root;
-                int starty = e->xbutton.y_root;
+                int startx = e->x;
+                int starty = e->y;
                 int origx = win->xmwr.x;
                 int origy = win->xmwr.y;
-                XEvent de;
+                pd_evt de;
                 int dragging = TRUE;
+                /* The drag anchors in the parent's coordinate space: event
+                   coordinates are relative to the grabbed window, which is
+                   the thing moving, and a delta measured from a moving
+                   origin feeds back into itself and shakes */
+                pd_win* pspace = win->parwin? win->parwin->xwhan: NULL;
+                int ppx = 0, ppy = 0;
+
+                if (pspace) pd_pointer(pspace, &ppx, &ppy);
 
                 /* grab pointer for drag tracking */
-                XWLOCK();
-                XGrabPointer(padisplay, win->xmwhan, False,
-                             ButtonReleaseMask | PointerMotionMask,
-                             GrabModeAsync, GrabModeAsync,
-                             None, None, CurrentTime);
-                XWUNLOCK();
+                pd_grab(win->xmwhan, 1);
 
                 while (dragging) {
 
-                    XWLOCK();
-                    XNextEvent(padisplay, &de);
-                    XWUNLOCK();
-                    if (de.type == MotionNotify) {
+                    nextxevt(grx_padisplay, &de);
+                    if (de.etype == pd_etmouse) {
 
                         /* Coalesce only the consecutive run of already-queued
                            motion, stopping at any other event -- crucially the
-                           Expose events that repaint what the move damages. A
+                           pd_etredraw events that repaint what the move damages. A
                            fast drag thus collapses to one move per batch instead
                            of stepping through every point, without starving the
                            damage repaint (which is what left a trail before). */
-                        XWLOCK();
-                        while (XPending(padisplay)) {
-                            XEvent pk;
-                            XPeekEvent(padisplay, &pk);
-                            if (pk.type != MotionNotify) break;
-                            XNextEvent(padisplay, &de);
+                        while (evtpending(grx_padisplay)) {
+                            pd_evt pk;
+                            pd_evtpeek(grx_padisplay, &pk);
+                            if (pk.etype != pd_etmouse) break;
+                            nextxevt(grx_padisplay, &de);
                         }
-                        XWUNLOCK();
-                        int dx = de.xmotion.x_root - startx;
-                        int dy = de.xmotion.y_root - starty;
+                        int dx, dy;
+                        if (pspace) {
+
+                            int cpx, cpy;
+
+                            pd_pointer(pspace, &cpx, &cpy);
+                            dx = cpx-ppx; dy = cpy-ppy;
+
+                        } else {
+
+                            dx = de.x - startx;
+                            dy = de.y - starty;
+
+                        }
                         win->xmwr.x = origx + dx;
                         win->xmwr.y = origy + dy;
-                        XWLOCK();
-                        XMoveWindow(padisplay, win->xmwhan,
+                        pd_winmove(win->xmwhan,
                                     win->xmwr.x, win->xmwr.y);
-                        XWUNLOCK();
 
-                    } else if (de.type == ButtonRelease) {
+                    } else if (de.etype == pd_etbtnup) {
 
                         dragging = FALSE;
 
-                    } else if (de.type == Expose) {
+                    } else if (de.etype == pd_etredraw) {
 
                         /* Repaint precisely what the move exposed: the parent
                            area the window vacated, a sibling it uncovered, or
                            this window's own frame/content re-entering the parent
                            bounds after being clipped at an edge. */
-                        int ofn = fndevt(de.xany.window);
+                        int ofn = fndevt(de.win);
                         if (ofn >= 0)
-                            drag_expose(lfn2win(ofn), de.xany.window,
-                                        de.xexpose.x, de.xexpose.y,
-                                        de.xexpose.width, de.xexpose.height);
+                            drag_expose(lfn2win(ofn), de.win,
+                                        de.rx, de.ry,
+                                        de.rw, de.rh);
 
                     }
 
                 }
-                XWLOCK();
-                XUngrabPointer(padisplay, CurrentTime);
-                XWUNLOCK();
+                pd_grab(NULL, 0);
                 /* final repaint after release: the parent may be unbuffered
-                   (its Expose events were consumed during the drag), so force it
+                   (its pd_etredraw events were consumed during the drag), so force it
                    to repaint via its own redraw handler; siblings are buffered */
                 if (win->parwin) {
                     winptr sib;
@@ -13225,54 +12643,57 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                          sib = sib->childlst) {
                         if (sib == win) continue;
                         drag_repaint_full(sib);
-                        if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+                        if (sib->childfrm) dec->frmdraw(sib, sib->xmwr.w, sib->xmwr.h);
                     }
                 }
 
-            } else if (!win->minimized &&
-                       (my >= win->xmwr.h - CFRM_BORDER_W ||
-                        mx >= win->xmwr.w - CFRM_BORDER_W ||
-                        mx < CFRM_BORDER_W ||
-                        my < CFRM_BORDER_W)) {
+            } else if (!win->minimized && onedge) {
 
-                /* resize edge: determine which edges are grabbed (same L-shaped
-                   corner grab as the hover cursor, so a corner drag resizes on
-                   both axes over the widened corner zone, not just a 4px square) */
-                int rsz_left, rsz_right, rsz_top, rsz_bottom;
-                childfrm_resize_edges(mx, my, win->xmwr.w, win->xmwr.h,
-                                      &rsz_left, &rsz_right, &rsz_top, &rsz_bottom);
-                int startx = e->xbutton.x_root;
-                int starty = e->xbutton.y_root;
+                /* resize edge: the edges grabbed are the ones the hover
+                   cursor showed, so a corner drag resizes on both axes
+                   over the widened corner zone, not just a 4px square */
+                int startx = e->x;
+                int starty = e->y;
                 int origx = win->xmwr.x;
                 int origy = win->xmwr.y;
                 int origw = win->xmwr.w;
                 int origh = win->xmwr.h;
-                XEvent de;
+                pd_evt de;
                 int resizing = TRUE;
+                /* anchored in the parent's coordinate space, as the move
+                   drag above: a left or top edge resize moves this window's
+                   origin, and deltas measured from it feed back and shake */
+                pd_win* pspace = win->parwin? win->parwin->xwhan: NULL;
+                int ppx = 0, ppy = 0;
 
-                XWLOCK();
-                XGrabPointer(padisplay, win->xmwhan, False,
-                             ButtonReleaseMask | PointerMotionMask,
-                             GrabModeAsync, GrabModeAsync,
-                             None, None, CurrentTime);
-                XWUNLOCK();
+                if (pspace) pd_pointer(pspace, &ppx, &ppy);
+
+                pd_grab(win->xmwhan, 1);
 
                 while (resizing) {
 
-                    XWLOCK();
-                    XNextEvent(padisplay, &de);
-                    XWUNLOCK();
-                    if (de.type == MotionNotify) {
+                    nextxevt(grx_padisplay, &de);
+                    if (de.etype == pd_etmouse) {
 
                         /* motion compression: collapse a burst of queued motion
                            to the latest position so a fast resize makes one
                            resize+repaint instead of one per intermediate point
                            (see the drag loop above) */
-                        XWLOCK();
-                        while (XCheckTypedEvent(padisplay, MotionNotify, &de));
-                        XWUNLOCK();
-                        int dx = de.xmotion.x_root - startx;
-                        int dy = de.xmotion.y_root - starty;
+                        while (pd_evtcheck(grx_padisplay, NULL, pd_etmouse, &de));
+                        int dx, dy;
+                        if (pspace) {
+
+                            int cpx, cpy;
+
+                            pd_pointer(pspace, &cpx, &cpy);
+                            dx = cpx-ppx; dy = cpy-ppy;
+
+                        } else {
+
+                            dx = de.x - startx;
+                            dy = de.y - starty;
+
+                        }
                         int nx = origx;
                         int ny = origy;
                         int nw = origw;
@@ -13304,21 +12725,19 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                         win->xmwr.h = nh;
                         win->xwr.w = nw - win->pfw;
                         win->xwr.h = nh - win->pfh;
-                        XWLOCK();
                         if (nx != origx || ny != origy) {
-                            XMoveResizeWindow(padisplay, win->xmwhan,
-                                              nx, ny, nw, nh);
+                            pd_winmove(win->xmwhan, nx, ny);
+                            pd_winsize(win->xmwhan, nw, nh);
                         } else {
-                            XResizeWindow(padisplay, win->xmwhan, nw, nh);
+                            pd_winsize(win->xmwhan, nw, nh);
                         }
-                        XResizeWindow(padisplay, win->xwhan,
+                        pd_winsize(win->xwhan,
                                       win->xwr.w, win->xwr.h);
-                        XWUNLOCK();
                         /* the client area may now be larger than the buffer;
                            restore() copies the buffer to the screen and fills
                            any uncovered margin with the background color */
                         restore(win);
-                        childfrm_draw(win, nw, nh);
+                        dec->frmdraw(win, nw, nh);
                         /* if the child shrank, repaint the parent and
                            sibling children where this child used to be */
                         if (shrunk && win->parwin) {
@@ -13328,15 +12747,15 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                                  sib = sib->childlst) {
                                 if (sib == win) continue;
                                 restore(sib);
-                                if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+                                if (sib->childfrm) dec->frmdraw(sib, sib->xmwr.w, sib->xmwr.h);
                             }
                         }
 
-                    } else if (de.type == ButtonRelease) {
+                    } else if (de.etype == pd_etbtnup) {
 
                         resizing = FALSE;
 
-                    } else if (de.type == Expose) {
+                    } else if (de.etype == pd_etredraw) {
 
                         /* repaint what the resize exposed -- the parent area the
                            child vacated when it shrank, or an uncovered sibling
@@ -13344,20 +12763,18 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                            parent (restore() is a no-op for it) keeps a trail of
                            the child's old size during the resize, exactly as the
                            move loop above needs drag_expose for the same reason. */
-                        int ofn = fndevt(de.xany.window);
+                        int ofn = fndevt(de.win);
                         if (ofn >= 0)
-                            drag_expose(lfn2win(ofn), de.xany.window,
-                                        de.xexpose.x, de.xexpose.y,
-                                        de.xexpose.width, de.xexpose.height);
+                            drag_expose(lfn2win(ofn), de.win,
+                                        de.rx, de.ry,
+                                        de.rw, de.rh);
 
                     }
 
                 }
-                XWLOCK();
-                XUngrabPointer(padisplay, CurrentTime);
-                XWUNLOCK();
+                pd_grab(NULL, 0);
                 /* final repaint after release: an unbuffered parent had its
-                   Expose events consumed during the resize, so force it to
+                   pd_etredraw events consumed during the resize, so force it to
                    repaint via its own redraw handler; siblings are buffered */
                 if (win->parwin) {
                     winptr sib;
@@ -13366,7 +12783,7 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
                          sib = sib->childlst) {
                         if (sib == win) continue;
                         drag_repaint_full(sib);
-                        if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+                        if (sib->childfrm) dec->frmdraw(sib, sib->xmwr.w, sib->xmwr.h);
                     }
                 }
 
@@ -13382,8 +12799,8 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 
         }
 
-    } else if ((e->type == MotionNotify || e->type == ButtonPress ||
-               e->type == ButtonRelease) && mouseenb) {
+    } else if ((e->etype == pd_etmouse || e->etype == pd_etbtndown ||
+               e->etype == pd_etbtnup) && mouseenb) {
 
         mouseevent(win, e); /* process mouse event */
         /* check any mouse details need processing */
@@ -13391,111 +12808,135 @@ static void xwinevt(winptr win, ami_evtrec* er, XEvent* e, int* keep)
 #ifndef NOFAKEFOCUS
         /* Check we fake focus here. This is a mouse button 1 click in a child
            window. */
-        if (*keep && er->etype == ami_etmouba && er->amoubn == 1 && !win->focus) {
+        if (*keep && er->etype == ami_etmouba && er->amoubn == 1 &&
+            !win->focus && !win->mstchild) {
 
-            /* We will fake focus. We still need to process the mouse click, so
-               we will send the focus event on ahead. */
-            ff = remfocus(root(win), win); /* remove focus from whatever window has it */
-            if (!ff) error(esystem); /* couldn't find focus window */
-            er2.etype = ami_etfocus; /* set focus event */
-            isendevent(win, &er2); /* send it */
+            /* A button 1 click in an unfocused window fakes focus onto it. This
+               fires whenever the window is not marked focused -- a child window
+               the WM never focuses, and also any top-level window under a bare
+               X server with no window manager to assign input focus at all.
+               remfocus returning 0 (no window currently holds focus) is normal
+               in the bare-X case and not an error.
+
+               A menu component is passed over. Those windows are ours, not
+               the program's: they carry a buried window id no program knows,
+               and the menu handler answers only the events it draws and
+               presses by. Focus landing on one takes the keyboard away from
+               the program -- press a menu, and every key after it is stamped
+               with the menu's id and swallowed, so the program never sees
+               another return until something else is clicked. */
+            remfocus(root(win), win); /* drop focus from whatever holds it */
             curoff(win); /* remove cursor */
             win->focus = TRUE; /* put focus */
             curon(win); /* replace cursor */
-            if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
-            XWLOCK();
-            XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
-            XWUNLOCK();
+            if (win->childfrm) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
+            /* Deliver focus ahead of the click without dropping the click: the
+               click is requeued to follow, and this event becomes the focus
+               notification. (The previous code left the click in er and sent
+               the focus event on the queue, but the queued focus event then
+               displaced the click, and the click was lost.) */
+            enquepaevt(er); /* requeue the click (etmouba) to follow */
+            er->etype = ami_etfocus; /* deliver focus now */
+            er->winid = win->wid;
 
         }
 #endif
 
-    } else if (e->type == FocusOut) {
+    } else if (e->etype == pd_etnofocus) {
 
         remfocus(root(win), NULL); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = FALSE; /* remove focus */
         curon(win); /* replace cursor */
-        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+        if (win->childfrm) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
         er->etype = ami_etnofocus; /* set no focus event */
         *keep = TRUE; /* set found */
 
-    } else if (e->type == FocusIn) {
+    } else if (e->etype == pd_etfocus) {
 
         /* window has focus again -- cancel any pending decoration-change retry */
-        if (refocuswin == e->xany.window) refocuswin = 0;
+        if (refocuswin == e->win) refocuswin = 0;
 
         remfocus(root(win), win); /* remove focus from child window if it has it */
         curoff(win); /* remove cursor */
         win->focus = TRUE; /* put focus */
         curon(win); /* replace cursor */
-        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+        if (win->childfrm) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
         er->etype = ami_etfocus; /* set focus event */
         *keep = TRUE; /* set found */
 
-    } else if (e->type == MapNotify) {
+    } else if (e->etype == pd_etmap) {
 
         /* Turning decorations back on (ami_frame/sysbar/sizable) makes Mutter
            re-decorate: it unmaps, reparents, and re-maps the window, and --
-           unlike the decorations-off case -- does NOT send a FocusIn to restore
-           our focus. The window has settled by this MapNotify, so re-assert
-           focus here. Doing it at the earlier FocusOut loses the race to the
+           unlike the decorations-off case -- does NOT send a pd_etfocus to restore
+           our focus. The window has settled by this pd_etmap, so re-assert
+           focus here. Doing it at the earlier pd_etnofocus loses the race to the
            unmap/remap that follows. Armed only for decorations-on changes. */
-        if (refocuswin && e->xany.window == refocuswin) {
+        if (refocuswin && e->win == refocuswin) {
 
-            Window rw = refocuswin;
+            pd_win* rw = refocuswin;
             refocuswin = 0; /* one-shot */
             wmactivate(rw, 0);
 
         }
 
-    } else if (e->type == EnterNotify) {
+    } else if (e->etype == pd_etframe) {
+
+        /* The compositor's frame callback: the display's own refresh
+           beat for this surface, delivered while the compositor is
+           presenting it. Mark the beat so the floor timer (ievent)
+           stays silent, and deliver as the frame event */
+        win->framecbms = framems();
+        if (win->frmrun) {
+
+            er->etype = ami_etframe; /* set frame event */
+            *keep = TRUE; /* set found */
+
+        }
+
+    } else if (e->etype == pd_etenter) {
 
         er->etype = ami_ethover; /* set hover event */
         *keep = TRUE; /* set found */
 
-    } else if (e->type == LeaveNotify) {
+    } else if (e->etype == pd_etleave) {
 
         er->etype = ami_etnohover; /* set no hover event */
         *keep = TRUE; /* set found */
 
-    } else if (e->type == ClientMessage){
+    } else if (e->etype == pd_etclose) {
 
-        /* windows manager has message for us */
-        if ((Atom)e->xclient.data.l[0] == win->delmsg) {
+        /* the user ordered the window closed: terminate */
+        er->etype = ami_etterm;
+        fend = TRUE;
+        *keep = TRUE;
 
-            /* terminate client window */
-            er->etype = ami_etterm;
-            fend = TRUE;
-            *keep = TRUE;
-
-        }
-
-    } else if (e->type == PropertyNotify)
-        /* process windows status messages */
+    } else if (e->etype == pd_etmin || e->etype == pd_etmax ||
+               e->etype == pd_etrestore)
+        /* process window shell state messages */
         winstat(win, er, e, keep);
 
 }
 
 /* prepare and process XWindow event */
-static void xwinprc(XEvent* e, ami_evtrec* er, int* keep)
+static void xwinprc(pd_evt* e, ami_evtrec* er, int* keep)
 
 {
 
     winptr     win; /* window record pointer */
     int        ofn; /* output lfn associated with window */
-    int        rv;
 
     if (dmpmsg) {
 
-        /* note we don't print XEvent diagnostics until they get extracted from
+        /* note we don't print pd_evt diagnostics until they get extracted from
            the input queue */
         prtxevt(e);
         fprintf(stderr, "\n");
         fflush(stderr);
 
     }
-    ofn = fndevt(e->xany.window); /* get output window lfn */
+    ofn = fndevt(e->win); /* get output window lfn */
     if (ofn >= 0) { /* its one of our windows */
 
         win = lfn2win(ofn); /* get window for that */
@@ -13506,35 +12947,62 @@ static void xwinprc(XEvent* e, ami_evtrec* er, int* keep)
 
 }
 
+/* Deliver a pending mouse state change without a fresh X event.
+
+   mouseupdate delivers at most one change per call and prioritizes moves over
+   button edges, so a click that arrived behind pending motion -- and the tail
+   assert/deassert once motion stops -- can be left queued in the window with no
+   further X event to trigger delivery (a bare X server with no motion after the
+   click never sends one). Scan the open windows and let mouseupdate emit one
+   such pending change before we block waiting for input. Cheap and a no-op when
+   nothing is pending (mouseupdate simply falls through). */
+static void mousedrain(ami_evtrec* er, int* keep)
+
+{
+
+    int    fi;   /* file index */
+    winptr win;  /* window record pointer */
+
+    for (fi = 0; fi < MAXFIL && !*keep; fi++)
+        if (opnfil[fi]) {
+
+            win = opnfil[fi]->win;
+            if (win) { /* it's a window file */
+
+                er->winid = win->wid; /* identify the window */
+                mouseupdate(win, er, keep); /* deliver one pending change */
+
+            }
+
+        }
+
+}
+
 /* get and process XWindow event */
 static void xwinget(ami_evtrec* er, int* keep)
 
 {
 
-    XEvent e;  /* XWindow event record */
+    pd_evt e;  /* XWindow event record */
     int    rv;
 
     do {
 
         rv = 0;
         /* check input queue has events */
-        while (evtque && !*keep) {
+        while (!*keep && dequexevt(&e)) {
 
-            dequexevt(&e); /* remove event from queue */
             coalesce(&e); /* fold redundant resize/redraw bursts into one */
             xwinprc(&e, er, keep); /* process */
 
         }
         if (!*keep) {
 
-            XWLOCK();
-            rv = XPending(padisplay);
-            XWUNLOCK();
+            rv = evtpending(grx_padisplay);
             if (rv) {
 
-                XWLOCK();
-                XNextEvent(padisplay, &e); /* get next event */
-                XWUNLOCK();
+                nextxevt(grx_padisplay, &e); /* get next event */
+                notexevt(&e); /* a notify is data others may wait on */
                 coalesce(&e); /* fold redundant resize/redraw bursts into one */
                 xwinprc(&e, er, keep); /* pass to processing */
 
@@ -13543,6 +13011,8 @@ static void xwinget(ami_evtrec* er, int* keep)
         }
 
     } while (rv && !*keep);
+    /* the X queue is drained; deliver any mouse state left pending behind it */
+    if (!*keep) mousedrain(er, keep);
 
 }
 
@@ -13552,19 +13022,13 @@ static void ievent(FILE* f, ami_evtrec* er)
 
     int        keep;     /* keep event flag */
     int        dfid;     /* XWindow display FID */
-    int        rv;       /* return value */
-    uint64_t   exp;      /* timer expiration time */
     winptr     win;      /* window record pointer */
-    XEvent     e;        /* XWindow event */
     sysevt     sev;      /* system event */
-    int        i;
 
     /* make sure all drawing is complete before we take inputs */
-    XWLOCK();
-    XFlush(padisplay);
-    XWUNLOCK();
+    pd_flush(grx_padisplay);
     keep = FALSE; /* set do not keep event */
-    dfid = ConnectionNumber(padisplay); /* find XWindow display fid */
+    dfid = pd_evtfd(grx_padisplay); /* find XWindow display fid */
     do {
 
         /* check XWindows event queue before we wait on system events */
@@ -13575,7 +13039,17 @@ static void ievent(FILE* f, ami_evtrec* er)
             /* check display event occurred */
             if (sev.typ == se_inp) {
 
-                if (sev.lse == dspsev) xwinget(er, &keep);
+                if (sev.lse == sendwsev) {
+
+                    /* a cross thread enqueue; drain the taps, take an
+                       entry if one is still there */
+                    char b[256];
+
+                    while (read(sendwfds[0], b, sizeof(b)) > 0);
+                    if (dequepaevt(er)) keep = TRUE;
+
+                } else if (sev.lse == dspsev) xwinget(er, &keep);
+                else if (thmfd >= 0 && sev.lse == thmsev) themechange();
                 else if (sidtab[sev.lse-1] && sidtab[sev.lse-1]->joy && joyenb)
                     /* process joystick event */
                     joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
@@ -13584,11 +13058,20 @@ static void ievent(FILE* f, ami_evtrec* er)
 
                 if (sidtab[sev.lse-1]->frm) {
 
-                    /* frame event */
-                    er->etype = ami_etframe; /* set frame event occurred */
-                    /* set window number */
-                    er->winid = sidtab[sev.lse-1]->win->wid;
-                    keep = TRUE; /* set event found */
+                    /* The 30-a-second floor under the compositor's frame
+                       callbacks: while callbacks flow (pd_etframe,
+                       xwinevt) they carry the beat at the display rate
+                       and this timer stays silent. When the compositor
+                       withholds them, the floor keeps animation running */
+                    win = sidtab[sev.lse-1]->win;
+                    if (framems()-win->framecbms >= 40) {
+
+                        /* frame event */
+                        er->etype = ami_etframe; /* set frame event occurred */
+                        er->winid = win->wid; /* set window number */
+                        keep = TRUE; /* set event found */
+
+                    }
 
                 } else {
 
@@ -13620,12 +13103,16 @@ static void event_ivf(FILE* f, ami_evtrec* er)
 
 {
 
+    windefer* dp;
+
+    pthread_mutex_lock(&winfrelock);
+    evtbusy++; /* window disposals defer from here */
+    pthread_mutex_unlock(&winfrelock);
     do { /* loop handling via event vectors and queuing */
 
-        /* check input PA queue */
-        if (paqevt) dequepaevt(er);
-        /* get logical input file number for input, and get the event for that. */
-        else ievent(f, er); /* process event */
+        /* check input PA queue; if empty, get an event */
+        if (!dequepaevt(er))
+            ievent(f, er); /* process event */
         if (dmpevt) {
 
             prtevt(er); /* do diagnostic dump of PA events */
@@ -13634,7 +13121,7 @@ static void event_ivf(FILE* f, ami_evtrec* er)
         }
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
-        if (!er->handled && er->etype <= ami_ettabbar) { /* send it to fanout */
+        if (!er->handled && er->etype <= ami_etdsize) { /* send it to fanout */
 
             er->handled = 1; /* set event is handled by default */
             (*evthan[er->etype])(er); /* call event handler first */
@@ -13643,6 +13130,17 @@ static void event_ivf(FILE* f, ami_evtrec* er)
 
     } while (er->handled);
     /* event not handled, return it to the caller */
+    pthread_mutex_lock(&winfrelock);
+    if (!--evtbusy) while (windeflst) {
+
+        /* the disposals that waited on this pass */
+        dp = windeflst;
+        windeflst = dp->next;
+        dispwin(dp->win);
+        ifree(dp);
+
+    }
+    pthread_mutex_unlock(&winfrelock);
 
 }
 
@@ -13700,7 +13198,7 @@ static void eventover_ivf(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
 
 {
 
-    if (e > ami_ettabbar) error(evecaxe); /* cannot vector auxillary event */
+    if (e > ami_etdsize) error(evecaxe); /* cannot vector auxillary event */
     *oeh = evthan[e]; /* save existing event handler */
     evthan[e] = eh; /* place new event handler */
 
@@ -13748,12 +13246,12 @@ the associated input file.
 
 void _pa_timer_ovr(ami_timer_t nfp, ami_timer_t* ofp)
     { *ofp = timer_vect; timer_vect = nfp; }
-void ami_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
+void ami_timer(FILE* f, long i, long t, long r) { (*timer_vect)(f, i, t, r); }
 
 static void timer_ivf(FILE* f, /* file to send event to */
-                      int   i, /* timer handle */
+                      long   i, /* timer handle */
                       long  t, /* number of tenth-milliseconds to run */
-                      int   r) /* timer is to rerun after completion */
+                      long   r) /* timer is to rerun after completion */
 
 {
 
@@ -13782,10 +13280,10 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 void _pa_killtimer_ovr(ami_killtimer_t nfp, ami_killtimer_t* ofp)
     { *ofp = killtimer_vect; killtimer_vect = nfp; }
-void ami_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
+void ami_killtimer(FILE* f, long   i ) { (*killtimer_vect)(f, i ); }
 
 static void killtimer_ivf(FILE* f, /* file to kill timer on */
-                          int   i  /* handle of timer */
+                          long   i  /* handle of timer */
                          )
 
 {
@@ -13812,9 +13310,9 @@ of the blanking interval.
 
 void _pa_frametimer_ovr(ami_frametimer_t nfp, ami_frametimer_t* ofp)
     { *ofp = frametimer_vect; frametimer_vect = nfp; }
-void ami_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
+void ami_frametimer(FILE* f, long e) { (*frametimer_vect)(f, e); }
 
-static void frametimer_ivf(FILE* f, int e)
+static void frametimer_ivf(FILE* f, long e)
 
 {
 
@@ -13824,16 +13322,25 @@ static void frametimer_ivf(FILE* f, int e)
     win = txt2win(f); /* get window from file */
     if (e) { /* set framing timer to run */
 
-        sid = system_event_addsetim(win->frmsev, 166, TRUE);
+        /* The beat itself comes from the compositor's frame callbacks
+           (pd_etframe), which track the display's true refresh rate.
+           This timer is the floor under them: 30 a second, live only
+           when the compositor withholds callbacks (window hidden, or
+           nothing being presented), so animation logic never stalls */
+        sid = system_event_addsetim(win->frmsev, 334, TRUE);
         win->frmsev = sid;
         /* get system event entry */
         getsee(sid); /* allocate system event entry */
         sidtab[sid-1]->win = win; /* set window assocated */
         sidtab[sid-1]->frm = TRUE; /* set is the framing timer */
+        win->frmrun = TRUE; /* set framing timer running */
+        pd_frameevents(win->xmwhan, TRUE);
 
     } else {
 
         system_event_deasetim(win->frmsev);
+        win->frmrun = FALSE; /* set framing timer not running */
+        pd_frameevents(win->xmwhan, FALSE);
 
     }
 
@@ -13856,9 +13363,9 @@ holding gralib unaware programs.
 
 void _pa_autohold_ovr(ami_autohold_t nfp, ami_autohold_t* ofp)
     { *ofp = autohold_vect; autohold_vect = nfp; }
-void ami_autohold(int e) { (*autohold_vect)(e); }
+void ami_autohold(long e) { (*autohold_vect)(e); }
 
-static void autohold_ivf(int e)
+static void autohold_ivf(long e)
 
 {
 
@@ -13876,9 +13383,9 @@ Returns the number of mice implemented. XWindow supports only one mouse.
 
 void _pa_mouse_ovr(ami_mouse_t nfp, ami_mouse_t* ofp)
     { *ofp = mouse_vect; mouse_vect = nfp; }
-int ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
+long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
 
-static int mouse_ivf(FILE* f)
+static long mouse_ivf(FILE* f)
 
 {
 
@@ -13897,9 +13404,9 @@ version. XWindow supports from 1 to 5 buttons.
 
 void _pa_mousebutton_ovr(ami_mousebutton_t nfp, ami_mousebutton_t* ofp)
     { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
-int ami_mousebutton(FILE* f, int m) { return ((*mousebutton_vect)(f, m)); }
+long ami_mousebutton(FILE* f, long m) { return ((*mousebutton_vect)(f, m)); }
 
-static int mousebutton_ivf(FILE* f, int m)
+static long mousebutton_ivf(FILE* f, long m)
 
 {
 
@@ -13917,9 +13424,9 @@ Return number of joysticks attached.
 
 void _pa_joystick_ovr(ami_joystick_t nfp, ami_joystick_t* ofp)
     { *ofp = joystick_vect; joystick_vect = nfp; }
-int ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
+long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
 
-static int joystick_ivf(FILE* f)
+static long joystick_ivf(FILE* f)
 
 {
 
@@ -13937,9 +13444,9 @@ Returns the number of buttons on a given joystick.
 
 void _pa_joybutton_ovr(ami_joybutton_t nfp, ami_joybutton_t* ofp)
     { *ofp = joybutton_vect; joybutton_vect = nfp; }
-int ami_joybutton(FILE* f, int j) { return ((*joybutton_vect)(f, j)); }
+long ami_joybutton(FILE* f, long j) { return ((*joybutton_vect)(f, j)); }
 
-static int joybutton_ivf(FILE* f, int j)
+static long joybutton_ivf(FILE* f, long j)
 
 {
 
@@ -13962,9 +13469,9 @@ joystick can be considered a slider without positional meaning.
 
 void _pa_joyaxis_ovr(ami_joyaxis_t nfp, ami_joyaxis_t* ofp)
     { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
-int ami_joyaxis(FILE* f, int j) { return ((*joyaxis_vect)(f, j)); }
+long ami_joyaxis(FILE* f, long j) { return ((*joyaxis_vect)(f, j)); }
 
-static int joyaxis_ivf(FILE* f, int j)
+static long joyaxis_ivf(FILE* f, long j)
 
 {
 
@@ -13990,9 +13497,9 @@ Sets a tab at the indicated pixel number.
 
 void _pa_settabg_ovr(ami_settabg_t nfp, ami_settabg_t* ofp)
     { *ofp = settabg_vect; settabg_vect = nfp; }
-void ami_settabg(FILE* f, int t) { (*settabg_vect)(f, t); }
+void ami_settabg(FILE* f, long t) { (*settabg_vect)(f, t); }
 
-static void settabg_ivf(FILE* f, int t)
+static void settabg_ivf(FILE* f, long t)
 
 {
 
@@ -14013,9 +13520,9 @@ Sets a tab at the indicated collumn number.
 
 void _pa_settab_ovr(ami_settab_t nfp, ami_settab_t* ofp)
     { *ofp = settab_vect; settab_vect = nfp; }
-void ami_settab(FILE* f, int t) { (*settab_vect)(f, t); }
+void ami_settab(FILE* f, long t) { (*settab_vect)(f, t); }
 
-static void settab_ivf(FILE* f, int t)
+static void settab_ivf(FILE* f, long t)
 
 {
 
@@ -14036,9 +13543,9 @@ Resets the tab at the indicated pixel number.
 
 void _pa_restabg_ovr(ami_restabg_t nfp, ami_restabg_t* ofp)
     { *ofp = restabg_vect; restabg_vect = nfp; }
-void ami_restabg(FILE* f, int t) { (*restabg_vect)(f, t); }
+void ami_restabg(FILE* f, long t) { (*restabg_vect)(f, t); }
 
-static void restabg_ivf(FILE* f, int t)
+static void restabg_ivf(FILE* f, long t)
 
 {
 
@@ -14059,9 +13566,9 @@ Resets the tab at the indicated collumn number.
 
 void _pa_restab_ovr(ami_restab_t nfp, ami_restab_t* ofp)
     { *ofp = restab_vect; restab_vect = nfp; }
-void ami_restab(FILE* f, int t) { (*restab_vect)(f, t); }
+void ami_restab(FILE* f, long t) { (*restab_vect)(f, t); }
 
-static void restab_ivf(FILE* f, int t)
+static void restab_ivf(FILE* f, long t)
 
 {
 
@@ -14109,9 +13616,9 @@ function keys as well.
 
 void _pa_funkey_ovr(ami_funkey_t nfp, ami_funkey_t* ofp)
     { *ofp = funkey_vect; funkey_vect = nfp; }
-int ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
+long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
 
-static int funkey_ivf(FILE* f)
+static long funkey_ivf(FILE* f)
 
 {
 
@@ -14143,15 +13650,12 @@ static void title_ivf(FILE* f, char* ts)
         /* Ami-drawn child frame: store title and repaint frame */
         if (win->wintitle) free(win->wintitle);
         win->wintitle = strdup(ts);
-        childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+        dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
     } else {
 
         /* top-level: set WM title */
-        XWLOCK();
-        XStoreName(padisplay, win->xmwhan, ts);
-        XSetIconName(padisplay, win->xwhan, ts);
-        XWUNLOCK();
+        pd_wintitle(win->xmwhan, ts);
 
     }
 
@@ -14179,13 +13683,13 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 void _pa_getwinid_ovr(ami_getwinid_t nfp, ami_getwinid_t* ofp)
     { *ofp = getwinid_vect; getwinid_vect = nfp; }
-int ami_getwinid(void) { return ((*getwinid_vect)()); }
+long ami_getwinid(void) { return ((*getwinid_vect)()); }
 
-static int getwinid_ivf(void)
+static long getwinid_ivf(void)
 
 {
 
-    int wid; /* window id */
+    long wid; /* window id */
 
     wid = -1; /* start at -1 */
     /* find any open entry */
@@ -14224,8 +13728,8 @@ static int fndfil(FILE* fp)
 
 }
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
-                     int subclient)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
+                     long subclient)
 
 {
 
@@ -14274,10 +13778,10 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, int wid,
 
 void _pa_openwin_ovr(ami_openwin_t nfp, ami_openwin_t* ofp)
     { *ofp = openwin_vect; openwin_vect = nfp; }
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
 
-static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
@@ -14296,20 +13800,19 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 void _pa_sizbufg_ovr(ami_sizbufg_t nfp, ami_sizbufg_t* ofp)
     { *ofp = sizbufg_vect; sizbufg_vect = nfp; }
-void ami_sizbufg(FILE* f, int x, int y) { (*sizbufg_vect)(f, x, y); }
+void ami_sizbufg(FILE* f, long x, long y) { (*sizbufg_vect)(f, x, y); }
 
-static void sizbufg_ivf(FILE* f, int x, int y)
+static void sizbufg_ivf(FILE* f, long x, long y)
 
 {
 
     int            si;     /* index for current display screen */
     winptr         win;    /* pointer to windows context */
-    Pixmap         oldbuf; /* saved old buffer pixmap */
-    int            oldw, oldh; /* old buffer dimensions */
-    int            copyw, copyh; /* intersection to copy */
+    pd_canvas*         oldbuf; /* saved old buffer pixmap */
+    long           oldw, oldh; /* old buffer dimensions */
+    long           copyw, copyh; /* intersection to copy */
     scnptr         sc;     /* screen pointer */
     ami_evtrec     er;     /* event record for redraws */
-    int            depth;
 
     if (x < 1 || y < 1)  error(einvsiz); /* invalid buffer size */
     win = txt2win(f); /* get window context */
@@ -14358,17 +13861,12 @@ static void sizbufg_ivf(FILE* f, int x, int y)
     copyh = oldh < y ? oldh : y;
     if (copyw > 0 && copyh > 0) {
 
-        XWLOCK();
-        XCopyArea(padisplay, oldbuf, sc->xbuf, sc->xcxt,
-                  0, 0, copyw, copyh, 0, 0);
-        XWUNLOCK();
+        pd_blit(sc->xbuf, 0, 0, oldbuf, 0, 0, copyw, copyh);
 
     }
 
     /* release the old buffer pixmap */
-    XWLOCK();
-    XFreePixmap(padisplay, oldbuf);
-    XWUNLOCK();
+    pd_candel(oldbuf);
 
     /* restore buffer to screen (handles margins if buffer < window) */
     restore(win);
@@ -14411,9 +13909,9 @@ Sets or resets the size of the buffer surface, in character counts.
 
 void _pa_sizbuf_ovr(ami_sizbuf_t nfp, ami_sizbuf_t* ofp)
     { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
-void ami_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
+void ami_sizbuf(FILE* f, long x, long y) { (*sizbuf_vect)(f, x, y); }
 
-static void sizbuf_ivf(FILE* f, int x, int y)
+static void sizbuf_ivf(FILE* f, long x, long y)
 
 {
 
@@ -14436,17 +13934,17 @@ freed.
 
 void _pa_buffer_ovr(ami_buffer_t nfp, ami_buffer_t* ofp)
     { *ofp = buffer_vect; buffer_vect = nfp; }
-void ami_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
+void ami_buffer(FILE* f, long e) { (*buffer_vect)(f, e); }
 
-static void buffer_ivf(FILE* f, int e)
+static void buffer_ivf(FILE* f, long e)
 
 {
 
     winptr            win; /* pointer to windows context */
-    XWindowChanges    xwc; /* XWindow values */
-    XWindowAttributes xwa; /* XWindow attributes */
-    XEvent            xe;  /* XWindow event */
+    struct { int width, height; } xwc; /* requested size values */
+    pd_evt            xe;  /* platform event */
     int               si;  /* index for screens */
+    unsigned long     snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
     if (e) { /* perform buffer on actions */
@@ -14463,20 +13961,51 @@ static void buffer_ivf(FILE* f, int e)
         win->screens[win->curdsp-1]->maxy = win->gmaxy;
         xwc.width = win->gmaxxg; /* set XWindow width and height */
         xwc.height = win->gmaxyg;
-        XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-        XWUNLOCK();
-        /* change saved size to match */
-        win->xmwr.w = xwc.width;
-        win->xmwr.h = xwc.height;
+        /* the master carries the Ami-drawn frame around the client, and
+           the menu bar when one is active */
+        if (win->childfrm) {
+
+            xwc.width += win->pfw;
+            xwc.height += win->pfh;
+
+        }
+        if (win->menu) xwc.height += win->menuspcy;
+        /* Only if it is a change. A configure that asks for the size the
+           window already has is not an error and not refused -- it
+           simply produces no pd_etresize, and the wait below is then
+           for an event that will never be sent, which hangs the program
+           for good. A window that has been opened and not resized is
+           already the size buffering wants to restore, so this is the
+           ordinary case rather than a corner of one. */
+        if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
+
+            snc = 0;
+            pd_winsize(win->xmwhan, xwc.width, xwc.height);
+            if (win->childfrm) {
+
+                /* the subclient rides inside the frame, below any menu */
+                pd_winmove(win->xwhan, subclix(win), subcliy(win));
+                pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
+
+            }
+            /* change saved size to match */
+            win->xmwr.w = xwc.width;
+            win->xmwr.h = xwc.height;
 #ifdef WAITWMR
-        /* wait for the next configure for this window (any size -- the WM may
-           clamp the request; see note above). Adopt the granted size. */
-        do { peekxevt(&xe); /* peek next event */
-        } while (xe.type != ConfigureNotify || xe.xany.window != win->xmwhan);
-        win->xmwr.w = xe.xconfigure.width;   /* adopt WM-granted size */
-        win->xmwr.h = xe.xconfigure.height;
+            /* wait for the next configure for this window (any size -- the WM
+               may clamp the request; see note above). Adopt the granted
+               size. A child window configures synchronously and grants
+               what was asked; only a top-level has a manager to answer. */
+            if (!win->parwin &&
+                waitxevt(pd_etresize, win->xmwhan, snc, &xe)) {
+
+                win->xmwr.w = xe.w;   /* adopt WM-granted size */
+                win->xmwr.h = xe.h;
+
+            }
 #endif
+
+        }
         restore(win); /* restore buffer to screen */
 
     } else if (win->bufmod) { /* perform buffer off actions */
@@ -14497,31 +14026,33 @@ static void buffer_ivf(FILE* f, int e)
         }
         win->curupd = win->curdsp; /* unify the screens */
         /* get actual size of onscreen window, and set that as client space */
-        XWLOCK();
-        XGetWindowAttributes(padisplay, win->xwhan, &xwa);
-        win->gmaxxg = xwa.width; /* return size */
-        win->gmaxyg = xwa.height;
+        {
+
+            int wx, wy, ww, wh, wm;
+
+            pd_wingeom(win->xwhan, &wx, &wy, &ww, &wh, &wm);
+            win->gmaxxg = ww; /* return size */
+            win->gmaxyg = wh;
+
+        }
         win->gmaxx = win->gmaxxg/win->charspace; /* find character size x */
         win->gmaxy = win->gmaxyg/win->linespace; /* find character size y */
         /* tell the window to resize */
-        xe.type = ConfigureNotify;
-        xe.xany.serial = 0;
-        xe.xconfigure.width = win->gmaxxg;
-        xe.xconfigure.height = win->gmaxyg;
-        xe.xconfigure.window = win->xwhan;
-        XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
+        xe.etype = pd_etresize;
+        xe.token = 0;
+        xe.w = win->gmaxxg;
+        xe.h = win->gmaxyg;
+        xe.win = win->xwhan;
+        pd_evtpost(grx_padisplay, &xe);
         /* tell the window to repaint */
-        xe.type = Expose;
-        xe.xany.serial = 0;
-        xe.xexpose.x = 0;
-        xe.xexpose.y = 0;
-        xe.xexpose.width = win->gmaxxg;
-        xe.xexpose.height = win->gmaxyg;
-        xe.xexpose.window = win->xwhan;
-        /* I don't know why, but the XSendEvent() call does nothing here */
-        enquexevt(&xe);
-        //XSendEvent(padisplay, win->xmwhan, FALSE, 0, &xe);
-        XWUNLOCK();
+        xe.etype = pd_etredraw;
+        xe.token = 0;
+        xe.rx = 0;
+        xe.ry = 0;
+        xe.rw = win->gmaxxg;
+        xe.rh = win->gmaxyg;
+        xe.win = win->xwhan;
+        enquexevt(&xe); /* the internal queue orders it behind the resize */
 
     }
 
@@ -14660,9 +14191,10 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 
 {
 
-    XEvent e;   /* XWindow event */
-    int wx, wy; /* window sizes */
+    pd_evt e;   /* XWindow event */
+    long wx, wy; /* window sizes */
     int yes;    /* y extra size */
+    unsigned long snc; /* serial of the provoking request */
 
     yes = 0; /* set no menu extra size */
     if (menuon) yes = win->menuspcy; /* set menu extra y size */
@@ -14671,17 +14203,17 @@ static void menu_resize(FILE* f, winptr win, int menuon)
                   BIT(ami_wmframe)*win->frame|BIT(ami_wmsize)*win->size|
                   BIT(ami_wmsysbar)*win->sysbar);
     ami_setsizg(f, wx, wy);
-    /* move subclient window down past menu bar */
-    XWLOCK();
-    XMoveWindow(padisplay, win->xwhan, 0, yes);
-    XWUNLOCK();
+    /* seat the subclient below the frame and menu bar; the size resets
+       too, as setsizg computed it before the menu state settled */
+    snc = 0;
+    pd_winmove(win->xwhan, subclix(win),
+               (win->childfrm? win->cwoy: 0)+yes);
+    pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
 
-#ifdef WAITWMR
-    /* wait for the next configure for this window (any geometry; see note in
-       the resize path -- the WM may not honor an exact request) */
-    do { peekxevt(&e); /* peek next event */
-    } while (e.type != ConfigureNotify || e.xany.window != win->xwhan);
-#endif
+    /* the subclient is a child of the master: its move applies
+       synchronously, and a no-change move sends no notify, so there is
+       nothing to wait on */
+    (void)snc; (void)e;
     restore(win);
 
 }
@@ -14695,9 +14227,6 @@ static void menu_ivf(FILE* f, ami_menuptr m)
 {
 
     winptr win;  /* pointer to windows context */
-    metptr mp;   /* pointer to menu tracking entry */
-    XEvent e;    /* XWindow event */
-    int wx, wy;  /* window sizes */
     int menuact; /* is a menu active */
 
     win = txt2win(f); /* get window context */
@@ -14749,30 +14278,28 @@ and will no longer send messages.
 
 void _pa_menuena_ovr(ami_menuena_t nfp, ami_menuena_t* ofp)
     { *ofp = menuena_vect; menuena_vect = nfp; }
-void ami_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
+void ami_menuena(FILE* f, long id, long onoff) { (*menuena_vect)(f, id, onoff); }
 
-static void menuena_ivf(FILE* f, int id, int onoff)
+static void menuena_ivf(FILE* f, long id, long onoff)
 
 {
 
     winptr win; /* pointer to windows context */
-    XEvent xe;  /* XWindow event */
+    pd_evt xe;  /* XWindow event */
     metptr mp;  /* menu entry pointer */
 
     win = txt2win(f); /* get window context */
     mp = fndmenu(win, id); /* find the menu entry */
     mp->ena = !!onoff; /* set state of enable */
     /* tell the window to repaint */
-    xe.type = Expose;
-    xe.xany.serial = 0;
-    xe.xexpose.x = 0;
-    xe.xexpose.y = 0;
-    xe.xexpose.width = win->gmaxxg;
-    xe.xexpose.height = win->gmaxyg;
-    xe.xexpose.window = win->xwhan;
-    XWLOCK();
-    XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
-    XWUNLOCK();
+    xe.etype = pd_etredraw;
+    xe.token = 0;
+    xe.rx = 0;
+    xe.ry = 0;
+    xe.rw = win->gmaxxg;
+    xe.rh = win->gmaxyg;
+    xe.win = win->xwhan;
+    pd_evtpost(grx_padisplay, &xe);
 
 }
 
@@ -14791,22 +14318,20 @@ static void menu_repaint(metptr mp)
 {
 
     winptr win; /* pointer to windows context */
-    XEvent xe;  /* XWindow event */
+    pd_evt xe;  /* XWindow event */
 
     if (mp->wf) { /* check menu file is active */
 
         win = txt2win(mp->wf); /* get window context */
         /* tell the window to repaint */
-        xe.type = Expose;
-        xe.xany.serial = 0;
-        xe.xexpose.x = 0;
-        xe.xexpose.y = 0;
-        xe.xexpose.width = win->gmaxxg;
-        xe.xexpose.height = win->gmaxyg;
-        xe.xexpose.window = win->xwhan;
-        XWLOCK();
-        XSendEvent(padisplay, win->xwhan, FALSE, 0, &xe);
-        XWUNLOCK();
+        xe.etype = pd_etredraw;
+        xe.token = 0;
+        xe.rx = 0;
+        xe.ry = 0;
+        xe.rw = win->gmaxxg;
+        xe.rh = win->gmaxyg;
+        xe.win = win->xwhan;
+        pd_evtpost(grx_padisplay, &xe);
 
     }
 
@@ -14829,9 +14354,9 @@ static void clrlst(metptr mp)
 
 void _pa_menusel_ovr(ami_menusel_t nfp, ami_menusel_t* ofp)
     { *ofp = menusel_vect; menusel_vect = nfp; }
-void ami_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
+void ami_menusel(FILE* f, long id, long select) { (*menusel_vect)(f, id, select); }
 
-static void menusel_ivf(FILE* f, int id, int select)
+static void menusel_ivf(FILE* f, long id, long select)
 
 {
 
@@ -15009,9 +14534,7 @@ static void front_ivf(FILE* f)
     winptr win; /* pointer to windows context */
 
     win = txt2win(f); /* get window context */
-    XWLOCK();
-    XRaiseWindow(padisplay, win->xmwhan);
-    XWUNLOCK();
+    pd_winraise(win->xmwhan);
 
 }
 
@@ -15034,9 +14557,7 @@ static void back_ivf(FILE* f)
     winptr win; /* pointer to windows context */
 
     win = txt2win(f); /* get window context */
-    XWLOCK();
-    XLowerWindow(padisplay, win->xmwhan);
-    XWUNLOCK();
+    pd_winlower(win->xmwhan);
 
 }
 
@@ -15050,34 +14571,23 @@ Gets the onscreen window size.
 
 void _pa_getsizg_ovr(ami_getsizg_t nfp, ami_getsizg_t* ofp)
     { *ofp = getsizg_vect; getsizg_vect = nfp; }
-void ami_getsizg(FILE* f, int* x, int* y) { (*getsizg_vect)(f, x, y); }
+void ami_getsizg(FILE* f, long* x, long* y) { (*getsizg_vect)(f, x, y); }
 
-static void getsizg_ivf(FILE* f, int* x, int* y)
+static void getsizg_ivf(FILE* f, long* x, long* y)
 
 {
 
-    XWindowAttributes xwa; /* XWindow attributes */
-    winptr            win; /* pointer to windows context */
-    Window            cw, pw, rw;
-    Window*           cwl;
-    unsigned          ncw;
+    winptr win; /* pointer to windows context */
+    int    wx, wy, ww, wh, wm;
 
     win = txt2win(f); /* get window context */
-#ifdef WAITWMR
-    /* if wait for window manager is set, ask the WM what the size is */
-    XWLOCK();
-    /* find parent */
-    XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
-    /* get parent parameters */
-    XGetWindowAttributes(padisplay, pw, &xwa);
-    XWUNLOCK();
-    *x = xwa.width+win->pfw;
-    *y = xwa.height+win->pfh;
-#else
-    /* if wait for window manager is not set, just use stored */
-    *x = win->xmwr.w+win->pfw;
-    *y = win->xmwr.h+win->pfh;
-#endif
+    /* the layer tracks the master window's granted geometry */
+    pd_wingeom(win->xmwhan, &wx, &wy, &ww, &wh, &wm);
+    /* an Ami child frame is drawn inside the master, so the master geometry
+       already covers it; an external frame adds its extents on top */
+    *x = ww;
+    *y = wh;
+    if (!win->childfrm) { *x += win->pfw; *y += win->pfh; }
 
 }
 
@@ -15096,15 +14606,15 @@ relative measurement.
 
 void _pa_getsiz_ovr(ami_getsiz_t nfp, ami_getsiz_t* ofp)
     { *ofp = getsiz_vect; getsiz_vect = nfp; }
-void ami_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
+void ami_getsiz(FILE* f, long* x, long* y) { (*getsiz_vect)(f, x, y); }
 
-static void getsiz_ivf(FILE* f, int* x, int* y)
+static void getsiz_ivf(FILE* f, long* x, long* y)
 
 {
 
     winptr win; /* pointer to windows context */
     winptr par; /* pointer to parent windows context */
-    int    gx, gy;
+    long   gx, gy;
 
     win = txt2win(f); /* get window context */
     ami_getsizg(f, &gx, &gy); /* get graphics size */
@@ -15138,36 +14648,39 @@ and height of 1 as the minimum size window.
 
 void _pa_setsizg_ovr(ami_setsizg_t nfp, ami_setsizg_t* ofp)
     { *ofp = setsizg_vect; setsizg_vect = nfp; }
-void ami_setsizg(FILE* f, int x, int y) { (*setsizg_vect)(f, x, y); }
+void ami_setsizg(FILE* f, long x, long y) { (*setsizg_vect)(f, x, y); }
 
-static void setsizg_ivf(FILE* f, int x, int y)
+static void setsizg_ivf(FILE* f, long x, long y)
 
 {
 
     winptr win; /* pointer to windows context */
-    XWindowChanges xwc; /* XWindow values */
-    XEvent e; /* Xwindow event */
+    struct { int width, height; } xwc; /* requested size values */
+    pd_evt e; /* platform event */
+    unsigned long snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
     /* if child, apply parent's viewport scale to the requested size */
     if (win->parwin) { x = L2PW(win->parwin, x); y = L2PH(win->parwin, y); }
     /* change to client terms with zero clip */
     xwc.width = x-win->pfw; if (xwc.width < 1) xwc.width = 1;
-    xwc.height = y-win->pfh; if (xwc.height < 1) xwc.height = 1;
+    xwc.height = y-win->pfh;
+    if (win->menu) xwc.height -= win->menuspcy;
+    if (xwc.height < 1) xwc.height = 1;
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
     if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
 
         /* reconfigure window */
-        XWLOCK();
+        snc = 0;
         if (win->childfrm) {
 
             /* For child-framed windows: x/y are total master dimensions.
-               Master = x,y. Subclient = (x-pfw, y-pfh) at offset (cwox,cwoy). */
-            XResizeWindow(padisplay, win->xmwhan, x, y);
-            XMoveResizeWindow(padisplay, win->xwhan,
-                              win->cwox, win->cwoy,
-                              xwc.width, xwc.height);
+               Master = x,y. Subclient = the client remainder, seated below
+               the frame and any menu bar. */
+            pd_winsize(win->xmwhan, x, y);
+            pd_winmove(win->xwhan, subclix(win), subcliy(win));
+            pd_winsize(win->xwhan, xwc.width, xwc.height);
             win->xmwr.w = x;
             win->xmwr.h = y;
             win->xwr.x = win->cwox;
@@ -15177,26 +14690,34 @@ static void setsizg_ivf(FILE* f, int x, int y)
 
         } else {
 
-            XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
+            pd_winsize(win->xmwhan, xwc.width, xwc.height);
             /* set new size */
             win->xmwr.w = xwc.width;
             win->xmwr.h = xwc.height;
 
         }
-        XWUNLOCK();
 
-        if (win->childfrm) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+        if (win->childfrm) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
 
 #ifdef WAITWMR
         /* wait for the next configure for this window (top-level only;
            child-framed windows resize synchronously above and don't get
-           ConfigureNotify from a window manager). Do not require an exact size
+           pd_etresize from a window manager). Do not require an exact size
            match: Wayland/XWayland and tiling WMs may clamp or override the
            requested size, and demanding the exact value would loop forever.
            The actual granted size is adopted from the event below. */
         if (!win->childfrm) {
-            do { peekxevt(&e); /* peek next event */
-            } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+            /* Only a top-level window has a manager to answer; a child's
+               configure applies synchronously and grants what was asked,
+               and a request that changes nothing sends no notify at all,
+               so waiting on a child is waiting on silence. */
+            if (win->parwin || !waitxevt(pd_etresize, win->xmwhan, snc, &e)) {
+
+                /* no answer: stand on the computed client size */
+                e.w = xwc.width;
+                e.h = xwc.height;
+
+            }
         }
 #endif
 
@@ -15205,7 +14726,7 @@ static void setsizg_ivf(FILE* f, int x, int y)
         if (!win->bufmod) {
 
             /* reset tracking sizes. Child-framed windows resize synchronously
-               above and get no ConfigureNotify, so the event record e is never
+               above and get no pd_etresize, so the event record e is never
                filled for them; use the computed client dimensions directly
                instead of reading the uninitialized event. */
             if (win->childfrm) {
@@ -15215,8 +14736,8 @@ static void setsizg_ivf(FILE* f, int x, int y)
 
             } else {
 
-                win->gmaxxg = e.xconfigure.width; /* graphics x */
-                win->gmaxyg = e.xconfigure.height; /* graphics y */
+                win->gmaxxg = e.w; /* graphics x */
+                win->gmaxyg = e.h; /* graphics y */
 
             }
             /* find character size x */
@@ -15245,9 +14766,9 @@ relative measurement.
 
 void _pa_setsiz_ovr(ami_setsiz_t nfp, ami_setsiz_t* ofp)
     { *ofp = setsiz_vect; setsiz_vect = nfp; }
-void ami_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
+void ami_setsiz(FILE* f, long x, long y) { (*setsiz_vect)(f, x, y); }
 
-static void setsiz_ivf(FILE* f, int x, int y)
+static void setsiz_ivf(FILE* f, long x, long y)
 
 {
 
@@ -15283,34 +14804,46 @@ Sets the onscreen window to the given position in its parent.
 
 void _pa_setposg_ovr(ami_setposg_t nfp, ami_setposg_t* ofp)
     { *ofp = setposg_vect; setposg_vect = nfp; }
-void ami_setposg(FILE* f, int x, int y) { (*setposg_vect)(f, x, y); }
+void ami_setposg(FILE* f, long x, long y) { (*setposg_vect)(f, x, y); }
 
-static void setposg_ivf(FILE* f, int x, int y)
+static void setposg_ivf(FILE* f, long x, long y)
 
 {
 
     winptr win;         /* pointer to windows context */
-    XWindowChanges xwc; /* XWindow values */
-    XEvent         e;   /* XWindow event */
+    pd_evt         e;   /* XWindow event */
+    unsigned long  snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
 
     /* don't repeat positions, it will cause a no-op in windows manager */
     if (x-1 != win->xmwr.x || y-1 != win->xmwr.y) {
 
-        /* reconfigure window; if child, apply parent's viewport scale */
-        XWLOCK();
-        if (win->parwin)
-            XMoveWindow(padisplay, win->xmwhan,
-                        L2PX(win->parwin, x-1), L2PY(win->parwin, y-1));
-        else
-            XMoveWindow(padisplay, win->xmwhan, x-1, y-1);
-        XWUNLOCK();
+        /* reconfigure window; if child, apply parent's viewport scale. A
+           master child (menu component) positions within the parent
+           master, whose Ami frame offsets the coordinate origin */
+        snc = 0;
+        if (win->parwin) {
+
+            int ox = 0, oy = 0;
+
+            if (win->mstchild && win->parwin->childfrm) {
+
+                ox = win->parwin->cwox;
+                oy = win->parwin->cwoy;
+
+            }
+            pd_winmove(win->xmwhan,
+                        L2PX(win->parwin, x-1)+ox, L2PY(win->parwin, y-1)+oy);
+
+        } else
+            pd_winmove(win->xmwhan, x-1, y-1);
 
 #ifdef WAITWMR
-        /* wait for the configure response */
-        do { peekxevt(&e); /* peek next event */
-        } while (e.type != ConfigureNotify || e.xany.window != win->xmwhan);
+        /* wait for the configure response; a child moves synchronously
+           and a no-change move sends no notify, so only a top-level
+           window, with a manager to answer, is worth waiting on */
+        if (!win->parwin) waitxevt(pd_etresize, win->xmwhan, snc, &e);
 #endif
 
         /* set origin for next time */
@@ -15356,83 +14889,77 @@ void ami_dragwin(FILE* f)
 {
 
     winptr win;             /* pointer to windows context */
-    Window root_ret;        /* root the pointer is on */
-    Window child_ret;       /* child the pointer is in */
     int    rx, ry;          /* pointer root position */
     int    wx, wy;          /* pointer window position (unused) */
-    unsigned int mask;      /* button/modifier mask (unused) */
     int    startx, starty;  /* pointer root position at drag start */
     int    origx, origy;    /* window position at drag start */
-    XEvent de;              /* drag event */
+    pd_evt de;              /* drag event */
     int    dragging;        /* drag in progress */
 
     win = txt2win(f); /* get window context */
 
-    XWLOCK();
+    /* a toplevel is placed by the compositor: hand it the drag, riding
+       the press that brought us here */
+    if (!win->parwin) {
+
+        pd_windrag(win->xmwhan);
+        return;
+
+    }
+
     /* snapshot the pointer's root position and the window's parent-relative
        position at the instant the drag begins; their difference is the
        (constant) grab offset, which never needs to be re-measured */
-    XQueryPointer(padisplay, win->xmwhan, &root_ret, &child_ret,
-                  &rx, &ry, &wx, &wy, &mask);
+    pd_pointer(win->xmwhan, &wx, &wy);
+    rx = wx+win->xmwr.x; ry = wy+win->xmwr.y;
     startx = rx; starty = ry;
     origx = win->xmwr.x; origy = win->xmwr.y;
     /* redirect all pointer motion to us for the duration, so tracking
        continues even when the pointer leaves the window's bounds */
-    XGrabPointer(padisplay, win->xmwhan, False,
-                 ButtonReleaseMask | PointerMotionMask,
-                 GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
-    XWUNLOCK();
+    pd_grab(win->xmwhan, 1);
 
     dragging = TRUE;
     while (dragging) {
 
-        XWLOCK();
-        XNextEvent(padisplay, &de);
-        XWUNLOCK();
-        if (de.type == MotionNotify) {
+        nextxevt(grx_padisplay, &de);
+        if (de.etype == pd_etmouse) {
 
             /* coalesce only the consecutive run of already-queued motion,
-               stopping at any other event (notably Expose) so a fast drag makes
+               stopping at any other event (notably pd_etredraw) so a fast drag makes
                one move per batch without starving the damage repaint
                (see childfrm drag) */
-            XWLOCK();
-            while (XPending(padisplay)) {
-                XEvent pk;
-                XPeekEvent(padisplay, &pk);
-                if (pk.type != MotionNotify) break;
-                XNextEvent(padisplay, &de);
+            while (evtpending(grx_padisplay)) {
+                pd_evt pk;
+                pd_evtpeek(grx_padisplay, &pk);
+                if (pk.etype != pd_etmouse) break;
+                nextxevt(grx_padisplay, &de);
             }
-            XWUNLOCK();
             /* move the window by the pointer's root-space delta */
-            int dx = de.xmotion.x_root - startx;
-            int dy = de.xmotion.y_root - starty;
+            int dx = de.x - startx;
+            int dy = de.y - starty;
             win->xmwr.x = origx + dx;
             win->xmwr.y = origy + dy;
-            XWLOCK();
-            XMoveWindow(padisplay, win->xmwhan, win->xmwr.x, win->xmwr.y);
-            XWUNLOCK();
+            pd_winmove(win->xmwhan, win->xmwr.x, win->xmwr.y);
 
-        } else if (de.type == ButtonRelease) {
+        } else if (de.etype == pd_etbtnup) {
 
             dragging = FALSE;
 
-        } else if (de.type == Expose) {
+        } else if (de.etype == pd_etredraw) {
 
             /* repaint exactly what the move exposed, dispatched to its window
                (parent trail, uncovered sibling, or this window re-entering) */
-            int ofn = fndevt(de.xany.window);
+            int ofn = fndevt(de.win);
             if (ofn >= 0)
-                drag_expose(lfn2win(ofn), de.xany.window,
-                            de.xexpose.x, de.xexpose.y,
-                            de.xexpose.width, de.xexpose.height);
+                drag_expose(lfn2win(ofn), de.win,
+                            de.rx, de.ry,
+                            de.rw, de.rh);
 
         }
 
     }
-    XWLOCK();
-    XUngrabPointer(padisplay, CurrentTime);
-    XWUNLOCK();
-    /* final repaint after release: an unbuffered parent had its Expose events
+    pd_grab(NULL, 0);
+    /* final repaint after release: an unbuffered parent had its pd_etredraw events
        consumed during the drag, so force it to repaint via its redraw handler */
     if (win->parwin) {
         winptr sib;
@@ -15440,7 +14967,7 @@ void ami_dragwin(FILE* f)
         for (sib = win->parwin->childwin; sib; sib = sib->childlst) {
             if (sib == win) continue;
             drag_repaint_full(sib);
-            if (sib->childfrm) childfrm_draw(sib, sib->xmwr.w, sib->xmwr.h);
+            if (sib->childfrm) dec->frmdraw(sib, sib->xmwr.w, sib->xmwr.h);
         }
     }
 
@@ -15461,9 +14988,9 @@ relative measurement.
 
 void _pa_setpos_ovr(ami_setpos_t nfp, ami_setpos_t* ofp)
     { *ofp = setpos_vect; setpos_vect = nfp; }
-void ami_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
+void ami_setpos(FILE* f, long x, long y) { (*setpos_vect)(f, x, y); }
 
-static void setpos_ivf(FILE* f, int x, int y)
+static void setpos_ivf(FILE* f, long x, long y)
 
 {
 
@@ -15498,27 +15025,20 @@ Gets the total screen size.
 
 void _pa_scnsizg_ovr(ami_scnsizg_t nfp, ami_scnsizg_t* ofp)
     { *ofp = scnsizg_vect; scnsizg_vect = nfp; }
-void ami_scnsizg(FILE* f, int* x, int* y) { (*scnsizg_vect)(f, x, y); }
+void ami_scnsizg(FILE* f, long* x, long* y) { (*scnsizg_vect)(f, x, y); }
 
-static void scnsizg_ivf(FILE* f, int* x, int* y)
+static void scnsizg_ivf(FILE* f, long* x, long* y)
 
 {
 
-    XWindowAttributes xwa; /* XWindow attributes */
-    winptr            win; /* pointer to windows context */
-    Window            cw, pw, rw;
-    Window*           cwl;
-    unsigned          ncw;
+    winptr win; /* pointer to windows context */
+    int    ww, wh, wmm, hmm;
 
     win = txt2win(f); /* get window context */
-    XWLOCK();
-    /* find parent */
-    XQueryTree(padisplay, win->xwhan, &rw, &pw, &cwl, &ncw);
-    /* get root parameters */
-    XGetWindowAttributes(padisplay, rw, &xwa);
-    XWUNLOCK();
-    *x = xwa.width;
-    *y = xwa.height;
+    (void)win;
+    pd_screen(grx_padisplay, &ww, &wh, &wmm, &hmm);
+    *x = ww;
+    *y = wh;
 
 }
 
@@ -15535,9 +15055,9 @@ because it can only be used as a relative measurement.
 
 void _pa_scnsiz_ovr(ami_scnsiz_t nfp, ami_scnsiz_t* ofp)
     { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
-void ami_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
+void ami_scnsiz(FILE* f, long* x, long* y) { (*scnsiz_vect)(f, x, y); }
 
-static void scnsiz_ivf(FILE* f, int* x, int* y)
+static void scnsiz_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15563,9 +15083,9 @@ screens that are joined at one or more sides.
 
 void _pa_scnceng_ovr(ami_scnceng_t nfp, ami_scnceng_t* ofp)
     { *ofp = scnceng_vect; scnceng_vect = nfp; }
-void ami_scnceng(FILE* f, int* x, int* y) { (*scnceng_vect)(f, x, y); }
+void ami_scnceng(FILE* f, long* x, long* y) { (*scnceng_vect)(f, x, y); }
 
-static void scnceng_ivf(FILE* f, int* x, int* y)
+static void scnceng_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15591,9 +15111,9 @@ screens that are joined at one or more sides.
 
 void _pa_scncen_ovr(ami_scncen_t nfp, ami_scncen_t* ofp)
     { *ofp = scncen_vect; scncen_vect = nfp; }
-void ami_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
+void ami_scncen(FILE* f, long* x, long* y) { (*scncen_vect)(f, x, y); }
 
-static void scncen_ivf(FILE* f, int* x, int* y)
+static void scncen_ivf(FILE* f, long* x, long* y)
 
 {
 
@@ -15620,16 +15140,28 @@ Do we also need a menu style type ?
 
 void _pa_winclientg_ovr(ami_winclientg_t nfp, ami_winclientg_t* ofp)
     { *ofp = winclientg_vect; winclientg_vect = nfp; }
-void ami_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
     { (*winclientg_vect)(f, cx, cy, wx, wy, ms); }
 
-static void winclientg_ivf(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
     winptr win; /* windows record pointer */
 
     win = txt2win(f); /* get window from file */
+    if (win->childfrm) {
+
+        /* the Ami-drawn frame: full chrome, border only without the
+           system bar, nothing with the frame off */
+        int pfw, pfh, cwox, cwoy;
+
+        dec->frmgeom(win, ms, &pfw, &pfh, &cwox, &cwoy);
+        *wx = cx+pfw;
+        *wy = cy+pfh;
+        return;
+
+    }
     *wx = cx+frmextwdt[frmcfgall]; /* find framed size */
     *wy = cy+frmexthgt[frmcfgall];
     /* we only allow one frame mode at a time, so we process here in priority
@@ -15655,10 +15187,10 @@ static void winclientg_ivf(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmod
 
 void _pa_winclient_ovr(ami_winclient_t nfp, ami_winclient_t* ofp)
     { *ofp = winclient_vect; winclient_vect = nfp; }
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
 
-static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
 
 {
 
@@ -15695,16 +15227,14 @@ Turns the window frame on and off.
 
 void _pa_frame_ovr(ami_frame_t nfp, ami_frame_t* ofp)
     { *ofp = frame_vect; frame_vect = nfp; }
-void ami_frame(FILE* f, int e) { (*frame_vect)(f, e); }
+void ami_frame(FILE* f, long e) { (*frame_vect)(f, e); }
 
-static void frame_ivf(FILE* f, int e)
+static void frame_ivf(FILE* f, long e)
 
 {
 
     winptr win; /* pointer to windows context */
-    Atom mwmHintsProperty;
-    mwmhints hints;
-    XWindowChanges xwc; /* XWindow values */
+    struct { int width, height; } xwc; /* requested size values */
     int chg;            /* geometry change */
 
     win = txt2win(f); /* get window context */
@@ -15716,40 +15246,36 @@ static void frame_ivf(FILE* f, int e)
 
     if (win->childfrm) {
 
-        /* Ami-drawn child frame: adjust offsets and geometry */
-        if (e) {
+        /* Ami-drawn child frame: adjust offsets and geometry. The change
+           test is on the geometry itself: the mode flags are cleared
+           wholesale by every frame control, so they cannot carry which
+           chrome is actually on screen */
+        int opfh = win->pfh, opfw = win->pfw;
 
-            win->pfw = CFRM_BORDER_W * 2;
-            win->pfh = CFRM_TITBAR_H(win) + CFRM_BORDER_W;
-            win->cwox = CFRM_BORDER_W;
-            win->cwoy = CFRM_TITBAR_H(win);
-
-        } else {
-
-            win->pfw = 0;
-            win->pfh = 0;
-            win->cwox = 0;
-            win->cwoy = 0;
-
-        }
+        dec->frmgeom(win, e? BIT(ami_wmframe)|BIT(ami_wmsize)|
+                            BIT(ami_wmsysbar): 0,
+                     &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        chg = opfw != win->pfw || opfh != win->pfh;
 
         if (chg) {
 
-            /* resize master window */
+            /* resize master window, holding frame, menu bar, and client */
             win->xmwr.w = win->gmaxxg + win->pfw;
-            win->xmwr.h = win->gmaxyg + win->pfh;
-            XWLOCK();
-            XResizeWindow(padisplay, win->xmwhan,
+            win->xmwr.h = win->gmaxyg + win->pfh +
+                          (win->menu? win->menuspcy: 0);
+            pd_winsize(win->xmwhan,
                           win->xmwr.w, win->xmwr.h);
             /* reposition and resize subclient within master */
-            XMoveResizeWindow(padisplay, win->xwhan,
-                              win->cwox, win->cwoy,
-                              win->gmaxxg, win->gmaxyg);
-            XWUNLOCK();
+            pd_winmove(win->xwhan, subclix(win), subcliy(win));
+            pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
 
             restore(win);
-            /* redraw the frame when it is turned back on */
-            if (e) childfrm_draw(win, win->xmwr.w, win->xmwr.h);
+            /* redraw the frame when it is turned back on; off clears the
+               declared drag and resize regions with it, or a frameless
+               window would still drag by its phantom title */
+            if (e) dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
+            else if (!win->parwin)
+                pd_winframe(win->xmwhan, 0, 0, 0, 0, 0);
 
         }
 
@@ -15778,9 +15304,7 @@ static void frame_ivf(FILE* f, int e)
 
             xwc.width = win->gmaxxg;
             xwc.height = win->gmaxyg;
-            XWLOCK();
-            XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-            XWUNLOCK();
+            pd_winsize(win->xmwhan, xwc.width, xwc.height);
 
             win->xmwr.w = win->gmaxxg;
             win->xmwr.h = win->gmaxyg;
@@ -15807,16 +15331,14 @@ managers.
 
 void _pa_sizable_ovr(ami_sizable_t nfp, ami_sizable_t* ofp)
     { *ofp = sizable_vect; sizable_vect = nfp; }
-void ami_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
+void ami_sizable(FILE* f, long e) { (*sizable_vect)(f, e); }
 
-static void sizable_ivf(FILE* f, int e)
+static void sizable_ivf(FILE* f, long e)
 
 {
 
     winptr win; /* pointer to windows context */
-    Atom mwmHintsProperty;
-    mwmhints hints;
-    XWindowChanges xwc; /* XWindow values */
+    struct { int width, height; } xwc; /* requested size values */
     int chg;            /* geometry change */
 
     win = txt2win(f); /* get window context */
@@ -15826,6 +15348,16 @@ static void sizable_ivf(FILE* f, int e)
     win->sysbar = FALSE;
     win->size = !!e; /* set new status of size bars */
     enbxsiz(win->xmwhan, e); /* enable/disable size bars */
+
+    if (win->childfrm) {
+
+        /* Ami-drawn child frame: the chrome keeps its title and border;
+           sizing is governed by the limits enbxsiz pins */
+        win->frame = TRUE;
+        win->sysbar = TRUE;
+        return;
+
+    }
 
     if (e) {
 
@@ -15851,9 +15383,7 @@ static void sizable_ivf(FILE* f, int e)
 
         xwc.width = win->gmaxxg; /* set XWindow width and height */
         xwc.height = win->gmaxyg;
-        XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-        XWUNLOCK();
+        pd_winsize(win->xmwhan, xwc.width, xwc.height);
 
         /* set new size */
         win->xmwr.w = win->gmaxxg;
@@ -15878,16 +15408,14 @@ used to create component windows.
 
 void _pa_sysbar_ovr(ami_sysbar_t nfp, ami_sysbar_t* ofp)
     { *ofp = sysbar_vect; sysbar_vect = nfp; }
-void ami_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
+void ami_sysbar(FILE* f, long e) { (*sysbar_vect)(f, e); }
 
-static void sysbar_ivf(FILE* f, int e)
+static void sysbar_ivf(FILE* f, long e)
 
 {
 
     winptr win; /* pointer to windows context */
-    Atom mwmHintsProperty;
-    mwmhints hints;
-    XWindowChanges xwc; /* XWindow values */
+    struct { int width, height; } xwc; /* requested size values */
     int chg;            /* geometry change */
 
     win = txt2win(f); /* get window context */
@@ -15897,6 +15425,40 @@ static void sysbar_ivf(FILE* f, int e)
     win->sysbar = FALSE;
     win->sysbar = !!e; /* set new status of system bar */
     enbxsys(win->xmwhan, e); /* enable/disable system bar */
+
+    if (win->childfrm) {
+
+        /* Ami-drawn child frame: the system bar is the title bar. Off keeps
+           the resize border and drops the title. The change test is on the
+           geometry itself: the mode flags are cleared wholesale by every
+           frame control, so they cannot carry which chrome is on screen */
+        int opfh = win->pfh, opfw = win->pfw;
+
+        win->frame = TRUE;
+        dec->frmgeom(win, BIT(ami_wmframe)|BIT(ami_wmsize)|
+                          BIT(ami_wmsysbar)*!!e,
+                     &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        chg = opfw != win->pfw || opfh != win->pfh;
+
+        if (chg) {
+
+            /* resize master window, holding frame, menu bar, and client */
+            win->xmwr.w = win->gmaxxg + win->pfw;
+            win->xmwr.h = win->gmaxyg + win->pfh +
+                          (win->menu? win->menuspcy: 0);
+            pd_winsize(win->xmwhan, win->xmwr.w, win->xmwr.h);
+            /* reposition and resize subclient within master */
+            pd_winmove(win->xwhan, subclix(win), subcliy(win));
+            pd_winsize(win->xwhan, win->gmaxxg, win->gmaxyg);
+
+            restore(win);
+            dec->frmdraw(win, win->xmwr.w, win->xmwr.h);
+
+        }
+
+        return;
+
+    }
 
     if (e) {
 
@@ -15922,9 +15484,7 @@ static void sysbar_ivf(FILE* f, int e)
 
         xwc.width = win->gmaxxg; /* set XWindow width and height */
         xwc.height = win->gmaxyg;
-        XWLOCK();
-        XConfigureWindow(padisplay, win->xmwhan, CWWidth|CWHeight, &xwc);
-        XWUNLOCK();
+        pd_winsize(win->xmwhan, xwc.width, xwc.height);
 
         /* set new size */
         win->xmwr.w = win->gmaxxg;
@@ -15955,9 +15515,6 @@ static void focus_ivf(FILE* f)
     winptr win; /* pointer to windows context */
 
     win = txt2win(f); /* get window context */
-    XWLOCK();
-    XSetInputFocus(padisplay, win->xmwhan, RevertToNone, CurrentTime);
-    XWUNLOCK();
 
 }
 
@@ -15966,7 +15523,7 @@ static void focus_ivf(FILE* f)
 Set character drawing angle
 
 Sets the angle or path at which characters are drawn. The angle is 0 up,
-clockwise to 360, in INT_MAX ratio. The normal setting is INT_MAX/4 or 90
+clockwise to 360, in LONG_MAX ratio. The normal setting is LONG_MAX/4 or 90
 degrees.
 
 This cannot be set with auto on (even to 90 degrees), nor can auto be enabled if
@@ -15983,9 +15540,9 @@ increments.
 
 void _pa_path_ovr(ami_path_t nfp, ami_path_t* ofp)
     { *ofp = path_vect; path_vect = nfp; }
-void ami_path(FILE* f, int a) { (*path_vect)(f, a); }
+void ami_path(FILE* f, long a) { (*path_vect)(f, a); }
 
-static void path_ivf(FILE* f, int a)
+static void path_ivf(FILE* f, long a)
 
 {
 
@@ -16011,640 +15568,640 @@ The widget package for XWindows will be supplied by an add-on package.
 
 void _pa_getwigid_ovr(ami_getwigid_t nfp, ami_getwigid_t* ofp)
     { *ofp = getwigid_vect; getwigid_vect = nfp; }
-int ami_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
+long ami_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
 
-static int getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
+static long getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
 
 void _pa_killwidget_ovr(ami_killwidget_t nfp, ami_killwidget_t* ofp)
     { *ofp = killwidget_vect; killwidget_vect = nfp; }
-void ami_killwidget(FILE* f, int id) { (*killwidget_vect)(f, id); }
+void ami_killwidget(FILE* f, long id) { (*killwidget_vect)(f, id); }
 
-static void killwidget_ivf(FILE* f, int id) { error(ekillwidget_unimp); }
+static void killwidget_ivf(FILE* f, long id) { error(ekillwidget_unimp); }
 
 void _pa_selectwidget_ovr(ami_selectwidget_t nfp, ami_selectwidget_t* ofp)
     { *ofp = selectwidget_vect; selectwidget_vect = nfp; }
-void ami_selectwidget(FILE* f, int id, int e)
+void ami_selectwidget(FILE* f, long id, long e)
     { (*selectwidget_vect)(f, id, e); }
 
-static void selectwidget_ivf(FILE* f, int id, int e)
+static void selectwidget_ivf(FILE* f, long id, long e)
     { error(eselectwidget_unimp); }
 
 void _pa_enablewidget_ovr(ami_enablewidget_t nfp, ami_enablewidget_t* ofp)
     { *ofp = enablewidget_vect; enablewidget_vect = nfp; }
-void ami_enablewidget(FILE* f, int id, int e)
+void ami_enablewidget(FILE* f, long id, long e)
     { (*enablewidget_vect)(f, id, e); }
 
-static void enablewidget_ivf(FILE* f, int id, int e)
+static void enablewidget_ivf(FILE* f, long id, long e)
     { error(eenablewidget_unimp); }
 
 void _pa_getwidgettext_ovr(ami_getwidgettext_t nfp, ami_getwidgettext_t* ofp)
     { *ofp = getwidgettext_vect; getwidgettext_vect = nfp; }
-void ami_getwidgettext(FILE* f, int id, char* s, int sl)
+void ami_getwidgettext(FILE* f, long id, char* s, long sl)
     { (*getwidgettext_vect)(f, id, s, sl); }
 
-static void getwidgettext_ivf(FILE* f, int id, char* s, int sl)
+static void getwidgettext_ivf(FILE* f, long id, char* s, long sl)
     { error(egetwidgettext_unimp); }
 
 void _pa_putwidgettext_ovr(ami_putwidgettext_t nfp, ami_putwidgettext_t* ofp)
     { *ofp = putwidgettext_vect; putwidgettext_vect = nfp; }
-void ami_putwidgettext(FILE* f, int id, char* s)
+void ami_putwidgettext(FILE* f, long id, char* s)
     { (*putwidgettext_vect)(f, id, s); }
 
-static void putwidgettext_ivf(FILE* f, int id, char* s)
+static void putwidgettext_ivf(FILE* f, long id, char* s)
     { error(eputwidgettext_unimp); }
 
 void _pa_sizwidget_ovr(ami_sizwidget_t nfp, ami_sizwidget_t* ofp)
     { *ofp = sizwidget_vect; sizwidget_vect = nfp; }
-void ami_sizwidget(FILE* f, int id, int x, int y)
+void ami_sizwidget(FILE* f, long id, long x, long y)
     { (*sizwidget_vect)(f, id, x, y); }
 
-static void sizwidget_ivf(FILE* f, int id, int x, int y)
+static void sizwidget_ivf(FILE* f, long id, long x, long y)
     { error(esizwidget_unimp); }
 
 void _pa_sizwidgetg_ovr(ami_sizwidgetg_t nfp, ami_sizwidgetg_t* ofp)
     { *ofp = sizwidgetg_vect; sizwidgetg_vect = nfp; }
-void ami_sizwidgetg(FILE* f, int id, int x, int y)
+void ami_sizwidgetg(FILE* f, long id, long x, long y)
     { (*sizwidgetg_vect)(f, id, x, y); }
 
-static void sizwidgetg_ivf(FILE* f, int id, int x, int y)
+static void sizwidgetg_ivf(FILE* f, long id, long x, long y)
     { error(esizwidgetg_unimp); }
 
 void _pa_poswidget_ovr(ami_poswidget_t nfp, ami_poswidget_t* ofp)
     { *ofp = poswidget_vect; poswidget_vect = nfp; }
-void ami_poswidget(FILE* f, int id, int x, int y)
+void ami_poswidget(FILE* f, long id, long x, long y)
     { (*poswidget_vect)(f, id, x, y); }
 
-static void poswidget_ivf(FILE* f, int id, int x, int y)
+static void poswidget_ivf(FILE* f, long id, long x, long y)
     { error(eposwidget_unimp); }
 
 void _pa_poswidgetg_ovr(ami_poswidgetg_t nfp, ami_poswidgetg_t* ofp)
     { *ofp = poswidgetg_vect; poswidgetg_vect = nfp; }
-void ami_poswidgetg(FILE* f, int id, int x, int y)
+void ami_poswidgetg(FILE* f, long id, long x, long y)
     { (*poswidgetg_vect)(f, id, x, y); }
 
-static void poswidgetg_ivf(FILE* f, int id, int x, int y)
+static void poswidgetg_ivf(FILE* f, long id, long x, long y)
     { error(eposwidgetg_unimp); }
 
 void _pa_backwidget_ovr(ami_backwidget_t nfp, ami_backwidget_t* ofp)
     { *ofp = backwidget_vect; backwidget_vect = nfp; }
-void ami_backwidget(FILE* f, int id) { (*backwidget_vect)(f, id); }
+void ami_backwidget(FILE* f, long id) { (*backwidget_vect)(f, id); }
 
-static void backwidget_ivf(FILE* f, int id) { error(ebackwidget_unimp); }
+static void backwidget_ivf(FILE* f, long id) { error(ebackwidget_unimp); }
 
 void _pa_frontwidget_ovr(ami_frontwidget_t nfp, ami_frontwidget_t* ofp)
     { *ofp = frontwidget_vect; frontwidget_vect = nfp; }
-void ami_frontwidget(FILE* f, int id) { (*frontwidget_vect)(f, id); }
+void ami_frontwidget(FILE* f, long id) { (*frontwidget_vect)(f, id); }
 
-static void frontwidget_ivf(FILE* f, int id) { error(efrontwidget_unimp); }
+static void frontwidget_ivf(FILE* f, long id) { error(efrontwidget_unimp); }
 
 void _pa_focuswidget_ovr(ami_focuswidget_t nfp, ami_focuswidget_t* ofp)
     { *ofp = focuswidget_vect; focuswidget_vect = nfp; }
-void ami_focuswidget(FILE* f, int id) { (*focuswidget_vect)(f, id); }
+void ami_focuswidget(FILE* f, long id) { (*focuswidget_vect)(f, id); }
 
-static void focuswidget_ivf(FILE* f, int id) { error(efocuswidget_unimp); }
+static void focuswidget_ivf(FILE* f, long id) { error(efocuswidget_unimp); }
 
 void _pa_buttonsiz_ovr(ami_buttonsiz_t nfp, ami_buttonsiz_t* ofp)
     { *ofp = buttonsiz_vect; buttonsiz_vect = nfp; }
-void ami_buttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
     { (*buttonsiz_vect)(f, s, w, h); }
 
-static void buttonsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void buttonsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(ebuttonsiz_unimp); }
 
 void _pa_buttonsizg_ovr(ami_buttonsizg_t nfp, ami_buttonsizg_t* ofp)
     { *ofp = buttonsizg_vect; buttonsizg_vect = nfp; }
-void ami_buttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
     { (*buttonsizg_vect)(f, s, w, h); }
 
-static void buttonsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void buttonsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(ebuttonsizg_unimp); }
 
 void _pa_button_ovr(ami_button_t nfp, ami_button_t* ofp)
     { *ofp = button_vect; button_vect = nfp; }
-void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*button_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void button_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void button_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(ebutton_unimp); }
 
 void _pa_buttong_ovr(ami_buttong_t nfp, ami_buttong_t* ofp)
     { *ofp = buttong_vect; buttong_vect = nfp; }
-void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*buttong_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void buttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void buttong_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(ebuttong_unimp); }
 
 void _pa_checkboxsiz_ovr(ami_checkboxsiz_t nfp, ami_checkboxsiz_t* ofp)
     { *ofp = checkboxsiz_vect; checkboxsiz_vect = nfp; }
-void ami_checkboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
     { (*checkboxsiz_vect)(f, s, w, h); }
 
-static void checkboxsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void checkboxsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(echeckboxsiz_unimp); }
 
 void _pa_checkboxsizg_ovr(ami_checkboxsizg_t nfp, ami_checkboxsizg_t* ofp)
     { *ofp = checkboxsizg_vect; checkboxsizg_vect = nfp; }
-void ami_checkboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
     { (*checkboxsizg_vect)(f, s, w, h); }
 
-static void checkboxsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void checkboxsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(echeckboxsizg_unimp); }
 
 void _pa_checkbox_ovr(ami_checkbox_t nfp, ami_checkbox_t* ofp)
     { *ofp = checkbox_vect; checkbox_vect = nfp; }
-void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*checkbox_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void checkbox_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void checkbox_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(echeckbox_unimp); }
 
 void _pa_checkboxg_ovr(ami_checkboxg_t nfp, ami_checkboxg_t* ofp)
     { *ofp = checkboxg_vect; checkboxg_vect = nfp; }
-void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*checkboxg_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void checkboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void checkboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(echeckboxg_unimp); }
 
 void _pa_radiobuttonsiz_ovr(ami_radiobuttonsiz_t nfp, ami_radiobuttonsiz_t* ofp)
     { *ofp = radiobuttonsiz_vect; radiobuttonsiz_vect = nfp; }
-void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
     { (*radiobuttonsiz_vect)(f, s, w, h); }
 
-static void radiobuttonsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void radiobuttonsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(eradiobuttonsiz_unimp); }
 
 void _pa_radiobuttonsizg_ovr(ami_radiobuttonsizg_t nfp, ami_radiobuttonsizg_t* ofp)
     { *ofp = radiobuttonsizg_vect; radiobuttonsizg_vect = nfp; }
-void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h)
+void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
     { (*radiobuttonsizg_vect)(f, s, w, h); }
 
-static void radiobuttonsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void radiobuttonsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(eradiobuttonsizg_unimp); }
 
 void _pa_radiobutton_ovr(ami_radiobutton_t nfp, ami_radiobutton_t* ofp)
     { *ofp = radiobutton_vect; radiobutton_vect = nfp; }
-void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*radiobutton_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void radiobutton_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void radiobutton_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(eradiobutton_unimp); }
 
 void _pa_radiobuttong_ovr(ami_radiobuttong_t nfp, ami_radiobuttong_t* ofp)
     { *ofp = radiobuttong_vect; radiobuttong_vect = nfp; }
-void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*radiobuttong_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void radiobuttong_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void radiobuttong_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(eradiobuttong_unimp); }
 
 void _pa_groupsizg_ovr(ami_groupsizg_t nfp, ami_groupsizg_t* ofp)
     { *ofp = groupsizg_vect; groupsizg_vect = nfp; }
-void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*groupsizg_vect)(f, s, cw, ch, w, h, ox, oy); }
 
-static void groupsizg_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h,
-                          int* ox, int* oy)
+static void groupsizg_ivf(FILE* f, char* s, long cw, long ch, long* w, long* h,
+                          long* ox, long* oy)
     { error(egroupsizg_unimp); }
 
 void _pa_groupsiz_ovr(ami_groupsiz_t nfp, ami_groupsiz_t* ofp)
     { *ofp = groupsiz_vect; groupsiz_vect = nfp; }
-void ami_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*groupsiz_vect)(f, s, cw, ch, w, h, ox, oy); }
 
-static void groupsiz_ivf(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                 int* oy) { error(egroupsiz_unimp); }
+static void groupsiz_ivf(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                 long* oy) { error(egroupsiz_unimp); }
 
 void _pa_group_ovr(ami_group_t nfp, ami_group_t* ofp)
     { *ofp = group_vect; group_vect = nfp; }
-void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*group_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void group_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void group_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(egroup_unimp); }
 
 void _pa_groupg_ovr(ami_groupg_t nfp, ami_groupg_t* ofp)
     { *ofp = groupg_vect; groupg_vect = nfp; }
-void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { (*groupg_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void groupg_ivf(FILE* f, int x1, int y1, int x2, int y2, char* s, int id)
+static void groupg_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
     { error(egroupg_unimp); }
 
 void _pa_background_ovr(ami_background_t nfp, ami_background_t* ofp)
     { *ofp = background_vect; background_vect = nfp; }
-void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*background_vect)(f, x1, y1, x2, y2, id); }
 
-static void background_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void background_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(ebackground_unimp); }
 
 void _pa_backgroundg_ovr(ami_backgroundg_t nfp, ami_backgroundg_t* ofp)
     { *ofp = backgroundg_vect; backgroundg_vect = nfp; }
-void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*backgroundg_vect)(f, x1, y1, x2, y2, id); }
 
-static void backgroundg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void backgroundg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(ebackgroundg_unimp); }
 
 void _pa_scrollvertsizg_ovr(ami_scrollvertsizg_t nfp, ami_scrollvertsizg_t* ofp)
     { *ofp = scrollvertsizg_vect; scrollvertsizg_vect = nfp; }
-void ami_scrollvertsizg(FILE* f, int* w, int* h)
+void ami_scrollvertsizg(FILE* f, long* w, long* h)
     { (*scrollvertsizg_vect)(f, w, h); }
 
-static void scrollvertsizg_ivf(FILE* f, int* w, int* h)
+static void scrollvertsizg_ivf(FILE* f, long* w, long* h)
     { error(escrollvertsizg_unimp); }
 
 void _pa_scrollvertsiz_ovr(ami_scrollvertsiz_t nfp, ami_scrollvertsiz_t* ofp)
     { *ofp = scrollvertsiz_vect; scrollvertsiz_vect = nfp; }
-void ami_scrollvertsiz(FILE* f, int* w, int* h)
+void ami_scrollvertsiz(FILE* f, long* w, long* h)
     { (*scrollvertsiz_vect)(f, w, h); }
 
-static void scrollvertsiz_ivf(FILE* f, int* w, int* h)
+static void scrollvertsiz_ivf(FILE* f, long* w, long* h)
     { error(escrollvertsiz_unimp); }
 
 void _pa_scrollvert_ovr(ami_scrollvert_t nfp, ami_scrollvert_t* ofp)
     { *ofp = scrollvert_vect; scrollvert_vect = nfp; }
-void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollvert_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollvert_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollvert_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollvert_unimp); }
 
 void _pa_scrollvertg_ovr(ami_scrollvertg_t nfp, ami_scrollvertg_t* ofp)
     { *ofp = scrollvertg_vect; scrollvertg_vect = nfp; }
-void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollvertg_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollvertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollvertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollvertg_unimp); }
 
 void _pa_scrollhorizsizg_ovr(ami_scrollhorizsizg_t nfp, ami_scrollhorizsizg_t* ofp)
     { *ofp = scrollhorizsizg_vect; scrollhorizsizg_vect = nfp; }
-void ami_scrollhorizsizg(FILE* f, int* w, int* h)
+void ami_scrollhorizsizg(FILE* f, long* w, long* h)
     { (*scrollhorizsizg_vect)(f, w, h); }
 
-static void scrollhorizsizg_ivf(FILE* f, int* w, int* h)
+static void scrollhorizsizg_ivf(FILE* f, long* w, long* h)
     { error(escrollhorizsizg_unimp); }
 
 void _pa_scrollhorizsiz_ovr(ami_scrollhorizsiz_t nfp, ami_scrollhorizsiz_t* ofp)
     { *ofp = scrollhorizsiz_vect; scrollhorizsiz_vect = nfp; }
-void ami_scrollhorizsiz(FILE* f, int* w, int* h)
+void ami_scrollhorizsiz(FILE* f, long* w, long* h)
     { (*scrollhorizsiz_vect)(f, w, h); }
 
-static void scrollhorizsiz_ivf(FILE* f, int* w, int* h)
+static void scrollhorizsiz_ivf(FILE* f, long* w, long* h)
     { error(escrollhorizsiz_unimp); }
 
 void _pa_scrollhoriz_ovr(ami_scrollhoriz_t nfp, ami_scrollhoriz_t* ofp)
     { *ofp = scrollhoriz_vect; scrollhoriz_vect = nfp; }
-void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollhoriz_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollhoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollhoriz_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollhoriz_unimp); }
 
 void _pa_scrollhorizg_ovr(ami_scrollhorizg_t nfp, ami_scrollhorizg_t* ofp)
     { *ofp = scrollhorizg_vect; scrollhorizg_vect = nfp; }
-void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*scrollhorizg_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollhorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void scrollhorizg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(escrollhorizg_unimp); }
 
 void _pa_scrollpos_ovr(ami_scrollpos_t nfp, ami_scrollpos_t* ofp)
     { *ofp = scrollpos_vect; scrollpos_vect = nfp; }
-void ami_scrollpos(FILE* f, int id, int r)
+void ami_scrollpos(FILE* f, long id, long r)
     { (*scrollpos_vect)(f, id, r); }
 
-static void scrollpos_ivf(FILE* f, int id, int r) { error(escrollpos_unimp); }
+static void scrollpos_ivf(FILE* f, long id, long r) { error(escrollpos_unimp); }
 
 void _pa_scrollsiz_ovr(ami_scrollsiz_t nfp, ami_scrollsiz_t* ofp)
     { *ofp = scrollsiz_vect; scrollsiz_vect = nfp; }
-void ami_scrollsiz(FILE* f, int id, int r)
+void ami_scrollsiz(FILE* f, long id, long r)
     { (*scrollsiz_vect)(f, id, r); }
 
-static void scrollsiz_ivf(FILE* f, int id, int r) { error(escrollsiz_unimp); }
+static void scrollsiz_ivf(FILE* f, long id, long r) { error(escrollsiz_unimp); }
 
 void _pa_numselboxsizg_ovr(ami_numselboxsizg_t nfp, ami_numselboxsizg_t* ofp)
     { *ofp = numselboxsizg_vect; numselboxsizg_vect = nfp; }
-void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
     { (*numselboxsizg_vect)(f, l, u, w, h); }
 
-static void numselboxsizg_ivf(FILE* f, int l, int u, int* w, int* h)
+static void numselboxsizg_ivf(FILE* f, long l, long u, long* w, long* h)
     { error(enumselboxsizg_unimp); }
 
 void _pa_numselboxsiz_ovr(ami_numselboxsiz_t nfp, ami_numselboxsiz_t* ofp)
     { *ofp = numselboxsiz_vect; numselboxsiz_vect = nfp; }
-void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h)
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
     { (*numselboxsiz_vect)(f, l, u, w, h); }
 
-static void numselboxsiz_ivf(FILE* f, int l, int u, int* w, int* h)
+static void numselboxsiz_ivf(FILE* f, long l, long u, long* w, long* h)
     { error(enumselboxsiz_unimp); }
 
 void _pa_numselbox_ovr(ami_numselbox_t nfp, ami_numselbox_t* ofp)
     { *ofp = numselbox_vect; numselbox_vect = nfp; }
-void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
     { (*numselbox_vect)(f, x1, y1, x2, y2, l, u, id); }
 
-static void numselbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                  int id) { error(enumselbox_unimp); }
+static void numselbox_ivf(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                  long id) { error(enumselbox_unimp); }
 
 void _pa_numselboxg_ovr(ami_numselboxg_t nfp, ami_numselboxg_t* ofp)
     { *ofp = numselboxg_vect; numselboxg_vect = nfp; }
-void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u, int id)
+void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
     { (*numselboxg_vect)(f, x1, y1, x2, y2, l, u, id); }
 
-static void numselboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                   int id) { error(enumselboxg_unimp); }
+static void numselboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                   long id) { error(enumselboxg_unimp); }
 
 void _pa_editboxsizg_ovr(ami_editboxsizg_t nfp, ami_editboxsizg_t* ofp)
     { *ofp = editboxsizg_vect; editboxsizg_vect = nfp; }
-void ami_editboxsizg(FILE* f, char* s, int* w, int* h)
+void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
     { (*editboxsizg_vect)(f, s, w, h); }
 
-static void editboxsizg_ivf(FILE* f, char* s, int* w, int* h)
+static void editboxsizg_ivf(FILE* f, char* s, long* w, long* h)
     { error(eeditboxsizg_unimp); }
 
 void _pa_editboxsiz_ovr(ami_editboxsiz_t nfp, ami_editboxsiz_t* ofp)
     { *ofp = editboxsiz_vect; editboxsiz_vect = nfp; }
-void ami_editboxsiz(FILE* f, char* s, int* w, int* h)
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
     { (*editboxsiz_vect)(f, s, w, h); }
 
-static void editboxsiz_ivf(FILE* f, char* s, int* w, int* h)
+static void editboxsiz_ivf(FILE* f, char* s, long* w, long* h)
     { error(eeditboxsiz_unimp); }
 
 void _pa_editbox_ovr(ami_editbox_t nfp, ami_editbox_t* ofp)
     { *ofp = editbox_vect; editbox_vect = nfp; }
-void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*editbox_vect)(f, x1, y1, x2, y2, id); }
 
-static void editbox_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void editbox_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eeditbox_unimp); }
 
 void _pa_editboxg_ovr(ami_editboxg_t nfp, ami_editboxg_t* ofp)
     { *ofp = editboxg_vect; editboxg_vect = nfp; }
-void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*editboxg_vect)(f, x1, y1, x2, y2, id); }
 
-static void editboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void editboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eeditboxg_unimp); }
 
 void _pa_progbarsizg_ovr(ami_progbarsizg_t nfp, ami_progbarsizg_t* ofp)
     { *ofp = progbarsizg_vect; progbarsizg_vect = nfp; }
-void ami_progbarsizg(FILE* f, int* w, int* h) { (*progbarsizg_vect)(f, w, h); }
+void ami_progbarsizg(FILE* f, long* w, long* h) { (*progbarsizg_vect)(f, w, h); }
 
-static void progbarsizg_ivf(FILE* f, int* w, int* h)
+static void progbarsizg_ivf(FILE* f, long* w, long* h)
     { error(eprogbarsizg_unimp); }
 
 void _pa_progbarsiz_ovr(ami_progbarsiz_t nfp, ami_progbarsiz_t* ofp)
     { *ofp = progbarsiz_vect; progbarsiz_vect = nfp; }
-void ami_progbarsiz(FILE* f, int* w, int* h) { (*progbarsiz_vect)(f, w, h); }
+void ami_progbarsiz(FILE* f, long* w, long* h) { (*progbarsiz_vect)(f, w, h); }
 
-static void progbarsiz_ivf(FILE* f, int* w, int* h)
+static void progbarsiz_ivf(FILE* f, long* w, long* h)
     { error(eprogbarsiz_unimp); }
 
 void _pa_progbar_ovr(ami_progbar_t nfp, ami_progbar_t* ofp)
     { *ofp = progbar_vect; progbar_vect = nfp; }
-void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*progbar_vect)(f, x1, y1, x2, y2, id); }
 
-static void progbar_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void progbar_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eprogbar_unimp); }
 
 void _pa_progbarg_ovr(ami_progbarg_t nfp, ami_progbarg_t* ofp)
     { *ofp = progbarg_vect; progbarg_vect = nfp; }
-void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id)
+void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
     { (*progbarg_vect)(f, x1, y1, x2, y2, id); }
 
-static void progbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, int id)
+static void progbarg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
     { error(eprogbarg_unimp); }
 
 void _pa_progbarpos_ovr(ami_progbarpos_t nfp, ami_progbarpos_t* ofp)
     { *ofp = progbarpos_vect; progbarpos_vect = nfp; }
-void ami_progbarpos(FILE* f, int id, int pos) { (*progbarpos_vect)(f, id, pos); }
+void ami_progbarpos(FILE* f, long id, long pos) { (*progbarpos_vect)(f, id, pos); }
 
-static void progbarpos_ivf(FILE* f, int id, int pos)
+static void progbarpos_ivf(FILE* f, long id, long pos)
     { error(eprogbarpos_unimp); }
 
 void _pa_listboxsizg_ovr(ami_listboxsizg_t nfp, ami_listboxsizg_t* ofp)
     { *ofp = listboxsizg_vect; listboxsizg_vect = nfp; }
-void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
     { (*listboxsizg_vect)(f, sp, w, h); }
 
-static void listboxsizg_ivf(FILE* f, ami_strptr sp, int* w, int* h)
+static void listboxsizg_ivf(FILE* f, ami_strptr sp, long* w, long* h)
     { error(elistboxsizg_unimp); }
 
 void _pa_listboxsiz_ovr(ami_listboxsiz_t nfp, ami_listboxsiz_t* ofp)
     { *ofp = listboxsiz_vect; listboxsiz_vect = nfp; }
-void ami_listboxsiz(FILE* f, ami_strptr sp, int* w, int* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
     { (*listboxsiz_vect)(f, sp, w, h); }
 
-static void listboxsiz_ivf(FILE* f, ami_strptr sp, int* w, int* h)
+static void listboxsiz_ivf(FILE* f, ami_strptr sp, long* w, long* h)
     { error(elistboxsiz_unimp); }
 
 void _pa_listbox_ovr(ami_listbox_t nfp, ami_listbox_t* ofp)
     { *ofp = listbox_vect; listbox_vect = nfp; }
-void ami_listbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*listbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void listbox_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void listbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(elistbox_unimp); }
 
 void _pa_listboxg_ovr(ami_listboxg_t nfp, ami_listboxg_t* ofp)
     { *ofp = listboxg_vect; listboxg_vect = nfp; }
-void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*listboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void listboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void listboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(elistboxg_unimp); }
 
 void _pa_dropboxsizg_ovr(ami_dropboxsizg_t nfp, ami_dropboxsizg_t* ofp)
     { *ofp = dropboxsizg_vect; dropboxsizg_vect = nfp; }
-void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropboxsizg_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropboxsizg_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropboxsizg_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropboxsizg_unimp); }
 
 void _pa_dropboxsiz_ovr(ami_dropboxsiz_t nfp, ami_dropboxsiz_t* ofp)
     { *ofp = dropboxsiz_vect; dropboxsiz_vect = nfp; }
-void ami_dropboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropboxsiz_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropboxsiz_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropboxsiz_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropboxsiz_unimp); }
 
 void _pa_dropbox_ovr(ami_dropbox_t nfp, ami_dropbox_t* ofp)
     { *ofp = dropbox_vect; dropbox_vect = nfp; }
-void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropbox_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void dropbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(edropbox_unimp); }
 
 void _pa_dropboxg_ovr(ami_dropboxg_t nfp, ami_dropboxg_t* ofp)
     { *ofp = dropboxg_vect; dropboxg_vect = nfp; }
-void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void dropboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(edropboxg_unimp); }
 
 void _pa_dropeditboxsizg_ovr(ami_dropeditboxsizg_t nfp, ami_dropeditboxsizg_t* ofp)
     { *ofp = dropeditboxsizg_vect; dropeditboxsizg_vect = nfp; }
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropeditboxsizg_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropeditboxsizg_unimp); }
 
 void _pa_dropeditboxsiz_ovr(ami_dropeditboxsiz_t nfp, ami_dropeditboxsiz_t* ofp)
     { *ofp = dropeditboxsiz_vect; dropeditboxsiz_vect = nfp; }
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { (*dropeditboxsiz_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh)
+static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
     { error(edropeditboxsiz_unimp); }
 
 void _pa_dropeditbox_ovr(ami_dropeditbox_t nfp, ami_dropeditbox_t* ofp)
     { *ofp = dropeditbox_vect; dropeditbox_vect = nfp; }
-void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropeditbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropeditbox_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+static void dropeditbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { error(edropeditbox_unimp); }
 
 void _pa_dropeditboxg_ovr(ami_dropeditboxg_t nfp, ami_dropeditboxg_t* ofp)
     { *ofp = dropeditboxg_vect; dropeditboxg_vect = nfp; }
-void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id)
+void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
     { (*dropeditboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropeditboxg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                             int id)
+static void dropeditboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                             long id)
     { error(edropeditboxg_unimp); }
 
 void _pa_slidehorizsizg_ovr(ami_slidehorizsizg_t nfp, ami_slidehorizsizg_t* ofp)
     { *ofp = slidehorizsizg_vect; slidehorizsizg_vect = nfp; }
-void ami_slidehorizsizg(FILE* f, int* w, int* h) { (*slidehorizsizg_vect)(f, w, h); }
+void ami_slidehorizsizg(FILE* f, long* w, long* h) { (*slidehorizsizg_vect)(f, w, h); }
 
-static void slidehorizsizg_ivf(FILE* f, int* w, int* h)
+static void slidehorizsizg_ivf(FILE* f, long* w, long* h)
     { error(eslidehorizsizg_unimp); }
 
 void _pa_slidehorizsiz_ovr(ami_slidehorizsiz_t nfp, ami_slidehorizsiz_t* ofp)
     { *ofp = slidehorizsiz_vect; slidehorizsiz_vect = nfp; }
-void ami_slidehorizsiz(FILE* f, int* w, int* h)
+void ami_slidehorizsiz(FILE* f, long* w, long* h)
     { (*slidehorizsiz_vect)(f, w, h); }
 
-static void slidehorizsiz_ivf(FILE* f, int* w, int* h)
+static void slidehorizsiz_ivf(FILE* f, long* w, long* h)
     { error(eslidehorizsiz_unimp); }
 
 void _pa_slidehoriz_ovr(ami_slidehoriz_t nfp, ami_slidehoriz_t* ofp)
     { *ofp = slidehoriz_vect; slidehoriz_vect = nfp; }
-void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidehoriz_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidehoriz_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidehoriz_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidehoriz_unimp); }
 
 void _pa_slidehorizg_ovr(ami_slidehorizg_t nfp, ami_slidehorizg_t* ofp)
     { *ofp = slidehorizg_vect; slidehorizg_vect = nfp; }
-void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidehorizg_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidehorizg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidehorizg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidehorizg_unimp); }
 
 void _pa_slidevertsizg_ovr(ami_slidevertsizg_t nfp, ami_slidevertsizg_t* ofp)
     { *ofp = slidevertsizg_vect; slidevertsizg_vect = nfp; }
-void ami_slidevertsizg(FILE* f, int* w, int* h)
+void ami_slidevertsizg(FILE* f, long* w, long* h)
     { (*slidevertsizg_vect)(f, w, h); }
 
-static void slidevertsizg_ivf(FILE* f, int* w, int* h)
+static void slidevertsizg_ivf(FILE* f, long* w, long* h)
     { error(eslidevertsizg_unimp); }
 
 void _pa_slidevertsiz_ovr(ami_slidevertsiz_t nfp, ami_slidevertsiz_t* ofp)
     { *ofp = slidevertsiz_vect; slidevertsiz_vect = nfp; }
-void ami_slidevertsiz(FILE* f, int* w, int* h) { (*slidevertsiz_vect)(f, w, h); }
+void ami_slidevertsiz(FILE* f, long* w, long* h) { (*slidevertsiz_vect)(f, w, h); }
 
-static void slidevertsiz_ivf(FILE* f, int* w, int* h)
+static void slidevertsiz_ivf(FILE* f, long* w, long* h)
     { error(eslidevertsiz_unimp); }
 
 void _pa_slidevert_ovr(ami_slidevert_t nfp, ami_slidevert_t* ofp)
     { *ofp = slidevert_vect; slidevert_vect = nfp; }
-void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidevert_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidevert_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidevert_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidevert_unimp); }
 
 void _pa_slidevertg_ovr(ami_slidevertg_t nfp, ami_slidevertg_t* ofp)
     { *ofp = slidevertg_vect; slidevertg_vect = nfp; }
-void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { (*slidevertg_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidevertg_ivf(FILE* f, int x1, int y1, int x2, int y2, int mark, int id)
+static void slidevertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
     { error(eslidevertg_unimp); }
 
 void _pa_tabbarsizg_ovr(ami_tabbarsizg_t nfp, ami_tabbarsizg_t* ofp)
     { *ofp = tabbarsizg_vect; tabbarsizg_vect = nfp; }
-void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarsizg_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsizg_ivf(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-                           int* ox, int* oy)
+static void tabbarsizg_ivf(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                           long* ox, long* oy)
     { error(etabbarsizg_unimp); }
 
 void _pa_tabbarsiz_ovr(ami_tabbarsiz_t nfp, ami_tabbarsiz_t* ofp)
     { *ofp = tabbarsiz_vect; tabbarsiz_vect = nfp; }
-void ami_tabbarsiz(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarsiz_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsiz_ivf(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy)
+static void tabbarsiz_ivf(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy)
     { error(etabbarsiz_unimp); }
 
 void _pa_tabbarclientg_ovr(ami_tabbarclientg_t nfp, ami_tabbarclientg_t* ofp)
     { *ofp = tabbarclientg_vect; tabbarclientg_vect = nfp; }
-void ami_tabbarclientg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarclientg_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarclientg_ivf(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                              int* ox, int* oy)
+static void tabbarclientg_ivf(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                              long* ox, long* oy)
     { error(etabbarclientg_unimp); }
 
 void _pa_tabbarclient_ovr(ami_tabbarclient_t nfp, ami_tabbarclient_t* ofp)
     { *ofp = tabbarclient_vect; tabbarclient_vect = nfp; }
-void ami_tabbarclient(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox, int* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
     { (*tabbarclient_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarclient_ivf(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                     int* ox, int* oy)
+static void tabbarclient_ivf(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                     long* ox, long* oy)
     { error(etabbarclient_unimp); }
 
 void _pa_tabbar_ovr(ami_tabbar_t nfp, ami_tabbar_t* ofp)
     { *ofp = tabbar_vect; tabbar_vect = nfp; }
-void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
     { (*tabbar_vect)(f, x1, y1, x2, y2, sp, tor, id); }
 
-static void tabbar_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-               ami_tabori tor, int id)
+static void tabbar_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+               ami_tabori tor, long id)
     { error(etabbar_unimp); }
 
 void _pa_tabbarg_ovr(ami_tabbarg_t nfp, ami_tabbarg_t* ofp)
     { *ofp = tabbarg_vect; tabbarg_vect = nfp; }
-void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, ami_tabori tor, int id)
+void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
     { (*tabbarg_vect)(f, x1, y1, x2, y2, sp, tor, id); }
 
-static void tabbarg_ivf(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                ami_tabori tor, int id)
+static void tabbarg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                ami_tabori tor, long id)
     { error(etabbarg_unimp); }
 
 void _pa_tabsel_ovr(ami_tabsel_t nfp, ami_tabsel_t* ofp)
     { *ofp = tabsel_vect; tabsel_vect = nfp; }
-void ami_tabsel(FILE* f, int id, int tn) { (*tabsel_vect)(f, id, tn); }
+void ami_tabsel(FILE* f, long id, long tn) { (*tabsel_vect)(f, id, tn); }
 
-static void tabsel_ivf(FILE* f, int id, int tn)
+static void tabsel_ivf(FILE* f, long id, long tn)
     { error(etabsel_unimp); }
 
 void _pa_alert_ovr(ami_alert_t nfp, ami_alert_t* ofp)
@@ -16655,46 +16212,46 @@ static void alert_ivf(char* title, char* message) { error(ealert_unimp); }
 
 void _pa_querycolor_ovr(ami_querycolor_t nfp, ami_querycolor_t* ofp)
     { *ofp = querycolor_vect; querycolor_vect = nfp; }
-void ami_querycolor(int* r, int* g, int* b) { (*querycolor_vect)(r, g, b); }
+void ami_querycolor(long* r, long* g, long* b) { (*querycolor_vect)(r, g, b); }
 
-static void querycolor_ivf(int* r, int* g, int* b) { error(equerycolor_unimp); }
+static void querycolor_ivf(long* r, long* g, long* b) { error(equerycolor_unimp); }
 
 void _pa_queryopen_ovr(ami_queryopen_t nfp, ami_queryopen_t* ofp)
     { *ofp = queryopen_vect; queryopen_vect = nfp; }
-void ami_queryopen(char* s, int sl) { (*queryopen_vect)(s, sl); }
+void ami_queryopen(char* s, long sl) { (*queryopen_vect)(s, sl); }
 
-static void queryopen_ivf(char* s, int sl) { error(equeryopen_unimp); }
+static void queryopen_ivf(char* s, long sl) { error(equeryopen_unimp); }
 
 void _pa_querysave_ovr(ami_querysave_t nfp, ami_querysave_t* ofp)
     { *ofp = querysave_vect; querysave_vect = nfp; }
-void ami_querysave(char* s, int sl) { (*querysave_vect)(s, sl); }
+void ami_querysave(char* s, long sl) { (*querysave_vect)(s, sl); }
 
-static void querysave_ivf(char* s, int sl) { error(equerysave_unimp); }
+static void querysave_ivf(char* s, long sl) { error(equerysave_unimp); }
 
 void _pa_queryfind_ovr(ami_queryfind_t nfp, ami_queryfind_t* ofp)
     { *ofp = queryfind_vect; queryfind_vect = nfp; }
-void ami_queryfind(char* s, int sl, ami_qfnopts* opt)
+void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
     { (*queryfind_vect)(s, sl, opt); }
 
-static void queryfind_ivf(char* s, int sl, ami_qfnopts* opt)
+static void queryfind_ivf(char* s, long sl, ami_qfnopts* opt)
     { error(equeryfind_unimp); }
 
 void _pa_queryfindrep_ovr(ami_queryfindrep_t nfp, ami_queryfindrep_t* ofp)
     { *ofp = queryfindrep_vect; queryfindrep_vect = nfp; }
-void ami_queryfindrep(char* s, int sl, char* r, int rl, ami_qfropts* opt)
+void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     { (*queryfindrep_vect)(s, sl, r, rl, opt); }
 
-static void queryfindrep_ivf(char* s, int sl, char* r, int rl, ami_qfropts* opt)
+static void queryfindrep_ivf(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     { error(equeryfindrep_unimp); }
 
 void _pa_queryfont_ovr(ami_queryfont_t nfp, ami_queryfont_t* ofp)
     { *ofp = queryfont_vect; queryfont_vect = nfp; }
-void ami_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-                  int* br, int* bg, int* bb, ami_qfteffects* effect)
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+                  long* br, long* bg, long* bb, ami_qfteffects* effect)
     { (*queryfont_vect)(f, fc, s, fr, fg, fb, br, bg, bb, effect); }
 
-static void queryfont_ivf(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb,
-                          int* br, int* bg, int* bb, ami_qfteffects* effect)
+static void queryfont_ivf(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
+                          long* br, long* bg, long* bb, ami_qfteffects* effect)
     { error(equeryfont_unimp); }
 
 /** ****************************************************************************
@@ -16710,9 +16267,7 @@ static void ami_init_graphics(int argc, char *argv[])
 
     int       ofn;  /* standard output file number */
     int       ifn;  /* standard input file number */
-    winptr    win;  /* windows record pointer */
     int       dfid; /* XWindow display FID */
-    int       f;    /* window creation flags */
     ami_valptr config_root; /* root for config block */
     ami_valptr term_root; /* root for terminal block */
 
@@ -16839,6 +16394,7 @@ static void ami_init_graphics(int argc, char *argv[])
     pictsizy_vect =        pictsizy_ivf;
     picture_vect =         picture_ivf;
     delpict_vect =         delpict_ivf;
+    blockcopyg_vect =      blockcopyg_ivf;
     viewoffg_vect =        viewoffg_ivf;
     viewscale_vect =       viewscale_ivf;
     scalex_vect =          scalex_ivf;
@@ -17073,7 +16629,7 @@ static void ami_init_graphics(int argc, char *argv[])
 
     /* clear event vector table */
     evtshan = defaultevent;
-    for (e = ami_etchar; e <= ami_ettabbar; e++) evthan[e] = defaultevent;
+    for (e = ami_etchar; e <= ami_etdsize; e++) evthan[e] = defaultevent;
 
     /* get setup configuration */
     config_root = NULL;
@@ -17124,6 +16680,15 @@ static void ami_init_graphics(int argc, char *argv[])
     graph_root = ami_schlst("graphics", config_root);
     if (graph_root) {
 
+        vp = ami_schlst("frame_theme", graph_root->sublist);
+        if (vp) {
+
+            if (!strcmp(vp->value, "dark")) { dec->setscheme(1); frmforce = 1; }
+            else if (!strcmp(vp->value, "light"))
+                { dec->setscheme(0); frmforce = 1; }
+
+        }
+
         vp = ami_schlst("console_points", graph_root->sublist);
         if (vp) {
 
@@ -17170,23 +16735,16 @@ static void ami_init_graphics(int argc, char *argv[])
 
     }
 
-    /* capture the XWindow errors */
-    xerrbyp = FALSE; /* set no xerror() bypass */
-    XSetErrorHandler(xerror); /* establish handler */
-
-    /* find existing display */
-    XWLOCK();
-    padisplay = XOpenDisplay(NULL);
-    XWUNLOCK();
-    if (padisplay == NULL) {
+    /* open the platform connection; the layer is thread-safe by its
+       contract */
+    grx_padisplay = pd_open();
+    if (grx_padisplay == NULL) {
 
         fprintf(stderr, "Cannot open display\n");
         exit(1);
 
     }
-    XWLOCK();
-    pascreen = DefaultScreen(padisplay);
-    XWUNLOCK();
+    pascreen = 0; /* single screen through the layer */
 
     /* initialize FreeType and fontconfig */
     if (FT_Init_FreeType(&ftlibrary)) {
@@ -17211,10 +16769,16 @@ static void ami_init_graphics(int argc, char *argv[])
 #endif
 
     /* select XWindow display file */
-    XWLOCK();
-    dfid = ConnectionNumber(padisplay);
-    XWUNLOCK();
+    dfid = pd_evtfd(grx_padisplay);
     dspsev = system_event_addseinp(dfid);
+    /* the sendevent wake pipe: a cross thread enqueue taps it. Nonblocking
+       both ways: a wake already pending is wake enough, and the tap must
+       never stall the tapper. */
+    if (pipe(sendwfds)) error(esystem);
+    fcntl(sendwfds[0], F_SETFL, O_NONBLOCK);
+    fcntl(sendwfds[1], F_SETFL, O_NONBLOCK);
+    sendwsev = system_event_addseinp(sendwfds[0]);
+    thememonitor(); /* follow the desktop's scheme while running */
 
     /* clear joystick table */
     for (ji = 0; ji < MAXJOY; ji++) joytab[ji] = NULL;
@@ -17266,12 +16830,6 @@ static void ami_init_graphics(int argc, char *argv[])
     /* override the event handler for menus */
     ami_eventsover(menu_event, &menu_event_oeh);
 
-    /* get the codes for windows state atoms */
-    cfocused = XInternAtom(padisplay, "_NET_WM_STATE_FOCUSED", 1);
-    cmaxhorz = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", 1);
-    cmaxvert = XInternAtom(padisplay, "_NET_WM_STATE_MAXIMIZED_VERT", 1);
-    chidden = XInternAtom(padisplay, "_NET_WM_STATE_HIDDEN", 1);
-
 }
 
 /** ****************************************************************************
@@ -17310,7 +16868,7 @@ static void ami_deinit_graphics()
        that are no longer safe to call now that main() has returned — the
        stack frame they longjmp into is gone. */
     evtshan = defaultevent;
-    for (e = ami_etchar; e <= ami_ettabbar; e++) evthan[e] = defaultevent;
+    for (e = ami_etchar; e <= ami_etdsize; e++) evthan[e] = defaultevent;
 
     /* try to get window from stdout */
     win = NULL; /* set no window */
@@ -17338,25 +16896,17 @@ static void ami_deinit_graphics()
             strcat(trmnam, program_invocation_short_name);
 #endif
             /* set window title */
-            XStoreName(padisplay, win->xmwhan, trmnam);
+            pd_wintitle(win->xmwhan, trmnam);
             /* wait for a formal end */
             while (!fend) ami_event(stdin, &er);
             ifree(trmnam); /* free up termination name */
 
         }
-        XWLOCK();
         /* destroy the main window */
-        XDestroyWindow(padisplay, win->xwhan);
-        /* Flush the destroy to the server, but do NOT call XCloseDisplay().
-           Like FT_Done_FreeType() and FcFini() below, it is process-exit
-           teardown that misbehaves under a static link: a statically linked
-           Xlib double-frees display-owned data in _XFreeDisplayStructure
-           ("double free or corruption" at every program exit). The process is
-           exiting, so the connection closes and the OS reclaims all memory
-           regardless. */
-        XFlush(padisplay);
-        /* XCloseDisplay(padisplay); -- skipped, see above */
-        XWUNLOCK();
+        pd_windel(win->xwhan);
+        /* flush the destroy; the process is exiting, and the connection
+           closes with it, so the display stays open to the end */
+        pd_flush(grx_padisplay);
 
     }
 
@@ -17414,5 +16964,59 @@ static void ami_deinit_graphics()
     fprintf(stderr, "Image frame total:     %lu\n", imgtot);
 
 #endif
+
+}
+
+/** ****************************************************************************
+
+Take a screen capture
+
+Composes the client area of the first window open on the display, and with
+it the tree of child windows, widgets and menus that stands on it, into a
+buffer the caller frees. This is what the screen capture module
+(linux/wayland/screen_capture.c) records.
+
+Two things are left out of the picture on purpose, both because they are
+the desktop's to decide rather than the program's, and a standard made of
+them would fail whenever the user was looking elsewhere:
+
+The frame around the client area, which is drawn light or dark by whether
+the window holds the keyboard. The client area is also what the X capturer
+grabs, so the pictures stay comparable across the two.
+
+The text cursor, which is solid in a focused window and hollow in one that
+is not. It is taken down for the snapshot and put back after.
+
+Under X the capturer found the window by walking the manager's client list
+and matching the process id; a Wayland client has no such list, so the
+backend takes its own picture.
+
+*******************************************************************************/
+
+uint32_t* grx_capture(int* width, int* height)
+
+{
+
+    int       fi;
+    winptr    win;
+    uint32_t* px;
+
+    /* the window the picture is of */
+    win = NULL;
+    for (fi = 0; fi < MAXFIL && !win; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
+            win = opnfil[fi]->win;
+    if (!win) return (NULL);
+
+    /* the cursor is not part of the picture: take every one down */
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
+            curoff(opnfil[fi]->win);
+    px = pd_winsnap(grx_padisplay, win->xwhan, width, height);
+    for (fi = 0; fi < MAXFIL; fi++)
+        if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
+            curon(opnfil[fi]->win);
+
+    return (px);
 
 }

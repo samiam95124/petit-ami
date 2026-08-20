@@ -15,7 +15,7 @@ Accept message file connections and give simple test messages.
 
 #define BUFLEN 250
 
-int secure = FALSE;
+long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -30,15 +30,16 @@ int main(int argc, char **argv)
 
     char buff[BUFLEN];
     unsigned long addr;
-    int fn;
-    int len;
-    int argi = 1;
-    int port;
+    long fn;
+    long len;
+    long argi = 1;
+    long argcl = argc;
+    long port;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 2) {
+    if (argcl != 2) {
 
         fprintf(stderr, "Usage: msgserver [--secure|-s] port\n");
         exit(1);
@@ -55,7 +56,7 @@ int main(int argc, char **argv)
     len = ami_rdmsg(fn, buff, BUFLEN);
     buff[len] = 0; /* terminate */
 
-    printf("The message from client was: %.*s\n", len, buff);
+    printf("The message from client was: %.*s\n", (int)len, buff);
 
     /* send message to client */
     ami_wrmsg(fn, "Hello, client", 13);

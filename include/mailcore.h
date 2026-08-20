@@ -1,0 +1,237 @@
+/*******************************************************************************
+
+Mail: what both front ends share
+
+The mail program is in two halves. mailcore.c is the program proper --
+the store, the index, the digests, the accounts, the reading of
+messages, the talking to servers, and the thread that does all of it --
+and it draws nothing at all. A front end puts it on a screen: mail does
+that in graphics, mailc in characters, and they differ in nothing else.
+
+A front end must supply three things, since only it knows how to say
+anything:
+
+    status()    a line saying what is going on
+    fail()      something went wrong and somebody should be told
+    statprog()  how far into a piece of work we are
+
+and it must keep one rule: hold the lock, dlock() to dunlock(), for as
+long as it is handling an event. The core takes the same lock around
+each message it commits and around anything that rebuilds the folder
+table, and takes it nowhere else. That is what makes it safe for the
+fetch thread to be writing the store while the display is drawing it,
+and it is the whole of the arrangement -- there is no other locking to
+think about, and nothing in a front end should ever take the lock again.
+
+*******************************************************************************/
+
+#ifndef __MAILCORE_H__
+#define __MAILCORE_H__
+
+#include <stdio.h>
+
+#define MAXSTR    500   /* the usual string */
+#define MAXLINE   4000  /* longest protocol or message line taken whole */
+#define MAXFOLDER 200   /* folders on the server */
+#define MAXMSG    20000 /* messages indexed in one folder */
+#define SNIPPET   400   /* characters of the message kept for the list */
+#define DEFLIMIT  200   /* messages fetched from a folder, most recent first */
+#define MAXSRV    8     /* accounts */
+#define DEFPOLL   15    /* seconds between looks at the servers */
+#define NETWAIT   45    /* seconds to wait on a server before giving up */
+#define DIGLEN    65    /* a sha-256 as hex, and its terminator */
+
+/* One message, as the list shows it and as the store finds it. The
+   digest says what the message is wherever it came from; the offset and
+   length say where it is in its mailbox. */
+typedef struct {
+
+    long off;             /* where the message starts in the file */
+    long len;             /* how long it is */
+    char from[MAXSTR];    /* who it is from, shown */
+    char subject[MAXSTR]; /* the subject line */
+    char addr[100];       /* the sender's address, for matching */
+    char dig[DIGLEN];     /* what the message is, wherever it came from */
+    char cat[32];         /* what kind of mail it is */
+    char snip[SNIPPET];   /* the start of the message */
+    char when[40];        /* the date, shown the way mail readers show it */
+    long date;            /* the date, for sorting */
+
+} msgrec;
+
+/* One folder: a mailbox in the store, the index beside it, and which
+   account it belongs to. A local folder belongs to none. */
+typedef struct {
+
+    char name[MAXSTR];   /* the name the server knows it by */
+    char show[MAXSTR];   /* the name shown, without the [Gmail]/ part */
+    char file[MAXSTR*2]; /* the mbox file it is kept in */
+    long msgs;           /* messages in the file */
+    long dirty;          /* something has been put in it since it was read */
+    msgrec* idx;         /* every message in it, read from the index file */
+    long idxct;          /* how many */
+    long idxmax;         /* and how many the array has room for */
+    long idxok;          /* the index has been read and is good */
+    long wantidx;        /* it wants reading, when the worker gets to it */
+    long noselect;       /* the server says it holds no messages */
+    long local;          /* ours alone: a folder with no server side */
+    long srv;            /* which server it belongs to, -1 if local */
+
+} foldrec;
+
+/* One account. */
+typedef struct {
+
+    char name[64];      /* what it is called here */
+    char imap[MAXSTR];  /* where the mail is read from */
+    long imapport;
+    char smtp[MAXSTR];  /* and where it would be sent from */
+    long smtpport;
+    char user[MAXSTR];
+    char pass[MAXSTR];
+    long limit;         /* messages fetched from each folder */
+
+} srvrec;
+
+/*******************************************************************************
+
+What the front end supplies
+
+*******************************************************************************/
+
+void status(const char* s);
+void fail(const char* what);
+void statprog(long pos, long max);
+
+/*******************************************************************************
+
+What the core keeps
+
+*******************************************************************************/
+
+extern foldrec folders[MAXFOLDER];
+extern long    foldct;
+extern long    foldsel;    /* the folder being shown */
+extern msgrec* msgs;       /* the messages of that folder */
+extern long    msgct;
+extern long    msgsel;     /* the message being read */
+extern long    msgtop;     /* the first message shown */
+extern srvrec  servers[MAXSRV];
+extern long    srvct;      /* how many accounts there are */
+extern long    pollsec;    /* how often to look, in seconds */
+extern long    sendsrv;    /* which account mail is sent from */
+extern char    store[MAXSTR];
+extern long    limit;
+extern long    diag;       /* report the conversation to stderr */
+extern char*   mailprog;   /* argv[0], to find what is kept beside it */
+
+/* the message waiting to go out, which the compose window fills in */
+extern long    sendwant;
+extern char    outto[MAXSTR];
+extern char    outcc[MAXSTR];
+extern char    outsub[MAXSTR];
+extern char*   outbody;
+extern char    outinreply[MAXSTR];
+extern char    outrefs[MAXSTR*2];
+
+/* the connection the fetch is using */
+extern char    imapsrv[MAXSTR];
+extern long    imapport;
+extern char    smtpsrv[MAXSTR];
+extern long    smtpport;
+extern char    username[MAXSTR];
+extern char    password[MAXSTR];
+
+/*******************************************************************************
+
+What the worker is doing, for the front end to draw
+
+Nothing here is drawn by the worker -- it draws nothing. It is left, and
+picked up on the front end's next tick.
+
+*******************************************************************************/
+
+extern char wrkwhat[MAXSTR]; /* what is being worked on */
+extern long wrkpos;          /* how far into it */
+extern long wrkmax;          /* and how big it is */
+extern long wrkfolds;        /* the folder pane wants redrawing */
+extern long wrklist;         /* and so does the message list */
+extern long wrkstop;         /* drop what you are doing */
+extern long wrkbusy;         /* it has something in hand just now */
+extern long wrkgo;           /* a fetch is running */
+extern long wrkdone;         /* it finished, and nobody has noticed yet */
+extern long wrkrelist;       /* this fetch is to ask what folders there are */
+extern long wrkcount;        /* and this one is only to read the store */
+extern long wrkstart;        /* the thread has been made */
+extern long fetching;        /* a fetch is under way */
+extern long timerrun;        /* the timer that watches it is going */
+extern long idxwant;         /* the folder the display wants read */
+extern long idxfold;         /* the folder its list was read from */
+extern long idxdoing;        /* and the one being read just now */
+extern long fetchgot;        /* messages taken, this fetch */
+extern long fetchdup;        /* and passed over as already here */
+extern long digct;           /* digests known over the whole store */
+extern char failsaid[MAXSTR*3]; /* what went wrong, for the front end to show */
+extern long failwait;
+extern long sendfail;        /* and whether it was a send that failed */
+extern char sentsaid[MAXSTR]; /* and what went right */
+
+/*******************************************************************************
+
+What the front end can ask for
+
+*******************************************************************************/
+
+extern long datlock;         /* made by the front end at startup, with
+                                ami_initlock(), before the thread exists */
+void  dlock(void);           /* held for the whole of an event */
+void  dunlock(void);
+void  mailwork(void);        /* the fetch thread's whole life */
+void  storeall(void);        /* the folders the store already knows of */
+void  countfolders(void);    /* their counts, from their indexes */
+void  readaccount(void);
+void  writeaccount(void);
+int   haveaccount(void);
+void  useserver(long i);
+void  blankserver(srvrec* r);
+void  migratestore(void);
+void  renamestore(const char* was, const char* now);
+void  indexfolder(long fold);
+void  idxdrop(long fold);
+void  idxsetaside(void);
+void  idxgiveback(void);
+void  useidx(void);          /* point the list at the selected folder */
+long  localfolder(const char* who);
+long  movelocal(long fold, const char* dst, const char* set);
+char* getmsg(long fold, long i);
+void  smtpcheck(void);
+void  sendmail(const char* to, const char* cc, const char* subject,
+               const char* body, const char* inreply, const char* refs,
+               char* err, long errl);
+void  servesend(void);
+void  serveindex(void);
+void  storefolders(long srv);
+int   getfolders(long srv);
+void  imapclose(void);
+void  fetchorder(void);
+void  fetchend(void);
+void  fetchstep(void);
+void  fetchrun(void);
+int   serverquiet(long srv);
+void  fetchsay(void);
+
+/* the pieces a message is made of */
+int   findheader(const char* msg, const char* name, char* d, long dl);
+char* textof(const char* msg, long len, long want);
+void  classify(const char* msg, char* cat, long cl);
+void  addrof(const char* s, char* d, long dl);
+void  nameof(const char* s, char* d, long dl);
+long  parsedate(const char* s, char* show, long sn);
+void  trim(char* s);
+void  copystr(char* d, const char* s, long dl);
+void* getmem(long n);
+int   reachable(const char* host, long port, long secs);
+int   resfile(const char* leaf, char* path, long pl);
+const char* nextaddr(const char* p, char* d, long dl);
+
+#endif

@@ -1,0 +1,168 @@
+Stdio library test v1.0
+
+Group 1: formatted output (printf family)
+
+test 100: "12345" s/b "12345"
+test 101: "-12345" s/b "-12345"
+test 102: "42" s/b "42"
+test 103: "4000000000" s/b "4000000000"
+test 104: "100" s/b "100"
+test 105: "ff" s/b "ff"
+test 106: "FF" s/b "FF"
+test 107: "0xff" s/b "0xff"
+test 108: "0100" s/b "0100"
+test 110: "   42" s/b "   42"
+test 111: "42   |" s/b "42   |"
+test 112: "00042" s/b "00042"
+test 113: "+42" s/b "+42"
+test 114: " 42" s/b " 42"
+test 115: "     005" s/b "     005"
+test 116: "    42" s/b "    42"
+test 117: "0042" s/b "0042"
+test 120: "A" s/b "A"
+test 121: "    A|" s/b "    A|"
+test 122: "hello" s/b "hello"
+test 123: "      hi|" s/b "      hi|"
+test 124: "hi      |" s/b "hi      |"
+test 125: "tru" s/b "tru"
+test 126: "[(null)]" s/b "[(null)]"
+test 130: "50% of x" s/b "50% of x"
+test 131: "1,2,3" s/b "1,2,3"
+test 132: "5000000000" s/b "5000000000"
+test 133: "123456789012345" s/b "123456789012345"
+test 134: "4000000000" s/b "4000000000"
+test 135: "deadbeefcafe" s/b "deadbeefcafe"
+test 136: "4000000000" s/b "4000000000"
+test 137: "-7" s/b "-7"
+test 138: "5000000000 then 42" s/b "5000000000 then 42"
+test 140: "3.141590" s/b "3.141590"
+test 141: "3.14" s/b "3.14"
+test 142: "2" s/b "2"
+test 143: "3" s/b "3"
+test 144: "+3.14" s/b "+3.14"
+test 145: "    3.14" s/b "    3.14"
+test 146: "3.14    |" s/b "3.14    |"
+test 147: "-0003.14" s/b "-0003.14"
+test 148: "3.141590e+04" s/b "3.141590e+04"
+test 149: "3.14E-04" s/b "3.14E-04"
+test 150: "0.0001" s/b "0.0001"
+test 151: "1e-05" s/b "1e-05"
+test 152: "100000" s/b "100000"
+test 153: "1e+06" s/b "1e+06"
+test 154: "10.0" s/b "10.0"
+test 160: 5 s/b 5
+test 161: "7-mid-Z" s/b "7-mid-Z"
+test 163: "42-hi" n=5 s/b "42-hi" 5
+test 164: "42-" n=5 s/b "42-" 5
+test 165: n=5 s/b 5 (measure with size 0)
+test 166: "00007" n=5 s/b "00007" 5
+test 162: 1 two 3.0 s/b 1 two 3.0
+
+Group 2: formatted input (sscanf family)
+
+test 200: n=1 i=123 s/b n=1 i=123
+test 201: n=2 i=-45 j=67 s/b n=2 i=-45 j=67
+test 202: n=1 u=255 s/b n=1 u=255
+test 203: n=1 u=511 s/b n=1 u=511
+test 204: n=1 i=26 s/b n=1 i=26
+test 205: n=1 s="hello" s/b n=1 s="hello"
+test 206: n=1 s="abc" s/b n=1 s="abc"
+test 207: n=1 c=Q s/b n=1 c=Q
+test 208: n=1 f=3.14159 s/b n=1 f=3.14159
+test 209: n=1 d=-2500.0 s/b n=1 d=-2500.0
+test 210: n=2 i=12 j=56 s/b n=2 i=12 j=56
+test 211: n=2 s="abc" i=123 s/b n=2 s="abc" i=123
+test 212: n=2 s="key" s2="value" s/b n=2 s="key" s2="value"
+test 213: n=1 i=42 k=2 s/b n=1 i=42 k=2
+test 214: n=1 v=5000000000 s/b n=1 v=5000000000
+test 215: n=1 v=123456789012345 s/b n=1 v=123456789012345
+test 216: n=1 v=-7 s/b n=1 v=-7
+test 217: n=1 v=4000000000 s/b n=1 v=4000000000
+test 218: n=2 i=3 j=4 s/b n=2 i=3 j=4
+test 219: n=2 i=55 s="hi" s/b n=2 i=55 s="hi"
+
+Group 3: file open/close and block I/O
+
+test 300: 1 s/b 1 (fopen for write)
+test 301: 0 s/b 0 (fclose)
+test 302: "line one
+" s/b "line one
+"
+test 303: "value=42
+" s/b "value=42
+"
+test 304: X s/b X (fgetc)
+test 305: -1 s/b -1 (EOF at end)
+test 306: 1 s/b 1 (feof set)
+test 307: "line" "one" s/b "line" "one"
+test 308: i=42 s/b 42
+test 310: 8 s/b 8 (fwrite count)
+test 311: 8 "ABCDEFGH" s/b 8 "ABCDEFGH"
+test 312: 2 "ABCDEFGH" s/b 2 "ABCDEFGH"
+test 313: 0 s/b 0 (rename succeeds)
+test 314: 1 s/b 1 (old name gone)
+test 315: "moved" s/b "moved"
+test 316: 0 s/b 0 (rename replaces target)
+test 317: "fresh" s/b "fresh"
+test 318: 1 s/b 1 (rename of missing file fails)
+
+Group 4: file positioning
+
+test 400: 5 s/b 5 (ftell after seek)
+test 401: 5 s/b 5 (char at offset 5)
+test 402: 8 s/b 8 (char after relative seek)
+test 403: 7 s/b 7 (char from end seek)
+test 404: 0 s/b 0 (ftell after rewind)
+test 405: 4 s/b 4 (char after fsetpos)
+
+Group 5: character I/O, pushback, status and misc
+
+test 500: 0 0 s/b 0 0 (ungetc replays char)
+test 501: Z s/b Z (ungetc arbitrary)
+test 502: Q s/b Q (putc/getc)
+test 503: 1 s/b 1 (feof before clear)
+test 504: 0 s/b 0 (feof after clearerr)
+test 505: 0 s/b 0 (ferror clean)
+test 506: 1 s/b 1 (fileno of stdout)
+test 507: "alpha" s/b "alpha"
+test 508: 0 s/b 0 (remove)
+test 509: 1 s/b 1 (file gone after remove)
+
+Group 6: buffering
+
+test 600: 0 s/b 0 (full buffered, nothing on disk yet)
+test 601: 5 "hello" s/b 5 "hello" (visible after flush)
+test 602: 3 "bye" s/b 3 "bye" (fclose flushed)
+test 603: 3 "now" s/b 3 "now" (unbuffered, immediate)
+test 604: 0 s/b 0 (line buffered, no newline yet)
+test 605: 4 "abc
+" s/b 4 "abc\n" (flushed at newline)
+test 606: 0 s/b 0 (setvbuf user buffer)
+test 607: "user buffered data" s/b "user buffered data"
+test 608: 2000 s/b 2000 (large fwrite count)
+test 609: 2000 s/b 2000 (large fread count)
+test 610: 3 s/b 3 (read after buffered write)
+test 611: X s/b X (write after read)
+
+Group 7: temporary files
+
+test 700: "/tmp/tmp.*.1" "/tmp/tmp.*.2" distinct=1 s/b 1
+test 701: 1 s/b 1 (name does not pre-exist)
+test 702: 1 s/b 1 (length * < L_tmpnam 64)
+test 703: 1 s/b 1 (tmpnam(NULL) returns a name)
+test 704: 1 s/b 1 (tmpfile opens)
+test 705: "scratch data" s/b "scratch data"
+
+Group 8: direct FILE access (backdoor accessors)
+
+test 800: 0 s/b 0 (fpending after flush)
+test 801: 3 s/b 3 (fpending tracks pending writes)
+test 802: 1 s/b 1 (fwritable on wb+)
+test 803: 18 s/b >0 (freadahead reports read ahead)
+test 804: 18 s/b 18 (freadahead == bytes actually buffered)
+test 805: 1 s/b 1 (ferror sees a directly set error)
+test 806: 1 s/b 1 (_fileno matches fileno())
+test 807: 0 s/b 0 (fwritable on rb)
+test 808: 1 s/b 1 (freadable on rb)
+
+All self checking tests passed.

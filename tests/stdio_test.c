@@ -319,8 +319,12 @@ int main(void)
     if (strcmp(s, "42-hi") || n != 5) fails++;
 
     /* snprintf: output truncated to the size, always terminated, returns the
-       length that would have been written */
+       length that would have been written. The truncation is the test, so
+       the compiler's truncation warning does not apply. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
     n = snprintf(s, 4, "%d-%s", 42, "hi");
+#pragma GCC diagnostic pop
     printf("test 164: \"%s\" n=%d s/b \"42-\" 5\n", s, n);
     if (strcmp(s, "42-") || n != 5) fails++;
 
@@ -940,8 +944,12 @@ int main(void)
                ferror(fp) != 0);
         if (!ferror(fp)) fails++;
 
-        printf("test 806: %d s/b %d (_fileno matches fileno())\n",
-               fp->_fileno, fileno(fp));
+        /* The raw descriptor number depends on what else the program
+           has open (the dynamic build's always-resident sound holds one
+           more than the static build's), so the printed result is the
+           comparison, not the numbers. */
+        printf("test 806: %d s/b 1 (_fileno matches fileno())\n",
+               fp->_fileno == fileno(fp));
         if (fp->_fileno != fileno(fp)) fails++;
 
         fclose(fp);

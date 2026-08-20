@@ -119,8 +119,8 @@ are used.
 *******************************************************************************/
 
 FILE* ami_opennet(/* IP address */      unsigned long addr,
-                 /* port */            int port,
-                 /* link is secured */ int secure
+                 /* port */            long port,
+                 /* link is secured */ long secure
 )
 
 {
@@ -134,8 +134,8 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
 FILE* ami_opennetv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -156,10 +156,10 @@ DTLS, with fixed length messages.
 
 *******************************************************************************/
 
-int ami_openmsg(
+long ami_openmsg(
     /* ip address */      unsigned long addr,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -170,11 +170,11 @@ int ami_openmsg(
 
 }
 
-int ami_openmsgv6(
+long ami_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            int port,
-    /* link is secured */ int secure
+    /* port */            long port,
+    /* link is secured */ long secure
 )
 
 {
@@ -197,8 +197,8 @@ another program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-int ami_waitmsg(/* port number to wait on */ int port,
-               /* secure mode */            int secure
+long ami_waitmsg(/* port number to wait on */ long port,
+               /* secure mode */            long secure
                )
 
 {
@@ -223,7 +223,7 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-int ami_maxmsg(unsigned long addr)
+long ami_maxmsg(unsigned long addr, long secure)
 
 {
 
@@ -247,7 +247,8 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-int ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  long secure)
 
 {
 
@@ -266,7 +267,7 @@ size (including 0) up to ami_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void ami_wrmsg(int fn, void* msg, unsigned long len)
+void ami_wrmsg(long fn, void* msg, unsigned long len)
 
 {
 
@@ -285,7 +286,7 @@ is known that a given message size will never be exceeded.
 
 *******************************************************************************/
 
-int ami_rdmsg(int fn, void* msg, unsigned long len)
+long ami_rdmsg(long fn, void* msg, unsigned long len)
 
 {
 
@@ -303,7 +304,7 @@ Closes the given message file.
 
 *******************************************************************************/
 
-void ami_clsmsg(int fn)
+void ami_clsmsg(long fn)
 
 {
 
@@ -323,8 +324,8 @@ program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* ami_waitnet(/* port number to wait on */ int port,
-                 /* secure mode */            int secure
+FILE* ami_waitnet(/* port number to wait on */ long port,
+                 /* secure mode */            long secure
                 )
 
 {
@@ -354,7 +355,7 @@ carried on the wire. Thus it is reliable by definition.
 
 *******************************************************************************/
 
-int ami_relymsg(unsigned long addr)
+long ami_relymsg(unsigned long addr)
 
 {
 
@@ -364,7 +365,7 @@ int ami_relymsg(unsigned long addr)
 
 }
 
-int ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -397,12 +398,16 @@ or both may be used to break up lines in the certificate.
 Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
 Thus the end of the certificate chain must be found by traversal.
 
+The certificate buffer is a critical buffer: a result that fills the entire
+buffer is left without a terminating zero, a shorter result is zero
+terminated, and it is an error if the certificate cannot fit in the buffer.
+
 Note that this routine retrieves the peer certificate, or other end of the
 line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int ami_certmsg(int fn, int which, string buff, int len)
+long ami_certmsg(long fn, long which, string buff, long len)
 
 {
 
@@ -434,12 +439,16 @@ or both may be used to break up lines in the certificate.
 Certificates are normally retrieved in numerical order, that is, 1, 2, 3...N.
 Thus the end of the certificate chain must be found by traversal.
 
+The certificate buffer is a critical buffer: a result that fills the entire
+buffer is left without a terminating zero, a shorter result is zero
+terminated, and it is an error if the certificate cannot fit in the buffer.
+
 Note that this routine retrieves the peer certificate, or other end of the
 line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-int ami_certnet(FILE* f, int which, string buff, int len)
+long ami_certnet(FILE* f, long which, string buff, long len)
 
 {
 
@@ -449,7 +458,7 @@ int ami_certnet(FILE* f, int which, string buff, int len)
 
 }
 
-void ami_certlistnet(FILE *f, int which, ami_certptr* list)
+void ami_certlistnet(FILE *f, long which, ami_certptr* list)
 
 {
 
@@ -481,7 +490,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-void ami_certlistmsg(int fn, int which, ami_certptr* list)
+void ami_certlistmsg(long fn, long which, ami_certptr* list)
 
 {
 

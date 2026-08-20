@@ -1965,6 +1965,23 @@ int rename(
 }
 #endif
 
+/* On Windows the portable link()/unlink() rename() above is unavailable (no
+   POSIX link()). A non-STDIO_BYPASS build simply uses the native CRT rename()
+   in its place, so nothing is needed. A STDIO_BYPASS consumer, however, has its
+   rename() calls coined to stdio_rename() (see stdio.h), so that funnel entry
+   must exist: provide it for the Windows bypass build, mapping to the CRT
+   rename(). The coining macro is suspended only around the call, so the coined
+   name is defined in terms of the real one. */
+#if defined(__MINGW32__) && defined(STDIO_BYPASS)
+int stdio_rename(const char *oldname, const char *newname)
+{
+#undef rename
+    extern int rename(const char *oldname, const char *newname);
+    return rename(oldname, newname); /* native CRT rename */
+#define rename(...) stdio_rename(__VA_ARGS__)
+}
+#endif
+
 /** **************************************************************************
 
 Function tmpdir
@@ -4950,3 +4967,340 @@ static void deinit_stdio()
     fflush((FILE *)NULL); /* flush all buffered output streams */
 
 }
+
+/*******************************************************************************
+
+Override-mode compatibility surface (Linux)
+
+In override mode (no STDIO_BYPASS) this module's definitions preempt
+glibc's for every caller in the process, foreign libraries included. Any
+stdio entry point a foreign library imports that this module does not
+define falls through to glibc, which then receives a petit ami FILE and
+aborts on its vtable validation. This section closes the audited gaps
+(tools/stdioaudit lists a binary's imports against what is provided):
+
+- the fortified variants (__fprintf_chk and kin) that FILE-touching
+  callers compiled with _FORTIFY_SOURCE import, forwarded to the plain
+  implementations;
+- the large-file aliases (fopen64 and kin), identities on a 64 bit
+  system;
+- the _unlocked family, aliases here since this stdio does not lock;
+- the old glibc internal entry points (_IO_getc and kin) that binaries
+  compiled against older glibc headers call;
+- getline/getdelim and popen/pclose (libasound imports popen),
+  implemented;
+- loud failures for the FILE-creating entries that are not implemented
+  (fmemopen and kin), so a gap diagnoses itself in one line instead of
+  a crash inside glibc.
+
+*******************************************************************************/
+
+#if !defined(STDIO_BYPASS) && defined(__linux__)
+
+#include <sys/wait.h>
+
+/* wint_t/wchar_t without wchar.h, which would drag glibc's FILE in */
+typedef unsigned int wint_t_;
+typedef int wchar_t_;
+#define wint_t wint_t_
+#define wchar_t wchar_t_
+
+/* minimal fopencookie type, matching glibc's shape for the stub */
+typedef struct {
+
+    void* read;
+    void* write;
+    void* seek;
+    void* close;
+
+} cookie_io_functions_t;
+
+/* fortified print family: the checking is glibc's affair; the calls
+   forward to the plain implementations */
+int __fprintf_chk(FILE* f, int flag, const char* fmt, ...)
+
+{
+
+    va_list ap;
+    int r;
+
+    va_start(ap, fmt);
+    r = vfprintf(f, fmt, ap);
+    va_end(ap);
+
+    return (r);
+
+}
+
+int __vfprintf_chk(FILE* f, int flag, const char* fmt, va_list ap)
+
+{
+
+    return (vfprintf(f, fmt, ap));
+
+}
+
+int __printf_chk(int flag, const char* fmt, ...)
+
+{
+
+    va_list ap;
+    int r;
+
+    va_start(ap, fmt);
+    r = vfprintf(stdout, fmt, ap);
+    va_end(ap);
+
+    return (r);
+
+}
+
+int __vprintf_chk(int flag, const char* fmt, va_list ap)
+
+{
+
+    return (vfprintf(stdout, fmt, ap));
+
+}
+
+char *__fgets_chk(char* s, size_t size, int n, FILE* f)
+
+{
+
+    if (size != (size_t)-1 && (size_t)n > size) n = size;
+
+    return (fgets(s, n, f));
+
+}
+
+size_t __fread_chk(void* p, size_t plen, size_t size, size_t n, FILE* f)
+
+{
+
+    return (fread(p, size, n, f));
+
+}
+
+size_t __fread_unlocked_chk(void* p, size_t plen, size_t size, size_t n,
+                            FILE* f)
+
+{
+
+    return (fread(p, size, n, f));
+
+}
+
+/* large file aliases: off_t is 64 bits on a 64 bit system, so these are
+   the plain calls under the names LFS-compiled callers import */
+FILE *fopen64(const char* fn, const char* mode) { return (fopen(fn, mode)); }
+FILE *freopen64(const char* fn, const char* mode, FILE* f)
+    { return (freopen(fn, mode, f)); }
+FILE *tmpfile64(void) { return (tmpfile()); }
+int fseeko(FILE* f, long off, int whence) { return (fseek(f, off, whence)); }
+long ftello(FILE* f) { return (ftell(f)); }
+int fseeko64(FILE* f, long off, int whence) { return (fseek(f, off, whence)); }
+long ftello64(FILE* f) { return (ftell(f)); }
+
+/* the unlocked family: this stdio does not lock, so they are the plain
+   calls */
+int getc_unlocked(FILE* f) { return (fgetc(f)); }
+int fgetc_unlocked(FILE* f) { return (fgetc(f)); }
+int putc_unlocked(int c, FILE* f) { return (fputc(c, f)); }
+int fputc_unlocked(int c, FILE* f) { return (fputc(c, f)); }
+char *fgets_unlocked(char* s, int n, FILE* f) { return (fgets(s, n, f)); }
+int fputs_unlocked(const char* s, FILE* f) { return (fputs(s, f)); }
+size_t fread_unlocked(void* p, size_t size, size_t n, FILE* f)
+    { return (fread(p, size, n, f)); }
+size_t fwrite_unlocked(const void* p, size_t size, size_t n, FILE* f)
+    { return (fwrite(p, size, n, f)); }
+int feof_unlocked(FILE* f) { return (feof(f)); }
+int ferror_unlocked(FILE* f) { return (ferror(f)); }
+void clearerr_unlocked(FILE* f) { clearerr(f); }
+int fileno_unlocked(FILE* f) { return (fileno(f)); }
+int fflush_unlocked(FILE* f) { return (fflush(f)); }
+
+/* old glibc internal entry points, from binaries compiled against older
+   glibc headers where getc and putc were macros over these */
+int _IO_getc(FILE* f) { return (fgetc(f)); }
+int _IO_putc(int c, FILE* f) { return (fputc(c, f)); }
+int __uflow(FILE* f) { return (fgetc(f)); }
+int __overflow(FILE* f, int c)
+    { return (c == EOF? fflush(f): fputc(c, f)); }
+
+/* line input */
+ssize_t getdelim(char** lineptr, size_t* n, int delim, FILE* f)
+
+{
+
+    size_t len = 0;
+    int c;
+
+    if (!lineptr || !n || !f) return (-1);
+    if (!*lineptr || !*n) {
+
+        *n = 128;
+        *lineptr = realloc(*lineptr, *n);
+        if (!*lineptr) return (-1);
+
+    }
+    for (;;) {
+
+        c = fgetc(f);
+        if (c == EOF) break;
+        if (len+2 > *n) {
+
+            *n *= 2;
+            *lineptr = realloc(*lineptr, *n);
+            if (!*lineptr) return (-1);
+
+        }
+        (*lineptr)[len++] = c;
+        if (c == delim) break;
+
+    }
+    (*lineptr)[len] = 0;
+
+    return (len? (ssize_t)len: -1);
+
+}
+
+ssize_t getline(char** lineptr, size_t* n, FILE* f)
+
+{
+
+    return (getdelim(lineptr, n, '\n', f));
+
+}
+
+/* piped commands over this stdio's own files (libasound imports popen) */
+static int popen_pids[FOPEN_MAX];
+
+FILE *popen(const char* command, const char* mode)
+
+{
+
+    int   fds[2];
+    int   pid;
+    int   rd = mode && mode[0] == 'r';
+    FILE* f;
+
+    if (pipe(fds) < 0) return (NULL);
+    pid = fork();
+    if (pid < 0) {
+
+        close(fds[0]);
+        close(fds[1]);
+
+        return (NULL);
+
+    }
+    if (!pid) { /* child: wire the pipe to the shell */
+
+        if (rd) dup2(fds[1], 1); else dup2(fds[0], 0);
+        close(fds[0]);
+        close(fds[1]);
+        execl("/bin/sh", "sh", "-c", command, (char*)NULL);
+        _exit(127);
+
+    }
+    close(rd? fds[1]: fds[0]);
+    f = fdopen(rd? fds[0]: fds[1], rd? "r": "w");
+    if (!f) close(rd? fds[0]: fds[1]);
+    else if (fileno(f) >= 0 && fileno(f) < FOPEN_MAX)
+        popen_pids[fileno(f)] = pid;
+
+    return (f);
+
+}
+
+int pclose(FILE* f)
+
+{
+
+    int fd = fileno(f);
+    int pid = fd >= 0 && fd < FOPEN_MAX? popen_pids[fd]: 0;
+    int status = -1;
+
+    if (fd >= 0 && fd < FOPEN_MAX) popen_pids[fd] = 0;
+    fclose(f);
+    if (pid > 0) while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
+
+    return (status);
+
+}
+
+/* the C99 scanf aliases, what modern compiles bind fscanf and scanf to */
+int __isoc99_fscanf(FILE* f, const char* fmt, ...)
+
+{
+
+    va_list ap;
+    int r;
+
+    va_start(ap, fmt);
+    r = vfscanf(f, fmt, ap);
+    va_end(ap);
+
+    return (r);
+
+}
+
+int __isoc99_vfscanf(FILE* f, const char* fmt, va_list ap)
+
+{
+
+    return (vfscanf(f, fmt, ap));
+
+}
+
+int __isoc99_scanf(const char* fmt, ...)
+
+{
+
+    va_list ap;
+    int r;
+
+    va_start(ap, fmt);
+    r = vfscanf(stdin, fmt, ap);
+    va_end(ap);
+
+    return (r);
+
+}
+
+int __isoc99_vscanf(const char* fmt, va_list ap)
+
+{
+
+    return (vfscanf(stdin, fmt, ap));
+
+}
+
+/* The FILE-creating entries not implemented fail in one loud line
+   rather than handing glibc a petit ami FILE (or the reverse) to crash
+   on. Implement them here if a library ever wants one. */
+static void stdio_noimp(const char* who)
+
+{
+
+    write(2, "petit_ami stdio: ", 17);
+    write(2, who, strlen(who));
+    write(2, " is not implemented\n", 20);
+    abort();
+
+}
+
+FILE *fmemopen(void* buf, size_t size, const char* mode)
+    { stdio_noimp("fmemopen"); return (NULL); }
+FILE *open_memstream(char** ptr, size_t* sizeloc)
+    { stdio_noimp("open_memstream"); return (NULL); }
+FILE *fopencookie(void* cookie, const char* mode, cookie_io_functions_t io)
+    { stdio_noimp("fopencookie"); return (NULL); }
+int fwide(FILE* f, int mode)
+    { stdio_noimp("fwide (wide character streams)"); return (0); }
+wint_t fgetwc(FILE* f)
+    { stdio_noimp("fgetwc (wide character streams)"); return (0); }
+wint_t fputwc(wchar_t c, FILE* f)
+    { stdio_noimp("fputwc (wide character streams)"); return (0); }
+
+#endif /* !STDIO_BYPASS && __linux__ */

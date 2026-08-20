@@ -356,8 +356,8 @@ Execute a move on the board
 
 void play_sound(int note, int dur)
 {
-    ami_noteon(AMI_SYNTH_OUT, 0, 1, note, INT_MAX);
-    ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+dur, 1, note, INT_MAX);
+    ami_noteon(AMI_SYNTH_OUT, 0, 1, note, LONG_MAX);
+    ami_noteoff(AMI_SYNTH_OUT, ami_curtimeout()+dur, 1, note, LONG_MAX);
 }
 
 /* Execute a move. Returns TRUE if the piece can continue jumping. */
@@ -639,31 +639,31 @@ Drawing
 
 *******************************************************************************/
 
-#define LIGHT_R (240 * (INT_MAX/255))
-#define LIGHT_G (217 * (INT_MAX/255))
-#define LIGHT_B (181 * (INT_MAX/255))
-#define DARK_R  (181 * (INT_MAX/255))
-#define DARK_G  (136 * (INT_MAX/255))
-#define DARK_B  (99  * (INT_MAX/255))
-#define SEL_R   (100 * (INT_MAX/255))
-#define SEL_G   (180 * (INT_MAX/255))
-#define SEL_B   (100 * (INT_MAX/255))
-#define MOVE_R  (200 * (INT_MAX/255))
-#define MOVE_G  (200 * (INT_MAX/255))
-#define MOVE_B  (80  * (INT_MAX/255))
+#define LIGHT_R (240 * (LONG_MAX/255))
+#define LIGHT_G (217 * (LONG_MAX/255))
+#define LIGHT_B (181 * (LONG_MAX/255))
+#define DARK_R  (181 * (LONG_MAX/255))
+#define DARK_G  (136 * (LONG_MAX/255))
+#define DARK_B  (99  * (LONG_MAX/255))
+#define SEL_R   (100 * (LONG_MAX/255))
+#define SEL_G   (180 * (LONG_MAX/255))
+#define SEL_B   (100 * (LONG_MAX/255))
+#define MOVE_R  (200 * (LONG_MAX/255))
+#define MOVE_G  (200 * (LONG_MAX/255))
+#define MOVE_B  (80  * (LONG_MAX/255))
 
-#define RED_PIECE_R  (200 * (INT_MAX/255))
-#define RED_PIECE_G  (30  * (INT_MAX/255))
-#define RED_PIECE_B  (30  * (INT_MAX/255))
-#define BLK_PIECE_R  (40  * (INT_MAX/255))
-#define BLK_PIECE_G  (40  * (INT_MAX/255))
-#define BLK_PIECE_B  (40  * (INT_MAX/255))
-#define OUTLINE_R    (20  * (INT_MAX/255))
-#define OUTLINE_G    (20  * (INT_MAX/255))
-#define OUTLINE_B    (20  * (INT_MAX/255))
-#define CROWN_R      (255 * (INT_MAX/255))
-#define CROWN_G      (215 * (INT_MAX/255))
-#define CROWN_B      (0   * (INT_MAX/255))
+#define RED_PIECE_R  (200 * (LONG_MAX/255))
+#define RED_PIECE_G  (30  * (LONG_MAX/255))
+#define RED_PIECE_B  (30  * (LONG_MAX/255))
+#define BLK_PIECE_R  (40  * (LONG_MAX/255))
+#define BLK_PIECE_G  (40  * (LONG_MAX/255))
+#define BLK_PIECE_B  (40  * (LONG_MAX/255))
+#define OUTLINE_R    (20  * (LONG_MAX/255))
+#define OUTLINE_G    (20  * (LONG_MAX/255))
+#define OUTLINE_B    (20  * (LONG_MAX/255))
+#define CROWN_R      (255 * (LONG_MAX/255))
+#define CROWN_G      (215 * (LONG_MAX/255))
+#define CROWN_B      (0   * (LONG_MAX/255))
 
 void draw_piece(int r, int c, int px, int py, int sz)
 {
@@ -757,8 +757,8 @@ void draw_board(void)
         char label[2] = {0, 0};
 
         ami_fontsiz(stdout, sz / 4);
-        ami_fcolorg(stdout, 80 * (INT_MAX/255), 80 * (INT_MAX/255),
-                    80 * (INT_MAX/255));
+        ami_fcolorg(stdout, 80 * (LONG_MAX/255), 80 * (LONG_MAX/255),
+                    80 * (LONG_MAX/255));
 
         for (c = 0; c < 8; c++) {
             label[0] = 'a' + c;
@@ -789,8 +789,8 @@ void draw_status(void)
     ami_frect(stdout, 1, sy, ami_maxxg(stdout), ami_maxyg(stdout));
 
     ami_fontsiz(stdout, fsz);
-    ami_fcolorg(stdout, 40 * (INT_MAX/255), 40 * (INT_MAX/255),
-                40 * (INT_MAX/255));
+    ami_fcolorg(stdout, 40 * (LONG_MAX/255), 40 * (LONG_MAX/255),
+                40 * (LONG_MAX/255));
 
     if (gamestate == 1) {
         sprintf(msg, "Game over! %s wins.",

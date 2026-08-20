@@ -9,6 +9,7 @@ to test MIDI in plugins.
 *******************************************************************************/
 
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <localdefs.h>
@@ -16,7 +17,7 @@ to test MIDI in plugins.
 
 #define MAXINST 100 /* maximum allowed device instance (unused) */
 
-int sport; /* input port */
+static int sport; /* input port */
 
 /*******************************************************************************
 
@@ -38,6 +39,30 @@ static void error(string es)
 
 /*******************************************************************************
 
+Copy string to critical output buffer
+
+Copies the given source string to a caller supplied output buffer. Output
+buffers follow the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l;
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
+
+}
+
+/*******************************************************************************
+
 Open Liquidsynth MIDI device
 
 Opens a Liquidsynth MIDI port for use. Does nothing at present, since we open
@@ -45,7 +70,7 @@ one MIDI out device at init time.
 
 *******************************************************************************/
 
-static void opendump(int p)
+static void opendump(long p)
 
 {
 
@@ -64,7 +89,7 @@ Closes a Liquidsynth MIDI output device for use.
 
 *******************************************************************************/
 
-static void closedump(int p)
+static void closedump(long p)
 
 {
 
@@ -84,7 +109,7 @@ device in the table, then that is dumped and returned to the caller.
 
 *******************************************************************************/
 
-static void readdump(int p, ami_seqptr sp)
+static void readdump(long p, ami_seqptr sp)
 
 {
 
@@ -95,114 +120,114 @@ static void readdump(int p, ami_seqptr sp)
     /* now just dump the message */
     switch (sp->st) { /* sequencer message type */
 
-        case st_noteon:       printf("noteon: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Velocity: %d\n",
+        case st_noteon:       printf("noteon: Time: %ld Port: %ld Channel: %ld "
+                                     "Note: %ld Velocity: %ld\n",
                                      sp->time, sp->port, sp->ntc, sp->ntn, sp->ntv);
                               break;
-        case st_noteoff:      printf("noteoff: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Velocity: %d\n", sp->time,
+        case st_noteoff:      printf("noteoff: Time: %ld Port: %ld Channel: %ld "
+                                     "Note: %ld Velocity: %ld\n", sp->time,
                                      sp->port, sp->ntc, sp->ntn, sp->ntv);
                               break;
-        case st_instchange:   printf("instchange: Time: %d Port: %d sp->port "
-                                     "Channel: %d Instrument: %d\n", sp->time,
+        case st_instchange:   printf("instchange: Time: %ld Port: %ld sp->port "
+                                     "Channel: %ld Instrument: %ld\n", sp->time,
                                      sp->port, sp->icc, sp->ici);
                               break;
-        case st_attack:       printf("attack: Time: %d Port: %d Channel: %d "
-                                     "attack time: %d\n", sp->time, sp->port,
+        case st_attack:       printf("attack: Time: %ld Port: %ld Channel: %ld "
+                                     "attack time: %ld\n", sp->time, sp->port,
                                      sp->vsc, sp->vsv);
                               break;
-        case st_release:      printf("release: Time: %d Port: %d Channel: %d "
-                                     "release time: %d\n", sp->time, sp->port,
+        case st_release:      printf("release: Time: %ld Port: %ld Channel: %ld "
+                                     "release time: %ld\n", sp->time, sp->port,
                                      sp->vsc, sp->vsv);
                               break;
-        case st_legato:       printf("legato: Time: %d Port: %d Channel: %d "
-                                     "legato on/off: %d\n", sp->time, sp->port,
+        case st_legato:       printf("legato: Time: %ld Port: %ld Channel: %ld "
+                                     "legato on/off: %ld\n", sp->time, sp->port,
                                      sp->bsc, sp->bsb);
                               break;
-        case st_portamento:   printf("portamento: Time: %d Port: %d Channel: %d "
-                                     "portamento on/off: %d\n", sp->time, sp->port,
+        case st_portamento:   printf("portamento: Time: %ld Port: %ld Channel: %ld "
+                                     "portamento on/off: %ld\n", sp->time, sp->port,
                                      sp->bsc, sp->bsb);
                               break;
-        case st_vibrato:      printf("vibrato: Time: %d Port: %d Channel: %d "
-                                     "Vibrato: %d\n", sp->time, sp->port, sp->vsc,
+        case st_vibrato:      printf("vibrato: Time: %ld Port: %ld Channel: %ld "
+                                     "Vibrato: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_volsynthchan: printf("volsynthchan: Time: %d Port: %d Channel: %d "
-                                     "Volume: %d\n", sp->time, sp->port, sp->vsc,
+        case st_volsynthchan: printf("volsynthchan: Time: %ld Port: %ld Channel: %ld "
+                                     "Volume: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_porttime:     printf("porttime: Time: %d Port: %d Channel: %d "
-                                     "Portamento time: %d\n", sp->time, sp->port,
+        case st_porttime:     printf("porttime: Time: %ld Port: %ld Channel: %ld "
+                                     "Portamento time: %ld\n", sp->time, sp->port,
                                      sp->vsc, sp->vsv);
                               break;
-        case st_balance:      printf("attack: Time: %d Port: %d Channel: %d "
-                                     "Ballance: %d\n", sp->time, sp->port, sp->vsc,
+        case st_balance:      printf("attack: Time: %ld Port: %ld Channel: %ld "
+                                     "Ballance: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_pan:          printf("pan: Time: %d Port: %d Channel: %d "
-                                     "Pan: %d\n", sp->time, sp->port, sp->vsc,
+        case st_pan:          printf("pan: Time: %ld Port: %ld Channel: %ld "
+                                     "Pan: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_timbre:       printf("timbre: Time: %d Port: %d Channel: %d "
-                                     "Timbre: %d\n", sp->time, sp->port, sp->vsc,
+        case st_timbre:       printf("timbre: Time: %ld Port: %ld Channel: %ld "
+                                     "Timbre: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_brightness:   printf("brightness: Time: %d Port: %d Channel: %d "
-                                     "Brightness: %d\n", sp->time, sp->port,
+        case st_brightness:   printf("brightness: Time: %ld Port: %ld Channel: %ld "
+                                     "Brightness: %ld\n", sp->time, sp->port,
                                      sp->vsc, sp->vsv);
                               break;
-        case st_reverb:       printf("reverb: Time: %d Port: %d Channel: %d "
-                                     "Reverb: %d\n", sp->time, sp->port, sp->vsc,
+        case st_reverb:       printf("reverb: Time: %ld Port: %ld Channel: %ld "
+                                     "Reverb: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_tremulo:      printf("tremulo: Time: %d Port: %d Channel: %d "
-                                     "Tremulo: %d\n", sp->time, sp->port, sp->vsc,
+        case st_tremulo:      printf("tremulo: Time: %ld Port: %ld Channel: %ld "
+                                     "Tremulo: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_chorus:       printf("chorus: Time: %d Port: %d Channel: %d "
-                                     "Chorus: %d\n", sp->time, sp->port, sp->vsc,
+        case st_chorus:       printf("chorus: Time: %ld Port: %ld Channel: %ld "
+                                     "Chorus: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_celeste:      printf("celeste: Time: %d Port: %d Channel: %d "
-                                     "Celeste: %d\n", sp->time, sp->port, sp->vsc,
+        case st_celeste:      printf("celeste: Time: %ld Port: %ld Channel: %ld "
+                                     "Celeste: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_phaser:       printf("Phaser: Time: %d Port: %d Channel: %d "
-                                     "Phaser: %d\n", sp->time, sp->port, sp->vsc,
+        case st_phaser:       printf("Phaser: Time: %ld Port: %ld Channel: %ld "
+                                     "Phaser: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_aftertouch:   printf("aftertouch: Time: %d Port: %d Channel: %d "
-                                     "Note: %d Aftertouch: %d\n", sp->time,
+        case st_aftertouch:   printf("aftertouch: Time: %ld Port: %ld Channel: %ld "
+                                     "Note: %ld Aftertouch: %ld\n", sp->time,
                                      sp->port, sp->ntc, sp->ntn, sp->ntv);
                               break;
-        case st_pressure:     printf("pressure: Time: %d Port: %d Channel: %d "
-                                     "Pressure: %d\n", sp->time, sp->port, sp->ntc,
+        case st_pressure:     printf("pressure: Time: %ld Port: %ld Channel: %ld "
+                                     "Pressure: %ld\n", sp->time, sp->port, sp->ntc,
                                      sp->ntv);
                               break;
-        case st_pitch:        printf("pitch: Time: %d Port: %d Channel: %d "
-                                     "Pitch: %d\n", sp->time, sp->port, sp->vsc,
+        case st_pitch:        printf("pitch: Time: %ld Port: %ld Channel: %ld "
+                                     "Pitch: %ld\n", sp->time, sp->port, sp->vsc,
                                      sp->vsv);
                               break;
-        case st_pitchrange:   printf("pitchrange: Time: %d Port: %d Channel: %d "
-                                     "Pitch range: %d\n", sp->time, sp->port,
+        case st_pitchrange:   printf("pitchrange: Time: %ld Port: %ld Channel: %ld "
+                                     "Pitch range: %ld\n", sp->time, sp->port,
                                      sp->vsc, sp->vsv);
                               break;
-        case st_mono:         printf("mono: Time: %d Port: %d Channel: %d "
-                                     "Mono notes: %d\n", sp->time, sp->port,
+        case st_mono:         printf("mono: Time: %ld Port: %ld Channel: %ld "
+                                     "Mono notes: %ld\n", sp->time, sp->port,
                                      sp->vsc, sp->vsv);
                               break;
-        case st_poly:         printf("poly: Time: %d Port: %d Channel: %d\n",
+        case st_poly:         printf("poly: Time: %ld Port: %ld Channel: %ld\n",
                                      sp->time, sp->port, sp->pc);
                               break;
-        case st_playsynth:    printf("playsynth: Time: %d Port: %d "
-                                     ".mid file id: %d\n", sp->time, sp->port,
+        case st_playsynth:    printf("playsynth: Time: %ld Port: %ld "
+                                     ".mid file id: %ld\n", sp->time, sp->port,
                                      sp->sid);
                               break;
-        case st_playwave:     printf("playwave: Time: %d Port: %d "
-                                     ".wav file logical number: %d\n", sp->time,
+        case st_playwave:     printf("playwave: Time: %ld Port: %ld "
+                                     ".wav file logical number: %ld\n", sp->time,
                                      sp->port, sp->wt);
                               break;
-        case st_volwave:      printf("volwave: Time: %d Port: %d Volume: %d\n",
+        case st_volwave:      printf("volwave: Time: %ld Port: %ld Volume: %ld\n",
                                      sp->time, sp->port, sp->wv);
                               break;
 
@@ -219,11 +244,11 @@ Always returns error.
 
 *******************************************************************************/
 
-int setparamdump(int p, string name, string value)
+long setparamdump(long p, string name, string value)
 
 {
 
-    int r;
+    long r;
     string ep;
 
     r = 1; /* set error by default */
@@ -243,15 +268,17 @@ int setparamdump(int p, string name, string value)
 Get parameter
 
 Get plug in parameter from the given name and value. Not implemented at present.
-Always returns empty string.
+Always returns empty string. The value is returned by the critical buffer
+convention: a result that fills the entire buffer is not zero terminated, a
+shorter result is zero terminated, and it is an error if the result cannot fit.
 
 *******************************************************************************/
 
-void getparamdump(int p, string name, string value, int len)
+void getparamdump(long p, string name, string value, long len)
 
 {
 
-    *value = 0; /* clear output string */
+    cpycrit(value, len, ""); /* return empty string */
 
 }
 

@@ -9,6 +9,11 @@
 * Describes the full Petit-ami graphical subsystem, including terminal level,  *
 * graphics level, windowing, and widgets.                                      *
 *                                                                              *
+* String output buffers are "critical": a result may occupy the entire        *
+* buffer, in which case the terminating zero is left off. Results shorter     *
+* than the buffer are zero terminated. C callers should use length limited    *
+* reads of such buffers (see strnlen and similar).                            *
+*                                                                              *
 *******************************************************************************/
 
 #ifndef __GRAPHICS_H__
@@ -138,6 +143,13 @@ typedef enum {
     ami_etdrebox,   /* drop edit box signals done */
     ami_etsldpos,   /* slider position */
     ami_ettabbar,   /* tab bar select */
+    /* The user asks for what is displayed to be made larger or smaller,
+       with control-+ and control--. The window is not touched -- the user
+       sets that themselves -- it is the material in it that changes, which
+       for most programs means taking the point size a point up or down and
+       laying out again. */
+    ami_etusize,    /* enlarge what is displayed */
+    ami_etdsize,    /* reduce what is displayed */
 
     /* Reserved extra code areas, these are module defined. */
     ami_etsys    = 0x1000, /* start of base system reserved codes */
@@ -149,141 +161,141 @@ typedef enum {
 /* event record */
 typedef struct {
 
-    /* identifier of window for event */ int winid;
+    /* identifier of window for event */ long winid;
     /* event type */                     ami_evtcod etype;
-    /* event was handled */              int handled;
+    /* event was handled */              long handled;
     union {
 
         /* these events require parameter data */
 
         /** etchar: ANSI character returned */  char echar;
-        /** ettim: timer handle that matured */ int timnum;
+        /** ettim: timer handle that matured */ long timnum;
         /** etmoumov: */
         struct {
 
-            /** mouse number */   int mmoun;
-            /** mouse movement */ int moupx, moupy;
+            /** mouse number */   long mmoun;
+            /** mouse movement */ long moupx, moupy;
 
         };
         /* etmouba */
         struct {
 
-            /** mouse handle */  int amoun;
-            /** button number */ int amoubn;
+            /** mouse handle */  long amoun;
+            /** button number */ long amoubn;
 
         };
         /* etmoubd */
         struct {
 
-            /** mouse handle */  int dmoun;
-            /** button number */ int dmoubn;
+            /** mouse handle */  long dmoun;
+            /** button number */ long dmoubn;
 
         };
         /* ami_etjoyba */
         struct {
 
-            /** joystick number */ int ajoyn;
-            /** button number */   int ajoybn;
+            /** joystick number */ long ajoyn;
+            /** button number */   long ajoybn;
 
         };
         /* ami_etjoybd */
         struct {
 
-            /** joystick number */ int djoyn;
-            /** button number */   int djoybn;
+            /** joystick number */ long djoyn;
+            /** button number */   long djoybn;
 
         };
         /* ami_etjoymov */
         struct {
 
-            /** joystick number */      int mjoyn;
-            /** joystick coordinates */ int joypx, joypy, joypz;
-                                        int joyp4, joyp5, joyp6;
+            /** joystick number */      long mjoyn;
+            /** joystick coordinates */ long joypx, joypy, joypz;
+                                        long joyp4, joyp5, joyp6;
 
         };
         /* ami_etfun */
-        /** function key */ int fkey;
+        /** function key */ long fkey;
         /* ami_etresize */
         struct {
 
-            int rszx, rszy, rszxg, rszyg;
+            long rszx, rszy, rszxg, rszyg;
 
         };
 
         /** etmoumovg: */
         struct {
 
-            /** mouse number */   int mmoung;
-            /** mouse movement */ int moupxg, moupyg;
+            /** mouse number */   long mmoung;
+            /** mouse movement */ long moupxg, moupyg;
 
         };
         /** etredraw */
         struct {
 
             /** bounding rectangle */
-            int rsx, rsy, rex, rey;
+            long rsx, rsy, rex, rey;
 
         };
         /* ami_etmenus */
-        int menuid; /* menu item selected */
+        long menuid; /* menu item selected */
         /* ami_etbutton */
-        int butid; /* button id */
+        long butid; /* button id */
         /* ami_etchkbox */
-        int ckbxid; /* checkbox id */
+        long ckbxid; /* checkbox id */
         /* ami_etradbut */
-        int radbid; /* radio button id */
+        long radbid; /* radio button id */
         /* ami_etsclull */
-        int sclulid; /* scroll up/left line id*/
+        long sclulid; /* scroll up/left line id*/
         /* ami_etscldrl */
-        int scldrid; /* scroll down/right line id */
+        long scldrid; /* scroll down/right line id */
         /* ami_etsclulp */
-        int sclupid; /* scroll up/left page id */
+        long sclupid; /* scroll up/left page id */
         /* ami_etscldrp */
-        int scldpid; /* scroll down/right page id */
+        long scldpid; /* scroll down/right page id */
         /* ami_etsclpos */
         struct {
 
-            int sclpid; /* scroll bar id */
-            int sclpos; /* scroll bar position */
+            long sclpid; /* scroll bar id */
+            long sclpos; /* scroll bar position */
 
         };
         /* ami_etedtbox */
-        int edtbid; /* edit box complete id */
+        long edtbid; /* edit box complete id */
         /* ami_etnumbox */
         struct { /* number select box signals done */
 
-            int numbid; /* num sel box id */
-            int numbsl; /* num select value */
+            long numbid; /* num sel box id */
+            long numbsl; /* num select value */
 
         };
         /* ami_etlstbox */
         struct {
 
-            int lstbid; /* list box id */
-            int lstbsl; /* list box select number */
+            long lstbid; /* list box id */
+            long lstbsl; /* list box select number */
 
         };
         /* ami_etdrpbox */
         struct {
 
-            int drpbid; /* drop box id */
-            int drpbsl; /* drop box select */
+            long drpbid; /* drop box id */
+            long drpbsl; /* drop box select */
 
         };
         /* ami_etdrebox */
-        int drebid; /* drop edit box id */
+        long drebid; /* drop edit box id */
         /* ami_etsldpos */
         struct {
 
-            int sldpid; /* slider id */
-            int sldpos; /* slider position */
+            long sldpid; /* slider id */
+            long sldpos; /* slider position */
 
         };
         /* ami_ettabbar */
         struct {
 
-            int tabid;  /* tab bar id */
-            int tabsel; /* tab select */
+            long tabid;  /* tab bar id */
+            long tabsel; /* tab select */
 
         };
 
@@ -300,15 +312,15 @@ typedef struct ami_menurec {
 
         ami_menuptr next;   /* next menu item in list */
         ami_menuptr branch; /* menu branch */
-        int        onoff;  /* on/off highlight */
-        int        oneof;  /* "one of" highlight */
-        int        bar;    /* place bar under */
-        int        id;     /* id of menu item */
+        long        onoff;  /* on/off highlight */
+        long        oneof;  /* "one of" highlight */
+        long        bar;    /* place bar under */
+        long        id;     /* id of menu item */
         char*      face;   /* text to place on button */
 
 } ami_menurec;
 /* standard menu selector */
-typedef int ami_stdmenusel;
+typedef long ami_stdmenusel;
 /* windows mode sets */
 typedef enum {
 
@@ -317,7 +329,7 @@ typedef enum {
     ami_wmsysbar /* system bar on/off */
 
 } ami_winmod;
-typedef int ami_winmodset;
+typedef long ami_winmodset;
 /* string set for list box */
 typedef struct ami_strrec* ami_strptr;
 typedef struct ami_strrec {
@@ -330,65 +342,65 @@ typedef struct ami_strrec {
 typedef enum { ami_totop, ami_toright, ami_tobottom, ami_toleft } ami_tabori;
 /* settable items in find query */
 typedef enum { ami_qfncase, ami_qfnup, ami_qfnre } ami_qfnopt;
-typedef int ami_qfnopts;
+typedef long ami_qfnopts;
 /* settable items in replace query */
 typedef enum { ami_qfrcase, ami_qfrup, ami_qfrre, ami_qfrfind, ami_qfrallfil, ami_qfralllin } ami_qfropt;
-typedef int ami_qfropts;
+typedef long ami_qfropts;
 /* effects in font query */
 typedef enum { ami_qfteblink, ami_qftereverse, ami_qfteunderline, ami_qftesuperscript,
                   ami_qftesubscript, ami_qfteitalic, ami_qftebold, ami_qftestrikeout,
                   ami_qftestandout, ami_qftecondensed, ami_qfteextended, ami_qftexlight,
                   ami_qftelight, ami_qftexbold, ami_qftehollow, ami_qfteraised} ami_qfteffect;
-typedef int ami_qfteffects;
+typedef long ami_qfteffects;
 
 /* functions at this level */
 
 /* text */
 
-void ami_cursor(FILE* f, int x, int y);
-int ami_maxx(FILE* f);
-int ami_maxy(FILE* f);
+void ami_cursor(FILE* f, long x, long y);
+long ami_maxx(FILE* f);
+long ami_maxy(FILE* f);
 void ami_home(FILE* f);
 void ami_del(FILE* f);
 void ami_up(FILE* f);
 void ami_down(FILE* f);
 void ami_left(FILE* f);
 void ami_right(FILE* f);
-void ami_blink(FILE* f, int e);
-void ami_reverse(FILE* f, int e);
-void ami_underline(FILE* f, int e);
-void ami_superscript(FILE* f, int e);
-void ami_subscript(FILE* f, int e);
-void ami_italic(FILE* f, int e);
-void ami_bold(FILE* f, int e);
-void ami_strikeout(FILE* f, int e);
-void ami_standout(FILE* f, int e);
+void ami_blink(FILE* f, long e);
+void ami_reverse(FILE* f, long e);
+void ami_underline(FILE* f, long e);
+void ami_superscript(FILE* f, long e);
+void ami_subscript(FILE* f, long e);
+void ami_italic(FILE* f, long e);
+void ami_bold(FILE* f, long e);
+void ami_strikeout(FILE* f, long e);
+void ami_standout(FILE* f, long e);
 void ami_fcolor(FILE* f, ami_color c);
 void ami_bcolor(FILE* f, ami_color c);
-void ami_auto(FILE* f, int e);
-void ami_curvis(FILE* f, int e);
-void ami_scroll(FILE* f, int x, int y);
-int ami_curx(FILE* f);
-int ami_cury(FILE* f);
-int ami_curbnd(FILE* f);
-void ami_select(FILE* f, int u, int d);
+void ami_auto(FILE* f, long e);
+void ami_curvis(FILE* f, long e);
+void ami_scroll(FILE* f, long x, long y);
+long ami_curx(FILE* f);
+long ami_cury(FILE* f);
+long ami_curbnd(FILE* f);
+void ami_select(FILE* f, long u, long d);
 void ami_event(FILE* f, ami_evtrec* er);
-void ami_timer(FILE* f, int i, long t, int r);
-void ami_killtimer(FILE* f, int i);
-int ami_mouse(FILE* f);
-int ami_mousebutton(FILE* f, int m);
-int ami_joystick(FILE* f);
-int ami_joybutton(FILE* f, int j);
-int ami_joyaxis(FILE* f, int j);
-void ami_settab(FILE* f, int t);
-void ami_restab(FILE* f, int t);
+void ami_timer(FILE* f, long i, long t, long r);
+void ami_killtimer(FILE* f, long i);
+long ami_mouse(FILE* f);
+long ami_mousebutton(FILE* f, long m);
+long ami_joystick(FILE* f);
+long ami_joybutton(FILE* f, long j);
+long ami_joyaxis(FILE* f, long j);
+void ami_settab(FILE* f, long t);
+void ami_restab(FILE* f, long t);
 void ami_clrtab(FILE* f);
-int ami_funkey(FILE* f);
-void ami_frametimer(FILE* f, int e);
-void ami_autohold(int e);
+long ami_funkey(FILE* f);
+void ami_frametimer(FILE* f, long e);
+void ami_autohold(long e);
 void ami_wrtstr(FILE* f, char* s);
-void ami_wrtstrn(FILE* f, char* s, int n);
-void ami_sizbuf(FILE* f, int x, int y);
+void ami_wrtstrn(FILE* f, char* s, long n);
+void ami_sizbuf(FILE* f, long x, long y);
 void ami_title(FILE* f, char* ts);
 void ami_eventover(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh);
 void ami_eventsover(ami_pevthan eh,  ami_pevthan* oeh);
@@ -396,26 +408,26 @@ void ami_sendevent(FILE* f, ami_evtrec* er);
 
 /* graphical */
 
-int ami_maxxg(FILE* f);
-int ami_maxyg(FILE* f);
-int ami_curxg(FILE* f);
-int ami_curyg(FILE* f);
-void ami_line(FILE* f, int x1, int y1, int x2, int y2);
-void ami_linewidth(FILE* f, int w);
+long ami_maxxg(FILE* f);
+long ami_maxyg(FILE* f);
+long ami_curxg(FILE* f);
+long ami_curyg(FILE* f);
+void ami_line(FILE* f, long x1, long y1, long x2, long y2);
+void ami_linewidth(FILE* f, long w);
 void ami_linestyle(FILE* f, ami_lstyle style);
-void ami_rect(FILE* f, int x1, int y1, int x2, int y2);
-void ami_frect(FILE* f, int x1, int y1, int x2, int y2);
-void ami_rrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-void ami_frrect(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-void ami_ellipse(FILE* f, int x1, int y1, int x2, int y2);
-void ami_fellipse(FILE* f, int x1, int y1, int x2, int y2);
-void ami_arc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-void ami_farc(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-void ami_fchord(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-void ami_ftriangle(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3);
-void ami_cursorg(FILE* f, int x, int y);
-int ami_baseline(FILE* f);
-void ami_setpixel(FILE* f, int x, int y);
+void ami_rect(FILE* f, long x1, long y1, long x2, long y2);
+void ami_frect(FILE* f, long x1, long y1, long x2, long y2);
+void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys);
+void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys);
+void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2);
+void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2);
+void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3);
+void ami_cursorg(FILE* f, long x, long y);
+long ami_baseline(FILE* f);
+void ami_setpixel(FILE* f, long x, long y);
 void ami_fover(FILE* f);
 void ami_bover(FILE* f);
 void ami_finvis(FILE* f);
@@ -426,254 +438,260 @@ void ami_fand(FILE* f);
 void ami_band(FILE* f);
 void ami_for(FILE* f);
 void ami_bor(FILE* f);
-int ami_chrsizx(FILE* f);
-int ami_chrsizy(FILE* f);
-int ami_fonts(FILE* f);
-void ami_font(FILE* f, int fc);
-void ami_fontnam(FILE* f, int fc, char* fns, int fnsl);
-void ami_fontsiz(FILE* f, int s);
+long ami_chrsizx(FILE* f);
+long ami_chrsizy(FILE* f);
+long ami_fonts(FILE* f);
+void ami_font(FILE* f, long fc);
+void ami_fontnam(FILE* f, long fc, char* fns, long fnsl);
+void ami_fontsiz(FILE* f, long s);
 void ami_setpoints(FILE* f, float ps);
 float ami_points(FILE* f);
-void ami_chrspcy(FILE* f, int s);
-void ami_chrspcx(FILE* f, int s);
-int ami_dpmx(FILE* f);
-int ami_dpmy(FILE* f);
-int ami_strsiz(FILE* f, const char* s);
-int ami_chrpos(FILE* f, const char* s, int p);
-void ami_writejust(FILE* f, const char* s, int n);
-int ami_justpos(FILE* f, const char* s, int p, int n);
-void ami_condensed(FILE* f, int e);
-void ami_extended(FILE* f, int e);
-void ami_xlight(FILE* f, int e);
-void ami_light(FILE* f, int e);
-void ami_xbold(FILE* f, int e);
-void ami_hollow(FILE* f, int e);
-void ami_raised(FILE* f, int e);
-void ami_settabg(FILE* f, int t);
-void ami_restabg(FILE* f, int t);
-void ami_fcolorg(FILE* f, int r, int g, int b);
-void ami_fcolorc(FILE* f, int r, int g, int b);
-void ami_bcolorg(FILE* f, int r, int g, int b);
-void ami_bcolorc(FILE* f, int r, int g, int b);
-void ami_loadpict(FILE* f, int p, char* fn);
-int ami_pictsizx(FILE* f, int p);
-int ami_pictsizy(FILE* f, int p);
-void ami_picture(FILE* f, int p, int x1, int y1, int x2, int y2);
-void ami_delpict(FILE* f, int p);
-void ami_scrollg(FILE* f, int x, int y);
-void ami_path(FILE* f, int a);
-void ami_viewoffg(FILE* f, int x, int y);
+void ami_chrspcy(FILE* f, long s);
+void ami_chrspcx(FILE* f, long s);
+long ami_dpmx(FILE* f);
+long ami_dpmy(FILE* f);
+long ami_strsiz(FILE* f, const char* s);
+long ami_chrpos(FILE* f, const char* s, long p);
+void ami_writejust(FILE* f, const char* s, long n);
+long ami_justpos(FILE* f, const char* s, long p, long n);
+void ami_condensed(FILE* f, long e);
+void ami_extended(FILE* f, long e);
+void ami_xlight(FILE* f, long e);
+void ami_light(FILE* f, long e);
+void ami_xbold(FILE* f, long e);
+void ami_hollow(FILE* f, long e);
+void ami_raised(FILE* f, long e);
+void ami_settabg(FILE* f, long t);
+void ami_restabg(FILE* f, long t);
+void ami_fcolorg(FILE* f, long r, long g, long b);
+void ami_fcolorc(FILE* f, long r, long g, long b);
+void ami_bcolorg(FILE* f, long r, long g, long b);
+void ami_bcolorc(FILE* f, long r, long g, long b);
+void ami_loadpict(FILE* f, long p, char* fn);
+long ami_pictsizx(FILE* f, long p);
+long ami_pictsizy(FILE* f, long p);
+void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2);
+void ami_delpict(FILE* f, long p);
+void ami_scrollg(FILE* f, long x, long y);
+void ami_path(FILE* f, long a);
+void ami_viewoffg(FILE* f, long x, long y);
 void ami_viewscale(FILE* f, float x, float y);
-int  ami_scalex(FILE* f, int x);
-int  ami_scaley(FILE* f, int y);
+long  ami_scalex(FILE* f, long x);
+long  ami_scaley(FILE* f, long y);
+void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
+                    long sy2, long dx1, long dy1, long dx2, long dy2);
+
+/* print files */
+
+void ami_openprint(FILE** f, char* n);
 
 /* Window management functions */
 
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid);
-void ami_buffer(FILE* f, int e);
-void ami_sizbufg(FILE* f, int x, int y);
-void ami_getsiz(FILE* f, int* x, int* y);
-void ami_getsizg(FILE* f, int* x, int* y);
-void ami_setsiz(FILE* f, int x, int y);
-void ami_setsizg(FILE* f, int x, int y);
-void ami_setpos(FILE* f, int x, int y);
-void ami_setposg(FILE* f, int x, int y);
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid);
+void ami_buffer(FILE* f, long e);
+void ami_sizbufg(FILE* f, long x, long y);
+void ami_getsiz(FILE* f, long* x, long* y);
+void ami_getsizg(FILE* f, long* x, long* y);
+void ami_setsiz(FILE* f, long x, long y);
+void ami_setsizg(FILE* f, long x, long y);
+void ami_setpos(FILE* f, long x, long y);
+void ami_setposg(FILE* f, long x, long y);
 void ami_dragwin(FILE* f);
-void ami_scnsiz(FILE* f, int* x, int* y);
-void ami_scnsizg(FILE* f, int* x, int*y);
-void ami_scncen(FILE* f, int* x, int* y);
-void ami_scnceng(FILE* f, int* x, int* y);
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms);
-void ami_winclientg(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms);
+void ami_scnsiz(FILE* f, long* x, long* y);
+void ami_scnsizg(FILE* f, long* x, long*y);
+void ami_scncen(FILE* f, long* x, long* y);
+void ami_scnceng(FILE* f, long* x, long* y);
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms);
+void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms);
 void ami_front(FILE* f);
 void ami_back(FILE* f);
-void ami_frame(FILE* f, int e);
-void ami_sizable(FILE* f, int e);
-void ami_sysbar(FILE* f, int e);
+void ami_frame(FILE* f, long e);
+void ami_sizable(FILE* f, long e);
+void ami_sysbar(FILE* f, long e);
 void ami_menu(FILE* f, ami_menuptr m);
-void ami_menuena(FILE* f, int id, int onoff);
-void ami_menusel(FILE* f, int id, int select);
+void ami_menuena(FILE* f, long id, long onoff);
+void ami_menusel(FILE* f, long id, long select);
 void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
-int ami_getwinid(void);
+long ami_getwinid(void);
 void ami_focus(FILE* f);
 
 /* widgets/controls */
 
-int ami_getwigid(FILE* f);
-void ami_killwidget(FILE* f, int id);
-void ami_selectwidget(FILE* f, int id, int e);
-void ami_enablewidget(FILE* f, int id, int e);
-void ami_getwidgettext(FILE* f, int id, char* s, int sl);
-void ami_putwidgettext(FILE* f, int id, char* s);
-void ami_sizwidget(FILE* f, int id, int x, int y);
-void ami_sizwidgetg(FILE* f, int id, int x, int y);
-void ami_poswidget(FILE* f, int id, int x, int y);
-void ami_poswidgetg(FILE* f, int id, int x, int y);
-void ami_backwidget(FILE* f, int id);
-void ami_frontwidget(FILE* f, int id);
-void ami_focuswidget(FILE* f, int id);
-void ami_buttonsiz(FILE* f, char* s, int* w, int* h);
-void ami_buttonsizg(FILE* f, char* s, int* w, int* h);
-void ami_button(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_buttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_checkboxsiz(FILE* f, char* s, int* w, int* h);
-void ami_checkboxsizg(FILE* f, char* s, int* w, int* h);
-void ami_checkbox(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_checkboxg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_radiobuttonsiz(FILE* f, char* s, int* w, int* h);
-void ami_radiobuttonsizg(FILE* f, char* s, int* w, int* h);
-void ami_radiobutton(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_radiobuttong(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_groupsizg(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy);
-void ami_groupsiz(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                 int* oy);
-void ami_group(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_groupg(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-void ami_background(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_backgroundg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_scrollvertsizg(FILE* f, int* w, int* h);
-void ami_scrollvertsiz(FILE* f, int* w, int* h);
-void ami_scrollvert(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_scrollvertg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_scrollhorizsizg(FILE* f, int* w, int* h);
-void ami_scrollhorizsiz(FILE* f, int* w, int* h);
-void ami_scrollhoriz(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_scrollhorizg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_scrollpos(FILE* f, int id, int r);
-void ami_scrollsiz(FILE* f, int id, int r);
-void ami_numselboxsizg(FILE* f, int l, int u, int* w, int* h);
-void ami_numselboxsiz(FILE* f, int l, int u, int* w, int* h);
-void ami_numselbox(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                  int id);
-void ami_numselboxg(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                   int id);
-void ami_editboxsizg(FILE* f, char* s, int* w, int* h);
-void ami_editboxsiz(FILE* f, char* s, int* w, int* h);
-void ami_editbox(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_editboxg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_progbarsizg(FILE* f, int* w, int* h);
-void ami_progbarsiz(FILE* f, int* w, int* h);
-void ami_progbar(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_progbarg(FILE* f, int x1, int y1, int x2, int y2, int id);
-void ami_progbarpos(FILE* f, int id, int pos);
-void ami_listboxsizg(FILE* f, ami_strptr sp, int* w, int* h);
-void ami_listboxsiz(FILE* f, ami_strptr sp, int* w, int* h);
-void ami_listbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-void ami_listboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-void ami_dropboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-void ami_dropboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-void ami_dropbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-void ami_dropboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-void ami_dropeditbox(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-void ami_dropeditboxg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                     int id);
-void ami_slidehorizsizg(FILE* f, int* w, int* h);
-void ami_slidehorizsiz(FILE* f, int* w, int* h);
-void ami_slidehoriz(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void ami_slidehorizg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void ami_slidevertsizg(FILE* f, int* w, int* h);
-void ami_slidevertsiz(FILE* f, int* w, int* h);
-void ami_slidevert(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void ami_slidevertg(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-void ami_tabbarsizg(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-                   int* ox, int* oy);
-void ami_tabbarsiz(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy);
-void ami_tabbarclientg(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                      int* ox, int* oy);
-void ami_tabbarclient(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                     int* ox, int* oy);
-void ami_tabbar(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-               ami_tabori tor, int id);
-void ami_tabbarg(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                ami_tabori tor, int id);
-void ami_tabsel(FILE* f, int id, int tn);
+long ami_getwigid(FILE* f);
+void ami_killwidget(FILE* f, long id);
+void ami_selectwidget(FILE* f, long id, long e);
+void ami_enablewidget(FILE* f, long id, long e);
+void ami_getwidgettext(FILE* f, long id, char* s, long sl);
+void ami_putwidgettext(FILE* f, long id, char* s);
+void ami_sizwidget(FILE* f, long id, long x, long y);
+void ami_sizwidgetg(FILE* f, long id, long x, long y);
+void ami_poswidget(FILE* f, long id, long x, long y);
+void ami_poswidgetg(FILE* f, long id, long x, long y);
+void ami_backwidget(FILE* f, long id);
+void ami_frontwidget(FILE* f, long id);
+void ami_focuswidget(FILE* f, long id);
+void ami_buttonsiz(FILE* f, char* s, long* w, long* h);
+void ami_buttonsizg(FILE* f, char* s, long* w, long* h);
+void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_checkboxsiz(FILE* f, char* s, long* w, long* h);
+void ami_checkboxsizg(FILE* f, char* s, long* w, long* h);
+void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h);
+void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h);
+void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy);
+void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                 long* oy);
+void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollvertsizg(FILE* f, long* w, long* h);
+void ami_scrollvertsiz(FILE* f, long* w, long* h);
+void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollhorizsizg(FILE* f, long* w, long* h);
+void ami_scrollhorizsiz(FILE* f, long* w, long* h);
+void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_scrollpos(FILE* f, long id, long r);
+void ami_scrollsiz(FILE* f, long id, long r);
+void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h);
+void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h);
+void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                  long id);
+void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                   long id);
+void ami_editboxsizg(FILE* f, char* s, long* w, long* h);
+void ami_editboxsiz(FILE* f, char* s, long* w, long* h);
+void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_progbarsizg(FILE* f, long* w, long* h);
+void ami_progbarsiz(FILE* f, long* w, long* h);
+void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id);
+void ami_progbarpos(FILE* f, long id, long pos);
+void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h);
+void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h);
+void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                     long id);
+void ami_slidehorizsizg(FILE* f, long* w, long* h);
+void ami_slidehorizsiz(FILE* f, long* w, long* h);
+void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+void ami_slidevertsizg(FILE* f, long* w, long* h);
+void ami_slidevertsiz(FILE* f, long* w, long* h);
+void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                   long* ox, long* oy);
+void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy);
+void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                      long* ox, long* oy);
+void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                     long* ox, long* oy);
+void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+               ami_tabori tor, long id);
+void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                ami_tabori tor, long id);
+void ami_tabsel(FILE* f, long id, long tn);
 void ami_alert(char* title, char* message);
-void ami_querycolor(int* r, int* g, int* b);
-void ami_queryopen(char* s, int sl);
-void ami_querysave(char* s, int sl);
-void ami_queryfind(char* s, int sl, ami_qfnopts* opt);
-void ami_queryfindrep(char* s, int sl, char* r, int rl, ami_qfropts* opt);
-void ami_queryfont(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-                  int* bg, int* bb, ami_qfteffects* effect);
+void ami_querycolor(long* r, long* g, long* b);
+void ami_queryopen(char* s, long sl);
+void ami_querysave(char* s, long sl);
+void ami_queryfind(char* s, long sl, ami_qfnopts* opt);
+void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt);
+void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+                  long* bg, long* bb, ami_qfteffects* effect);
 
 /*
  * Override vector types
  *
  */
-typedef void (*ami_cursor_t)(FILE* f, int x, int y);
-typedef int (*ami_maxx_t)(FILE* f);
-typedef int (*ami_maxy_t)(FILE* f);
+typedef void (*ami_cursor_t)(FILE* f, long x, long y);
+typedef long (*ami_maxx_t)(FILE* f);
+typedef long (*ami_maxy_t)(FILE* f);
 typedef void (*ami_home_t)(FILE* f);
 typedef void (*ami_del_t)(FILE* f);
 typedef void (*ami_up_t)(FILE* f);
 typedef void (*ami_down_t)(FILE* f);
 typedef void (*ami_left_t)(FILE* f);
 typedef void (*ami_right_t)(FILE* f);
-typedef void (*ami_blink_t)(FILE* f, int e);
-typedef void (*ami_reverse_t)(FILE* f, int e);
-typedef void (*ami_underline_t)(FILE* f, int e);
-typedef void (*ami_superscript_t)(FILE* f, int e);
-typedef void (*ami_subscript_t)(FILE* f, int e);
-typedef void (*ami_italic_t)(FILE* f, int e);
-typedef void (*ami_bold_t)(FILE* f, int e);
-typedef void (*ami_strikeout_t)(FILE* f, int e);
-typedef void (*ami_standout_t)(FILE* f, int e);
+typedef void (*ami_blink_t)(FILE* f, long e);
+typedef void (*ami_reverse_t)(FILE* f, long e);
+typedef void (*ami_underline_t)(FILE* f, long e);
+typedef void (*ami_superscript_t)(FILE* f, long e);
+typedef void (*ami_subscript_t)(FILE* f, long e);
+typedef void (*ami_italic_t)(FILE* f, long e);
+typedef void (*ami_bold_t)(FILE* f, long e);
+typedef void (*ami_strikeout_t)(FILE* f, long e);
+typedef void (*ami_standout_t)(FILE* f, long e);
 typedef void (*ami_fcolor_t)(FILE* f, ami_color c);
 typedef void (*ami_bcolor_t)(FILE* f, ami_color c);
-typedef void (*ami_auto_t)(FILE* f, int e);
-typedef void (*ami_curvis_t)(FILE* f, int e);
-typedef void (*ami_scroll_t)(FILE* f, int x, int y);
-typedef int (*ami_curx_t)(FILE* f);
-typedef int (*ami_cury_t)(FILE* f);
-typedef int (*ami_curbnd_t)(FILE* f);
-typedef void (*ami_select_t)(FILE* f, int u, int d);
+typedef void (*ami_auto_t)(FILE* f, long e);
+typedef void (*ami_curvis_t)(FILE* f, long e);
+typedef void (*ami_scroll_t)(FILE* f, long x, long y);
+typedef long (*ami_curx_t)(FILE* f);
+typedef long (*ami_cury_t)(FILE* f);
+typedef long (*ami_curbnd_t)(FILE* f);
+typedef void (*ami_select_t)(FILE* f, long u, long d);
 typedef void (*ami_event_t)(FILE* f, ami_evtrec* er);
-typedef void (*ami_timer_t)(FILE* f, int i, long t, int r);
-typedef void (*ami_killtimer_t)(FILE* f, int i);
-typedef int (*ami_mouse_t)(FILE* f);
-typedef int (*ami_mousebutton_t)(FILE* f, int m);
-typedef int (*ami_joystick_t)(FILE* f);
-typedef int (*ami_joybutton_t)(FILE* f, int j);
-typedef int (*ami_joyaxis_t)(FILE* f, int j);
-typedef void (*ami_settab_t)(FILE* f, int t);
-typedef void (*ami_restab_t)(FILE* f, int t);
+typedef void (*ami_timer_t)(FILE* f, long i, long t, long r);
+typedef void (*ami_killtimer_t)(FILE* f, long i);
+typedef long (*ami_mouse_t)(FILE* f);
+typedef long (*ami_mousebutton_t)(FILE* f, long m);
+typedef long (*ami_joystick_t)(FILE* f);
+typedef long (*ami_joybutton_t)(FILE* f, long j);
+typedef long (*ami_joyaxis_t)(FILE* f, long j);
+typedef void (*ami_settab_t)(FILE* f, long t);
+typedef void (*ami_restab_t)(FILE* f, long t);
 typedef void (*ami_clrtab_t)(FILE* f);
-typedef int (*ami_funkey_t)(FILE* f);
-typedef void (*ami_frametimer_t)(FILE* f, int e);
-typedef void (*ami_autohold_t)(int e);
+typedef long (*ami_funkey_t)(FILE* f);
+typedef void (*ami_frametimer_t)(FILE* f, long e);
+typedef void (*ami_autohold_t)(long e);
 typedef void (*ami_wrtstr_t)(FILE* f, char* s);
-typedef void (*ami_wrtstrn_t)(FILE* f, char* s, int n);
-typedef void (*ami_sizbuf_t)(FILE* f, int x, int y);
+typedef void (*ami_wrtstrn_t)(FILE* f, char* s, long n);
+typedef void (*ami_sizbuf_t)(FILE* f, long x, long y);
 typedef void (*ami_title_t)(FILE* f, char* ts);
-typedef void (*ami_fcolorc_t)(FILE* f, int r, int g, int b);
-typedef void (*ami_bcolorc_t)(FILE* f, int r, int g, int b);
+typedef void (*ami_fcolorc_t)(FILE* f, long r, long g, long b);
+typedef void (*ami_bcolorc_t)(FILE* f, long r, long g, long b);
 typedef void (*ami_eventover_t)(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh);
 typedef void (*ami_eventsover_t)(ami_pevthan eh,  ami_pevthan* oeh);
 typedef void (*ami_sendevent_t)(FILE* f, ami_evtrec* er);
-typedef int (*ami_maxxg_t)(FILE* f);
-typedef int (*ami_maxyg_t)(FILE* f);
-typedef int (*ami_curxg_t)(FILE* f);
-typedef int (*ami_curyg_t)(FILE* f);
-typedef void (*ami_line_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*ami_linewidth_t)(FILE* f, int w);
+typedef long (*ami_maxxg_t)(FILE* f);
+typedef long (*ami_maxyg_t)(FILE* f);
+typedef long (*ami_curxg_t)(FILE* f);
+typedef long (*ami_curyg_t)(FILE* f);
+typedef void (*ami_line_t)(FILE* f, long x1, long y1, long x2, long y2);
+typedef void (*ami_linewidth_t)(FILE* f, long w);
 typedef void (*ami_linestyle_t)(FILE* f, ami_lstyle style);
-typedef void (*ami_rect_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*ami_frect_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*ami_rrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-typedef void (*ami_frrect_t)(FILE* f, int x1, int y1, int x2, int y2, int xs, int ys);
-typedef void (*ami_ellipse_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*ami_fellipse_t)(FILE* f, int x1, int y1, int x2, int y2);
-typedef void (*ami_arc_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-typedef void (*ami_farc_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-typedef void (*ami_fchord_t)(FILE* f, int x1, int y1, int x2, int y2, int sa, int ea);
-typedef void (*ami_ftriangle_t)(FILE* f, int x1, int y1, int x2, int y2, int x3, int y3);
-typedef void (*ami_cursorg_t)(FILE* f, int x, int y);
-typedef int (*ami_baseline_t)(FILE* f);
-typedef void (*ami_setpixel_t)(FILE* f, int x, int y);
+typedef void (*ami_rect_t)(FILE* f, long x1, long y1, long x2, long y2);
+typedef void (*ami_frect_t)(FILE* f, long x1, long y1, long x2, long y2);
+typedef void (*ami_rrect_t)(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys);
+typedef void (*ami_frrect_t)(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys);
+typedef void (*ami_ellipse_t)(FILE* f, long x1, long y1, long x2, long y2);
+typedef void (*ami_fellipse_t)(FILE* f, long x1, long y1, long x2, long y2);
+typedef void (*ami_arc_t)(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+typedef void (*ami_farc_t)(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+typedef void (*ami_fchord_t)(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea);
+typedef void (*ami_ftriangle_t)(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3);
+typedef void (*ami_cursorg_t)(FILE* f, long x, long y);
+typedef long (*ami_baseline_t)(FILE* f);
+typedef void (*ami_setpixel_t)(FILE* f, long x, long y);
 typedef void (*ami_fover_t)(FILE* f);
 typedef void (*ami_bover_t)(FILE* f);
 typedef void (*ami_finvis_t)(FILE* f);
@@ -684,170 +702,173 @@ typedef void (*ami_fand_t)(FILE* f);
 typedef void (*ami_band_t)(FILE* f);
 typedef void (*ami_for_t)(FILE* f);
 typedef void (*ami_bor_t)(FILE* f);
-typedef int (*ami_chrsizx_t)(FILE* f);
-typedef int (*ami_chrsizy_t)(FILE* f);
-typedef int (*ami_fonts_t)(FILE* f);
-typedef void (*ami_font_t)(FILE* f, int fc);
-typedef void (*ami_fontnam_t)(FILE* f, int fc, char* fns, int fnsl);
-typedef void (*ami_fontsiz_t)(FILE* f, int s);
+typedef long (*ami_chrsizx_t)(FILE* f);
+typedef long (*ami_chrsizy_t)(FILE* f);
+typedef long (*ami_fonts_t)(FILE* f);
+typedef void (*ami_font_t)(FILE* f, long fc);
+typedef void (*ami_fontnam_t)(FILE* f, long fc, char* fns, long fnsl);
+typedef void (*ami_fontsiz_t)(FILE* f, long s);
 typedef void (*ami_setpoints_t)(FILE* f, float ps);
 typedef float (*ami_points_t)(FILE* f);
-typedef void (*ami_chrspcy_t)(FILE* f, int s);
-typedef void (*ami_chrspcx_t)(FILE* f, int s);
-typedef int (*ami_dpmx_t)(FILE* f);
-typedef int (*ami_dpmy_t)(FILE* f);
-typedef int (*ami_strsiz_t)(FILE* f, const char* s);
-typedef int (*ami_chrpos_t)(FILE* f, const char* s, int p);
-typedef void (*ami_writejust_t)(FILE* f, const char* s, int n);
-typedef int (*ami_justpos_t)(FILE* f, const char* s, int p, int n);
-typedef void (*ami_condensed_t)(FILE* f, int e);
-typedef void (*ami_extended_t)(FILE* f, int e);
-typedef void (*ami_xlight_t)(FILE* f, int e);
-typedef void (*ami_light_t)(FILE* f, int e);
-typedef void (*ami_xbold_t)(FILE* f, int e);
-typedef void (*ami_hollow_t)(FILE* f, int e);
-typedef void (*ami_raised_t)(FILE* f, int e);
-typedef void (*ami_settabg_t)(FILE* f, int t);
-typedef void (*ami_restabg_t)(FILE* f, int t);
-typedef void (*ami_fcolorg_t)(FILE* f, int r, int g, int b);
-typedef void (*ami_bcolorg_t)(FILE* f, int r, int g, int b);
-typedef void (*ami_loadpict_t)(FILE* f, int p, char* fn);
-typedef int (*ami_pictsizx_t)(FILE* f, int p);
-typedef int (*ami_pictsizy_t)(FILE* f, int p);
-typedef void (*ami_picture_t)(FILE* f, int p, int x1, int y1, int x2, int y2);
-typedef void (*ami_delpict_t)(FILE* f, int p);
-typedef void (*ami_scrollg_t)(FILE* f, int x, int y);
-typedef void (*ami_path_t)(FILE* f, int a);
-typedef void (*ami_viewoffg_t)(FILE* f, int x, int y);
+typedef void (*ami_chrspcy_t)(FILE* f, long s);
+typedef void (*ami_chrspcx_t)(FILE* f, long s);
+typedef long (*ami_dpmx_t)(FILE* f);
+typedef long (*ami_dpmy_t)(FILE* f);
+typedef long (*ami_strsiz_t)(FILE* f, const char* s);
+typedef long (*ami_chrpos_t)(FILE* f, const char* s, long p);
+typedef void (*ami_writejust_t)(FILE* f, const char* s, long n);
+typedef long (*ami_justpos_t)(FILE* f, const char* s, long p, long n);
+typedef void (*ami_condensed_t)(FILE* f, long e);
+typedef void (*ami_extended_t)(FILE* f, long e);
+typedef void (*ami_xlight_t)(FILE* f, long e);
+typedef void (*ami_light_t)(FILE* f, long e);
+typedef void (*ami_xbold_t)(FILE* f, long e);
+typedef void (*ami_hollow_t)(FILE* f, long e);
+typedef void (*ami_raised_t)(FILE* f, long e);
+typedef void (*ami_settabg_t)(FILE* f, long t);
+typedef void (*ami_restabg_t)(FILE* f, long t);
+typedef void (*ami_fcolorg_t)(FILE* f, long r, long g, long b);
+typedef void (*ami_bcolorg_t)(FILE* f, long r, long g, long b);
+typedef void (*ami_loadpict_t)(FILE* f, long p, char* fn);
+typedef long (*ami_pictsizx_t)(FILE* f, long p);
+typedef long (*ami_pictsizy_t)(FILE* f, long p);
+typedef void (*ami_picture_t)(FILE* f, long p, long x1, long y1, long x2, long y2);
+typedef void (*ami_delpict_t)(FILE* f, long p);
+typedef void (*ami_scrollg_t)(FILE* f, long x, long y);
+typedef void (*ami_path_t)(FILE* f, long a);
+typedef void (*ami_viewoffg_t)(FILE* f, long x, long y);
 typedef void (*ami_viewscale_t)(FILE* f, float x, float y);
-typedef int  (*ami_scalex_t)(FILE* f, int x);
-typedef int  (*ami_scaley_t)(FILE* f, int y);
-typedef void (*ami_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, int wid);
-typedef void (*ami_buffer_t)(FILE* f, int e);
-typedef void (*ami_sizbufg_t)(FILE* f, int x, int y);
-typedef void (*ami_getsiz_t)(FILE* f, int* x, int* y);
-typedef void (*ami_getsizg_t)(FILE* f, int* x, int* y);
-typedef void (*ami_setsiz_t)(FILE* f, int x, int y);
-typedef void (*ami_setsizg_t)(FILE* f, int x, int y);
-typedef void (*ami_setpos_t)(FILE* f, int x, int y);
-typedef void (*ami_setposg_t)(FILE* f, int x, int y);
-typedef void (*ami_scnsiz_t)(FILE* f, int* x, int* y);
-typedef void (*ami_scnsizg_t)(FILE* f, int* x, int*y);
-typedef void (*ami_scncen_t)(FILE* f, int* x, int* y);
-typedef void (*ami_scnceng_t)(FILE* f, int* x, int* y);
-typedef void (*ami_winclient_t)(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms);
-typedef void (*ami_winclientg_t)(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms);
+typedef long  (*ami_scalex_t)(FILE* f, long x);
+typedef long  (*ami_scaley_t)(FILE* f, long y);
+typedef void (*ami_blockcopyg_t)(FILE* f, long s, long d, long sx1, long sy1,
+                                 long sx2, long sy2, long dx1, long dy1,
+                                 long dx2, long dy2);
+typedef void (*ami_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, long wid);
+typedef void (*ami_buffer_t)(FILE* f, long e);
+typedef void (*ami_sizbufg_t)(FILE* f, long x, long y);
+typedef void (*ami_getsiz_t)(FILE* f, long* x, long* y);
+typedef void (*ami_getsizg_t)(FILE* f, long* x, long* y);
+typedef void (*ami_setsiz_t)(FILE* f, long x, long y);
+typedef void (*ami_setsizg_t)(FILE* f, long x, long y);
+typedef void (*ami_setpos_t)(FILE* f, long x, long y);
+typedef void (*ami_setposg_t)(FILE* f, long x, long y);
+typedef void (*ami_scnsiz_t)(FILE* f, long* x, long* y);
+typedef void (*ami_scnsizg_t)(FILE* f, long* x, long*y);
+typedef void (*ami_scncen_t)(FILE* f, long* x, long* y);
+typedef void (*ami_scnceng_t)(FILE* f, long* x, long* y);
+typedef void (*ami_winclient_t)(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms);
+typedef void (*ami_winclientg_t)(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms);
 typedef void (*ami_front_t)(FILE* f);
 typedef void (*ami_back_t)(FILE* f);
-typedef void (*ami_frame_t)(FILE* f, int e);
-typedef void (*ami_sizable_t)(FILE* f, int e);
-typedef void (*ami_sysbar_t)(FILE* f, int e);
+typedef void (*ami_frame_t)(FILE* f, long e);
+typedef void (*ami_sizable_t)(FILE* f, long e);
+typedef void (*ami_sysbar_t)(FILE* f, long e);
 typedef void (*ami_menu_t)(FILE* f, ami_menuptr m);
-typedef void (*ami_menuena_t)(FILE* f, int id, int onoff);
-typedef void (*ami_menusel_t)(FILE* f, int id, int select);
+typedef void (*ami_menuena_t)(FILE* f, long id, long onoff);
+typedef void (*ami_menusel_t)(FILE* f, long id, long select);
 typedef void (*ami_stdmenu_t)(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
-typedef int (*ami_getwinid_t)(void);
+typedef long (*ami_getwinid_t)(void);
 typedef void (*ami_focus_t)(FILE* f);
-typedef int (*ami_getwigid_t)(FILE* f);
-typedef void (*ami_killwidget_t)(FILE* f, int id);
-typedef void (*ami_selectwidget_t)(FILE* f, int id, int e);
-typedef void (*ami_enablewidget_t)(FILE* f, int id, int e);
-typedef void (*ami_getwidgettext_t)(FILE* f, int id, char* s, int sl);
-typedef void (*ami_putwidgettext_t)(FILE* f, int id, char* s);
-typedef void (*ami_sizwidget_t)(FILE* f, int id, int x, int y);
-typedef void (*ami_sizwidgetg_t)(FILE* f, int id, int x, int y);
-typedef void (*ami_poswidget_t)(FILE* f, int id, int x, int y);
-typedef void (*ami_poswidgetg_t)(FILE* f, int id, int x, int y);
-typedef void (*ami_backwidget_t)(FILE* f, int id);
-typedef void (*ami_frontwidget_t)(FILE* f, int id);
-typedef void (*ami_focuswidget_t)(FILE* f, int id);
-typedef void (*ami_buttonsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_buttonsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_button_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_buttong_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_checkboxsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_checkboxsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_checkbox_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_checkboxg_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_radiobuttonsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_radiobuttonsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_radiobutton_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_radiobuttong_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_groupsizg_t)(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy);
-typedef void (*ami_groupsiz_t)(FILE* f, char* s, int cw, int ch, int* w, int* h, int* ox,
-                 int* oy);
-typedef void (*ami_group_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_groupg_t)(FILE* f, int x1, int y1, int x2, int y2, char* s, int id);
-typedef void (*ami_background_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_backgroundg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_scrollvertsizg_t)(FILE* f, int* w, int* h);
-typedef void (*ami_scrollvertsiz_t)(FILE* f, int* w, int* h);
-typedef void (*ami_scrollvert_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_scrollvertg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_scrollhorizsizg_t)(FILE* f, int* w, int* h);
-typedef void (*ami_scrollhorizsiz_t)(FILE* f, int* w, int* h);
-typedef void (*ami_scrollhoriz_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_scrollhorizg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_scrollpos_t)(FILE* f, int id, int r);
-typedef void (*ami_scrollsiz_t)(FILE* f, int id, int r);
-typedef void (*ami_numselboxsizg_t)(FILE* f, int l, int u, int* w, int* h);
-typedef void (*ami_numselboxsiz_t)(FILE* f, int l, int u, int* w, int* h);
-typedef void (*ami_numselbox_t)(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                  int id);
-typedef void (*ami_numselboxg_t)(FILE* f, int x1, int y1, int x2, int y2, int l, int u,
-                   int id);
-typedef void (*ami_editboxsizg_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_editboxsiz_t)(FILE* f, char* s, int* w, int* h);
-typedef void (*ami_editbox_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_editboxg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_progbarsizg_t)(FILE* f, int* w, int* h);
-typedef void (*ami_progbarsiz_t)(FILE* f, int* w, int* h);
-typedef void (*ami_progbar_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_progbarg_t)(FILE* f, int x1, int y1, int x2, int y2, int id);
-typedef void (*ami_progbarpos_t)(FILE* f, int id, int pos);
-typedef void (*ami_listboxsizg_t)(FILE* f, ami_strptr sp, int* w, int* h);
-typedef void (*ami_listboxsiz_t)(FILE* f, ami_strptr sp, int* w, int* h);
-typedef void (*ami_listbox_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-typedef void (*ami_listboxg_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-typedef void (*ami_dropboxsizg_t)(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*ami_dropboxsiz_t)(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*ami_dropbox_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-typedef void (*ami_dropboxg_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-typedef void (*ami_dropeditboxsizg_t)(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*ami_dropeditboxsiz_t)(FILE* f, ami_strptr sp, int* cw, int* ch, int* ow, int* oh);
-typedef void (*ami_dropeditbox_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp, int id);
-typedef void (*ami_dropeditboxg_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                     int id);
-typedef void (*ami_slidehorizsizg_t)(FILE* f, int* w, int* h);
-typedef void (*ami_slidehorizsiz_t)(FILE* f, int* w, int* h);
-typedef void (*ami_slidehoriz_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*ami_slidehorizg_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*ami_slidevertsizg_t)(FILE* f, int* w, int* h);
-typedef void (*ami_slidevertsiz_t)(FILE* f, int* w, int* h);
-typedef void (*ami_slidevert_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*ami_slidevertg_t)(FILE* f, int x1, int y1, int x2, int y2, int mark, int id);
-typedef void (*ami_tabbarsizg_t)(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h,
-                   int* ox, int* oy);
-typedef void (*ami_tabbarsiz_t)(FILE* f, ami_tabori tor, int cw, int ch, int* w, int* h, int* ox,
-                  int* oy);
-typedef void (*ami_tabbarclientg_t)(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                      int* ox, int* oy);
-typedef void (*ami_tabbarclient_t)(FILE* f, ami_tabori tor, int w, int h, int* cw, int* ch,
-                     int* ox, int* oy);
-typedef void (*ami_tabbar_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-               ami_tabori tor, int id);
-typedef void (*ami_tabbarg_t)(FILE* f, int x1, int y1, int x2, int y2, ami_strptr sp,
-                ami_tabori tor, int id);
-typedef void (*ami_tabsel_t)(FILE* f, int id, int tn);
+typedef long (*ami_getwigid_t)(FILE* f);
+typedef void (*ami_killwidget_t)(FILE* f, long id);
+typedef void (*ami_selectwidget_t)(FILE* f, long id, long e);
+typedef void (*ami_enablewidget_t)(FILE* f, long id, long e);
+typedef void (*ami_getwidgettext_t)(FILE* f, long id, char* s, long sl);
+typedef void (*ami_putwidgettext_t)(FILE* f, long id, char* s);
+typedef void (*ami_sizwidget_t)(FILE* f, long id, long x, long y);
+typedef void (*ami_sizwidgetg_t)(FILE* f, long id, long x, long y);
+typedef void (*ami_poswidget_t)(FILE* f, long id, long x, long y);
+typedef void (*ami_poswidgetg_t)(FILE* f, long id, long x, long y);
+typedef void (*ami_backwidget_t)(FILE* f, long id);
+typedef void (*ami_frontwidget_t)(FILE* f, long id);
+typedef void (*ami_focuswidget_t)(FILE* f, long id);
+typedef void (*ami_buttonsiz_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_buttonsizg_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_button_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_buttong_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_checkboxsiz_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_checkboxsizg_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_checkbox_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_checkboxg_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_radiobuttonsiz_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_radiobuttonsizg_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_radiobutton_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_radiobuttong_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_groupsizg_t)(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy);
+typedef void (*ami_groupsiz_t)(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
+                 long* oy);
+typedef void (*ami_group_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_groupg_t)(FILE* f, long x1, long y1, long x2, long y2, char* s, long id);
+typedef void (*ami_background_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_backgroundg_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_scrollvertsizg_t)(FILE* f, long* w, long* h);
+typedef void (*ami_scrollvertsiz_t)(FILE* f, long* w, long* h);
+typedef void (*ami_scrollvert_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_scrollvertg_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_scrollhorizsizg_t)(FILE* f, long* w, long* h);
+typedef void (*ami_scrollhorizsiz_t)(FILE* f, long* w, long* h);
+typedef void (*ami_scrollhoriz_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_scrollhorizg_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_scrollpos_t)(FILE* f, long id, long r);
+typedef void (*ami_scrollsiz_t)(FILE* f, long id, long r);
+typedef void (*ami_numselboxsizg_t)(FILE* f, long l, long u, long* w, long* h);
+typedef void (*ami_numselboxsiz_t)(FILE* f, long l, long u, long* w, long* h);
+typedef void (*ami_numselbox_t)(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                  long id);
+typedef void (*ami_numselboxg_t)(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
+                   long id);
+typedef void (*ami_editboxsizg_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_editboxsiz_t)(FILE* f, char* s, long* w, long* h);
+typedef void (*ami_editbox_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_editboxg_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_progbarsizg_t)(FILE* f, long* w, long* h);
+typedef void (*ami_progbarsiz_t)(FILE* f, long* w, long* h);
+typedef void (*ami_progbar_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_progbarg_t)(FILE* f, long x1, long y1, long x2, long y2, long id);
+typedef void (*ami_progbarpos_t)(FILE* f, long id, long pos);
+typedef void (*ami_listboxsizg_t)(FILE* f, ami_strptr sp, long* w, long* h);
+typedef void (*ami_listboxsiz_t)(FILE* f, ami_strptr sp, long* w, long* h);
+typedef void (*ami_listbox_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+typedef void (*ami_listboxg_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+typedef void (*ami_dropboxsizg_t)(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+typedef void (*ami_dropboxsiz_t)(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+typedef void (*ami_dropbox_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+typedef void (*ami_dropboxg_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+typedef void (*ami_dropeditboxsizg_t)(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+typedef void (*ami_dropeditboxsiz_t)(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh);
+typedef void (*ami_dropeditbox_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id);
+typedef void (*ami_dropeditboxg_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                     long id);
+typedef void (*ami_slidehorizsizg_t)(FILE* f, long* w, long* h);
+typedef void (*ami_slidehorizsiz_t)(FILE* f, long* w, long* h);
+typedef void (*ami_slidehoriz_t)(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+typedef void (*ami_slidehorizg_t)(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+typedef void (*ami_slidevertsizg_t)(FILE* f, long* w, long* h);
+typedef void (*ami_slidevertsiz_t)(FILE* f, long* w, long* h);
+typedef void (*ami_slidevert_t)(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+typedef void (*ami_slidevertg_t)(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
+typedef void (*ami_tabbarsizg_t)(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+                   long* ox, long* oy);
+typedef void (*ami_tabbarsiz_t)(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+                  long* oy);
+typedef void (*ami_tabbarclientg_t)(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                      long* ox, long* oy);
+typedef void (*ami_tabbarclient_t)(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
+                     long* ox, long* oy);
+typedef void (*ami_tabbar_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+               ami_tabori tor, long id);
+typedef void (*ami_tabbarg_t)(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
+                ami_tabori tor, long id);
+typedef void (*ami_tabsel_t)(FILE* f, long id, long tn);
 typedef void (*ami_alert_t)(char* title, char* message);
-typedef void (*ami_querycolor_t)(int* r, int* g, int* b);
-typedef void (*ami_queryopen_t)(char* s, int sl);
-typedef void (*ami_querysave_t)(char* s, int sl);
-typedef void (*ami_queryfind_t)(char* s, int sl, ami_qfnopts* opt);
-typedef void (*ami_queryfindrep_t)(char* s, int sl, char* r, int rl, ami_qfropts* opt);
-typedef void (*ami_queryfont_t)(FILE* f, int* fc, int* s, int* fr, int* fg, int* fb, int* br,
-                  int* bg, int* bb, ami_qfteffects* effect);
+typedef void (*ami_querycolor_t)(long* r, long* g, long* b);
+typedef void (*ami_queryopen_t)(char* s, long sl);
+typedef void (*ami_querysave_t)(char* s, long sl);
+typedef void (*ami_queryfind_t)(char* s, long sl, ami_qfnopts* opt);
+typedef void (*ami_queryfindrep_t)(char* s, long sl, char* r, long rl, ami_qfropts* opt);
+typedef void (*ami_queryfont_t)(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb, long* br,
+                  long* bg, long* bb, ami_qfteffects* effect);
 
 /*
  * Overrider routines
@@ -890,6 +911,7 @@ void _pa_curxg_ovr(ami_curxg_t nfp, ami_curxg_t* ofp);
 void _pa_curyg_ovr(ami_curyg_t nfp, ami_curyg_t* ofp);
 void _pa_select_ovr(ami_select_t nfp, ami_select_t* ofp);
 void _pa_wrtstr_ovr(ami_wrtstr_t nfp, ami_wrtstr_t* ofp);
+void _pa_wrtstrn_ovr(ami_wrtstrn_t nfp, ami_wrtstrn_t* ofp);
 void _pa_sizbuf_ovr(ami_sizbuf_t nfp, ami_sizbuf_t* ofp);
 void _pa_del_ovr(ami_del_t nfp, ami_del_t* ofp);
 void _pa_line_ovr(ami_line_t nfp, ami_line_t* ofp);
@@ -995,6 +1017,7 @@ void _pa_viewoffg_ovr(ami_viewoffg_t nfp, ami_viewoffg_t* ofp);
 void _pa_viewscale_ovr(ami_viewscale_t nfp, ami_viewscale_t* ofp);
 void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp);
 void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp);
+void _pa_blockcopyg_ovr(ami_blockcopyg_t nfp, ami_blockcopyg_t* ofp);
 void _pa_getwigid_ovr(ami_getwigid_t nfp, ami_getwigid_t* ofp);
 void _pa_killwidget_ovr(ami_killwidget_t nfp, ami_killwidget_t* ofp);
 void _pa_selectwidget_ovr(ami_selectwidget_t nfp, ami_selectwidget_t* ofp);

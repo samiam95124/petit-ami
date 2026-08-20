@@ -12,6 +12,8 @@ Petit_ami sound system.
 
 #include <fluidsynth.h>
 #include <stdlib.h>
+#include <string.h>
+#include <limits.h>
 #include <localdefs.h>
 #include <sound.h>
 
@@ -50,6 +52,30 @@ static void error(string es)
 
 }
 
+/*******************************************************************************
+
+Copy string to critical output buffer
+
+Copies the given source string to a caller supplied output buffer. Output
+buffers follow the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l;
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error("String too large for destination");
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
+
+}
+
 /* stderr quieting helpers (defined further down; used by openfluid below) */
 static void quiet(void);
 static void unquiet(void);
@@ -63,7 +89,7 @@ one MIDI out device at init time.
 
 *******************************************************************************/
 
-static void openfluid(int p)
+static void openfluid(long p)
 
 {
 
@@ -94,7 +120,7 @@ Closes a Liquidsynth MIDI output device for use.
 
 *******************************************************************************/
 
-static void closefluid(int p)
+static void closefluid(long p)
 
 {
 
@@ -124,9 +150,16 @@ found that many of these functions do nothing on most synthesizers.
 Some of the questionable codes should be compared against what happens when the
 midi codes are fed directly to Fluidsynth (source code analysis?).
 
+Note on scaling: API full scale values are 0..LONG_MAX (signed controls
+-LONG_MAX..LONG_MAX). Dividing by LONG_MAX/128+1 maps full scale to the MIDI
+0..127 range, LONG_MAX/8192+1 to a signed 13 bit value (+0x2000 gives 14 bit
+positive), and LONG_MAX/16384+1 to 14 bits. The divisors are relative to
+LONG_MAX so they are correct for 32 or 64 bit longs; dividing first avoids
+any overflow.
+
 *******************************************************************************/
 
-static void writefluid(int p, ami_seqptr sp)
+static void writefluid(long p, ami_seqptr sp)
 
 {
 
@@ -139,7 +172,7 @@ static void writefluid(int p, ami_seqptr sp)
     switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
-            fluid_synth_noteon(fp->synth, sp->ntc-1, sp->ntn-1, sp->ntv/0x01000000);
+            fluid_synth_noteon(fp->synth, sp->ntc-1, sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_noteoff:
             /* Note fluidsynth has no velocity parameter */
@@ -177,14 +210,19 @@ static void writefluid(int p, ami_seqptr sp)
         case st_phaser:       break; /* no equivalent function */
         case st_aftertouch:   break; /* no equivalent function */
         case st_pressure:
-            fluid_synth_channel_pressure(fp->synth, sp->ntc-1, sp->ntv/0x01000000);
+            fluid_synth_channel_pressure(fp->synth, sp->ntc-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_pitch:
-            fluid_synth_pitch_bend(fp->synth, sp->vsc-1, sp->vsv/0x00040000+0x2000);
+            fluid_synth_pitch_bend(fp->synth, sp->vsc-1, sp->vsv/(LONG_MAX/8192+1)+0x2000);
             break;
         case st_pitchrange:
-            /* this one is open for interpretation: what is a "semitone"? */
-            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1, sp->vsv/0x00020000);
+            /* Fluidsynth takes the sensitivity in semitones, so this uses
+               the same scale as the MIDI path, whose RPN data entry coarse
+               byte is semitones: full scale is 127 of them. It divided by
+               the 14 bit constant before, handing over a number up to
+               16383 where semitones were expected. */
+            fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1,
+                                         sp->vsv/(LONG_MAX/128+1));
             break;
         case st_mono:         break; /* no equivalent function */
         case st_poly:         break; /* no equivalent function */
@@ -208,7 +246,7 @@ Always returns error.
 
 *******************************************************************************/
 
-int setparamfluid(int p, string name, string value)
+long setparamfluid(long p, string name, string value)
 
 {
 
@@ -221,15 +259,17 @@ int setparamfluid(int p, string name, string value)
 Get parameter
 
 Get plug in parameter from the given name and value. Not implemented at present.
-Always returns empty string.
+Always returns empty string. The value is returned by the critical buffer
+convention: a result that fills the entire buffer is not zero terminated, a
+shorter result is zero terminated, and it is an error if the result cannot fit.
 
 *******************************************************************************/
 
-void getparamfluid(int p, string name, string value, int len)
+void getparamfluid(long p, string name, string value, long len)
 
 {
 
-    *value = 0; /* clear output string */
+    cpycrit(value, len, ""); /* return empty string */
 
 }
 

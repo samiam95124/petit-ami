@@ -1,0 +1,81 @@
+#!/bin/bash
+################################################################################
+#
+# Audit a binary's stdio surface against petit ami's stdio (override mode).
+#
+# In override mode (Linux default, no STDIO_BYPASS) petit ami's stdio
+# exports the real stdio names and the executable's symbols preempt
+# glibc's for every shared library in the process. That works exactly as
+# far as coverage does: a FILE-touching stdio function some library
+# imports that petit ami does not define falls through to glibc, which
+# then receives a petit ami FILE and aborts.
+#
+# This script lists, for a binary and every shared library it loads, the
+# imported stdio entry points that touch or create FILEs, and reports any
+# that petit ami's stdio does not provide. Silence is a pass.
+#
+# Execution:
+#
+#     tools/stdioaudit <binary> [<binary>...]
+#
+# Returns the number of binaries with gaps, so 0 means a pass.
+#
+# String-only entry points (sprintf, sscanf, the string _chk variants)
+# are glibc's to keep: they take no FILE and interpose harmlessly either
+# way, so they are not audited.
+#
+################################################################################
+
+# the FILE-touching and FILE-creating stdio surface worth auditing
+WATCH='fopen|fopen64|freopen|freopen64|fdopen|fclose|fcloseall|fflush|fflush_unlocked
+fread|fread_unlocked|fwrite|fwrite_unlocked|fgetc|fgetc_unlocked|fgets|fgets_unlocked
+fputc|fputc_unlocked|fputs|fputs_unlocked|getc|getc_unlocked|putc|putc_unlocked
+getchar|putchar|gets|puts|ungetc|getline|getdelim|getw|putw
+fseek|fseeko|fseeko64|ftell|ftello|ftello64|rewind|fgetpos|fgetpos64|fsetpos|fsetpos64
+feof|feof_unlocked|ferror|ferror_unlocked|clearerr|clearerr_unlocked|fileno|fileno_unlocked
+fprintf|printf|vfprintf|vprintf|fscanf|scanf|vfscanf|vscanf
+__fprintf_chk|__vfprintf_chk|__printf_chk|__vprintf_chk|__fgets_chk|__fgets_unlocked_chk
+__fread_chk|__fread_unlocked_chk|__isoc99_fscanf|__isoc99_scanf|__isoc99_vfscanf
+setvbuf|setbuf|setbuffer|setlinebuf|perror|tmpfile|tmpfile64|popen|pclose
+fmemopen|open_memstream|fopencookie|fwide|fgetwc|fputwc|fwprintf
+_IO_getc|_IO_putc|__uflow|__overflow|freadahead|fseterr'
+WATCH=$(echo "$WATCH" | tr '\n' '|' | sed 's/|$//')
+
+# what petit ami's stdio provides, from the object itself
+STDIOOBJ=$(dirname "$0")/../linux/stdio.o
+if [ ! -f "$STDIOOBJ" ]; then
+    echo "stdioaudit: $STDIOOBJ not built" >&2
+    exit 1
+fi
+PROVIDED=$(nm -g --defined-only "$STDIOOBJ" | awk '{print $3}' | sort -u)
+
+fails=0
+for BIN in "$@"; do
+
+    if [ ! -f "$BIN" ]; then
+        echo "$BIN: no such file" >&2
+        fails=$((fails+1))
+        continue
+    fi
+    # the binary and everything it loads
+    FILES="$BIN $(ldd "$BIN" 2>/dev/null | awk '/=>/ { print $3 }')"
+    GAPS=""
+    for F in $FILES; do
+        [ -f "$F" ] || continue
+        # imported stdio surface of this object
+        IMP=$(nm -D -u "$F" 2>/dev/null | awk '{print $NF}' | grep -xE "$WATCH" | sort -u)
+        [ -n "$IMP" ] || continue
+        # anything not provided by petit ami's stdio is a gap
+        MISSING=$(comm -23 <(echo "$IMP") <(echo "$PROVIDED"))
+        if [ -n "$MISSING" ]; then
+            GAPS="$GAPS$(basename $F): $(echo $MISSING | tr '\n' ' ')\n"
+        fi
+    done
+    if [ -n "$GAPS" ]; then
+        echo "$BIN: stdio coverage gaps:"
+        echo -e "$GAPS" | sed 's/^/    /'
+        fails=$((fails+1))
+    fi
+
+done
+exit $fails

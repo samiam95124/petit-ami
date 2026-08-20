@@ -76,7 +76,7 @@ Globals
 
 *******************************************************************************/
 
-int dport = AMI_SYNTH_OUT;
+long dport = AMI_SYNTH_OUT;
 
 ami_optrec opttbl[] = {
 
@@ -249,15 +249,16 @@ static void compute_times(void)
 
 /*******************************************************************************
 
-Scale velocity from MIDI 0-127 to Ami 0-INT_MAX
+Scale velocity from MIDI 0-127 to Ami 0-LONG_MAX
 
 *******************************************************************************/
 
-static int scalevel(int v)
+static long scalevel(int v)
 {
     if (v <= 0) return 0;
-    if (v >= 127) return INT_MAX;
-    return (int)((long long)v * INT_MAX / 127);
+    if (v >= 127) return LONG_MAX;
+    /* divide full scale first to avoid 64 bit overflow */
+    return v * (LONG_MAX / 127);
 }
 
 /*******************************************************************************
@@ -268,12 +269,13 @@ Main
 
 int main(int argc, char **argv)
 {
-    int argi = 1;
+    long argi = 1;
+    long argcl = argc;
     char line[1024];
 
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argi >= argc) {
+    if (argi >= argcl) {
         fprintf(stderr,
                 "Usage: playtextmidi [--port=<port>|-p=<port>] <file>\n");
         exit(1);
@@ -346,8 +348,8 @@ int main(int argc, char **argv)
                 ami_volsynthchan(dport, t, ch, scalevel(e->v));
                 break;
             case 10:
-                ami_pan(dport, t, ch,
-                        (int)((long long)(e->v - 64) * INT_MAX / 64));
+                /* divide full scale first to avoid 64 bit overflow */
+                ami_pan(dport, t, ch, (e->v - 64) * (LONG_MAX / 64));
                 break;
             case 64: /* sustain — not directly mapped, skip */
                 break;
@@ -362,8 +364,8 @@ int main(int argc, char **argv)
             }
             break;
         case EVT_PITCHBEND:
-            ami_pitch(dport, t, ch,
-                      (int)((long long)(e->v - 8192) * INT_MAX / 8192));
+            /* divide full scale first to avoid 64 bit overflow */
+            ami_pitch(dport, t, ch, (e->v - 8192) * (LONG_MAX / 8192));
             break;
         case EVT_CHPR:
             ami_pressure(dport, t, ch, scalevel(e->v));

@@ -17,10 +17,10 @@ message.
 #define BUFLEN 250
 
 /* do/do not secure connection */
-int secure = FALSE;
+long secure = FALSE;
 
 /* use IPv6 or IPv4 */
-int ipv6 = FALSE;
+long ipv6 = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -37,15 +37,16 @@ int main(int argc, char **argv)
     char buff[BUFLEN];
     unsigned long addr;
     unsigned long long addrh, addrl;
-    int fn;
-    int len;
-    int argi = 1;
-    int port;
+    long fn;
+    long len;
+    long argi = 1;
+    long argcl = argc;
+    long port;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 3) {
+    if (argcl != 3) {
 
         fprintf(stderr, "Usage: msgclient [--secure|-s] [--v6] servername port\n");
         exit(1);
@@ -75,7 +76,7 @@ int main(int argc, char **argv)
     len = ami_rdmsg(fn, buff, BUFLEN);
     buff[len] = 0; /* terminate */
 
-    printf("The message from server was: %.*s\n", len, buff);
+    printf("The message from server was: %.*s\n", (int)len, buff);
 
     ami_clsmsg(fn);
 

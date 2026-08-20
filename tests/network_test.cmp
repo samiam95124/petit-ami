@@ -1,0 +1,98 @@
+Network test vs. 0.1
+
+
+----- Name resolution: addrnet (IPv4), addrnetv6 (IPv6); the live DNS checks need name service, no service stops the test here -----
+
+addrnet localhost (hosts file)           pass
+    localhost -> 127.0.0.1
+addrnet numeric literal                  pass
+    "127.0.0.1" -> 127.0.0.1
+addrnetv6 numeric loopback               pass
+    "::1" -> 0:1 (high:low 64 bit halves)
+addrnet live DNS (google.com)            pass
+    google.com A    -> *
+addrnetv6 live DNS (google.com)          pass
+    google.com AAAA -> *
+
+----- Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), clear and TLS -----
+
+TCP exchange in the clear                pass
+    sent "Hello, server", received "Hello, client" over TCP in the clear
+TCP exchange secured (TLS)               pass
+    sent "Hello, server", received "Hello, client" over TLS
+TCP exchange in the clear (IPv6)         pass
+    sent "Hello, server", received "Hello, client" over TCP in the clear on IPv6
+certnet raw certificate (IPv6)           pass
+    TLS server certificate PEM over IPv6: 700 bytes
+certlist leaf issuer is test CA (IPv6)   pass
+TCP exchange secured (TLS, IPv6)         pass
+    sent "Hello, server", received "Hello, client" over TLS on IPv6
+two connections at once                  pass
+    two servers, two clients, replies kept to their own connections
+opennet retries a refused connection     pass
+    server listened two seconds late; the exchange still completed
+
+----- Messages: openmsg/waitmsg/wrmsg/rdmsg/clsmsg (IPv4), openmsgv6 (IPv6), clear and DTLS; certmsg/certlistmsg on the DTLS run -----
+
+message exchange in the clear            pass
+    sent 13 byte message, received 13 byte reply over UDP in the clear
+certmsg raw certificate (DTLS)           pass
+    DTLS server certificate PEM: 904 bytes
+certlistmsg decodes (DTLS)               pass
+    DTLS certificate subject: C=US, O=Petit Ami, CN=localhost
+certlistfree clears list (DTLS)          pass
+certmsg chain CA raw (DTLS)              pass
+certlistmsg chain CA decodes (DTLS)      pass
+    DTLS certificate 2 subject: C=US, O=Petit Ami, CN=Petit Ami Test CA
+certmsg past chain end is empty (DTLS)   pass
+certlistmsg past chain end is NULL (DTLS) pass
+message exchange secured (DTLS)          pass
+    sent 13 byte message, received 13 byte reply over DTLS
+message exchange in the clear (IPv6)     pass
+    sent 13 byte message, received 13 byte reply over UDP in the clear on IPv6
+message exchange secured (DTLS, IPv6)    pass
+    sent 13 byte message, received 13 byte reply over DTLS on IPv6
+rdmsg short buffer truncates             pass
+    13 byte message into a 5 byte buffer: 5 bytes, "Hello"
+
+----- Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6); a maxmsg sized message is deliverable -----
+
+maxmsg sane                              pass
+    maximum message for loopback: 65507 bytes
+maxmsg secure honors the DTLS record     pass
+    maximum secure message for loopback: 16384 bytes
+relymsg loopback is reliable             pass
+    loopback delivery reliable: yes
+maxmsgv6 sane                            pass
+    maximum message for v6 loopback: 65488 bytes
+maxmsgv6 secure honors the DTLS record   pass
+    maximum secure message for v6 loopback: 16384 bytes
+relymsgv6 loopback is reliable           pass
+    v6 loopback delivery reliable: yes
+maxmsg sized message deliverable         pass
+    sent 65507 bytes (the maxmsg limit), server received 65507
+maxmsgv6 sized message deliverable       pass
+    sent 65488 bytes (the maxmsgv6 limit), server received 65488
+
+----- Certificates: certnet/certlistnet/certlistfree, two deep chain -----
+
+certnet raw certificate                  pass
+    TLS server certificate PEM: 700 bytes
+certlistnet decodes                      pass
+certlist signature value                 pass
+    certificate 1 subject: C=US, O=Petit Ami, CN=localhost
+    certificate 1 signature algorithm: ecdsa-with-SHA256
+certlist leaf issuer is test CA          pass
+    certificate 1 issuer: C=US, O=Petit Ami, CN=Petit Ami Test CA
+certlistfree clears list                 pass
+certnet exact fit fills, no terminator   pass
+certnet one byte spare is terminated     pass
+    certificate is 700 bytes: at 700 unterminated, at 701 terminated
+certnet chain CA raw                     pass
+certlistnet chain CA decodes             pass
+    certificate 2 subject: C=US, O=Petit Ami, CN=Petit Ami Test CA
+certlist CA basic constraints critical   pass
+certnet past chain end is empty          pass
+certlistnet past chain end is NULL       pass
+
+Network test complete: 45 passes, 0 fails

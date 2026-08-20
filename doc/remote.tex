@@ -1,0 +1,353 @@
+% The Petit-Ami remote display protocol paper.
+% Build: pdflatex remote.tex (twice, for the table of contents), with
+% catalog.tex generated from include/graph_remote.h alongside.
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\setlength{\parindent}{0pt}\setlength{\parskip}{6pt plus 2pt}
+
+\title{The Petit-Ami Remote Display Protocol}
+\author{S. A. Franco}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Remote display mode separates a Petit-Ami program from its display: the
+program runs on one machine, the client side, and its windows, drawing,
+widgets and input devices live on another, the server side. This paper
+defines the wire protocol between the two, carried on the message channels
+of the network library. Every call of the graphical API has a message, and
+the sound API travels the same channel in its own partition of the message
+space; a continuous event stream flows back. The protocol is defined by the header
+\texttt{include/graph\_remote.h}, of which this paper is the narrative
+companion; where the two disagree, the header governs.
+\end{abstract}
+
+\tableofcontents
+
+\section{Introduction}
+
+The terminal and graphics libraries have always reserved a place for
+``remote display'': the output of a program encoded and carried over a
+communications channel, with input events carried back, so that the full
+functionality of the API survives the trip. The manual states the two
+conditions that make this possible: all output must be applied in the order
+issued, and all input events must be received in the order generated, with
+the rule that outstanding output completes before input is taken.
+
+Two modules implement the mode:
+
+\begin{description}
+\item[\texttt{graph\_client}] links with the program. It exposes the
+complete graphical API; each call composes a message and sends it, and
+\texttt{event()} returns the next inbound event from the client's queue,
+fed by a receiver thread.
+\item[\texttt{graph\_server}] owns the display. It plugs into the standard
+graphics package as an overrider, executes inbound call messages against
+it, and sends the resulting events back out.
+\end{description}
+
+The display, the mouse, the keyboard and the joysticks face the user on the
+server side, while the program logic runs on the client side. Relative to
+the usual naming, where the machine in front of the user is the client,
+this arrangement is upside down: the ``server'' is the screen on the desk,
+and the ``client'' may be a machine in another room entirely. The naming
+here follows the connection roles: the server waits for a connection, the
+client makes one.
+
+\section{Architecture}
+
+The link is two message channels on adjacent ports, plus a third port
+reserved for file transfer:
+
+\begin{center}
+\begin{tabular}{lll}
+port $p$   & command channel & client $\rightarrow$ server calls, and
+                               server $\rightarrow$ client replies \\
+port $p+1$ & event channel   & server $\rightarrow$ client events,
+                               continuously \\
+port $p+2$ & file port       & stream connection, opened per transfer \\
+\end{tabular}
+\end{center}
+
+The default command port is 4901.
+
+The server divides its work between two threads. The main thread runs the
+command loop: wait for a message, execute it against the display library,
+reply if the call returns values. A second thread runs the event pump: call
+\texttt{event()} forever and send each event out on the event channel. The
+two directions are asynchronous, which is exactly why they are separate
+threads; neither ever waits on the other.
+
+The client runs one thread beside the program: a receiver, which takes
+event messages from the event channel as they arrive and appends them to
+the client's event queue. Calls stay on the program's thread: they go out
+on the command channel as they are made, in order, and a query sends its
+request and waits for the reply before anything else is issued.
+\texttt{event()} takes from the queue, waiting if it is empty.
+
+\section{Transport}
+
+The protocol rides the message channels of the network library:
+\texttt{openmsg()} on the client side, \texttt{waitmsg()} on the server
+side, \texttt{rdmsg()} and \texttt{wrmsg()} to move discrete messages. A
+channel message carries one or more protocol messages, back to back, their
+header lengths delimiting them; the receiver executes them in order, and no
+protocol message is split across channel messages. Batching is the sender's
+option, and it saves the per-datagram cost on the hot paths; but nothing
+ever waits to fill a batch. Every boundary, a query, an event wait, the
+sync, the bye, sends what has gathered at once, and a lone trailing command
+is bounded by a flusher of a couple of milliseconds.
+
+Message channels bound the size of a message, found from \texttt{maxmsg()}
+for the address. The write stream chunks itself to fit; every other message
+must fit the bound with its payload, which in practice bounds string
+lengths. Senders are responsible for staying under the bound.
+
+The protocol requires a reliable channel in the sense of
+\texttt{relymsg()}: no loss, no duplication, no reordering. The local
+machine connection of the standard test arrangement is reliable by
+definition. Operation over an unreliable network needs a retransmission
+layer beneath this protocol; that layer is future work, and nothing in the
+message design precludes it.
+
+The secure flag of the message channel calls passes through: a secured
+deployment secures both channels and the file connections alike.
+
+\section{Wire format}
+
+All multibyte values are little endian. The scalar and composite notations
+used throughout the catalog:
+
+\begin{center}
+\begin{tabular}{ll}
+\texttt{i64} & signed 64 bit integer, the API \texttt{long} \\
+\texttt{f64} & IEEE 754 double, carrying the API float values \\
+\texttt{str} & i32 byte length, then the bytes, no terminator \\
+\texttt{blk} & i32 byte length, then the bytes \\
+\texttt{slst} & string list: i32 count, then count \texttt{str} \\
+\texttt{menu} & menu tree, defined below \\
+\texttt{evt} & event record, defined below \\
+\end{tabular}
+\end{center}
+
+Every message begins with a fixed sixteen byte header:
+
+\begin{center}
+\begin{tabular}{lll}
+\texttt{i32} & \texttt{len} & total message length in bytes, header
+included \\
+\texttt{i16} & \texttt{mid} & message id, from the catalog \\
+\texttt{i16} & \texttt{seq} & request serial, echoed by the reply; 0 where
+not meaningful \\
+\texttt{i64} & \texttt{wid} & window handle the call acts on; 0 where not
+meaningful \\
+\end{tabular}
+\end{center}
+
+The payload follows, holding the call's parameters in the order the API
+declares them, with the window file parameter excluded: it is the header
+\texttt{wid}.
+
+\subsection{Menu trees}
+
+A menu serializes depth first: an \texttt{i32} count, then that many
+entries, where each entry is an \texttt{i64} flag word (bit 0 the on/off
+capability, bit 1 the one-of membership, bit 2 the bar), the \texttt{i64}
+id, the \texttt{str} face text, and then a nested menu for the branch,
+empty if the entry has none. An empty tree is a single zero count, and
+removes the menu where that has meaning.
+
+\texttt{stdmenu()} is the one call that returns a menu: the client sends
+the standard selections and the program's additions, and the server
+returns the combined tree as it built it. The client materializes that
+tree as real menu records for the program, so the program can hand it back
+to \texttt{menu()} later, as the API contract requires.
+
+\subsection{Event records}
+
+An event is a fixed record of eleven \texttt{i64}: the window handle the
+event belongs to, the event code, the handled flag, and eight parameter
+slots holding the fields of the event union in declaration order. A
+character rides in the first slot. The slots not used by an event code are
+zero. The fixed layout spends a few bytes to buy a single marshaling
+routine for every event.
+
+\section{Session}
+
+The first message on the command channel is the hello: the client sends its
+protocol version and the server replies with its own. A server that does
+not speak the client's version replies with its version and closes; the
+client raises the failure to the program. The first message on the event
+channel is the event-channel hello from the client, which is how the
+server learns where events go; it carries the version again and has no
+reply.
+
+The client announces the end of the session with a bye on the command
+channel; the server drops the connection. A server error that cannot be
+returned as a reply travels to the client as an error message on the event
+channel, carrying the error text; the client raises it to the program.
+
+\section{Calls, queries and ordering}
+
+Calls divide in two. A command carries no result: it is sent and the
+client proceeds. A query returns values: the client sends the request and
+waits on the command channel for the reply before issuing anything else.
+
+There is therefore at most one request outstanding at any time. Replies
+cannot interleave with each other or with commands, and the server may
+process every message in arrival order with no reassembly. The
+\texttt{seq} serial in the header is echoed by the reply purely as a
+consistency check; a mismatch is a protocol failure.
+
+The ordinary output of a program, the characters written to a window file,
+travels as the write stream message: a block of bytes exactly as they
+would have gone to the window, chunked by the sender to the channel bound.
+Order is preserved end to end: the write stream and the drawing calls
+arrive in the order the program issued them, which satisfies the manual's
+first condition for remote display. The event stream preserves generation
+order, which satisfies the second.
+
+\section{Windows}
+
+Window handles are small integers assigned by the client. Handle 1 is the
+main window, the standard input and output pair, and exists from the
+hello. \texttt{openwin()} carries the parent handle, the new handle, and
+the logical window id; the server maps each handle to a window file of its
+own. Every subsequent call names its window by handle in the message
+header. Closing a window file on the client side sends the close message,
+and the server closes its side.
+
+\section{Events and client-local operations}
+
+Events are pushed, never polled. A pull model, where the program asks for
+the next event and waits for it, would degenerate to an ask and answer
+protocol: a full round trip across the wire per event, which for a stream
+of mouse movements is a performance disaster. Instead the source runs
+ahead of the consumer at both ends. The server's event pump thread calls
+\texttt{event()} on the display library without pause, translating each
+event to the wire record and sending it the moment it is ready. The
+client's receiver thread takes each event message as it arrives and
+appends it to the client's event queue, so the transport is always
+drained; \texttt{event()} takes from the queue, translates back, and
+returns the event to the program, replacing the wire handle with the
+window identification the API promises. The program regulates its own
+consumption from the queue.
+
+Redundant events are thinned at both ends, on the principle that of a
+movement stream only the latest matters. The server sends at most one
+movement per short interval per device, mouse, graphical mouse, joystick,
+and likewise one resize per window; between sends the latest holds as
+pending, and a pending movement flushes before any other event goes out,
+so a click always follows the position it happened at. On the client, a
+movement or resize arriving at the queue replaces an unconsumed one it
+supersedes at the tail instead of stacking behind it. Neither side changes
+the protocol on the wire.
+
+Three operations act on the client's own event stream and put nothing on
+the wire: \texttt{eventover()} and \texttt{eventsover()}, which hook event
+delivery, hook the client's delivery; and \texttt{sendevent()}, which
+injects an event, injects into the client's queue. The input device
+queries, the number of mice, buttons, joysticks and function keys, are
+synchronous queries like any others; the devices themselves are the
+server's, and their activity arrives as events.
+
+\section{File transfer}
+
+Files named in calls live where the program lives, on the client; the
+picture files of \texttt{loadpict()} are the case in point. The server
+holds a cache, its current directory. When a call names a file, the server
+looks it up: first the name as given, then the base name in the cache. If
+it holds the file, the call proceeds.
+
+If not, the server requests the file, on the model of ftp's control and
+data split, in ftp's passive form. The request goes by message on the
+command channel, inside the reply window of the pending call, so the
+client is guaranteed to be listening; it names the file and the server's
+file port, the command port plus two. The client opens that port as a
+stream connection with \texttt{opennet()} and streams the file in as raw
+bytes, close delimited, exactly as an ftp data connection carries one
+file; an empty stream is a file the client does not hold either. The
+server stores the file in its cache under its base name, never under a
+path the client supplied, and the pending call then proceeds against the
+cache and sends its reply.
+
+The passive form, the client connecting rather than the server, is forced
+by an asymmetry: the message channels never disclose the client's address
+to the server, while the client always knows the server's. It is also the
+direction that crosses network address translation toward the server. The
+active form, where the server would connect to a port the client names,
+keeps its reserved message for a later version. One transfer at a time
+falls out of the one outstanding request rule.
+
+The exchange is deliberately not tied to pictures: any call that names a
+file uses it, and it stands as the protocol's general bulk transfer
+mechanism.
+
+\section{The module partition}
+
+The sixteen bit message id space divides into four modules of 8192 codes
+each: graphics holds $0..8191$, sound holds $8192..16383$, and two
+partitions remain for future modules; the negative half of the space is
+reserved. A module's calls may grow within its partition without
+disturbing its neighbors, which is the reason for partitioning rather
+than packing: the graphics catalog and the sound catalog will both grow,
+and neither should renumber the other.
+
+\section{Sound}
+
+The sound API of \texttt{sound.h} carries in the sound partition,
+complete: the synthesizer channel voice messages, the stored sequences,
+the wave channels, the device names and parameters. There is no window;
+every sound message goes with a zero window handle in the header.
+
+The devices live at the server, which is where the speakers and the
+microphones are, matching the placement of the display and the input
+devices. Sequencer times are interpreted against the server's time
+bases, and the time queries return them, so a schedule computed on the
+client lands where it should. The input calls, sequencer reads and wave
+reads, block the caller until the far device delivers, exactly as the
+native calls do; a program that did not want to wait natively will not
+want to wait remotely either.
+
+The files of \texttt{loadsynth()} and \texttt{loadwave()} live where
+the program lives, and travel by the file transfer mechanism, which is
+why those calls are queries: the transfer request must arrive inside the
+reply window, with the client listening. The name in a transfer request
+now travels already under the extension rule of the call that asked,
+\texttt{.bmp} for pictures, \texttt{.wav} for waves, \texttt{.mid}
+for stored sequences, and the client serves exactly the name asked. Wave
+sample streams, in either direction, chunk to the channel bound like the
+write stream.
+
+\section{Future work}
+
+The protocol as specified assumes a reliable channel and same width, little
+endian hosts at both ends, which covers the intended deployments and the
+standard test arrangement. Three extensions are anticipated and none
+disturb the message catalog: a retransmission layer beneath the protocol
+for unreliable networks; print files (\texttt{openprint()}), reserved in
+the catalog, whose composition would run on either side; and big endian
+hosts, which would swap on the wire boundary. Multiple clients to one
+server, and compression of the write stream, remain open questions.
+
+\section{Message catalog}
+
+The catalog below is generated from \texttt{include/graph\_remote.h},
+which is the normative definition. Payload notation is as defined in the
+wire format section; ``$\rightarrow$'' introduces the reply payload where
+the call is a query.
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.4in}r>{\raggedright\arraybackslash}p{3.2in}@{}}
+\hline
+\textbf{Message} & \textbf{Id} & \textbf{Payload $\rightarrow$ reply} \\
+\hline
+\endhead
+\input{remote_catalog}
+\hline
+\end{longtable}
+
+\end{document}

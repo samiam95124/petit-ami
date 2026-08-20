@@ -1,0 +1,220 @@
+#!/bin/bash
+#
+# Run the Petit-Ami regression tests
+#
+# Execution:
+#
+# regress [--update] [<test>...]
+#
+# Runs each of the self-contained tests, captures the output as
+# tests/<test>.lst, and compares it against the golden file tests/<test>.cmp
+# using dif -q, which treats '?' in either file as a wildcard matching any
+# single character. Fields that legitimately change from run to run (times,
+# dates) are masked with '?' in the .cmp files. Differences are left in
+# tests/<test>.dif; a test passes when its .dif file is empty.
+#
+# Options:
+#
+# --update  Regenerate the .cmp files from a fresh run, with the standard
+#           masks applied. Use after an intentional output change, then
+#           inspect the new .cmp files before committing them.
+#
+# With no test arguments, all tests are run. Returns the number of failing
+# tests, so 0 means a pass.
+#
+# Notes:
+#
+# The test binaries load the Petit-Ami shared libraries relative to the
+# current directory, so everything runs from the repository root, except
+# services_test: it lists the current directory, so it runs in the fixed
+# sandbox tests/regress (which carries a lib symlink for the loader).
+# services_test also prints environment and locale state, so it runs under a
+# controlled minimal environment. The .cmp files still contain some machine
+# specific text (home paths, country, timezone); regenerate them with
+# --update when moving to a new machine, then review the result. The
+# picture standards are machine specific throughout -- they are pictures of
+# this screen, at this size, in these fonts -- so they always want
+# regenerating on a new machine.
+#
+
+# find repository root from this script's location and work there
+root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$root" || exit 1
+
+update="0"
+tests=""
+for arg in "$@"; do
+
+    if [ "$arg" = "--update" ]; then update="1"
+    else tests="$tests $arg"
+    fi
+
+done
+if [ -z "$tests" ]; then
+
+    tests="stdio_test services_test network_test graphics_test \
+           management_test widget_test"
+
+fi
+
+#
+# Mask run-varying fields. Applied when regenerating .cmp files. Fixed width
+# fields are masked with '?' (one per character); fields whose width can
+# change from run to run, like the process id in temp file names, are masked
+# with '*', which dif -q matches against any run of characters.
+#
+# - dates: yyyy/mm/dd and dd/mm/yyyy (or mm/dd/yyyy) forms
+# - times: hh:mm:ss with optional " am"/" pm" suffix. The suffix presence
+#   varies with the time of day (12 hour locales suffix only pm times), so
+#   the line width varies run to run and the whole time is masked with '*'
+# - elapsed tick counts on the "test 11:" line of services_test
+# - process ids in temp file names from stdio_test, and the length of such
+#   a name, which grows with the digits in the pid
+# - the daylight savings flag, which changes with the season. The timezone
+#   offset is not masked: it is a fixed property of the machine's zone now
+#   that ami_timezone handles the day wrap
+#
+mask()
+{
+
+    sed -E \
+        -e 's|[0-9]{4}/[0-9]{2}/[0-9]{2}|????/??/??|g' \
+        -e 's|[0-9]{2}/[0-9]{2}/[0-9]{4}|??/??/????|g' \
+        -e 's|[0-9]{2}:[0-9]{2}:[0-9]{2}( [ap]m)?|*|g' \
+        -e 's|^(test 11: )[0-9]+|\1*|' \
+        -e 's|/tmp/tmp\.[0-9]+\.|/tmp/tmp.*.|g' \
+        -e 's|^(test 702: 1 s/b 1 \(length )[0-9]+|\1*|' \
+        -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
+        -e 's|^(    google.com A    -> ).*|\1*|' \
+        -e 's|^(    google.com AAAA -> ).*|\1*|'
+
+}
+
+#
+# Run one test, output to the named .lst file
+#
+runtest()
+{
+
+    case "$1" in
+
+    services_test)
+        # fixed sandbox for the directory listing; controlled environment;
+        # PATH carries the repository bin for the exec tests
+        (cd tests/regress && \
+         env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" \
+             PATH="$root/bin:/usr/local/bin:/usr/bin:/bin" \
+             LANG="en_US.UTF-8" \
+             timeout 300 "$root/bin/$1" < /dev/null) \
+             > "tests/$1.lst" 2>&1
+        ;;
+
+    graphics_test|management_test|widget_test)
+        # "auto" walks every screen without waiting for a keypress. What
+        # these tests produce is not text but the screens themselves: the
+        # capture module appends each to the file named after it, and that
+        # file is the listing they are judged on. Each test is given its
+        # own, so two runs beside each other do not write over one another.
+        rm -f "tests/$1.lst"
+        timeout 300 "bin/$1" auto "tests/$1.lst" < /dev/null \
+            > "tests/$1.out" 2>&1
+        ;;
+
+    *)
+        timeout 300 "bin/$1" < /dev/null > "tests/$1.lst" 2>&1
+        ;;
+
+    esac
+
+}
+
+# the PNG signature, for counting the screens in a capture stream
+pngsig=$(printf '\211PNG')
+
+fails=0
+for t in $tests; do
+
+    if [ ! -x "bin/$t" ]; then
+
+        echo "$t: no bin/$t, run make first"
+        fails=$((fails+1))
+        continue
+
+    fi
+    case "$t" in
+
+    graphics_test|management_test|widget_test) pict=1 ;;
+    *)                                         pict=0 ;;
+
+    esac
+    if [ "$pict" = "1" ] && [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ]; then
+
+        # it draws on a screen, and there is none here
+        echo "$t: skipped, no display"
+        continue
+
+    fi
+    runtest "$t"
+    if [ "$pict" = "1" ]; then
+
+        # a stream of PNGs: compared whole, since a picture has no fields
+        # that vary from run to run to be masked
+        if [ ! -f "tests/$t.lst" ]; then
+
+            echo "$t: *** fail *** (no test_images produced)"
+            fails=$((fails+1))
+            continue
+
+        fi
+        if [ "$update" = "1" ]; then
+
+            cp "tests/$t.lst" "tests/$t.cmp"
+            echo "$t: tests/$t.cmp regenerated, please review with bin/testviewer"
+
+        elif cmp -s "tests/$t.lst" "tests/$t.cmp"; then
+
+            rm -f "tests/$t.dif"
+            echo "$t: pass"
+
+        else
+
+            {
+                echo "screens differ from tests/$t.cmp"
+                echo "standard: $(wc -c < "tests/$t.cmp") bytes,\
+ $(grep -a -o "$pngsig" "tests/$t.cmp" | wc -l) screens"
+                echo "this run: $(wc -c < "tests/$t.lst") bytes,\
+ $(grep -a -o "$pngsig" "tests/$t.lst" | wc -l) screens"
+                cmp "tests/$t.cmp" "tests/$t.lst" 2>&1
+                echo "view either with: bin/testviewer <file>"
+            } > "tests/$t.dif"
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+
+        fi
+        continue
+
+    fi
+    if [ "$update" = "1" ]; then
+
+        mask < "tests/$t.lst" > "tests/$t.cmp"
+        echo "$t: tests/$t.cmp regenerated, please review"
+
+    else
+
+        bin/dif -q "tests/$t.lst" "tests/$t.cmp" > "tests/$t.dif"
+        if [ -s "tests/$t.dif" ]; then
+
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+
+        else
+
+            echo "$t: pass"
+
+        fi
+
+    fi
+
+done
+
+exit $fails

@@ -8,3 +8,4 @@
 *******************************************************************************/
 
 void screen_capture(void) {}
+void screen_capture_name(const char* fn) { (void)fn; }

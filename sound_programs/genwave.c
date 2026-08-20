@@ -36,9 +36,9 @@ Set square wave output (the default is sine wave).
 #define SIZEBUF 2048
 #define PI 3.14159
 
-int dport = AMI_SYNTH_OUT; /* set default synth out */
-int freq = 440; /* set default frequency */
-int square = FALSE; /* set not square wave */
+long dport = AMI_SYNTH_OUT; /* set default synth out */
+long freq = 440; /* set default frequency */
+long square = FALSE; /* set not square wave */
 
 double angle;
 
@@ -60,12 +60,13 @@ int main(int argc, char **argv)
     int i;
     unsigned int rate;
     short buf[SIZEBUF];
-    int argi = 1;
+    long argi = 1;
+    long argcl = argc;
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 1) {
+    if (argcl != 1) {
 
         fprintf(stderr,
             "Usage: genwave [--port=<port>|--p=<port>|--freq=<freq>|--f=<freq>|\n");

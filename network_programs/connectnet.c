@@ -19,7 +19,7 @@
 
 static unsigned long addr;
 
-int secure = FALSE;
+long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -33,18 +33,20 @@ int main(int argc, char **argv)
 
 {
 
-    int   argi = 1;
+    long  argi = 1;
+    long  argcl;
     FILE* fp;
     int   c;
-    int   port;
+    long  port;
 
     printf("Connect TCP/IP program\n");
     printf("\n");
 
     /* parse user options */
-    ami_options(&argi, &argc, argv, opttbl, TRUE);
+    argcl = argc;
+    ami_options(&argi, &argcl, argv, opttbl, TRUE);
 
-    if (argc != 3) {
+    if (argcl != 3) {
 
         fprintf(stderr, "Usage: connectnet [--secure|-s] <server> <port>\n");
         exit(1);

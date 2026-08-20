@@ -28,6 +28,8 @@ typedef void* pa_winhan;
 
 /* ---------- module state ---------- */
 
+static char      cap_name[1024] = CAPTURE_FILENAME;
+static int       cap_opened     = 0;   /* the file has been made */
 static FILE     *cap_file        = NULL;
 static uint32_t  cap_frame_count = 0;
 static int       cap_disabled    = 0;
@@ -42,8 +44,26 @@ static int               syms_resolved;
 
 /* ---------- public entry point ---------- */
 
+/* Name the file the pictures go to, before the first of them is taken.
+   Later than that the file is already open and the name is ignored. */
+
+void screen_capture_name(const char* fn) {
+    if (!fn || !*fn || cap_opened) return;
+    snprintf(cap_name, sizeof(cap_name), "%s", fn);
+}
+
+/* the file is made at the first capture, so a name can be given first */
+static void capopen(void) {
+    cap_opened = 1;
+    remove(cap_name);
+    cap_file = fopen(cap_name, "wb");
+    if (!cap_file) cap_disabled = 1;
+}
+
 void screen_capture(void) {
-    if (cap_disabled || !cap_file) return;
+    if (cap_disabled) return;
+    if (!cap_opened) capopen();
+    if (!cap_file) return;
 
     if (!syms_resolved) {
         syms_resolved = 1;
@@ -106,16 +126,6 @@ void screen_capture(void) {
 
 /* ---------- module lifecycle ---------- */
 
-__attribute__((constructor(103)))
-static void screen_capture_init(void) {
-    remove(CAPTURE_FILENAME);
-    cap_file = fopen(CAPTURE_FILENAME, "wb");
-    if (!cap_file) {
-        cap_disabled = 1;
-        return;
-    }
-}
-
 __attribute__((destructor(103)))
 static void screen_capture_fini(void) {
     if (cap_file) {
@@ -123,7 +133,7 @@ static void screen_capture_fini(void) {
         fclose(cap_file);
         cap_file = NULL;
         if (cap_frame_count == 0) {
-            remove(CAPTURE_FILENAME);
+            remove(cap_name);
         }
     }
 }

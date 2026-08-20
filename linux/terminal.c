@@ -259,7 +259,8 @@ typedef enum {
     /* superscript */                sasuper,
     /* subscripting */               sasubs,
     /* italic text */                saital,
-    /* bold text */                  sabold
+    /* bold text */                  sabold,
+    /* struck out text */            sastkout
 
 } scnatt;
 
@@ -294,12 +295,12 @@ typedef struct joyrec {
     int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
-    int ax;     /* joystick x axis save */
-    int ay;     /* joystick y axis save */
-    int az;     /* joystick z axis save */
-    int a4;     /* joystick axis 4 save */
-    int a5;     /* joystick axis 5 save */
-    int a6;     /* joystick axis 6 save */
+    long ax;    /* joystick x axis save */
+    long ay;    /* joystick y axis save */
+    long az;    /* joystick z axis save */
+    long a4;    /* joystick axis 4 save */
+    long a5;    /* joystick axis 5 save */
+    long a6;    /* joystick axis 6 save */
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
@@ -329,7 +330,7 @@ typedef struct paevtque {
  *
  */
 
-char *keytab[ami_etterm+1+MAXFKEY] = {
+static char *keytab[ami_etterm+1+MAXFKEY] = {
 
     /* Common controls are:
     Codes                   Meaning                   IBM-PC keyboard equivalents */
@@ -411,7 +412,7 @@ char *keytab[ami_etterm+1+MAXFKEY] = {
 /*
  * bit count table for UTF-8
  */
-unsigned char utf8bits[] = {
+static unsigned char utf8bits[] = {
 
     0, /* 0000 */
     1, /* 0001 */
@@ -664,6 +665,8 @@ static int    mpx;         /* mouse x/y current position */
 static int    mpy;
 /* new, incoming states of mouse */
 static int    nbutton1;    /* button 1 state: 0=assert, 1=deassert */
+static int    nwheelup;    /* wheel notches not yet reported, rolling up */
+static int    nwheeldn;    /* and rolling down */
 static int    nbutton2;    /* button 2 state: 0=assert, 1=deassert */
 static int    nbutton3;    /* button 3 state: 0=assert, 1=deassert */
 static int    nmpx;        /* mouse x/y current position */
@@ -683,10 +686,10 @@ static int      dimx;        /* actual width of screen */
 static int      dimy;        /* actual height of screen */
 static int      bufx, bufy;  /* buffer size */
 static int      curon;       /* current on/off state of cursor */
-static int      curx;        /* cursor position on screen */
-static int      cury;
-static int      ncurx;       /* new cursor position on screen */
-static int      ncury;
+static long     curx;        /* cursor position on screen */
+static long     cury;
+static long     ncurx;       /* new cursor position on screen */
+static long     ncury;
 static int      curval;      /* physical cursor position valid */
 static int      curvis;      /* current status of cursor visible */
 static ami_color forec;       /* current writing foreground color primaries */
@@ -706,17 +709,25 @@ static int    fend;        /* end of program ordered flag */
 static int    fautohold;   /* automatic hold on exit flag */
 static int    errflg;      /* error occurred */
 
-/* maximum power of 10 in integer */
-static int    maxpow10;
+/* Maximum power of 10 in integer. Statically initialized so integers
+   written before init are not printed empty (init recomputes it for the
+   actual long width). */
+#if LONG_MAX > 2147483647L
+static long   maxpow10 = 1000000000000000000L;
+#else
+static long   maxpow10 = 1000000000L;
+#endif
 static int    numjoy;         /* number of joysticks found */
 
 static int    frmfid;         /* framing timer fid */
-volatile char inpbuf[MAXLIN]; /* input line buffer */
-volatile int  inpptr;         /* input line index */
+static volatile char inpbuf[MAXLIN]; /* input line buffer */
+static volatile int  inpptr;         /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
 static int    dmpevt;         /* enable dump Petit-Ami messages */
 static int    inpsev;         /* keyboard input system event number */
 static int    winchsev;       /* windows change system event number */
+static int    exitsev;        /* shutdown wakeup system event number */
+static int    exitpipe[2];    /* shutdown wakeup pipe, read then write end */
 #ifdef ALLOWUTF8
 static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
@@ -755,6 +766,9 @@ static void error_ivf(ami_errcod e)
 
 {
 
+    /* leave the alternate screen first, or the message is written to it
+       and discarded when the exit sequence switches back */
+    fprintf(stderr, "\033[0m\033[?1049l\r\n");
     fprintf(stderr, "*** Error: xterm: ");
     switch (e) { /* error */
 
@@ -772,6 +786,7 @@ static void error_ivf(ami_errcod e)
         case ami_dispeinpdev: fprintf(stderr, "Error in input device"); break;
         case ami_dispeinvtab: fprintf(stderr, "Invalid tab stop position"); break;
         case ami_dispeinvjoy: fprintf(stderr, "Invalid joystick ID"); break;
+        case ami_dispestrauto: fprintf(stderr, "String write requires auto off"); break;
         case ami_dispecfgval: fprintf(stderr, "Invalid configuration value"); break;
         case ami_dispenomem: fprintf(stderr, "Out of memory"); break;
         case ami_dispesendevent_unimp: fprintf(stderr, "sendevent unimplemented"); break;
@@ -816,10 +831,65 @@ Accepts a linux error code. Prints the error string and exits.
 void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp)
     { *ofp = linuxerror_vect; linuxerror_vect = nfp; }
 static void linuxerror(int ec) { (*linuxerror_vect)(ec); }
-static void linuxerror_ivf(int ec)
+/* Diagnostic input trace, enabled by PETIT_AMI_LOG in the environment:
+   appends the raw input bytes and key terminal events to the common
+   diagnostic log /tmp/petit_ami.log, with the raw system calls so none
+   of the interdicted paths are involved. Other Petit-Ami modules may
+   append their own traces to the same file. */
+
+static int ttlogfd = -2;
+
+static int ttlog(void)
 
 {
 
+    if (ttlogfd == -2)
+        ttlogfd = getenv("PETIT_AMI_LOG")?
+            open("/tmp/petit_ami.log", O_WRONLY|O_CREAT|O_APPEND, 0644): -1;
+
+    return (ttlogfd >= 0);
+
+}
+
+static void ttlogb(unsigned char c)
+
+{
+
+    char b[8];
+    int  n;
+
+    if (!ttlog()) return;
+    if (c == 0x1b) n = snprintf(b, sizeof(b), "\nESC ");
+    else if (c >= ' ' && c < 127) { b[0] = (char)c; n = 1; }
+    else n = snprintf(b, sizeof(b), "<%02x>", c);
+    if (n > 0) { ssize_t r = write(ttlogfd, b, n); (void)r; }
+
+}
+
+static void ttlogs(const char* s)
+
+{
+
+    ssize_t r;
+
+    if (!ttlog()) return;
+    r = write(ttlogfd, s, strlen(s));
+    (void)r;
+
+}
+
+static void linuxerror_ivf(long ec)
+
+{
+
+    if (ttlog()) {
+
+        char b[64];
+
+        snprintf(b, sizeof(b), "\n[linuxerror ec=%ld %s]\n", ec, strerror(ec));
+        ttlogs(b);
+
+    }
     fprintf(stderr, "Linux error: %s\n", strerror(ec)); fflush(stderr);
     errflg = TRUE; /* flag error occurred */
 
@@ -923,22 +993,22 @@ static void prtevt(
     switch (er->etype) {
 
         case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-        case ami_ettim: fprintf(stderr, ": timer: %d", er->timnum); break;
-        case ami_etmoumov: fprintf(stderr, ": mouse: %d x: %4d y: %4d",
+        case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
+        case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
                                   er->mmoun, er->moupx, er->moupy); break;
-        case ami_etmouba: fprintf(stderr, ": mouse: %d button: %d",
+        case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
                                  er->amoun, er->amoubn); break;
-        case ami_etmoubd: fprintf(stderr, ": mouse: %d button: %d",
+        case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
                                  er->dmoun, er->dmoubn); break;
-        case ami_etjoyba: fprintf(stderr, ": joystick: %d button: %d",
+        case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
                                  er->ajoyn, er->ajoybn); break;
-        case ami_etjoybd: fprintf(stderr, ": joystick: %d button: %d",
+        case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
                                  er->djoyn, er->djoybn); break;
-        case ami_etjoymov: fprintf(stderr, ": joystick: %d x: %4d y: %4d z: %4d "
-                                  "a4: %4d a5: %4d a6: %4d", er->mjoyn,
+        case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
+                                  "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
                                   er->joypx, er->joypy, er->joypz,
                                   er->joyp4, er->joyp5, er->joyp6); break;
-        case ami_etfun: fprintf(stderr, ": key: %d", er->fkey); break;
+        case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
         default: ;
 
     }
@@ -1032,14 +1102,73 @@ Writes a string directly to the output file.
 
 *******************************************************************************/
 
+/* Control sequence assembly. A sequence is built here and sent in one
+   write, rather than a system call per byte. Nothing about the byte stream
+   changes, only the number of pieces it arrives in. */
+
+#define SEQMAX 64 /* longest control sequence assembled */
+
+static char seqbuf[SEQMAX]; /* sequence under construction */
+static int  seqlen = 0;     /* length so far */
+
+/* place a character in the sequence under construction */
+static void seqchr(char c)
+
+{
+
+    if (seqlen < SEQMAX-1) seqbuf[seqlen++] = c;
+
+}
+
+/* place a string in the sequence under construction */
+static void seqstr(const char* s)
+
+{
+
+    while (*s) seqchr(*s++);
+
+}
+
+/* place an integer, in decimal, in the sequence under construction */
+static void seqint(long i)
+
+{
+
+    char b[24];
+    int  n = 0;
+
+    if (i < 0) { seqchr('-'); i = -i; }
+    do { b[n++] = i%10+'0'; i = i/10; } while (i && n < 24);
+    while (n) seqchr(b[--n]);
+
+}
+
+/* send the assembled sequence in one piece */
+static void seqout(void)
+
+{
+
+    ssize_t rc;      /* return code */
+    int     off = 0; /* offset into the sequence */
+
+    while (off < seqlen) {
+
+        rc = (*ofpwrite)(OUTFIL, seqbuf+off, seqlen-off);
+        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+        off += rc;
+
+    }
+    seqlen = 0;
+
+}
+
 static void putstr(unsigned char *s)
 
 
 {
 
-    /** index for string */ int i;
-
-    while (*s) putchr(*s++); /* output characters */
+    seqstr((const char*)s); /* assemble */
+    seqout(); /* and send in one piece */
 
 }
 
@@ -1056,9 +1185,8 @@ static void putstrc(char *s)
 
 {
 
-    /** index for string */ int i;
-
-    while (*s) putchr(*s++); /* output characters */
+    seqstr(s); /* assemble */
+    seqout(); /* and send in one piece */
 
 }
 
@@ -1089,7 +1217,7 @@ warnings.
 
 *******************************************************************************/
 
-static void putnstrc(char *s, int n)
+static void putnstrc(char *s, long n)
 
 
 {
@@ -1108,11 +1236,11 @@ Writes a simple unsigned integer to the output file.
 
 *******************************************************************************/
 
-static void wrtint(int i)
+static void wrtint(long i)
 
 {
 
-    /* power holder */       int  p;
+    /* power holder */       long p;
     /* digit holder */       char digit;
     /* leading digit flag */ int  leading;
 
@@ -1473,13 +1601,13 @@ nearest primary color to the given RGB color.
 
 ******************************************************************************/
 
-static ami_color colrgbnum(int r, int g, int b)
+static ami_color colrgbnum(long r, long g, long b)
 
 {
 
     ami_color c;
 
-    switch ((r > INT_MAX/2) << 2 | (g > INT_MAX/2) << 1 | (b > INT_MAX/2)) {
+    switch ((r > LONG_MAX/2) << 2 | (g > LONG_MAX/2) << 1 | (b > LONG_MAX/2)) {
 
         /* rgb */
         /* 000 */ case 0: c = ami_black;   break;
@@ -1501,16 +1629,17 @@ static ami_color colrgbnum(int r, int g, int b)
 
 Translate rgb to packed 24 bit color
 
-Translates a ratioed INT_MAX graph color to packed 24 bit form, which is a 32
+Translates a ratioed LONG_MAX graph color to packed 24 bit form, which is a 32
 bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static int rgb2rgbp(int r, int g, int b)
+static int rgb2rgbp(long r, long g, long b)
 
 {
 
-   return ((r/8388608)*65536+(g/8388608)*256+(b/8388608));
+   return ((int)((r/(LONG_MAX/256+1))*65536+(g/(LONG_MAX/256+1))*256+
+                 (b/(LONG_MAX/256+1))));
 
 }
 
@@ -1549,25 +1678,93 @@ static void trm_clear(void) { putstrc("\33[2J\33[H"); }
 /** turn on underline */ static void trm_undl(void) { putstrc("\33[4m"); }
 /** turn on bold attribute */ static void trm_bold(void) { putstrc("\33[1m"); }
 /** turn on italic attribute */ static void trm_ital(void) { putstrc("\33[3m"); }
+/** turn on strikeout attribute */
+static void trm_stkout(void) { putstrc("\33[9m"); }
 /** turn off all attributes */
 static void trm_attroff(void) { putstrc("\33[0m"); }
-/** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[7h"); }
-/** turn off cursor wrap */ static void trm_wrapoff(void) { putstrc("\33[7l"); }
+/** turn on cursor wrap */ static void trm_wrapon(void) { putstrc("\33[?7h"); }
+/** turn off cursor wrap */ static void trm_wrapoff(void) { putstrc("\33[?7l"); }
 /** turn off cursor */ static void trm_curoff(void) { putstrc("\33[?25l"); }
 /** turn on cursor */ static void trm_curon(void) { putstrc("\33[?25h"); }
+
+/* Does the terminal support 24 bit "truecolor" SGR sequences? Terminals
+   that do advertise it in $COLORTERM (iTerm2, modern xterms, most Linux
+   terminals). Apple's Terminal.app does not support truecolor and
+   silently ignores the sequences, so colors must fall back to the
+   xterm 256 color palette there. */
+static int havetruecolor(void)
+
+{
+
+    static int truecolor = -1;
+    char* ct;
+
+    if (truecolor < 0) {
+
+        ct = getenv("COLORTERM");
+        truecolor = ct && (strstr(ct, "truecolor") || strstr(ct, "24bit"));
+
+    }
+
+    return (truecolor);
+
+}
+
+/** map 24 bit rgb components to the nearest xterm 256 palette index */
+static int rgb256(int r, int g, int b)
+
+{
+
+    int qr, qg, qb;
+
+    if (r == g && g == b) { /* grayscale */
+
+        if (r < 8) return (16);    /* black cube corner */
+        if (r > 248) return (231); /* white cube corner */
+        return (232+(r-8)*24/240); /* grayscale ramp */
+
+    }
+    qr = r < 48 ? 0 : r < 115 ? 1 : (r-35)/40;
+    qg = g < 48 ? 0 : g < 115 ? 1 : (g-35)/40;
+    qb = b < 48 ? 0 : b < 115 ? 1 : (b-35)/40;
+
+    return (16+36*qr+6*qg+qb);
+
+}
+
+/** set foreground/background color from rgb components */
+static void trm_colorrgbc(int fore, int r, int g, int b)
+
+{
+
+    if (havetruecolor()) {
+
+        seqstr(fore? "\33[38;2;": "\33[48;2;");
+        seqint(r);
+        seqchr(';');
+        seqint(g);
+        seqchr(';');
+        seqint(b);
+        seqchr('m');
+        seqout();
+
+    } else { /* fall back to the 256 color palette */
+
+        seqstr(fore? "\33[38;5;": "\33[48;5;");
+        seqint(rgb256(r, g, b));
+        seqchr('m');
+        seqout();
+
+    }
+
+}
 
 /** set foreground color in rgb */
 static void trm_fcolorrgb(int rgb)
 
 {
 
-    putstrc("\33[38;2;");
-    wrtint(rgb >> 16 & 0xff);
-    putstrc(";");
-    wrtint(rgb >> 8 & 0xff);
-    putstrc(";");
-    wrtint(rgb & 0xff);
-    putstrc("m");
+    trm_colorrgbc(TRUE, rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
 
 }
 
@@ -1576,13 +1773,7 @@ static void trm_bcolorrgb(int rgb)
 
 {
 
-    putstrc("\33[48;2;");
-    wrtint(rgb >> 16 & 0xff);
-    putstrc(";");
-    wrtint(rgb >> 8 & 0xff);
-    putstrc(";");
-    wrtint(rgb & 0xff);
-    putstrc("m");
+    trm_colorrgbc(FALSE, rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff);
 
 }
 
@@ -1595,13 +1786,7 @@ static void trm_fcolor(ami_color c)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstrc("\33[38;2;");
-    wrtint(r);
-    putstrc(";");
-    wrtint(g);
-    putstrc(";");
-    wrtint(b);
-    putstrc("m");
+    trm_colorrgbc(TRUE, r, g, b);
 #else
     putstrc("\33[");
     /* override "bright" black, which is more like grey */
@@ -1621,13 +1806,7 @@ static void trm_bcolor(ami_color c)
     int r, g, b;
 
     colnumrgb(c, &r, &g, &b); /* get rgb equivalent color */
-    putstrc("\33[48;2;");
-    wrtint(r);
-    putstrc(";");
-    wrtint(g);
-    putstrc(";");
-    wrtint(b);
-    putstrc("m");
+    trm_colorrgbc(FALSE, r, g, b);
 #else
     putstrc("\33[");
     /* override "bright" black, which is more like grey */
@@ -1639,15 +1818,35 @@ static void trm_bcolor(ami_color c)
 }
 
 /** position cursor */
-static void trm_cursor(int x, int y)
+static void trm_cursor(long x, long y)
 
 {
 
-    putstrc("\33[");
-    wrtint(y);
-    putstrc(";");
-    wrtint(x);
-    putstrc("H");
+    seqstr("\33["); /* assemble the whole position, then send it once */
+    seqint(y);
+    seqchr(';');
+    seqint(x);
+    seqchr('H');
+    seqout();
+
+}
+
+static int curdef = 0; /* a cursor state is recorded but not yet emitted */
+
+/* Position the cursor and record that the physical cursor is now there.
+   Routines that move the cursor about the screen for their own purposes,
+   such as scrolling and restoring, must use this rather than trm_cursor:
+   leaving the tracker stale lets a later positioning take a relative move
+   from a position the cursor is no longer at. */
+static void trm_cursorset(long x, long y)
+
+{
+
+    trm_cursor(x, y);
+    curx = x; /* the physical cursor is here now */
+    cury = y;
+    curval = 1; /* and the record of it is good */
+    curdef = 0; /* any deferred position has just been satisfied */
 
 }
 
@@ -1663,7 +1862,7 @@ static void trm_title(char* title)
 }
 
 /** set title with length */
-static void trm_titlen(char* title, int l)
+static void trm_titlen(char* title, long l)
 
 {
 
@@ -1715,6 +1914,7 @@ static void setattr(scnptr sc, scnatt a)
             case sasubs:  break;                /* subscripting */
             case saital:  trm_ital();    break; /* italic text */
             case sabold:  trm_bold();    break; /* bold text */
+            case sastkout: trm_stkout(); break; /* struck out text */
 
         }
         /* attribute off may change the colors back to "normal" (normal for that
@@ -1806,17 +2006,37 @@ to bring the old state of the display to the same state as the new display.
 
 *******************************************************************************/
 
+/* Cursor emission is deferred. Positioning the cursor costs a control
+   sequence, and a program that walks the cursor about while drawing pays
+   for every step of the walk even though only the last position before an
+   output, or before the user is given the chance to look, can be observed.
+   setcur() therefore records the wanted position, and synccur() emits it,
+   from the two places where it becomes observable: just before characters
+   are put out, and before waiting on the user. */
+
 static void setcur(scnptr sc)
 
 {
 
+    if (indisp(sc)) curdef = 1; /* wanted state noted, emit it when needed */
+
+}
+
+/* emit the recorded cursor state, if there is one outstanding */
+static void synccur(scnptr sc)
+
+{
+
+    if (!curdef) return; /* nothing outstanding */
+    curdef = 0;
     if (indisp(sc)) { /* in display */
 
         /* check cursor in bounds */
         if (icurbnd(sc)) {
 
             /* set cursor position */
-            if ((ncurx != curx || ncury != cury) && curval) {
+            if (curval && ncurx == curx && ncury == cury) ; /* already there */
+            else if (curval) {
 
                 /* Cursor position and actual don't match. Try some optimized
                    cursor positions to reduce bandwidth. Note we don't count on
@@ -1834,11 +2054,8 @@ static void setcur(scnptr sc)
 
             } else {
 
-                /* don't count on physical cursor location, just reset */
-                trm_cursor(ncurx, ncury);
-                curx = ncurx;
-                cury = ncury;
-                curval = 1;
+                /* the physical position is not known, state it outright */
+                trm_cursorset(ncurx, ncury);
 
             }
 
@@ -1967,7 +2184,7 @@ static void restore(scnptr sc)
 #endif
         for (yi = 1; yi <= bufy; yi++) {
 
-            trm_cursor(bufx+1, yi); /* locate to line start */
+            trm_cursorset(bufx+1, yi); /* locate to line start */
             for (xi = bufx+1; xi <= dimx; xi++) putchr(' '); /* fill */
 
         }
@@ -1983,7 +2200,7 @@ static void restore(scnptr sc)
 #endif
         for (yi = bufy+1; yi <= dimy; yi++) {
 
-            trm_cursor(1, yi); /* locate to line start */
+            trm_cursorset(1, yi); /* locate to line start */
             for (xi = 1; xi <= dimx; xi++) putchr(' '); /* fill */
 
         }
@@ -2030,8 +2247,23 @@ static void joyevt(ami_evtrec* er, joyptr jp)
 
 #if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */
     struct js_event ev;
+    ssize_t rl;
 
-    read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
+    if (jp->fid < 0) return; /* joystick already disconnected */
+    rl = read(jp->fid, &ev, sizeof(ev)); /* get next joystick event */
+    if (rl != sizeof(ev)) {
+
+        /* The joystick was disconnected: an end of file input is permanently
+           ready, so stop monitoring it or the event loop would spin. The
+           joystick keeps its logical number, but delivers no further events
+           or positions */
+        system_event_deaseinp(jp->sid);
+        close(jp->fid);
+        jp->fid = -1;
+
+        return;
+
+    }
     if (!(ev.type & JS_EVENT_INIT)) {
 
         if (ev.type & JS_EVENT_BUTTON) {
@@ -2057,12 +2289,12 @@ static void joyevt(ami_evtrec* er, joyptr jp)
         if (ev.type & JS_EVENT_AXIS) {
 
             /* update the axies */
-            if (ev.number == 0) jp->ax = ev.value*(INT_MAX/32768);
-            else if (ev.number == 1) jp->ay = ev.value*(INT_MAX/32768);
-            else if (ev.number == 2) jp->az = ev.value*(INT_MAX/32768);
-            else if (ev.number == 3) jp->a4 = ev.value*(INT_MAX/32768);
-            else if (ev.number == 4) jp->a5 = ev.value*(INT_MAX/32768);
-            else if (ev.number == 5) jp->a6 = ev.value*(INT_MAX/32768);
+            if (ev.number == 0) jp->ax = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 1) jp->ay = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 2) jp->az = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 3) jp->a4 = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 4) jp->a5 = ev.value*(LONG_MAX/32768);
+            else if (ev.number == 5) jp->a6 = ev.value*(LONG_MAX/32768);
 
             /* we support up to 6 axes on a joystick. After 6, they get thrown
                out, leaving just the buttons to respond */
@@ -2128,11 +2360,14 @@ static void ievent(void)
 
         evtfnd = 0; /* set no event found */
         system_event_getsevt(&sev); /* get the next system event */
+        /* the shutdown wakeup: deinit asks the thread to leave */
+        if (sev.typ == se_inp && sev.lse == exitsev) return;
         /* check the read file has signaled */
         if (sev.typ == se_inp && sev.lse == inpsev) {
 
             /* keyboard (standard input) */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
+            ttlogb((unsigned char)keybuf[keylen-1]);
             if (mousts == mnone) { /* do table matching */
 
                 pmatch = 0; /* set no partial matches */
@@ -2157,6 +2392,8 @@ static void ievent(void)
                                 else er.fkey = i-ami_etterm;
 
                             } else er.etype = i; /* set event */
+                            if (er.etype == ami_etterm)
+                                ttlogs("\n[terminal key etterm]\n");
                             evtfnd = 1; /* set event found */
                             enquepaevt(&er); /* send to queue */
                             keylen = 0; /* clear buffer */
@@ -2220,6 +2457,16 @@ static void ievent(void)
                                 case 0: nbutton1 = ba; break; /* assert button 1 */
                                 case 1: nbutton2 = ba; break; /* assert button 2 */
                                 case 2: nbutton3 = ba; break; /* assert button 3 */
+                                /* The wheel. A notch arrives as a press
+                                   of button 64 or 65 and no release, so
+                                   it is not a state like a button but a
+                                   count of notches to report. Graphical
+                                   programs have had the wheel as
+                                   buttons 4 and 5 all along; character
+                                   ones fell through this default and
+                                   never saw it at all. */
+                                case 64: if (!ba) nwheelup++; break;
+                                case 65: if (!ba) nwheeldn++; break;
                                 default: break; /* deassert all, do nothing */
 
                             }
@@ -2402,6 +2649,24 @@ static void ievent(void)
                 enquepaevt(&er); /* send to queue */
                 button3 = nbutton3;
 
+            } else if (nwheelup) { /* a wheel notch is its own event */
+
+                er.etype = ami_etmouba;
+                er.amoun = 1;
+                er.amoubn = 4;
+                evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
+                nwheelup--;
+
+            } else if (nwheeldn) {
+
+                er.etype = ami_etmouba;
+                er.amoun = 1;
+                er.amoubn = 5;
+                evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
+                nwheeldn--;
+
             } if (nmpx != mpx || nmpy != mpy) {
 
                 er.etype = ami_etmoumov;
@@ -2508,7 +2773,7 @@ static void plcchrext(scnrec* p, unsigned char c)
             } else {
 
                 /* more extension characters than count char */
-                if (ci > utf8bits[p->ch[0]])
+                if (ci > utf8bits[((unsigned char)p->ch[0]) >> 4])
                     for (ci = 0; ci < 4; ci++) p->ch[ci] = 0;
                 else /* place next in sequence */
                     p->ch[ci] = c;
@@ -2644,7 +2909,7 @@ void prtbuf(scnptr sc)
 
 }
 
-static void iscroll(scnptr sc, int x, int y)
+static void iscroll(scnptr sc, long x, long y)
 
 {
 
@@ -2664,7 +2929,7 @@ static void iscroll(scnptr sc, int x, int y)
             trm_curoff(); /* turn cursor off for display */
             curon = FALSE;
             /* downward straight scroll, we can do this with native scrolling */
-            trm_cursor(1, dimy); /* position to bottom of screen */
+            trm_cursorset(1, dimy); /* position to bottom of screen */
             /* use linefeed to scroll. linefeeds work no matter the state of
                wrap, and use whatever the current background color is */
             yi = y;   /* set line count */
@@ -2675,7 +2940,7 @@ static void iscroll(scnptr sc, int x, int y)
 
             }
             /* restore cursor position */
-            trm_cursor(ncurx, ncury);
+            trm_cursorset(ncurx, ncury);
             cursts(sc); /* re-enable cursor */
 
         }
@@ -2711,7 +2976,7 @@ static void iscroll(scnptr sc, int x, int y)
             trm_clear();   /* scroll would result in complete clear, do it */
             clrbuf(sc);   /* clear the screen buffer */
             /* restore cursor position */
-            trm_cursor(ncurx, ncury);
+            trm_cursorset(ncurx, ncury);
 
         } else { /* scroll */
 
@@ -2758,7 +3023,7 @@ static void iscroll(scnptr sc, int x, int y)
                         /* move lines up */
                         memcpy(&sc[(yi-1)*bufx], &sc[(yi+y-1)*bufx],
                            bufx*sizeof(scnrec));
-                for (yi = 1; yi <= abs(y); yi++) /* clear blank lines at start */
+                for (yi = 1; yi <= labs(y); yi++) /* clear blank lines at start */
                     for (xi = 1; xi <= bufx; xi++) {
 
                     sp = &SCNBUF(sc, xi, yi);
@@ -2813,7 +3078,7 @@ static void iscroll(scnptr sc, int x, int y)
                             memcpy(&SCNBUF(sc, xi, yi), &SCNBUF(sc, xi+x, yi),
                                sizeof(scnrec));
                     /* clear blank spaces at left */
-                    for (xi = 1; xi <= abs(x); xi++) {
+                    for (xi = 1; xi <= labs(x); xi++) {
 
                         sp = &SCNBUF(sc, xi, yi);
                         /* clear to blanks at colors and attributes */
@@ -2858,6 +3123,11 @@ static void iclear(scnptr sc)
     ncurx = 1;
     if (indisp(sc)) { /* in display */
 
+        /* An erase of the whole display paints every cell in the current
+           background, which is what the area outside the buffer should
+           show: restore() fills those margins with the background for the
+           same reason, and the graphical implementation fills its own
+           leftover margins the same way. */
         trm_clear(); /* erase screen */
         curx = 1; /* set actual cursor location */
         cury = 1;
@@ -2877,7 +3147,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(scnptr sc, int x, int y)
+static void icursor(scnptr sc, long x, long y)
 
 {
 
@@ -2910,7 +3180,7 @@ static void iup(scnptr sc)
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (ncury > -INT_MAX) ncury--;
+        if (ncury > -LONG_MAX) ncury--;
     setcur(sc);
 
 }
@@ -2938,7 +3208,7 @@ static void idown(scnptr sc)
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (ncury < INT_MAX) ncury++;
+        if (ncury < LONG_MAX) ncury++;
     setcur(sc);
 
 }
@@ -2968,7 +3238,7 @@ static void ileft(scnptr sc)
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (ncurx > -INT_MAX) ncurx--;
+        if (ncurx > -LONG_MAX) ncurx--;
     setcur(sc);
 
 }
@@ -2998,7 +3268,7 @@ static void iright(scnptr sc)
 
     } else /* autowrap is off */
         /* prevent overflow, but otherwise its unlimited */
-        if (ncurx < INT_MAX) ncurx++;
+        if (ncurx < LONG_MAX) ncurx++;
     setcur(sc);
 
 }
@@ -3021,7 +3291,7 @@ static void plcchr(scnptr sc, unsigned char c)
 {
 
     scnrec* p;
-    int i;
+    long i;
 
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
@@ -3073,8 +3343,12 @@ static void plcchr(scnptr sc, unsigned char c)
             /* This handling is from iright. We do this here because
                placement implicitly moves the cursor */
             if (ncurx >= 1 && ncurx <= bufx &&
-                ncury >= 1 && ncury <= bufy)
+                ncury >= 1 && ncury <= bufy) {
+
+                synccur(sc); /* the character lands at the cursor: place it */
                 putchr(c); /* output character to terminal */
+
+            }
 #ifdef ALLOWUTF8
             if (!utf8cnt)
 #endif
@@ -3097,10 +3371,14 @@ static void plcchr(scnptr sc, unsigned char c)
                 } else {/* autowrap is off */
 
                     /* prevent overflow, but otherwise its unlimited */
-                    if (ncurx < INT_MAX) ncurx++;
-                    /* don't count on physical cursor behavior if scrolling is
-                       off and we are at extreme right */
-                    curval = 0;
+                    if (ncurx < LONG_MAX) ncurx++;
+                    /* Don't count on physical cursor behavior if scrolling is
+                       off and we are at the extreme right. Note the
+                       condition: invalidating unconditionally here caused a
+                       full cursor position sequence to be emitted after
+                       every character output with auto off, about a twelve
+                       times expansion of the output. */
+                    if (curx >= dimx) curval = 0;
 
                 }
                 setcur(sc); /* update physical cursor */
@@ -3144,7 +3422,7 @@ static void readline(void)
     ami_evtrec er;   /* event record */
     scnptr    sc;   /* pointer to current screen */
     int       ins;  /* insert/overwrite mode */
-    int       xoff; /* x starting line offset */
+    long      xoff; /* x starting line offset */
     int       l;    /* buffer length */
     int       i;
 
@@ -3448,7 +3726,7 @@ static void finish(char* title)
             i = 0; /* set string start */
             xs = dimx/2-ml/2; /* set centered line start */
             if (xs < 1) xs = 1; /* if string too long, clip right */
-            trm_cursor(xs, 1); /* move cursor to start */
+            trm_cursorset(xs, 1); /* move cursor to start */
             for (xi = xs; xi <= dimx && i < ml; xi++) {
 
                 p = &SCNBUF(sc, xi, 1); /* index this screen element */
@@ -3517,6 +3795,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
+            synccur(screens[curdsp-1]); /* about to wait on the user */
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -3654,8 +3933,8 @@ This is the external interface to cursor.
 *******************************************************************************/
 
 APIOVER(cursor)
-void ami_cursor(FILE* f, int x, int y) { (*cursor_vect)(f, x, y); }
-static void cursor_ivf(FILE *f, int x, int y)
+void ami_cursor(FILE* f, long x, long y) { (*cursor_vect)(f, x, y); }
+static void cursor_ivf(FILE *f, long x, long y)
 
 {
 
@@ -3675,12 +3954,12 @@ This is the external interface to curbnd.
 *******************************************************************************/
 
 APIOVER(curbnd)
-int ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
-static int curbnd_ivf(FILE *f)
+long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
+static long curbnd_ivf(FILE *f)
 
 {
 
-    int fl;
+    long fl;
 
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -3701,8 +3980,8 @@ display. Because ANSI has no information return capability, this is preset.
 *******************************************************************************/
 
 APIOVER(maxx)
-int ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
-static int maxx_ivf(FILE *f)
+long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
+static long maxx_ivf(FILE *f)
 
 {
 
@@ -3721,8 +4000,8 @@ display. Because ANSI has no information return capability, this is preset.
 *******************************************************************************/
 
 APIOVER(maxy)
-int ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
-static int maxy_ivf(FILE *f)
+long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
+static long maxy_ivf(FILE *f)
 
 {
 
@@ -3874,7 +4153,7 @@ xterm.
 
 *******************************************************************************/
 
-static void attronoff(FILE *f, int e, scnatt nattr)
+static void attronoff(FILE *f, long e, scnatt nattr)
 
 {
 
@@ -3930,8 +4209,8 @@ we are supposed to also work over a com interface.
 *******************************************************************************/
 
 APIOVER(blink)
-void ami_blink(FILE* f, int e) { (*blink_vect)(f, e); }
-static void blink_ivf(FILE *f, int e)
+void ami_blink(FILE* f, long e) { (*blink_vect)(f, e); }
+static void blink_ivf(FILE *f, long e)
 
 {
 
@@ -3949,8 +4228,8 @@ Turns on/off the reverse attribute.
 *******************************************************************************/
 
 APIOVER(reverse)
-void ami_reverse(FILE* f, int e) { (*reverse_vect)(f, e); }
-static void reverse_ivf(FILE *f, int e)
+void ami_reverse(FILE* f, long e) { (*reverse_vect)(f, e); }
+static void reverse_ivf(FILE *f, long e)
 
 {
 
@@ -3968,8 +4247,8 @@ Turns on/off the underline attribute.
 *******************************************************************************/
 
 APIOVER(underline)
-void ami_underline(FILE* f, int e) { (*underline_vect)(f, e); }
-static void underline_ivf(FILE *f, int e)
+void ami_underline(FILE* f, long e) { (*underline_vect)(f, e); }
+static void underline_ivf(FILE *f, long e)
 
 {
 
@@ -3987,8 +4266,8 @@ Turns on/off the superscript attribute.
 *******************************************************************************/
 
 APIOVER(superscript)
-void ami_superscript(FILE* f, int e) { (*superscript_vect)(f, e); }
-static void superscript_ivf(FILE *f, int e)
+void ami_superscript(FILE* f, long e) { (*superscript_vect)(f, e); }
+static void superscript_ivf(FILE *f, long e)
 
 {
 
@@ -4006,8 +4285,8 @@ Turns on/off the subscript attribute.
 *******************************************************************************/
 
 APIOVER(subscript)
-void ami_subscript(FILE* f, int e) { (*subscript_vect)(f, e); }
-static void subscript_ivf(FILE *f, int e)
+void ami_subscript(FILE* f, long e) { (*subscript_vect)(f, e); }
+static void subscript_ivf(FILE *f, long e)
 
 {
 
@@ -4025,8 +4304,8 @@ Turns on/off the italic attribute.
 *******************************************************************************/
 
 APIOVER(italic)
-void ami_italic(FILE* f, int e) { (*italic_vect)(f, e); }
-static void italic_ivf(FILE *f, int e)
+void ami_italic(FILE* f, long e) { (*italic_vect)(f, e); }
+static void italic_ivf(FILE *f, long e)
 
 {
 
@@ -4044,8 +4323,8 @@ Turns on/off the bold attribute.
 *******************************************************************************/
 
 APIOVER(bold)
-void ami_bold(FILE* f, int e) { (*bold_vect)(f, e); }
-static void bold_ivf(FILE *f, int e)
+void ami_bold(FILE* f, long e) { (*bold_vect)(f, e); }
+static void bold_ivf(FILE *f, long e)
 
 {
 
@@ -4058,20 +4337,20 @@ static void bold_ivf(FILE *f, int e)
 
 Turn on strikeout attribute
 
-Turns on/off the strikeout attribute.
-
-Not implemented.
+Turns on/off the strikeout attribute. This is SGR 9, which the terminals
+that came after the fixed function ones generally present; one that does
+not simply leaves the text unmarked, as with any other attribute it lacks.
 
 *******************************************************************************/
 
 APIOVER(strikeout)
-void ami_strikeout(FILE* f, int e) { (*strikeout_vect)(f, e); }
-static void strikeout_ivf(FILE *f, int e)
+void ami_strikeout(FILE* f, long e) { (*strikeout_vect)(f, e); }
+static void strikeout_ivf(FILE *f, long e)
 
 {
 
     dbg_printf(dlapi, "API\n");
-    /* no capability */
+    attronoff(f, e, sastkout); /* enable/disable attribute */
 
 }
 
@@ -4085,8 +4364,8 @@ Note that the attributes can only be set singly.
 *******************************************************************************/
 
 APIOVER(standout)
-void ami_standout(FILE* f, int e) { (*standout_vect)(f, e); }
-static void standout_ivf(FILE *f, int e)
+void ami_standout(FILE* f, long e) { (*standout_vect)(f, e); }
+static void standout_ivf(FILE *f, long e)
 
 {
 
@@ -4151,8 +4430,8 @@ off the screen at the top or bottom will scroll up or down, respectively.
 *******************************************************************************/
 
 APIOVER(auto)
-void ami_auto(FILE* f, int e) { (*auto_vect)(f, e); }
-static void auto_ivf(FILE *f, int e)
+void ami_auto(FILE* f, long e) { (*auto_vect)(f, e); }
+static void auto_ivf(FILE *f, long e)
 
 {
 
@@ -4172,8 +4451,8 @@ Enable or disable cursor visibility.
 *******************************************************************************/
 
 APIOVER(curvis)
-void ami_curvis(FILE* f, int e) { (*curvis_vect)(f, e); }
-static void curvis_ivf(FILE *f, int e)
+void ami_curvis(FILE* f, long e) { (*curvis_vect)(f, e); }
+static void curvis_ivf(FILE *f, long e)
 
 {
 
@@ -4195,8 +4474,8 @@ int.
 *******************************************************************************/
 
 APIOVER(scroll)
-void ami_scroll(FILE* f, int x, int y) { (*scroll_vect)(f, x, y); }
-static void scroll_ivf(FILE *f, int x, int y)
+void ami_scroll(FILE* f, long x, long y) { (*scroll_vect)(f, x, y); }
+static void scroll_ivf(FILE *f, long x, long y)
 
 {
 
@@ -4216,8 +4495,8 @@ Returns the current location of the cursor in x.
 *******************************************************************************/
 
 APIOVER(curx)
-int ami_curx(FILE* f) { return ((*curx_vect)(f)); }
-static int curx_ivf(FILE *f)
+long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
+static long curx_ivf(FILE *f)
 
 {
 
@@ -4235,8 +4514,8 @@ Returns the current location of the cursor in y.
 *******************************************************************************/
 
 APIOVER(cury)
-int ami_cury(FILE* f) { return ((*cury_vect)(f)); }
-static int cury_ivf(FILE *f)
+long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
+static long cury_ivf(FILE *f)
 
 {
 
@@ -4263,8 +4542,8 @@ Note that split update and display screens are not implemented at present.
 *******************************************************************************/
 
 APIOVER(select)
-void ami_select(FILE* f, int u, int d) { (*select_vect)(f, u, d); }
-static void select_ivf(FILE *f, int u, int d)
+void ami_select(FILE* f, long u, long d) { (*select_vect)(f, u, d); }
+static void select_ivf(FILE *f, long u, long d)
 
 {
 
@@ -4313,17 +4592,17 @@ They are ganged by parameter signature.
 
 *******************************************************************************/
 
-static int genfnc(void) { return FALSE; }
-static int charfnc(char c) { return FALSE; }
-static int funfnc(int k) { return FALSE; }
-static int moubafnc(int m, int b) { return FALSE; }
-static int moubdfnc(int m, int b) { return FALSE; }
-static int moumovfnc(int m, int x, int y) { return FALSE; }
-static int timfnc(int t) { return FALSE; }
-static int joybafnc(int j, int b) { return FALSE; }
-static int joybdfnc(int j, int b) { return FALSE; }
-static int joymovfnc(int j, int x, int y, int z) { return FALSE; }
-static int resizefnc(int rszx, int rszy) { return FALSE; }
+static long genfnc(void) { return FALSE; }
+static long charfnc(char c) { return FALSE; }
+static long funfnc(long k) { return FALSE; }
+static long moubafnc(long m, long b) { return FALSE; }
+static long moubdfnc(long m, long b) { return FALSE; }
+static long moumovfnc(long m, long x, long y) { return FALSE; }
+static long timfnc(long t) { return FALSE; }
+static long joybafnc(long j, long b) { return FALSE; }
+static long joybdfnc(long j, long b) { return FALSE; }
+static long joymovfnc(long j, long x, long y, long z) { return FALSE; }
+static long resizefnc(long rszx, long rszy) { return FALSE; }
 
 /** ****************************************************************************
 
@@ -4575,6 +4854,11 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 
         }
 
+        /* The user is about to be given the chance to look, so the
+           cursor must be where it belongs before we wait. */
+        pthread_mutex_lock(&termlock);
+        synccur(screens[curdsp-1]);
+        pthread_mutex_unlock(&termlock);
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -4632,11 +4916,11 @@ Set timer
 *******************************************************************************/
 
 APIOVER(timer)
-void ami_timer(FILE* f, int i, long t, int r) { (*timer_vect)(f, i, t, r); }
+void ami_timer(FILE* f, long i, long t, long r) { (*timer_vect)(f, i, t, r); }
 static void timer_ivf(/* file to send event to */              FILE* f,
-                      /* timer handle */                       int   i,
+                      /* timer handle */                       long  i,
                       /* number of 100us counts */             long  t,
-                      /* timer is to rerun after completion */ int   r)
+                      /* timer is to rerun after completion */ long  r)
 
 {
 
@@ -4659,9 +4943,9 @@ in reserve.
 *******************************************************************************/
 
 APIOVER(killtimer)
-void ami_killtimer(FILE* f, int   i ) { (*killtimer_vect)(f, i ); }
+void ami_killtimer(FILE* f, long  i ) { (*killtimer_vect)(f, i ); }
 static void killtimer_ivf(/* file to kill timer on */ FILE *f,
-                  /* handle of timer */       int i)
+                  /* handle of timer */       long i)
 
 {
 
@@ -4690,8 +4974,8 @@ if none is available, never changing it's state.
 *******************************************************************************/
 
 APIOVER(mouse)
-int ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
-static int mouse_ivf(FILE *f)
+long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
+static long mouse_ivf(FILE *f)
 
 {
 
@@ -4710,8 +4994,8 @@ to assume 3 buttons.
 *******************************************************************************/
 
 APIOVER(mousebutton)
-int ami_mousebutton(FILE* f, int m) { return ((*mousebutton_vect)(f, m)); }
-static int mousebutton_ivf(FILE *f, int m)
+long ami_mousebutton(FILE* f, long m) { return ((*mousebutton_vect)(f, m)); }
+static long mousebutton_ivf(FILE *f, long m)
 
 {
 
@@ -4729,8 +5013,8 @@ Return number of joysticks attached.
 *******************************************************************************/
 
 APIOVER(joystick)
-int ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
-static int joystick_ivf(FILE *f)
+long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
+static long joystick_ivf(FILE *f)
 
 {
 
@@ -4749,8 +5033,8 @@ Note that Windows 95 has no joystick capability.
 *******************************************************************************/
 
 APIOVER(joybutton)
-int ami_joybutton(FILE* f, int j) { return ((*joybutton_vect)(f, j)); }
-static int joybutton_ivf(FILE *f, int j)
+long ami_joybutton(FILE* f, long j) { return ((*joybutton_vect)(f, j)); }
+static long joybutton_ivf(FILE *f, long j)
 
 {
 
@@ -4789,8 +5073,8 @@ Note that Windows 95 has no joystick capability.
 *******************************************************************************/
 
 APIOVER(joyaxis)
-int ami_joyaxis(FILE* f, int j) { return ((*joyaxis_vect)(f, j)); }
-static int joyaxis_ivf(FILE *f, int j)
+long ami_joyaxis(FILE* f, long j) { return ((*joyaxis_vect)(f, j)); }
+static long joyaxis_ivf(FILE *f, long j)
 
 {
 
@@ -4829,8 +5113,8 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 *******************************************************************************/
 
 APIOVER(settab)
-void ami_settab(FILE* f, int t) { (*settab_vect)(f, t); }
-static void settab_ivf(FILE* f, int t)
+void ami_settab(FILE* f, long t) { (*settab_vect)(f, t); }
+static void settab_ivf(FILE* f, long t)
 
 {
 
@@ -4856,8 +5140,8 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 *******************************************************************************/
 
 APIOVER(restab)
-void ami_restab(FILE* f, int t) { (*restab_vect)(f, t); }
-static void restab_ivf(FILE* f, int t)
+void ami_restab(FILE* f, long t) { (*restab_vect)(f, t); }
+static void restab_ivf(FILE* f, long t)
 
 {
 
@@ -4910,8 +5194,8 @@ but more can be allocated if needed.
 *******************************************************************************/
 
 APIOVER(funkey)
-int ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
-static int funkey_ivf(FILE* f)
+long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
+static long funkey_ivf(FILE* f)
 
 {
 
@@ -4929,8 +5213,8 @@ Enables or disables the framing timer.
 *******************************************************************************/
 
 APIOVER(frametimer)
-void ami_frametimer(FILE* f, int e) { (*frametimer_vect)(f, e); }
-static void frametimer_ivf(FILE* f, int e)
+void ami_frametimer(FILE* f, long e) { (*frametimer_vect)(f, e); }
+static void frametimer_ivf(FILE* f, long e)
 
 {
 
@@ -4967,8 +5251,8 @@ holding terminal unaware programs.
 *******************************************************************************/
 
 APIOVER(autohold)
-void ami_autohold(int e) { (*autohold_vect)(e); }
-static void autohold_ivf(int e)
+void ami_autohold(long e) { (*autohold_vect)(e); }
+static void autohold_ivf(long e)
 
 {
 
@@ -4987,14 +5271,15 @@ Writes a string direct to the terminal, bypassing character handling.
 
 APIOVER(wrtstr)
 void ami_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
+static void wrtstrn_ivf(FILE* f, char *s, long n); /* forward */
+
 static void wrtstr_ivf(FILE* f, char *s)
 
 {
 
     dbg_printf(dlapi, "API\n");
-    pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    putstrc(s);
-    pthread_mutex_unlock(&termlock); /* release terminal broadlock */
+    /* the counted form does the work, in one piece */
+    wrtstrn_ivf(f, s, strlen(s));
 
 }
 
@@ -5008,14 +5293,73 @@ handling.
 *******************************************************************************/
 
 APIOVER(wrtstrn)
-void ami_wrtstrn(FILE* f, char* s, int n) { (*wrtstrn_vect)(f, s, n); }
-static void wrtstrn_ivf(FILE* f, char *s, int n)
+void ami_wrtstrn(FILE* f, char* s, long n) { (*wrtstrn_vect)(f, s, n); }
+static void wrtstrn_ivf(FILE* f, char *s, long n)
 
 {
 
+    ssize_t rc;      /* return code */
+    long    off = 0; /* offset into the string */
+
+    scnptr  sc;
+    scnrec* p;
+    long    i;
+
     dbg_printf(dlapi, "API\n");
+    /* The call is disallowed with auto on: a run is a straight lay of
+       characters, and holding auto off means no screen wrap or scroll can
+       occur within it, so none is handled below. */
+    if (scroll) error(ami_dispestrauto);
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-    while (n--) putchr(*s++);
+    sc = screens[curupd-1];
+    /* Store the run into the buffer as the per character path does, one
+       cell per byte -- the caller's side of the bargain is that the run
+       holds no control characters. The run bypassed the buffer entirely,
+       so a buffered program mixing this call with anything that restores
+       from the buffer lost the run. The saving this call exists for is
+       the single write below; the stores are memory. */
+    for (i = 0; i < n; i++)
+        if (ncurx+i >= 1 && ncurx+i <= bufx &&
+            ncury >= 1 && ncury <= bufy) {
+
+        p = &SCNBUF(sc, ncurx+i, ncury);
+        plcchrext(p, (unsigned char)s[i]); /* place character in buffer */
+#ifdef NATIVE24
+        p->forergb = forergb; /* place colors */
+        p->backrgb = backrgb;
+#else
+        p->forec = forec; /* place colors */
+        p->backc = backc;
+#endif
+        p->attr = attr; /* place attribute */
+
+    }
+    if (indisp(sc)) { /* the display shows this screen */
+
+        synccur(sc); /* the run lands at the cursor: place it */
+        /* Send the run in one piece. This call exists to bypass the per
+           character protocol, and emitting it a character at a time,
+           which is a write() each, gave up the very saving it is for. */
+        while (off < n) {
+
+            rc = (*ofpwrite)(OUTFIL, s+off, n-off);
+            if (rc <= 0) error(ami_dispeoutdev); /* output device error */
+            off += rc;
+
+        }
+        /* The physical cursor moved by the length written. Auto is off,
+           so no logical wrap occurred; at or past the right side the
+           physical terminal's own wrap action still cannot be counted
+           on, as with the per character path. */
+        curx += n;
+        if (curx >= dimx) curval = 0;
+
+    }
+    /* The logical position, which later placements and cursor syncs read,
+       advanced by the length written. Leaving it at the run start sent
+       the next placement back to it -- the characters that followed a run
+       landed over it, not after it. */
+    ncurx += n;
     pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
 }
@@ -5029,8 +5373,8 @@ Sets or resets the size of the buffer surface.
 *******************************************************************************/
 
 APIOVER(sizbuf)
-void ami_sizbuf(FILE* f, int x, int y) { (*sizbuf_vect)(f, x, y); }
-static void sizbuf_ivf(FILE* f, int x, int y)
+void ami_sizbuf(FILE* f, long x, long y) { (*sizbuf_vect)(f, x, y); }
+static void sizbuf_ivf(FILE* f, long x, long y)
 
 {
 
@@ -5084,8 +5428,8 @@ Sets the title of the current window.
 *******************************************************************************/
 
 APIOVER(titlen)
-void ami_titlen(FILE* f, char* ts, int l) { (*titlen_vect)(f, ts, l); }
-static void titlen_ivf(FILE* f, char* ts, int l)
+void ami_titlen(FILE* f, char* ts, long l) { (*titlen_vect)(f, ts, l); }
+static void titlen_ivf(FILE* f, char* ts, long l)
     
 { 
 
@@ -5129,8 +5473,8 @@ Sets the foreground color from individual r, g, b values.
 *******************************************************************************/
 
 APIOVER(fcolorc)
-void ami_fcolorc(FILE* f, int r, int g, int b) { (*fcolorc_vect)(f, r, g, b); }
-static void fcolorc_ivf(FILE* f, int r, int g, int b)
+void ami_fcolorc(FILE* f, long r, long g, long b) { (*fcolorc_vect)(f, r, g, b); }
+static void fcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -5157,8 +5501,8 @@ Sets the background color from individual r, g, b values.
 *******************************************************************************/
 
 APIOVER(bcolorc)
-void ami_bcolorc(FILE* f, int r, int g, int b) { (*bcolorc_vect)(f, r, g, b); }
-static void bcolorc_ivf(FILE* f, int r, int g, int b)
+void ami_bcolorc(FILE* f, long r, long g, long b) { (*bcolorc_vect)(f, r, g, b); }
+static void bcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
@@ -5242,39 +5586,39 @@ void ami_sendevent(FILE* f, ami_evtrec* er) { (*sendevent_vect)(f, er); }
 static void sendevent_ivf(FILE* f, ami_evtrec* er) { error(ami_dispesendevent_unimp); }
 
 APIOVER(openwin)
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, int wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
-static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, int wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
     { error(ami_dispeopenwin_unimp); }
 
 APIOVER(buffer)
-void ami_buffer(FILE* f, int e) { (*buffer_vect)(f, e); }
-static void buffer_ivf(FILE* f, int e) { error(ami_dispebuffer_unimp); }
+void ami_buffer(FILE* f, long e) { (*buffer_vect)(f, e); }
+static void buffer_ivf(FILE* f, long e) { error(ami_dispebuffer_unimp); }
 
 APIOVER(getsiz)
-void ami_getsiz(FILE* f, int* x, int* y) { (*getsiz_vect)(f, x, y); }
-static void getsiz_ivf(FILE* f, int* x, int* y) { error(ami_dispegetsiz_unimp); }
+void ami_getsiz(FILE* f, long* x, long* y) { (*getsiz_vect)(f, x, y); }
+static void getsiz_ivf(FILE* f, long* x, long* y) { error(ami_dispegetsiz_unimp); }
 
 APIOVER(setsiz)
-void ami_setsiz(FILE* f, int x, int y) { (*setsiz_vect)(f, x, y); }
-static void setsiz_ivf(FILE* f, int x, int y) { error(ami_dispesetsiz_unimp); }
+void ami_setsiz(FILE* f, long x, long y) { (*setsiz_vect)(f, x, y); }
+static void setsiz_ivf(FILE* f, long x, long y) { error(ami_dispesetsiz_unimp); }
 
 APIOVER(setpos)
-void ami_setpos(FILE* f, int x, int y) { (*setpos_vect)(f, x, y); }
-static void setpos_ivf(FILE* f, int x, int y) { error(ami_dispesetpos_unimp); }
+void ami_setpos(FILE* f, long x, long y) { (*setpos_vect)(f, x, y); }
+static void setpos_ivf(FILE* f, long x, long y) { error(ami_dispesetpos_unimp); }
 
 APIOVER(scnsiz)
-void ami_scnsiz(FILE* f, int* x, int* y) { (*scnsiz_vect)(f, x, y); }
-static void scnsiz_ivf(FILE* f, int* x, int* y) { error(ami_dispescnsiz_unimp); }
+void ami_scnsiz(FILE* f, long* x, long* y) { (*scnsiz_vect)(f, x, y); }
+static void scnsiz_ivf(FILE* f, long* x, long* y) { error(ami_dispescnsiz_unimp); }
 
 APIOVER(scncen)
-void ami_scncen(FILE* f, int* x, int* y) { (*scncen_vect)(f, x, y); }
-static void scncen_ivf(FILE* f, int* x, int* y) { error(ami_dispescncen_unimp); }
+void ami_scncen(FILE* f, long* x, long* y) { (*scncen_vect)(f, x, y); }
+static void scncen_ivf(FILE* f, long* x, long* y) { error(ami_dispescncen_unimp); }
 
 APIOVER(winclient)
-void ami_winclient(FILE* f, int cx, int cy, int* wx, int* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
-static void winclient_ivf(FILE* f, int cx, int cy, int* wx, int* wy, 
+static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy, 
                           ami_winmodset ms)
     { error(ami_dispewinclient_unimp); }
 
@@ -5287,28 +5631,28 @@ void ami_back(FILE* f) { (*back_vect)(f); }
 static void back_ivf(FILE* f) { error(ami_dispeback_unimp); }
 
 APIOVER(frame)
-void ami_frame(FILE* f, int e) { (*frame_vect)(f, e); }
-static void frame_ivf(FILE* f, int e) { error(ami_dispeframe_unimp); }
+void ami_frame(FILE* f, long e) { (*frame_vect)(f, e); }
+static void frame_ivf(FILE* f, long e) { error(ami_dispeframe_unimp); }
 
 APIOVER(sizable)
-void ami_sizable(FILE* f, int e) { (*sizable_vect)(f, e); }
-static void sizable_ivf(FILE* f, int e) { error(ami_dispesizable_unimp); }
+void ami_sizable(FILE* f, long e) { (*sizable_vect)(f, e); }
+static void sizable_ivf(FILE* f, long e) { error(ami_dispesizable_unimp); }
 
 APIOVER(sysbar)
-void ami_sysbar(FILE* f, int e) { (*sysbar_vect)(f, e); }
-static void sysbar_ivf(FILE* f, int e) { error(ami_dispesysbar_unimp); }
+void ami_sysbar(FILE* f, long e) { (*sysbar_vect)(f, e); }
+static void sysbar_ivf(FILE* f, long e) { error(ami_dispesysbar_unimp); }
 
 APIOVER(menu)
 void ami_menu(FILE* f, ami_menuptr m) { (*menu_vect)(f, m); }
 static void menu_ivf(FILE* f, ami_menuptr m) { error(ami_dispemenu_unimp); }
 
 APIOVER(menuena)
-void ami_menuena(FILE* f, int id, int onoff) { (*menuena_vect)(f, id, onoff); }
-static void menuena_ivf(FILE* f, int id, int onoff) { error(ami_dispemenuena_unimp); }
+void ami_menuena(FILE* f, long id, long onoff) { (*menuena_vect)(f, id, onoff); }
+static void menuena_ivf(FILE* f, long id, long onoff) { error(ami_dispemenuena_unimp); }
 
 APIOVER(menusel)
-void ami_menusel(FILE* f, int id, int select) { (*menusel_vect)(f, id, select); }
-static void menusel_ivf(FILE* f, int id, int select) { error(ami_dispemenusel_unimp); }
+void ami_menusel(FILE* f, long id, long select) { (*menusel_vect)(f, id, select); }
+static void menusel_ivf(FILE* f, long id, long select) { error(ami_dispemenusel_unimp); }
 
 APIOVER(stdmenu)
 void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
@@ -5317,8 +5661,8 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
     { error(ami_dispestdmenu_unimp); }
 
 APIOVER(getwinid)
-int ami_getwinid(void) { return ((*getwinid_vect)()); }
-static int getwinid_ivf(void) { error(ami_dispegetwinid_unimp); return 0; }
+long ami_getwinid(void) { return ((*getwinid_vect)()); }
+static long getwinid_ivf(void) { error(ami_dispegetwinid_unimp); return 0; }
 
 APIOVER(focus)
 void ami_focus(FILE* f) { (*focus_vect)(f); }
@@ -5632,7 +5976,7 @@ static void ami_init_terminal(int argc, char* argv[])
     keylen = 0;
 
     /* set maximum power of 10 for conversions */
-    maxpow10 = INT_MAX;
+    maxpow10 = LONG_MAX;
     dci = 0;
     while (maxpow10) { maxpow10 /= 10; dci++; }
     /* find top power of 10 */
@@ -5661,6 +6005,13 @@ static void ami_init_terminal(int argc, char* argv[])
 
     /* add input file event */
     inpsev = system_event_addseinp(0);
+
+    /* The shutdown wakeup: deinit writes a byte here to ask the event
+       thread out. The thread was cancelled instead, but glibc's
+       cancellation unwinds through pselect, and in a static link that
+       unwind aborts; a cooperative exit works in either link. */
+    if (pipe(exitpipe) < 0) error(ami_dispesystem);
+    exitsev = system_event_addseinp(exitpipe[0]);
 
     /* clear the timers table */
     for (i = 0; i < AMI_MAXTIM; i++) timtbl[i] = 0;
@@ -5824,6 +6175,19 @@ static void ami_deinit_terminal()
         free(trmnam); /* free up termination name */
 
     }
+
+    /* Stop the event thread before tearing down what it uses. It was
+       left running here, and its next take of a destroyed lock failed
+       with EINVAL: a control-C exit died with "Linux error: Invalid
+       argument" whenever the timing landed wrong. It was then cancelled
+       here, but glibc's cancellation unwinds through pselect, and in a
+       static link that unwind aborts the program at exit: the thread is
+       asked out through its wakeup pipe instead, which works in either
+       link. */
+    if (write(exitpipe[1], "x", 1) < 0) { /* it leaves on its own below */ }
+    pthread_join(eventthread, NULL);
+    close(exitpipe[0]);
+    close(exitpipe[1]);
 
     /* release the terminal broadlock */
     pthread_mutex_destroy(&termlock);

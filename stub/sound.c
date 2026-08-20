@@ -79,7 +79,7 @@ Returns the total number of output midi ports.
 
 *******************************************************************************/
 
-int ami_synthout(void)
+long ami_synthout(void)
 
 {
 
@@ -97,7 +97,7 @@ Returns the total number of input midi ports.
 
 *******************************************************************************/
 
-int ami_synthin(void)
+long ami_synthin(void)
 
 {
 
@@ -118,7 +118,7 @@ midi chained devices outside the computer.
 
 *******************************************************************************/
 
-void ami_opensynthout(int p)
+void ami_opensynthout(long p)
 
 {
 
@@ -134,7 +134,7 @@ Closes a previously opened midi output port.
 
 *******************************************************************************/
 
-void ami_closesynthout(int p)
+void ami_closesynthout(long p)
 
 {
 
@@ -205,7 +205,7 @@ sequencer started.
 
 *******************************************************************************/
 
-int ami_curtimeout(void)
+long ami_curtimeout(void)
 
 {
 
@@ -259,7 +259,7 @@ sequencer started.
 
 *******************************************************************************/
 
-int ami_curtimein(void)
+long ami_curtimein(void)
 
 {
 
@@ -281,7 +281,7 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void ami_noteon(int p, int t, ami_channel c, ami_note n, int v)
+void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
 
 {
 
@@ -301,7 +301,7 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void ami_noteoff(int p, int t, ami_channel c, ami_note n, int v)
+void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
 
 {
 
@@ -318,7 +318,7 @@ by Midi GM encoding, 1 to 128. Takes a time for sequencing.
 
 *******************************************************************************/
 
-void ami_instchange(int p, int t, ami_channel c, ami_instrument i)
+void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
 
 {
 
@@ -335,7 +335,7 @@ full on.
 
 *******************************************************************************/
 
-void ami_attack(int p, int t, ami_channel c, int at)
+void ami_attack(long p, long t, ami_channel c, long at)
 
 {
 
@@ -352,7 +352,7 @@ full off.
 
 *******************************************************************************/
 
-void ami_release(int p, int t, ami_channel c, int rt)
+void ami_release(long p, long t, ami_channel c, long rt)
 
 {
 
@@ -368,7 +368,7 @@ Sets the legato mode on/off.
 
 *******************************************************************************/
 
-void ami_legato(int p, int t, ami_channel c, int b)
+void ami_legato(long p, long t, ami_channel c, long b)
 
 {
 
@@ -384,7 +384,7 @@ Sets the portamento mode on/off.
 
 *******************************************************************************/
 
-void ami_portamento(int p, int t, ami_channel c, int b)
+void ami_portamento(long p, long t, ami_channel c, long b)
 
 {
 
@@ -400,7 +400,7 @@ Sets synthesizer volume, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_volsynthchan(int p, int t, ami_channel c, int v)
+void ami_volsynthchan(long p, long t, ami_channel c, long v)
 
 {
 
@@ -417,7 +417,7 @@ maxint is all right.
 
 *******************************************************************************/
 
-void ami_balance(int p, int t, ami_channel c, int b)
+void ami_balance(long p, long t, ami_channel c, long b)
 
 {
 
@@ -433,7 +433,7 @@ Sets portamento time, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_porttime(int p, int t, ami_channel c, int v)
+void ami_porttime(long p, long t, ami_channel c, long v)
 
 {
 
@@ -449,7 +449,7 @@ Sets modulaton value, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_vibrato(int p, int t, ami_channel c, int v)
+void ami_vibrato(long p, long t, ami_channel c, long v)
 
 {
 
@@ -466,7 +466,7 @@ maxint is hard right.
 
 *******************************************************************************/
 
-void ami_pan(int p, int t, ami_channel c, int b)
+void ami_pan(long p, long t, ami_channel c, long b)
 
 {
 
@@ -482,7 +482,7 @@ Sets the sound timbre, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_timbre(int p, int t, ami_channel c, int tb)
+void ami_timbre(long p, long t, ami_channel c, long tb)
 
 {
 
@@ -498,7 +498,7 @@ Sets the sound brightness, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_brightness(int p, int t, ami_channel c, int b)
+void ami_brightness(long p, long t, ami_channel c, long b)
 
 {
 
@@ -514,7 +514,7 @@ Sets the sound reverb, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_reverb(int p, int t, ami_channel c, int r)
+void ami_reverb(long p, long t, ami_channel c, long r)
 
 {
 
@@ -530,7 +530,7 @@ Sets the sound tremulo, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_tremulo(int p, int t, ami_channel c, int tr)
+void ami_tremulo(long p, long t, ami_channel c, long tr)
 
 {
 
@@ -546,7 +546,7 @@ Sets the sound chorus, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_chorus(int p, int t, ami_channel c, int cr)
+void ami_chorus(long p, long t, ami_channel c, long cr)
 
 {
 
@@ -562,7 +562,7 @@ Sets the sound celeste, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_celeste(int p, int t, ami_channel c, int ce)
+void ami_celeste(long p, long t, ami_channel c, long ce)
 
 {
 
@@ -578,7 +578,7 @@ Sets the sound phaser, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_phaser(int p, int t, ami_channel c, int ph)
+void ami_phaser(long p, long t, ami_channel c, long ph)
 
 {
 
@@ -598,7 +598,7 @@ could be reached with a slide, for example.
 
 *******************************************************************************/
 
-void ami_pitchrange(int p, int t, ami_channel c, int v)
+void ami_pitchrange(long p, long t, ami_channel c, long v)
 
 {
 
@@ -616,7 +616,7 @@ with 0 being "allways select single note mode".
 
 *******************************************************************************/
 
-void ami_mono(int p, int t, ami_channel c, int ch)
+void ami_mono(long p, long t, ami_channel c, long ch)
 
 {
 
@@ -632,7 +632,7 @@ Reenables polyphonic mode after a monophonic operation.
 
 *******************************************************************************/
 
-void ami_poly(int p, int t, ami_channel c)
+void ami_poly(long p, long t, ami_channel c)
 
 {
 
@@ -648,7 +648,7 @@ Controls aftertouch, 0 to maxint, on a note.
 
 *******************************************************************************/
 
-void ami_aftertouch(int p, int t, ami_channel c, ami_note n, int at)
+void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
 
 {
 
@@ -664,7 +664,7 @@ Controls channel pressure, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_pressure(int p, int t, ami_channel c, int pr)
+void ami_pressure(long p, long t, ami_channel c, long pr)
 
 {
 
@@ -683,7 +683,7 @@ C#.
 
 *******************************************************************************/
 
-void ami_pitch(int p, int t, ami_channel c, int pt)
+void ami_pitch(long p, long t, ami_channel c, long pt)
 
 {
 
@@ -704,7 +704,7 @@ is no more than 10 synth files at a time.
 
 *******************************************************************************/
 
-void ami_loadsynth(int s, string fn)
+void ami_loadsynth(long s, string fn)
 
 {
 
@@ -724,7 +724,7 @@ result in this routine blocking until it is complete.
 
 *******************************************************************************/
 
-void ami_delsynth(int s)
+void ami_delsynth(long s)
 
 {
 
@@ -751,7 +751,7 @@ it is open, then reopening it afterwards.
 
 *******************************************************************************/
 
-void ami_playsynth(int p, int t, int s)
+void ami_playsynth(long p, long t, long s)
 
 {
 
@@ -782,7 +782,7 @@ sequencer(s), including background tasks.
 
 *******************************************************************************/
 
-void ami_waitsynth(int p)
+void ami_waitsynth(long p)
 
 {
 
@@ -798,7 +798,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-int ami_waveout(void)
+long ami_waveout(void)
 
 {
 
@@ -816,7 +816,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-int ami_wavein(void)
+long ami_wavein(void)
 
 {
 
@@ -835,7 +835,7 @@ output device. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_openwaveout(int p)
+void ami_openwaveout(long p)
 
 {
 
@@ -851,7 +851,7 @@ Closes a wave output device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewaveout(int p)
+void ami_closewaveout(long p)
 
 {
 
@@ -875,7 +875,7 @@ the test system, the latency to play is acceptable.
 
 *******************************************************************************/
 
-void ami_loadwave(int w, string fn)
+void ami_loadwave(long w, string fn)
 
 {
 
@@ -892,7 +892,7 @@ redefined.
 
 *******************************************************************************/
 
-void ami_delwave(int w)
+void ami_delwave(long w)
 
 {
 
@@ -911,7 +911,7 @@ The file is specified by file name, and the file type is system dependent.
 
 *******************************************************************************/
 
-void ami_playwave(int p, int t, int w)
+void ami_playwave(long p, long t, long w)
 
 {
 
@@ -929,7 +929,7 @@ Not implemented at present.
 
 *******************************************************************************/
 
-void ami_volwave(int p, int t, int v)
+void ami_volwave(long p, long t, long v)
 
 {
 
@@ -954,7 +954,7 @@ wait until they all stop.
 
 *******************************************************************************/
 
-void ami_waitwave(int p)
+void ami_waitwave(long p)
 
 {
 
@@ -974,7 +974,7 @@ for the next sample.
 
 *******************************************************************************/
 
-void ami_chanwaveout(int p, int c)
+void ami_chanwaveout(long p, long c)
 
 {
 
@@ -994,7 +994,7 @@ required.
 
 *******************************************************************************/
 
-void ami_ratewaveout(int p, int r)
+void ami_ratewaveout(long p, long r)
 
 {
 
@@ -1014,7 +1014,7 @@ cound would mainly indicate precision only.
 
 *******************************************************************************/
 
-void ami_lenwaveout(int p, int l)
+void ami_lenwaveout(long p, long l)
 
 {
 
@@ -1031,7 +1031,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-void ami_sgnwaveout(int p, int s)
+void ami_sgnwaveout(long p, long s)
 
 {
 
@@ -1047,7 +1047,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-void ami_fltwaveout(int p, int f)
+void ami_fltwaveout(long p, long f)
 
 {
 
@@ -1065,7 +1065,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-void ami_endwaveout(int p, int e)
+void ami_endwaveout(long p, long e)
 
 {
 
@@ -1093,7 +1093,7 @@ recommended to be 1ms or less (64 samples at a 44100 sample rate).
 
 *******************************************************************************/
 
-void ami_wrwave(int p, byte* buff, int len)
+void ami_wrwave(long p, byte* buff, long len)
 
 {
 
@@ -1111,7 +1111,7 @@ but we assert them here on open.
 
 *******************************************************************************/
 
-void ami_openwavein(int p)
+void ami_openwavein(long p)
 
 {
 
@@ -1127,7 +1127,7 @@ Closes a wave input device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewavein(int p)
+void ami_closewavein(long p)
 
 {
 
@@ -1147,7 +1147,7 @@ sample.
 
 *******************************************************************************/
 
-int ami_chanwavein(int p)
+long ami_chanwavein(long p)
 
 {
 
@@ -1167,7 +1167,7 @@ and it must be open. Input samples are timed at the rate.
 
 *******************************************************************************/
 
-int ami_ratewavein(int p)
+long ami_ratewavein(long p)
 
 {
 
@@ -1196,7 +1196,7 @@ round up bit lengths as shown above.
 
 *******************************************************************************/
 
-int ami_lenwavein(int p)
+long ami_lenwavein(long p)
 
 {
 
@@ -1215,7 +1215,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-int ami_sgnwavein(int p)
+long ami_sgnwavein(long p)
 
 {
 
@@ -1233,7 +1233,7 @@ Returns true if the given wave input device has big endian sampling.
 
 *******************************************************************************/
 
-int ami_endwavein(int p)
+long ami_endwavein(long p)
 
 {
 
@@ -1251,7 +1251,7 @@ Returns true if the given wave input device has floating point sampling.
 
 *******************************************************************************/
 
-int ami_fltwavein(int p)
+long ami_fltwavein(long p)
 
 {
 
@@ -1289,7 +1289,7 @@ ami_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-int ami_rdwave(int p, byte* buff, int len)
+long ami_rdwave(long p, byte* buff, long len)
 
 {
 
@@ -1303,11 +1303,14 @@ int ami_rdwave(int p, byte* buff, int len)
 
 Find device name of synthesizer output port
 
-Returns the ALSA device name of the given synthsizer output port.
+Returns the device name of the given synthsizer output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_synthoutname(int p, string name, int len)
+void ami_synthoutname(long p, string name, long len)
 
 {
 
@@ -1319,11 +1322,14 @@ void ami_synthoutname(int p, string name, int len)
 
 Find device name of synthesizer input port
 
-Returns the ALSA device name of the given synthsizer input port.
+Returns the device name of the given synthsizer input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_synthinname(int p, string name, int len)
+void ami_synthinname(long p, string name, long len)
 
 {
 
@@ -1335,11 +1341,14 @@ void ami_synthinname(int p, string name, int len)
 
 Find device name of wave output port
 
-Returns the ALSA device name of the given wave output port.
+Returns the device name of the given wave output port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_waveoutname(int p, string name, int len)
+void ami_waveoutname(long p, string name, long len)
 
 {
 
@@ -1351,11 +1360,14 @@ void ami_waveoutname(int p, string name, int len)
 
 Find device name of wave input port
 
-Returns the ALSA device name of the given wave input port.
+Returns the device name of the given wave input port. The name is
+returned by the critical buffer convention: a result that fills the entire
+buffer is not zero terminated, a shorter result is zero terminated, and it is
+an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_waveinname(int p, string name, int len)
+void ami_waveinname(long p, string name, long len)
 
 {
 
@@ -1371,7 +1383,7 @@ The given synthesizer port is opened and ready for reading.
 
 *******************************************************************************/
 
-void ami_opensynthin(int p)
+void ami_opensynthin(long p)
 
 {
 
@@ -1387,7 +1399,7 @@ Closes the given synthsizer port for reading.
 
 *******************************************************************************/
 
-void ami_closesynthin(int p)
+void ami_closesynthin(long p)
 
 {
 
@@ -1411,7 +1423,7 @@ a parameter.
 
 *******************************************************************************/
 
-void ami_wrsynth(int p, ami_seqptr sp)
+void ami_wrsynth(long p, ami_seqptr sp)
 
 {
 
@@ -1440,7 +1452,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void ami_rdsynth(int p, ami_seqptr sp)
+void ami_rdsynth(long p, ami_seqptr sp)
 
 {
 
@@ -1454,14 +1466,16 @@ Get device parameter synth out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthout(int p, string name, string value, int len)
+void ami_getparamsynthout(long p, string name, string value, long len)
 
 {
 
@@ -1475,14 +1489,16 @@ Get device parameter synth in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthin(int p, string name, string value, int len)
+void ami_getparamsynthin(long p, string name, string value, long len)
 
 {
 
@@ -1496,14 +1512,16 @@ Get device parameter wave out
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwaveout(int p, string name, string value, int len)
+void ami_getparamwaveout(long p, string name, string value, long len)
 
 {
 
@@ -1517,14 +1535,16 @@ Get device parameter wave in
 
 Reads a device parameter by name. Device parameters are strings indexed by name.
 The device parameter is returned if it exists, otherwise an empty string is
-returned.
+returned. The value is returned by the critical buffer convention: a result
+that fills the entire buffer is not zero terminated, a shorter result is zero
+terminated, and it is an error if the result cannot fit.
 
 Device parameters are generally implemented for plug-ins only. The set of
 parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwavein(int p, string name, string value, int len)
+void ami_getparamwavein(long p, string name, string value, long len)
 
 {
 
@@ -1545,7 +1565,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamsynthout(int p, string name, string value)
+long ami_setparamsynthout(long p, string name, string value)
 
 {
 
@@ -1568,7 +1588,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamsynthin(int p, string name, string value)
+long ami_setparamsynthin(long p, string name, string value)
 
 {
 
@@ -1591,7 +1611,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamwaveout(int p, string name, string value)
+long ami_setparamwaveout(long p, string name, string value)
 
 {
 
@@ -1614,7 +1634,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-int ami_setparamwavein(int p, string name, string value)
+long ami_setparamwavein(long p, string name, string value)
 
 {
 
