@@ -692,14 +692,14 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test \
+     graphics_test testviewer management_test widget_test window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
      line4 line5 clock calc \
-     graph_server breakoutgr breakoutwgr
+     graph_server breakoutgr breakoutwgr window_race_testr
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -712,7 +712,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test \
+     graphics_test testviewer management_test widget_test window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
@@ -730,7 +730,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test \
+     graphics_test testviewer management_test widget_test window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
@@ -748,7 +748,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test \
+     graphics_test testviewer management_test widget_test window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
@@ -1765,6 +1765,30 @@ widget_testr: tests/widget_test.c portable/graph_client.o
 	    $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/widget_testr
+
+#
+# Press on the window make/free race: child windows made and freed in a
+# tight cycle, titled and drawn on, so the event pump has frames to paint
+# for a window this thread is making or freeing.
+#
+ifeq ($(OSTYPE),Darwin)
+window_race_test: $(GLIBSD) tests/window_race_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_race_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/window_race_test
+else
+window_race_test: $(GLIBSD) tests/window_race_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_race_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/window_race_test
+endif
+
+#
+# The window race test run remotely, which is where the race was found:
+# the two threads are then graph_server's own.
+#
+window_race_testr: tests/window_race_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/window_race_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
+	    utils/config.o utils/option.o linux/network.o \
+	    -lssl -lcrypto -lm -lpthread -o bin/window_race_testr
 
 #
 # The sound test run remotely: linked with graph_client, the sound
