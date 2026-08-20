@@ -91,7 +91,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <diag.h>
 
 /* external definitions */
-#ifndef __MACH__ /* Mac OS X */
+#if defined(_WIN32)
+
+/* Windows has no glibc program_invocation_short_name. _pgmptr carries the full
+   path of the running program, so take the name off the end of it. */
+
+static char* progshortname(void)
+
+{
+
+    char* p;
+    char* s;
+
+    s = _pgmptr; /* get program path */
+    if (!s) return ("");
+    /* step past any path in front of the name */
+    for (p = s; *p; p++) if (*p == '\\' || *p == '/') s = p+1;
+
+    return (s);
+
+}
+
+#define program_invocation_short_name progshortname()
+
+#elif !defined(__MACH__) /* Mac OS X */
 extern char *program_invocation_short_name;
 #endif
 
@@ -110,6 +133,14 @@ extern char *program_invocation_short_name;
 //#define PRTROOTEVT /* print root window events */
 //#define PRTEVT     /* print outbound events */
 //#define PRTFMASK /* print the forward masks calculated */
+
+/* Name of the null device. Window files are parked on it, as the window
+   manager supplies the content itself. Windows spells it differently. */
+#ifdef _WIN32
+#define NULLDEV "nul"
+#else
+#define NULLDEV "/dev/null"
+#endif
 
 /* file handle numbers at the system interface level */
 #define INPFIL 0 /* handle to standard input */
@@ -3720,14 +3751,14 @@ static void intopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
     if (ifn < 0) { /* no other input file, open new */
 
         /* open input file */
-        *infile = fopen("/dev/null", "r"); /* open null as read only */
+        *infile = fopen(NULLDEV, "r"); /* open null as read only */
         if (!*infile) error("Can't open file"); /* can't open */
         setvbuf(*infile, NULL, _IONBF, 0); /* turn off buffering */
         ifn = fileno(*infile); /* get logical file no */
 
     }
     /* open output file */
-    *outfile = fopen("/dev/null", "w");
+    *outfile = fopen(NULLDEV, "w");
     ofn = fileno(*outfile); /* get logical file no. */
     if (ofn == -1) error("System consistency error");
     if (!*outfile) error("Can't open file");

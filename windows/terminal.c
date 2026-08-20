@@ -65,6 +65,24 @@
 #include <windows.h>
 #include <terminal.h>
 
+/*******************************************************************************
+
+Terminal API override layer
+
+The character mode window manager (portable/managerc.c) implements windowing on
+a terminal by interposing on the terminal API: every entry point is reached
+through a vector that _pa_<name>_ovr can replace.
+
+Each entry point below is therefore defined under its internal vector function
+name (<name>_ivf), and the public ami_<name> that dispatches through the vector
+is defined at the end of this file. Only the definitions carry the internal
+name: a call made from within this file uses the public name and so passes
+through the vector, which is what linux/terminal.c does and what the window
+manager depends on to see the terminal's own event and attribute calls.
+
+*******************************************************************************/
+
+
 /*
  * Debug print system
  *
@@ -791,7 +809,7 @@ static void iscroll(long x, long y)
 
 }
 
-void ami_scroll(FILE* f, long x, long y)
+void scroll_ivf(FILE* f, long x, long y)
 
 {
 
@@ -817,7 +835,7 @@ static void icursor(long x, long y)
 
 }
 
-void ami_cursor(FILE* f, long x, long y)
+void cursor_ivf(FILE* f, long x, long y)
 
 {
 
@@ -833,7 +851,7 @@ This is the external interface to curbnd.
 
 *******************************************************************************/
 
-long ami_curbnd(FILE* f)
+long curbnd_ivf(FILE* f)
 
 {
 
@@ -850,7 +868,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-long ami_maxx(FILE* f)
+long maxx_ivf(FILE* f)
 
 {
 
@@ -867,7 +885,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-long ami_maxy(FILE* f)
+long maxy_ivf(FILE* f)
 
 {
 
@@ -883,7 +901,7 @@ Moves the cursor to the home position at (1, 1), the upper right hand corner.
 
 *******************************************************************************/
 
-void ami_home(FILE* f)
+void home_ivf(FILE* f)
 
 {
 
@@ -921,7 +939,7 @@ static void iup(void)
 
 }
 
-void ami_up(FILE* f)
+void up_ivf(FILE* f)
 
 {
 
@@ -986,7 +1004,7 @@ static void idown(void)
 
 }
 
-void ami_down(FILE* f)
+void down_ivf(FILE* f)
 
 {
 
@@ -1029,7 +1047,7 @@ static void ileft(void)
 
 }
 
-void ami_left(FILE* f)
+void left_ivf(FILE* f)
 
 {
 
@@ -1069,7 +1087,7 @@ static void iright(void)
 
 }
 
-void ami_right(FILE* f)
+void right_ivf(FILE* f)
 
 {
 
@@ -1113,7 +1131,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_blink(FILE* f, long e)
+void blink_ivf(FILE* f, long e)
 
 {
 
@@ -1133,7 +1151,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_reverse(FILE* f, long e)
+void reverse_ivf(FILE* f, long e)
 
 {
 
@@ -1152,7 +1170,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_underline(FILE* f, long e)
+void underline_ivf(FILE* f, long e)
 
 {
 
@@ -1172,7 +1190,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_superscript(FILE* f, long e)
+void superscript_ivf(FILE* f, long e)
 
 {
 
@@ -1191,7 +1209,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_subscript(FILE* f, long e)
+void subscript_ivf(FILE* f, long e)
 
 {
 
@@ -1210,7 +1228,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_italic(FILE* f, long e)
+void italic_ivf(FILE* f, long e)
 
 {
 
@@ -1233,7 +1251,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_bold(FILE* f, long e)
+void bold_ivf(FILE* f, long e)
 
 {
 
@@ -1255,7 +1273,7 @@ just placed.
 
 *******************************************************************************/
 
-void ami_strikeout(FILE* f, long e)
+void strikeout_ivf(FILE* f, long e)
 
 {
 
@@ -1274,7 +1292,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_standout(FILE* f, long e)
+void standout_ivf(FILE* f, long e)
 
 {
 
@@ -1290,7 +1308,7 @@ Sets the foreground (text) color from the universal primary code.
 
 *******************************************************************************/
 
-void ami_fcolor(FILE* f, ami_color c)
+void fcolor_ivf(FILE* f, ami_color c)
 
 {
 
@@ -1308,11 +1326,11 @@ Sets the foreground color from individual r, g, b values.
 
 *******************************************************************************/
 
-void ami_fcolorc(FILE* f, long r, long g, long b)
+void fcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
-    ami_fcolor(f, colrgbnum(r, g, b));
+    fcolor_ivf(f, colrgbnum(r, g, b));
 
 }
 
@@ -1324,7 +1342,7 @@ Sets the background color from the universal primary code.
 
 *******************************************************************************/
 
-void ami_bcolor(FILE* f, ami_color c)
+void bcolor_ivf(FILE* f, ami_color c)
 
 {
 
@@ -1342,11 +1360,11 @@ Sets the background color from individual r, g, b values.
 
 *******************************************************************************/
 
-void ami_bcolorc(FILE* f, long r, long g, long b)
+void bcolorc_ivf(FILE* f, long r, long g, long b)
 
 {
 
-    ami_bcolor(f, colrgbnum(r, g, b));
+    bcolor_ivf(f, colrgbnum(r, g, b));
 
 }
 
@@ -1375,7 +1393,7 @@ anywhere.
 
 *******************************************************************************/
 
-void ami_auto(FILE* f, long e)
+void auto_ivf(FILE* f, long e)
 
 {
 
@@ -1392,7 +1410,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void ami_curvis(FILE* f, long e)
+void curvis_ivf(FILE* f, long e)
 
 {
 
@@ -1410,7 +1428,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-long ami_curx(FILE* f)
+long curx_ivf(FILE* f)
 
 {
 
@@ -1426,7 +1444,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-long ami_cury(FILE* f)
+long cury_ivf(FILE* f)
 
 {
 
@@ -1490,7 +1508,7 @@ static void iselect(long u, long d)
 
 }
 
-void ami_select(FILE* f, long u, long d)
+void select_ivf(FILE* f, long u, long d)
 
 {
 
@@ -1565,13 +1583,13 @@ position left.
 
 *******************************************************************************/
 
-void ami_del(FILE* f)
+void del_ivf(FILE* f)
 
 {
 
-    ami_left(f); /* back up cursor */
+    left_ivf(f); /* back up cursor */
     plcchr(' '); /* blank out */
-    ami_left(f); /* back up again */
+    left_ivf(f); /* back up again */
 
 }
 
@@ -2297,7 +2315,7 @@ static void ievent(ami_evtptr er)
 
 } /* event */
 
-void ami_event(FILE* f, ami_evtptr er)
+void event_ivf(FILE* f, ami_evtptr er)
 
 {
 
@@ -2330,7 +2348,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void ami_eventover(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
+void eventover_ivf(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
 
 {
 
@@ -2350,7 +2368,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void ami_eventsover(ami_pevthan eh,  ami_pevthan* oeh)
+void eventsover_ivf(ami_pevthan eh,  ami_pevthan* oeh)
 
 {
 
@@ -2421,7 +2439,7 @@ static void itimer(long i, /* timer handle */
 
 }
 
-void ami_timer(FILE* f, long i, long t, long r)
+void timer_ivf(FILE* f, long i, long t, long r)
 
 {
 
@@ -2437,7 +2455,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-void ami_killtimer(FILE* f, /* file to kill timer on */
+void killtimer_ivf(FILE* f, /* file to kill timer on */
                long   i) /* handle of timer */
 
 {
@@ -2494,7 +2512,7 @@ static void iframetimer(long e)
 
 }
 
-void ami_frametimer(FILE* f, long e)
+void frametimer_ivf(FILE* f, long e)
 
 {
 
@@ -2511,7 +2529,7 @@ I suspect they will eventually have to remove this limit.
 
 *******************************************************************************/
 
-long ami_mouse(FILE* f)
+long mouse_ivf(FILE* f)
 
 {
 
@@ -2528,7 +2546,7 @@ version.
 
 *******************************************************************************/
 
-long ami_mousebutton(FILE* f, long m)
+long mousebutton_ivf(FILE* f, long m)
 
 {
 
@@ -2546,7 +2564,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-long ami_joystick(FILE* f)
+long joystick_ivf(FILE* f)
 
 {
 
@@ -2584,7 +2602,7 @@ static long ijoybutton(long j)
 
 }
 
-long ami_joybutton(FILE* f, long j)
+long joybutton_ivf(FILE* f, long j)
 
 {
 
@@ -2603,7 +2621,7 @@ joystick cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
-long ami_joyaxis(FILE* f, long j)
+long joyaxis_ivf(FILE* f, long j)
 
 {
 
@@ -2634,7 +2652,7 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
-void ami_settab(FILE* f, long t)
+void settab_ivf(FILE* f, long t)
 
 {
 
@@ -2652,7 +2670,7 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
-void ami_restab(FILE* f, long t)
+void restab_ivf(FILE* f, long t)
 
 {
 
@@ -2671,7 +2689,7 @@ arrangement.
 
 *******************************************************************************/
 
-void ami_clrtab(FILE* f)
+void clrtab_ivf(FILE* f)
 
 {
 
@@ -2691,7 +2709,7 @@ int keys as well.
 
 *******************************************************************************/
 
-long ami_funkey(FILE* f)
+long funkey_ivf(FILE* f)
 
 {
 
@@ -2722,7 +2740,7 @@ specifically disallowed there.
 
 *******************************************************************************/
 
-void ami_autohold(long e)
+void autohold_ivf(long e)
 
 {
 
@@ -2739,7 +2757,7 @@ handling.
 
 *******************************************************************************/
 
-void ami_wrtstrn(FILE* f, char *s, long n)
+void wrtstrn_ivf(FILE* f, char *s, long n)
 
 {
 
@@ -2781,11 +2799,11 @@ Writes a string direct to the terminal, bypassing character handling.
 
 *******************************************************************************/
 
-void ami_wrtstr(FILE* f, char *s)
+void wrtstr_ivf(FILE* f, char *s)
 
 {
 
-    ami_wrtstrn(f, s, strlen(s));
+    wrtstrn_ivf(f, s, strlen(s));
 
 }
 
@@ -2797,7 +2815,7 @@ Sets or resets the size of the buffer surface.
 
 *******************************************************************************/
 
-void ami_sizbuf(FILE* f, long x, long y)
+void sizbuf_ivf(FILE* f, long x, long y)
 
 {
 
@@ -2811,7 +2829,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void ami_title(FILE* f, char* ts)
+void title_ivf(FILE* f, char* ts)
 
 {
 
@@ -2831,7 +2849,7 @@ and is not NUL terminated.
 
 *******************************************************************************/
 
-void ami_titlen(FILE* f, char* ts, long n)
+void titlen_ivf(FILE* f, char* ts, long n)
 
 {
 
@@ -2841,7 +2859,7 @@ void ami_titlen(FILE* f, char* ts, long n)
     if (!p) error(enomem);
     memcpy(p, ts, n);
     p[n] = 0; /* terminate */
-    ami_title(f, p); /* set as a standard title string */
+    title_ivf(f, p); /* set as a standard title string */
     free(p);
 
 }
@@ -3654,3 +3672,444 @@ static void ami_deinit_terminal(void)
     SetConsoleCtrlHandler(NULL, FALSE);
 
 }
+
+/*******************************************************************************
+
+Terminal API override entry points
+
+For each call in the terminal API:
+
+    <name>_vect     the current implementation, initially <name>_ivf
+    _pa_<name>_ovr  replaces that vector and returns the previous one
+    ami_<name>      the public entry point, dispatching through the vector
+
+The window management calls (openwin, setsiz, menu and friends) have no Windows
+implementation. As on Linux their defaults error as unimplemented, and exist so
+that the window manager can override them.
+
+*******************************************************************************/
+
+/* report a call that has no implementation on this platform */
+
+static void unimperr(const char* s)
+
+{
+
+    fprintf(stderr, "*** Error: console: %s unimplemented\n", s);
+
+    exit(1);
+
+}
+
+#define APIOVER(name) void _pa_##name##_ovr(_pa_##name##_t nfp, _pa_##name##_t* ofp) \
+                      { *ofp = name##_vect; name##_vect = nfp; }
+
+static void sendevent_ivf(FILE* f, ami_evtrec* er)
+    { unimperr("sendevent"); }
+
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
+    { unimperr("openwin"); }
+
+static void buffer_ivf(FILE* f, long e)
+    { unimperr("buffer"); }
+
+static void getsiz_ivf(FILE* f, long* x, long* y)
+    { unimperr("getsiz"); }
+
+static void setsiz_ivf(FILE* f, long x, long y)
+    { unimperr("setsiz"); }
+
+static void setpos_ivf(FILE* f, long x, long y)
+    { unimperr("setpos"); }
+
+static void scnsiz_ivf(FILE* f, long* x, long* y)
+    { unimperr("scnsiz"); }
+
+static void scncen_ivf(FILE* f, long* x, long* y)
+    { unimperr("scncen"); }
+
+static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+    { unimperr("winclient"); }
+
+static void front_ivf(FILE* f)
+    { unimperr("front"); }
+
+static void back_ivf(FILE* f)
+    { unimperr("back"); }
+
+static void frame_ivf(FILE* f, long e)
+    { unimperr("frame"); }
+
+static void sizable_ivf(FILE* f, long e)
+    { unimperr("sizable"); }
+
+static void sysbar_ivf(FILE* f, long e)
+    { unimperr("sysbar"); }
+
+static void menu_ivf(FILE* f, ami_menuptr m)
+    { unimperr("menu"); }
+
+static void menuena_ivf(FILE* f, long id, long onoff)
+    { unimperr("menuena"); }
+
+static void menusel_ivf(FILE* f, long id, long select)
+    { unimperr("menusel"); }
+
+static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+    { unimperr("stdmenu"); }
+
+static long getwinid_ivf(void)
+    { unimperr("getwinid"); return (0); }
+
+static void focus_ivf(FILE* f)
+    { unimperr("focus"); }
+
+static _pa_cursor_t cursor_vect = cursor_ivf;
+APIOVER(cursor)
+void ami_cursor(FILE* f, long x, long y)
+    { (*cursor_vect)(f, x, y); }
+
+static _pa_curbnd_t curbnd_vect = curbnd_ivf;
+APIOVER(curbnd)
+long ami_curbnd(FILE* f)
+    { return (*curbnd_vect)(f); }
+
+static _pa_maxx_t maxx_vect = maxx_ivf;
+APIOVER(maxx)
+long ami_maxx(FILE* f)
+    { return (*maxx_vect)(f); }
+
+static _pa_maxy_t maxy_vect = maxy_ivf;
+APIOVER(maxy)
+long ami_maxy(FILE* f)
+    { return (*maxy_vect)(f); }
+
+static _pa_home_t home_vect = home_ivf;
+APIOVER(home)
+void ami_home(FILE* f)
+    { (*home_vect)(f); }
+
+static _pa_del_t del_vect = del_ivf;
+APIOVER(del)
+void ami_del(FILE* f)
+    { (*del_vect)(f); }
+
+static _pa_up_t up_vect = up_ivf;
+APIOVER(up)
+void ami_up(FILE* f)
+    { (*up_vect)(f); }
+
+static _pa_down_t down_vect = down_ivf;
+APIOVER(down)
+void ami_down(FILE* f)
+    { (*down_vect)(f); }
+
+static _pa_left_t left_vect = left_ivf;
+APIOVER(left)
+void ami_left(FILE* f)
+    { (*left_vect)(f); }
+
+static _pa_right_t right_vect = right_ivf;
+APIOVER(right)
+void ami_right(FILE* f)
+    { (*right_vect)(f); }
+
+static _pa_blink_t blink_vect = blink_ivf;
+APIOVER(blink)
+void ami_blink(FILE* f, long e)
+    { (*blink_vect)(f, e); }
+
+static _pa_reverse_t reverse_vect = reverse_ivf;
+APIOVER(reverse)
+void ami_reverse(FILE* f, long e)
+    { (*reverse_vect)(f, e); }
+
+static _pa_underline_t underline_vect = underline_ivf;
+APIOVER(underline)
+void ami_underline(FILE* f, long e)
+    { (*underline_vect)(f, e); }
+
+static _pa_superscript_t superscript_vect = superscript_ivf;
+APIOVER(superscript)
+void ami_superscript(FILE* f, long e)
+    { (*superscript_vect)(f, e); }
+
+static _pa_subscript_t subscript_vect = subscript_ivf;
+APIOVER(subscript)
+void ami_subscript(FILE* f, long e)
+    { (*subscript_vect)(f, e); }
+
+static _pa_italic_t italic_vect = italic_ivf;
+APIOVER(italic)
+void ami_italic(FILE* f, long e)
+    { (*italic_vect)(f, e); }
+
+static _pa_bold_t bold_vect = bold_ivf;
+APIOVER(bold)
+void ami_bold(FILE* f, long e)
+    { (*bold_vect)(f, e); }
+
+static _pa_strikeout_t strikeout_vect = strikeout_ivf;
+APIOVER(strikeout)
+void ami_strikeout(FILE* f, long e)
+    { (*strikeout_vect)(f, e); }
+
+static _pa_standout_t standout_vect = standout_ivf;
+APIOVER(standout)
+void ami_standout(FILE* f, long e)
+    { (*standout_vect)(f, e); }
+
+static _pa_fcolor_t fcolor_vect = fcolor_ivf;
+APIOVER(fcolor)
+void ami_fcolor(FILE* f, ami_color c)
+    { (*fcolor_vect)(f, c); }
+
+static _pa_bcolor_t bcolor_vect = bcolor_ivf;
+APIOVER(bcolor)
+void ami_bcolor(FILE* f, ami_color c)
+    { (*bcolor_vect)(f, c); }
+
+static _pa_auto_t auto_vect = auto_ivf;
+APIOVER(auto)
+void ami_auto(FILE* f, long e)
+    { (*auto_vect)(f, e); }
+
+static _pa_curvis_t curvis_vect = curvis_ivf;
+APIOVER(curvis)
+void ami_curvis(FILE* f, long e)
+    { (*curvis_vect)(f, e); }
+
+static _pa_scroll_t scroll_vect = scroll_ivf;
+APIOVER(scroll)
+void ami_scroll(FILE* f, long x, long y)
+    { (*scroll_vect)(f, x, y); }
+
+static _pa_curx_t curx_vect = curx_ivf;
+APIOVER(curx)
+long ami_curx(FILE* f)
+    { return (*curx_vect)(f); }
+
+static _pa_cury_t cury_vect = cury_ivf;
+APIOVER(cury)
+long ami_cury(FILE* f)
+    { return (*cury_vect)(f); }
+
+static _pa_select_t select_vect = select_ivf;
+APIOVER(select)
+void ami_select(FILE* f, long u, long d)
+    { (*select_vect)(f, u, d); }
+
+static _pa_event_t event_vect = event_ivf;
+APIOVER(event)
+void ami_event(FILE* f, ami_evtrec* er)
+    { (*event_vect)(f, er); }
+
+static _pa_timer_t timer_vect = timer_ivf;
+APIOVER(timer)
+void ami_timer(FILE* f, long i, long t, long r)
+    { (*timer_vect)(f, i, t, r); }
+
+static _pa_killtimer_t killtimer_vect = killtimer_ivf;
+APIOVER(killtimer)
+void ami_killtimer(FILE* f, long i)
+    { (*killtimer_vect)(f, i); }
+
+static _pa_mouse_t mouse_vect = mouse_ivf;
+APIOVER(mouse)
+long ami_mouse(FILE* f)
+    { return (*mouse_vect)(f); }
+
+static _pa_mousebutton_t mousebutton_vect = mousebutton_ivf;
+APIOVER(mousebutton)
+long ami_mousebutton(FILE* f, long m)
+    { return (*mousebutton_vect)(f, m); }
+
+static _pa_joystick_t joystick_vect = joystick_ivf;
+APIOVER(joystick)
+long ami_joystick(FILE* f)
+    { return (*joystick_vect)(f); }
+
+static _pa_joybutton_t joybutton_vect = joybutton_ivf;
+APIOVER(joybutton)
+long ami_joybutton(FILE* f, long j)
+    { return (*joybutton_vect)(f, j); }
+
+static _pa_joyaxis_t joyaxis_vect = joyaxis_ivf;
+APIOVER(joyaxis)
+long ami_joyaxis(FILE* f, long j)
+    { return (*joyaxis_vect)(f, j); }
+
+static _pa_settab_t settab_vect = settab_ivf;
+APIOVER(settab)
+void ami_settab(FILE* f, long t)
+    { (*settab_vect)(f, t); }
+
+static _pa_restab_t restab_vect = restab_ivf;
+APIOVER(restab)
+void ami_restab(FILE* f, long t)
+    { (*restab_vect)(f, t); }
+
+static _pa_clrtab_t clrtab_vect = clrtab_ivf;
+APIOVER(clrtab)
+void ami_clrtab(FILE* f)
+    { (*clrtab_vect)(f); }
+
+static _pa_funkey_t funkey_vect = funkey_ivf;
+APIOVER(funkey)
+long ami_funkey(FILE* f)
+    { return (*funkey_vect)(f); }
+
+static _pa_frametimer_t frametimer_vect = frametimer_ivf;
+APIOVER(frametimer)
+void ami_frametimer(FILE* f, long e)
+    { (*frametimer_vect)(f, e); }
+
+static _pa_autohold_t autohold_vect = autohold_ivf;
+APIOVER(autohold)
+void ami_autohold(long e)
+    { (*autohold_vect)(e); }
+
+static _pa_wrtstr_t wrtstr_vect = wrtstr_ivf;
+APIOVER(wrtstr)
+void ami_wrtstr(FILE* f, char* s)
+    { (*wrtstr_vect)(f, s); }
+
+static _pa_wrtstrn_t wrtstrn_vect = wrtstrn_ivf;
+APIOVER(wrtstrn)
+void ami_wrtstrn(FILE* f, char* s, long n)
+    { (*wrtstrn_vect)(f, s, n); }
+
+static _pa_sizbuf_t sizbuf_vect = sizbuf_ivf;
+APIOVER(sizbuf)
+void ami_sizbuf(FILE* f, long x, long y)
+    { (*sizbuf_vect)(f, x, y); }
+
+static _pa_titlen_t titlen_vect = titlen_ivf;
+APIOVER(titlen)
+void ami_titlen(FILE* f, char* ts, long l)
+    { (*titlen_vect)(f, ts, l); }
+
+static _pa_title_t title_vect = title_ivf;
+APIOVER(title)
+void ami_title(FILE* f, char* ts)
+    { (*title_vect)(f, ts); }
+
+static _pa_fcolorc_t fcolorc_vect = fcolorc_ivf;
+APIOVER(fcolorc)
+void ami_fcolorc(FILE* f, long r, long g, long b)
+    { (*fcolorc_vect)(f, r, g, b); }
+
+static _pa_bcolorc_t bcolorc_vect = bcolorc_ivf;
+APIOVER(bcolorc)
+void ami_bcolorc(FILE* f, long r, long g, long b)
+    { (*bcolorc_vect)(f, r, g, b); }
+
+static _pa_eventover_t eventover_vect = eventover_ivf;
+APIOVER(eventover)
+void ami_eventover(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
+    { (*eventover_vect)(e, eh, oeh); }
+
+static _pa_eventsover_t eventsover_vect = eventsover_ivf;
+APIOVER(eventsover)
+void ami_eventsover(ami_pevthan eh,  ami_pevthan* oeh)
+    { (*eventsover_vect)(eh, oeh); }
+
+static _pa_sendevent_t sendevent_vect = sendevent_ivf;
+APIOVER(sendevent)
+void ami_sendevent(FILE* f, ami_evtrec* er)
+    { (*sendevent_vect)(f, er); }
+
+static _pa_openwin_t openwin_vect = openwin_ivf;
+APIOVER(openwin)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+    { (*openwin_vect)(infile, outfile, parent, wid); }
+
+static _pa_buffer_t buffer_vect = buffer_ivf;
+APIOVER(buffer)
+void ami_buffer(FILE* f, long e)
+    { (*buffer_vect)(f, e); }
+
+static _pa_getsiz_t getsiz_vect = getsiz_ivf;
+APIOVER(getsiz)
+void ami_getsiz(FILE* f, long* x, long* y)
+    { (*getsiz_vect)(f, x, y); }
+
+static _pa_setsiz_t setsiz_vect = setsiz_ivf;
+APIOVER(setsiz)
+void ami_setsiz(FILE* f, long x, long y)
+    { (*setsiz_vect)(f, x, y); }
+
+static _pa_setpos_t setpos_vect = setpos_ivf;
+APIOVER(setpos)
+void ami_setpos(FILE* f, long x, long y)
+    { (*setpos_vect)(f, x, y); }
+
+static _pa_scnsiz_t scnsiz_vect = scnsiz_ivf;
+APIOVER(scnsiz)
+void ami_scnsiz(FILE* f, long* x, long* y)
+    { (*scnsiz_vect)(f, x, y); }
+
+static _pa_scncen_t scncen_vect = scncen_ivf;
+APIOVER(scncen)
+void ami_scncen(FILE* f, long* x, long* y)
+    { (*scncen_vect)(f, x, y); }
+
+static _pa_winclient_t winclient_vect = winclient_ivf;
+APIOVER(winclient)
+void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+    { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
+
+static _pa_front_t front_vect = front_ivf;
+APIOVER(front)
+void ami_front(FILE* f)
+    { (*front_vect)(f); }
+
+static _pa_back_t back_vect = back_ivf;
+APIOVER(back)
+void ami_back(FILE* f)
+    { (*back_vect)(f); }
+
+static _pa_frame_t frame_vect = frame_ivf;
+APIOVER(frame)
+void ami_frame(FILE* f, long e)
+    { (*frame_vect)(f, e); }
+
+static _pa_sizable_t sizable_vect = sizable_ivf;
+APIOVER(sizable)
+void ami_sizable(FILE* f, long e)
+    { (*sizable_vect)(f, e); }
+
+static _pa_sysbar_t sysbar_vect = sysbar_ivf;
+APIOVER(sysbar)
+void ami_sysbar(FILE* f, long e)
+    { (*sysbar_vect)(f, e); }
+
+static _pa_menu_t menu_vect = menu_ivf;
+APIOVER(menu)
+void ami_menu(FILE* f, ami_menuptr m)
+    { (*menu_vect)(f, m); }
+
+static _pa_menuena_t menuena_vect = menuena_ivf;
+APIOVER(menuena)
+void ami_menuena(FILE* f, long id, long onoff)
+    { (*menuena_vect)(f, id, onoff); }
+
+static _pa_menusel_t menusel_vect = menusel_ivf;
+APIOVER(menusel)
+void ami_menusel(FILE* f, long id, long select)
+    { (*menusel_vect)(f, id, select); }
+
+static _pa_stdmenu_t stdmenu_vect = stdmenu_ivf;
+APIOVER(stdmenu)
+void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+    { (*stdmenu_vect)(sms, sm, pm); }
+
+static _pa_getwinid_t getwinid_vect = getwinid_ivf;
+APIOVER(getwinid)
+long ami_getwinid(void)
+    { return (*getwinid_vect)(); }
+
+static _pa_focus_t focus_vect = focus_ivf;
+APIOVER(focus)
+void ami_focus(FILE* f)
+    { (*focus_vect)(f); }

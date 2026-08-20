@@ -470,7 +470,13 @@ endif
 # X and png link tail for programs that use them directly (the test
 # harness's screen capture).
 #
+ifeq ($(OSTYPE),Windows_NT)
+# Windows screen capture uses GDI, not X11, so libpng/zlib are required but
+# libX11 is not linked.
+XLIBS = -lpng -lz
+else
 XLIBS = -lX11 -lpng -lz
+endif
 
 #
 # Collected libraries
@@ -1050,6 +1056,21 @@ lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
 	ar rcs lib/libami_term.a windows/services.o windows/sound.o \
 	    windows/network.o windows/terminal.o utils/config.o utils/option.o \
 	    windows/stdio.o
+	
+# The termc variant is the terminal library with the character mode window
+# manager (managerc) always included. managerc is constructor-registered and
+# transparent by default, so nothing references its symbols. Windows links the
+# terminal library with --whole-archive (see CLIBS), so every archive member is
+# pulled in regardless and managerc can simply be an additional member here.
+# Mac OS X has to partial-link it into terminal.o instead, having no
+# whole-archive equivalent.
+#
+lib/libami_termc.a: windows/services.o windows/sound.o windows/network.o \
+    windows/terminal.o portable/managerc.o utils/config.o utils/option.o \
+    windows/stdio.o
+	ar rcs lib/libami_termc.a windows/services.o windows/sound.o \
+	    windows/network.o windows/terminal.o portable/managerc.o \
+	    utils/config.o utils/option.o windows/stdio.o
 	
 lib/libami_graph.a: windows/services.o windows/sound.o windows/network.o \
     windows/graphics.o utils/config.o utils/option.o windows/stdio.o
