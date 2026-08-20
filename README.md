@@ -31,12 +31,12 @@ graphical library:
 
 ![the character mail client on a graphical window](doc/images/mail_charwin.png)
 
-And the whole of it in motion. Breakout, run eight ways: in characters
-and in pixels, on this machine, over ssh, over Ami's own remote display
+And the whole of it in motion. Breakout, run nine ways: in characters
+and in pixels, on this machine, over ssh, on an iPhone, over Ami's own remote
 protocol, over waypipe, and on Mac OS X and Windows -- the same program
 each time. 
 
-https://github.com/user-attachments/assets/5204f94b-4840-4060-a838-fe2f6590f905
+https://github.com/user-attachments/assets/bbe52100-d5a4-46cc-a86e-0b3983cd6277
 
 Note that not all transports carry sound, so some of the demos in the video
 do not carry sound. Note however that the Ami remote transport does carry
