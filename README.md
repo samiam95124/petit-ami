@@ -38,7 +38,7 @@ each time.
 
 https://github.com/user-attachments/assets/5204f94b-4840-4060-a838-fe2f6590f905
 
-Click to play:
+Click to play on Youtube:
 
 [![Ami: breakout in Linux, Windows and Mac OS X, in multiple modes](https://img.youtube.com/vi/BLPet3lhYbM/maxresdefault.jpg)](https://youtu.be/BLPet3lhYbM)
 
