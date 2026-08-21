@@ -32,8 +32,8 @@
 #include <string.h>
 #include <limits.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/socket.h>
 
 #include <graphics.h>
@@ -41,6 +41,7 @@
 #include <graph_remote.h>
 #include <widget_base.h>
 #include <sound.h>
+#include <services.h>
 #include <setjmp.h>
 #include <execinfo.h>
 
@@ -76,7 +77,8 @@ static long           rlen;
 
 /* the event channel is written by the pump thread and, for errors, the
    main thread; the lock keeps the messages whole */
-static pthread_mutex_t evsend = PTHREAD_MUTEX_INITIALIZER;
+static long            evsend;     /* services lock: one sender at a time */
+static int             evsendheld; /* the send holds it; a fault must free it */
 
 /* The display library is multithreadable and carries its own locks: the
    pump's event() runs concurrently with command execution, and any
@@ -91,7 +93,7 @@ static int  hellopend;   /* a mid-session hello opened the next session */
    from the display, the close button or a control-c typed in the
    window, on an idle server as cancellation. It stops only for the
    process exit, which must not tear the library down around it. */
-static pthread_t pump;     /* the pump thread */
+static long      pump;     /* the pump, by services thread id */
 static int       pumpstop; /* exiting: leave the library and return */
 
 /* The pump stands down while a modal dialog runs. A dialog pumps its
@@ -124,14 +126,10 @@ static char sesti;           /* input time base started */
 
 static jmp_buf   pumpjmp;    /* the pump's escape from a dead send */
 static int       pumpjmpset; /* it is armed */
-static pthread_t pumptid;    /* the pump's thread */
+static int       onpump;     /* set on the pump's own thread */
 static jmp_buf   closejmp;   /* escape for a failing deliberate close */
 static int       inclose;    /* a deliberate close is in progress */
 
-static pthread_mutex_t pauselock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  pausecond = PTHREAD_COND_INITIALIZER;
-static int             pausereq;  /* dispatch asks */
-static int             pumppaused; /* the pump stands down */
 static int       clientup; /* a client is connected */
 static int       sigasked; /* a terminate asked this session to end */
 
@@ -176,10 +174,35 @@ static jmp_buf sesjmp;    /* recycle point */
 static int     pumping;   /* the pump thread is up */
 static int     cleaning;  /* winding down; a second fault is fatal */
 
+/* The display thread's work mailbox; see ondisplay() below. The lock and
+   the signal are services' own, so the handoff is the same on any system
+   services runs on: waitsig releases the lock, waits, and takes it back. */
+static long            joblock;    /* services concurrency lock */
+static long            jobdone;    /* services signal: the job is finished */
+static long            pumpgone;   /* and this one: the pump has stopped */
+static void          (*jobfn)(void*); /* the call to make, NULL for none */
+static void*           jobarg;
+static int             jobsts;     /* the job took a session error */
+static char            jobmsg[256];/* the text of that error */
+static jmp_buf         jobjmp;     /* the pump's own way out of a fault */
+static int             jobjmpset;
+static int             injob;      /* the pump is inside a posted job */
+static int             inpumpevt;  /* the pump is forwarding an event */
+
+
 static void sesserr(const char* es)
 
 {
 
+    /* On the display's thread inside a posted job the way out is back to
+       the poster: it owns the session and the session's jump, and it is
+       the one that reports and drops. */
+    if (!cleaning && jobjmpset) { /* only the pump sets it, and only in a job */
+
+        snprintf(jobmsg, sizeof(jobmsg), "%s", es);
+        longjmp(jobjmp, 1);
+
+    }
     write(2, "*** graph_server: ", 18);
     write(2, es, strlen(es));
     write(2, " -- session dropped, awaiting new connection\n", 45);
@@ -196,6 +219,7 @@ Message assembly
 
 static gr_msghdr* shdr(void) { return ((gr_msghdr*)sbuf); }
 static gr_msghdr* rhdr(void) { return ((gr_msghdr*)rbuf); }
+static void dgram(long dlen);
 
 /* unmarshal from the received message */
 static long gi(void)
@@ -672,9 +696,13 @@ static void evsend1(gr_msgevt* we)
     h->seq = 0;
     h->wid = 0;
     memcpy(ebuf+sizeof(gr_msghdr), we, sizeof(gr_msgevt));
-    pthread_mutex_lock(&evsend);
+    /* the write does not return on failure, it jumps: the flag is how the
+       fault path knows to free this */
+    ami_lock(evsend);
+    evsendheld = 1;
     ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
-    pthread_mutex_unlock(&evsend);
+    evsendheld = 0;
+    ami_unlock(evsend);
 
 }
 
@@ -684,12 +712,31 @@ static void neterr(const char* es)
 {
 
     (void)es;
-    if (inclose) longjmp(closejmp, 1); /* the close completes */
-    if (pthread_equal(pthread_self(), pumptid)) {
+    /* Every way out of here is a jump, and a send that failed under the
+       event channel's lock still holds it. Left held, the next event to
+       go out waits on it forever, and that is the whole server: the
+       thread that sends events is the thread that owns the display. */
+    if (evsendheld) {
 
-        /* The client is gone. The pump idles on; the dispatch thread,
-           asleep in its channel read, is woken by shutting the command
-           socket under it, and its failing read drops the session. */
+        evsendheld = 0;
+        ami_unlock(evsend);
+
+    }
+    if (inclose) longjmp(closejmp, 1); /* the close completes */
+    /* Inside a posted job this is a reply that could not be sent, and the
+       wire thread is waiting on that job: the way out is back to it, or it
+       waits for a job that will never finish. sesserr takes that route. */
+    if (jobjmpset) { /* a reply that could not go: back to the poster */
+
+        clientup = 0;
+        sesserr("Network channel failed");
+
+    }
+    if (inpumpevt) { /* an event that could not go */
+
+        /* The client is gone. The pump idles on; the wire thread, asleep
+           in its channel read, is woken by shutting the command socket
+           under it, and its failing read drops the session. */
         clientup = 0;
         shutdown((int)cmdfn, SHUT_RDWR);
         if (pumpjmpset) longjmp(pumpjmp, 1);
@@ -698,38 +745,196 @@ static void neterr(const char* es)
 
 }
 
-/* bracket a modal dialog: the pump parks first, resumes after */
-static void pausepump(void)
+/*******************************************************************************
+
+The display belongs to one thread
+
+The pump thread owns the display: it is the only thread that calls into the
+display library, whether to take an event or to make a call the client asked
+for. The thread reading the wire owns nothing but the wire, and hands its work
+across with ondisplay(), which posts the call and waits for it.
+
+A window made, sized or freed under a thread that is drawing its frame is a
+use after free whichever way the two threads interleave. One thread in the
+library is what makes that impossible, rather than a guard around each call
+that can meet it.
+
+The post is by the event queue, which is locked and made for this, so a job
+waiting cannot be missed: the wake either breaks the pump out of event() or is
+already in the queue when it gets there.
+
+*******************************************************************************/
+
+/* A trace of the handoff, for when it does not happen: GS_JOBTRACE in the
+   environment turns it on. It says which thread and what it did, so a stall
+   shows as the last thing said. */
+
+static int jobtrace = -1;
+
+static void jt(const char* what)
+
+{
+
+    char b[128];
+    int  n;
+
+    if (jobtrace < 0) jobtrace = getenv("GS_JOBTRACE") != NULL;
+    if (!jobtrace) return;
+    n = snprintf(b, sizeof(b), "[%s] %s\n", onpump? "pump": "wire", what);
+    write(2, b, n);
+
+}
+
+/* wake the pump, whatever it is doing */
+static void wakepump(void)
 
 {
 
     ami_evtrec wake;
 
-    pthread_mutex_lock(&pauselock);
-    pausereq = 1;
-    pthread_mutex_unlock(&pauselock);
-    /* kick the pump out of event() so it sees the request */
     memset(&wake, 0, sizeof(wake));
     wake.etype = (ami_evtcod)GR_EVWAKE;
     ami_sendevent(stdout, &wake);
-    pthread_mutex_lock(&pauselock);
-    while (!pumppaused) pthread_cond_wait(&pausecond, &pauselock);
-    pthread_mutex_unlock(&pauselock);
 
 }
 
-static void resumepump(void)
+/* make this call on the display's thread, and wait for it.
+
+   Called on the pump itself it just makes the call: the display is already
+   this thread's, and a job posted to ourselves would wait forever. */
+
+static void ondisplay(void (*fn)(void*), void* arg)
 
 {
 
-    pthread_mutex_lock(&pauselock);
-    pausereq = 0;
-    pthread_cond_broadcast(&pausecond);
-    pthread_mutex_unlock(&pauselock);
+    if (injob) { fn(arg); return; } /* already on the display's thread */
+    ami_lock(joblock);
+    jobfn = fn;
+    jobarg = arg;
+    jobsts = 0;
+    ami_unlock(joblock);
+    jt("posted");
+    wakepump();
+    jt("woke the pump, waiting");
+    ami_lock(joblock);
+    while (jobfn) ami_waitsig(joblock, jobdone);
+    ami_unlock(joblock);
+    jt("job done");
+    /* a fault in the job is taken here, on the thread that owns the session */
+    if (jobsts) sesserr(jobmsg);
 
 }
 
-static void* evpump(void* arg)
+/* run a posted job, if there is one. The pump calls this each time round,
+   before it goes back to the display for the next event. */
+
+static void runjob(void)
+
+{
+
+    void (*fn)(void*);
+    void*  arg;
+
+    ami_lock(joblock);
+    fn = jobfn;
+    arg = jobarg;
+    ami_unlock(joblock);
+    if (!fn) return;
+    jt("running a job");
+    if (!setjmp(jobjmp)) {
+
+        jobjmpset = 1;
+        injob = 1;
+        fn(arg);
+        jobsts = 0;
+
+    } else jobsts = 1; /* the job faulted; the poster reports it */
+    jobjmpset = 0;
+    injob = 0;
+    ami_lock(joblock);
+    jobfn = NULL;
+    ami_sendsig(jobdone);
+    ami_unlock(joblock);
+    jt("job finished, back to the display");
+
+}
+
+/* the jobs the wire thread posts */
+static void job_dgram(void* a) { (void)a; dgram(rlen); }
+static void job_clear(void* a)
+    { (void)a; putchar('\f'); fflush(stdout); thinclear(); }
+
+/* Reset for the next client, on the thread that owns the display: the
+   session's windows close, its widgets and its sound go with them, and the
+   main window comes back to a reasonable state. A timer the session left
+   running is not recovered, the library having no way to ask, and would tick
+   into the next session. */
+
+static void job_winddown(void* a)
+
+{
+
+    long h;
+
+    (void)a;
+    /* Reset for the next client: the session's windows close, and
+       the main window comes back to a reasonable state. A timer the
+       session left running is not recovered, the library having no
+       way to ask, and would tick into the next session. */
+    for (h = 2; h < MAXHND; h++) if (h2f[h]) {
+
+        fclose(h2f[h]);
+        h2f[h] = 0;
+
+    }
+    wb_purge(stdout); /* the session's widgets go with it */
+    {
+
+        /* and its sound footprint: ports, timers and stores */
+        int sp;
+
+        for (sp = 0; sp < SNDPORTS; sp++) {
+
+            if (sesso[sp]) { ami_closesynthout(sp+1); sesso[sp] = 0; }
+            if (sessi[sp]) { ami_closesynthin(sp+1); sessi[sp] = 0; }
+            if (seswo[sp]) { ami_closewaveout(sp+1); seswo[sp] = 0; }
+            if (seswi[sp]) { ami_closewavein(sp+1); seswi[sp] = 0; }
+            if (sessy[sp]) { ami_delsynth(sp+1); sessy[sp] = 0; }
+            if (seswv[sp]) { ami_delwave(sp+1); seswv[sp] = 0; }
+
+        }
+        if (sesto) { ami_stoptimeout(); sesto = 0; }
+        if (sesti) { ami_stoptimein(); sesti = 0; }
+
+    }
+    ami_title(stdout, srvname); /* the session's title went with it */
+    ami_setsizg(stdout, origw, origh); /* and its size */
+    ami_auto(stdout, 0); /* off first: the resets below are illegal
+                            with it on, and it cannot come back on
+                            until the geometry is standard again */
+    ami_fover(stdout);
+    ami_bover(stdout);
+    ami_fcolor(stdout, ami_black);
+    ami_bcolor(stdout, ami_white);
+    ami_viewoffg(stdout, 0, 0);
+    ami_viewscale(stdout, 1.0, 1.0);
+    ami_path(stdout, LONG_MAX/4);
+    putchar('\f'); /* clear, and home the cursor to the grid */
+    fflush(stdout);
+    ami_auto(stdout, 1);
+    ami_curvis(stdout, 1);
+    printf("Session ended. Remote display server awaiting connection "
+           "on port %ld.\n", srvport);
+    printf("Control-c in this window, or its close button, shuts the "
+           "server down.\n");
+    fflush(stdout);
+
+}
+
+
+static int pumpstopped; /* the pump has left; stoppump waits on this */
+
+static void evpump(void)
 
 {
 
@@ -738,47 +943,45 @@ static void* evpump(void* arg)
     gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
     ami_evtrec    er;
 
-    (void)arg;
-    pumptid = pthread_self();
+    onpump = 1; /* everything below this is the pump's */
+    jt("pump entered");
     for (;;) {
 
         if (setjmp(pumpjmp)) {
 
             /* a send failed under this pass: the client is gone and
-               the event is dropped; the session drop is the dispatch
+               the event is dropped; the session drop is the wire
                thread's to notice */
 
         }
         pumpjmpset = 1;
-        pthread_mutex_lock(&pauselock);
-        while (pausereq) {
-
-            pumppaused = 1; /* standing down; the dialog owns events */
-            pthread_cond_broadcast(&pausecond);
-            pthread_cond_wait(&pausecond, &pauselock);
-
-        }
-        pumppaused = 0;
-        pthread_mutex_unlock(&pauselock);
+        inpumpevt = 0; /* this pass is not in the forward yet */
+        /* the wire thread's work first: it is waiting on it, and the
+           display is this thread's to give */
+        runjob();
         ami_event(stdin, &er);
-        if (pumpstop) return (NULL); /* the process is exiting */
-        if ((long)er.etype == GR_EVWAKE) continue; /* ours, not the wire's */
+        if (pumpstop) break; /* the process is exiting */
+        if ((long)er.etype == GR_EVWAKE) continue; /* ours: a job, or the stop */
         if (gtrace && !clientup)
             fprintf(stderr, "gs.e %-15s w%ld (idle)\n",
                     gr_evtname((long)er.etype), er.winid);
         if (er.etype == ami_etterm) {
 
-            /* A terminate from the display, control-c or the close
-               button, shuts the whole server down, as the console
-               interrupt does: one stroke. With a client up it winds
-               down politely, the terminate forwarding so the program
-               exits and its bye takes the server; idle, or asked twice,
-               the signal path exits directly. */
-            if (!clientup || sigasked) { kill(getpid(), SIGINT); continue; }
+            /* A terminate: the close button, control-c in this window,
+               or control-c in the shell that started the server, which
+               the display library delivers as this same event. One
+               stroke shuts the whole server down. With a client up it
+               winds down politely, the terminate forwarding so the
+               program exits and its bye takes the server; idle, or asked
+               twice, it goes down here and now. Exiting on this thread
+               is right: it is the one that owns the display, so the
+               library's own winddown runs where it belongs. */
+            if (!clientup || sigasked) exit(1);
             sigasked = 1; /* the bye that follows ends the server */
 
         }
         if (!clientup) continue; /* idle: nobody to forward to */
+        inpumpevt = 1; /* a send that fails under here is an event's */
         (void)h;
         memset(we, 0, sizeof(gr_msgevt));
         we->winid = lw2h(er.winid);
@@ -819,10 +1022,15 @@ static void* evpump(void* arg)
             }
 
         }
+        inpumpevt = 0;
 
     }
-
-    return (NULL);
+    /* the stop is taken: whoever waits on it can go */
+    jt("pump leaving");
+    ami_lock(joblock);
+    pumpstopped = 1;
+    ami_sendsig(pumpgone);
+    ami_unlock(joblock);
 
 }
 
@@ -834,85 +1042,18 @@ static void stoppump(void)
 
     ami_evtrec wake;
 
+    if (pump < 1) return; /* no pump to stop */
+    jt("stoppump: asking");
     pumpstop = 1;
     memset(&wake, 0, sizeof(wake));
     wake.etype = (ami_evtcod)GR_EVWAKE;
     ami_sendevent(stdout, &wake);
-    pthread_join(pump, NULL);
-
-}
-
-/*******************************************************************************
-
-Console interrupt
-
-The interrupt asks the program to terminate, as the close button does: a
-terminate event goes to the client, the program winds down, and the bye
-ends the server. Before a client exists there is nothing to ask, and a
-second interrupt is force.
-
-*******************************************************************************/
-
-
-/* The mask must be in place before any thread exists: a process directed
-   signal lands on any thread that leaves it unblocked, and a thread
-   spawned by the display or sound constructors would take the interrupt
-   to the default disposition, or discard it where the shell set ignore
-   for a background job. First constructor in, so every later thread
-   inherits the block and the signal stays pending for sigwait(). */
-static void sigmask_early(void) __attribute__((constructor (101)));
-static void sigmask_early(void)
-
-{
-
-    sigset_t set;
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-    /* A background launch inherits ignore for these, and an ignored
-       signal is discarded even while blocked, starving sigwait(). The
-       default disposition keeps a blocked signal pending. */
-    signal(SIGINT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-
-}
-
-static void* sigrun(void* arg)
-
-{
-
-    sigset_t      set;
-    int           sig;
-    unsigned char ebuf[sizeof(gr_msghdr)+sizeof(gr_msgevt)];
-    gr_msghdr*    h = (gr_msghdr*)ebuf;
-    gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
-
-    (void)arg;
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    for (;;) {
-
-        if (sigwait(&set, &sig)) return (NULL);
-        if (!clientup || sigasked) { stoppump(); exit(1); }
-        sigasked = 1;
-        if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
-        h->len = sizeof(ebuf);
-        h->mid = GR_MEVENT;
-        h->seq = 0;
-        h->wid = 0;
-        memset(we, 0, sizeof(gr_msgevt));
-        we->winid = 1;
-        we->etype = (long)ami_etterm;
-        pthread_mutex_lock(&evsend);
-        ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
-        pthread_mutex_unlock(&evsend);
-
-    }
-
-    return (NULL);
+    /* services has no join: the pump says when it has gone */
+    jt("stoppump: waiting");
+    ami_lock(joblock);
+    while (!pumpstopped) ami_waitsig(joblock, pumpgone);
+    ami_unlock(joblock);
+    jt("stoppump: the pump has gone");
 
 }
 
@@ -979,20 +1120,8 @@ static void dispatch(void)
             fflush(f);
             break;
         case GR_MCLOSEWIN:
-            /* The window list changes under the pump, so it stands down
-               first, as it does for a dialog and for the winddown. Left
-               running, it can be inside the display library handling an
-               event for this very window while this thread frees it, and
-               reach a file that is gone:
-
-                 evpump -> ami_event -> xwinevt -> txt2win -> fileno
-
-               An open is bracketed for the same reason: the pump walks
-               the same list the open is adding to. */
-            pausepump();
             fclose(f);
             h2f[rhdr()->wid] = NULL;
-            resumepump();
             break;
 
         /* ----------------------------------------------- terminal level */
@@ -1197,9 +1326,7 @@ static void dispatch(void)
             par = gi(); h = gi(); a = gi();
             if (h < 1 || h >= MAXHND || h2f[h])
                 sesserr("Invalid window handle");
-            pausepump();
             ami_openwin(&inf, &outf, par? wf(par): NULL, a);
-            resumepump();
             h2f[h] = outf;
             h2lw[h] = a;
             break;
@@ -1796,26 +1923,26 @@ static void dispatch(void)
 
         case GR_MALERT:
             gstr(s1, MAXSTR); gstr(s2, MAXSTR);
-            pausepump(); ami_alert(s1, s2); resumepump();
+            ami_alert(s1, s2);
             rbegin(); rsend(); /* the reply is the dismissal */
             break;
         case GR_MQUERYCOLOR:
             o1 = gi(); o2 = gi(); o3 = gi();
-            pausepump(); ami_querycolor(&o1, &o2, &o3); resumepump();
+            ami_querycolor(&o1, &o2, &o3);
             rbegin(); ri(o1); ri(o2); ri(o3); rsend(); break;
         case GR_MQUERYOPEN:
             gstr(s1, MAXSTR);
-            pausepump(); ami_queryopen(s1, MAXSTR); resumepump();
+            ami_queryopen(s1, MAXSTR);
             rbegin(); rstr(s1, MAXSTR); rsend(); break;
         case GR_MQUERYSAVE:
             gstr(s1, MAXSTR);
-            pausepump(); ami_querysave(s1, MAXSTR); resumepump();
+            ami_querysave(s1, MAXSTR);
             rbegin(); rstr(s1, MAXSTR); rsend(); break;
         case GR_MQUERYFIND: {
 
             ami_qfnopts opt;
             gstr(s1, MAXSTR); opt = (ami_qfnopts)gi();
-            pausepump(); ami_queryfind(s1, MAXSTR, &opt); resumepump();
+            ami_queryfind(s1, MAXSTR, &opt);
             rbegin(); rstr(s1, MAXSTR); ri((long)opt); rsend(); break;
 
         }
@@ -1823,7 +1950,7 @@ static void dispatch(void)
 
             ami_qfropts opt;
             gstr(s1, MAXSTR); gstr(s2, MAXSTR); opt = (ami_qfropts)gi();
-            pausepump(); ami_queryfindrep(s1, MAXSTR, s2, MAXSTR, &opt); resumepump();
+            ami_queryfindrep(s1, MAXSTR, s2, MAXSTR, &opt);
             rbegin(); rstr(s1, MAXSTR); rstr(s2, MAXSTR); ri((long)opt);
             rsend(); break;
 
@@ -1835,7 +1962,7 @@ static void dispatch(void)
 
             fc = gi(); s = gi(); fr = gi(); fg = gi(); fb = gi();
             br = gi(); bg = gi(); bb = gi(); eff = (ami_qfteffects)gi();
-            pausepump(); ami_queryfont(f, &fc, &s, &fr, &fg, &fb, &br, &bg, &bb, &eff); resumepump();
+            ami_queryfont(f, &fc, &s, &fr, &fg, &fb, &br, &bg, &bb, &eff);
             rbegin(); ri(fc); ri(s); ri(fr); ri(fg); ri(fb);
             ri(br); ri(bg); ri(bb); ri((long)eff); rsend(); break;
 
@@ -1921,8 +2048,6 @@ int main(int argc, char* argv[])
     signal(SIGFPE, crashbt);
 
     const char* sp;
-    pthread_t   st;
-    sigset_t    sset;
     unsigned long la;
 
     {
@@ -1943,11 +2068,11 @@ int main(int argc, char* argv[])
 
     }
     if (getenv("GRAPH_TRACE")) gtrace = 1;
-    /* the console interrupt waits on its own thread and asks the program
-       to terminate, as the close button does; the mask went up in the
-       first constructor, before any thread existed */
-    (void)sset;
-    pthread_create(&st, NULL, sigrun, NULL);
+    /* the locks and signals the handoff runs on, before any thread */
+    joblock = ami_initlock();
+    evsend = ami_initlock();
+    jobdone = ami_initsig();
+    pumpgone = ami_initsig();
     /* The server never holds its final screen: it is infrastructure,
        and its exit must release the display and the ports at once. The
        hold belongs to programs, and a session's program never exits
@@ -1969,6 +2094,12 @@ int main(int argc, char* argv[])
        a server without a client yet and a quiet command channel both
        being normal, so the timeouts clear. The logical id of a message
        channel is its descriptor. */
+    /* The pump owns the display, and it is up before anything waits: the
+       wait for a client is a long one, and through it the pump is what
+       repaints the window and hears a terminate -- the close button, or
+       control-c in the shell, which the library gives as an event. */
+    pump = ami_newthread(evpump);
+    if (pump < 1) error("Cannot start event pump");
     cmdfn = ami_waitmsg(srvport, gsecure);
     evtfn = ami_waitmsg(srvport+1, gsecure);
     {
@@ -2012,10 +2143,6 @@ int main(int argc, char* argv[])
            "server down.\n");
     fflush(stdout);
 
-    /* the pump lives across sessions: idle it discards, and the display
-       can cancel an idle server */
-    if (pthread_create(&pump, NULL, evpump, NULL))
-        error("Cannot start event pump");
 
     /* the session loop: serve a client, reset, wait for the next; a
        session error jumps back here, winds down, and recycles. The
@@ -2046,7 +2173,7 @@ int main(int argc, char* argv[])
                 sesserr(gsecure? "Protocol failure: no hello":
                         "Protocol failure: no hello (a client wanting a "
                         "secure channel needs the server started with -s)");
-            dgram(rlen);
+            ondisplay(job_dgram, NULL);
 
         }
         hellopend = 0;
@@ -2077,9 +2204,8 @@ int main(int argc, char* argv[])
         }
         /* the idle banner must not greet the session: the window
            clears before the client's first drawing arrives */
-        putchar('\f');
-        fflush(stdout);
-        thinclear(); /* no pending events from a prior session */
+        /* the clear, and no pending events from a prior session */
+        ondisplay(job_clear, NULL);
         clientup = 1; /* the pump forwards from here on */
 
         /* The command loop. A burst of commands executes under one hold
@@ -2095,7 +2221,7 @@ int main(int argc, char* argv[])
             rlen = ami_rdmsg(cmdfn, rbase, msgmax);
             for (;;) {
 
-                dgram(rlen);
+                ondisplay(job_dgram, NULL);
                 if (byeseen) break;
                 /* the drain probes by select and reads by the message
                    call, which under the secure channel is also what
@@ -2119,70 +2245,7 @@ winddown:
         clientup = 0;
         cleaning = 1; /* a fault in the winddown itself is fatal */
 
-        /* The pump stands down for the winddown, as it does for a dialog.
-           The windows about to be closed are the ones it draws into: left
-           running, it goes on handling redraws for a window while this
-           thread frees it, and paints a frame that is no longer there.
-           That is a crash in the middle of recycling, which reads from
-           outside as the server dying on a dropped session. */
-        pausepump();
-
-        /* Reset for the next client: the session's windows close, and
-           the main window comes back to a reasonable state. A timer the
-           session left running is not recovered, the library having no
-           way to ask, and would tick into the next session. */
-        for (h = 2; h < MAXHND; h++) if (h2f[h]) {
-
-            fclose(h2f[h]);
-            h2f[h] = 0;
-
-        }
-        wb_purge(stdout); /* the session's widgets go with it */
-        {
-
-            /* and its sound footprint: ports, timers and stores */
-            int sp;
-
-            for (sp = 0; sp < SNDPORTS; sp++) {
-
-                if (sesso[sp]) { ami_closesynthout(sp+1); sesso[sp] = 0; }
-                if (sessi[sp]) { ami_closesynthin(sp+1); sessi[sp] = 0; }
-                if (seswo[sp]) { ami_closewaveout(sp+1); seswo[sp] = 0; }
-                if (seswi[sp]) { ami_closewavein(sp+1); seswi[sp] = 0; }
-                if (sessy[sp]) { ami_delsynth(sp+1); sessy[sp] = 0; }
-                if (seswv[sp]) { ami_delwave(sp+1); seswv[sp] = 0; }
-
-            }
-            if (sesto) { ami_stoptimeout(); sesto = 0; }
-            if (sesti) { ami_stoptimein(); sesti = 0; }
-
-        }
-        ami_title(stdout, srvname); /* the session's title went with it */
-        ami_setsizg(stdout, origw, origh); /* and its size */
-        ami_auto(stdout, 0); /* off first: the resets below are illegal
-                                with it on, and it cannot come back on
-                                until the geometry is standard again */
-        ami_fover(stdout);
-        ami_bover(stdout);
-        ami_fcolor(stdout, ami_black);
-        ami_bcolor(stdout, ami_white);
-        ami_viewoffg(stdout, 0, 0);
-        ami_viewscale(stdout, 1.0, 1.0);
-        ami_path(stdout, LONG_MAX/4);
-        putchar('\f'); /* clear, and home the cursor to the grid */
-        fflush(stdout);
-        ami_auto(stdout, 1);
-        ami_curvis(stdout, 1);
-        printf("Session ended. Remote display server awaiting connection "
-               "on port %ld.\n", srvport);
-        printf("Control-c in this window, or its close button, shuts the "
-               "server down.\n");
-        fflush(stdout);
-
-        /* the pump comes back before the wait for the next client: an
-           idle server is closed from its own window, which is the pump's
-           to notice */
-        resumepump();
+        ondisplay(job_winddown, NULL);
 
         if (gsecure) {
 
