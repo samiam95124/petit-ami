@@ -183,7 +183,7 @@ static long            pumpgone;   /* and this one: the pump has stopped */
 static void          (*jobfn)(void*); /* the call to make, NULL for none */
 static void*           jobarg;
 static int             jobsts;     /* the job took a session error */
-static char            jobmsg[256];/* and this is what it was */
+static char            jobmsg[256];/* the text of that error */
 static jmp_buf         jobjmp;     /* the pump's own way out of a fault */
 static int             jobjmpset;
 static int             injob;      /* the pump is inside a posted job */
@@ -714,9 +714,8 @@ static void neterr(const char* es)
     (void)es;
     /* Every way out of here is a jump, and a send that failed under the
        event channel's lock still holds it. Left held, the next event to
-       go out waits on it forever -- which with one thread owning the
-       display is the whole server stopped, and without one was the
-       events quietly ceasing. */
+       go out waits on it forever, and that is the whole server: the
+       thread that sends events is the thread that owns the display. */
     if (evsendheld) {
 
         evsendheld = 0;
@@ -755,12 +754,10 @@ display library, whether to take an event or to make a call the client asked
 for. The thread reading the wire owns nothing but the wire, and hands its work
 across with ondisplay(), which posts the call and waits for it.
 
-That is what the brackets around the open, the close and the sizes were
-reaching for one call at a time. A window made, sized or freed under a thread
-that is drawing its frame is a use after free whichever way the two threads
-are interleaved, and there is no set of brackets that closes the last of them:
-the answer is that there is no interleaving to arrange, because there is only
-one thread in there.
+A window made, sized or freed under a thread that is drawing its frame is a
+use after free whichever way the two threads interleave. One thread in the
+library is what makes that impossible, rather than a guard around each call
+that can meet it.
 
 The post is by the event queue, which is locked and made for this, so a job
 waiting cannot be missed: the wake either breaks the pump out of event() or is
@@ -958,7 +955,7 @@ static void evpump(void)
 
         }
         pumpjmpset = 1;
-        inpumpevt = 0; /* whatever the last pass was doing, it is over */
+        inpumpevt = 0; /* this pass is not in the forward yet */
         /* the wire thread's work first: it is waiting on it, and the
            display is this thread's to give */
         runjob();
@@ -1028,7 +1025,7 @@ static void evpump(void)
         inpumpevt = 0;
 
     }
-    /* the stop was asked for and taken; whoever waits can go */
+    /* the stop is taken: whoever waits on it can go */
     jt("pump leaving");
     ami_lock(joblock);
     pumpstopped = 1;
@@ -1045,10 +1042,7 @@ static void stoppump(void)
 
     ami_evtrec wake;
 
-    /* The pump is made after the first client is waited for, so a server
-       stopped before any client has ever connected has none. There is
-       nothing to wake and nothing to wait for. */
-    if (pump < 1) return;
+    if (pump < 1) return; /* no pump to stop */
     jt("stoppump: asking");
     pumpstop = 1;
     memset(&wake, 0, sizeof(wake));
@@ -1062,24 +1056,6 @@ static void stoppump(void)
     jt("stoppump: the pump has gone");
 
 }
-
-/*******************************************************************************
-
-Console interrupt
-
-There is nothing here any more, and that is the point. The interrupt and
-the terminate signal are the display library's to take: it registers them
-with system_event, which every system it runs on implements, and delivers
-them as ami_etterm -- the same event the close button gives. The pump sees
-it with the rest and shuts the server down.
-
-What was here was a signal mask in a first constructor and a thread parked
-in sigwait(), which is POSIX and would not have carried to Windows, nor
-sat well on the BSD signal model. The library is the right place for it:
-it is the one that knows what a terminate means to a program.
-
-*******************************************************************************/
-
 
 /*******************************************************************************
 
@@ -2118,11 +2094,10 @@ int main(int argc, char* argv[])
        a server without a client yet and a quiet command channel both
        being normal, so the timeouts clear. The logical id of a message
        channel is its descriptor. */
-    /* The pump comes up first, before anything waits. It owns the display
-       from here on, and an idle server is a server waiting inside
-       ami_waitmsg with nobody else to answer for it: no thread taking
-       events is a window that does not repaint and a terminate -- the
-       close button, or control-c in the shell -- that nobody hears. */
+    /* The pump owns the display, and it is up before anything waits: the
+       wait for a client is a long one, and through it the pump is what
+       repaints the window and hears a terminate -- the close button, or
+       control-c in the shell, which the library gives as an event. */
     pump = ami_newthread(evpump);
     if (pump < 1) error("Cannot start event pump");
     cmdfn = ami_waitmsg(srvport, gsecure);
