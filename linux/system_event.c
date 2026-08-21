@@ -292,15 +292,22 @@ int system_event_addsesig(int sig)
 {
 
     int      sid;    /* system logical event id */
-    sigset_t sigmsk; /* signal mask */
+    sigset_t one;    /* the signal being added, by itself */
     int      fid;     /* file id */
     pid_t    pid;
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
-    sigemptyset(&sigmsk);
+    sigemptyset(&one);
+    sigaddset(&one, sig);
+    sigprocmask(SIG_BLOCK, &one, NULL);
+    fid = signalfd(-1, &one, 0);
+    /* And keep it blocked across the wait as well. pselect() replaces the
+       mask for the length of the call, so a signal left out of that mask
+       is unblocked exactly while we are waiting for it: it is delivered,
+       takes its default action, and the descriptor it was supposed to
+       arrive on never reads. A signal has to stay blocked to reach a
+       signalfd at all. */
     sigaddset(&sigmsk, sig);
-    sigprocmask(SIG_BLOCK, &sigmsk, NULL);
-    fid = signalfd(-1, &sigmsk, 0);
 
     sid = getsys(); /* get a new system event id */
     systab[sid-1]->typ = se_sig; /* set type */

@@ -163,6 +163,7 @@ static void blitmix(pd_canvas* dst, int dx, int dy, pd_canvas* src,
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 
 /* local definitions */
 #include <localdefs.h>
@@ -1056,6 +1057,8 @@ static int        stdchry;        /* standard/reference character size y */
 static int        errflg;         /* an error has been flagged */
 static int        dspsev;         /* XWindows display system event */
 static int        thmsev;         /* desktop scheme monitor system event */
+static int        intsev;         /* console interrupt system event */
+static int        termsev;        /* terminate signal system event */
 static int        thmfd = -1;     /* scheme monitor pipe */
 static int        frmforce;       /* config pinned the frame theme */
 static sevtptr    sidtab[MAXSID]; /* system event table */
@@ -13173,6 +13176,21 @@ static void ievent(FILE* f, ami_evtrec* er)
                     /* process joystick event */
                     joyevt(er,  &keep, joytab[sidtab[sev.lse-1]->joy-1]);
 
+            } else if (sev.typ == se_sig) {
+
+                if (sev.lse == intsev || sev.lse == termsev) {
+
+                    /* the shell asked this program to stop: the same
+                       terminate the close button gives, and fend with it,
+                       since this is the user ordering the exit and the
+                       hold must not swallow it */
+                    er->etype = ami_etterm;
+                    er->winid = 1;
+                    fend = TRUE;
+                    keep = TRUE;
+
+                }
+
             } else if (sev.typ == se_tim) {
 
                 if (sidtab[sev.lse-1]->frm) {
@@ -16379,6 +16397,37 @@ Gralib startup
 
 *******************************************************************************/
 
+/* The console interrupt and the terminate are taken through system_event
+   and delivered as ami_etterm, so a graphical program started from a
+   shell winds down its own way rather than being cut off where it
+   stands. Two things have to be true before that can work, and both have
+   to be true before any thread exists -- a process directed signal lands
+   on any thread that leaves it unblocked, and sound and the compositor
+   both make threads.
+
+   The block, so the signal stays pending for the wait rather than taking
+   the default action on whatever thread it lands on; and the default
+   disposition, because a background launch inherits ignore, and an
+   ignored signal is discarded before it can be delivered at all. The
+   default action never runs: the signal is taken from the queue by
+   system_event, not delivered. */
+
+static void ami_sigterm_early(void) __attribute__((constructor (101)));
+static void ami_sigterm_early(void)
+
+{
+
+    sigset_t set;
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGTERM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+
+}
+
 static void ami_init_graphics (int argc, char *argv[]) __attribute__((constructor (102)));
 static void ami_init_graphics(int argc, char *argv[])
 
@@ -16909,6 +16958,18 @@ static void ami_init_graphics(int argc, char *argv[])
     fcntl(sendwfds[0], F_SETFL, O_NONBLOCK);
     fcntl(sendwfds[1], F_SETFL, O_NONBLOCK);
     sendwsev = system_event_addseinp(sendwfds[0]);
+    /* The console interrupt and the terminate become the same event the
+       close button and control-c in the window make. A graphical program
+       started from a shell can be stopped from that shell, and it winds
+       down its own way rather than being cut off where it stands: the
+       library's deinit runs, the display and its files are released.
+       system_event carries the signal on every system it runs on, so
+       this is the same on all of them, and nothing above here sees a
+       signal at all. */
+    /* the mask and the disposition went up in ami_sigterm_early, before
+       any thread existed; this is only the registration */
+    intsev = system_event_addsesig(SIGINT);
+    termsev = system_event_addsesig(SIGTERM);
     thememonitor(); /* follow the desktop's scheme while running */
 
     /* clear joystick table */

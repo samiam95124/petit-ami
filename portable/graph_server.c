@@ -32,8 +32,8 @@
 #include <string.h>
 #include <limits.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/socket.h>
 
 #include <graphics.h>
@@ -970,13 +970,16 @@ static void evpump(void)
                     gr_evtname((long)er.etype), er.winid);
         if (er.etype == ami_etterm) {
 
-            /* A terminate from the display, control-c or the close
-               button, shuts the whole server down, as the console
-               interrupt does: one stroke. With a client up it winds
-               down politely, the terminate forwarding so the program
-               exits and its bye takes the server; idle, or asked twice,
-               the signal path exits directly. */
-            if (!clientup || sigasked) { kill(getpid(), SIGINT); continue; }
+            /* A terminate: the close button, control-c in this window,
+               or control-c in the shell that started the server, which
+               the display library delivers as this same event. One
+               stroke shuts the whole server down. With a client up it
+               winds down politely, the terminate forwarding so the
+               program exits and its bye takes the server; idle, or asked
+               twice, it goes down here and now. Exiting on this thread
+               is right: it is the one that owns the display, so the
+               library's own winddown runs where it belongs. */
+            if (!clientup || sigasked) exit(1);
             sigasked = 1; /* the bye that follows ends the server */
 
         }
@@ -1064,72 +1067,19 @@ static void stoppump(void)
 
 Console interrupt
 
-The interrupt asks the program to terminate, as the close button does: a
-terminate event goes to the client, the program winds down, and the bye
-ends the server. Before a client exists there is nothing to ask, and a
-second interrupt is force.
+There is nothing here any more, and that is the point. The interrupt and
+the terminate signal are the display library's to take: it registers them
+with system_event, which every system it runs on implements, and delivers
+them as ami_etterm -- the same event the close button gives. The pump sees
+it with the rest and shuts the server down.
+
+What was here was a signal mask in a first constructor and a thread parked
+in sigwait(), which is POSIX and would not have carried to Windows, nor
+sat well on the BSD signal model. The library is the right place for it:
+it is the one that knows what a terminate means to a program.
 
 *******************************************************************************/
 
-
-/* The mask must be in place before any thread exists: a process directed
-   signal lands on any thread that leaves it unblocked, and a thread
-   spawned by the display or sound constructors would take the interrupt
-   to the default disposition, or discard it where the shell set ignore
-   for a background job. First constructor in, so every later thread
-   inherits the block and the signal stays pending for sigwait(). */
-static void sigmask_early(void) __attribute__((constructor (101)));
-static void sigmask_early(void)
-
-{
-
-    sigset_t set;
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-    /* A background launch inherits ignore for these, and an ignored
-       signal is discarded even while blocked, starving sigwait(). The
-       default disposition keeps a blocked signal pending. */
-    signal(SIGINT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-
-}
-
-static void sigrun(void)
-
-{
-
-    sigset_t      set;
-    int           sig;
-    unsigned char ebuf[sizeof(gr_msghdr)+sizeof(gr_msgevt)];
-    gr_msghdr*    h = (gr_msghdr*)ebuf;
-    gr_msgevt*    we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGTERM);
-    for (;;) {
-
-        if (sigwait(&set, &sig)) return;
-        if (!clientup || sigasked) { stoppump(); exit(1); }
-        sigasked = 1;
-        if (gtrace) fprintf(stderr, "gs:  interrupt -> ETTERM to client\n");
-        h->len = sizeof(ebuf);
-        h->mid = GR_MEVENT;
-        h->seq = 0;
-        h->wid = 0;
-        memset(we, 0, sizeof(gr_msgevt));
-        we->winid = 1;
-        we->etype = (long)ami_etterm;
-        ami_lock(evsend);
-        ami_wrmsg(evtfn, ebuf, sizeof(ebuf));
-        ami_unlock(evsend);
-
-    }
-
-}
 
 /*******************************************************************************
 
@@ -2122,7 +2072,6 @@ int main(int argc, char* argv[])
     signal(SIGFPE, crashbt);
 
     const char* sp;
-    sigset_t    sset;
     unsigned long la;
 
     {
@@ -2143,16 +2092,11 @@ int main(int argc, char* argv[])
 
     }
     if (getenv("GRAPH_TRACE")) gtrace = 1;
-    /* the console interrupt waits on its own thread and asks the program
-       to terminate, as the close button does; the mask went up in the
-       first constructor, before any thread existed */
-    (void)sset;
     /* the locks and signals the handoff runs on, before any thread */
     joblock = ami_initlock();
     evsend = ami_initlock();
     jobdone = ami_initsig();
     pumpgone = ami_initsig();
-    ami_newthread(sigrun);
     /* The server never holds its final screen: it is infrastructure,
        and its exit must release the display and the ports at once. The
        hold belongs to programs, and a session's program never exits
@@ -2174,6 +2118,13 @@ int main(int argc, char* argv[])
        a server without a client yet and a quiet command channel both
        being normal, so the timeouts clear. The logical id of a message
        channel is its descriptor. */
+    /* The pump comes up first, before anything waits. It owns the display
+       from here on, and an idle server is a server waiting inside
+       ami_waitmsg with nobody else to answer for it: no thread taking
+       events is a window that does not repaint and a terminate -- the
+       close button, or control-c in the shell -- that nobody hears. */
+    pump = ami_newthread(evpump);
+    if (pump < 1) error("Cannot start event pump");
     cmdfn = ami_waitmsg(srvport, gsecure);
     evtfn = ami_waitmsg(srvport+1, gsecure);
     {
@@ -2217,10 +2168,6 @@ int main(int argc, char* argv[])
            "server down.\n");
     fflush(stdout);
 
-    /* the pump lives across sessions: idle it discards, and the display
-       can cancel an idle server */
-    pump = ami_newthread(evpump);
-    if (pump < 1) error("Cannot start event pump");
 
     /* the session loop: serve a client, reset, wait for the next; a
        session error jumps back here, winds down, and recycles. The
