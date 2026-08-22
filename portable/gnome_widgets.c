@@ -487,6 +487,27 @@ static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
 static unsigned long themetable[th_endmarker];
 
+/* the middle field of a font list entry, "vendor: family: encoding" */
+static void famof(const char* nm, char* fam, int faml)
+
+{
+
+    const char* a = strchr(nm, ':');
+    const char* b;
+    int         n;
+
+    if (!a) { snprintf(fam, faml, "%s", nm); return; }
+    a++;
+    while (*a == ' ') a++;
+    b = strchr(a, ':');
+    n = b? (int)(b-a): (int)strlen(a);
+    while (n && a[n-1] == ' ') n--;
+    if (n > faml-1) n = faml-1;
+    memcpy(fam, a, n);
+    fam[n] = 0;
+
+}
+
 /** ****************************************************************************
 
 Process error
@@ -2958,7 +2979,10 @@ static void dropbox_event(
 
     } else if (ev->etype == ami_etmouba && ev->amoubn == 1) { /* mouse click */
 
-        if (wg->mpx >= ami_maxxg(wg->wf)-udspc) { /* dropdown control */
+        /* The whole face opens the list, as it does on the desktop. The
+           drop box within a drop edit box keeps to its control: there the
+           face belongs to the edit box standing over it. */
+        if (!wg->pw || wg->mpx >= ami_maxxg(wg->wf)-udspc) {
 
             /* find parent parameters, since subwidget displays in that
                parent */
@@ -3936,6 +3960,42 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
+/* Shut an open drop down list.
+
+The list a drop box drops is a widget of the ultimate parent window, put
+there so it can stand outside the drop box's own window. Nothing else knows
+to close it, so a drop box killed with its list standing takes its window
+out from under a widget that still points at it, and the kill never
+returns. */
+
+static void dropdownkill(
+    /** Widget being killed */ wigptr wp
+)
+
+{
+
+    wigptr dp;  /* the drop box holding the list */
+    FILE*  par; /* the window the list stands in */
+
+    if (!wp) return;
+    /* a drop edit box drops its list through the drop box within it */
+    dp = wp->typ == wtdropeditbox? wp->cw: wp;
+    if (!dp || dp->typ != wtdropbox || !dp->cw) return;
+    par = dp->parent; /* set near parent */
+    if (dp->pw) par = dp->pw->parent; /* a subclass parents one up */
+    ami_killwidget(par, dp->cid); /* close the list */
+    dp->cw = NULL; /* set no child widget */
+
+}
+
+/** ****************************************************************************
+
+Kill widget
+
+Removes the widget by id from the window.
+
+*******************************************************************************/
+
 static void ikillwidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ long id
@@ -3943,6 +4003,7 @@ static void ikillwidget(
 
 {
 
+    dropdownkill(fndwig(f, id)); /* a list still down goes with it */
     wb_killwidget(&pkg, f, id); /* wigkill cascades any subwidgets */
 
 }
@@ -8094,6 +8155,9 @@ static void iqueryfont(
     ami_strptr  fontlist = NULL;
     ami_strptr  fontlist_tail = NULL;
     char        namebuf[256];
+    char        fambuf[256];
+    long*       fontmap = NULL; /* the font each row stands for */
+    long        nrows = 0;      /* rows in the list */
     long        cur_size;
     long        cur_font;
     ami_qfteffects eff_in;
@@ -8151,16 +8215,32 @@ static void iqueryfont(
     /* build font list */
     nfonts = ami_fonts(out);
     if (nfonts < 1) nfonts = 0;
+    /* The names come back as "vendor: family: encoding", of which only the
+       family means anything to the user. Two foundries' cut of one family
+       is one entry, the first, and fontmap carries the font number each row
+       stands for, a row no longer being a font number. */
+    fontmap = malloc(sizeof(long)*(nfonts+1));
     for (i = 1; i <= nfonts; i++) {
         ami_strptr e;
+        ami_strptr q;
+        int seen;
+
         /* leave room for termination, ami_fontnam() fills a critical buffer */
         ami_fontnam(out, i, namebuf, sizeof(namebuf)-1);
         namebuf[sizeof(namebuf)-1] = 0;
+        famof(namebuf, fambuf, sizeof(fambuf));
+        if (!*fambuf) continue;
+        seen = FALSE;
+        for (q = fontlist; q && !seen; q = q->next)
+            if (!strcasecmp(q->str, fambuf)) seen = TRUE;
+        if (seen) continue;
         e = malloc(sizeof(ami_strrec));
         e->next = NULL;
-        e->str  = strdup(namebuf);
+        e->str  = strdup(fambuf);
         if (!fontlist) fontlist = e; else fontlist_tail->next = e;
         fontlist_tail = e;
+        if (fontmap) fontmap[nrows] = i;
+        nrows++;
     }
     if (!fontlist) {
         /* degenerate: add a placeholder */
@@ -8285,7 +8365,9 @@ static void iqueryfont(
 
             case ami_etlstbox:
                 if (er.lstbid == 3) {
-                    cur_font = er.lstbsl;
+                    /* the row stands for a font, and is not one */
+                    if (fontmap && er.lstbsl >= 1 && er.lstbsl <= nrows)
+                        cur_font = fontmap[er.lstbsl-1];
                     if (cur_font < 1) cur_font = 1;
                     /* force repaint of sample area */
                     /* queue a redraw event on our dialog window */
