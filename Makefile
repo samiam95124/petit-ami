@@ -694,7 +694,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test widget_demo \
      window_race_test \
-     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -715,7 +715,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test widget_demo \
      window_race_test \
-     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -734,7 +734,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test widget_demo \
      window_race_test \
-     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -753,7 +753,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test testviewer management_test widget_test widget_demo \
      window_race_test \
-     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
@@ -1688,6 +1688,29 @@ widget_demo: $(GLIBSD) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ)
 else
 widget_demo: $(GLIBSD) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/widget_demo
+endif
+
+#
+# The manual's widget and dialog figures
+#
+# wshot takes the widget figures, one to a window cut down to its size.
+# dshot holds one dialog open while the rig's frame dump pictures it, a
+# dialog being unable to picture itself while it waits to be answered.
+#
+ifeq ($(OSTYPE),Darwin)
+wshot: $(GLIBSD) tests/wshot.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/wshot.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/wshot
+else
+wshot: $(GLIBSD) tests/wshot.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/wshot.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/wshot
+endif
+
+ifeq ($(OSTYPE),Darwin)
+dshot: $(GLIBSD) tests/dshot.c
+	$(CC) $(CFLAGS) tests/dshot.c $(GLIBS) -o bin/dshot
+else
+dshot: $(GLIBSD) tests/dshot.c
+	$(CC) $(CFLAGS) tests/dshot.c $(GLIBS) $(XLIBS) -o bin/dshot
 endif
 
 #
