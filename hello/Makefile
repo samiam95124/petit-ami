@@ -3,24 +3,40 @@
 #
 
 #
+# Where Petit-Ami stands.
+#
+# Taken from this makefile's own path, not from the directory make was started
+# in, so the example builds the same from here, from the root with
+# make -C hello, or from anywhere with make -f.
+#
+ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
+
+#
 # Define libraries used.
 #
-LIBS=-lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
+# The C++ runtime is here because the Petit-Ami core carries the C++ binding
+# with it, and libc is not named at all: the program takes the system one.
+#
+LIBS=-lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
 
 #
-# Define objects used
+# Archives
 #
-# Note that these have to be included here, and not in a library, because of ALSA bug.
+# The plain model in one archive. Sound and network sit inside it as members,
+# and are drawn in only by a program that calls them, so a program like this
+# one that calls neither pays for neither.
 #
-OBJS=../linux/sound.o ../linux/fluidsynthplug.o ../linux/dumpsynthplug.o
+ARCS=$(ROOT)/lib/libami_plain.a
+
+hello: hello.c Makefile $(ARCS)
+	gcc -g3 -I$(ROOT)/include hello.c $(ARCS) $(LIBS) -o hello
 
 #
-# Archives/dlls/sos
+# What the example borrows from the main build, made there when the tree has
+# not been built yet.
 #
-ARCS=../bin/libc.so.6 ../bin/petit_ami_plain.so
+$(ARCS):
+	$(MAKE) -C $(ROOT) $(patsubst $(ROOT)/%,%,$@)
 
-hello: hello.c Makefile
-	gcc -g3 -I../include -Wl,--rpath=bin hello.c $(ARCS) $(OBJS) $(LIBS) -o hello
-	
 clean:
-	rm hello
+	rm -f hello
