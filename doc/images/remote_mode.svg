@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="600" viewBox="0 0 980 600" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .machine  { fill: #f7f8fa; stroke: #6b7a99; stroke-width: 1.5; }
+    .mtitle   { font-size: 15px; fill: #253555; font-weight: bold; text-anchor: middle; }
+    .layer    { fill: #ffffff; stroke: #879ecb; stroke-width: 1.2; }
+    .ami      { fill: #dfe7f5; stroke: #4a6699; stroke-width: 1.4; }
+    .prog     { fill: #fdf3d8; stroke: #b39237; stroke-width: 1.4; }
+    .iron     { fill: #eef0f3; stroke: #99a3b3; stroke-width: 1.2; }
+    .lname    { font-size: 14px; fill: #1c2941; text-anchor: middle; }
+    .lnote    { font-size: 11.5px; fill: #5a6478; text-anchor: middle; }
+    .chan     { font-size: 13px; fill: #253555; text-anchor: middle; }
+    .chnote   { font-size: 11px; fill: #5a6478; text-anchor: middle; }
+    .wire     { stroke: #4a6699; stroke-width: 1.6; fill: none; }
+    .bus      { stroke: #4a6699; stroke-width: 1.6; fill: none; }
+    .caption  { font-size: 12.5px; fill: #5a6478; text-anchor: middle; font-style: italic; }
+  </style>
+
+  <!-- machines -->
+  <rect class="machine" x="20"  y="46" width="330" height="424" rx="6"/>
+  <rect class="machine" x="630" y="46" width="330" height="424" rx="6"/>
+  <text class="mtitle" x="185" y="34">the program machine</text>
+  <text class="mtitle" x="795" y="34">the display machine</text>
+
+  <!-- client stack: application at the top, the wire at the bottom -->
+  <rect class="prog"  x="45" y="70"  width="280" height="62" rx="4"/>
+  <text class="lname" x="185" y="96">your program</text>
+  <text class="lnote" x="185" y="115">unmodified: it calls graphics.h</text>
+
+  <rect class="layer" x="45" y="146" width="280" height="46" rx="4"/>
+  <text class="lname" x="185" y="175">graphics.h</text>
+
+  <rect class="ami"   x="45" y="206" width="280" height="62" rx="4"/>
+  <text class="lname" x="185" y="232">graph_client</text>
+  <text class="lnote" x="185" y="251">packages each call for the wire</text>
+
+  <rect class="layer" x="45" y="282" width="280" height="60" rx="4"/>
+  <text class="lname" x="185" y="308">network</text>
+  <text class="lnote" x="185" y="327">the operating system's</text>
+
+  <text class="lnote" x="185" y="392">no display, no sound and no</text>
+  <text class="lnote" x="185" y="410">keyboard are needed here</text>
+
+  <!-- server stack: the wire at the top, the hardware at the bottom -->
+  <rect class="layer" x="655" y="70" width="280" height="60" rx="4"/>
+  <text class="lname" x="795" y="96">network</text>
+  <text class="lnote" x="795" y="115">the operating system's</text>
+
+  <rect class="ami"   x="655" y="144" width="280" height="62" rx="4"/>
+  <text class="lname" x="795" y="170">graph_server</text>
+  <text class="lnote" x="795" y="189">executes each call as it arrives</text>
+
+  <rect class="layer" x="655" y="220" width="280" height="62" rx="4"/>
+  <text class="lname" x="795" y="246">graphics, sound, devices</text>
+  <text class="lnote" x="795" y="265">the ordinary local modules</text>
+
+  <rect class="iron"  x="655" y="296" width="280" height="76" rx="4"/>
+  <text class="lname" x="795" y="324">display, speakers,</text>
+  <text class="lname" x="795" y="346">keyboard, mouse, joystick</text>
+
+  <text class="lnote" x="795" y="410">a complete program, standing alone</text>
+
+  <!-- the three channels, gathered onto a bus at each side -->
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#4a6699"/>
+    </marker>
+  </defs>
+
+  <path class="bus" d="M 325 312 H 380 V 194 M 380 312 V 386"/>
+  <path class="bus" d="M 600 100 H 630 M 600 100 V 386"/>
+
+  <path class="wire" marker-end="url(#ar)" d="M 380 194 H 600"/>
+  <text class="chan"   x="490" y="186">4901 &#8212; commands</text>
+  <text class="chnote" x="490" y="216">every drawing and sound call</text>
+
+  <path class="wire" marker-end="url(#ar)" d="M 600 290 H 380"/>
+  <text class="chan"   x="490" y="282">4902 &#8212; events</text>
+  <text class="chnote" x="490" y="312">keys, mouse, resize, terminate</text>
+
+  <path class="wire" marker-end="url(#ar)" d="M 380 386 H 600"/>
+  <text class="chan"   x="490" y="378">4903 &#8212; file transfer</text>
+  <text class="chnote" x="490" y="408">fonts and pictures, when wanted</text>
+
+  <!-- captions, clear of the frames -->
+  <text class="caption" x="490" y="506">4901 and 4902 are message channels, secured with DTLS unless plain is asked for.</text>
+  <text class="caption" x="490" y="526">4903 is a stream, opened only when a file has to cross.</text>
+  <text class="caption" x="490" y="556">The same program, linked with graph_client in place of the local display module:</text>
+  <text class="caption" x="490" y="576">nothing above graphics.h knows the difference.</text>
+</svg>
