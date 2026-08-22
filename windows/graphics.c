@@ -15044,7 +15044,7 @@ calculated and returned.
 
 *******************************************************************************/
 
-static void itabbarsizg(winptr win, ami_tabori tor, long cw, long ch, long* w, long* h,
+static void itabbarsizg(winptr win, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                         long* ox, long* oy)
 
 {
@@ -15089,7 +15089,7 @@ static void itabbarsizg(winptr win, ami_tabori tor, long cw, long ch, long* w, l
 
 }
 
-static void itabbarsiz(winptr win, ami_tabori tor, long cw, long ch, long* w, long* h,
+static void itabbarsiz(winptr win, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                        long* ox, long* oy)
 
 {
@@ -15099,7 +15099,7 @@ static void itabbarsiz(winptr win, ami_tabori tor, long cw, long ch, long* w, lo
     /* convert client sizes to graphical */
     cw = cw*win->charspace;
     ch = ch*win->linespace;
-    itabbarsizg(win, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
+    itabbarsizg(win, sp, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *w = (gw-1) / win->charspace+1;
     *h = (gh-1) / win->linespace+1;
@@ -15111,7 +15111,7 @@ static void itabbarsiz(winptr win, ami_tabori tor, long cw, long ch, long* w, lo
 
 }
 
-void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                 long* ox, long* oy)
 
 {
@@ -15120,12 +15120,12 @@ void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get windows context */
-    itabbarsizg(win, tor, cw, ch, w, h, ox, oy); /* get size */
+    itabbarsizg(win, sp, tor, cw, ch, w, h, ox, oy); /* get size */
     unlockmain(); /* end exclusive access */
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                long* ox, long* oy)
 
 {
@@ -15134,7 +15134,7 @@ void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
 
     lockmain(); /* start exclusive access */
     win = txt2win(f); /* get windows context */
-    itabbarsiz(win, tor, cw, ch, w, h, ox, oy); /* get size */
+    itabbarsiz(win, sp, tor, cw, ch, w, h, ox, oy); /* get size */
     unlockmain(); /* end exclusive access */
 
 }
@@ -15204,7 +15204,7 @@ static void itabbarclient(winptr win, ami_tabori tor, long w, long h, long* cw, 
     /* convert sizes to graphical */
     w = w*win->charspace;
     h = h*win->linespace;
-    itabbarsizg(win, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
+    itabbarsizg(win, sp, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *cw = (gw-1)/win->charspace+1;
     *ch = (gh-1)/win->linespace+1;

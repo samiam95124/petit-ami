@@ -9763,7 +9763,7 @@ void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                    long* ox, long* oy)
 
 {

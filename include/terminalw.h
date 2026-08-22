@@ -507,7 +507,7 @@ void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
                         long* oh);
 void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
                      ami_strptr sp, long id);
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                    long* ox, long* oy);
 void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw,
                       long* ch, long* ox, long* oy);

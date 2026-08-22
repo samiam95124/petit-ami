@@ -413,10 +413,10 @@ void slidevertsiz(FILE* f, long* w, long* h) { ami_slidevertsiz(f, w, h); }
 void slidevertsiz(long* w, long* h) { ami_slidevertsiz(stdout, w, h); }
 void slidevertsizg(FILE* f, long* w, long* h) { ami_slidevertsizg(f, w, h); }
 void slidevertsizg(long* w, long* h) { ami_slidevertsizg(stdout, w, h); }
-void tabbarsiz(FILE* f, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(f, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
-void tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(stdout, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
-void tabbarsizg(FILE* f, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(f, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
-void tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(stdout, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void tabbarsiz(FILE* f, strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(f, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void tabbarsiz(strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(stdout, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void tabbarsizg(FILE* f, strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(f, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void tabbarsizg(strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(stdout, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
 void tabbarclient(FILE* f, tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclient(f, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclient(stdout, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void tabbarclientg(FILE* f, tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclientg(f, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
@@ -689,8 +689,8 @@ void graph::slidevertsiz(long* w, long* h) { ami_slidevertsiz(outfile, w, h); }
 void graph::slidevertsizg(long* w, long* h) { ami_slidevertsizg(outfile, w, h); }
 void graph::slidevert(long x1, long y1, long x2, long y2, long mark, long id) { ami_slidevert(outfile, x1, y1, x2, y2, mark, id); }
 void graph::slidevertg(long x1, long y1, long x2, long y2, long mark, long id) { ami_slidevertg(outfile, x1, y1, x2, y2, mark, id); }
-void graph::tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(outfile, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
-void graph::tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(outfile, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void graph::tabbarsiz(strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(outfile, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void graph::tabbarsizg(strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(outfile, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
 void graph::tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclient(outfile, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void graph::tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclientg(outfile, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void graph::tabbar(long x1, long y1, long x2, long y2, strptr sp, tabori tor, long id) { ami_tabbar(outfile, x1, y1, x2, y2, (ami_strptr)sp, (ami_tabori)tor, id); }
@@ -1341,8 +1341,8 @@ void window::slidehorizsiz(long* w, long* h) { ami_slidehorizsiz(wf, w, h); }
 void window::slidehorizsizg(long* w, long* h) { ami_slidehorizsizg(wf, w, h); }
 void window::slidevertsiz(long* w, long* h) { ami_slidevertsiz(wf, w, h); }
 void window::slidevertsizg(long* w, long* h) { ami_slidevertsizg(wf, w, h); }
-void window::tabbarsiz(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(wf, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
-void window::tabbarsizg(tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(wf, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void window::tabbarsiz(strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsiz(wf, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
+void window::tabbarsizg(strptr sp, tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy) { ami_tabbarsizg(wf, (ami_strptr)sp, (ami_tabori)tor, cw, ch, w, h, ox, oy); }
 void window::tabbarclient(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclient(wf, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void window::tabbarclientg(tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy) { ami_tabbarclientg(wf, (ami_tabori)tor, w, h, cw, ch, ox, oy); }
 void window::tabsel(long id, long tn) { ami_tabsel(wf, id, tn); }

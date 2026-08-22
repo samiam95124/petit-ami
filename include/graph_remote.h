@@ -441,8 +441,8 @@ typedef enum {
     GR_MSLIDEVERTSIZ = 371, /* -> i64 w, i64 h */
     GR_MSLIDEVERT  = 372, /* i64 x1, y1, x2, y2, i64 mark, i64 id */
     GR_MSLIDEVERTG = 373, /* i64 x1, y1, x2, y2, i64 mark, i64 id */
-    GR_MTABBARSIZG = 374, /* i64 tor, i64 cw, i64 ch -> i64 w, h, ox, oy */
-    GR_MTABBARSIZ  = 375, /* i64 tor, i64 cw, i64 ch -> i64 w, h, ox, oy */
+    GR_MTABBARSIZG = 374, /* slst, i64 tor, i64 cw, i64 ch -> i64 w, h, ox, oy */
+    GR_MTABBARSIZ  = 375, /* slst, i64 tor, i64 cw, i64 ch -> i64 w, h, ox, oy */
     GR_MTABBARCLIENTG = 376, /* i64 tor, i64 w, i64 h -> i64 cw, ch, ox, oy */
     GR_MTABBARCLIENT = 377, /* i64 tor, i64 w, i64 h -> i64 cw, ch, ox, oy */
     GR_MTABBAR     = 378, /* i64 x1, y1, x2, y2, slst, i64 tor, i64 id */

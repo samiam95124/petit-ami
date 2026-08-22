@@ -1649,7 +1649,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_totop, 20, 2, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_totop, 20, 2, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 15, 3, 15+x-1, 3+y-1, lp, ami_totop, 1);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -1663,7 +1663,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_toright, 4, 12, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_toright, 4, 12, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 37, 7, 37+x-1, 7+y-1, lp, ami_toright, 2);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -1677,7 +1677,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_tobottom, 20, 2, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_tobottom, 20, 2, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 15, 19, 15+x-1, 19+y-1, lp, ami_tobottom, 3);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -1691,7 +1691,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_toleft, 4, 12, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_toleft, 4, 12, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 5, 7, 5+x-1, 7+y-1, lp, ami_toleft, 4);
 
     do {
@@ -1762,7 +1762,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_totop, csx, csy, &xs, &ys, &cox, &coy);
+    ami_tabbarsizg(stdout, lp, ami_totop, csx, csy, &xs, &ys, &cox, &coy);
     ami_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, ami_totop, 1);
     y = oy+ys-1;
 
@@ -1782,7 +1782,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_toright, csx, csy, &xs, &ys, &cox, &coy);
+    ami_tabbarsizg(stdout, lp, ami_toright, csx, csy, &xs, &ys, &cox, &coy);
     ami_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, ami_toright, 2);
 
     ox = ami_maxyg(stdout)*0.3;
@@ -1801,7 +1801,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_tobottom, csx, csy, &xs, &ys, &cox, &coy);
+    ami_tabbarsizg(stdout, lp, ami_tobottom, csx, csy, &xs, &ys, &cox, &coy);
     ami_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, ami_tobottom, 3);
 
     ox = ami_maxxg(stdout)*0.05;
@@ -1820,7 +1820,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_toleft, csx, csy, &xs, &ys, &cox, &coy);
+    ami_tabbarsizg(stdout, lp, ami_toleft, csx, csy, &xs, &ys, &cox, &coy);
     ami_tabbarg(stdout, ox, oy, ox+xs-1, oy+ys-1, lp, ami_toleft, 4);
 
     do {
@@ -1888,7 +1888,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_totop, 30, 12, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_totop, 30, 12, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_totop, 1);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -1902,7 +1902,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_toright, 30, 12, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_toright, 30, 12, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_toright, 2);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -1916,7 +1916,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_tobottom, 30, 12, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_tobottom, 30, 12, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_tobottom, 3);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -1930,7 +1930,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsiz(stdout, ami_toleft, 30, 12, &x, &y, &ox, &oy);
+    ami_tabbarsiz(stdout, lp, ami_toleft, 30, 12, &x, &y, &ox, &oy);
     ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_toleft, 4);
 
     do {
@@ -1995,7 +1995,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_totop, 200, 200, &x, &y, &ox, &oy);
+    ami_tabbarsizg(stdout, lp, ami_totop, 200, 200, &x, &y, &ox, &oy);
     ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_totop, 1);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -2009,7 +2009,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_toright, 200, 200, &x, &y, &ox, &oy);
+    ami_tabbarsizg(stdout, lp, ami_toright, 200, 200, &x, &y, &ox, &oy);
     ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_toright, 2);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -2023,7 +2023,7 @@ int main(int argc, char* argv[])
     sp->str = str("Left");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_tobottom, 200, 200, &x, &y, &ox, &oy);
+    ami_tabbarsizg(stdout, lp, ami_tobottom, 200, 200, &x, &y, &ox, &oy);
     ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_tobottom, 3);
 
     lp = (ami_strptr)imalloc(sizeof(ami_strrec));
@@ -2037,7 +2037,7 @@ int main(int argc, char* argv[])
     sp->str = str("Top");
     sp->next = lp;
     lp = sp;
-    ami_tabbarsizg(stdout, ami_toleft, 200, 200, &x, &y, &ox, &oy);
+    ami_tabbarsizg(stdout, lp, ami_toleft, 200, 200, &x, &y, &ox, &oy);
     ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_toleft, 4);
 
     do {

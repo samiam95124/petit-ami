@@ -1626,14 +1626,20 @@ static void dispatch(void)
         case GR_MSLIDEVERTG:
             a = gi(); b = gi(); c = gi(); d = gi(); e = gi(); g = gi();
             ami_slidevertg(f, a, b, c, d, e, g); break;
-        case GR_MTABBARSIZG:
+        case GR_MTABBARSIZG: {
+            ami_strptr sp = gslst();
             a = gi(); b = gi(); c = gi();
-            ami_tabbarsizg(f, (ami_tabori)a, b, c, &o1, &o2, &o3, &o4);
+            ami_tabbarsizg(f, sp, (ami_tabori)a, b, c, &o1, &o2, &o3, &o4);
             rbegin(); ri(o1); ri(o2); ri(o3); ri(o4); rsend(); break;
-        case GR_MTABBARSIZ:
+
+        }
+        case GR_MTABBARSIZ: {
+            ami_strptr sp = gslst();
             a = gi(); b = gi(); c = gi();
-            ami_tabbarsiz(f, (ami_tabori)a, b, c, &o1, &o2, &o3, &o4);
+            ami_tabbarsiz(f, sp, (ami_tabori)a, b, c, &o1, &o2, &o3, &o4);
             rbegin(); ri(o1); ri(o2); ri(o3); ri(o4); rsend(); break;
+
+        }
         case GR_MTABBARCLIENTG:
             a = gi(); b = gi(); c = gi();
             ami_tabbarclientg(f, (ami_tabori)a, b, c, &o1, &o2, &o3, &o4);
