@@ -4446,6 +4446,59 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
+/* Is this widget a component?
+
+The Z order runs in three layers, bottom to top: the windows behind, the
+parent among them; the components; and the widgets and controls. Components
+are the widgets that only display, and they are the layer controls stand on.
+
+*******************************************************************************/
+
+static int iscomponent(
+    /** Widget entry */ wigptr wp
+)
+
+{
+
+    return (wp->typ == wtbackground || wp->typ == wtgroup ||
+            wp->typ == wtprogbar);
+
+}
+
+/** ****************************************************************************
+
+Sink the components below a control
+
+Puts every component of the window behind the control just sent back. The
+top layer is self referencing: a control sent to the back goes to the bottom
+of its own layer and no further, so the components follow it down. Two
+components never lie over one another, so the order they end in among
+themselves does not signify.
+
+*******************************************************************************/
+
+static void sinkcomponents(
+    /** Window file */           FILE*  f,
+    /** The control sent back */ wigptr wp
+)
+
+{
+
+    wbfilptr fp; /* the window's widget table */
+    wigptr   q;  /* widget walked */
+    long     i;
+
+    fp = pkg.opnfil[fileno(f)];
+    if (!fp) return;
+    for (i = 0; i < MAXWIG*2+1; i++) {
+
+        q = (wigptr)fp->widgets[i];
+        if (q && q != wp && iscomponent(q)) ami_back(q->wf);
+
+    }
+
+}
+
 static void ibackwidget(
     /** Window file */       FILE* f,
     /** Logical widget id */ long  id
@@ -4456,7 +4509,11 @@ static void ibackwidget(
     wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
-    ami_back(wp->wf); /* place to back */
+    /* components do not lie over one another, so there is no place in the
+       order to move one to */
+    if (iscomponent(wp)) error("Z order call on a component");
+    ami_back(wp->wf); /* to the back of everything... */
+    sinkcomponents(f, wp); /* ...and the components behind it again */
 
 }
 
@@ -4473,10 +4530,14 @@ static void ifrontwidget(
 
 {
 
-    wigptr    wp;  /* widget entry pointer */
+    wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
-    ami_front(wp->wf); /* place to front */
+    /* components do not lie over one another, so there is no place in the
+       order to move one to */
+    if (iscomponent(wp)) error("Z order call on a component");
+    /* the top of everything is the top of the control layer */
+    ami_front(wp->wf);
 
 }
 
