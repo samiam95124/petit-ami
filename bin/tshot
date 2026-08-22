@@ -1,0 +1,91 @@
+#!/bin/bash
+#
+# Take a picture of a terminal
+#
+# Execution:
+#
+# tshot <out.png> <geometry> <command>
+#
+# Makes a picture of a program running on a terminal, for the manual. The
+# terminal is a real one running a real shell: xterm on a virtual display of
+# our own, with the command typed into it as a user would type it. Nothing of
+# the desktop takes part, and nothing has to be arranged on screen first, so
+# the same picture comes back every time.
+#
+#     tshot doc/images/hello_term.png 80x8 './hello/hello'
+#
+# The geometry is the terminal's size in characters. Give it what the picture
+# needs and no more: an 80x24 shot of three lines of output is mostly empty
+# paper.
+#
+# Needs xvfb, xterm, openbox, imagemagick and xdotool.
+#
+# How it works:
+#
+# Xvfb holds a framebuffer nothing else can see. Openbox runs there to put a
+# frame and title bar on the terminal, without which a white terminal on white
+# paper has no edge and the picture reads as a stray block of text. Xterm is
+# started with allowSendEvents, because it discards synthesized keystrokes
+# otherwise and the command would never arrive. Import copies the window out,
+# frame and all.
+#
+
+if [ $# -lt 3 ]; then
+
+    echo "usage: tshot <out.png> <geometry> <command>" >&2
+    exit 1
+
+fi
+
+out=$1
+geo=$2
+shift 2
+cmd="$*"
+
+disp=:99                      # the display we make, not the one you are on
+root=$(cd "$(dirname "$0")/.." && pwd)
+rc=$(mktemp)
+obrc=$(mktemp)
+
+trap 'rm -f "$rc" "$obrc"; kill $xterm $wm $xvfb 2>/dev/null' EXIT
+
+# the frame is drawn in Breeze, the desktop the rest of the pictures come from
+sed '/<theme>/,/<\/theme>/ s|<name>.*</name>|<name>Breeze-ob</name>|' \
+    /etc/xdg/openbox/rc.xml > "$obrc"
+
+Xvfb $disp -screen 0 1400x900x24 >/dev/null 2>&1 &
+xvfb=$!
+sleep 2
+DISPLAY=$disp openbox --config-file "$obrc" >/dev/null 2>&1 &
+wm=$!
+sleep 2
+
+# a plain prompt, so the picture shows the command and not the machine
+cat > "$rc" <<RC
+PS1='$ '
+cd "$root"
+RC
+
+DISPLAY=$disp xterm -title "terminal" -geometry "$geo" -bg white -fg black \
+    -fa 'DejaVu Sans Mono' -fs 11 -b 4 \
+    -xrm 'XTerm*allowSendEvents: true' \
+    -e bash --rcfile "$rc" -i >/dev/null 2>&1 &
+xterm=$!
+sleep 3
+
+wid=$(DISPLAY=$disp xdotool search --class xterm | head -1)
+if [ -z "$wid" ]; then
+
+    echo "tshot: no terminal came up" >&2
+    exit 1
+
+fi
+DISPLAY=$disp xdotool windowfocus "$wid" 2>/dev/null
+sleep 1
+DISPLAY=$disp xdotool type --window "$wid" --delay 40 "$cmd"
+DISPLAY=$disp xdotool key --window "$wid" Return
+sleep 4                       # long enough for the command to draw its screen
+
+DISPLAY=$disp import -frame -window "$wid" "$out"
+
+echo "tshot: wrote $out"

@@ -52,6 +52,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* whitebook definitions */
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h> /* strcasecmp */
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
@@ -100,7 +101,11 @@ static enum { /* debug levels */
 /* user defined messages */
 #define WMC_LGTFOC ami_etwidget+0 /* widget message code: light up focus */
 #define WMC_DRKFOC ami_etwidget+1 /* widget message code: turn off focus */
-#define TABHGT 2 /* tab bar tab height * char size y */
+#define TABHGT 1.67 /* tab strip depth * char size y, as Breeze has it */
+/* A list row is the font and a third, which is the proportion Breeze keeps
+   between its row height and its text. The sizing call, the drawing and the
+   hit test all measure rows with this, and so cannot fall out of step. */
+#define LSTROW(f) (ami_chrsizy(f)*1.35)
 
 /* macro to make a color from RGB values */
 #define RGB(r, g, b) (r<<16|g<<8|b)
@@ -247,7 +252,7 @@ typedef enum {
     th_sldint,             /* slider track internal */
     th_tabdis,             /* tab unselected text */
     th_tabback,            /* tab background */
-    th_tabsel,             /* tab selected underbar */
+    th_tabsel,             /* tab selected panel */
     th_tabfocus,           /* tab focus box */
     th_cancelbackfocus,    /* Cancel background in focus */
     th_canceltextfocus,    /* Cancel text in focus */
@@ -487,6 +492,147 @@ static wbpkg         pkg;                /* this package's widget base
 static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
 static unsigned long themetable[th_endmarker];
+
+
+/** ****************************************************************************
+
+The desktop's own font
+
+Plasma keeps its interface font in kdeglobals, as
+
+    [General]
+    font=Noto Sans,10,-1,5,50,0,0,0,0,0
+
+the family first and the point size second. The set draws its faces in that
+family, so a page of widgets is lettered like the rest of the desktop.
+
+Where the file says nothing -- and it often says nothing, Plasma writing the
+line only once the user has changed it -- the family falls back to the Plasma
+default.
+
+The size is not taken. kdeglobals states it in points and fontsiz() takes
+pixels, and the conversion wants a dots per inch this code has no honest way
+to ask for: on a scaled display the answer is not the panel's. Taking the
+number as it stands would set ten pixel text on any desktop that states a
+size, which is worse than leaving the window's own size alone. The faces keep
+the size the window has and change only their family.
+
+The font is looked up by name in the display's list, whose entries read
+"vendor: family: encoding". The family is the middle field, compared without
+regard to case. Nothing found leaves the generic sans font, which is what the
+set used before it asked.
+
+*******************************************************************************/
+
+#define PLASMA_DEFAULT_FONT "Noto Sans"
+
+static long wigfont;     /* the font the faces are drawn in */
+
+/* the family the desktop asks for, TRUE if the file said */
+static int deskfontname(char* fam, int faml)
+
+{
+
+    FILE*       fp = NULL;
+    char        path[512], line[512];
+    const char* home;
+    int         ingrp = FALSE;
+    int         got = FALSE;
+
+    home = getenv("XDG_CONFIG_HOME");
+    if (home && home[0]) snprintf(path, sizeof(path), "%s/kdeglobals", home);
+    else {
+
+        home = getenv("HOME");
+        if (home) snprintf(path, sizeof(path), "%s/.config/kdeglobals", home);
+        else path[0] = 0;
+
+    }
+    if (path[0]) fp = fopen(path, "r");
+    if (!fp) return (FALSE);
+    while (fgets(line, sizeof(line), fp)) {
+
+        if (line[0] == '[') { ingrp = !strncmp(line, "[General]", 9); continue; }
+        if (!ingrp || strncmp(line, "font=", 5)) continue;
+        { /* family,size,... */
+
+            char* p = line+5;
+            char* c = strchr(p, ',');
+            int   n;
+
+            if (c) *c = 0;
+            n = strlen(p);
+            while (n && (p[n-1] == '\n' || p[n-1] == ' ')) p[--n] = 0;
+            if (n) { snprintf(fam, faml, "%s", p); got = TRUE; }
+
+        }
+        break;
+
+    }
+    fclose(fp);
+
+    return (got);
+
+}
+
+/* the middle field of a font list entry, "vendor: family: encoding" */
+static void famof(const char* nm, char* fam, int faml)
+
+{
+
+    const char* a = strchr(nm, ':');
+    const char* b;
+    int         n;
+
+    if (!a) { snprintf(fam, faml, "%s", nm); return; }
+    a++;
+    while (*a == ' ') a++;
+    b = strchr(a, ':');
+    n = b? (int)(b-a): (int)strlen(a);
+    while (n && a[n-1] == ' ') n--;
+    if (n > faml-1) n = faml-1;
+    memcpy(fam, a, n);
+    fam[n] = 0;
+
+}
+
+/* find the desktop's font in the display's list, or leave the generic sans */
+static void findfont(void)
+
+{
+
+    char fam[128], want[128], nm[256];
+    long i, n;
+
+    wigfont = AMI_FONT_SIGN;
+    snprintf(want, sizeof(want), "%s", PLASMA_DEFAULT_FONT);
+    deskfontname(want, sizeof(want));
+    n = ami_fonts(win0);
+    for (i = 1; i <= n; i++) {
+
+        ami_fontnam(win0, i, nm, sizeof(nm));
+        famof(nm, fam, sizeof(fam));
+        if (!strcasecmp(fam, want)) { wigfont = i; return; }
+
+    }
+
+}
+
+/* Set the face font on a widget's window. The lookup happens the first time
+   a face is drawn, not in the package's constructor: the display's font list
+   is not ready that early, and asking for it there takes the program down
+   before main() is reached. */
+
+static void setwigfont(FILE* f)
+
+{
+
+    static int found = FALSE;
+
+    if (!found) { findfont(); found = TRUE; }
+    ami_font(f, wigfont);
+
+}
 
 /** ****************************************************************************
 
@@ -1146,7 +1292,7 @@ static void widget(
     wb_widget(&pkg, f, x1, y1, x2, y2, id, &wp);
     wp->seq = ++wigseq; /* stamp creation order */
     wp->face = str(s); /* place face */
-    ami_font(wp->wf, AMI_FONT_SIGN); /* set sign font */
+    setwigfont(wp->wf); /* set sign font */
     wp->typ = typ; /* place type */
     wp->sclsiz = LONG_MAX/10; /* set default size scrollbar */
     /* Implicit Z ordering: a component goes behind the controls of its
@@ -1929,14 +2075,18 @@ static void group_draw(
     /* color the background */
     ami_fcolor(wg->wf, ami_backcolor);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
+    /* Breeze's group is a rounded panel with its name centred inside the
+       top of it, not a square rule with the name sitting on the corner. */
     fcolort(wg->wf, th_outline1);
     ami_linewidth(wg->wf, 2);
-    ami_rect(wg->wf, 2, ami_chrsizy(wg->wf)/2, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
+    ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 6, 6);
     ami_fcolor(wg->wf, ami_black);
-    ami_cursorg(wg->wf, 1, 1);
     ami_bover(wg->wf);
     ami_bcolor(wg->wf, ami_backcolor);
-    fprintf(wg->wf, "%s", wg->face); /* place button face */
+    ami_cursorg(wg->wf,
+               (ami_maxxg(wg->wf)-ami_strsiz(wg->wf, wg->face))/2,
+               ami_chrsizy(wg->wf)*0.35);
+    fprintf(wg->wf, "%s", wg->face); /* place the group's name */
 
 
 }
@@ -2081,7 +2231,7 @@ static void editbox_draw(
     }
     /* display only characters that completely fit the field */
     s = &wg->face[wg->tleft]; /* index displayable string */
-    while (*s && ami_curxg(wg->wf)+ami_chrpos(wg->wf, s, 1) <
+    while (*s && ami_curxg(wg->wf)+ami_chrpos(wg->wf, s, 1) <=
                  ami_maxxg(wg->wf)-ENDLEDSPC)
         fputc(*s++, wg->wf);
     if (wg->focus && wg->enb) { /* if in focus and enabled, draw the cursor */
@@ -2340,34 +2490,38 @@ static void numselbox_draw(
     /* color the background */
     ami_fcolor(wg->wf, ami_white);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
-    if (wg->downpress) {
+    /* The two controls stand one above the other at the right end, as
+       chevrons with no cell drawn around them and no line dividing them
+       from the number: Breeze gives them no furniture, and the press
+       shows as a wash over the half that was hit. */
+    if (wg->downpress || wg->uppress) {
 
         fcolort(wg->wf, th_backpressed);
-        ami_frect(wg->wf, ami_maxxg(wg->wf)-udspc*2, 1,
-                        ami_maxxg(wg->wf)-udspc*1-1, ami_maxyg(wg->wf));
-
-    } else if (wg->uppress) {
-
-        fcolort(wg->wf, th_backpressed);
-        ami_frect(wg->wf, ami_maxxg(wg->wf)-udspc*1, 1,
-                        ami_maxxg(wg->wf), ami_maxyg(wg->wf));
+        if (wg->uppress)
+            ami_frect(wg->wf, ami_maxxg(wg->wf)-udspc, 1,
+                             ami_maxxg(wg->wf), ami_maxyg(wg->wf)/2);
+        else
+            ami_frect(wg->wf, ami_maxxg(wg->wf)-udspc, ami_maxyg(wg->wf)/2,
+                             ami_maxxg(wg->wf), ami_maxyg(wg->wf));
 
     }
-    /* draw divider lines */
-    fcolort(wg->wf, th_numseldiv);
-    ami_line(wg->wf, ami_maxxg(wg->wf)-udspc, 1,
-                    ami_maxxg(wg->wf)-udspc, ami_maxyg(wg->wf));
-    ami_line(wg->wf, ami_maxxg(wg->wf)-udspc*2, 1,
-                    ami_maxxg(wg->wf)-udspc*2, ami_maxyg(wg->wf));
-    /* draw up/down figures */
-    figsiz = ami_maxyg(wg->wf)/2; /* set figure size */
-    fcolort(wg->wf, th_numselud);
-    ami_line(wg->wf, ami_maxxg(wg->wf)-udspc*1.5-figsiz/2.75, ami_maxyg(wg->wf)/2,
-                    ami_maxxg(wg->wf)-udspc*1.5+figsiz/2.75, ami_maxyg(wg->wf)/2);
-    ami_line(wg->wf, ami_maxxg(wg->wf)-udspc*0.5-figsiz/2.75, ami_maxyg(wg->wf)/2,
-                    ami_maxxg(wg->wf)-udspc*0.5+figsiz/2.75, ami_maxyg(wg->wf)/2);
-    ami_line(wg->wf, ami_maxxg(wg->wf)-udspc*0.5, ami_maxyg(wg->wf)/2-figsiz/2.75,
-                    ami_maxxg(wg->wf)-udspc*0.5, ami_maxyg(wg->wf)/2+figsiz/2.75);
+    {
+
+        long aw = ami_chrsizy(win0)*0.45; /* the chevrons' span */
+        long ah = ami_chrsizy(win0)*0.20; /* and their depth */
+        long cx = ami_maxxg(wg->wf)-udspc*0.5;
+        long uy = ami_maxyg(wg->wf)*0.30;  /* the up one */
+        long dy = ami_maxyg(wg->wf)*0.70;  /* and the down one */
+
+        figsiz = 0; /* the figures are the chevrons now */
+        fcolort(wg->wf, th_numselud);
+        ami_linewidth(wg->wf, ami_chrsizy(win0)*0.09);
+        ami_line(wg->wf, cx-aw*0.5, uy+ah*0.5, cx, uy-ah*0.5);
+        ami_line(wg->wf, cx, uy-ah*0.5, cx+aw*0.5, uy+ah*0.5);
+        ami_line(wg->wf, cx-aw*0.5, dy-ah*0.5, cx, dy+ah*0.5);
+        ami_line(wg->wf, cx, dy+ah*0.5, cx+aw*0.5, dy-ah*0.5);
+
+    }
     /* outline */
     if (wg->focus | wg->cw->focus) {
 
@@ -2444,10 +2598,10 @@ static void numselbox_event(
 
                 if (wg->cw->face[0]) {
 
-                    if (wg->mpx >= ami_maxxg(wg->wf)-udspc*2 &&
-                        wg->mpx < ami_maxxg(wg->wf)-udspc) {
+                    if (wg->mpx >= ami_maxxg(wg->wf)-udspc &&
+                        wg->mpy >= ami_maxyg(wg->wf)/2) {
 
-                        /* down control */
+                        /* down control: the lower chevron */
                         getwidgettextz(wg->wf, wg->cw->id, buff, sizeof(buff));
                         v = atol(buff);
                         if (wg->cw->lbnd < v && v <= wg->cw->ubnd) v--;
@@ -2461,7 +2615,7 @@ static void numselbox_event(
 
                     } else if (wg->mpx >= ami_maxxg(wg->wf)-udspc) {
 
-                        /* up control */
+                        /* up control: the upper chevron */
                         getwidgettextz(wg->wf, wg->cw->id, buff, sizeof(buff));
                         v = atol(buff);
                         if (wg->cw->lbnd <= v && v < wg->cw->ubnd) v++;
@@ -2609,8 +2763,10 @@ static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
     else if (wg->hover && idx == wg->ss)
         fcolort(wg->wf, th_lsthov); /* hover background */
     else ami_fcolor(wg->wf, ami_white); /* normal background */
-    ami_frect(wg->wf, 4, y, ami_maxxg(wg->wf)-3, y+ami_chrsizy(wg->wf)-1);
+    ami_frect(wg->wf, 4, y, ami_maxxg(wg->wf)-3, y+LSTROW(wg->wf)-1);
     ami_fcolor(wg->wf, ami_black);
+    /* the text rides in the middle of the row, not at its top */
+    y += (LSTROW(wg->wf)-ami_chrsizy(wg->wf))*0.5;
     if (wg->ntabs) { /* in columns, each field at its stop */
 
         const char* p = sp->str;
@@ -2665,13 +2821,13 @@ static void listbox_line_idx(wigptr wg, long idx)
     y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
     while (sp && sc < idx) { /* walk to the target line */
 
-        y += ami_chrsizy(wg->wf); /* next line */
+        y += LSTROW(wg->wf); /* next line */
         sp = sp->next; /* next string */
         sc++; /* next select */
 
     }
     /* in the view: paint it. Below it, there is nothing to paint */
-    if (sp && y+ami_chrsizy(wg->wf) <= ami_maxyg(wg->wf))
+    if (sp && y+LSTROW(wg->wf) <= ami_maxyg(wg->wf))
         listbox_line(wg, sp, idx, y);
 
 }
@@ -2699,10 +2855,10 @@ static void listbox_draw(
     sc = 1; /* set first string */
     while (sp && sc < wg->top) { sp = sp->next; sc++; } /* to the view */
     y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
-    while (sp && y+ami_chrsizy(wg->wf) <= ami_maxyg(wg->wf)) {
+    while (sp && y+LSTROW(wg->wf) <= ami_maxyg(wg->wf)) {
 
         listbox_line(wg, sp, sc, y); /* paint this line */
-        y += ami_chrsizy(wg->wf); /* next line */
+        y += LSTROW(wg->wf); /* next line */
         sp = sp->next; /* next string */
         sc++; /* next select */
 
@@ -2804,11 +2960,11 @@ static void listbox_event(
         while (sp && sc < wg->top) { sp = sp->next; sc++; } /* to the view */
         y = ami_chrsizy(wg->wf)*0.5; /* space to first string */
         wg->ss = 0; /* set no string selected */
-        while (sp && y+ami_chrsizy(wg->wf) <= ami_maxyg(wg->wf)) {
+        while (sp && y+LSTROW(wg->wf) <= ami_maxyg(wg->wf)) {
 
             /* if within the string bounding box, select it */
-            if (wg->mpy >= y && wg->mpy <= y+ami_chrsizy(wg->wf)) wg->ss = sc;
-            y += ami_chrsizy(wg->wf); /* next line */
+            if (wg->mpy >= y && wg->mpy <= y+LSTROW(wg->wf)) wg->ss = sc;
+            y += LSTROW(wg->wf); /* next line */
             sc++; /* next select */
             sp = sp->next; /* next string */
 
@@ -2875,10 +3031,10 @@ static void dropbox_draw(
     long      cy;
 
     ddspc = ami_chrsizy(win0)*1.9; /* square space for dropdown control */
-    aw = ddspc*0.3; /* set dropdown arrow width */
-    ah = ddspc*0.15; /* set dropdown arrow height */
-    cx = ami_maxxg(wg->wf)-ddspc*0.5; /* center dropdown arrow */
-    cy = ami_maxyg(wg->wf)*0.5-ami_maxyg(wg->wf)*0.05;
+    aw = ami_chrsizy(win0)*0.5;  /* the chevron's span */
+    ah = ami_chrsizy(win0)*0.25;  /* and its depth */
+    cx = ami_maxxg(wg->wf)-ami_chrsizy(win0)*0.8; /* in from the right edge */
+    cy = ami_maxyg(wg->wf)*0.5-ah*0.5;
     /* color the background */
     fcolort(wg->wf, th_back);
     ami_frect(wg->wf, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
@@ -2897,14 +3053,13 @@ static void dropbox_draw(
     }
     ami_rrect(wg->wf, 2, 2, ami_maxxg(wg->wf)-1, ami_maxyg(wg->wf)-1, 6, 6);
 
-    /* draw divider lines */
-    ami_linewidth(wg->wf, 2);
-    fcolort(wg->wf, th_outline2);
-    ami_line(wg->wf, ami_maxxg(wg->wf)-ddspc, 1,
-                    ami_maxxg(wg->wf)-ddspc, ami_maxyg(wg->wf));
-    /* draw dropbox arrow */
+    /* The mark is a chevron standing on its own, with no cell drawn around
+       it and no line dividing it from the text: Breeze gives the drop mark
+       no furniture of its own, the whole face being one control. */
     fcolort(wg->wf, th_droparrow);
-    ami_ftriangle(wg->wf, cx-aw*0.5, cy, cx+aw*0.5, cy, cx, cy+ah);
+    ami_linewidth(wg->wf, ami_chrsizy(win0)*0.09);
+    ami_line(wg->wf, cx-aw*0.5, cy-ah*0.5, cx, cy+ah*0.5);
+    ami_line(wg->wf, cx, cy+ah*0.5, cx+aw*0.5, cy-ah*0.5);
 
     /* draw current select */
     sp = wg->strlst;
@@ -3224,7 +3379,9 @@ static void slidehoriz_draw(
         for (tickno = 0; tickno < wg->ticks; tickno++) {
 
             x = margin+tiksizp*tickno; /* set location */
-            ami_line(wg->wf, x, 1, x, mid-sldsizp*0.5); /* draw tick */
+            /* below the track: Breeze puts its ticks under a horizontal
+               slider, and to the right of a vertical one */
+            ami_line(wg->wf, x, mid+sldsizp*0.5, x, ami_maxyg(wg->wf));
 
         }
 
@@ -3311,6 +3468,10 @@ static void slidevert_draw(
     sldsizp = ami_chrsizy(wg->wf)*1.0; /* find slider size in pixels */
     margin = sldsizp*0.5+ENDSPACE; /* set edge margins */
     trksizp = ami_maxyg(wg->wf)-margin*2; /* set track width */
+    /* The position counts down the track: 0 is the top, as graphics.h
+       defines it. Qt counts a vertical slider the other way, up from the
+       foot, but the position a program is handed cannot depend on which
+       desktop it happens to be running under. */
     sldposp = margin+round((double)trksizp*wg->sclpos/LONG_MAX);
 
     /* set status of mouse inside the slider */
@@ -3508,21 +3669,47 @@ static void tabbar_draw(
 
             if (sc == wg->ss || sc == wg->sh) { /* draw select/hover */
 
-                ami_linewidth(wg->wf, 6);
-                if (sc == wg->ss) fcolort(wg->wf, th_tabsel);
-                else fcolort(wg->wf, th_outline1);
+                /* The chosen tab is a panel of the client's own colour,
+                   standing out of the strip and open to the client below
+                   it: the line that divides strip from client is painted
+                   over for the width of the tab, so the two read as one
+                   surface. Breeze marks the choice that way and puts no
+                   bar under it. A hovered tab is only washed. */
+                long tx1 = ami_curxg(wg->wf)-ami_chrsizy(wg->wf)*0.5;
+                long tx2 = ami_curxg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
+                           ami_chrsizy(wg->wf)*0.5;
+
+                if (sc == 1) tx1 = 2; /* the first tab stands at the edge */
+
+                if (sc == wg->ss) ami_fcolor(wg->wf, ami_white);
+                else fcolort(wg->wf, th_backhover);
                 if (wg->tor == ami_totop)
-                    ami_line(wg->wf, ami_curxg(wg->wf)-ami_chrsizy(wg->wf)*0.5,
-                                    th-2,
-                                    ami_curxg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
-                                             ami_chrsizy(wg->wf)*0.5,
-                                    th-2);
+                    ami_frect(wg->wf, tx1, 2, tx2, sc == wg->ss? th: th-2);
                 else
-                    ami_line(wg->wf, ami_curxg(wg->wf)-ami_chrsizy(wg->wf)*0.5,
-                                    ami_maxyg(wg->wf)-th+4,
-                                    ami_curxg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
-                                             ami_chrsizy(wg->wf)*0.5,
-                                    ami_maxyg(wg->wf)-th+4);
+                    ami_frect(wg->wf, tx1,
+                             ami_maxyg(wg->wf)-th+(sc == wg->ss? 0: 2),
+                             tx2, ami_maxyg(wg->wf)-2);
+                /* the panel keeps the outline the strip has, but not on
+                   the side it shares with the client */
+                if (sc == wg->ss) {
+
+                    ami_linewidth(wg->wf, 1);
+                    fcolort(wg->wf, th_outline1);
+                    if (wg->tor == ami_totop) {
+
+                        ami_line(wg->wf, tx1, 2, tx1, th);
+                        ami_line(wg->wf, tx2, 2, tx2, th);
+
+                    } else {
+
+                        ami_line(wg->wf, tx1, ami_maxyg(wg->wf)-th,
+                                        tx1, ami_maxyg(wg->wf)-2);
+                        ami_line(wg->wf, tx2, ami_maxyg(wg->wf)-th,
+                                        tx2, ami_maxyg(wg->wf)-2);
+
+                    }
+
+                }
 
             }
             if (sc == wg->ss && wg->focus) { /* draw focus box */
@@ -3618,20 +3805,40 @@ static void tabbar_draw(
             if (sc == wg->ss || sc == wg->sh) { /* draw select/hover */
 
                 ami_linewidth(wg->wf, 6);
-                if (sc == wg->ss) fcolort(wg->wf, th_tabsel);
-                else fcolort(wg->wf, th_outline1);
+                /* as at the top and the bottom: the chosen tab is a panel
+                   of the client's colour, open to the client beside it */
+                long ty1 = ami_curyg(wg->wf)-ami_chrsizy(wg->wf)*0.5;
+                long ty2 = ami_curyg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
+                           ami_chrsizy(wg->wf)*0.5;
+
+                if (sc == 1) ty1 = 2; /* the first tab stands at the edge */
+                if (sc == wg->ss) ami_fcolor(wg->wf, ami_white);
+                else fcolort(wg->wf, th_backhover);
                 if (wg->tor == ami_toleft)
-                    ami_line(wg->wf, th-3,
-                                    ami_curyg(wg->wf)-ami_chrsizy(wg->wf)*0.5,
-                                    th-3,
-                                    ami_curyg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
-                                             ami_chrsizy(wg->wf)*0.5);
+                    ami_frect(wg->wf, 2, ty1, sc == wg->ss? th: th-2, ty2);
                 else
-                    ami_line(wg->wf, ami_maxxg(wg->wf)-th+3,
-                                    ami_curyg(wg->wf)-ami_chrsizy(wg->wf)*0.5,
-                                    ami_maxxg(wg->wf)-th+3,
-                                    ami_curyg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
-                                             ami_chrsizy(wg->wf)*0.5);
+                    ami_frect(wg->wf,
+                             ami_maxxg(wg->wf)-th+(sc == wg->ss? 0: 2), ty1,
+                             ami_maxxg(wg->wf)-2, ty2);
+                if (sc == wg->ss) {
+
+                    ami_linewidth(wg->wf, 1);
+                    fcolort(wg->wf, th_outline1);
+                    if (wg->tor == ami_toleft) {
+
+                        ami_line(wg->wf, 2, ty1, th, ty1);
+                        ami_line(wg->wf, 2, ty2, th, ty2);
+
+                    } else {
+
+                        ami_line(wg->wf, ami_maxxg(wg->wf)-th, ty1,
+                                        ami_maxxg(wg->wf)-2, ty1);
+                        ami_line(wg->wf, ami_maxxg(wg->wf)-th, ty2,
+                                        ami_maxxg(wg->wf)-2, ty2);
+
+                    }
+
+                }
 
             }
             if (sc == wg->ss && wg->focus) { /* draw focus box */
@@ -4040,6 +4247,10 @@ static void igetwidgettext(
     wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
+    /* a number select box and a drop edit box show their text in the edit
+       box they are made of, and that is the one holding the live string */
+    if (wp->typ == wtnumselbox) wp = wp->cw;
+    else if (wp->typ == wtdropeditbox && wp->cw2) wp = wp->cw2;
     /* check this widget can have face text read */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
         error("Widget content cannot be read");
@@ -4066,6 +4277,18 @@ static void iputwidgettext(
     wigptr    wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
+    /* a number select box and a drop edit box show their text in the edit
+       box they are made of, so that is where it is placed. The master of a
+       drop edit box keeps the same string, which is what it reports when
+       the edit completes. */
+    if (wp->typ == wtnumselbox) wp = wp->cw;
+    else if (wp->typ == wtdropeditbox && wp->cw2) {
+
+        free(wp->face); /* dispose of previous face string */
+        wp->face = str(s); /* place new face */
+        wp = wp->cw2;
+
+    }
     /* check this widget can have face text read */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
         error("Widget contents cannot be written");
@@ -4257,7 +4480,7 @@ static void ibuttonsizg(
 
 {
 
-    *h = ami_chrsizy(win0)*2; /* set height */
+    *h = ami_chrsizy(win0)*1.9; /* set height */
     *w = ami_strsiz(win0, s)+ami_chrsizy(win0)*2;
 
 }
@@ -4368,7 +4591,7 @@ static void icheckboxsizg(
 
 {
 
-    *h = ami_chrsizy(win0)*2; /* set height */
+    *h = ami_chrsizy(win0)*1.25; /* set height */
     *w = ami_chrsizy(win0)+ami_chrsizy(win0)/2+ami_strsiz(win0, s)+
          ami_chrsizy(win0)/2;
 
@@ -4475,7 +4698,7 @@ static void iradiobuttonsizg(
 
 {
 
-    *h = ami_chrsizy(win0)*2; /* set height */
+    *h = ami_chrsizy(win0)*1.25; /* set height */
     *w = ami_chrsizy(win0)+ami_chrsizy(win0)/2+ami_strsiz(win0, s)+
          ami_chrsizy(win0)/2;
 
@@ -4765,7 +4988,7 @@ static void iscrollvertsizg(
 
 {
 
-    *w = 20;
+    *w = ami_chrsizy(win0)*1.17;
     *h = 40;
 
 }
@@ -4868,7 +5091,7 @@ static void iscrollhorizsizg(
 {
 
     *w = 40;
-    *h = 20;
+    *h = ami_chrsizy(win0)*1.17;
 
 }
 
@@ -5039,7 +5262,7 @@ static void inumselboxsizg(
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
 
-    *h = ami_chrsizy(win0)*1.5; /* set height */
+    *h = ami_chrsizy(win0)*1.8; /* set height */
     /* width is number of digits, two chry size boxes, and .5 of chry for each
        side for spacing */
     *w = ami_strsiz(win0, "0")*dc+udspc*2+ami_chrsizy(win0); /* set total width */
@@ -5096,6 +5319,7 @@ static void inumselboxg(
     wigptr wp; /* widget entry pointer */
     wigptr wps; /* widget subclass entry pointer */
     long udspc; /* up/down control space */
+    char numbuf[25]; /* the number the box starts at */
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
 
@@ -5107,9 +5331,10 @@ static void inumselboxg(
     wps->num = TRUE; /* set numeric only */
     wps->lbnd = l; /* set lower bound */
     wps->ubnd = u; /* set upper bound */
+    sprintf(numbuf, "%ld", l); /* the box opens showing its lower bound */
     /* subclass an edit control,leaving space for up/down controls */
-    widget(wp->wf, 1+4, 1+4, ami_maxxg(wp->wf)-udspc*2-4, ami_maxyg(wp->wf)-4, "", 1,
-           wteditbox, &wps);
+    widget(wp->wf, 1+4, 1+4, ami_maxxg(wp->wf)-udspc*2-4, ami_maxyg(wp->wf)-4,
+           numbuf, 1, wteditbox, &wps);
     ami_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
@@ -5165,8 +5390,8 @@ static void ieditboxsizg(
 
 {
 
-    *h = ami_chrsizy(win0)*1.5; /* set height */
-    *w = ami_strsiz(win0, s);
+    *h = ami_chrsizy(win0)*1.8; /* set height */
+    *w = ami_strsiz(win0, s)+ENDLEDSPC*2; /* the face sits inside end spaces */
 
 }
 
@@ -5271,7 +5496,7 @@ static void iprogbarsizg(
 {
 
     *w = 400;
-    *h = ami_chrsizy(win0);
+    *h = ami_chrsizy(win0)*1.45;
 
 }
 
@@ -5425,7 +5650,9 @@ static void ilistboxsizg(
 
     }
     *w = maxp+ami_chrsizy(win0); /* set width */
-    *h = (lc+1)*ami_chrsizy(win0); /* set height */
+    *h = lc*LSTROW(win0)+ami_chrsizy(win0)*0.5;
+    /* set height: a row is the font and a third, and the box
+       keeps half a line of margin */
 
 }
 
@@ -5557,7 +5784,7 @@ static void idropboxsizg(
 
     /* closed size is width of listbox plus down arrow, height is character */
     *cw = lbw+ami_chrsizy(win0)*1.9; /* find closed width */
-    *ch = ami_chrsizy(win0)*2; /* find closed height */
+    *ch = ami_chrsizy(win0)*1.8; /* find closed height */
 
     /* open size is same width, height of list plus edit box */
     *ow = *cw;
@@ -5847,7 +6074,7 @@ static void islidehorizsizg(
 {
 
     *w = 40;
-    *h = ami_chrsizy(win0)*1.5;
+    *h = ami_chrsizy(win0)*1.1;
 
 }
 
@@ -5952,7 +6179,7 @@ static void islidevertsizg(
 
 {
 
-    *w = ami_chrsizy(win0)*1.5;
+    *w = ami_chrsizy(win0)*1.1;
     *h = 40;
 
 }
@@ -6055,6 +6282,7 @@ calculated and returned.
 
 static void itabbarsizg(
     /** Window file */            FILE*     f,
+    /** Tab strings */            ami_strptr sp,
     /** Tab orientation */        ami_tabori tor,
     /** Client width */           long      cw,
     /** Client height */          long      ch,
@@ -6066,11 +6294,28 @@ static void itabbarsizg(
 
 {
 
+    long need;   /* the tab strip's own minimum along its length */
+    long chy;
+
+    /* The strip must hold the tabs. They are laid out from a margin of one
+       character height, each tab as wide as its string, with a character
+       height between them and the same again at the end. A client wider
+       than that decides the size; a client narrower than that does not,
+       because tabs that do not fit cannot be read or hit. */
+    chy = ami_chrsizy(f);
+    need = chy;
+    while (sp) {
+
+        need += ami_strsiz(f, sp->str)+chy;
+        sp = sp->next;
+
+    }
+
     /* find width */
     if (tor == ami_toleft || tor == ami_toright) *w = cw+ami_chrsizy(win0)*TABHGT;
-    else *w = cw;
+    else *w = cw < need? need: cw;
     /* find height */
-    if (tor == ami_toleft || tor == ami_toright) *h = ch;
+    if (tor == ami_toleft || tor == ami_toright) *h = ch < need? need: ch;
     else *h = ch+ami_chrsizy(win0)*TABHGT;
     /* find client offset */
     if (tor == ami_toleft) *ox = ami_chrsizy(win0)*TABHGT;
@@ -6091,6 +6336,7 @@ calculated and returned.
 
 static void itabbarsiz(
     /** Window file */            FILE*     f,
+    /** Tab strings */            ami_strptr sp,
     /** Tab orientation */        ami_tabori tor,
     /** Client width */           long      cw,
     /** Client height */          long      ch,
@@ -6107,7 +6353,7 @@ static void itabbarsiz(
     /* convert client sizes to graphical */
     cw = cw*ami_chrsizx(f);
     ch = ch*ami_chrsizy(f);
-    ami_tabbarsizg(f, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
+    ami_tabbarsizg(f, sp, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *w = (gw-1) / ami_chrsizx(f)+1;
     *h = (gh-1) / ami_chrsizy(f)+1;
@@ -6145,8 +6391,8 @@ static void itabbarclientg(
     if (tor == ami_toleft || tor == ami_toright) *cw = w-ami_chrsizy(win0)*TABHGT;
     else *cw = w;
     /* find height */
-    if (tor == ami_toleft || tor == ami_toright) *cw = h;
-    else *cw = w-ami_chrsizy(win0)*TABHGT;
+    if (tor == ami_toleft || tor == ami_toright) *ch = h;
+    else *ch = h-ami_chrsizy(win0)*TABHGT;
     /* find client offset */
     if (tor == ami_toleft) *ox = ami_chrsizy(win0)*TABHGT;
     else *ox = 0;
@@ -6184,7 +6430,9 @@ static void itabbarclient(
     /* convert sizes to graphical */
     w = w*ami_chrsizx(f);
     h = h*ami_chrsizy(f);
-    ami_tabbarsizg(f, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
+    /* the client area turns on the strip's thickness, not on the tabs, so
+       the list is not wanted here */
+    ami_tabbarsizg(f, NULL, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *cw = (gw-1)/ami_chrsizx(f)+1;
     *ch = (gh-1)/ami_chrsizy(f)+1;
@@ -6394,7 +6642,7 @@ static void ialert(
     ami_buffer(out, FALSE); /* turn off buffering */
     ami_auto(out, FALSE); /* turn off auto */
     ami_curvis(out, FALSE); /* turn off cursor */
-    ami_font(out, AMI_FONT_SIGN); /* set sign font */
+    setwigfont(out); /* set sign font */
     ami_binvis(out); /* no background write */
     ami_frame(out, FALSE); /* turn off sizing bars */
     /* find maximum text size */
@@ -6640,7 +6888,7 @@ static void iquerycolor(
     ami_buffer(out, FALSE); /* turn off buffering */
     ami_auto(out, FALSE); /* turn off auto */
     ami_curvis(out, FALSE); /* turn off cursor */
-    ami_font(out, AMI_FONT_SIGN); /* set sign font */
+    setwigfont(out); /* set sign font */
     ami_binvis(out); /* no background write */
     ami_frame(out, FALSE); /* turn off sizing bars */
     /* size the dialog, with room for the bottom button row */
@@ -7232,7 +7480,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
     ami_curvis(out, FALSE);
-    ami_font(out, AMI_FONT_SIGN);
+    setwigfont(out);
     ami_binvis(out);
     ami_frame(out, FALSE);
 
@@ -7580,7 +7828,7 @@ static void iqueryfind(
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
     ami_curvis(out, FALSE);
-    ami_font(out, AMI_FONT_SIGN);
+    setwigfont(out);
     ami_binvis(out);
     ami_frame(out, FALSE);
 
@@ -7830,7 +8078,7 @@ static void iqueryfindrep(
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
     ami_curvis(out, FALSE);
-    ami_font(out, AMI_FONT_SIGN);
+    setwigfont(out);
     ami_binvis(out);
     ami_frame(out, FALSE);
 
@@ -8098,7 +8346,7 @@ static void iqueryfont(
     ami_buffer(out, FALSE);
     ami_auto(out, FALSE);
     ami_curvis(out, FALSE);
-    ami_font(out, AMI_FONT_SIGN);
+    setwigfont(out);
     ami_binvis(out);
     ami_frame(out, FALSE);
 
@@ -8251,7 +8499,7 @@ static void iqueryfont(
                     ami_italic(out, FALSE);
                     ami_underline(out, FALSE);
                     ami_strikeout(out, FALSE);
-                    ami_font(out, AMI_FONT_SIGN);
+                    setwigfont(out);
                     ami_fontsiz(out, chrsz);
                     (void)save_font;
                 }
@@ -8586,7 +8834,7 @@ static void init_widgets()
     ami_openwin(&stdin, &win0, NULL, ami_getwinid()); /* open window */
     ami_buffer(win0, FALSE); /* turn off buffering */
     ami_auto(win0, FALSE); /* turn off auto (for font change) */
-    ami_font(win0, AMI_FONT_SIGN); /* set sign font */
+    setwigfont(win0); /* set sign font */
     ami_frame(win0, FALSE); /* turn off frame */
 
     /* override entry calls to widgets */

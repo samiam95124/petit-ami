@@ -596,9 +596,9 @@ void ami_slidevertsizg(FILE* f, long* w, long* h);
 void ami_slidevertsiz(FILE* f, long* w, long* h);
 void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
 void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
-void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                    long* ox, long* oy);
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
                   long* oy);
 void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
                       long* ox, long* oy);
@@ -848,9 +848,9 @@ typedef void (*ami_slidevertsizg_t)(FILE* f, long* w, long* h);
 typedef void (*ami_slidevertsiz_t)(FILE* f, long* w, long* h);
 typedef void (*ami_slidevert_t)(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
 typedef void (*ami_slidevertg_t)(FILE* f, long x1, long y1, long x2, long y2, long mark, long id);
-typedef void (*ami_tabbarsizg_t)(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+typedef void (*ami_tabbarsizg_t)(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                    long* ox, long* oy);
-typedef void (*ami_tabbarsiz_t)(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+typedef void (*ami_tabbarsiz_t)(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
                   long* oy);
 typedef void (*ami_tabbarclientg_t)(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
                       long* ox, long* oy);

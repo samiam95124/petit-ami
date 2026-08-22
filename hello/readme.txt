@@ -9,8 +9,14 @@ for the full Petit-Ami environment.
 
 Prerequistes:
 
-You must have built Petit-Ami with the libraries present in the ./bin directory.
-Further, the dependent libraries must be present in your system, OpenSSL, etc.
+The dependent libraries must be present in your system, OpenSSL, etc. The
+Petit-Ami library this example links, ../lib/libami_plain.a, is made by the
+build at the root; the makefile here makes it there if it is not already made,
+so a plain "make" in this directory works in a tree that has never been built.
+
+The makefile finds the root from its own path rather than from the directory
+make was started in, so it builds the same however it is reached, and the
+program it makes runs from any directory.
 
 Why make a "plain" output version?
 

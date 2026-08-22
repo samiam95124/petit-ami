@@ -16282,19 +16282,19 @@ static void slidevertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mar
 
 void _pa_tabbarsizg_ovr(ami_tabbarsizg_t nfp, ami_tabbarsizg_t* ofp)
     { *ofp = tabbarsizg_vect; tabbarsizg_vect = nfp; }
-void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
-    { (*tabbarsizg_vect)(f, tor, cw, ch, w, h, ox, oy); }
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+    { (*tabbarsizg_vect)(f, sp, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsizg_ivf(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+static void tabbarsizg_ivf(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                            long* ox, long* oy)
     { error(etabbarsizg_unimp); }
 
 void _pa_tabbarsiz_ovr(ami_tabbarsiz_t nfp, ami_tabbarsiz_t* ofp)
     { *ofp = tabbarsiz_vect; tabbarsiz_vect = nfp; }
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
-    { (*tabbarsiz_vect)(f, tor, cw, ch, w, h, ox, oy); }
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+    { (*tabbarsiz_vect)(f, sp, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsiz_ivf(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
+static void tabbarsiz_ivf(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
                   long* oy)
     { error(etabbarsiz_unimp); }
 

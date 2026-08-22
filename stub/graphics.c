@@ -3277,7 +3277,7 @@ calculated and returned.
 
 *******************************************************************************/
 
-void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
                 long* ox, long* oy)
 
 {
@@ -3286,7 +3286,7 @@ void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long * w, long* h,
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long * w, long* h,
                long* ox, long* oy)
 
 {

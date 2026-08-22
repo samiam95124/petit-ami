@@ -3392,7 +3392,7 @@ void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long 
 
 /* size of a tab panel for the given client size: the bar adds its height
    on the oriented side; (ox,oy) is the client offset within the panel */
-void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
 {
     switch (tor) {
     case ami_totop:
@@ -3406,10 +3406,10 @@ void ami_tabbarsizg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h,
     }
 }
 
-void ami_tabbarsiz(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; *ox = *oy = 0; return; }
-    ami_tabbarsizg(f, tor, cw * win->charspace, ch * win->linespace,
+    ami_tabbarsizg(f, sp, tor, cw * win->charspace, ch * win->linespace,
                    w, h, ox, oy);
     gr2chrsiz(win, w, h);
     /* offsets round up to whole cells so the client clears the bar */

@@ -2077,7 +2077,7 @@ static void editbox_draw(
     }
     /* display only characters that completely fit the field */
     s = &wg->face[wg->tleft]; /* index displayable string */
-    while (*s && ami_curxg(wg->wf)+ami_chrpos(wg->wf, s, 1) <
+    while (*s && ami_curxg(wg->wf)+ami_chrpos(wg->wf, s, 1) <=
                  ami_maxxg(wg->wf)-ENDLEDSPC)
         fputc(*s++, wg->wf);
     if (wg->focus && wg->enb) { /* if in focus and enabled, draw the cursor */
@@ -4035,6 +4035,10 @@ static void igetwidgettext(
     wigptr wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
+    /* a number select box and a drop edit box show their text in the edit
+       box they are made of, and that is the one holding the live string */
+    if (wp->typ == wtnumselbox) wp = wp->cw;
+    else if (wp->typ == wtdropeditbox && wp->cw2) wp = wp->cw2;
     /* check this widget can have face text read */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
         error("Widget content cannot be read");
@@ -4061,6 +4065,18 @@ static void iputwidgettext(
     wigptr    wp;  /* widget entry pointer */
 
     wp = fndwig(f, id); /* index the widget */
+    /* a number select box and a drop edit box show their text in the edit
+       box they are made of, so that is where it is placed. The master of a
+       drop edit box keeps the same string, which is what it reports when
+       the edit completes. */
+    if (wp->typ == wtnumselbox) wp = wp->cw;
+    else if (wp->typ == wtdropeditbox && wp->cw2) {
+
+        free(wp->face); /* dispose of previous face string */
+        wp->face = str(s); /* place new face */
+        wp = wp->cw2;
+
+    }
     /* check this widget can have face text read */
     if (wp->typ != wteditbox && wp->typ != wtdropeditbox)
         error("Widget contents cannot be written");
@@ -5091,6 +5107,7 @@ static void inumselboxg(
     wigptr wp; /* widget entry pointer */
     wigptr wps; /* widget subclass entry pointer */
     long udspc; /* up/down control space */
+    char numbuf[25]; /* the number the box starts at */
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
 
@@ -5102,9 +5119,10 @@ static void inumselboxg(
     wps->num = TRUE; /* set numeric only */
     wps->lbnd = l; /* set lower bound */
     wps->ubnd = u; /* set upper bound */
+    sprintf(numbuf, "%ld", l); /* the box opens showing its lower bound */
     /* subclass an edit control,leaving space for up/down controls */
-    widget(wp->wf, 1+4, 1+4, ami_maxxg(wp->wf)-udspc*2-4, ami_maxyg(wp->wf)-4, "", 1,
-           wteditbox, &wps);
+    widget(wp->wf, 1+4, 1+4, ami_maxxg(wp->wf)-udspc*2-4, ami_maxyg(wp->wf)-4,
+           numbuf, 1, wteditbox, &wps);
     ami_curvis(wps->wf, FALSE); /* turn on cursor */
     wp->cw = wps; /* give the master its child window */
     wps->pw = wp; /* give the child its master */
@@ -5161,7 +5179,7 @@ static void ieditboxsizg(
 {
 
     *h = ami_chrsizy(win0)*1.5; /* set height */
-    *w = ami_strsiz(win0, s);
+    *w = ami_strsiz(win0, s)+ENDLEDSPC*2; /* the face sits inside end spaces */
 
 }
 
@@ -6050,6 +6068,7 @@ calculated and returned.
 
 static void itabbarsizg(
     /** Window file */            FILE*     f,
+    /** Tab strings */            ami_strptr sp,
     /** Tab orientation */        ami_tabori tor,
     /** Client width */           long      cw,
     /** Client height */          long      ch,
@@ -6061,11 +6080,28 @@ static void itabbarsizg(
 
 {
 
+    long need;   /* the tab strip's own minimum along its length */
+    long chy;
+
+    /* The strip must hold the tabs. They are laid out from a margin of one
+       character height, each tab as wide as its string, with a character
+       height between them and the same again at the end. A client wider
+       than that decides the size; a client narrower than that does not,
+       because tabs that do not fit cannot be read or hit. */
+    chy = ami_chrsizy(f);
+    need = chy;
+    while (sp) {
+
+        need += ami_strsiz(f, sp->str)+chy;
+        sp = sp->next;
+
+    }
+
     /* find width */
     if (tor == ami_toleft || tor == ami_toright) *w = cw+ami_chrsizy(win0)*TABHGT;
-    else *w = cw;
+    else *w = cw < need? need: cw;
     /* find height */
-    if (tor == ami_toleft || tor == ami_toright) *h = ch;
+    if (tor == ami_toleft || tor == ami_toright) *h = ch < need? need: ch;
     else *h = ch+ami_chrsizy(win0)*TABHGT;
     /* find client offset */
     if (tor == ami_toleft) *ox = ami_chrsizy(win0)*TABHGT;
@@ -6086,6 +6122,7 @@ calculated and returned.
 
 static void itabbarsiz(
     /** Window file */            FILE*     f,
+    /** Tab strings */            ami_strptr sp,
     /** Tab orientation */        ami_tabori tor,
     /** Client width */           long      cw,
     /** Client height */          long      ch,
@@ -6102,7 +6139,7 @@ static void itabbarsiz(
     /* convert client sizes to graphical */
     cw = cw*ami_chrsizx(f);
     ch = ch*ami_chrsizy(f);
-    ami_tabbarsizg(f, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
+    ami_tabbarsizg(f, sp, tor, cw, ch, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *w = (gw-1) / ami_chrsizx(f)+1;
     *h = (gh-1) / ami_chrsizy(f)+1;
@@ -6140,8 +6177,8 @@ static void itabbarclientg(
     if (tor == ami_toleft || tor == ami_toright) *cw = w-ami_chrsizy(win0)*TABHGT;
     else *cw = w;
     /* find height */
-    if (tor == ami_toleft || tor == ami_toright) *cw = h;
-    else *cw = w-ami_chrsizy(win0)*TABHGT;
+    if (tor == ami_toleft || tor == ami_toright) *ch = h;
+    else *ch = h-ami_chrsizy(win0)*TABHGT;
     /* find client offset */
     if (tor == ami_toleft) *ox = ami_chrsizy(win0)*TABHGT;
     else *ox = 0;
@@ -6179,7 +6216,9 @@ static void itabbarclient(
     /* convert sizes to graphical */
     w = w*ami_chrsizx(f);
     h = h*ami_chrsizy(f);
-    ami_tabbarsizg(f, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
+    /* the client area turns on the strip's thickness, not on the tabs, so
+       the list is not wanted here */
+    ami_tabbarsizg(f, NULL, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *cw = (gw-1)/ami_chrsizx(f)+1;
     *ch = (gh-1)/ami_chrsizy(f)+1;
