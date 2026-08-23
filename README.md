@@ -65,8 +65,7 @@ To fetch and build it (the tree carries submodules, so take them along):
     ./configure
     make
 
-The full procedure, including what to do when the glibc override does
-not match your system, is in [INSTALL](INSTALL).
+The full procedure is in [INSTALL](INSTALL).
 
 Please see the following documents to get started in Petit-Ami
 

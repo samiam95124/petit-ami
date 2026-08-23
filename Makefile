@@ -146,8 +146,8 @@ ifndef STDIO_SOURCE
         # Linux
         #
         # The local stdio with overrides (STDIO_BYPASS) is the standard.
-        # The patched glibc option that preceded it is deprecated: too
-        # complex, too version specific.
+        # A patched glibc preceded it, and was dropped: too complex, too
+        # version specific.
         #
         STDIO_SOURCE=stdio
 
@@ -448,8 +448,8 @@ else ifeq ($(OSTYPE),FreeBSD)
 
 else
 
-	# Linux: nothing, libc is linked in overall lib. (The deprecated
-	# patched-glibc configuration linked bin/libc here, first.)
+	# Linux: nothing, libc is linked in overall lib. (The patched glibc
+	# configuration that was dropped linked bin/libc here, first.)
     
 endif
 

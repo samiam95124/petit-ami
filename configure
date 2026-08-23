@@ -143,14 +143,4 @@ do
 
 done
 
-#
-# Set the version of libc override that is needed.
-#
-if [ "$host" = "linux" ]
-then
-
-    setver_glibc
-
-fi
-
 echo "Configure completed!"

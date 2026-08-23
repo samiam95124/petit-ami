@@ -26,47 +26,27 @@ To bring an existing tree up to date later:
 
 Building
 
-The configure script does several automated installs of needed tools.
-For each one you will be asked if you want to install the tools. If you
-would prefer to do this manually, see the "make sure used packages are
-installed." section in configure.
+The configure script installs the packages Ami builds against, with
+sudo apt-get -y install on Linux: alsa and its development files,
+openssl, fluidsynth, gawk and the rest. It does not ask first, so run it
+on a machine where that is welcome. To install them yourself instead,
+see the "make sure used packages are installed." section in configure.
 
 Steps to install
 
 Linux:
 
-. setpath [recommended]
+. setpath
 ./configure
 make
 
 Windows:
 
-setpath [recommended]
+setpath
 configure
 make
 
 BSD and similar systems use gmake in place of make.
 
-If you get something like:
-
-Version number: 2.31
-*** libc override file by version 2.31 does not exist
-
-Then you have to build a new version of glibc. There are a collection of
-previous and current versions that correspond to the OS builds encountered.
-If a prebuilt version does not exist, you simply have to make it.
-
-This is done with the script:
-
-$ build_glibc
-
-When this completes with no error, you can then execute:
-
-$ setver_glibc
-
-If this gives errors, it means the current glibc has changed enough that it no
-longer can just be automatically patched to find the new version. In this case,
-you will need to get an updated petit_ami or do some serious debug work.
-
-Note that building an override version of glibc is specific to Linux
-distributions.
+setpath puts the tree's bin directory on the path, so what is built there
+runs by name. It is the first of the steps for that reason.
