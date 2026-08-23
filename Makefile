@@ -692,7 +692,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widget_demo \
+     graphics_test testviewer management_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -713,7 +713,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widget_demo \
+     graphics_test testviewer management_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -732,7 +732,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widget_demo \
+     graphics_test testviewer management_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -751,7 +751,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
      management_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widget_demo \
+     graphics_test testviewer management_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -1664,7 +1664,7 @@ endif
 
 #
 # The widget busy box, on the desktop toolkits: the same page as
-# tests/widget_demo.c but built on GTK and on Qt, so the three can be set
+# tests/widgets_demo.c but built on GTK and on Qt, so the three can be set
 # beside each other. They link no part of Ami, and so are built without the
 # ordinary flags: those carry -Ilibc, which would put Ami's own stdio.h in
 # front of the system one. The Qt one is C++ because Qt is: the toolkit has
@@ -1683,11 +1683,11 @@ kde_widget_demo: tests/kde_widget_demo.cpp
 # dialog. Built like the other widget tests.
 #
 ifeq ($(OSTYPE),Darwin)
-widget_demo: $(GLIBSD) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/widget_demo
+widgets_demo: $(GLIBSD) tests/widgets_demo.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widgets_demo.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/widgets_demo
 else
-widget_demo: $(GLIBSD) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/widget_demo.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/widget_demo
+widgets_demo: $(GLIBSD) tests/widgets_demo.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widgets_demo.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/widgets_demo
 endif
 
 #
