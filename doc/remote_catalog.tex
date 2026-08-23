@@ -1,5 +1,5 @@
 % Generated from include/graph_remote.h: the message catalog rows.
-% Regenerate when the header changes; the header is normative.
+% Regenerate with doc/mkremotecatalog.py; the header is normative.
 \texttt{GR\_MHELLO} & 1 & first on the command channel: i64 version $\rightarrow$ i64 version. The server refuses a version it does not speak by replying its own and closing. \\
 \texttt{GR\_MEVOPEN} & 2 & first on the event channel, from the client, so the server learns where events go: i64 version. No reply. \\
 \texttt{GR\_MBYE} & 3 & client is done; the server drops the connection. No payload. \\
@@ -226,14 +226,14 @@
 \texttt{GR\_MSLIDEVERTSIZ} & 371 & $\rightarrow$ i64 w, i64 h \\
 \texttt{GR\_MSLIDEVERT} & 372 & i64 x1, y1, x2, y2, i64 mark, i64 id \\
 \texttt{GR\_MSLIDEVERTG} & 373 & i64 x1, y1, x2, y2, i64 mark, i64 id \\
-\texttt{GR\_MTABBARSIZG} & 374 & i64 tor, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
-\texttt{GR\_MTABBARSIZ} & 375 & i64 tor, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
+\texttt{GR\_MTABBARSIZG} & 374 & slst, i64 tor, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
+\texttt{GR\_MTABBARSIZ} & 375 & slst, i64 tor, i64 cw, i64 ch $\rightarrow$ i64 w, h, ox, oy \\
 \texttt{GR\_MTABBARCLIENTG} & 376 & i64 tor, i64 w, i64 h $\rightarrow$ i64 cw, ch, ox, oy \\
 \texttt{GR\_MTABBARCLIENT} & 377 & i64 tor, i64 w, i64 h $\rightarrow$ i64 cw, ch, ox, oy \\
 \texttt{GR\_MTABBAR} & 378 & i64 x1, y1, x2, y2, slst, i64 tor, i64 id \\
 \texttt{GR\_MTABBARG} & 379 & i64 x1, y1, x2, y2, slst, i64 tor, i64 id \\
 \texttt{GR\_MTABSEL} & 380 & i64 id, i64 tn \\
-\texttt{GR\_MALERT} & 420 & str title, str message $\rightarrow$ nothing, on dismissal; wid 0 \\
+\texttt{GR\_MALERT} & 420 & str title, str message $\rightarrow$ nothing; the reply comes when the dialog is dismissed, which is what makes the call modal at the far end \\
 \texttt{GR\_MQUERYCOLOR} & 421 & i64 r, g, b $\rightarrow$ i64 r, g, b; wid 0 \\
 \texttt{GR\_MQUERYOPEN} & 422 & str $\rightarrow$ str; wid 0 \\
 \texttt{GR\_MQUERYSAVE} & 423 & str $\rightarrow$ str; wid 0 \\
@@ -241,7 +241,6 @@
 \texttt{GR\_MQUERYFINDREP} & 425 & str, str, i64 opt $\rightarrow$ str, str, i64 opt; wid 0 \\
 \texttt{GR\_MQUERYFONT} & 426 & i64 fc, s, fr, fg, fb, br, bg, bb, effect $\rightarrow$ the same nine, as chosen \\
 \texttt{GR\_MEVENT} & 500 & an event, server $\rightarrow$ client on the event channel: evt \\
-
 \hline
 \multicolumn{3}{@{}l}{\textbf{The sound partition (base 8192)}} \\
 \hline
@@ -303,7 +302,7 @@
 \texttt{GR\_MSGNWAVEOUT} & 8247 & i64 p, s \\
 \texttt{GR\_MFLTWAVEOUT} & 8248 & i64 p, f \\
 \texttt{GR\_MENDWAVEOUT} & 8249 & i64 p, e \\
-\texttt{GR\_MWRWAVE} & 8250 & i64 p, blk; the sender chunks to the channel bound \\
+\texttt{GR\_MWRWAVE} & 8250 & i64 p, i64 frames, blk samples $\rightarrow$ i64 0. The sender chunks to the channel bound on frame boundaries; each chunk is acknowledged, which paces the stream to the consumer and keeps it whole. \\
 \texttt{GR\_MOPENWAVEIN} & 8251 & i64 p \\
 \texttt{GR\_MCLOSEWAVEIN} & 8252 & i64 p \\
 \texttt{GR\_MCHANWAVEIN} & 8253 & i64 p $\rightarrow$ i64 \\
@@ -312,7 +311,7 @@
 \texttt{GR\_MSGNWAVEIN} & 8256 & i64 p $\rightarrow$ i64 \\
 \texttt{GR\_MENDWAVEIN} & 8257 & i64 p $\rightarrow$ i64 \\
 \texttt{GR\_MFLTWAVEIN} & 8258 & i64 p $\rightarrow$ i64 \\
-\texttt{GR\_MRDWAVE} & 8259 & i64 p, len $\rightarrow$ i64 n, blk; the caller chunks to the bound \\
+\texttt{GR\_MRDWAVE} & 8259 & i64 p, frames $\rightarrow$ i64 got, blk samples; the server clamps the answer to the channel bound and the caller loops. Lengths are in samples, one frame of every channel, as the API counts. \\
 \texttt{GR\_MSYNTHOUTNAME} & 8260 & i64 p $\rightarrow$ str \\
 \texttt{GR\_MSYNTHINNAME} & 8261 & i64 p $\rightarrow$ str \\
 \texttt{GR\_MWAVEOUTNAME} & 8262 & i64 p $\rightarrow$ str \\
