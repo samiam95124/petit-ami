@@ -4,7 +4,7 @@
 *                                                                              *
 *                    Copyright (C) 2026 Scott A. Franco                        *
 *                                                                              *
-* The same page as tests/widget_demo.c, built on Qt instead of on Ami, so      *
+* The same page as tests/widgets_demo.c, built on Qt instead of on Ami, so      *
 * that the two can be set beside each other: the same widgets, the same        *
 * arrangement, the same dialogs, drawn by the toolkit KDE is built on.         *
 *                                                                              *
