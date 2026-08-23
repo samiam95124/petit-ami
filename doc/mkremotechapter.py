@@ -219,7 +219,18 @@ c = zin.read("content.xml").decode("utf8")
 
 # the chapter heading, banner and all, on the pattern of the one before it
 CAT_IMG = "Pictures/10000001000003400000035C2E5150E9.png"
-heading = ('<text:list text:continue-list="list92345626694247" text:style-name="WWNum3">'
+# The chapter numbers by hanging off the list of the chapter before it. That
+# list's id is read here and not written down: LibreOffice renames every list
+# in the document whenever the indexes are refreshed, so an id copied into
+# this script would be dangling the first time that happened, and the chapter
+# would number itself 1.
+prevch = c.rfind("<text:list ", 0, c.rfind("<text:h", 0, c.index('draw:name="ChapCatRemote"')))
+tag = c[prevch:c.index(">", prevch)]
+m = re.search(r'xml:id="([^"]+)"', tag) or re.search(r'text:continue-list="([^"]+)"', tag)
+if not m: raise SystemExit("the chapter before this one hangs off no list: " + tag[:80])
+lid = m.group(1)
+
+heading = ('<text:list text:continue-list="' + lid + '" text:style-name="WWNum3">'
            '<text:list-item>'
            '<text:h text:style-name="Chapter_20_Banner" text:outline-level="1" '
            'loext:marker-style-name="T20">'
@@ -230,6 +241,21 @@ heading = ('<text:list text:continue-list="list92345626694247" text:style-name="
            'xlink:actuate="onLoad" draw:mime-type="image/png"><text:p/></draw:image>'
            '</draw:frame>%s</text:h>'
            '</text:list-item></text:list>' % (CAT_IMG, CHAPTER))
+
+# A chapter already here is replaced, so this can be run again whenever the
+# paper or the catalog changes: from the list that opens it to the list that
+# opens the chapter after it.
+if 'draw:name="ChapCatProtocol"' in c:
+
+    old = c.index('draw:name="ChapCatProtocol"')
+    ohd = c.rfind("<text:h", 0, old)
+    obeg = c.rfind("<text:list ", 0, ohd)
+    onxt = c.index('draw:name="ChapCatWidget"', old)
+    ohd2 = c.rfind("<text:h", 0, onxt)
+    oend = c.rfind("<text:list ", 0, ohd2)
+    assert 0 < obeg < ohd < oend < ohd2
+    c = c[:obeg] + c[oend:]
+    print("the chapter that was there has been taken out")
 
 # it goes after Remote mode, which means before the chapter that follows it
 nxt = c.index('draw:name="ChapCatWidget"')   # the chapter that follows Remote mode
