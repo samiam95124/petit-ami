@@ -55,24 +55,6 @@ The linux terminal.c module does not support transparent mode.
 The buffer follow mode discussed in the documentation is still experimental and
 needs further work.
 
-The linux subsystem uses a patched version of GLIBC that can have the read(),
-write(), open() and close() calls overridden. GLIBC must match the kernel 
-version in use. I have generated many common kernel versions of glibc under
-Ubuntu. The command setver_glibc should be able to automatically find and
-configure such versions, and it is automatically executed as part of 
-./configure.
-
-If the kernel version of glibc your system is not precompiled, then you can 
-generate one for your system using build_glibc, which takes care of the entire
-process of fetching glibc source, patching it and building it.
-
-If that still does not work, send me email.
-
-The override version of glibc is necessary only on the Linux version. It was
-needed because some programs expect glibc code to be in use, and use 
-undocumented code and data structures in glibc. Such programs include gdb.
-Its a heavy handed solution to a difficult problem, but I hope to find a
-better workaround in the future.
 
 C++
 
