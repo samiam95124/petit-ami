@@ -92,7 +92,7 @@ long ami_openmsgv6(unsigned long long addrh, unsigned long long addrl, long port
                  long secure);
 void ami_wrmsg(long fn, void* msg, unsigned long len);
 long ami_rdmsg(long fn, void* msg, unsigned long len);
-void ami_clsmsg(long f);
+void ami_clsmsg(long fn);
 FILE* ami_waitnet(long port, long secure);
 /* Install a network error handler. Called with the error text before
    the abort; a handler that longjmps takes the error, one that returns
