@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Make doc/ami.pdf from doc/ami.odt.
+#
+# LibreOffice's PDF export leaves out the blank leaves it inserts for itself,
+# the ones that put each chapter on a right hand page, unless told to keep
+# them. Without them the page numbers run 55, 57 and a two sided print lands
+# chapter 4 on the back of page 55. This keeps them. In the export dialog the
+# same switch is "Export automatically inserted blank pages".
+#
+# The export runs in a LibreOffice profile of its own, so it neither disturbs
+# nor depends on a LibreOffice the user has open, the document included.
+#
+# Run from anywhere in the tree. doc/checkbanners.py proves the result.
+#
+root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$root" || exit 1
+profile=$(mktemp -d)
+soffice --headless -env:UserInstallation="file://$profile" \
+    --convert-to 'pdf:writer_pdf_Export:{"IsSkipEmptyPages":{"type":"boolean","value":false}}' \
+    --outdir doc doc/ami.odt >/dev/null 2>&1
+status=$?
+rm -rf "$profile"
+[ $status -eq 0 ] || exit $status
+python3 doc/checkbanners.py doc/ami.pdf | tail -1

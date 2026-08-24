@@ -14,6 +14,15 @@ it has to. Rule 2 holds because the cat's frame wraps text to its left. The
 point of this program is to prove all three of a rendered book rather than
 trust them.
 
+There is a fourth thing to prove, about the PDF rather than the document. The
+blank leaf that puts a chapter on a right hand page is one LibreOffice inserts
+for itself, and its PDF export leaves such leaves out unless told otherwise:
+the page numbers then run 55, 57, and a book printed two sided from that file
+has chapter 4 on the back of page 55 after all. The export here keeps them
+(IsSkipEmptyPages off; in the export dialog, "Export automatically inserted
+blank pages"), and a PDF handed in is checked for numbers that skip by two,
+which is the mark of a leaf dropped on the way out.
+
 Usage:
 
     python3 doc/checkbanners.py [doc/ami.pdf]
@@ -45,11 +54,33 @@ TITLES = [
 ]
 
 def render(tmp):
-    """the book as a pdf, from the odt"""
-    subprocess.run(["soffice", "--headless", "--convert-to", "pdf",
-                    "--outdir", tmp, ODT], check=True,
+    """the book as a pdf, from the odt, with the blank leaves in it. The
+    export runs in a LibreOffice profile of its own, so a LibreOffice the
+    user has open, the document included, is neither disturbed nor relied
+    on."""
+    export = ('pdf:writer_pdf_Export:'
+              '{"IsSkipEmptyPages":{"type":"boolean","value":false}}')
+    profile = os.path.join(tmp, "profile")
+    subprocess.run(["soffice", "--headless",
+                    "-env:UserInstallation=file://" + profile,
+                    "--convert-to", export, "--outdir", tmp, ODT], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return os.path.join(tmp, "ami.pdf")
+
+def dropped(text):
+    """the blank leaves the export left out: places where the printed page
+    numbers of two pages in a row differ by two"""
+    out, prev = [], None
+    for p in text:
+        n = printed(p)
+        if n is None:
+            # a page with nothing on it is a blank leaf that was kept; it
+            # carries no number, but it holds the place of one
+            if prev is not None and not p.strip(): prev += 1
+            continue
+        if prev is not None and n == prev+2: out.append(prev+1)
+        prev = n
+    return out
 
 def pages(pdf):
     """the text of each page, and the words of each page with their boxes"""
@@ -67,6 +98,18 @@ def printed(page):
     n = re.findall(r'(?m)^\s*(\d{1,4})\s*$', page)
     return int(n[-1]) if n else None
 
+def printsblanks():
+    """whether the document itself prints its inserted blank leaves.
+
+    PrintEmptyPages is the document's own switch, saved with it in
+    settings.xml and shown as "Print automatically inserted blank pages" under
+    Writer's print options. Off, Print Preview and a print from Writer drop
+    the leaves, whatever the PDF export does with them."""
+    import zipfile
+    s = zipfile.ZipFile(ODT).read("settings.xml").decode("utf8")
+    m = re.search(r'config:name="PrintEmptyPages"[^>]*>([^<]*)<', s)
+    return m is None or m.group(1) == "true"
+
 def main():
     tmp = None
     if len(sys.argv) > 1: pdf = sys.argv[1]
@@ -75,6 +118,11 @@ def main():
         pdf = render(tmp)
     text, words = pages(pdf)
     faults = 0
+    if os.path.exists(ODT) and not printsblanks():
+        faults += 1
+        print("the document has PrintEmptyPages off: Print Preview and a print "
+              "from Writer drop the blank leaves, and the chapters after each "
+              "one open on a left hand page")
     for n, title in enumerate(TITLES, 1):
         opening = " ".join(title.split()[:2])
         found = [i for i, p in enumerate(text)
@@ -98,6 +146,14 @@ def main():
         if note: faults += 1
         print("%2d  %-40s page %-5s right %5.1f%s"
               % (n, title[:40], page, max(x[2] for x in big), note))
+    gone = dropped(text)
+    if gone:
+        faults += len(gone)
+        print()
+        print("blank leaves missing from the PDF, at pages %s: export with "
+              "the automatically inserted blank pages kept, or a two sided "
+              "print puts those chapters on a left hand page"
+              % ", ".join(str(g) for g in gone))
     print()
     print("%d chapters, %d faults" % (len(TITLES), faults))
     if tmp: subprocess.run(["rm", "-rf", tmp])
