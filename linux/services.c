@@ -1863,7 +1863,22 @@ void ami_getpgm(
     unsigned bl;   /* length of buffer holder */
     bufstr   pcn;  /* pathed command name */
 
-#if defined(__linux) || defined(__MINGW32__) /* linux, Windows */
+#if defined(__linux)
+    /* The kernel knows which file is running: /proc/self/exe is a link to
+       it, whatever argv[0] says. That holds when the program was started by
+       a relative path from another directory, by a bare name that is not on
+       the path, through a symbolic link, or from a desktop launcher, all of
+       which leave argv[0] unresolvable. The invocation name is the fallback
+       for a system without /proc. */
+    {
+
+        ssize_t l = readlink("/proc/self/exe", pn, MAXSTR-1);
+
+        if (l > 0) pn[l] = 0;
+        else cpylim(pn, MAXSTR, program_invocation_name);
+
+    }
+#elif defined(__MINGW32__) /* Windows */
     cpylim(pn, MAXSTR, program_invocation_name); /* copy invoke name to path */
 #elif defined(__FreeBSD__) /* BSD, FreeBSD */
     strcpy(pn, prgpth); /* copy from program path */
