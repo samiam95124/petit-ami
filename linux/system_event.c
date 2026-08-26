@@ -94,7 +94,9 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <sys/signalfd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <string.h>
 #include <pthread.h>
 
 #include "system_event.h"
@@ -131,6 +133,7 @@ static fd_set ifdsets; /* signaled set */
 static int ifdmax;
 
 static sigset_t sigmsk; /* signal mask */
+static int      sigwr[NSIG]; /* the write end of each signal's pipe, or -1 */
 static sigset_t sigact; /* signal active */
 
 static int resetsev; /* reset system event */
@@ -282,32 +285,57 @@ including handling the signal. If both use of this package to handle signals,
 as well as allowing the client to handle signals, a chain handler using
 sigaction should be used.
 
-Note we piped the signal through a fid using signalfd() so that it could use
-pselect() multiplexing.
+The signal is caught by a handler that writes a byte down a pipe of its own,
+and the read end of the pipe is the file id pselect() waits on. A handler
+runs in whatever thread the kernel delivers the signal to, which is what
+makes this work: the earlier way, blocking the signal and reading it from a
+signalfd, blocked it in the calling thread only, and a process that carries
+other threads -- every program linking the sound library carries dozens,
+the synthesizer's -- had the signal taken by one of those with its default
+action, so that a window resize never reached the terminal.
 
 *******************************************************************************/
+
+/* the handler: a byte down the pipe, and nothing else */
+static void sighan(int sig)
+
+{
+
+    int  e = errno;
+    char c = sig;
+
+    if (sig > 0 && sig < NSIG && sigwr[sig] >= 0) write(sigwr[sig], &c, 1);
+    errno = e;
+
+}
+
 
 int system_event_addsesig(int sig)
 
 {
 
-    int      sid;    /* system logical event id */
-    sigset_t one;    /* the signal being added, by itself */
-    int      fid;     /* file id */
-    pid_t    pid;
+    int              sid;    /* system logical event id */
+    int              fid;    /* file id */
+    int              pfd[2]; /* the signal's pipe */
+    struct sigaction sa;
+    pid_t            pid;
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
-    sigemptyset(&one);
-    sigaddset(&one, sig);
-    sigprocmask(SIG_BLOCK, &one, NULL);
-    fid = signalfd(-1, &one, 0);
-    /* And keep it blocked across the wait as well. pselect() replaces the
-       mask for the length of the call, so a signal left out of that mask
-       is unblocked exactly while we are waiting for it: it is delivered,
-       takes its default action, and the descriptor it was supposed to
-       arrive on never reads. A signal has to stay blocked to reach a
-       signalfd at all. */
-    sigaddset(&sigmsk, sig);
+    if (sig <= 0 || sig >= NSIG || pipe(pfd)) {
+
+        pthread_mutex_unlock(&evtlock);
+        return (0);
+
+    }
+    fcntl(pfd[0], F_SETFL, O_NONBLOCK); fcntl(pfd[0], F_SETFD, FD_CLOEXEC);
+    fcntl(pfd[1], F_SETFL, O_NONBLOCK); fcntl(pfd[1], F_SETFD, FD_CLOEXEC);
+    fid = pfd[0];
+    sigwr[sig] = pfd[1];
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = sighan;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sigaction(sig, &sa, NULL);
 
     sid = getsys(); /* get a new system event id */
     systab[sid-1]->typ = se_sig; /* set type */
@@ -468,7 +496,7 @@ void system_event_getsevt(sevptr ev)
     int                     ji;  /* index for joysticks */
     int                     si;  /* index for system event entries */
     uint64_t                exp; /* timer expiration time */
-    struct signalfd_siginfo fdsi; /* signal data */
+    char                    drain[64]; /* signal pipe contents */
 
     pthread_mutex_lock(&evtlock); /* take the event lock */
     ev->typ = se_none; /* set no event occurred */
@@ -487,8 +515,8 @@ void system_event_getsevt(sevptr ev)
                     /* clear the timer by reading it's expiration time */
                     read(systab[si]->fid, &exp, sizeof(uint64_t));
                 else if (systab[si]->typ == se_sig) /* it's a signal */
-                    /* clear the signal by reading its data */
-                    read(systab[si]->fid, &fdsi, sizeof(fdsi));
+                    /* clear the signal by draining its pipe */
+                    while (read(systab[si]->fid, drain, sizeof(drain)) > 0);
 
             }
 
@@ -554,6 +582,9 @@ static void init_system_event()
     /* clear the set of signals we capture */
     sigemptyset(&sigmsk);
 
+    /* no signal pipes yet */
+    for (si = 0; si < NSIG; si++) sigwr[si] = -1;
+
     sysno = 0; /* set no active system events */
 
     /* enable select reset signal */
@@ -577,9 +608,16 @@ static void deinit_system_event()
 
     int si; /* index for system events */
 
-    /* close any open timers */
+    /* close any open timers, and the signal pipes with their handlers */
     for (si = 0; si < MAXSYS ; si++)
         if (systab[si] && systab[si]->typ == se_tim) close(systab[si]->fid);
+        else if (systab[si] && systab[si]->typ == se_sig) {
+
+            signal(systab[si]->sig, SIG_DFL);
+            close(sigwr[systab[si]->sig]); sigwr[systab[si]->sig] = -1;
+            close(systab[si]->fid);
+
+        }
 
     /* release the event lock */
     pthread_mutex_destroy(&evtlock);
