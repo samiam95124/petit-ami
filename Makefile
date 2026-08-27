@@ -2374,3 +2374,66 @@ breakoutgfb: graph_games/breakoutg.c $(FBGRAPH) \
 	$(CC) $(CFLAGS) graph_games/breakoutg.c $(FBGRAPH) \
 	    linux/framebuffer/framebuffer.o lib/sound.o $(FBLIBS) \
 	    -lasound -lfluidsynth -o bin/breakoutgfb
+
+#
+# The managed frame buffer graphics model: the plug-in stack
+# framebuffer <- graphics <- managerg <- widgets. The graphics layer is
+# drawing only; portable/managerg.c subdivides its surface into windows
+# by overriding the API, and the portable widget packages stand on the
+# windows.
+#
+portable/managerg.o: portable/managerg.c include/graphics.h Makefile
+	$(CC) $(CFLAGS) -c portable/managerg.c -o portable/managerg.o
+
+FBMGRAPH = linux/framebuffer/graphics.o portable/managerg.o
+
+lib/graphfbm_core.o: $(CORE_COMMON) $(FBMGRAPH) linux/system_event.o \
+	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
+	portable/pdfgraph.o \
+	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	ld -r -o lib/graphfbm_core.o $(CORE_COMMON) $(FBMGRAPH) \
+	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
+	    portable/plasma_widgets.o portable/pdfgraph.o \
+	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+
+lib/libami_graphfbm.a: lib/graphfbm_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_graphfbm.a
+	ar rcs lib/libami_graphfbm.a lib/graphfbm_core.o lib/sound.o linux/network.o
+
+GLIBSFBM = stub/keeper.o lib/libami_graphfbm.a
+FBMLIBS = -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lfreetype \
+	-lfontconfig -lm -lpthread -lpng -lz
+
+# real console editions
+hellofb: $(GLIBSFBM) hello/hello.c linux/framebuffer/framebuffer.o
+	$(CC) $(CFLAGS) hello/hello.c linux/framebuffer/framebuffer.o \
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/hellofb
+
+widget_testfb: $(GLIBSFBM) tests/widget_test.c linux/framebuffer/framebuffer.o \
+	linux/wayland/screen_capture.o
+	$(CC) $(CFLAGS) tests/widget_test.c linux/wayland/screen_capture.o \
+	    linux/framebuffer/framebuffer.o \
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/widget_testfb
+
+management_testfb: $(GLIBSFBM) tests/management_test.c \
+	linux/framebuffer/framebuffer.o linux/wayland/screen_capture.o
+	$(CC) $(CFLAGS) tests/management_test.c linux/wayland/screen_capture.o \
+	    linux/framebuffer/framebuffer.o \
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testfb
+
+# mock editions, for the rig
+hellofbm: $(GLIBSFBM) hello/hello.c linux/framebuffer/fbmock.o
+	$(CC) $(CFLAGS) hello/hello.c linux/framebuffer/fbmock.o \
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/hellofbm
+
+widget_testfbmk: $(GLIBSFBM) tests/widget_test.c linux/framebuffer/fbmock.o \
+	linux/wayland/screen_capture.o
+	$(CC) $(CFLAGS) tests/widget_test.c linux/wayland/screen_capture.o \
+	    linux/framebuffer/fbmock.o \
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/widget_testfbmk
+
+management_testfbm: $(GLIBSFBM) tests/management_test.c \
+	linux/framebuffer/fbmock.o linux/wayland/screen_capture.o
+	$(CC) $(CFLAGS) tests/management_test.c linux/wayland/screen_capture.o \
+	    linux/framebuffer/fbmock.o \
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testfbm
