@@ -1524,6 +1524,7 @@ static int        kbdsev;         /* keyboard (stdin) system event id */
 static int        intsev;         /* console interrupt system event */
 static int        termsev;        /* terminate signal system event */
 static int        inraw;          /* the console is in raw mode */
+static int        ginit;          /* the module reached full initialization */
 static struct termios saveterm;   /* console mode to restore */
 static int        joyenb = TRUE;  /* enable joysticks */
 
@@ -9582,6 +9583,8 @@ static void ami_init_graphics(void)
     }
 #endif
 
+    ginit = TRUE; /* the module is up */
+
 }
 
 /*******************************************************************************
@@ -9615,6 +9618,11 @@ static void ami_deinit_graphics(void)
     int    ji;
     ami_evtrec er;
     ami_evtcod e;
+
+    /* If initialization never completed -- the frame buffer module
+       failed and exited before this module came up -- there is nothing
+       here to take down, and the vectors below were never hooked. */
+    if (!ginit) return;
 
     /* Reset all event vectors back to the default handler. The client
        program may have installed overrides that are no longer safe to
