@@ -2367,3 +2367,10 @@ graphics_testfbm: tests/graphics_test.c $(FBGRAPH) \
 	linux/framebuffer/fbmock.o
 	$(CC) $(CFLAGS) tests/graphics_test.c $(FBGRAPH) \
 	    linux/framebuffer/fbmock.o $(FBLIBS) -o bin/graphics_testfbm
+
+# breakout on the frame buffer: run from a text console
+breakoutgfb: graph_games/breakoutg.c $(FBGRAPH) \
+	linux/framebuffer/framebuffer.o lib/sound.o
+	$(CC) $(CFLAGS) graph_games/breakoutg.c $(FBGRAPH) \
+	    linux/framebuffer/framebuffer.o lib/sound.o $(FBLIBS) \
+	    -lasound -lfluidsynth -o bin/breakoutgfb
