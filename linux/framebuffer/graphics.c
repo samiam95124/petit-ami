@@ -90,7 +90,7 @@ extern char *program_invocation_short_name;
 #define STDCHRX 8
 #define STDCHRY 12
 
-#define MAXCON 10   /* number of screen contexts */
+#define MAXCON 100  /* number of screen contexts */
 #define MAXTAB 50   /* total number of tabs possible per screen */
 #define MAXPIC 50   /* total number of loadable pictures */
 #define MAXLIN 250  /* maximum length of input buffered line */
@@ -8590,14 +8590,56 @@ void _pa_sizbuf_ovr(ami_sizbuf_t nfp, ami_sizbuf_t* ofp)
 void ami_sizbuf(FILE* f, long x, long y)
     { (*sizbuf_vect)(f, x, y); }
 static void sizbuf_ivf(FILE* f, long x, long y)
-    { unimp("sizbuf"); }
+    { ami_sizbufg(f, x*thewin->charspace, y*thewin->linespace); }
 
 void _pa_sizbufg_ovr(ami_sizbufg_t nfp, ami_sizbufg_t* ofp)
     { *ofp = sizbufg_vect; sizbufg_vect = nfp; }
 void ami_sizbufg(FILE* f, long x, long y)
     { (*sizbufg_vect)(f, x, y); }
+
+/* Resize the current update screen's buffer. Content in the intersection
+   of old and new is kept; fresh area fills with the background. The
+   screen sizes are per screen, which is what lets a window manager above
+   use the screens as window backing stores. */
 static void sizbufg_ivf(FILE* f, long x, long y)
-    { unimp("sizbufg"); }
+
+{
+
+    winptr  win; /* windows record pointer */
+    scnptr  sc;  /* screen pointer */
+    canvas* n;   /* the new buffer */
+    int     i, j;
+    uint32_t bg;
+
+    win = txt2win(f); /* get window from file */
+    sc = win->screens[win->curupd-1];
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    if (x == sc->maxxg && y == sc->maxyg) return; /* nothing to do */
+    n = newcanvas(x, y);
+    if (!n) error(enomem);
+    bg = BIT(sarev) & sc->attr? sc->fcrgb: sc->bcrgb;
+    for (j = 0; j < y; j++)
+        for (i = 0; i < x; i++)
+            n->px[(size_t)j*x+i] =
+                (i < sc->xbuf->w && j < sc->xbuf->h)?
+                    sc->xbuf->px[(size_t)j*sc->xbuf->w+i]: bg;
+    freecanvas(sc->xbuf);
+    sc->xbuf = n;
+    sc->maxxg = x; /* set new pixel dimensions */
+    sc->maxyg = y;
+    sc->maxx = x/win->charspace; /* and the character grid */
+    sc->maxy = y/win->linespace;
+    if (win->curupd == win->curdsp) {
+
+        /* the displayed screen changed size: track the globals and
+           repaint */
+        win->gmaxxg = x > win->gmaxxg? win->gmaxxg: x;
+        restore(win);
+
+    }
+
+}
 
 void _pa_getsiz_ovr(ami_getsiz_t nfp, ami_getsiz_t* ofp)
     { *ofp = getsiz_vect; getsiz_vect = nfp; }
