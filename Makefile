@@ -2329,3 +2329,41 @@ clean:
 #	rm -f petit_ami_*.tar.gz
 #	echo "will execute: tar --exclude=.* --exclude=*.gz -czvf petit_ami_$(VERMAJOR).$(VERMINOR).tar.gz petit_ami"
 #	tar --exclude=.* --exclude=*.gz -czvf petit_ami_$(VERMAJOR).$(VERMINOR).tar.gz petit_ami
+
+#
+# The frame buffer graphics module: the Petit-Ami graphics subset drawn
+# straight onto /dev/fb0 through the framebuffer.h interface. Runs on a
+# text console.
+#
+linux/framebuffer/graphics.o: linux/framebuffer/graphics.c \
+	linux/framebuffer/framebuffer.h linux/system_event.h \
+	include/graphics.h Makefile
+	$(CC) $(CFLAGS) -Ilinux -c linux/framebuffer/graphics.c \
+	    -o linux/framebuffer/graphics.o
+
+# the mock frame buffer: framebuffer.h over plain memory, dumped to a
+# .ppm at exit, so the module can run headless
+linux/framebuffer/fbmock.o: linux/framebuffer/fbmock.c \
+	linux/framebuffer/framebuffer.h Makefile
+	$(CC) $(CFLAGS) -c linux/framebuffer/fbmock.c \
+	    -o linux/framebuffer/fbmock.o
+
+# the objects every frame buffer program links: the graphics module, the
+# stdio interdiction, services, config and system events
+FBGRAPH = linux/framebuffer/graphics.o linux/stdio.o linux/services.o \
+	utils/config.o utils/option.o linux/system_event.o \
+	linux/wayland/screen_capture.o
+FBLIBS = -lfreetype -lfontconfig -lpng -lm -lpthread
+
+# graphics test on the real frame buffer: run from a text console
+graphics_testfb: tests/graphics_test.c $(FBGRAPH) \
+	linux/framebuffer/framebuffer.o
+	$(CC) $(CFLAGS) tests/graphics_test.c $(FBGRAPH) \
+	    linux/framebuffer/framebuffer.o $(FBLIBS) -o bin/graphics_testfb
+
+# graphics test on the mock frame buffer: runs anywhere, final screen
+# lands in fbmock.ppm, captures in test_images
+graphics_testfbm: tests/graphics_test.c $(FBGRAPH) \
+	linux/framebuffer/fbmock.o
+	$(CC) $(CFLAGS) tests/graphics_test.c $(FBGRAPH) \
+	    linux/framebuffer/fbmock.o $(FBLIBS) -o bin/graphics_testfbm
