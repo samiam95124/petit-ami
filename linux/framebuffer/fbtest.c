@@ -84,20 +84,38 @@ int main(int argc, char** argv)
 
     }
 
-    /* a yellow box that slides across the middle and back for the run,
-       erasing its trail to the band colour behind it */
+    /* A yellow box that slides across the middle and back for the run. Only
+       the sliver it enters is drawn yellow and the sliver it vacates erased
+       to the green band behind it; the body of the box is never rewritten.
+       Writing straight to the frame buffer has no vertical sync, so a box
+       redrawn whole each frame tears -- the display scans out the erased,
+       not-yet-redrawn state and green shows through. Touching only the
+       moving edges leaves nothing mid-box to catch half-written. */
     bw = cols/12; if (bw < 20) bw = 20;
+    long step = cols/240; if (step < 1) step = 1;
+    long pos = 4, dir = 1, lo = 4, hi = cols-bw-4;
+    long top = rows/2-bw/3, bot = rows/2+bw/3, np;
+
+    for (y = top; y < bot; y++) for (x = pos; x < pos+bw; x++)
+        pix(x, y, 255, 230, 40); /* the box, drawn once to start */
     t0 = time(NULL);
-    long pos = 4, dir = 1, lo = 4, hi = cols-bw-4, top = rows/2-bw/3, bot = rows/2+bw/3;
     while (time(NULL)-t0 < secs) {
 
-        for (y = top; y < bot; y++) for (x = pos; x < pos+bw; x++)
-            pix(x, y, 40, 200, 60); /* erase to the middle (green) band */
-        pos += dir*(cols/240);
-        if (pos <= lo) { pos = lo; dir = 1; }
-        if (pos >= hi) { pos = hi; dir = -1; }
-        for (y = top; y < bot; y++) for (x = pos; x < pos+bw; x++)
-            pix(x, y, 255, 230, 40); /* draw the box */
+        np = pos + dir*step;
+        if (np <= lo) { np = lo; dir = 1; }
+        if (np >= hi) { np = hi; dir = -1; }
+        if (np > pos) { /* moving right: draw the leading strip, erase behind */
+            for (y = top; y < bot; y++) {
+                for (x = pos+bw; x < np+bw; x++) pix(x, y, 255, 230, 40);
+                for (x = pos; x < np; x++)       pix(x, y,  40, 200,  60);
+            }
+        } else if (np < pos) { /* moving left */
+            for (y = top; y < bot; y++) {
+                for (x = np; x < pos; x++)       pix(x, y, 255, 230, 40);
+                for (x = np+bw; x < pos+bw; x++) pix(x, y,  40, 200,  60);
+            }
+        }
+        pos = np;
         nanosleep(&ts, NULL);
 
     }
