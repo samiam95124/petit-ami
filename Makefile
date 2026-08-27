@@ -2164,6 +2164,18 @@ line5: $(GLIBSD) graph_programs/line5.c
 	$(CC) $(CFLAGS) graph_programs/line5.c $(GLIBS) -o bin/line5
 	
 #
+# Frame buffer interface, and its standalone test
+#
+linux/framebuffer/framebuffer.o: linux/framebuffer/framebuffer.c \
+	linux/framebuffer/framebuffer.h Makefile
+	$(CC) $(CFLAGS) -c linux/framebuffer/framebuffer.c \
+	    -o linux/framebuffer/framebuffer.o
+
+fbtest: linux/framebuffer/fbtest.c linux/framebuffer/framebuffer.o Makefile
+	$(CC) $(CFLAGS) linux/framebuffer/fbtest.c \
+	    linux/framebuffer/framebuffer.o -o bin/fbtest
+
+#
 # Resizable clock
 #
 clock: $(GLIBSD) graph_programs/clock.c
