@@ -1344,6 +1344,11 @@ typedef struct winrec {
     long         chrspcy;           /* extra space between lines */
     int          baseoff;           /* font baseline offset from top */
     int          fcurdwn;           /* cursor on screen flag */
+    int          mb1;               /* mouse button 1 state */
+    int          mb2;               /* mouse button 2 state */
+    int          mb3;               /* mouse button 3 state */
+    long         mpx, mpy;          /* mouse current position */
+    long         mpxg, mpyg;        /* mouse current position graphical */
     long         joy1xs;            /* last joystick position 1x */
     long         joy1ys;            /* last joystick position 1y */
     long         joy1zs;            /* last joystick position 1z */
@@ -1527,6 +1532,13 @@ static int        inraw;          /* the console is in raw mode */
 static int        ginit;          /* the module reached full initialization */
 static struct termios saveterm;   /* console mode to restore */
 static int        joyenb = TRUE;  /* enable joysticks */
+static int        micefd = -1;    /* mouse device file */
+static int        micesev;        /* mouse system event id */
+static unsigned char micebuf[3];  /* mouse packet accumulator */
+static int        micecnt;        /* bytes held */
+static int        mptrx;          /* pointer position, 0 based device pixels */
+static int        mptry;
+static int        mptrvis;        /* pointer is shown (first movement seen) */
 
 /* the font lock: a FreeType face is not thread safe and the glyph cache
    hangs off it; drawing calls nest, so the lock is recursive */
@@ -1553,7 +1565,21 @@ ascending bytes -- the layouts coincide and rows copy whole.
 
 *******************************************************************************/
 
-static void fbpresent(int x, int y, int w, int h)
+static void fbputpix(int x, int y, uint32_t v)
+
+{
+
+    unsigned char* dp;
+
+    if (x < 0 || y < 0 || x >= fbcols || y >= fbrows) return;
+    dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+    dp[fbroff] = v>>16&0xff;
+    dp[fbgoff] = v>>8&0xff;
+    dp[fbboff] = v&0xff;
+
+}
+
+static void fbcopy(int x, int y, int w, int h)
 
 {
 
@@ -1595,6 +1621,87 @@ static void fbpresent(int x, int y, int w, int h)
         }
 
     }
+
+}
+
+/*******************************************************************************
+
+Mouse pointer
+
+The pointer is drawn on the device only, never into the screen canvas:
+the canvas stays exactly what the program drew, captures carry no
+pointer, and any present of the area it stands on simply repaints it.
+
+*******************************************************************************/
+
+/* the arrow, drawn from the hot point at its tip: X black, O white */
+static const char* mptrimg[] = {
+
+    "O",
+    "OO",
+    "OXO",
+    "OXXO",
+    "OXXXO",
+    "OXXXXO",
+    "OXXXXXO",
+    "OXXXXXXO",
+    "OXXXXXXXO",
+    "OXXXXXXXXO",
+    "OXXXXXOOOOO",
+    "OXXOXXO",
+    "OXOOXXO",
+    "OO  OXXO",
+    "O   OXXO",
+    "     OXXO",
+    "     OO"
+
+};
+#define MPTRH ((int)(sizeof(mptrimg)/sizeof(mptrimg[0])))
+#define MPTRW 11
+
+/* paint the pointer at its position */
+static void mptrdraw(void)
+
+{
+
+    int         i, j;
+    const char* r;
+
+    for (j = 0; j < MPTRH; j++) {
+
+        r = mptrimg[j];
+        for (i = 0; r[i]; i++)
+            if (r[i] == 'X') fbputpix(mptrx+i, mptry+j, 0x000000);
+            else if (r[i] == 'O') fbputpix(mptrx+i, mptry+j, 0xffffff);
+
+    }
+
+}
+
+/* present a rectangle: the raw copy, then the pointer back on top if
+   the rectangle touched it */
+static void fbpresent(int x, int y, int w, int h)
+
+{
+
+    fbcopy(x, y, w, h);
+    if (mptrvis &&
+        x < mptrx+MPTRW && x+w > mptrx && y < mptry+MPTRH && y+h > mptry)
+        mptrdraw();
+
+}
+
+/* move the pointer: restore the canvas under the old place, draw anew */
+static void mptrmove(int nx, int ny)
+
+{
+
+    int ox = mptrx, oy = mptry;
+
+    mptrx = nx; mptry = ny;
+    if (mptrvis) fbcopy(ox, oy, MPTRW, MPTRH);
+    mptrvis = TRUE;
+    mptrdraw();
 
 }
 
@@ -4103,6 +4210,13 @@ static void opnwin(int fn, int pfn, long wid)
     win->wid = wid; /* set window id */
     win->fcurdwn = FALSE; /* set cursor is not down */
     win->focus = TRUE; /* the screen is always in focus */
+    win->mb1 = FALSE; /* set mouse as assumed no buttons down, at origin */
+    win->mb2 = FALSE;
+    win->mb3 = FALSE;
+    win->mpx = 1;
+    win->mpy = 1;
+    win->mpxg = 1;
+    win->mpyg = 1;
     win->joy1xs = 0; /* clear joystick saves */
     win->joy1ys = 0;
     win->joy1zs = 0;
@@ -4536,11 +4650,136 @@ static int joyevt(ami_evtrec* er, joyptr jp)
 
 /*******************************************************************************
 
+Mouse events
+
+The mouse arrives on /dev/input/mice as PS/2 packets: a button byte
+with a sync bit, then x and y deltas. Position is tracked here and the
+pointer drawn; movement and button edges queue as Petit-Ami events,
+movement before buttons so a click arrives at a current position.
+
+*******************************************************************************/
+
+/* process one complete packet, queueing the events it makes */
+static void micepacket(winptr win)
+
+{
+
+    int        dx, dy;
+    int        nb1, nb2, nb3;
+    long       nxg, nyg, nx, ny;
+    ami_evtrec er;
+
+    /* deltas, sign bits in the header byte; device y grows upward */
+    dx = micebuf[1] - ((micebuf[0] & 0x10) ? 256 : 0);
+    dy = micebuf[2] - ((micebuf[0] & 0x20) ? 256 : 0);
+    dy = -dy;
+    /* buttons: left, right, middle to Ami 1, 3, 2 */
+    nb1 = !!(micebuf[0] & 0x01);
+    nb3 = !!(micebuf[0] & 0x02);
+    nb2 = !!(micebuf[0] & 0x04);
+
+    if (dx || dy || !mptrvis) {
+
+        nxg = win->mpxg+dx;
+        nyg = win->mpyg+dy;
+        if (nxg < 1) nxg = 1;
+        if (nyg < 1) nyg = 1;
+        if (nxg > win->gmaxxg) nxg = win->gmaxxg;
+        if (nyg > win->gmaxyg) nyg = win->gmaxyg;
+        mptrmove((int)nxg-1, (int)nyg-1); /* show the pointer there */
+        if (nxg != win->mpxg || nyg != win->mpyg) {
+
+            win->mpxg = nxg;
+            win->mpyg = nyg;
+            er.winid = win->wid;
+            er.etype = ami_etmoumovg;
+            er.mmoung = 1;
+            er.moupxg = nxg;
+            er.moupyg = nyg;
+            enquepaevt(&er);
+            /* the character position, when it crosses a cell */
+            nx = (nxg-1)/win->charspace+1;
+            ny = (nyg-1)/win->linespace+1;
+            if (nx != win->mpx || ny != win->mpy) {
+
+                win->mpx = nx;
+                win->mpy = ny;
+                er.winid = win->wid;
+                er.etype = ami_etmoumov;
+                er.mmoun = 1;
+                er.moupx = nx;
+                er.moupy = ny;
+                enquepaevt(&er);
+
+            }
+
+        }
+
+    }
+    /* button edges */
+    if (nb1 != win->mb1) {
+
+        win->mb1 = nb1;
+        er.winid = win->wid;
+        er.etype = nb1? ami_etmouba: ami_etmoubd;
+        if (nb1) { er.amoun = 1; er.amoubn = 1; }
+        else { er.dmoun = 1; er.dmoubn = 1; }
+        enquepaevt(&er);
+
+    }
+    if (nb2 != win->mb2) {
+
+        win->mb2 = nb2;
+        er.winid = win->wid;
+        er.etype = nb2? ami_etmouba: ami_etmoubd;
+        if (nb2) { er.amoun = 1; er.amoubn = 2; }
+        else { er.dmoun = 1; er.dmoubn = 2; }
+        enquepaevt(&er);
+
+    }
+    if (nb3 != win->mb3) {
+
+        win->mb3 = nb3;
+        er.winid = win->wid;
+        er.etype = nb3? ami_etmouba: ami_etmoubd;
+        if (nb3) { er.amoun = 1; er.amoubn = 3; }
+        else { er.dmoun = 1; er.dmoubn = 3; }
+        enquepaevt(&er);
+
+    }
+
+}
+
+/* drain the mouse device, accumulating packets; resync on a byte
+   without the sync bit where a header should be */
+static void miceread(winptr win)
+
+{
+
+    unsigned char b;
+
+    while (read(micefd, &b, 1) == 1) {
+
+        if (micecnt == 0 && !(b & 0x08)) continue; /* not a header: resync */
+        micebuf[micecnt++] = b;
+        if (micecnt == 3) {
+
+            micecnt = 0;
+            micepacket(win);
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
 Acquire next input event
 
 Waits for and returns the next event: keyboard characters and their
-translations, timers, the frame timer, joysticks, and terminate on
-SIGINT/SIGTERM.
+translations, mouse movement and buttons, timers, the frame timer,
+joysticks, and terminate on SIGINT/SIGTERM.
 
 *******************************************************************************/
 
@@ -4565,6 +4804,12 @@ static void ievent(FILE* f, ami_evtrec* er)
                    any events past the first */
                 rl = read(0, &b, 1);
                 if (rl == 1) keep = kbdbyte(b, er);
+
+            } else if (micefd >= 0 && sev.lse == micesev) {
+
+                /* mouse packets queue their events; take the first */
+                miceread(thewin);
+                keep = dequepaevt(er);
 
             }
 #ifndef NOJOYSTICK
@@ -8257,7 +8502,7 @@ static long mouse_ivf(FILE* f)
 
 {
 
-    return (0); /* the console has no mouse */
+    return (micefd >= 0); /* one mouse when the device opened */
 
 }
 
@@ -8269,7 +8514,10 @@ static long mousebutton_ivf(FILE* f, long m)
 
 {
 
-    return (0); /* no mouse, no buttons */
+    if (micefd < 0) return (0); /* no mouse, no buttons */
+    if (m != 1) error(einvhan); /* bad mouse number */
+
+    return (3); /* the PS/2 stream carries three */
 
 }
 
@@ -9532,6 +9780,25 @@ static void ami_init_graphics(void)
 
     }
 
+    /* The console mouse: the kernel's aggregated PS/2 stream. FBMOUSE
+       in the environment overrides the path, which is how the tests
+       feed packets through a fifo. No device is no mouse. */
+    {
+
+        const char* mp;
+
+        mp = getenv("FBMOUSE");
+        if (!mp) mp = "/dev/input/mice";
+        micefd = open(mp, O_RDONLY|O_NONBLOCK);
+        micecnt = 0;
+        mptrvis = FALSE;
+        mptrx = fbcols/2; /* the pointer starts centered, hidden until
+                             it moves */
+        mptry = fbrows/2;
+        if (micefd >= 0) micesev = system_event_addseinp(micefd);
+
+    }
+
     /* register the input sources */
     kbdsev = system_event_addseinp(0); /* the keyboard */
     intsev = system_event_addsesig(SIGINT); /* console interrupt */
@@ -9648,6 +9915,9 @@ static void ami_deinit_graphics(void)
 
     /* put the console back */
     if (inraw) tcsetattr(0, TCSANOW, &saveterm);
+
+    /* close the mouse */
+    if (micefd >= 0) close(micefd);
 
     /* close joysticks */
     for (ji = 0; ji < MAXJOY; ji++) if (joytab[ji]) close(joytab[ji]->fid);
