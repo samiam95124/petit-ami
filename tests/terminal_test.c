@@ -148,6 +148,9 @@ static long clk;
 static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
 static int eventflag1, eventflag2;
+static int framenum = 0; /* the frame number */
+static int tstlo = 1;    /* first frame in the selected range */
+static int tsthi = 0;    /* last frame, 0 for no limit */
 static ami_pevthan oeh1;
 static ami_pevthan oeh2;
 static char line[250];
@@ -192,6 +195,7 @@ static void waittime(int n, int t)
 
     ami_evtrec er; /* event record */
 
+    if (framenum+1 < tstlo) return; /* pauses skip outside the range */
     ami_timer(stdout, n, t, 0);
     do { ami_event(stdin, &er);
     } while (er.etype != ami_ettim);
@@ -201,14 +205,38 @@ static void waittime(int n, int t)
 
 extern void screen_capture(void);
 
+/* Mark the pattern just drawn: the next frame number stamped centered
+   on the top line, and the capture. The cursor goes back where it was,
+   and colors and attributes are left alone, so the label prints in the
+   pattern's own. Before the selected range the mark is the count
+   alone; past it the test is over. */
+static void frmmark(void)
+{
+
+    char buf[40];
+    long cx, cy;
+
+    framenum++;
+    if (tsthi && framenum > tsthi) longjmp(terminate_buf, 1);
+    if (framenum < tstlo) return; /* not in range: count alone */
+    sprintf(buf, "frame %d", framenum);
+    cx = ami_curx(stdout);
+    cy = ami_cury(stdout);
+    ami_cursor(stdout, ami_maxx(stdout)/2-(long)strlen(buf)/2, 1);
+    printf("%s", buf);
+    ami_cursor(stdout, cx, cy);
+    screen_capture();
+
+}
+
 /* wait return to be pressed, or handle terminate */
 static void waitnext(void)
 {
 
     ami_evtrec er; /* event record */
 
-    screen_capture();
-
+    frmmark(); /* number, label and capture the pattern */
+    if (framenum < tstlo) return; /* before the range: pass at once */
     do {
 
         ami_event(stdin, &er);
@@ -265,6 +293,7 @@ static void timetest(void)
     long total;
     ami_evtrec er;
 
+    if (framenum+1 < tstlo) return; /* the timed runs skip outside the range */
     printf("Timer test, measuring minimum timer resolution, 100 samples\n\n");
     max = 0;
     min = LONG_MAX;
@@ -315,6 +344,7 @@ static void frametest(void)
     long total;
     ami_evtrec er;
 
+    if (framenum+1 < tstlo) return; /* the timed runs skip outside the range */
     printf("Framing timer test, measuring 10 occurances of the framing timer\n\n");
     ami_frametimer(stdout, TRUE);
         max = 0;
@@ -507,6 +537,13 @@ int main(int argc, char *argv[])
     if (setjmp(terminate_buf)) goto terminate; /* set up long jump to end */
     /* override terminate handler */
     ami_eventover(ami_etterm, termevent, &oldtermevent); 
+
+    /* "terminal_test [first [last]]" runs the numbered frames alone: the
+       patterns before the first pass without a stop, and the run ends
+       after the last. With no last it runs from the first frame to the
+       end of the test. */
+    if (argc > 1) { tstlo = atoi(argv[1]); if (tstlo < 1) tstlo = 1; }
+    if (argc > 2) tsthi = atoi(argv[2]);
 
     ami_select(stdout, 2, 2);   /* move off the display buffer */
     /* the window and the buffer start out the same size; resize events seen
@@ -1346,7 +1383,8 @@ int main(int argc, char *argv[])
     printf("Resize the window, the frame should follow the window\n");
     x = ami_maxx(stdout);
     y = ami_maxy(stdout);
-    do {
+    frmmark(); /* the interactive screens number and capture here */
+    if (framenum >= tstlo) do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etresize) {
@@ -1388,7 +1426,8 @@ int main(int argc, char *argv[])
     box(40, 10, 60, 14, '#');
     ami_cursor(stdout, 47, 12);
     printf("hover");
-    do { 
+    frmmark(); /* the interactive screens number and capture here */
+    if (framenum >= tstlo) do { 
 
         ami_event(stdin, &er);
         if (er.etype == ami_etfocus) box(10, 10, 30, 14, '#');
@@ -1406,6 +1445,7 @@ int main(int argc, char *argv[])
     printf("\f");
     printf("The left and right figures are run on different threads\n");
     prtcen(ami_maxy(stdout), "Threading test");
+    if (framenum+1 >= tstlo) { /* the half minute show skips outside the range */
     thdstp = FALSE;
     ethdstp = FALSE;
     ln = ami_initlock();
@@ -1449,6 +1489,7 @@ int main(int argc, char *argv[])
     ami_cursor(stdout, 1, 3);
     ami_deinitlock(ln);
     printf("Test complete!\n");
+    } /* in range */
     waitnext();
     ami_auto(stdout, TRUE);
     ami_curvis(stdout, TRUE);
@@ -1459,9 +1500,10 @@ int main(int argc, char *argv[])
 
         printf("\f");
         ami_curvis(stdout, FALSE);
-        prtcen(1, "Move the joystick(s) X, Y and Z, and hit buttons");
+        prtcen(2, "Move the joystick(s) X, Y and Z, and hit buttons");
         prtcen(ami_maxy(stdout), "Joystick test");
-        do {   /* gather joystick events */
+        frmmark(); /* the interactive screens number and capture here */
+        if (framenum >= tstlo) do {   /* gather joystick events */
 
             /* we do up to 4 joysticks */
             ami_event(stdin, &er);
@@ -1551,9 +1593,10 @@ int main(int argc, char *argv[])
         printf("\f");
         ami_auto(stdout, FALSE);
         ami_curvis(stdout, FALSE);
-        prtcen(1, "Move the mouse, and hit buttons");
+        prtcen(2, "Move the mouse, and hit buttons");
         prtcen(ami_maxy(stdout), "Mouse test");
-        do { /* gather mouse events */
+        frmmark(); /* the interactive screens number and capture here */
+        if (framenum >= tstlo) do { /* gather mouse events */
 
             /* we only one mouse, all mice equate to that (multiple controls) */
             ami_event(stdin, &er);
@@ -1565,7 +1608,7 @@ int main(int argc, char *argv[])
                 x = ami_curx(stdout);
                 y = ami_cury(stdout);
                 printf("<- Mouse %ld\n", er.mmoun);
-                prtcen(1, "Move the mouse, and hit buttons");
+                prtcen(2, "Move the mouse, and hit buttons");
                 prtcen(ami_maxy(stdout), "Mouse test");
 
             }
@@ -1577,7 +1620,7 @@ int main(int argc, char *argv[])
                 ami_cursor(stdout, 1, ami_maxy(stdout)-2);
                 printf("Mouse button assert, mouse: %ld button: %ld\n",
                        er.amoun, er.amoubn);
-                prtcen(1, "Move the mouse, and hit buttons");
+                prtcen(2, "Move the mouse, and hit buttons");
                 prtcen(ami_maxy(stdout), "Mouse test");
 
             }
@@ -1586,7 +1629,7 @@ int main(int argc, char *argv[])
                 ami_cursor(stdout, 1, ami_maxy(stdout) - 2);
                 printf("Mouse button deassert, mouse: %ld button: %ld\n",
                        er.dmoun, er.dmoubn);
-                prtcen(1, "Move the mouse, and hit buttons");
+                prtcen(2, "Move the mouse, and hit buttons");
                 prtcen(ami_maxy(stdout), "Mouse test");
 
             }
