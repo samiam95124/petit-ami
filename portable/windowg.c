@@ -3970,15 +3970,28 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
-    int ifn, ofn, pfn;
+    int ifn, ofn, pfn, fn;
 
-    /* window files park on the null device; the manager is the content */
-    if (!*infile) *infile = fopen(NULLDEV, "r");
-    if (!*outfile) *outfile = fopen(NULLDEV, "w");
-    if (!*infile || !*outfile) error("Cannot open window file");
-    setvbuf(*infile, NULL, _IONBF, 0);
+    /* Window files park on the null device; the manager is the content.
+       The input side reuses a known open file -- stdin, or another
+       window's input -- and anything else opens fresh. The output side
+       always opens fresh: callers reuse their file pointer variables
+       across close and open, the windowc convention, so a stale pointer
+       must never be trusted. */
+    ifn = -1;
+    for (fn = 0; fn < MAXFIL; fn++)
+        if (opnfil[fn] && opnfil[fn]->sfp == *infile) ifn = fn;
+    if (ifn < 0) {
+
+        *infile = fopen(NULLDEV, "r");
+        if (!*infile) error("Cannot open window file");
+        setvbuf(*infile, NULL, _IONBF, 0);
+        ifn = fileno(*infile);
+
+    }
+    *outfile = fopen(NULLDEV, "w");
+    if (!*outfile) error("Cannot open window file");
     setvbuf(*outfile, NULL, _IONBF, 0);
-    ifn = fileno(*infile);
     ofn = fileno(*outfile);
     if (ifn < 0 || ofn < 0 || ifn >= MAXFIL || ofn >= MAXFIL)
         error("Invalid file handle");
@@ -4080,6 +4093,8 @@ static void setsizg_ivf(FILE* f, long x, long y)
     rectangle old;
 
     win = txt2win(f);
+    /* the root is the whole surface: it cannot size */
+    if (win->root) error("Cannot size the root window");
     winrect(win, &old);
     /* the size given is the whole window; the client area follows from
        the frame */
@@ -4142,6 +4157,8 @@ static void setposg_ivf(FILE* f, long x, long y)
     rectangle old;
 
     win = txt2win(f);
+    /* nothing lies behind the root: it cannot move */
+    if (win->root) error("Cannot move the root window");
     winrect(win, &old);
     win->orgx = x;
     win->orgy = y;
@@ -4252,7 +4269,9 @@ static void front_ivf(FILE* f)
     rectangle r;
 
     win = txt2win(f);
-    if (win->zorder != ztop && !win->root) {
+    /* the root floors the Z order: it cannot reorder */
+    if (win->root) error("Cannot order the root window");
+    if (win->zorder != ztop) {
 
         ztotop(win);
         calcvisall();
@@ -4271,7 +4290,9 @@ static void back_ivf(FILE* f)
     rectangle r;
 
     win = txt2win(f);
-    if (!win->root && win->zorder > 1) {
+    /* the root floors the Z order: it cannot reorder */
+    if (win->root) error("Cannot order the root window");
+    if (win->zorder > 1) {
 
         /* the back of the pile is above the root, which floors the
            order; the root itself never moves */
