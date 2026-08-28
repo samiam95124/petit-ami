@@ -8768,31 +8768,21 @@ static void sizbufg_ivf(FILE* f, long x, long y)
     sc->maxyg = y;
     sc->maxx = x/win->charspace; /* and the character grid */
     sc->maxy = y/win->linespace;
-    /* The resize hands back a fresh drawing context, as the other
-       backends do (they rebuild the screen whole): state to the same
-       defaults iniscn establishes, sized to the new grid. The content
-       intersection above is what carries over. */
+    /* The resize hands back a refreshed drawing context, as the other
+       backends do. They reset to their window's current global state;
+       here a manager above may divide the one window into many, and
+       the globals mix every window's settings -- the screen's own
+       colors, attributes, font and modes ARE its window's current
+       state, so those stand. What the desktops reset unconditionally
+       resets here: the cursor home, the line width and style, and the
+       default tabs at the new width. */
     sc->curx = 1; /* cursor at home */
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
     sc->angle = LONG_MAX/4;
-    sc->fcrgb = win->gfcrgb; /* colors and attributes */
-    sc->bcrgb = win->gbcrgb;
-    sc->attr = win->gattr;
-    sc->autof = win->gauto;
-    sc->curv = win->gcurv;
     sc->lwidth = 1; /* single pixel width */
     sc->lstyle = ami_lssolid;
-    sc->cfont = win->gcfont;
-    sc->fmod = win->gfmod;
-    sc->bmod = win->gbmod;
-    sc->offx = win->goffx; /* viewport offset and extents */
-    sc->offy = win->goffy;
-    sc->wextx = win->gwextx;
-    sc->wexty = win->gwexty;
-    sc->vextx = win->gvextx;
-    sc->vexty = win->gvexty;
     if (BIT(sarev) & sc->attr) { /* the context follows */
 
         sc->xcxt->bg = sc->fcrgb;
