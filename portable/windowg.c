@@ -2509,6 +2509,11 @@ static void ievent(FILE* f, ami_evtrec* er)
 
     while (!got) {
 
+        /* Processing a layer event can queue client events -- a drag
+           release queues the resize, a focus change its notices. They
+           deliver before the layer is pulled again, or a client sitting
+           in this loop on a quiet display would never hear them. */
+        if (dequepaevt(er)) return;
         (*event_down)(stdin, &le); /* the layer's next event */
         got = transevt(&le, er);
 
