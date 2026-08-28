@@ -108,10 +108,12 @@ extern char *program_invocation_short_name;
 
 /* frame metrics, in pixels at the frame font's cell height fc */
 #define FRMBORDER  2              /* plain border width */
-#define SIZBORDER  6              /* sizing border width, when sizable */
 #define CORNERZ    16             /* corner grab zone reach */
-/* the border a window wears: sizable windows carry the sizing bars */
-#define BORD(w)    ((w)->size? SIZBORDER: FRMBORDER)
+#define SIZHALO    8              /* invisible sizing reach past the edge */
+/* The border a window wears. The sizing edges are invisible, the
+   desktop way: the pointer's sizing shape announces them, and the
+   grab reaches SIZHALO past the window edge. */
+#define BORD(w)    FRMBORDER
 #define BARH(fc)   ((fc)+6)       /* title bar height */
 #define BTNW(fc)   ((fc)+6)       /* frame button width */
 
@@ -1141,7 +1143,6 @@ buttons, and a plain border. The GNOME-ish light theme.
 #define FRMBARF 0xc5, 0xc5, 0xc5 /* title bar field, no focus */
 #define FRMEDGE 0x99, 0x99, 0x99 /* border */
 #define FRMTEXT 0x10, 0x10, 0x10 /* title and button glyphs */
-#define FRMTICK 0x70, 0x70, 0x70 /* sizing border corner ticks */
 
 /* set layer foreground from 8 bit components */
 static void fcolor8(int r, int g, int b)
@@ -1206,6 +1207,33 @@ static int frmhit(winptr win, long x, long y)
 
 }
 
+/* The invisible sizing halo: the topmost sizable window whose halo
+   covers a point just outside its rectangle takes the sizing grab,
+   unless the window the point actually lies in stands above it. */
+static winptr haloat(long x, long y, winptr over)
+
+{
+
+    winptr    wp, best = NULL;
+    rectangle r;
+
+    for (wp = winlst; wp; wp = wp->winlst) {
+
+        if (!wp->visible || wp->mined || wp->maxed) continue;
+        if (!wp->frame || !wp->size || wp->root) continue;
+        winrect(wp, &r);
+        if (x >= r.x1-SIZHALO && x <= r.x2+SIZHALO &&
+            y >= r.y1-SIZHALO && y <= r.y2+SIZHALO &&
+            (x < r.x1 || x > r.x2 || y < r.y1 || y > r.y2) &&
+            (!best || wp->zorder > best->zorder))
+            best = wp;
+
+    }
+    if (best && over && over->zorder > best->zorder) best = NULL;
+    return (best);
+
+}
+
 /* the sizing edges a point grabs: 1 top, 2 bottom, 4 left, 8 right */
 static unsigned frmedges(winptr win, long x, long y)
 
@@ -1251,27 +1279,6 @@ static void drwfrm(winptr win)
     if (win->focus) fcolor8(FRMBAR); else fcolor8(FRMBARF);
     (*frect_down)(stdout, BORD(win)+1, BORD(win)+1,
                   win->pmaxx-BORD(win), win->pmaxy-BORD(win));
-    if (win->size) {
-
-        /* The sizing border wears corner ticks, so the widened border
-           reads as size bars: a mark on each edge where the corner
-           grab zone ends. */
-        long bd = BORD(win);
-        long cz = CORNERZ;
-
-        fcolor8(FRMTICK);
-        (*frect_down)(stdout, cz, 1, cz+1, bd);
-        (*frect_down)(stdout, win->pmaxx-cz-1, 1, win->pmaxx-cz, bd);
-        (*frect_down)(stdout, cz, win->pmaxy-bd+1, cz+1, win->pmaxy);
-        (*frect_down)(stdout, win->pmaxx-cz-1, win->pmaxy-bd+1,
-                      win->pmaxx-cz, win->pmaxy);
-        (*frect_down)(stdout, 1, cz, bd, cz+1);
-        (*frect_down)(stdout, win->pmaxx-bd+1, cz, win->pmaxx, cz+1);
-        (*frect_down)(stdout, 1, win->pmaxy-cz-1, bd, win->pmaxy-cz);
-        (*frect_down)(stdout, win->pmaxx-bd+1, win->pmaxy-cz-1,
-                      win->pmaxx, win->pmaxy-cz);
-
-    }
     if (win->sysbar) {
 
         bh = BARH(rootcell);
@@ -2262,12 +2269,16 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
             if (grx_pointer) {
 
                 int      shp = 0;
-                unsigned e;
+                unsigned e = 0;
+                winptr   hw;
 
                 if (tw && frmhit(tw, rootmx-tw->orgx+1,
-                                     rootmy-tw->orgy+1) == 5) {
-
+                                     rootmy-tw->orgy+1) == 5)
                     e = frmedges(tw, rootmx-tw->orgx+1, rootmy-tw->orgy+1);
+                else if ((hw = haloat(rootmx, rootmy, tw)))
+                    e = frmedges(hw, rootmx-hw->orgx+1, rootmy-hw->orgy+1);
+                if (e) {
+
                     if ((e & 1 && e & 4) || (e & 2 && e & 8)) shp = 3;
                     else if ((e & 1 && e & 8) || (e & 2 && e & 4)) shp = 4;
                     else if (e & (4|8)) shp = 1;
@@ -2299,6 +2310,36 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
         case ami_etmouba:
             if (drag != dt_none) break; /* the band owns the pointer */
             tw = winat(rootmx, rootmy);
+            /* a sizing grab may reach from just outside the window */
+            if (le->amoubn == 1) {
+
+                winptr hw = haloat(rootmx, rootmy, tw);
+
+                if (hw) {
+
+                    if (hw->zorder != ztop) {
+
+                        ztotop(hw);
+                        calcvisall();
+                        winrect(hw, &r);
+                        composeall(&r);
+
+                    }
+                    setfocus(hw);
+                    drag = dt_size;
+                    drgwin = hw;
+                    drgedges = frmedges(hw, rootmx-hw->orgx+1,
+                                        rootmy-hw->orgy+1);
+                    drgax = rootmx; drgay = rootmy;
+                    drgox = hw->orgx; drgoy = hw->orgy;
+                    drgow = hw->pmaxx; drgoh = hw->pmaxy;
+                    bandcalc(rootmx, rootmy);
+                    banddraw();
+                    break;
+
+                }
+
+            }
             if (!tw) break;
             lx = rootmx-tw->orgx+1;
             ly = rootmy-tw->orgy+1;
@@ -4283,12 +4324,11 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy,
 {
 
     long fx = 0, fy = 0;
-    long bd = (BIT(ami_wmsize) & ms)? SIZBORDER: FRMBORDER;
 
     if (BIT(ami_wmframe) & ms) {
 
-        fx = 2*bd;
-        fy = 2*bd;
+        fx = 2*FRMBORDER;
+        fy = 2*FRMBORDER;
         if (BIT(ami_wmsysbar) & ms) fy += BARH(rootcell);
 
     }
