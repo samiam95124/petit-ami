@@ -56,6 +56,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <linux/fb.h>
@@ -76,6 +78,22 @@ static long   fbstride   = 0;    /* bytes per scanline (>= cols*pixsiz) */
 static long   fbroff     = 0;    /* red byte offset within a pixel */
 static long   fbgoff     = 0;    /* green byte offset */
 static long   fbboff     = 0;    /* blue byte offset */
+
+/* The reduced mode: FBSIZE=WxH in the environment exposes a logical
+   screen of that size in a shadow buffer, and a scanout thread
+   replicates it integer-scaled and centered onto the device at about
+   thirty a second, skipping rows that have not changed. The layers
+   above see only the small screen, so drawing and composition shrink
+   with it -- the testing knob for a large panel. */
+static long           lrows;      /* logical rows, 0 = native mode */
+static long           lcols;      /* logical columns */
+static unsigned char* shadow;     /* the logical screen */
+static unsigned char* shadowprev; /* last scanned-out copy */
+static long           scale;      /* device pixels per logical pixel */
+static long           scoffx;     /* centering offset on the device */
+static long           scoffy;
+static pthread_t      scanthread; /* the scanout */
+static int            scanrun;    /* it should keep running */
 
 /*******************************************************************************
 
@@ -117,6 +135,60 @@ static long byteoff(struct fb_bitfield* bf)
 
 /*******************************************************************************
 
+The scanout
+
+In the reduced mode the layers above draw the shadow; this thread
+replicates changed rows onto the device, each logical pixel a scale by
+scale block, centered. About thirty passes a second; an unchanged
+screen costs a row compare per row and nothing more.
+
+*******************************************************************************/
+
+static void* scanout(void* arg)
+
+{
+
+    struct timespec ts = { 0, 33*1000*1000 };
+    long   y, x, r;
+    size_t lrow = (size_t)lcols*fbpixsiz;
+    unsigned char* xrow;
+
+    (void)arg;
+    xrow = malloc(lrow*scale);
+    if (!xrow) return (NULL);
+    while (scanrun) {
+
+        for (y = 0; y < lrows; y++) {
+
+            unsigned char* sr = shadow+(size_t)y*lrow;
+
+            if (memcmp(sr, shadowprev+(size_t)y*lrow, lrow)) {
+
+                memcpy(shadowprev+(size_t)y*lrow, sr, lrow);
+                /* expand the row once, then lay it down scale times */
+                for (x = 0; x < lcols; x++)
+                    for (r = 0; r < scale; r++)
+                        memcpy(xrow+((size_t)x*scale+r)*fbpixsiz,
+                               sr+(size_t)x*fbpixsiz, fbpixsiz);
+                for (r = 0; r < scale; r++)
+                    memcpy(fbmem+((size_t)(scoffy+y*scale+r)*fbcols+scoffx)*
+                               fbpixsiz,
+                           xrow, lrow*scale);
+
+            }
+
+        }
+        nanosleep(&ts, NULL);
+
+    }
+    free(xrow);
+
+    return (NULL);
+
+}
+
+/*******************************************************************************
+
 Initialize the frame buffer
 
 Opens the device, reads its variable and fixed screen information, checks the
@@ -132,18 +204,50 @@ static void init_framebuffer(void)
     struct fb_var_screeninfo vinfo; /* the changeable mode: resolution, format */
     struct fb_fix_screeninfo finfo; /* the fixed facts: stride, mapped length */
 
+    const char* dev;
+    int         isfile = 0;
+
     errno = 0;
-    fbfd = open(FBDEV, O_RDWR);
-    if (fbfd < 0) fail("cannot open " FBDEV);
+    /* FBDEV overrides the device path; a plain file serves the test
+       rig, taking its geometry from FBDEVGEOM (default 3840x2160) */
+    dev = getenv("FBDEV");
+    if (!dev) dev = FBDEV;
+    else isfile = 1;
+    fbfd = open(dev, O_RDWR | (isfile? O_CREAT: 0), 0644);
+    if (fbfd < 0) fail("cannot open the frame buffer device");
 
-    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo)) fail("cannot read the mode");
-    if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo)) fail("cannot read the layout");
+    if (!isfile) {
 
-    /* the mode is the device's current one, the panel's native resolution */
-    fbcols   = vinfo.xres;
-    fbrows   = vinfo.yres;
-    fbpixsiz = vinfo.bits_per_pixel/8;
-    fbstride = finfo.line_length;
+        if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo))
+            fail("cannot read the mode");
+        if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo))
+            fail("cannot read the layout");
+
+        /* the mode is the device's current one, the panel's native
+           resolution */
+        fbcols   = vinfo.xres;
+        fbrows   = vinfo.yres;
+        fbpixsiz = vinfo.bits_per_pixel/8;
+        fbstride = finfo.line_length;
+
+    } else {
+
+        /* the file rig: BGRA 32 bit at the given geometry */
+        const char* g = getenv("FBDEVGEOM");
+
+        fbcols = 3840;
+        fbrows = 2160;
+        if (g) sscanf(g, "%ldx%ld", &fbcols, &fbrows);
+        fbpixsiz = 4;
+        fbstride = fbcols*fbpixsiz;
+        memset(&vinfo, 0, sizeof(vinfo));
+        vinfo.red.offset = 16;
+        vinfo.green.offset = 8;
+        vinfo.blue.offset = 0;
+        if (ftruncate(fbfd, fbstride*fbrows))
+            fail("cannot size the file rig");
+
+    }
 
     if (fbpixsiz != 1 && fbpixsiz != 2 && fbpixsiz != 4 &&
         fbpixsiz != 3 && fbpixsiz != 6 && fbpixsiz != 8 &&
@@ -171,6 +275,34 @@ static void init_framebuffer(void)
     fbmem = mmap(NULL, fbmemlen, PROT_READ|PROT_WRITE, MAP_SHARED, fbfd, 0);
     if (fbmem == MAP_FAILED) { fbmem = NULL; fail("cannot map the screen"); }
 
+    /* the reduced mode */
+    {
+        const char* sz = getenv("FBSIZE");
+        long w, h;
+
+        if (sz && sscanf(sz, "%ldx%ld", &w, &h) == 2 &&
+            w >= 64 && h >= 64 && w <= fbcols && h <= fbrows) {
+
+            lcols = w;
+            lrows = h;
+            scale = fbcols/w < fbrows/h? fbcols/w: fbrows/h;
+            if (scale < 1) scale = 1;
+            scoffx = (fbcols-w*scale)/2;
+            scoffy = (fbrows-h*scale)/2;
+            shadow = calloc((size_t)w*h, fbpixsiz);
+            shadowprev = malloc((size_t)w*h*fbpixsiz);
+            if (!shadow || !shadowprev) fail("no memory for the shadow");
+            /* force the first scanout whole */
+            memset(shadowprev, 0xff, (size_t)w*h*fbpixsiz);
+            /* the border clears once */
+            memset(fbmem, 0, fbmemlen);
+            scanrun = 1;
+            if (pthread_create(&scanthread, NULL, scanout, NULL))
+                fail("cannot start the scanout");
+
+        }
+    }
+
 }
 
 /*******************************************************************************
@@ -186,6 +318,15 @@ static void deinit_framebuffer(void)
 
 {
 
+    if (scanrun) {
+
+        scanrun = 0;
+        pthread_join(scanthread, NULL);
+
+    }
+    free(shadow);
+    free(shadowprev);
+    shadow = NULL;
     if (fbmem && fbmemlen > 0) munmap(fbmem, fbmemlen);
     if (fbfd >= 0) close(fbfd);
     fbmem = NULL; fbfd = -1;
@@ -198,8 +339,8 @@ void frame_geometry(long* rows, long* columns)
 
 {
 
-    if (rows) *rows = fbrows;
-    if (columns) *columns = fbcols;
+    if (rows) *rows = lrows? lrows: fbrows;
+    if (columns) *columns = lcols? lcols: fbcols;
 
 }
 
@@ -215,7 +356,7 @@ void frame_buffer(void** buffer)
 
 {
 
-    if (buffer) *buffer = fbmem;
+    if (buffer) *buffer = shadow? (void*)shadow: fbmem;
 
 }
 

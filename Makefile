@@ -2197,7 +2197,7 @@ linux/framebuffer/framebuffer.o: linux/framebuffer/framebuffer.c \
 
 fbtest: linux/framebuffer/fbtest.c linux/framebuffer/framebuffer.o Makefile
 	$(CC) $(CFLAGS) linux/framebuffer/fbtest.c \
-	    linux/framebuffer/framebuffer.o -o bin/fbtest
+	    linux/framebuffer/framebuffer.o -lpthread -o bin/fbtest
 
 #
 # Resizable clock
