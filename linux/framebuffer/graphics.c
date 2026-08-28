@@ -3132,7 +3132,10 @@ static void curon(winptr win)
 
     scnptr sc; /* pointer to current screen */
 
-    sc = win->screens[win->curdsp-1]; /* index current screen */
+    /* The caret gates on the update screen: the caret tracks the
+       screen being written, and a manager above holds the display on
+       another screen while writing this one */
+    sc = win->screens[win->curupd-1]; /* index current screen */
     if (!win->fcurdwn && sc->curv && icurbnd(sc)) {
 
         /* cursor not already down, cursor visible, cursor in bounds */
@@ -3150,7 +3153,7 @@ static void curoff(winptr win)
 
     scnptr sc; /* pointer to current screen */
 
-    sc = win->screens[win->curdsp-1]; /* index current screen */
+    sc = win->screens[win->curupd-1]; /* index current screen */
     if (win->fcurdwn && sc->curv && icurbnd(sc)) {
 
         curdrw(win); /* remove cursor */
@@ -3165,8 +3168,8 @@ static void cursts(winptr win)
 
 {
 
-    if (win->screens[win->curdsp-1]->curv &&
-        icurbnd(win->screens[win->curdsp-1])) {
+    if (win->screens[win->curupd-1]->curv &&
+        icurbnd(win->screens[win->curupd-1])) {
 
         /* cursor should be visible */
         if (!win->fcurdwn) { /* not already down */
