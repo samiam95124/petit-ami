@@ -1694,6 +1694,11 @@ static void dragend(long gx, long gy)
         er.rszx = win->cmaxx/(*chrsizx_down)(stdout);
         er.rszy = win->cmaxy/(*chrsizy_down)(stdout);
         enquepaevt(&er);
+        /* and the redraw notice the desktop backends send after it:
+           an unbuffered client repaints on this */
+        er.etype = ami_etredraw;
+        er.winid = win->wid;
+        enquepaevt(&er);
 
     }
     winrect(win, &r2);
@@ -4252,6 +4257,10 @@ static void setsizg_ivf(FILE* f, long x, long y)
         entercli(win); /* the metrics in the window's font */
         er.rszx = win->cmaxx/(*chrsizx_down)(stdout);
         er.rszy = win->cmaxy/(*chrsizy_down)(stdout);
+        enquepaevt(&er);
+        /* and the redraw notice the desktop backends send after it */
+        er.etype = ami_etredraw;
+        er.winid = win->wid;
         enquepaevt(&er);
 
     }
