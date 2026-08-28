@@ -8768,6 +8768,56 @@ static void sizbufg_ivf(FILE* f, long x, long y)
     sc->maxyg = y;
     sc->maxx = x/win->charspace; /* and the character grid */
     sc->maxy = y/win->linespace;
+    /* The resize hands back a fresh drawing context, as the other
+       backends do (they rebuild the screen whole): state to the same
+       defaults iniscn establishes, sized to the new grid. The content
+       intersection above is what carries over. */
+    sc->curx = 1; /* cursor at home */
+    sc->cury = 1;
+    sc->curxg = 1;
+    sc->curyg = 1;
+    sc->angle = LONG_MAX/4;
+    sc->fcrgb = win->gfcrgb; /* colors and attributes */
+    sc->bcrgb = win->gbcrgb;
+    sc->attr = win->gattr;
+    sc->autof = win->gauto;
+    sc->curv = win->gcurv;
+    sc->lwidth = 1; /* single pixel width */
+    sc->lstyle = ami_lssolid;
+    sc->cfont = win->gcfont;
+    sc->fmod = win->gfmod;
+    sc->bmod = win->gbmod;
+    sc->offx = win->goffx; /* viewport offset and extents */
+    sc->offy = win->goffy;
+    sc->wextx = win->gwextx;
+    sc->wexty = win->gwexty;
+    sc->vextx = win->gvextx;
+    sc->vexty = win->gvexty;
+    if (BIT(sarev) & sc->attr) { /* the context follows */
+
+        sc->xcxt->bg = sc->fcrgb;
+        sc->xcxt->fg = sc->bcrgb;
+
+    } else {
+
+        sc->xcxt->bg = sc->bcrgb;
+        sc->xcxt->fg = sc->fcrgb;
+
+    }
+    sc->xcxt->lw = 1; sc->xcxt->lstyle = pd_linesolid;
+    /* the default tabs at the new width */
+    for (i = 0; i < MAXTAB; i++) sc->tab[i] = 0;
+    {
+        int t = 9, ti = 0;
+
+        while (t < sc->maxx && ti < MAXTAB) {
+
+            sc->tab[ti] = (t-1)*win->charspace+1;
+            t = t+8;
+            ti = ti+1;
+
+        }
+    }
     if (win->curupd == win->curdsp) {
 
         /* the displayed screen changed size: track the globals and
