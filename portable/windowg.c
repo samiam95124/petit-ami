@@ -799,6 +799,23 @@ static void enterdsp(void)
 
 }
 
+/* Enter the display context for composition. The layer's blockcopy
+   mixes by the write mode of its current update screen; at compose
+   time that is the client's backing, in whatever mode the client
+   left -- xor blits frames over each other, self canceling to black,
+   and invisible drops them whole. The display screen's own mode is
+   the composer's, overwrite (the rubber band borrows it and puts it
+   back), so compose with the display as the update screen. Only
+   blits follow, no font or client state, so the client context
+   cache stands and the next entercli reselects as it always does. */
+static void entercmp(void)
+
+{
+
+    (*select_down)(stdout, DSPSCN, DSPSCN);
+
+}
+
 /*******************************************************************************
 
 Geometry
@@ -1029,6 +1046,7 @@ static void composewin(winptr win, rectangle* dr)
     int       i;
 
     if (!win->visible || win->mined) return;
+    entercmp(); /* the blits mix by the display screen's mode */
     for (i = 0; i < win->vis.n; i++) {
 
         if (!intersect(&win->vis.r[i], dr)) continue;
