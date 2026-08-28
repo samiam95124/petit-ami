@@ -1687,21 +1687,6 @@ management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPT
 endif
 
 #
-# The management test for rooted displays, where the program window is the
-# root surface (the frame buffer backend). The root cannot move, size or
-# change Z order, so it serves as the desktop and every test applies to a
-# child window, the way management_testc does on the character window
-# manager.
-#
-ifeq ($(OSTYPE),Darwin)
-management_testr: $(GLIBSD) tests/management_testr.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testr.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_testr
-else
-management_testr: $(GLIBSD) tests/management_testr.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testr.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_testr
-endif
-
-#
 # The widget busy box, on the desktop toolkits: the same page as
 # tests/widgets_demo.c but built on GTK and on Qt, so the three can be set
 # beside each other. They link no part of Ami, and so are built without the
@@ -1843,12 +1828,12 @@ graphics_testr: tests/graphics_test.c portable/graph_client.o \
 # The management test run remotely: linked with graph_client, the display
 # side served by graph_server.
 #
-management_testrem: tests/management_test.c portable/graph_client.o \
+management_testr: tests/management_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/management_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/management_testrem
+	    -lssl -lcrypto -lm -lpthread -o bin/management_testr
 
 #
 # The widget test run remotely: linked with graph_client, the display
@@ -2489,15 +2474,3 @@ management_testfbm: $(GLIBSFBM) tests/management_test.c \
 	$(CC) $(CFLAGS) tests/management_test.c linux/wayland/screen_capture.o \
 	    linux/framebuffer/fbmock.o \
 	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testfbm
-
-management_testrfb: $(GLIBSFBM) tests/management_testr.c \
-	linux/framebuffer/framebuffer.o
-	$(CC) $(CFLAGS) tests/management_testr.c linux/wayland/screen_capture.o \
-	    linux/framebuffer/framebuffer.o \
-	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testrfb
-
-management_testrfbm: $(GLIBSFBM) tests/management_testr.c \
-	linux/framebuffer/fbmock.o
-	$(CC) $(CFLAGS) tests/management_testr.c linux/wayland/screen_capture.o \
-	    linux/framebuffer/fbmock.o \
-	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testrfbm
