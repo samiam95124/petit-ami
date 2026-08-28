@@ -17,6 +17,27 @@
 * character based desktop arrives.)                                           *
 *                                                                             *
 *******************************************************************************/
+/*******************************************************************************
+
+Usage:
+
+    management_test [auto [file]] [-r] [first [last]]
+
+    auto   Walks every screen with no input and exits after them: the
+           regression mode. A following non-numeric argument names the
+           file the screens are captured to.
+    -r     The rooted form: the program window serves as the desktop
+           (the frame buffer backend's root, which cannot move or
+           size), and every test applies to a child window on it.
+    first  The first frame to stop on. The frames before it pass
+           without a stop or capture.
+    last   The last frame; the run ends after it. Left off, the run
+           goes from the first frame to the end of the test.
+
+Each frame stamps its number into the test window's title bar, so a
+frame can be called out by number and revisited alone.
+
+*******************************************************************************/
 
 /* base C defines */
 #include <stdlib.h>
@@ -58,6 +79,8 @@ static ami_evtrec  er;
 static ami_menuptr mp;           /* menu pointer */
 static ami_menuptr ml;           /* menu list */
 static int        framenum = 0;
+static int        tstlo = 0;    /* first frame in the selected range */
+static int        tsthi = 0;    /* last frame, 0 for no limit */
 static ami_menuptr sm;           /* submenu list */
 static int        sred;         /* state variables */
 static int        sgreen;
@@ -133,6 +156,15 @@ static void nextevt(ami_evtrec* er)
 
 {
 
+    if (framenum+1 < tstlo) {
+
+        /* before the selected range every wait answers at once */
+        er->etype = ami_etenter;
+        er->winid = mainwid;
+
+        return;
+
+    }
     if (autorun) {
 
         autosettle();
@@ -158,6 +190,8 @@ static void waitnextt(int keeptitle)
     char titlebuf[80];
 
     framenum++;
+    if (tsthi && framenum > tsthi) longjmp(terminate_buf, 1);
+    if (framenum < tstlo) return; /* before the range: the count alone */
     /* Stamp the frame number into the title bar, unless the caller is testing
        ami_title itself: keeptitle=TRUE preserves the title under test instead
        of clobbering it. */
@@ -319,7 +353,7 @@ static void frameinside(const string s, long x, long y)
     ami_line(tw, 1, y, x, 1);
     ami_fcolor(tw, ami_black);
     ami_binvis(tw);
-    puts(s);
+    fprintf(tw, "%s\n", s);
     ami_bover(tw);
 
 }
@@ -398,9 +432,19 @@ int main(int argc, char* argv[])
             autorun = TRUE;
             ami_autohold(FALSE);
 
+        } else if (argv[i][0] >= '0' && argv[i][0] <= '9') {
+
+            /* "management_test [first [last]]" runs the numbered frames
+               alone: the frames before the first pass without a stop,
+               and the run ends after the last. With no last it runs
+               from the first frame to the end of the test. */
+            if (!tstlo) tstlo = atoi(argv[i]);
+            else tsthi = atoi(argv[i]);
+
         } else if (autorun) screen_capture_name(argv[i]);
 
     }
+    if (tstlo < 1) tstlo = 1;
 
     /* the test window and its windows: the program window and 2..4, or a
        child window and 3..5 when the program window is the desktop */
