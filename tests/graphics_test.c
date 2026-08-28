@@ -510,14 +510,14 @@ static void frmmark(void)
     if (framenum < tstlo) return; /* not in range: count alone */
     sprintf(buf, "graphics_test: frame %d", framenum);
     ami_title(stdout, buf);
-    sprintf(buf, "%d", framenum);
+    /* the label centered on the top line, in the current font as the
+       rest of the surface's writing, xor so it reads on any field */
+    sprintf(buf, "frame %d", framenum);
     ami_fxor(stdout);
     ami_fcolor(stdout, ami_white);
-    ami_cursor(stdout, ami_maxx(stdout)-(long)strlen(buf)+1, 1);
+    ami_cursor(stdout, (ami_maxx(stdout)/2)-((long)strlen(buf)/2), 1);
     printf("%s", buf);
-    /* home the cursor: the label leaves it past the right edge, where a
-       pattern's auto reenable would fault */
-    ami_cursor(stdout, 1, 1);
+    ami_cursor(stdout, 1, 1); /* leave the cursor on a safe place */
     ami_fover(stdout);
     ami_fcolor(stdout, ami_black);
 
@@ -3343,9 +3343,9 @@ int main(int argc, char* argv[])
     putchar('\f');
     grid();
     ami_binvis(stdout);
-    prtcen(1, "Use up, down, right && left keys to scroll by pixel");
-    prtcen(2, "Hit enter to continue");
-    prtcen(3, "Note that edges will clear to green as screen moves");
+    prtcen(2, "Use up, down, right && left keys to scroll by pixel");
+    prtcen(3, "Hit enter to continue");
+    prtcen(4, "Note that edges will clear to green as screen moves");
     prtcen(ami_maxy(stdout), "Graphical scrolling test");
     ami_bcolor(stdout, ami_green);
     frmmark();
@@ -3365,7 +3365,7 @@ int main(int argc, char* argv[])
     /* ************************** Graphical mouse movement test **************************** */
 
     putchar('\f');
-    prtcen(1, "Move the mouse around");
+    prtcen(2, "Move the mouse around");
     prtcen(3, "Hit Enter to continue");
     prtcen(ami_maxy(stdout), "Graphical mouse movement test");
     x = -1;
@@ -3405,7 +3405,7 @@ int main(int argc, char* argv[])
     ami_viewoffg(stdout, 0, 0);
     ami_fcolor(stdout, ami_black);
     prtcen(ami_maxy(stdout), "View offset test");
-    prtcen(1, "The 1,1 origin is now at screen center\n");
+    prtcen(2, "The 1,1 origin is now at screen center\n");
     waitnext();
     ami_auto(stdout, ON); /* back to normal character */
     ami_curvis(stdout, TRUE); /* turn on cursor */
@@ -3424,7 +3424,7 @@ int main(int argc, char* argv[])
     /* reset origin and scale */
     ami_viewscale(stdout, 1.0f, 1.0f);
     ami_viewoffg(stdout, 0, 0);
-    prtcen(1, "Logical coordinates are now 1/2 size");
+    prtcen(2, "Logical coordinates are now 1/2 size");
     prtcen(ami_maxy(stdout), "View scale test");
     waitnext();
     ami_auto(stdout, ON); /* back to normal character */
@@ -3505,7 +3505,7 @@ int main(int argc, char* argv[])
                 char sb[120];
                 sprintf(sb, "Sx:%.2f Sy:%.2f Off:%d,%d PgUp/Dn=zoom Arrows=pan Home/End=Yzoom Enter=next",
                         vsx, vsy, vox, voy);
-                prtcen(1, sb);
+                prtcen(2, sb);
             }
             prtcen(ami_maxy(stdout), "View drawing scale test");
             if (first) { frmmark(); first = 0; }
