@@ -4460,6 +4460,14 @@ static void init_windowg(void)
     _pa_focus_ovr(focus_ivf, &focus_down);
     _pa_getwinid_ovr(getwinid_ivf, &getwinid_down);
 
+    /* The composed display screen is this manager's, not any client's:
+       its cursor is never a caret (each window's caret rides its own
+       backing), and with composition selecting it as the update screen
+       a visible cursor here paints a reversed block at its home. Off,
+       once; the state is the screen's and keeps. */
+    (*select_down)(stdout, DSPSCN, DSPSCN);
+    (*curvis_down)(stdout, FALSE);
+
     /* the root surface */
     dimxg = (*maxxg_down)(stdout);
     dimyg = (*maxyg_down)(stdout);
