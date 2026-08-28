@@ -1699,7 +1699,119 @@ static void readline(int fd)
 
                     }
                     break;
+                case ami_etdelcf: /* delete character forward */
+                    if (win->inpbuf[win->inpptr]) { /* not at extreme right */
+
+                        /* move characters down */
+                        i = win->inpptr;
+                        while (win->inpbuf[i])
+                            { win->inpbuf[i] = win->inpbuf[i+1]; i++; }
+                        /* repaint right */
+                        i = win->inpptr;
+                        while (win->inpbuf[i]) plcchr(win, win->inpbuf[i++]);
+                        plcchr(win, ' '); /* blank last */
+                        /* back up */
+                        plcchr(win, '\b');
+                        i = win->inpptr;
+                        while (win->inpbuf[i++]) plcchr(win, '\b');
+
+                    }
+                    break;
+                case ami_etright: /* right character */
+                    /* not at extreme right, go right */
+                    if (win->inpbuf[win->inpptr]) {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++; /* advance input */
+
+                    }
+                    break;
+                case ami_etleft: /* left character */
+                    /* not at extreme left, go left */
+                    if (win->inpptr > 0) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--; /* back up pointer */
+
+                    }
+                    break;
+                case ami_ethomel: /* beginning of line */
+                    /* back up to start of line */
+                    while (win->inpptr) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    break;
+                case ami_etendl: /* end of line */
+                    /* go to end of line */
+                    while (win->inpbuf[win->inpptr]) {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    break;
                 case ami_etinsertt: ins = !ins; break;
+                case ami_etdell: /* delete whole line */
+                    /* back up to start of line */
+                    while (win->inpptr) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    /* erase line on screen */
+                    while (win->inpbuf[win->inpptr]) {
+
+                        plcchr(win, ' ');
+                        win->inpptr++;
+
+                    }
+                    /* back up again */
+                    while (win->inpptr) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    win->inpbuf[win->inpptr] = 0; /* clear line */
+                    break;
+                case ami_etleftw: /* left word */
+                    /* back over any spaces */
+                    while (win->inpptr && win->inpbuf[win->inpptr-1] == ' ') {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    /* now back over any non-space */
+                    while (win->inpptr && win->inpbuf[win->inpptr-1] != ' ') {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    break;
+                case ami_etrightw: /* right word */
+                    /* advance over any non-space */
+                    while (win->inpbuf[win->inpptr] &&
+                           win->inpbuf[win->inpptr] != ' ') {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    /* advance over any spaces */
+                    while (win->inpbuf[win->inpptr] &&
+                           win->inpbuf[win->inpptr] == ' ') {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    break;
                 default: ;
 
             }
