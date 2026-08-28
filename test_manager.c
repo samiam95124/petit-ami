@@ -1,8 +1,8 @@
 /*******************************************************************************
 *                                                                              *
-*                    MANAGERC SUBWINDOW BEHAVIOR TEST                          *
+*                    WINDOWC SUBWINDOW BEHAVIOR TEST                          *
 *                                                                              *
-* Opens two subwindows over the character mode window manager (managerc),      *
+* Opens two subwindows over the character mode window manager (windowc),      *
 * labels them, and fills each with this program's own source text, so the      *
 * behavior of subwindows can be examined by hand: moving, resizing,            *
 * minimize/maximize from the system bar, focus changes, occlusion between     *
@@ -123,7 +123,7 @@ int main(void)
     ami_openwin(&stdin, &win1, stdout, 2);
     ami_setsiz(win1, 60, 16);
     /* Match the buffer to the client area (window less frame and system
-       bar). The default buffer is near full screen, and managerc's scroll
+       bar). The default buffer is near full screen, and windowc's scroll
        and restore paths misdraw when the buffer is larger than the client:
        they paint the entire buffer at the window position. */
     ami_sizbuf(win1, 58, 12);

@@ -2,7 +2,7 @@
 
 A scroll bar on a child window is built as wide as the window
 
-Open a framed window under managerc and put a vertical scroll bar one
+Open a framed window under windowc and put a vertical scroll bar one
 column wide against its right edge, the way a reader pane does. The bar
 is never seen: the widget's face is created at the full width of its
 owner rather than the width asked for, so the bar's drawing lands in a

@@ -239,25 +239,25 @@ endif
 #
 # Does terminal model get window management?
 #
-ifndef USEMANAGERC
+ifndef USEWINDOWC
 
 	#
-	# Default is managerc disabled on terminal mode
+	# Default is windowc disabled on terminal mode
 	#
-	USEMANAGERC=0
+	USEWINDOWC=0
 
 endif
 
 #
-# Set managerc object
+# Set windowc object
 #
-ifeq ($(USEMANAGERC),1)
+ifeq ($(USEWINDOWC),1)
 
-	MANAGERC=portable/managerc.o
+	WINDOWC=portable/windowc.o
 
 else
 
-	MANAGERC=
+	WINDOWC=
 
 endif
 
@@ -1029,9 +1029,9 @@ portable/widget_base.o: portable/widget_base.c
 	$(CC) $(CFLAGS) -c portable/widget_base.c \
 		-o portable/widget_base.o
 		
-portable/managerc.o: portable/managerc.c
-	$(CC) $(CFLAGS) -c portable/managerc.c \
-		-o portable/managerc.o
+portable/windowc.o: portable/windowc.c
+	$(CC) $(CFLAGS) -c portable/windowc.c \
+		-o portable/windowc.o
 	
 ################################################################################
 #
@@ -1063,18 +1063,18 @@ lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
 	    windows/stdio.o
 	
 # The termc variant is the terminal library with the character mode window
-# manager (managerc) always included. managerc is constructor-registered and
+# manager (windowc) always included. windowc is constructor-registered and
 # transparent by default, so nothing references its symbols. Windows links the
 # terminal library with --whole-archive (see CLIBS), so every archive member is
-# pulled in regardless and managerc can simply be an additional member here.
+# pulled in regardless and windowc can simply be an additional member here.
 # Mac OS X has to partial-link it into terminal.o instead, having no
 # whole-archive equivalent.
 #
 lib/libami_termc.a: windows/services.o windows/sound.o windows/network.o \
-    windows/terminal.o portable/managerc.o utils/config.o utils/option.o \
+    windows/terminal.o portable/windowc.o utils/config.o utils/option.o \
     windows/stdio.o
 	ar rcs lib/libami_termc.a windows/services.o windows/sound.o \
-	    windows/network.o windows/terminal.o portable/managerc.o \
+	    windows/network.o windows/terminal.o portable/windowc.o \
 	    utils/config.o utils/option.o windows/stdio.o
 	
 lib/libami_graph.a: windows/services.o windows/sound.o windows/network.o \
@@ -1103,12 +1103,12 @@ lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
 	    utils/config.o utils/option.o macosx/stdio.o
 
 # The termc variant is the terminal library with the character mode window
-# manager (managerc) always included. managerc is constructor-registered and
+# manager (windowc) always included. windowc is constructor-registered and
 # transparent by default, so nothing references its symbols; partial-link it
 # with terminal.o into one member (ld -r) so archive selectivity cannot drop
 # it when a program references only the terminal API.
-macosx/termc.o: macosx/terminal.o portable/managerc.o
-	ld -r -o macosx/termc.o macosx/terminal.o portable/managerc.o
+macosx/termc.o: macosx/terminal.o portable/windowc.o
+	ld -r -o macosx/termc.o macosx/terminal.o portable/windowc.o
 
 lib/libami_termc.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/termc.o utils/config.o utils/option.o \
@@ -1174,10 +1174,10 @@ lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o linux/network.o utils/con
 		utils/option.o -o lib/petit_ami_plain.so
 	
 lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
-	linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o utils/option.o \
+	linux/terminal.o $(WINDOWC) linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
-		linux/terminal.o $(MANAGERC) linux/system_event.o utils/config.o \
+		linux/terminal.o $(WINDOWC) linux/system_event.o utils/config.o \
 		utils/option.o  cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o -lstdc++ -o lib/petit_ami_term.so
 	
 #
@@ -1187,10 +1187,10 @@ lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 # same file, and building one silently replaced the other.
 #
 lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o linux/network.o \
-	linux/terminal.o portable/managerc.o linux/system_event.o utils/config.o \
+	linux/terminal.o portable/windowc.o linux/system_event.o utils/config.o \
 	utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o linux/network.o \
-		linux/terminal.o portable/managerc.o linux/system_event.o \
+		linux/terminal.o portable/windowc.o linux/system_event.o \
 		utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o -lstdc++ \
 		-o lib/petit_ami_termc.so
 
@@ -1214,7 +1214,7 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o linux/network.o \
 #
 #   <model>_core.o  the model's presentation, services, stdio glue and
 #                   configuration, partial-linked (ld -r) into one member
-#                   so the constructor-registered modules (managerc, the
+#                   so the constructor-registered modules (windowc, the
 #                   widget packages) cannot be dropped by archive
 #                   selectivity. A program that makes no calls of its
 #                   own is promoted by keeper.o referencing into it.
@@ -1247,18 +1247,18 @@ CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o
 lib/plain_core.o: $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/plain_core.o $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
 
-lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(WINDOWC) \
 	portable/txtterminal.o \
 	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
-	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(MANAGERC) \
+	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(WINDOWC) \
 	    portable/txtterminal.o \
 	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
-lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/managerc.o \
+lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/windowc.o \
 	portable/txtterminal.o \
 	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
-	    portable/managerc.o portable/txtterminal.o \
+	    portable/windowc.o portable/txtterminal.o \
 	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 
 lib/graph_core.o: $(CORE_COMMON) linux/x11/graphics.o linux/system_event.o \
@@ -1350,8 +1350,8 @@ test_gtk: test_gtk.c Makefile
 	$(CC) test_gtk.c `pkg-config --cflags --libs gtk+-3.0` -o test_gtk
 
 #
-# Managerc subwindow test. The terminal library must be built with managerc
-# in it: make lib/petit_ami_term.so USEMANAGERC=1
+# Managerc subwindow test. The terminal library must be built with windowc
+# in it: make lib/petit_ami_term.so USEWINDOWC=1
 #
 #
 # Managerc tests. These link the manager carrying library, so they need no
@@ -1533,7 +1533,7 @@ GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 endif
 
 #
-# Link set for programs stacked on managerc over terminal. Same as CLIBS but
+# Link set for programs stacked on windowc over terminal. Same as CLIBS but
 # with the manager carrying library in place of the plain one.
 #
 CLIBSC = $(subst ami_term.,ami_termc.,$(CLIBS))
@@ -1618,8 +1618,8 @@ endif
 #
 # Test console model compliant output, stacked on the character mode window
 # manager: the same test as terminal_test, but running through
-# managerc over terminal rather than terminal alone. The test should behave
-# identically, since managerc presents the terminal API transparently when
+# windowc over terminal rather than terminal alone. The test should behave
+# identically, since windowc presents the terminal API transparently when
 # the program does not open windows of its own.
 #
 ifeq ($(OSTYPE),Darwin)
@@ -1647,7 +1647,7 @@ endif
 #
 # Test windows management model compliant output, stacked on the character
 # mode window manager. This is management_test with the graphical mode tests
-# removed and the character mode ones kept, running through managerc over
+# removed and the character mode ones kept, running through windowc over
 # terminal. Every test in the management test has a character form and a
 # graphical form; only the character forms can run on a character surface.
 #
@@ -2377,15 +2377,15 @@ breakoutgfb: graph_games/breakoutg.c $(FBGRAPH) \
 
 #
 # The managed frame buffer graphics model: the plug-in stack
-# framebuffer <- graphics <- managerg <- widgets. The graphics layer is
-# drawing only; portable/managerg.c subdivides its surface into windows
+# framebuffer <- graphics <- windowg <- widgets. The graphics layer is
+# drawing only; portable/windowg.c subdivides its surface into windows
 # by overriding the API, and the portable widget packages stand on the
 # windows.
 #
-portable/managerg.o: portable/managerg.c include/graphics.h Makefile
-	$(CC) $(CFLAGS) -c portable/managerg.c -o portable/managerg.o
+portable/windowg.o: portable/windowg.c include/graphics.h Makefile
+	$(CC) $(CFLAGS) -c portable/windowg.c -o portable/windowg.o
 
-FBMGRAPH = linux/framebuffer/graphics.o portable/managerg.o
+FBMGRAPH = linux/framebuffer/graphics.o portable/windowg.o
 
 lib/graphfbm_core.o: $(CORE_COMMON) $(FBMGRAPH) linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \

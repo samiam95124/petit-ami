@@ -12,10 +12,10 @@ windows.
 
 It is portable, meaning that it relies only on the graphics level API as
 defined in graphics.h. It works by overriding the base calls and giving a
-window view to the client program, the same pattern managerc applies to a
+window view to the client program, the same pattern windowc applies to a
 character surface. The plug-in stack it serves is:
 
-    device <- graphics <- managerg <- widgets
+    device <- graphics <- windowg <- widgets
 
 The device layer (the Linux frame buffer today) hands the graphics layer a
 screen; the graphics layer draws and delivers input on it as one surface;
@@ -471,7 +471,7 @@ static void error(const char* s)
 
 {
 
-    fprintf(stderr, "*** Error: managerg: %s\n", s);
+    fprintf(stderr, "*** Error: windowg: %s\n", s);
     fflush(stderr);
 
     exit(1);
@@ -4096,8 +4096,8 @@ every call it manages and standing up the root surface window.
 
 *******************************************************************************/
 
-static void init_managerg(void) __attribute__((constructor (104)));
-static void init_managerg(void)
+static void init_windowg(void) __attribute__((constructor (104)));
+static void init_windowg(void)
 
 {
 
@@ -4353,8 +4353,8 @@ teardown finds its vectors where it left them.
 
 *******************************************************************************/
 
-static void deinit_managerg(void) __attribute__((destructor (104)));
-static void deinit_managerg(void)
+static void deinit_windowg(void) __attribute__((destructor (104)));
+static void deinit_windowg(void)
 
 {
 

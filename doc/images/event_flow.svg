@@ -35,7 +35,7 @@
 <polygon points="413.0,219.0 404.0,223.5 404.0,214.5" fill="#4a6699"/>
 <line x1="545" y1="219" x2="560" y2="219" stroke="#4a6699" stroke-width="1.6"/>
 <polygon points="560.0,219.0 551.0,223.5 551.0,214.5" fill="#4a6699"/>
-<text x="480" y="248" font-size="12.5" fill="#5a6478" text-anchor="middle" font-style="italic">every event passes here; the widgets, managerc and the C++ wrapper hook this chain</text>
+<text x="480" y="248" font-size="12.5" fill="#5a6478" text-anchor="middle" font-style="italic">every event passes here; the widgets, windowc and the C++ wrapper hook this chain</text>
 <line x1="480" y1="254" x2="480" y2="300" stroke="#4a6699" stroke-width="1.6"/>
 <polygon points="480.0,300.0 475.5,291.0 484.5,291.0" fill="#4a6699"/>
 <text x="520" y="283" font-size="12.5" fill="#5a6478" text-anchor="start" font-style="italic">not handled</text>

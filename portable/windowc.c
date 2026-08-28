@@ -14,7 +14,7 @@ It is portable, meaning that it only relies on the terminal level API as
 defined in terminal.h. It works by overriding the base calls and giving a window
 view to the client program.
 
-The use case of managerc is to subdivide a surface like an xterm that
+The use case of windowc is to subdivide a surface like an xterm that
 normally cannot present subwindows. Thus it can provide windowing to terminal
 packages such as xterm or a DOS window under Windows.
 
@@ -34,9 +34,9 @@ surface.
 4. By default, only standard ASCII characters are used to depict frame
 components.
 
-The reason for these rules is that managerc is "transparent" by default. A
+The reason for these rules is that windowc is "transparent" by default. A
 non-manager aware program will run full screen, and behave as if it has the
-the terminal window to itself. managerc will be entirely in the background.
+the terminal window to itself. windowc will be entirely in the background.
 
                           BSD LICENSE INFORMATION
 
@@ -11343,9 +11343,9 @@ Managerc startup
    (constructor 106) and deinitialize before it: 107 on both, since
    constructors run ascending and destructors descending. It was 104, which
    worked when terminal was 103; when terminal moved to 106 the order
-   inverted and managerc captured null vectors at startup. */
-static void init_managerc(void) __attribute__((constructor (107)));
-static void init_managerc()
+   inverted and windowc captured null vectors at startup. */
+static void init_windowc(void) __attribute__((constructor (107)));
+static void init_windowc()
 
 {
 
@@ -11529,8 +11529,8 @@ Managerc shutdown
 
 *******************************************************************************/
 
-static void deinit_managerc(void) __attribute__((destructor (107)));
-static void deinit_managerc()
+static void deinit_windowc(void) __attribute__((destructor (107)));
+static void deinit_windowc()
 
 {
 

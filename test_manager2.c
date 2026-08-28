@@ -1,6 +1,6 @@
 /*******************************************************************************
 *                                                                              *
-*                    MANAGERC CHARACTER WIDGETS TEST                           *
+*                    WINDOWC CHARACTER WIDGETS TEST                           *
 *                                                                              *
 * Places one of each implemented widget type directly in the main window,     *
 * the surface that occupies the whole terminal. Widget notifications are       *
