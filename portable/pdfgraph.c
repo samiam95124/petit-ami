@@ -2445,6 +2445,8 @@ neglects the close still prints.
 
 *******************************************************************************/
 
+static int pdfginit; /* the module reached full initialization */
+
 static void ami_init_pdfgraph(void) __attribute__((constructor (103)));
 static void ami_init_pdfgraph(void)
 
@@ -2572,6 +2574,8 @@ static void ami_init_pdfgraph(void)
     _pa_blockcopyg_ovr(blockcopyg_pvf, &dn_blockcopyg);
     _pa_openwin_ovr(openwin_pvf, &dn_openwin);
 
+    pdfginit = 1; /* the module is up */
+
 }
 
 static void ami_deinit_pdfgraph(void) __attribute__((destructor (103)));
@@ -2583,6 +2587,9 @@ static void ami_deinit_pdfgraph(void)
     pwrite_t cpwrite;
     pclose_t cpclose;
 
+    /* A failed module below exits before this constructor ran: there
+       is nothing hooked to take back off. */
+    if (!pdfginit) return;
     /* complete any print file the program left open */
     for (fd = 0; fd < MAXPFIL; fd++)
         if (prtfil[fd]) { prtfree(fd); (*dn_close)(fd); }

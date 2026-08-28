@@ -108,6 +108,12 @@ extern char *program_invocation_short_name;
 
 /* frame metrics, in pixels at the frame font's cell height fc */
 #define FRMBORDER  2              /* plain border width */
+#define CORNERZ    16             /* corner grab zone reach */
+#define SIZHALO    8              /* invisible sizing reach past the edge */
+/* The border a window wears. The sizing edges are invisible, the
+   desktop way: the pointer's sizing shape announces them, and the
+   grab reaches SIZHALO past the window edge. */
+#define BORD(w)    FRMBORDER
 #define BARH(fc)   ((fc)+6)       /* title bar height */
 #define BTNW(fc)   ((fc)+6)       /* frame button width */
 
@@ -220,6 +226,7 @@ typedef struct winrec {
     long     mpxg, mpyg;        /* last mouse position sent, client pixels */
     int      mb1, mb2, mb3;     /* buttons the window believes are down */
     int      autof[MAXCON];     /* auto state per client screen */
+    int      curvf[MAXCON];     /* caret visibility per client screen */
     int      timers[AMI_MAXTIM]; /* timers active on this window */
     long     frmtim;            /* frame timer active */
 
@@ -447,6 +454,18 @@ static long     drgow, drgoh;         /* window size at drag start */
 static unsigned drgedges;             /* sizing edges grabbed */
 static rectangle bandr;               /* the band rectangle on screen */
 static int      banddrawn;            /* band outline is on the display */
+static int      carshown;             /* caret block is on the display */
+static long     carx, cary;           /* caret block position, root space */
+static long     carw, carh;           /* caret block cell size */
+static int      incar;                /* caret update in progress */
+static int      carhold;              /* caret held off for a compound update */
+static int      curshp;               /* the pointer shape now worn */
+
+/* The pointer shape backdoor into a graphics layer that draws its own
+   pointer: 0 arrow, 1 horizontal sizing, 2 vertical sizing, 3 nw-se,
+   4 ne-sw. Weak: a backend whose desktop owns the pointer lacks it,
+   and the shape feedback simply does not apply. */
+extern void grx_pointer(int shape) __attribute__((weak));
 static int      mgractive;            /* the manager finished initializing */
 
 /* forward declarations */
@@ -456,6 +475,8 @@ static void entercli(winptr win);
 static void enterdsp(void);
 static void composewin(winptr win, rectangle* dr);
 static void composeall(rectangle* dr);
+static void caroff(void);
+static void caron(void);
 static void calcvis(winptr win);
 static void calcvisall(void);
 static void drwfrm(winptr win);
@@ -734,7 +755,7 @@ static void alcbacking(winptr win, int i)
 
 {
 
-    long cs, mx, t;
+    long cs, mx, t, n;
 
     char ff = '\f';
 
@@ -750,16 +771,20 @@ static void alcbacking(winptr win, int i)
     applyfont(win);
     (*fcolor_down)(stdout, ami_black);
     (*bcolor_down)(stdout, ami_white);
-    (*curvis_down)(stdout, TRUE);
+    (*curvis_down)(stdout, FALSE); /* the manager draws the caret */
     (*ofpwrite)(OUTFIL, &ff, 1); /* clear and home through the layer */
     (*auto_down)(stdout, win->autof[i]);
     ctxwin = win;
-    /* the default tabs in the window's own cell */
+    /* The default tabs in the window's own cell. The layer's tab
+       table is finite; a wide window at a small cell asks for more
+       stops than it holds, so the lay caps as the layer's own default
+       lay does. */
     cs = (*chrsizx_down)(stdout);
     if (cs < 1) cs = 1;
     mx = win->bufx/cs;
     (*clrtab_down)(stdout);
-    for (t = 9; t <= mx; t += 8)
+    n = 0;
+    for (t = 9; t <= mx && n < 200; t += 8, n++)
         (*settabg_down)(stdout, (t-1)*cs+1);
 
 }
@@ -795,6 +820,48 @@ static void enterdsp(void)
 {
 
     (*select_down)(stdout, DSPSCN, DSPSCN);
+    ctxwin = NULL;
+
+}
+
+/* Enter the display context for composition. The layer's blockcopy
+   mixes by the write mode of its current update screen; at compose
+   time that is the client's backing, in whatever mode the client
+   left -- xor blits frames over each other, self canceling to black,
+   and invisible drops them whole. The display screen's own mode is
+   the composer's, overwrite (the rubber band borrows it and puts it
+   back), so compose with the display as the update screen. Only
+   blits follow, no font or client state, so the client context
+   cache stands and the next entercli reselects as it always does. */
+static void entercmp(void)
+
+{
+
+    (*select_down)(stdout, DSPSCN, DSPSCN);
+
+}
+
+/* An unbuffered client's surface follows the window: when the client
+   size changes, the backings resize to it. The layer's resize hands
+   back fresh screen state, so the window's context reapplies on the
+   next client entry. */
+static void trackbuf(winptr win)
+
+{
+
+    int i;
+
+    if (win->bufmod) return;
+    if (win->bufx == win->cmaxx && win->bufy == win->cmaxy) return;
+    win->bufx = win->cmaxx;
+    win->bufy = win->cmaxy;
+    for (i = 0; i < MAXCON; i++)
+        if (win->scns[i]) {
+
+            (*select_down)(stdout, win->scns[i], DSPSCN);
+            (*sizbufg_down)(stdout, win->bufx, win->bufy);
+
+        }
     ctxwin = NULL;
 
 }
@@ -856,10 +923,10 @@ static void frmmetrics(winptr win)
 
     if (win->frame) {
 
-        win->coffx = FRMBORDER;
-        win->coffy = FRMBORDER+(win->sysbar? BARH(rootcell): 0);
-        win->pmaxx = win->cmaxx+2*FRMBORDER;
-        win->pmaxy = win->cmaxy+win->coffy+FRMBORDER;
+        win->coffx = BORD(win);
+        win->coffy = BORD(win)+(win->sysbar? BARH(rootcell): 0);
+        win->pmaxx = win->cmaxx+2*BORD(win);
+        win->pmaxy = win->cmaxy+win->coffy+BORD(win);
 
     } else {
 
@@ -914,6 +981,7 @@ static void ztotop(winptr win)
     winptr wp;
     winptr c;
 
+    if (win->root) return; /* the root is the floor: it never rises */
     if (win->zorder == ztop) return;
     /* close the gap the window leaves */
     for (wp = winlst; wp; wp = wp->winlst)
@@ -1029,6 +1097,7 @@ static void composewin(winptr win, rectangle* dr)
     int       i;
 
     if (!win->visible || win->mined) return;
+    entercmp(); /* the blits mix by the display screen's mode */
     for (i = 0; i < win->vis.n; i++) {
 
         if (!intersect(&win->vis.r[i], dr)) continue;
@@ -1049,9 +1118,11 @@ static void composeall(rectangle* dr)
 
     /* visible regions are disjoint, so order is free; walk by Z for
        clarity */
+    caroff();
     for (z = 0; z <= ztop; z++)
         for (wp = winlst; wp; wp = wp->winlst)
             if (wp->zorder == z) composewin(wp, dr);
+    caron();
 
 }
 
@@ -1079,8 +1150,10 @@ static void compdmg(winptr win)
     rectangle cr;
 
     if (!win->visible) winvis(win);
+    caroff();
     clirect(win, &cr);
     composewin(win, &cr);
+    caron();
 
 }
 
@@ -1127,7 +1200,7 @@ static void btnspan(winptr win, int n, long* x1, long* x2)
 
     long bw = BTNW(rootcell);
 
-    *x2 = win->pmaxx-FRMBORDER-1-n*(bw+2);
+    *x2 = win->pmaxx-BORD(win)-1-n*(bw+2);
     *x1 = *x2-bw+1;
 
 }
@@ -1144,8 +1217,8 @@ static int frmhit(winptr win, long x, long y)
     if (!win->frame) return (0);
     /* the sizing edges, when sizing is enabled; corners fold into them */
     if (win->size && !win->maxed &&
-        (x <= FRMBORDER+2 || x > win->pmaxx-FRMBORDER-2 ||
-         y <= FRMBORDER+2 || y > win->pmaxy-FRMBORDER-2))
+        (x <= BORD(win)+2 || x > win->pmaxx-BORD(win)-2 ||
+         y <= BORD(win)+2 || y > win->pmaxy-BORD(win)-2))
         return (5);
     if (win->sysbar && y <= win->coffy) {
 
@@ -1163,22 +1236,49 @@ static int frmhit(winptr win, long x, long y)
 
 }
 
+/* The invisible sizing halo: the topmost sizable window whose halo
+   covers a point just outside its rectangle takes the sizing grab,
+   unless the window the point actually lies in stands above it. */
+static winptr haloat(long x, long y, winptr over)
+
+{
+
+    winptr    wp, best = NULL;
+    rectangle r;
+
+    for (wp = winlst; wp; wp = wp->winlst) {
+
+        if (!wp->visible || wp->mined || wp->maxed) continue;
+        if (!wp->frame || !wp->size || wp->root) continue;
+        winrect(wp, &r);
+        if (x >= r.x1-SIZHALO && x <= r.x2+SIZHALO &&
+            y >= r.y1-SIZHALO && y <= r.y2+SIZHALO &&
+            (x < r.x1 || x > r.x2 || y < r.y1 || y > r.y2) &&
+            (!best || wp->zorder > best->zorder))
+            best = wp;
+
+    }
+    if (best && over && over->zorder > best->zorder) best = NULL;
+    return (best);
+
+}
+
 /* the sizing edges a point grabs: 1 top, 2 bottom, 4 left, 8 right */
 static unsigned frmedges(winptr win, long x, long y)
 
 {
 
     unsigned e = 0;
-    long     cz = 16; /* the widened corner zone */
+    long     cz = CORNERZ; /* the widened corner zone */
 
-    if (x <= FRMBORDER+2 || (x <= cz && (y <= cz || y > win->pmaxy-cz)))
+    if (x <= BORD(win)+2 || (x <= cz && (y <= cz || y > win->pmaxy-cz)))
         e |= 4;
-    if (x > win->pmaxx-FRMBORDER-2 ||
+    if (x > win->pmaxx-BORD(win)-2 ||
         (x > win->pmaxx-cz && (y <= cz || y > win->pmaxy-cz)))
         e |= 8;
-    if (y <= FRMBORDER+2 || (y <= cz && (x <= cz || x > win->pmaxx-cz)))
+    if (y <= BORD(win)+2 || (y <= cz && (x <= cz || x > win->pmaxx-cz)))
         e |= 1;
-    if (y > win->pmaxy-FRMBORDER-2 ||
+    if (y > win->pmaxy-BORD(win)-2 ||
         (y > win->pmaxy-cz && (x <= cz || x > win->pmaxx-cz)))
         e |= 2;
 
@@ -1206,13 +1306,13 @@ static void drwfrm(winptr win)
     (*frect_down)(stdout, 1, 1, win->pmaxx, win->pmaxy);
     /* the field inside the border (the client area shows over it) */
     if (win->focus) fcolor8(FRMBAR); else fcolor8(FRMBARF);
-    (*frect_down)(stdout, FRMBORDER+1, FRMBORDER+1,
-                  win->pmaxx-FRMBORDER, win->pmaxy-FRMBORDER);
+    (*frect_down)(stdout, BORD(win)+1, BORD(win)+1,
+                  win->pmaxx-BORD(win), win->pmaxy-BORD(win));
     if (win->sysbar) {
 
         bh = BARH(rootcell);
         bw = BTNW(rootcell);
-        cy = FRMBORDER+bh/2; /* the bar's center line */
+        cy = BORD(win)+bh/2; /* the bar's center line */
         /* the title, centered in the root font */
         (*font_down)(stdout, AMI_FONT_SIGN);
         fcolor8(FRMTEXT);
@@ -1220,11 +1320,11 @@ static void drwfrm(winptr win)
 
             l = (*strsiz_down)(stdout, win->title);
             btnspan(win, 2, &x1, &x2); /* the leftmost button */
-            if (l > x1-2-FRMBORDER-2) l = x1-2-FRMBORDER-2;
+            if (l > x1-2-BORD(win)-2) l = x1-2-BORD(win)-2;
             if (l > 0) {
 
                 (*cursorg_down)(stdout,
-                    FRMBORDER+1+(x1-FRMBORDER)/2-l/2,
+                    BORD(win)+1+(x1-BORD(win))/2-l/2,
                     cy-rootcell/2);
                 /* clip by character count to the space */
                 tp = win->title;
@@ -1381,6 +1481,8 @@ static void setfocus(winptr win)
     winptr old;
 
     if (win == focwin) return;
+    caroff();
+    carhold++;
     old = focwin;
     focwin = win;
     if (old) {
@@ -1400,6 +1502,8 @@ static void setfocus(winptr win)
         { rectangle r; winrect(win, &r); composewin(win, &r); }
 
     }
+    carhold--;
+    caron();
 
 }
 
@@ -1443,6 +1547,81 @@ static void banderase(void)
 
 }
 
+/*******************************************************************************
+
+The caret
+
+The manager owns the caret: every backing screen's cursor stays
+invisible at the layer, and the manager draws its own -- an xor block
+on the display screen at the focus window's client cursor, in root
+space, so it lands where the window is, not where its backing lies.
+Drawing it twice removes it; it comes off before any composition and
+goes back after, so the block never mixes into content.
+
+*******************************************************************************/
+
+static void carflip(void)
+
+{
+
+    entercmp();
+    (*fxor_down)(stdout);
+    (*fcolor_down)(stdout, ami_white);
+    (*frect_down)(stdout, carx, cary, carx+carw-1, cary+carh-1);
+    (*fover_down)(stdout);
+    (*fcolor_down)(stdout, ami_black);
+
+}
+
+/* take the caret off the display */
+static void caroff(void)
+
+{
+
+    if (carshown) { carflip(); carshown = FALSE; }
+
+}
+
+/* place the caret at the focus window's client cursor, if it shows */
+static void caron(void)
+
+{
+
+    winptr    win = focwin;
+    rectangle cr, car;
+    long      cx, cy;
+    int       i;
+
+    if (carshown || incar || carhold) return;
+    if (!win || !win->visible || win->mined) return;
+    if (!win->curvf[win->curupd-1]) return;
+    incar = TRUE;
+    entercli(win); /* the cursor and cell in the window's own context */
+    cx = (*curxg_down)(stdout);
+    cy = (*curyg_down)(stdout);
+    carw = (*chrsizx_down)(stdout);
+    carh = (*chrsizy_down)(stdout);
+    incar = FALSE;
+    /* to root space, inside the client shown on screen */
+    clirect(win, &cr);
+    carx = cr.x1+cx-1;
+    cary = cr.y1+cy-1;
+    if (carx < cr.x1 || cary < cr.y1 ||
+        carx+carw-1 > cr.x2 || cary+carh-1 > cr.y2) return;
+    /* and only where the window is actually visible */
+    setrect(&car, carx, cary, carx+carw-1, cary+carh-1);
+    for (i = 0; i < win->vis.n; i++)
+        if (car.x1 >= win->vis.r[i].x1 && car.x2 <= win->vis.r[i].x2 &&
+            car.y1 >= win->vis.r[i].y1 && car.y2 <= win->vis.r[i].y2) {
+
+            carflip();
+            carshown = TRUE;
+            break;
+
+        }
+
+}
+
 /* the band rectangle from the drag state and pointer */
 static void bandcalc(long gx, long gy)
 
@@ -1481,11 +1660,13 @@ static void dragend(long gx, long gy)
     ami_evtrec er;
 
     banderase();
+    if (!win) { drag = dt_none; return; }
+    winrect(win, &r1);
+    /* the band's final rectangle computes under the live drag state --
+       bandcalc switches on it -- so the state clears after */
+    bandcalc(gx, gy);
     drag = dt_none;
     drgwin = NULL;
-    if (!win) return;
-    winrect(win, &r1);
-    bandcalc(gx, gy);
     if (bandr.x1 == win->orgx && bandr.y1 == win->orgy &&
         bandr.x2-bandr.x1+1 == win->pmaxx &&
         bandr.y2-bandr.y1+1 == win->pmaxy) return; /* nothing moved */
@@ -1499,10 +1680,11 @@ static void dragend(long gx, long gy)
            sizbuf itself. */
         win->pmaxx = bandr.x2-bandr.x1+1;
         win->pmaxy = bandr.y2-bandr.y1+1;
-        win->cmaxx = win->pmaxx-(win->frame? 2*FRMBORDER: 0);
-        win->cmaxy = win->pmaxy-win->coffy-(win->frame? FRMBORDER: 0);
+        win->cmaxx = win->pmaxx-(win->frame? 2*BORD(win): 0);
+        win->cmaxy = win->pmaxy-win->coffy-(win->frame? BORD(win): 0);
         if (win->cmaxx < 1) win->cmaxx = 1;
         if (win->cmaxy < 1) win->cmaxy = 1;
+        trackbuf(win); /* an unbuffered surface follows the window */
         drwfrm(win);
         er.etype = ami_etresize;
         er.winid = win->wid;
@@ -1958,6 +2140,8 @@ static void clswin(int fd)
     filwin[fd] = -1;
     if (focwin == win) focwin = NULL;
     if (hovwin == win) hovwin = NULL;
+    caroff();
+    if (focwin == win) focwin = NULL;
     if (ctxwin == win) ctxwin = NULL;
     if (drgwin == win) { banderase(); drag = dt_none; drgwin = NULL; }
     for (i = 0; i < AMI_MAXTIM; i++)
@@ -2110,6 +2294,30 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
 
             }
             tw = winat(rootmx, rootmy);
+            /* over a sizing edge the pointer wears the sizing shape,
+               the feedback a desktop gives */
+            if (grx_pointer) {
+
+                int      shp = 0;
+                unsigned e = 0;
+                winptr   hw;
+
+                if (tw && frmhit(tw, rootmx-tw->orgx+1,
+                                     rootmy-tw->orgy+1) == 5)
+                    e = frmedges(tw, rootmx-tw->orgx+1, rootmy-tw->orgy+1);
+                else if ((hw = haloat(rootmx, rootmy, tw)))
+                    e = frmedges(hw, rootmx-hw->orgx+1, rootmy-hw->orgy+1);
+                if (e) {
+
+                    if ((e & 1 && e & 4) || (e & 2 && e & 8)) shp = 3;
+                    else if ((e & 1 && e & 8) || (e & 2 && e & 4)) shp = 4;
+                    else if (e & (4|8)) shp = 1;
+                    else shp = 2;
+
+                }
+                if (shp != curshp) { curshp = shp; grx_pointer(shp); }
+
+            }
             if (tw != hovwin) {
 
                 if (hovwin) quevent(hovwin, ami_etnohover);
@@ -2132,6 +2340,36 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
         case ami_etmouba:
             if (drag != dt_none) break; /* the band owns the pointer */
             tw = winat(rootmx, rootmy);
+            /* a sizing grab may reach from just outside the window */
+            if (le->amoubn == 1) {
+
+                winptr hw = haloat(rootmx, rootmy, tw);
+
+                if (hw) {
+
+                    if (hw->zorder != ztop) {
+
+                        ztotop(hw);
+                        calcvisall();
+                        winrect(hw, &r);
+                        composeall(&r);
+
+                    }
+                    setfocus(hw);
+                    drag = dt_size;
+                    drgwin = hw;
+                    drgedges = frmedges(hw, rootmx-hw->orgx+1,
+                                        rootmy-hw->orgy+1);
+                    drgax = rootmx; drgay = rootmy;
+                    drgox = hw->orgx; drgoy = hw->orgy;
+                    drgow = hw->pmaxx; drgoh = hw->pmaxy;
+                    bandcalc(rootmx, rootmy);
+                    banddraw();
+                    break;
+
+                }
+
+            }
             if (!tw) break;
             lx = rootmx-tw->orgx+1;
             ly = rootmy-tw->orgy+1;
@@ -2139,7 +2377,7 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
             if (le->amoubn == 1) {
 
                 /* click to front and focus */
-                if (tw->zorder != ztop) {
+                if (tw->zorder != ztop && !tw->root) {
 
                     ztotop(tw);
                     calcvisall();
@@ -2271,6 +2509,11 @@ static void ievent(FILE* f, ami_evtrec* er)
 
     while (!got) {
 
+        /* Processing a layer event can queue client events -- a drag
+           release queues the resize, a focus change its notices. They
+           deliver before the layer is pulled again, or a client sitting
+           in this loop on a quiet display would never hear them. */
+        if (dequepaevt(er)) return;
         (*event_down)(stdin, &le); /* the layer's next event */
         got = transevt(&le, er);
 
@@ -2733,6 +2976,8 @@ static void cursor_ivf(FILE* f, long x, long y)
     win = txt2win(f);
     entercli(win);
     (*cursor_down)(stdout, x, y);
+    caroff();
+    caron();
 
 }
 
@@ -2745,6 +2990,8 @@ static void cursorg_ivf(FILE* f, long x, long y)
     win = txt2win(f);
     entercli(win);
     (*cursorg_down)(stdout, x, y);
+    caroff();
+    caron();
 
 }
 
@@ -2768,8 +3015,10 @@ static void curvis_ivf(FILE* f, long e)
     winptr win;
 
     win = txt2win(f);
-    entercli(win);
-    (*curvis_down)(stdout, e);
+    /* the manager owns the caret; the layer's stays dark */
+    win->curvf[win->curupd-1] = !!e;
+    caroff();
+    caron();
 
 }
 
@@ -3685,6 +3934,8 @@ static void select_ivf(FILE* f, long u, long d)
 
     }
     entercli(win);
+    caroff();
+    caron();
 
 }
 
@@ -3697,6 +3948,7 @@ static void buffer_ivf(FILE* f, long e)
     win = txt2win(f);
     /* the backing is kept either way; the flag notes the client's model */
     win->bufmod = !!e;
+    trackbuf(win); /* an unbuffered surface follows the window */
 
 }
 
@@ -3781,7 +4033,8 @@ static void opnwin(int fn, int pfn, long wid, int root)
     win->curdsp = 1;
     win->curupd = 1;
     win->bufmod = TRUE;
-    { int i; for (i = 0; i < MAXCON; i++) win->autof[i] = TRUE; }
+    { int i; for (i = 0; i < MAXCON; i++)
+        { win->autof[i] = TRUE; win->curvf[i] = TRUE; } }
     /* a window shows when it first has content, as on the other
        backends: the widget package's metrics window, never drawn to,
        never appears */
@@ -3847,15 +4100,28 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 {
 
-    int ifn, ofn, pfn;
+    int ifn, ofn, pfn, fn;
 
-    /* window files park on the null device; the manager is the content */
-    if (!*infile) *infile = fopen(NULLDEV, "r");
-    if (!*outfile) *outfile = fopen(NULLDEV, "w");
-    if (!*infile || !*outfile) error("Cannot open window file");
-    setvbuf(*infile, NULL, _IONBF, 0);
+    /* Window files park on the null device; the manager is the content.
+       The input side reuses a known open file -- stdin, or another
+       window's input -- and anything else opens fresh. The output side
+       always opens fresh: callers reuse their file pointer variables
+       across close and open, the windowc convention, so a stale pointer
+       must never be trusted. */
+    ifn = -1;
+    for (fn = 0; fn < MAXFIL; fn++)
+        if (opnfil[fn] && opnfil[fn]->sfp == *infile) ifn = fn;
+    if (ifn < 0) {
+
+        *infile = fopen(NULLDEV, "r");
+        if (!*infile) error("Cannot open window file");
+        setvbuf(*infile, NULL, _IONBF, 0);
+        ifn = fileno(*infile);
+
+    }
+    *outfile = fopen(NULLDEV, "w");
+    if (!*outfile) error("Cannot open window file");
     setvbuf(*outfile, NULL, _IONBF, 0);
-    ifn = fileno(*infile);
     ofn = fileno(*outfile);
     if (ifn < 0 || ofn < 0 || ifn >= MAXFIL || ofn >= MAXFIL)
         error("Invalid file handle");
@@ -3933,6 +4199,7 @@ static void regeom(winptr win, rectangle* old)
     rectangle r;
 
     frmmetrics(win);
+    trackbuf(win); /* an unbuffered surface follows the window */
     if (win->frame && !win->frmscn) win->frmscn = alcscn();
     if (win->frame) drwfrm(win);
     calcvisall();
@@ -3953,21 +4220,41 @@ static void setsizg_ivf(FILE* f, long x, long y)
 
 {
 
-    winptr    win;
-    rectangle old;
+    winptr     win;
+    rectangle  old;
+    long       ocx, ocy;
+    ami_evtrec er;
 
     win = txt2win(f);
+    /* the root is the whole surface: it cannot size */
+    if (win->root) error("Cannot size the root window");
     winrect(win, &old);
+    ocx = win->cmaxx;
+    ocy = win->cmaxy;
     /* the size given is the whole window; the client area follows from
        the frame */
     win->pmaxx = x;
     win->pmaxy = y;
-    win->cmaxx = x-(win->frame? 2*FRMBORDER: 0);
-    win->cmaxy = y-(win->frame? FRMBORDER+(win->sysbar? BARH(rootcell): 0)
-                              +FRMBORDER: 0);
+    win->cmaxx = x-(win->frame? 2*BORD(win): 0);
+    win->cmaxy = y-(win->frame? BORD(win)+(win->sysbar? BARH(rootcell): 0)
+                              +BORD(win): 0);
     if (win->cmaxx < 1) win->cmaxx = 1;
     if (win->cmaxy < 1) win->cmaxy = 1;
     regeom(win, &old);
+    if (win->cmaxx != ocx || win->cmaxy != ocy) {
+
+        /* the client hears its new size, as the desktop backends
+           deliver after their window manager round trip */
+        er.etype = ami_etresize;
+        er.winid = win->wid;
+        er.rszxg = win->cmaxx;
+        er.rszyg = win->cmaxy;
+        entercli(win); /* the metrics in the window's font */
+        er.rszx = win->cmaxx/(*chrsizx_down)(stdout);
+        er.rszy = win->cmaxy/(*chrsizy_down)(stdout);
+        enquepaevt(&er);
+
+    }
 
 }
 
@@ -3979,10 +4266,10 @@ static void setsiz_ivf(FILE* f, long x, long y)
 
     win = txt2win(f);
     entercli(win);
-    setsizg_ivf(f, x*(*chrsizx_down)(stdout)+(win->frame? 2*FRMBORDER: 0),
+    setsizg_ivf(f, x*(*chrsizx_down)(stdout)+(win->frame? 2*BORD(win): 0),
                 y*(*chrsizy_down)(stdout)+
-                    (win->frame? FRMBORDER+(win->sysbar? BARH(rootcell): 0)
-                                +FRMBORDER: 0));
+                    (win->frame? BORD(win)+(win->sysbar? BARH(rootcell): 0)
+                                +BORD(win): 0));
 
 }
 
@@ -4019,6 +4306,8 @@ static void setposg_ivf(FILE* f, long x, long y)
     rectangle old;
 
     win = txt2win(f);
+    /* nothing lies behind the root: it cannot move */
+    if (win->root) error("Cannot move the root window");
     winrect(win, &old);
     win->orgx = x;
     win->orgy = y;
@@ -4129,6 +4418,8 @@ static void front_ivf(FILE* f)
     rectangle r;
 
     win = txt2win(f);
+    /* the root floors the Z order: it cannot reorder */
+    if (win->root) error("Cannot order the root window");
     if (win->zorder != ztop) {
 
         ztotop(win);
@@ -4148,11 +4439,16 @@ static void back_ivf(FILE* f)
     rectangle r;
 
     win = txt2win(f);
-    if (win->zorder > 0) {
+    /* the root floors the Z order: it cannot reorder */
+    if (win->root) error("Cannot order the root window");
+    if (win->zorder > 1) {
 
+        /* the back of the pile is above the root, which floors the
+           order; the root itself never moves */
         for (wp = winlst; wp; wp = wp->winlst)
-            if (wp != win && wp->zorder < win->zorder) wp->zorder++;
-        win->zorder = 0;
+            if (wp != win && wp->zorder > 0 && wp->zorder < win->zorder)
+                wp->zorder++;
+        win->zorder = 1;
         calcvisall();
         winrect(win, &r);
         composeall(&r);
@@ -4180,10 +4476,15 @@ static void sizable_ivf(FILE* f, long e)
 
 {
 
-    winptr win;
+    winptr    win;
+    rectangle old;
 
     win = txt2win(f);
+    if (!!e == win->size) return;
+    winrect(win, &old);
+    /* the sizing border comes and goes with the ability */
     win->size = !!e;
+    regeom(win, &old);
 
 }
 
@@ -4268,6 +4569,10 @@ static void init_windowg(void)
     drag = dt_none;
     drgwin = NULL;
     banddrawn = FALSE;
+    carshown = FALSE;
+    incar = FALSE;
+    curshp = 0;
+    carhold = 0;
     ctxwin = NULL;
     paqfre = NULL;
     paqevt = NULL;
@@ -4442,6 +4747,14 @@ static void init_windowg(void)
     _pa_focus_ovr(focus_ivf, &focus_down);
     _pa_getwinid_ovr(getwinid_ivf, &getwinid_down);
 
+    /* The composed display screen is this manager's, not any client's:
+       its cursor is never a caret (each window's caret rides its own
+       backing), and with composition selecting it as the update screen
+       a visible cursor here paints a reversed block at its home. Off,
+       once; the state is the screen's and keeps. */
+    (*select_down)(stdout, DSPSCN, DSPSCN);
+    (*curvis_down)(stdout, FALSE);
+
     /* the root surface */
     dimxg = (*maxxg_down)(stdout);
     dimyg = (*maxyg_down)(stdout);
@@ -4517,6 +4830,9 @@ static void deinit_windowg(void)
     pclose_t cpclose;
     plseek_t cplseek;
 
+    /* A failed layer below exits before this manager's constructor
+       ran: there is nothing hooked to take back off. */
+    if (!mgractive) return;
     mgractive = FALSE;
     /* leave the layer showing and updating its display screen */
     (*select_down)(stdout, DSPSCN, DSPSCN);
