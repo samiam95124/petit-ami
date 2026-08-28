@@ -725,6 +725,45 @@ static void applyfont(winptr win)
 
 }
 
+/* Create a client backing screen for a window. The layer lays a new
+   screen's default tabs from the font it happens to hold, which may be
+   another window's (the frame drawing leaves the sign font, for one);
+   the tabs are rebuilt here under the window's own font: every 8th of
+   its character cell, the terminal default. */
+static void alcbacking(winptr win, int i)
+
+{
+
+    long cs, mx, t;
+
+    char ff = '\f';
+
+    win->scns[i] = alcscn();
+    (*select_down)(stdout, win->scns[i], DSPSCN);
+    (*sizbufg_down)(stdout, win->bufx, win->bufy);
+    ctxwin = NULL;
+    /* The index may be recycled from a closed window, and the layer
+       keeps a screen's state: reset to the fresh defaults -- colors,
+       cursor visible, cleared content with the cursor home (on grid
+       for any font) -- under a lifted auto, with the window's font. */
+    (*auto_down)(stdout, FALSE);
+    applyfont(win);
+    (*fcolor_down)(stdout, ami_black);
+    (*bcolor_down)(stdout, ami_white);
+    (*curvis_down)(stdout, TRUE);
+    (*ofpwrite)(OUTFIL, &ff, 1); /* clear and home through the layer */
+    (*auto_down)(stdout, win->autof[i]);
+    ctxwin = win;
+    /* the default tabs in the window's own cell */
+    cs = (*chrsizx_down)(stdout);
+    if (cs < 1) cs = 1;
+    mx = win->bufx/cs;
+    (*clrtab_down)(stdout);
+    for (t = 9; t <= mx; t += 8)
+        (*settabg_down)(stdout, (t-1)*cs+1);
+
+}
+
 /* enter a window's client context */
 static void entercli(winptr win)
 
@@ -732,14 +771,9 @@ static void entercli(winptr win)
 
     int scn;
 
-    if (!win->scns[win->curupd-1]) {
-
+    if (!win->scns[win->curupd-1])
         /* the client screen allocates at need */
-        win->scns[win->curupd-1] = alcscn();
-        (*select_down)(stdout, win->scns[win->curupd-1], DSPSCN);
-        (*sizbufg_down)(stdout, win->bufx, win->bufy);
-
-    }
+        alcbacking(win, win->curupd-1);
     scn = win->scns[win->curupd-1];
     (*select_down)(stdout, scn, DSPSCN);
     if (ctxwin != win) {
@@ -1023,12 +1057,28 @@ static void composeall(rectangle* dr)
 
 /* compose the damage a client drawing call made: the window's client
    rectangle (or a part of it) intersected with its visible region */
+/* first content presents the window: frame and all */
+static void winvis(winptr win)
+
+{
+
+    rectangle r;
+
+    if (win->visible) return;
+    win->visible = TRUE;
+    calcvisall();
+    winrect(win, &r);
+    composeall(&r);
+
+}
+
 static void compdmg(winptr win)
 
 {
 
     rectangle cr;
 
+    if (!win->visible) winvis(win);
     clirect(win, &cr);
     composewin(win, &cr);
 
@@ -1683,7 +1733,119 @@ static void readline(int fd)
 
                     }
                     break;
+                case ami_etdelcf: /* delete character forward */
+                    if (win->inpbuf[win->inpptr]) { /* not at extreme right */
+
+                        /* move characters down */
+                        i = win->inpptr;
+                        while (win->inpbuf[i])
+                            { win->inpbuf[i] = win->inpbuf[i+1]; i++; }
+                        /* repaint right */
+                        i = win->inpptr;
+                        while (win->inpbuf[i]) plcchr(win, win->inpbuf[i++]);
+                        plcchr(win, ' '); /* blank last */
+                        /* back up */
+                        plcchr(win, '\b');
+                        i = win->inpptr;
+                        while (win->inpbuf[i++]) plcchr(win, '\b');
+
+                    }
+                    break;
+                case ami_etright: /* right character */
+                    /* not at extreme right, go right */
+                    if (win->inpbuf[win->inpptr]) {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++; /* advance input */
+
+                    }
+                    break;
+                case ami_etleft: /* left character */
+                    /* not at extreme left, go left */
+                    if (win->inpptr > 0) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--; /* back up pointer */
+
+                    }
+                    break;
+                case ami_ethomel: /* beginning of line */
+                    /* back up to start of line */
+                    while (win->inpptr) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    break;
+                case ami_etendl: /* end of line */
+                    /* go to end of line */
+                    while (win->inpbuf[win->inpptr]) {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    break;
                 case ami_etinsertt: ins = !ins; break;
+                case ami_etdell: /* delete whole line */
+                    /* back up to start of line */
+                    while (win->inpptr) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    /* erase line on screen */
+                    while (win->inpbuf[win->inpptr]) {
+
+                        plcchr(win, ' ');
+                        win->inpptr++;
+
+                    }
+                    /* back up again */
+                    while (win->inpptr) {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    win->inpbuf[win->inpptr] = 0; /* clear line */
+                    break;
+                case ami_etleftw: /* left word */
+                    /* back over any spaces */
+                    while (win->inpptr && win->inpbuf[win->inpptr-1] == ' ') {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    /* now back over any non-space */
+                    while (win->inpptr && win->inpbuf[win->inpptr-1] != ' ') {
+
+                        plcchr(win, '\b');
+                        win->inpptr--;
+
+                    }
+                    break;
+                case ami_etrightw: /* right word */
+                    /* advance over any non-space */
+                    while (win->inpbuf[win->inpptr] &&
+                           win->inpbuf[win->inpptr] != ' ') {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    /* advance over any spaces */
+                    while (win->inpbuf[win->inpptr] &&
+                           win->inpbuf[win->inpptr] == ' ') {
+
+                        plcchr(win, win->inpbuf[win->inpptr]);
+                        win->inpptr++;
+
+                    }
+                    break;
                 default: ;
 
             }
@@ -3518,14 +3680,7 @@ static void select_ivf(FILE* f, long u, long d)
 
         win->curdsp = d;
         /* the display switch shows at once */
-        if (!win->scns[d-1]) {
-
-            win->scns[d-1] = alcscn();
-            (*select_down)(stdout, win->scns[d-1], DSPSCN);
-            (*sizbufg_down)(stdout, win->bufx, win->bufy);
-            ctxwin = NULL;
-
-        }
+        if (!win->scns[d-1]) alcbacking(win, d-1);
         compdmg(win);
 
     }
@@ -3627,13 +3782,17 @@ static void opnwin(int fn, int pfn, long wid, int root)
     win->curupd = 1;
     win->bufmod = TRUE;
     { int i; for (i = 0; i < MAXCON; i++) win->autof[i] = TRUE; }
+    /* a window shows when it first has content, as on the other
+       backends: the widget package's metrics window, never drawn to,
+       never appears */
     /* the font context starts at the explicit defaults, so entering the
        window always restores them over whatever the frame drawing or
        another window left in the layer */
     win->font = AMI_FONT_TERM;
     win->fontsiz = rootcell;
     win->inpptr = -1;
-    win->visible = TRUE;
+    win->visible = root; /* the root is the surface; the rest show on
+                            first content */
     win->title = strdup(program_invocation_short_name);
     win->zorder = ++ztop;
     if (root) {
@@ -3665,10 +3824,7 @@ static void opnwin(int fn, int pfn, long wid, int root)
     win->bufy = win->cmaxy;
     frmmetrics(win);
     /* the client backing */
-    win->scns[0] = alcscn();
-    (*select_down)(stdout, win->scns[0], DSPSCN);
-    (*sizbufg_down)(stdout, win->bufx, win->bufy);
-    ctxwin = NULL;
+    alcbacking(win, 0);
     /* the frame backing and image */
     if (win->frame) {
 
@@ -3677,8 +3833,12 @@ static void opnwin(int fn, int pfn, long wid, int root)
 
     }
     calcvisall();
-    winrect(win, &r);
-    composeall(&r);
+    if (win->visible) {
+
+        winrect(win, &r);
+        composeall(&r);
+
+    }
 
 }
 
@@ -4069,14 +4229,7 @@ static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
 
         long n = i? d: s;
 
-        if (!win->scns[n-1]) {
-
-            win->scns[n-1] = alcscn();
-            (*select_down)(stdout, win->scns[n-1], DSPSCN);
-            (*sizbufg_down)(stdout, win->bufx, win->bufy);
-            ctxwin = NULL;
-
-        }
+        if (!win->scns[n-1]) alcbacking(win, n-1);
 
     }
     entercli(win);

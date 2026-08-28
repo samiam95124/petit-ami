@@ -202,9 +202,13 @@ endif
 # Which graphics backend serves the graphical model? (Linux static only:
 # the backend is swapped by link option.) Defaults to the running
 # session: a Wayland display present selects the native Wayland backend,
-# else Xlib. Override on the command line with GRAPHICS_BACKEND=x11 or
-# GRAPHICS_BACKEND=wayland. The explicit graphics_testw/widget_testw
-# targets build the Wayland backend regardless.
+# else Xlib. Override on the command line with GRAPHICS_BACKEND=x11,
+# GRAPHICS_BACKEND=wayland or GRAPHICS_BACKEND=fb (the Linux frame
+# buffer: the stack framebuffer <- graphics <- windowg <- widgets, run
+# from a text console). The explicit graphics_testw/widget_testw
+# targets build the Wayland backend regardless. The terminal model is
+# untouched by this knob: terminal output is ANSI escapes, which the
+# standalone console interprets natively.
 #
 ifndef GRAPHICS_BACKEND
 
@@ -219,7 +223,14 @@ ifndef GRAPHICS_BACKEND
     endif
 
 endif
-# the dynamic link has no Wayland library; the X backend serves it
+# the long spelling is accepted
+ifeq ($(GRAPHICS_BACKEND),framebuffer)
+
+    GRAPHICS_BACKEND=fb
+
+endif
+# the dynamic link has no Wayland or frame buffer library; the X
+# backend serves it
 ifneq ($(LINK_TYPE),static)
 
     GRAPHICS_BACKEND=x11
@@ -229,6 +240,10 @@ endif
 ifeq ($(GRAPHICS_BACKEND),wayland)
 
     GRAPHLIB=graphw
+
+else ifeq ($(GRAPHICS_BACKEND),fb)
+
+    GRAPHLIB=graphfb
 
 else
 
@@ -646,6 +661,9 @@ else
 	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
 	         -lwayland-client -lwayland-cursor -lxkbcommon \
 	         -lfreetype -lfontconfig -lm -lpthread
+    else ifeq ($(GRAPHICS_BACKEND),fb)
+	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
+	         -lfreetype -lfontconfig -lpng -lz -lm -lpthread
     else
 	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 \
 	         -lfreetype -lfontconfig -lm -lpthread
@@ -1527,6 +1545,12 @@ GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 else ifeq ($(GRAPHICS_BACKEND),wayland)
 SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
 GSCREEN_CAPTURE_OBJ = linux/wayland/screen_capture.o
+else ifeq ($(GRAPHICS_BACKEND),fb)
+# the graphical model captures the stack's own composed screen; a
+# terminal capture would read the console, which is nobody's window --
+# the stub serves, as on Wayland
+SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
+GSCREEN_CAPTURE_OBJ = linux/wayland/screen_capture.o
 else
 SCREEN_CAPTURE_OBJ = linux/screen_capture.o
 GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
@@ -2173,7 +2197,7 @@ linux/framebuffer/framebuffer.o: linux/framebuffer/framebuffer.c \
 
 fbtest: linux/framebuffer/fbtest.c linux/framebuffer/framebuffer.o Makefile
 	$(CC) $(CFLAGS) linux/framebuffer/fbtest.c \
-	    linux/framebuffer/framebuffer.o -o bin/fbtest
+	    linux/framebuffer/framebuffer.o -lpthread -o bin/fbtest
 
 #
 # Resizable clock
@@ -2266,10 +2290,12 @@ help:
 	@echo ""
 	@echo "Options, given as make variables:"
 	@echo ""
-	@echo "  GRAPHICS_BACKEND=x11|wayland"
+	@echo "  GRAPHICS_BACKEND=x11|wayland|fb"
 	@echo "                      graphics backend for the graphical model."
 	@echo "                      Defaults to the running session: wayland"
-	@echo "                      when WAYLAND_DISPLAY is set, else x11"
+	@echo "                      when WAYLAND_DISPLAY is set, else x11."
+	@echo "                      fb targets the Linux frame buffer (run"
+	@echo "                      from a text console)"
 	@echo "  PDISPLAY_OPT=...    optimizer for the Wayland rasterizer,"
 	@echo "                      default -O3; empty for stepping, add"
 	@echo "                      -march=native for the last measure"
@@ -2399,6 +2425,17 @@ lib/graphfbm_core.o: $(CORE_COMMON) $(FBMGRAPH) linux/system_event.o \
 lib/libami_graphfbm.a: lib/graphfbm_core.o lib/sound.o linux/network.o
 	rm -f lib/libami_graphfbm.a
 	ar rcs lib/libami_graphfbm.a lib/graphfbm_core.o lib/sound.o linux/network.o
+
+# the backend archive proper: the same stack with the frame buffer
+# device layer carried inside, so programs link it like any other
+# graphical backend (GRAPHICS_BACKEND=fb)
+lib/graphfb_core.o: lib/graphfbm_core.o linux/framebuffer/framebuffer.o
+	ld -r -o lib/graphfb_core.o lib/graphfbm_core.o \
+	    linux/framebuffer/framebuffer.o
+
+lib/libami_graphfb.a: lib/graphfb_core.o lib/sound.o linux/network.o
+	rm -f lib/libami_graphfb.a
+	ar rcs lib/libami_graphfb.a lib/graphfb_core.o lib/sound.o linux/network.o
 
 GLIBSFBM = stub/keeper.o lib/libami_graphfbm.a
 FBMLIBS = -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lfreetype \
