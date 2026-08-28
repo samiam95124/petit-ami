@@ -931,6 +931,7 @@ static void ztotop(winptr win)
     winptr wp;
     winptr c;
 
+    if (win->root) return; /* the root is the floor: it never rises */
     if (win->zorder == ztop) return;
     /* close the gap the window leaves */
     for (wp = winlst; wp; wp = wp->winlst)
@@ -2159,7 +2160,7 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
             if (le->amoubn == 1) {
 
                 /* click to front and focus */
-                if (tw->zorder != ztop) {
+                if (tw->zorder != ztop && !tw->root) {
 
                     ztotop(tw);
                     calcvisall();
@@ -4149,7 +4150,7 @@ static void front_ivf(FILE* f)
     rectangle r;
 
     win = txt2win(f);
-    if (win->zorder != ztop) {
+    if (win->zorder != ztop && !win->root) {
 
         ztotop(win);
         calcvisall();
@@ -4168,11 +4169,14 @@ static void back_ivf(FILE* f)
     rectangle r;
 
     win = txt2win(f);
-    if (win->zorder > 0) {
+    if (!win->root && win->zorder > 1) {
 
+        /* the back of the pile is above the root, which floors the
+           order; the root itself never moves */
         for (wp = winlst; wp; wp = wp->winlst)
-            if (wp != win && wp->zorder < win->zorder) wp->zorder++;
-        win->zorder = 0;
+            if (wp != win && wp->zorder > 0 && wp->zorder < win->zorder)
+                wp->zorder++;
+        win->zorder = 1;
         calcvisall();
         winrect(win, &r);
         composeall(&r);
