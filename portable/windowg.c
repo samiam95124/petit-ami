@@ -220,6 +220,7 @@ typedef struct winrec {
     long     mpxg, mpyg;        /* last mouse position sent, client pixels */
     int      mb1, mb2, mb3;     /* buttons the window believes are down */
     int      autof[MAXCON];     /* auto state per client screen */
+    int      curvf[MAXCON];     /* caret visibility per client screen */
     int      timers[AMI_MAXTIM]; /* timers active on this window */
     long     frmtim;            /* frame timer active */
 
@@ -447,6 +448,11 @@ static long     drgow, drgoh;         /* window size at drag start */
 static unsigned drgedges;             /* sizing edges grabbed */
 static rectangle bandr;               /* the band rectangle on screen */
 static int      banddrawn;            /* band outline is on the display */
+static int      carshown;             /* caret block is on the display */
+static long     carx, cary;           /* caret block position, root space */
+static long     carw, carh;           /* caret block cell size */
+static int      incar;                /* caret update in progress */
+static int      carhold;              /* caret held off for a compound update */
 static int      mgractive;            /* the manager finished initializing */
 
 /* forward declarations */
@@ -456,6 +462,8 @@ static void entercli(winptr win);
 static void enterdsp(void);
 static void composewin(winptr win, rectangle* dr);
 static void composeall(rectangle* dr);
+static void caroff(void);
+static void caron(void);
 static void calcvis(winptr win);
 static void calcvisall(void);
 static void drwfrm(winptr win);
@@ -750,7 +758,7 @@ static void alcbacking(winptr win, int i)
     applyfont(win);
     (*fcolor_down)(stdout, ami_black);
     (*bcolor_down)(stdout, ami_white);
-    (*curvis_down)(stdout, TRUE);
+    (*curvis_down)(stdout, FALSE); /* the manager draws the caret */
     (*ofpwrite)(OUTFIL, &ff, 1); /* clear and home through the layer */
     (*auto_down)(stdout, win->autof[i]);
     ctxwin = win;
@@ -1068,9 +1076,11 @@ static void composeall(rectangle* dr)
 
     /* visible regions are disjoint, so order is free; walk by Z for
        clarity */
+    caroff();
     for (z = 0; z <= ztop; z++)
         for (wp = winlst; wp; wp = wp->winlst)
             if (wp->zorder == z) composewin(wp, dr);
+    caron();
 
 }
 
@@ -1098,8 +1108,10 @@ static void compdmg(winptr win)
     rectangle cr;
 
     if (!win->visible) winvis(win);
+    caroff();
     clirect(win, &cr);
     composewin(win, &cr);
+    caron();
 
 }
 
@@ -1400,6 +1412,8 @@ static void setfocus(winptr win)
     winptr old;
 
     if (win == focwin) return;
+    caroff();
+    carhold++;
     old = focwin;
     focwin = win;
     if (old) {
@@ -1419,6 +1433,8 @@ static void setfocus(winptr win)
         { rectangle r; winrect(win, &r); composewin(win, &r); }
 
     }
+    carhold--;
+    caron();
 
 }
 
@@ -1459,6 +1475,81 @@ static void banderase(void)
 {
 
     if (banddrawn) { bandflip(); banddrawn = FALSE; }
+
+}
+
+/*******************************************************************************
+
+The caret
+
+The manager owns the caret: every backing screen's cursor stays
+invisible at the layer, and the manager draws its own -- an xor block
+on the display screen at the focus window's client cursor, in root
+space, so it lands where the window is, not where its backing lies.
+Drawing it twice removes it; it comes off before any composition and
+goes back after, so the block never mixes into content.
+
+*******************************************************************************/
+
+static void carflip(void)
+
+{
+
+    entercmp();
+    (*fxor_down)(stdout);
+    (*fcolor_down)(stdout, ami_white);
+    (*frect_down)(stdout, carx, cary, carx+carw-1, cary+carh-1);
+    (*fover_down)(stdout);
+    (*fcolor_down)(stdout, ami_black);
+
+}
+
+/* take the caret off the display */
+static void caroff(void)
+
+{
+
+    if (carshown) { carflip(); carshown = FALSE; }
+
+}
+
+/* place the caret at the focus window's client cursor, if it shows */
+static void caron(void)
+
+{
+
+    winptr    win = focwin;
+    rectangle cr, car;
+    long      cx, cy;
+    int       i;
+
+    if (carshown || incar || carhold) return;
+    if (!win || !win->visible || win->mined) return;
+    if (!win->curvf[win->curupd-1]) return;
+    incar = TRUE;
+    entercli(win); /* the cursor and cell in the window's own context */
+    cx = (*curxg_down)(stdout);
+    cy = (*curyg_down)(stdout);
+    carw = (*chrsizx_down)(stdout);
+    carh = (*chrsizy_down)(stdout);
+    incar = FALSE;
+    /* to root space, inside the client shown on screen */
+    clirect(win, &cr);
+    carx = cr.x1+cx-1;
+    cary = cr.y1+cy-1;
+    if (carx < cr.x1 || cary < cr.y1 ||
+        carx+carw-1 > cr.x2 || cary+carh-1 > cr.y2) return;
+    /* and only where the window is actually visible */
+    setrect(&car, carx, cary, carx+carw-1, cary+carh-1);
+    for (i = 0; i < win->vis.n; i++)
+        if (car.x1 >= win->vis.r[i].x1 && car.x2 <= win->vis.r[i].x2 &&
+            car.y1 >= win->vis.r[i].y1 && car.y2 <= win->vis.r[i].y2) {
+
+            carflip();
+            carshown = TRUE;
+            break;
+
+        }
 
 }
 
@@ -1979,6 +2070,8 @@ static void clswin(int fd)
     filwin[fd] = -1;
     if (focwin == win) focwin = NULL;
     if (hovwin == win) hovwin = NULL;
+    caroff();
+    if (focwin == win) focwin = NULL;
     if (ctxwin == win) ctxwin = NULL;
     if (drgwin == win) { banderase(); drag = dt_none; drgwin = NULL; }
     for (i = 0; i < AMI_MAXTIM; i++)
@@ -2754,6 +2847,8 @@ static void cursor_ivf(FILE* f, long x, long y)
     win = txt2win(f);
     entercli(win);
     (*cursor_down)(stdout, x, y);
+    caroff();
+    caron();
 
 }
 
@@ -2766,6 +2861,8 @@ static void cursorg_ivf(FILE* f, long x, long y)
     win = txt2win(f);
     entercli(win);
     (*cursorg_down)(stdout, x, y);
+    caroff();
+    caron();
 
 }
 
@@ -2789,8 +2886,10 @@ static void curvis_ivf(FILE* f, long e)
     winptr win;
 
     win = txt2win(f);
-    entercli(win);
-    (*curvis_down)(stdout, e);
+    /* the manager owns the caret; the layer's stays dark */
+    win->curvf[win->curupd-1] = !!e;
+    caroff();
+    caron();
 
 }
 
@@ -3706,6 +3805,8 @@ static void select_ivf(FILE* f, long u, long d)
 
     }
     entercli(win);
+    caroff();
+    caron();
 
 }
 
@@ -3802,7 +3903,8 @@ static void opnwin(int fn, int pfn, long wid, int root)
     win->curdsp = 1;
     win->curupd = 1;
     win->bufmod = TRUE;
-    { int i; for (i = 0; i < MAXCON; i++) win->autof[i] = TRUE; }
+    { int i; for (i = 0; i < MAXCON; i++)
+        { win->autof[i] = TRUE; win->curvf[i] = TRUE; } }
     /* a window shows when it first has content, as on the other
        backends: the widget package's metrics window, never drawn to,
        never appears */
@@ -4292,6 +4394,9 @@ static void init_windowg(void)
     drag = dt_none;
     drgwin = NULL;
     banddrawn = FALSE;
+    carshown = FALSE;
+    incar = FALSE;
+    carhold = 0;
     ctxwin = NULL;
     paqfre = NULL;
     paqevt = NULL;
