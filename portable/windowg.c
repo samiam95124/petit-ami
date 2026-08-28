@@ -755,7 +755,7 @@ static void alcbacking(winptr win, int i)
 
 {
 
-    long cs, mx, t;
+    long cs, mx, t, n;
 
     char ff = '\f';
 
@@ -775,12 +775,16 @@ static void alcbacking(winptr win, int i)
     (*ofpwrite)(OUTFIL, &ff, 1); /* clear and home through the layer */
     (*auto_down)(stdout, win->autof[i]);
     ctxwin = win;
-    /* the default tabs in the window's own cell */
+    /* The default tabs in the window's own cell. The layer's tab
+       table is finite; a wide window at a small cell asks for more
+       stops than it holds, so the lay caps as the layer's own default
+       lay does. */
     cs = (*chrsizx_down)(stdout);
     if (cs < 1) cs = 1;
     mx = win->bufx/cs;
     (*clrtab_down)(stdout);
-    for (t = 9; t <= mx; t += 8)
+    n = 0;
+    for (t = 9; t <= mx && n < 200; t += 8, n++)
         (*settabg_down)(stdout, (t-1)*cs+1);
 
 }
@@ -4775,6 +4779,9 @@ static void deinit_windowg(void)
     pclose_t cpclose;
     plseek_t cplseek;
 
+    /* A failed layer below exits before this manager's constructor
+       ran: there is nothing hooked to take back off. */
+    if (!mgractive) return;
     mgractive = FALSE;
     /* leave the layer showing and updating its display screen */
     (*select_down)(stdout, DSPSCN, DSPSCN);

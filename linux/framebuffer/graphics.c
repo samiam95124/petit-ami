@@ -91,7 +91,7 @@ extern char *program_invocation_short_name;
 #define STDCHRY 12
 
 #define MAXCON 100  /* number of screen contexts */
-#define MAXTAB 50   /* total number of tabs possible per screen */
+#define MAXTAB 250  /* total number of tabs possible per screen */
 #define MAXPIC 50   /* total number of loadable pictures */
 #define MAXLIN 250  /* maximum length of input buffered line */
 #define MAXFIL 1000 /* maximum open files */
