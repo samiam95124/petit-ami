@@ -1659,22 +1659,130 @@ static const char* mptrimg[] = {
 #define MPTRH ((int)(sizeof(mptrimg)/sizeof(mptrimg[0])))
 #define MPTRW 11
 
-/* paint the pointer at its position */
+/* The sizing shapes, hot at their centers: the double arrows a manager
+   above shows over a window's sizing edges, via grx_pointer(). */
+static const char* mptrsizeh[] = {
+
+    "   O           O",
+    "  OXO         OXO",
+    " OXXOOOOOOOOOOOXXO",
+    "OXXXXXXXXXXXXXXXXXO",
+    " OXXOOOOOOOOOOOXXO",
+    "  OXO         OXO",
+    "   O           O",
+
+};
+static const char* mptrsizev[] = {
+
+    "   O",
+    "  OXO",
+    " OXXXO",
+    "OXXXXXO",
+    "OOOXOOO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "  OXO",
+    "OOOXOOO",
+    "OXXXXXO",
+    " OXXXO",
+    "  OXO",
+    "   O",
+
+};
+static const char* mptrnwse[] = {
+
+    "OOOOOO",
+    "OXXXXO",
+    "OXXXO",
+    "OXXXXO",
+    "OXOXXXO",
+    "OO OXXXO",
+    "    OXXXO",
+    "     OXXXO OO",
+    "      OXXXOXO",
+    "       OXXXXO",
+    "        OXXXO",
+    "       OXXXXO",
+    "       OOOOOO",
+
+};
+static const char* mptrnesw[] = {
+
+    "       OOOOOO",
+    "       OXXXXO",
+    "        OXXXO",
+    "       OXXXXO",
+    "      OXXXOXO",
+    "     OXXXO OO",
+    "    OXXXO",
+    "OO OXXXO",
+    "OXOXXXO",
+    "OXXXXO",
+    "OXXXO",
+    "OXXXXO",
+    "OOOOOO",
+
+};
+
+/* the shape table: image, box, hot point */
+static const struct mptrshp {
+
+    const char** img;
+    int          rows;
+    int          w, h;
+    int          hotx, hoty;
+
+} mptrshptbl[] = {
+
+    { mptrimg,   MPTRH, MPTRW, MPTRH, 0, 0 }, /* GRXP_ARROW, hot the tip */
+    { mptrsizeh, 7, 19, 7, 9, 3 },    /* GRXP_SIZEH */
+    { mptrsizev, 19, 7, 19, 3, 9 },   /* GRXP_SIZEV */
+    { mptrnwse, 13, 13, 13, 6, 6 },   /* GRXP_NWSE */
+    { mptrnesw, 13, 13, 13, 6, 6 },   /* GRXP_NESW */
+
+};
+#define MPTRSHAPES ((int)(sizeof(mptrshptbl)/sizeof(mptrshptbl[0])))
+static int mptrshp = 0; /* the shape the pointer wears */
+
+/* paint the pointer at its position, in its shape */
 static void mptrdraw(void)
 
 {
 
+    const struct mptrshp* sp = &mptrshptbl[mptrshp];
     int         i, j;
     const char* r;
 
-    for (j = 0; j < MPTRH; j++) {
+    for (j = 0; j < sp->h; j++) {
 
-        r = mptrimg[j];
+        r = sp->img[j];
         for (i = 0; r[i]; i++)
-            if (r[i] == 'X') fbputpix(mptrx+i, mptry+j, 0x000000);
-            else if (r[i] == 'O') fbputpix(mptrx+i, mptry+j, 0xffffff);
+            if (r[i] == 'X')
+                fbputpix(mptrx-sp->hotx+i, mptry-sp->hoty+j, 0x000000);
+            else if (r[i] == 'O')
+                fbputpix(mptrx-sp->hotx+i, mptry-sp->hoty+j, 0xffffff);
 
     }
+
+}
+
+/* the box the pointer's shape covers */
+static void mptrbox(int* x, int* y, int* w, int* h)
+
+{
+
+    const struct mptrshp* sp = &mptrshptbl[mptrshp];
+
+    *x = mptrx-sp->hotx;
+    *y = mptry-sp->hoty;
+    *w = sp->w;
+    *h = sp->h;
 
 }
 
@@ -1684,9 +1792,11 @@ static void fbpresent(int x, int y, int w, int h)
 
 {
 
+    int px, py, pw, ph;
+
     fbcopy(x, y, w, h);
-    if (mptrvis &&
-        x < mptrx+MPTRW && x+w > mptrx && y < mptry+MPTRH && y+h > mptry)
+    mptrbox(&px, &py, &pw, &ph);
+    if (mptrvis && x < px+pw && x+w > px && y < py+ph && y+h > py)
         mptrdraw();
 
 }
@@ -1696,12 +1806,37 @@ static void mptrmove(int nx, int ny)
 
 {
 
-    int ox = mptrx, oy = mptry;
+    int px, py, pw, ph;
 
+    mptrbox(&px, &py, &pw, &ph);
     mptrx = nx; mptry = ny;
-    if (mptrvis) fbcopy(ox, oy, MPTRW, MPTRH);
+    if (mptrvis) fbcopy(px, py, pw, ph);
     mptrvis = TRUE;
     mptrdraw();
+
+}
+
+/*******************************************************************************
+
+Set pointer shape
+
+A backdoor for the manager above: the pointer wears one of the shapes
+0 arrow, 1 horizontal sizing, 2 vertical sizing, 3 nw-se sizing,
+4 ne-sw sizing. The display draws its own pointer here, so the shape
+feedback a desktop would give over a sizing edge is given by this.
+
+*******************************************************************************/
+
+void grx_pointer(int shape)
+
+{
+
+    int px, py, pw, ph;
+
+    if (shape < 0 || shape >= MPTRSHAPES || shape == mptrshp) return;
+    mptrbox(&px, &py, &pw, &ph);
+    mptrshp = shape;
+    if (mptrvis) { fbcopy(px, py, pw, ph); mptrdraw(); }
 
 }
 

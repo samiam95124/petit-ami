@@ -457,6 +457,13 @@ static long     carx, cary;           /* caret block position, root space */
 static long     carw, carh;           /* caret block cell size */
 static int      incar;                /* caret update in progress */
 static int      carhold;              /* caret held off for a compound update */
+static int      curshp;               /* the pointer shape now worn */
+
+/* The pointer shape backdoor into a graphics layer that draws its own
+   pointer: 0 arrow, 1 horizontal sizing, 2 vertical sizing, 3 nw-se,
+   4 ne-sw. Weak: a backend whose desktop owns the pointer lacks it,
+   and the shape feedback simply does not apply. */
+extern void grx_pointer(int shape) __attribute__((weak));
 static int      mgractive;            /* the manager finished initializing */
 
 /* forward declarations */
@@ -2250,6 +2257,26 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
 
             }
             tw = winat(rootmx, rootmy);
+            /* over a sizing edge the pointer wears the sizing shape,
+               the feedback a desktop gives */
+            if (grx_pointer) {
+
+                int      shp = 0;
+                unsigned e;
+
+                if (tw && frmhit(tw, rootmx-tw->orgx+1,
+                                     rootmy-tw->orgy+1) == 5) {
+
+                    e = frmedges(tw, rootmx-tw->orgx+1, rootmy-tw->orgy+1);
+                    if ((e & 1 && e & 4) || (e & 2 && e & 8)) shp = 3;
+                    else if ((e & 1 && e & 8) || (e & 2 && e & 4)) shp = 4;
+                    else if (e & (4|8)) shp = 1;
+                    else shp = 2;
+
+                }
+                if (shp != curshp) { curshp = shp; grx_pointer(shp); }
+
+            }
             if (tw != hovwin) {
 
                 if (hovwin) quevent(hovwin, ami_etnohover);
@@ -4449,6 +4476,7 @@ static void init_windowg(void)
     banddrawn = FALSE;
     carshown = FALSE;
     incar = FALSE;
+    curshp = 0;
     carhold = 0;
     ctxwin = NULL;
     paqfre = NULL;
