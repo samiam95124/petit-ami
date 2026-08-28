@@ -841,6 +841,31 @@ static void entercmp(void)
 
 }
 
+/* An unbuffered client's surface follows the window: when the client
+   size changes, the backings resize to it. The layer's resize hands
+   back fresh screen state, so the window's context reapplies on the
+   next client entry. */
+static void trackbuf(winptr win)
+
+{
+
+    int i;
+
+    if (win->bufmod) return;
+    if (win->bufx == win->cmaxx && win->bufy == win->cmaxy) return;
+    win->bufx = win->cmaxx;
+    win->bufy = win->cmaxy;
+    for (i = 0; i < MAXCON; i++)
+        if (win->scns[i]) {
+
+            (*select_down)(stdout, win->scns[i], DSPSCN);
+            (*sizbufg_down)(stdout, win->bufx, win->bufy);
+
+        }
+    ctxwin = NULL;
+
+}
+
 /*******************************************************************************
 
 Geometry
@@ -1659,6 +1684,7 @@ static void dragend(long gx, long gy)
         win->cmaxy = win->pmaxy-win->coffy-(win->frame? BORD(win): 0);
         if (win->cmaxx < 1) win->cmaxx = 1;
         if (win->cmaxy < 1) win->cmaxy = 1;
+        trackbuf(win); /* an unbuffered surface follows the window */
         drwfrm(win);
         er.etype = ami_etresize;
         er.winid = win->wid;
@@ -3917,6 +3943,7 @@ static void buffer_ivf(FILE* f, long e)
     win = txt2win(f);
     /* the backing is kept either way; the flag notes the client's model */
     win->bufmod = !!e;
+    trackbuf(win); /* an unbuffered surface follows the window */
 
 }
 
@@ -4167,6 +4194,7 @@ static void regeom(winptr win, rectangle* old)
     rectangle r;
 
     frmmetrics(win);
+    trackbuf(win); /* an unbuffered surface follows the window */
     if (win->frame && !win->frmscn) win->frmscn = alcscn();
     if (win->frame) drwfrm(win);
     calcvisall();
@@ -4187,13 +4215,17 @@ static void setsizg_ivf(FILE* f, long x, long y)
 
 {
 
-    winptr    win;
-    rectangle old;
+    winptr     win;
+    rectangle  old;
+    long       ocx, ocy;
+    ami_evtrec er;
 
     win = txt2win(f);
     /* the root is the whole surface: it cannot size */
     if (win->root) error("Cannot size the root window");
     winrect(win, &old);
+    ocx = win->cmaxx;
+    ocy = win->cmaxy;
     /* the size given is the whole window; the client area follows from
        the frame */
     win->pmaxx = x;
@@ -4204,6 +4236,20 @@ static void setsizg_ivf(FILE* f, long x, long y)
     if (win->cmaxx < 1) win->cmaxx = 1;
     if (win->cmaxy < 1) win->cmaxy = 1;
     regeom(win, &old);
+    if (win->cmaxx != ocx || win->cmaxy != ocy) {
+
+        /* the client hears its new size, as the desktop backends
+           deliver after their window manager round trip */
+        er.etype = ami_etresize;
+        er.winid = win->wid;
+        er.rszxg = win->cmaxx;
+        er.rszyg = win->cmaxy;
+        entercli(win); /* the metrics in the window's font */
+        er.rszx = win->cmaxx/(*chrsizx_down)(stdout);
+        er.rszy = win->cmaxy/(*chrsizy_down)(stdout);
+        enquepaevt(&er);
+
+    }
 
 }
 
