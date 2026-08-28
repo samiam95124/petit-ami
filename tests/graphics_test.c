@@ -401,6 +401,8 @@ typedef enum {
 
 static jmp_buf   terminate_buf;
 static int       framenum = 0;
+static int       tstlo = 1;      /* first frame in the selected range */
+static int       tsthi = 0;      /* last frame, 0 for no limit */
 /* "auto" on the command line: walk every pattern without waiting for a
    keypress, so the run can be compared against a standard by the
    regression harness. Every wait for the user answers at once, the
@@ -476,7 +478,8 @@ static void waitchar(long t, int* st)
 
     ami_evtrec er;
 
-    if (autorun) { *st = TRUE; return; } /* end the pattern at once */
+    if (autorun || framenum+1 < tstlo)
+        { *st = TRUE; return; } /* end the pattern at once */
     *st = FALSE; /* set no space terminate */
     ami_timer(stdout, 1, t, FALSE);
     do { ami_event(stdin, &er); }
@@ -490,22 +493,48 @@ static void waitchar(long t, int* st)
 
 /* wait return to be pressed, or handle terminate */
 
+static void frmmark(void)
+
+{
+
+    char buf[80];
+
+    /* Mark the pattern just drawn: the next frame number, on the title
+       and in the upper right corner of the screen, and the capture. The
+       label draws in xor, so it reads on any field, and the states
+       touched are left at the test's steady defaults. Before the
+       selected range the mark is the count alone; past it the test is
+       over. */
+    framenum++;
+    if (tsthi && framenum > tsthi) longjmp(terminate_buf, 1);
+    if (framenum < tstlo) return; /* not in range: count alone */
+    sprintf(buf, "graphics_test: frame %d", framenum);
+    ami_title(stdout, buf);
+    sprintf(buf, "%d", framenum);
+    ami_fxor(stdout);
+    ami_fcolor(stdout, ami_white);
+    ami_cursor(stdout, ami_maxx(stdout)-(long)strlen(buf)+1, 1);
+    printf("%s", buf);
+    /* home the cursor: the label leaves it past the right edge, where a
+       pattern's auto reenable would fault */
+    ami_cursor(stdout, 1, 1);
+    ami_fover(stdout);
+    ami_fcolor(stdout, ami_black);
+
+    /* capture test screens */
+    screen_capture();
+
+}
+
 static void waitnext(void)
 
 {
 
     ami_evtrec er; /* event record */
-    char titlebuf[80];
 
-    /* set title with frame number */
-    framenum++;
-    sprintf(titlebuf, "graphics_test: frame %d", framenum);
-    ami_title(stdout, titlebuf);
-
-    /* capture test screens */
-    screen_capture();
-
-    if (autorun) return; /* the pattern is captured; on to the next */
+    frmmark(); /* number, label and capture the pattern */
+    /* automatic runs and the frames before the range pass at once */
+    if (autorun || framenum < tstlo) return;
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -719,7 +748,8 @@ static int chkbrk(void)
     ami_evtrec er; /* event record */
     int done;
 
-    if (autorun) return (TRUE); /* one frame of it is enough */
+    if (autorun || framenum+1 < tstlo)
+        return (TRUE); /* one frame of it is enough */
     done = FALSE;
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etframe && er.etype != ami_etterm &&
@@ -818,7 +848,7 @@ static void squares(void)
     }
     ami_select(stdout, 1, 1); /* restore buffer surfaces */
     ami_fover(stdout); /* restore foreground overwrite */
-    if (autorun) waitnext(); /* capture where the squares got to */
+    frmmark(); /* number and capture where the squares got to */
 
 }
 
@@ -1373,6 +1403,7 @@ int main(int argc, char* argv[])
     int ysize;
     int x1, y1, x2, y2;
     char fn[100];
+    int argi;
     long x, y;
     long t, et;
     float f;
@@ -1389,13 +1420,33 @@ int main(int argc, char* argv[])
        exits at the end of them, which is how the regression runs it. A
        second argument names the file the screens are captured to, so runs
        beside each other do not write over one another */
-    if (argc > 1 && !strcmp(argv[1], "auto")) {
+    argi = 1;
+    if (argc > argi && !strcmp(argv[argi], "auto")) {
 
         autorun = TRUE;
         ami_autohold(FALSE); /* end when the patterns end */
-        if (argc > 2) screen_capture_name(argv[2]);
+        argi++;
+        /* a non-numeric argument names the capture file */
+        if (argc > argi && (argv[argi][0] < '0' || argv[argi][0] > '9')) {
+
+            screen_capture_name(argv[argi]);
+            argi++;
+
+        }
 
     }
+    /* "graphics_test [auto [file]] first [last]" runs the numbered
+       frames alone: the patterns before the first pass without a stop,
+       and the run ends after the last. With no last it runs from the
+       first frame to the end of the test. */
+    if (argc > argi) {
+
+        tstlo = atoi(argv[argi]);
+        if (tstlo < 1) tstlo = 1;
+        argi++;
+
+    }
+    if (argc > argi) tsthi = atoi(argv[argi]);
     printf("Graphics screen test vs. 0.1\n");
     printf("\n");
     printf("Screen size in characters: x -> %ld y -> %ld\n", ami_maxx(stdout),
@@ -3297,7 +3348,8 @@ int main(int argc, char* argv[])
     prtcen(3, "Note that edges will clear to green as screen moves");
     prtcen(ami_maxy(stdout), "Graphical scrolling test");
     ami_bcolor(stdout, ami_green);
-    if (autorun) waitnext(); else do {
+    frmmark();
+    if (!autorun && framenum >= tstlo) do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etup) ami_scrollg(stdout, 0, -1);
@@ -3318,7 +3370,8 @@ int main(int argc, char* argv[])
     prtcen(ami_maxy(stdout), "Graphical mouse movement test");
     x = -1;
     y = -1;
-    if (autorun) waitnext(); else do {
+    frmmark();
+    if (!autorun && framenum >= tstlo) do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etmoumovg) {
@@ -3394,6 +3447,7 @@ int main(int argc, char* argv[])
         int vox = 0, voy = 0;
         ami_evtrec er;
         int done = 0;
+        int first = 1;
 
         /* initial offset: center the drawing */
         vox = (int)(ww/2 - (cx-1) * vsx);
@@ -3454,11 +3508,12 @@ int main(int argc, char* argv[])
                 prtcen(1, sb);
             }
             prtcen(ami_maxy(stdout), "View drawing scale test");
+            if (first) { frmmark(); first = 0; }
             /* restore the current scale for next redraw */
             ami_viewscale(stdout, vsx, vsy);
             ami_viewoffg(stdout, vox, voy);
             /* wait for key */
-            if (autorun) { waitnext(); done = 1; continue; }
+            if (autorun || framenum < tstlo) { done = 1; continue; }
             do { ami_event(stdin, &er); } while (er.etype != ami_etenter &&
                 er.etype != ami_etterm && er.etype != ami_etpagu &&
                 er.etype != ami_etpagd && er.etype != ami_etup &&
