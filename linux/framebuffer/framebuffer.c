@@ -162,14 +162,23 @@ static void* scanout(void* arg)
 
             unsigned char* sr = shadow+(size_t)y*lrow;
 
-            if (memcmp(sr, shadowprev+(size_t)y*lrow, lrow)) {
+            unsigned char* pr = shadowprev+(size_t)y*lrow;
 
-                memcpy(shadowprev+(size_t)y*lrow, sr, lrow);
+            if (memcmp(sr, pr, lrow)) {
+
+                /* Expand the snapshot, never a second read of the live
+                   row: the layers above write the shadow while this
+                   runs, and a device row built from a fresher read than
+                   the snapshot differs from it invisibly -- the compare
+                   never fires again and the tear stays on screen. From
+                   the snapshot the device always matches shadowprev,
+                   so any tear is caught on the next pass. */
+                memcpy(pr, sr, lrow);
                 /* expand the row once, then lay it down scale times */
                 for (x = 0; x < lcols; x++)
                     for (r = 0; r < scale; r++)
                         memcpy(xrow+((size_t)x*scale+r)*fbpixsiz,
-                               sr+(size_t)x*fbpixsiz, fbpixsiz);
+                               pr+(size_t)x*fbpixsiz, fbpixsiz);
                 for (r = 0; r < scale; r++)
                     memcpy(fbmem+((size_t)(scoffy+y*scale+r)*fbcols+scoffx)*
                                fbpixsiz,
