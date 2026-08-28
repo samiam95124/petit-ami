@@ -1499,11 +1499,13 @@ static void dragend(long gx, long gy)
     ami_evtrec er;
 
     banderase();
+    if (!win) { drag = dt_none; return; }
+    winrect(win, &r1);
+    /* the band's final rectangle computes under the live drag state --
+       bandcalc switches on it -- so the state clears after */
+    bandcalc(gx, gy);
     drag = dt_none;
     drgwin = NULL;
-    if (!win) return;
-    winrect(win, &r1);
-    bandcalc(gx, gy);
     if (bandr.x1 == win->orgx && bandr.y1 == win->orgy &&
         bandr.x2-bandr.x1+1 == win->pmaxx &&
         bandr.y2-bandr.y1+1 == win->pmaxy) return; /* nothing moved */
