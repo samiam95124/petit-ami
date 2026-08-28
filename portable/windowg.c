@@ -1023,12 +1023,28 @@ static void composeall(rectangle* dr)
 
 /* compose the damage a client drawing call made: the window's client
    rectangle (or a part of it) intersected with its visible region */
+/* first content presents the window: frame and all */
+static void winvis(winptr win)
+
+{
+
+    rectangle r;
+
+    if (win->visible) return;
+    win->visible = TRUE;
+    calcvisall();
+    winrect(win, &r);
+    composeall(&r);
+
+}
+
 static void compdmg(winptr win)
 
 {
 
     rectangle cr;
 
+    if (!win->visible) winvis(win);
     clirect(win, &cr);
     composewin(win, &cr);
 
@@ -3627,13 +3643,17 @@ static void opnwin(int fn, int pfn, long wid, int root)
     win->curupd = 1;
     win->bufmod = TRUE;
     { int i; for (i = 0; i < MAXCON; i++) win->autof[i] = TRUE; }
+    /* a window shows when it first has content, as on the other
+       backends: the widget package's metrics window, never drawn to,
+       never appears */
     /* the font context starts at the explicit defaults, so entering the
        window always restores them over whatever the frame drawing or
        another window left in the layer */
     win->font = AMI_FONT_TERM;
     win->fontsiz = rootcell;
     win->inpptr = -1;
-    win->visible = TRUE;
+    win->visible = root; /* the root is the surface; the rest show on
+                            first content */
     win->title = strdup(program_invocation_short_name);
     win->zorder = ++ztop;
     if (root) {
@@ -3677,8 +3697,12 @@ static void opnwin(int fn, int pfn, long wid, int root)
 
     }
     calcvisall();
-    winrect(win, &r);
-    composeall(&r);
+    if (win->visible) {
+
+        winrect(win, &r);
+        composeall(&r);
+
+    }
 
 }
 
