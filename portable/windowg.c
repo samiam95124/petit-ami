@@ -725,6 +725,45 @@ static void applyfont(winptr win)
 
 }
 
+/* Create a client backing screen for a window. The layer lays a new
+   screen's default tabs from the font it happens to hold, which may be
+   another window's (the frame drawing leaves the sign font, for one);
+   the tabs are rebuilt here under the window's own font: every 8th of
+   its character cell, the terminal default. */
+static void alcbacking(winptr win, int i)
+
+{
+
+    long cs, mx, t;
+
+    char ff = '\f';
+
+    win->scns[i] = alcscn();
+    (*select_down)(stdout, win->scns[i], DSPSCN);
+    (*sizbufg_down)(stdout, win->bufx, win->bufy);
+    ctxwin = NULL;
+    /* The index may be recycled from a closed window, and the layer
+       keeps a screen's state: reset to the fresh defaults -- colors,
+       cursor visible, cleared content with the cursor home (on grid
+       for any font) -- under a lifted auto, with the window's font. */
+    (*auto_down)(stdout, FALSE);
+    applyfont(win);
+    (*fcolor_down)(stdout, ami_black);
+    (*bcolor_down)(stdout, ami_white);
+    (*curvis_down)(stdout, TRUE);
+    (*ofpwrite)(OUTFIL, &ff, 1); /* clear and home through the layer */
+    (*auto_down)(stdout, win->autof[i]);
+    ctxwin = win;
+    /* the default tabs in the window's own cell */
+    cs = (*chrsizx_down)(stdout);
+    if (cs < 1) cs = 1;
+    mx = win->bufx/cs;
+    (*clrtab_down)(stdout);
+    for (t = 9; t <= mx; t += 8)
+        (*settabg_down)(stdout, (t-1)*cs+1);
+
+}
+
 /* enter a window's client context */
 static void entercli(winptr win)
 
@@ -732,14 +771,9 @@ static void entercli(winptr win)
 
     int scn;
 
-    if (!win->scns[win->curupd-1]) {
-
+    if (!win->scns[win->curupd-1])
         /* the client screen allocates at need */
-        win->scns[win->curupd-1] = alcscn();
-        (*select_down)(stdout, win->scns[win->curupd-1], DSPSCN);
-        (*sizbufg_down)(stdout, win->bufx, win->bufy);
-
-    }
+        alcbacking(win, win->curupd-1);
     scn = win->scns[win->curupd-1];
     (*select_down)(stdout, scn, DSPSCN);
     if (ctxwin != win) {
@@ -3646,14 +3680,7 @@ static void select_ivf(FILE* f, long u, long d)
 
         win->curdsp = d;
         /* the display switch shows at once */
-        if (!win->scns[d-1]) {
-
-            win->scns[d-1] = alcscn();
-            (*select_down)(stdout, win->scns[d-1], DSPSCN);
-            (*sizbufg_down)(stdout, win->bufx, win->bufy);
-            ctxwin = NULL;
-
-        }
+        if (!win->scns[d-1]) alcbacking(win, d-1);
         compdmg(win);
 
     }
@@ -3797,10 +3824,7 @@ static void opnwin(int fn, int pfn, long wid, int root)
     win->bufy = win->cmaxy;
     frmmetrics(win);
     /* the client backing */
-    win->scns[0] = alcscn();
-    (*select_down)(stdout, win->scns[0], DSPSCN);
-    (*sizbufg_down)(stdout, win->bufx, win->bufy);
-    ctxwin = NULL;
+    alcbacking(win, 0);
     /* the frame backing and image */
     if (win->frame) {
 
@@ -4205,14 +4229,7 @@ static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
 
         long n = i? d: s;
 
-        if (!win->scns[n-1]) {
-
-            win->scns[n-1] = alcscn();
-            (*select_down)(stdout, win->scns[n-1], DSPSCN);
-            (*sizbufg_down)(stdout, win->bufx, win->bufy);
-            ctxwin = NULL;
-
-        }
+        if (!win->scns[n-1]) alcbacking(win, n-1);
 
     }
     entercli(win);
