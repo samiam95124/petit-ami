@@ -108,6 +108,10 @@ extern char *program_invocation_short_name;
 
 /* frame metrics, in pixels at the frame font's cell height fc */
 #define FRMBORDER  2              /* plain border width */
+#define SIZBORDER  6              /* sizing border width, when sizable */
+#define CORNERZ    16             /* corner grab zone reach */
+/* the border a window wears: sizable windows carry the sizing bars */
+#define BORD(w)    ((w)->size? SIZBORDER: FRMBORDER)
 #define BARH(fc)   ((fc)+6)       /* title bar height */
 #define BTNW(fc)   ((fc)+6)       /* frame button width */
 
@@ -881,10 +885,10 @@ static void frmmetrics(winptr win)
 
     if (win->frame) {
 
-        win->coffx = FRMBORDER;
-        win->coffy = FRMBORDER+(win->sysbar? BARH(rootcell): 0);
-        win->pmaxx = win->cmaxx+2*FRMBORDER;
-        win->pmaxy = win->cmaxy+win->coffy+FRMBORDER;
+        win->coffx = BORD(win);
+        win->coffy = BORD(win)+(win->sysbar? BARH(rootcell): 0);
+        win->pmaxx = win->cmaxx+2*BORD(win);
+        win->pmaxy = win->cmaxy+win->coffy+BORD(win);
 
     } else {
 
@@ -1130,6 +1134,7 @@ buttons, and a plain border. The GNOME-ish light theme.
 #define FRMBARF 0xc5, 0xc5, 0xc5 /* title bar field, no focus */
 #define FRMEDGE 0x99, 0x99, 0x99 /* border */
 #define FRMTEXT 0x10, 0x10, 0x10 /* title and button glyphs */
+#define FRMTICK 0x70, 0x70, 0x70 /* sizing border corner ticks */
 
 /* set layer foreground from 8 bit components */
 static void fcolor8(int r, int g, int b)
@@ -1158,7 +1163,7 @@ static void btnspan(winptr win, int n, long* x1, long* x2)
 
     long bw = BTNW(rootcell);
 
-    *x2 = win->pmaxx-FRMBORDER-1-n*(bw+2);
+    *x2 = win->pmaxx-BORD(win)-1-n*(bw+2);
     *x1 = *x2-bw+1;
 
 }
@@ -1175,8 +1180,8 @@ static int frmhit(winptr win, long x, long y)
     if (!win->frame) return (0);
     /* the sizing edges, when sizing is enabled; corners fold into them */
     if (win->size && !win->maxed &&
-        (x <= FRMBORDER+2 || x > win->pmaxx-FRMBORDER-2 ||
-         y <= FRMBORDER+2 || y > win->pmaxy-FRMBORDER-2))
+        (x <= BORD(win)+2 || x > win->pmaxx-BORD(win)-2 ||
+         y <= BORD(win)+2 || y > win->pmaxy-BORD(win)-2))
         return (5);
     if (win->sysbar && y <= win->coffy) {
 
@@ -1200,16 +1205,16 @@ static unsigned frmedges(winptr win, long x, long y)
 {
 
     unsigned e = 0;
-    long     cz = 16; /* the widened corner zone */
+    long     cz = CORNERZ; /* the widened corner zone */
 
-    if (x <= FRMBORDER+2 || (x <= cz && (y <= cz || y > win->pmaxy-cz)))
+    if (x <= BORD(win)+2 || (x <= cz && (y <= cz || y > win->pmaxy-cz)))
         e |= 4;
-    if (x > win->pmaxx-FRMBORDER-2 ||
+    if (x > win->pmaxx-BORD(win)-2 ||
         (x > win->pmaxx-cz && (y <= cz || y > win->pmaxy-cz)))
         e |= 8;
-    if (y <= FRMBORDER+2 || (y <= cz && (x <= cz || x > win->pmaxx-cz)))
+    if (y <= BORD(win)+2 || (y <= cz && (x <= cz || x > win->pmaxx-cz)))
         e |= 1;
-    if (y > win->pmaxy-FRMBORDER-2 ||
+    if (y > win->pmaxy-BORD(win)-2 ||
         (y > win->pmaxy-cz && (x <= cz || x > win->pmaxx-cz)))
         e |= 2;
 
@@ -1237,13 +1242,34 @@ static void drwfrm(winptr win)
     (*frect_down)(stdout, 1, 1, win->pmaxx, win->pmaxy);
     /* the field inside the border (the client area shows over it) */
     if (win->focus) fcolor8(FRMBAR); else fcolor8(FRMBARF);
-    (*frect_down)(stdout, FRMBORDER+1, FRMBORDER+1,
-                  win->pmaxx-FRMBORDER, win->pmaxy-FRMBORDER);
+    (*frect_down)(stdout, BORD(win)+1, BORD(win)+1,
+                  win->pmaxx-BORD(win), win->pmaxy-BORD(win));
+    if (win->size) {
+
+        /* The sizing border wears corner ticks, so the widened border
+           reads as size bars: a mark on each edge where the corner
+           grab zone ends. */
+        long bd = BORD(win);
+        long cz = CORNERZ;
+
+        fcolor8(FRMTICK);
+        (*frect_down)(stdout, cz, 1, cz+1, bd);
+        (*frect_down)(stdout, win->pmaxx-cz-1, 1, win->pmaxx-cz, bd);
+        (*frect_down)(stdout, cz, win->pmaxy-bd+1, cz+1, win->pmaxy);
+        (*frect_down)(stdout, win->pmaxx-cz-1, win->pmaxy-bd+1,
+                      win->pmaxx-cz, win->pmaxy);
+        (*frect_down)(stdout, 1, cz, bd, cz+1);
+        (*frect_down)(stdout, win->pmaxx-bd+1, cz, win->pmaxx, cz+1);
+        (*frect_down)(stdout, 1, win->pmaxy-cz-1, bd, win->pmaxy-cz);
+        (*frect_down)(stdout, win->pmaxx-bd+1, win->pmaxy-cz-1,
+                      win->pmaxx, win->pmaxy-cz);
+
+    }
     if (win->sysbar) {
 
         bh = BARH(rootcell);
         bw = BTNW(rootcell);
-        cy = FRMBORDER+bh/2; /* the bar's center line */
+        cy = BORD(win)+bh/2; /* the bar's center line */
         /* the title, centered in the root font */
         (*font_down)(stdout, AMI_FONT_SIGN);
         fcolor8(FRMTEXT);
@@ -1251,11 +1277,11 @@ static void drwfrm(winptr win)
 
             l = (*strsiz_down)(stdout, win->title);
             btnspan(win, 2, &x1, &x2); /* the leftmost button */
-            if (l > x1-2-FRMBORDER-2) l = x1-2-FRMBORDER-2;
+            if (l > x1-2-BORD(win)-2) l = x1-2-BORD(win)-2;
             if (l > 0) {
 
                 (*cursorg_down)(stdout,
-                    FRMBORDER+1+(x1-FRMBORDER)/2-l/2,
+                    BORD(win)+1+(x1-BORD(win))/2-l/2,
                     cy-rootcell/2);
                 /* clip by character count to the space */
                 tp = win->title;
@@ -1611,8 +1637,8 @@ static void dragend(long gx, long gy)
            sizbuf itself. */
         win->pmaxx = bandr.x2-bandr.x1+1;
         win->pmaxy = bandr.y2-bandr.y1+1;
-        win->cmaxx = win->pmaxx-(win->frame? 2*FRMBORDER: 0);
-        win->cmaxy = win->pmaxy-win->coffy-(win->frame? FRMBORDER: 0);
+        win->cmaxx = win->pmaxx-(win->frame? 2*BORD(win): 0);
+        win->cmaxy = win->pmaxy-win->coffy-(win->frame? BORD(win): 0);
         if (win->cmaxx < 1) win->cmaxx = 1;
         if (win->cmaxy < 1) win->cmaxy = 1;
         drwfrm(win);
@@ -4100,9 +4126,9 @@ static void setsizg_ivf(FILE* f, long x, long y)
        the frame */
     win->pmaxx = x;
     win->pmaxy = y;
-    win->cmaxx = x-(win->frame? 2*FRMBORDER: 0);
-    win->cmaxy = y-(win->frame? FRMBORDER+(win->sysbar? BARH(rootcell): 0)
-                              +FRMBORDER: 0);
+    win->cmaxx = x-(win->frame? 2*BORD(win): 0);
+    win->cmaxy = y-(win->frame? BORD(win)+(win->sysbar? BARH(rootcell): 0)
+                              +BORD(win): 0);
     if (win->cmaxx < 1) win->cmaxx = 1;
     if (win->cmaxy < 1) win->cmaxy = 1;
     regeom(win, &old);
@@ -4117,10 +4143,10 @@ static void setsiz_ivf(FILE* f, long x, long y)
 
     win = txt2win(f);
     entercli(win);
-    setsizg_ivf(f, x*(*chrsizx_down)(stdout)+(win->frame? 2*FRMBORDER: 0),
+    setsizg_ivf(f, x*(*chrsizx_down)(stdout)+(win->frame? 2*BORD(win): 0),
                 y*(*chrsizy_down)(stdout)+
-                    (win->frame? FRMBORDER+(win->sysbar? BARH(rootcell): 0)
-                                +FRMBORDER: 0));
+                    (win->frame? BORD(win)+(win->sysbar? BARH(rootcell): 0)
+                                +BORD(win): 0));
 
 }
 
@@ -4230,11 +4256,12 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy,
 {
 
     long fx = 0, fy = 0;
+    long bd = (BIT(ami_wmsize) & ms)? SIZBORDER: FRMBORDER;
 
     if (BIT(ami_wmframe) & ms) {
 
-        fx = 2*FRMBORDER;
-        fy = 2*FRMBORDER;
+        fx = 2*bd;
+        fy = 2*bd;
         if (BIT(ami_wmsysbar) & ms) fy += BARH(rootcell);
 
     }
@@ -4327,10 +4354,15 @@ static void sizable_ivf(FILE* f, long e)
 
 {
 
-    winptr win;
+    winptr    win;
+    rectangle old;
 
     win = txt2win(f);
+    if (!!e == win->size) return;
+    winrect(win, &old);
+    /* the sizing border comes and goes with the ability */
     win->size = !!e;
+    regeom(win, &old);
 
 }
 
