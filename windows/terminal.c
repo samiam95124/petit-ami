@@ -69,7 +69,7 @@
 
 Terminal API override layer
 
-The character mode window manager (portable/managerc.c) implements windowing on
+The character mode window manager (portable/windowc.c) implements windowing on
 a terminal by interposing on the terminal API: every entry point is reached
 through a vector that _pa_<name>_ovr can replace.
 
