@@ -318,6 +318,30 @@
 * No scaling picture draw        5.04    0.000121                              *
 *                                                                              *
 *******************************************************************************/
+/*******************************************************************************
+
+Usage:
+
+    graphics_test [auto [file]] [first [last]]
+
+    auto   Walks every pattern with no input and exits after them: the
+           regression mode. A following non-numeric argument names the
+           file the screens are captured to.
+    first  The first frame to stop on. The patterns before it pass
+           without a stop or capture.
+    last   The last frame; the run ends after it. Left off, the run
+           goes from the first frame to the end of the test.
+
+    graphics_test bench
+
+    Runs the benchmark section alone.
+
+Each pattern stamps "frame N" centered on its top line, so a frame can
+be called out by number and revisited alone: graphics_test 146 stops
+on frame 146 and every one after, graphics_test 5 8 on frames 5
+through 8 alone.
+
+*******************************************************************************/
 
 /* base C defines */
 #include <stdlib.h>

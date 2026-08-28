@@ -71,6 +71,23 @@
 * Buffer switch speed:   0.00000066 Sec. per switch.                          *
 *                                                                             *
 *******************************************************************************/
+/******************************************************************************
+
+Usage:
+
+    terminal_test [first [last]]
+
+    first  The first frame to stop on. The patterns before it pass
+           without a stop or capture, and the timed patterns (the
+           timer measurements, the threading show, the animation
+           pauses) skip, so a late frame arrives in seconds.
+    last   The last frame; the run ends after it. Left off, the run
+           goes from the first frame to the end of the test.
+
+Each screen stamps "frame N" centered on its top line at its wait, so
+a frame can be called out by number and revisited alone.
+
+******************************************************************************/
 
 #include <setjmp.h>
 #include <limits.h>
