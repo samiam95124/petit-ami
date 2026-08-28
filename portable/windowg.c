@@ -227,6 +227,17 @@ typedef struct winrec {
     int      mb1, mb2, mb3;     /* buttons the window believes are down */
     int      autof[MAXCON];     /* auto state per client screen */
     int      curvf[MAXCON];     /* caret visibility per client screen */
+    /* menus */
+    ami_menuptr amenu;          /* the window's menu, a private copy */
+    struct menena* mena;        /* menu item enable states */
+    long     mtx1[24];          /* bar title spans, window local */
+    long     mtx2[24];
+    int      mtn;               /* count of bar titles tracked */
+    int      popup;             /* window is a menu popup */
+    ami_menuptr pitems;         /* popup: the menu level shown */
+    struct winrec* mowner;      /* popup: the menu's owner window */
+    long     psel;              /* popup: row with an open cascade */
+    long     phov;              /* popup: hovered row */
     int      timers[AMI_MAXTIM]; /* timers active on this window */
     long     frmtim;            /* frame timer active */
 
@@ -924,16 +935,19 @@ static void frmmetrics(winptr win)
     if (win->frame) {
 
         win->coffx = BORD(win);
-        win->coffy = BORD(win)+(win->sysbar? BARH(rootcell): 0);
+        win->coffy = BORD(win)+(win->sysbar? BARH(rootcell): 0)
+                     +(win->amenu? BARH(rootcell): 0);
         win->pmaxx = win->cmaxx+2*BORD(win);
         win->pmaxy = win->cmaxy+win->coffy+BORD(win);
 
     } else {
 
         win->coffx = 0;
-        win->coffy = 0;
+        /* the menu row is not a frame decoration: it is a band above
+           the client, frameless or not */
+        win->coffy = (win->amenu? BARH(rootcell): 0);
         win->pmaxx = win->cmaxx;
-        win->pmaxy = win->cmaxy;
+        win->pmaxy = win->cmaxy+win->coffy;
 
     }
 
@@ -1058,7 +1072,7 @@ static void comprect(winptr win, rectangle* r)
     rectangle cr, ri;
     long      sx, sy;
 
-    if (win->frame && win->frmscn) {
+    if ((win->frame || win->amenu) && win->frmscn) {
 
         /* the frame image carries the whole window; the client blit
            covers its center */
@@ -1159,6 +1173,112 @@ static void compdmg(winptr win)
 
 /*******************************************************************************
 
+Menus, part one: state and the bar
+
+The menu model is windowc's: the bar takes a row of the window above
+the client, which cedes it; pulldowns are parentless bordered windows
+on a cascade stack, drawn by the manager through the layer; a selection
+queues etmenus to the menu's owner. The machinery that needs the later
+window operations lives in part two, below them.
+
+*******************************************************************************/
+
+/* menu item enable state, kept aside the window's menu copy */
+typedef struct menena* menenaptr;
+typedef struct menena {
+
+    menenaptr next;
+    long      id;
+    int       ena;
+
+} menena;
+
+#define MAXPOP    8    /* maximum popup cascade */
+#define MAXMTITLE 24   /* most bar titles tracked for hits */
+#define MENSEP    12   /* pixel gap between bar titles */
+
+/* the menu palette */
+#define MNUFLD  0xfa, 0xfa, 0xfa /* popup field */
+#define MNUHIL  0x35, 0x60, 0xb0 /* highlighted entry field */
+#define MNUHITX 0xff, 0xff, 0xff /* highlighted entry text */
+#define MNUGREY 0x9a, 0x9a, 0x9a /* disabled entry text */
+
+static winptr popstk[MAXPOP];  /* the open pulldown cascade */
+static FILE*  popfil[MAXPOP];  /* their files, for closing */
+static int    popcnt;          /* how many are open */
+static winptr menuwin;         /* window whose bar is open */
+static int    menutitle;       /* the open title, 1-n */
+
+static ami_menu_t    menu_down;
+static ami_menuena_t menuena_down;
+static ami_menusel_t menusel_down;
+static ami_stdmenu_t stdmenu_down;
+
+static void clspops(int downto);
+static void frmenu(ami_menuptr m);
+static void menu_ivf(FILE* f, ami_menuptr m);
+static void menuena_ivf(FILE* f, long id, long onoff);
+static void menusel_ivf(FILE* f, long id, long select);
+static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
+static void popclick(winptr pw, long lx, long ly);
+static void pophover(winptr pw, long ly);
+static void barpress(winptr win, int n);
+static void menudismiss(void);
+
+/* is a menu item enabled for a window */
+static int menenb(winptr win, long id)
+
+{
+
+    menenaptr me;
+
+    for (me = win->mena; me; me = me->next)
+        if (me->id == id) return (me->ena);
+
+    return (TRUE); /* enabled unless said otherwise */
+
+}
+
+/* the nth entry of a menu level */
+static ami_menuptr mennth(ami_menuptr m, long n)
+
+{
+
+    while (m && n > 1) { m = m->next; n--; }
+
+    return (m);
+
+}
+
+/* the length of a menu level */
+static long menlen(ami_menuptr m)
+
+{
+
+    long n = 0;
+
+    while (m) { n++; m = m->next; }
+
+    return (n);
+
+}
+
+/* the bar title under a window local x, 1-n, or 0 */
+static int mbarhitn(winptr win, long x)
+
+{
+
+    int n;
+
+    for (n = 0; n < win->mtn; n++)
+        if (x >= win->mtx1[n] && x <= win->mtx2[n]) return (n+1);
+
+    return (0);
+
+}
+
+/*******************************************************************************
+
 Frame drawing
 
 The frame is drawn into the window's frame backing screen through the
@@ -1192,6 +1312,55 @@ static void bcolor8(int r, int g, int b)
 
 }
 
+/* Draw the menu bar row into the frame screen. The caller (drwfrm) has
+   the frame screen selected, the sign font up and auto off. The title
+   spans record for hit testing as they lay out. */
+static void drwmbar(winptr win)
+
+{
+
+    ami_menuptr p;
+    long bd = win->frame? BORD(win): 0;
+    long by1 = win->coffy-BARH(rootcell)+1;
+    long by2 = win->coffy;
+    long x = bd+1+MENSEP/2;
+    long cy = by1+(BARH(rootcell)-rootcell)/2;
+    long l;
+    int  n = 0;
+
+    /* the bar field */
+    if (win->focus) fcolor8(FRMBAR); else fcolor8(FRMBARF);
+    (*frect_down)(stdout, bd+1, by1, win->pmaxx-bd, by2);
+    for (p = win->amenu; p; p = p->next) {
+
+        l = (*strsiz_down)(stdout, p->face);
+        if (n < MAXMTITLE) {
+
+            win->mtx1[n] = x-MENSEP/2;
+            win->mtx2[n] = x+l+MENSEP/2-1;
+
+        }
+        if (menuwin == win && menutitle == n+1) {
+
+            /* the open title shows reversed */
+            fcolor8(MNUHIL);
+            (*frect_down)(stdout, x-MENSEP/2, by1, x+l+MENSEP/2-1, by2);
+            fcolor8(MNUHITX);
+
+        } else if (!menenb(win, p->id)) fcolor8(MNUGREY);
+        else fcolor8(FRMTEXT);
+        (*cursorg_down)(stdout, x, cy);
+        (*wrtstrn_down)(stdout, p->face, strlen(p->face));
+        x += l+MENSEP;
+        n++;
+
+    }
+    win->mtn = n;
+    fcolor8(FRMTEXT);
+
+}
+
+
 /* the x spans of the frame buttons, window local; right to left:
    close, maximize, minimize */
 static void btnspan(winptr win, int n, long* x1, long* x2)
@@ -1214,13 +1383,17 @@ static int frmhit(winptr win, long x, long y)
     long x1, x2;
     int  n;
 
-    if (!win->frame) return (0);
+    if (!win->frame && !win->amenu) return (0);
     /* the sizing edges, when sizing is enabled; corners fold into them */
-    if (win->size && !win->maxed &&
+    if (win->frame && win->size && !win->maxed &&
         (x <= BORD(win)+2 || x > win->pmaxx-BORD(win)-2 ||
          y <= BORD(win)+2 || y > win->pmaxy-BORD(win)-2))
         return (5);
-    if (win->sysbar && y <= win->coffy) {
+    /* the menu bar row, below the system bar */
+    if (win->amenu && y > win->coffy-BARH(rootcell) && y <= win->coffy)
+        return (6);
+    if (win->frame && win->sysbar &&
+        y <= win->coffy-(win->amenu? BARH(rootcell): 0)) {
 
         for (n = 0; n < 3; n++) {
 
@@ -1294,13 +1467,14 @@ static void drwfrm(winptr win)
     long x1, x2, bw, bh, cy, l, n;
     char* tp;
 
-    if (!win->frame || !win->frmscn) return;
+    if ((!win->frame && !win->amenu) || !win->frmscn) return;
     /* the frame screen carries the whole window */
     (*select_down)(stdout, win->frmscn, DSPSCN);
     ctxwin = NULL; /* the selection and font both change */
     (*sizbufg_down)(stdout, win->pmaxx, win->pmaxy);
     (*auto_down)(stdout, FALSE);
     (*curvis_down)(stdout, FALSE);
+    (*binvis_down)(stdout); /* labels draw foreground only */
     /* the border */
     fcolor8(FRMEDGE);
     (*frect_down)(stdout, 1, 1, win->pmaxx, win->pmaxy);
@@ -1368,6 +1542,7 @@ static void drwfrm(winptr win)
         }
 
     }
+    if (win->amenu) drwmbar(win); /* the menu bar row below the title */
 
 }
 
@@ -2146,6 +2321,19 @@ static void clswin(int fd)
     if (focwin == win) focwin = NULL;
     if (hovwin == win) hovwin = NULL;
     caroff();
+    /* the window's menus die with it */
+    { int i; for (i = popcnt-1; i >= 0; i--)
+        if (popstk[i]->mowner == win) clspops(i); }
+    if (menuwin == win) { menuwin = NULL; menutitle = 0; }
+    if (win->amenu) { frmenu(win->amenu); win->amenu = NULL; }
+    while (win->mena) {
+
+        menenaptr me = win->mena;
+
+        win->mena = me->next;
+        free(me);
+
+    }
     if (focwin == win) focwin = NULL;
     if (ctxwin == win) ctxwin = NULL;
     if (drgwin == win) { banderase(); drag = dt_none; drgwin = NULL; }
@@ -2323,6 +2511,13 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
                 if (shp != curshp) { curshp = shp; grx_pointer(shp); }
 
             }
+            if (tw && tw->popup) {
+
+                /* a popup under the pointer tracks its hover row */
+                pophover(tw, rootmy-tw->orgy+1);
+                break;
+
+            }
             if (tw != hovwin) {
 
                 if (hovwin) quevent(hovwin, ami_etnohover);
@@ -2345,6 +2540,25 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
         case ami_etmouba:
             if (drag != dt_none) break; /* the band owns the pointer */
             tw = winat(rootmx, rootmy);
+            /* an open menu takes the click first */
+            if (popcnt && le->amoubn == 1) {
+
+                if (tw && tw->popup) {
+
+                    popclick(tw, rootmx-tw->orgx+1, rootmy-tw->orgy+1);
+                    break;
+
+                }
+                if (!(tw && tw->amenu &&
+                      frmhit(tw, rootmx-tw->orgx+1,
+                                 rootmy-tw->orgy+1) == 6)) {
+
+                    menudismiss();
+                    break; /* the dismissing click is spent */
+
+                }
+
+            }
             /* a sizing grab may reach from just outside the window */
             if (le->amoubn == 1) {
 
@@ -2418,6 +2632,13 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
                     break;
 
                 }
+                if (hit == 6) {
+
+                    /* the menu bar: open or select */
+                    barpress(tw, mbarhitn(tw, lx));
+                    break;
+
+                }
                 if (hit == 2) {
 
                     /* close: terminate to the window; for a toplevel this
@@ -2461,6 +2682,7 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
             }
             tw = winat(rootmx, rootmy);
             if (!tw) break;
+            if (tw->popup) break; /* releases on a popup stay internal */
             lx = rootmx-tw->orgx+1;
             ly = rootmy-tw->orgy+1;
             if (!frmhit(tw, lx, ly)) {
@@ -4035,6 +4257,14 @@ static void opnwin(int fn, int pfn, long wid, int root)
     }
     win->winlst = winlst;
     winlst = win;
+    win->amenu = NULL;
+    win->mena = NULL;
+    win->mtn = 0;
+    win->popup = FALSE;
+    win->pitems = NULL;
+    win->mowner = NULL;
+    win->psel = 0;
+    win->phov = 0;
     win->curdsp = 1;
     win->curupd = 1;
     win->bufmod = TRUE;
@@ -4205,8 +4435,8 @@ static void regeom(winptr win, rectangle* old)
 
     frmmetrics(win);
     trackbuf(win); /* an unbuffered surface follows the window */
-    if (win->frame && !win->frmscn) win->frmscn = alcscn();
-    if (win->frame) drwfrm(win);
+    if ((win->frame || win->amenu) && !win->frmscn) win->frmscn = alcscn();
+    if (win->frame || win->amenu) drwfrm(win);
     calcvisall();
     winrect(win, &r);
     if (old) {
@@ -4581,6 +4811,9 @@ static void init_windowg(void)
     carshown = FALSE;
     incar = FALSE;
     curshp = 0;
+    popcnt = 0;
+    menuwin = NULL;
+    menutitle = 0;
     carhold = 0;
     ctxwin = NULL;
     paqfre = NULL;
@@ -4755,6 +4988,10 @@ static void init_windowg(void)
     _pa_sysbar_ovr(sysbar_ivf, &sysbar_down);
     _pa_focus_ovr(focus_ivf, &focus_down);
     _pa_getwinid_ovr(getwinid_ivf, &getwinid_down);
+    _pa_menu_ovr(menu_ivf, &menu_down);
+    _pa_menuena_ovr(menuena_ivf, &menuena_down);
+    _pa_menusel_ovr(menusel_ivf, &menusel_down);
+    _pa_stdmenu_ovr(stdmenu_ivf, &stdmenu_down);
 
     /* The composed display screen is this manager's, not any client's:
        its cursor is never a caret (each window's caret rides its own
@@ -4786,6 +5023,572 @@ static void init_windowg(void)
     focwin->focus = TRUE;
 
     mgractive = TRUE; /* the write path redirects from here */
+
+}
+
+/*******************************************************************************
+
+Menus, part two: pulldowns and the API
+
+*******************************************************************************/
+
+/* announce a client size change: the resize, then the redraw notice */
+static void annresize(winptr win)
+
+{
+
+    ami_evtrec er;
+
+    er.etype = ami_etresize;
+    er.winid = win->wid;
+    er.rszxg = win->cmaxx;
+    er.rszyg = win->cmaxy;
+    entercli(win); /* the metrics in the window's font */
+    er.rszx = win->cmaxx/(*chrsizx_down)(stdout);
+    er.rszy = win->cmaxy/(*chrsizy_down)(stdout);
+    enquepaevt(&er);
+    er.etype = ami_etredraw;
+    er.winid = win->wid;
+    enquepaevt(&er);
+
+}
+
+/* a private copy of a menu definition, per the interface */
+static ami_menuptr cpymenu(ami_menuptr m)
+
+{
+
+    ami_menuptr r = NULL, l = NULL, e;
+
+    while (m) {
+
+        e = malloc(sizeof(ami_menurec));
+        if (!e) error("Out of memory");
+        e->next = NULL;
+        e->branch = cpymenu(m->branch);
+        e->onoff = m->onoff;
+        e->oneof = m->oneof;
+        e->bar = m->bar;
+        e->id = m->id;
+        e->face = malloc(strlen(m->face)+1);
+        if (!e->face) error("Out of memory");
+        strcpy(e->face, m->face);
+        if (l) l->next = e; else r = e;
+        l = e;
+        m = m->next;
+
+    }
+
+    return (r);
+
+}
+
+/* free a menu copy */
+static void frmenu(ami_menuptr m)
+
+{
+
+    while (m) {
+
+        ami_menuptr n = m->next;
+
+        frmenu(m->branch);
+        free(m->face);
+        free(m);
+        m = n;
+
+    }
+
+}
+
+/* the sibling list holding the item with the given id */
+static ami_menuptr fndmenlist(ami_menuptr root, long id)
+
+{
+
+    ami_menuptr p, r;
+
+    for (p = root; p; p = p->next) if (p->id == id) return (root);
+    for (p = root; p; p = p->next)
+        if (p->branch) {
+
+            r = fndmenlist(p->branch, id);
+            if (r) return (r);
+
+        }
+
+    return (NULL);
+
+}
+
+/* an entry's face with its marks: the check, and the cascade arrow */
+static void popface(ami_menuptr p, char* buf, int len)
+
+{
+
+    snprintf(buf, len, "%s%s%s", p->onoff? "* ": "  ", p->face,
+             p->branch? "  >": "");
+
+}
+
+/* draw a popup's entries into its client */
+static void drwpop(winptr pw)
+
+{
+
+    ami_menuptr p;
+    long eh = BARH(rootcell);
+    long y = 1;
+    long i = 1;
+    char buf[256];
+    winptr own = pw->mowner;
+
+    pw->autof[pw->curupd-1] = FALSE; /* graphical positioning */
+    ctxwin = NULL;
+    entercli(pw);
+    (*binvis_down)(stdout); /* the entries draw foreground only */
+    for (p = pw->pitems; p; p = p->next, i++) {
+
+        int ena = menenb(own, p->id);
+        int hil = (i == pw->psel || i == pw->phov) && ena;
+
+        if (hil) fcolor8(MNUHIL); else fcolor8(MNUFLD);
+        (*frect_down)(stdout, 1, y, pw->cmaxx, y+eh-1);
+        if (!ena) fcolor8(MNUGREY);
+        else if (hil) fcolor8(MNUHITX);
+        else fcolor8(FRMTEXT);
+        popface(p, buf, sizeof(buf));
+        (*cursorg_down)(stdout, MENSEP/2+1, y+(eh-rootcell)/2);
+        (*wrtstrn_down)(stdout, buf, strlen(buf));
+        if (p->bar) { /* the group separator under the entry */
+
+            fcolor8(FRMEDGE);
+            (*line_down)(stdout, 1, y+eh-1, pw->cmaxx, y+eh-1);
+
+        }
+        y += eh;
+
+    }
+    fcolor8(FRMTEXT);
+    compdmg(pw);
+
+}
+
+/* Open a pulldown at a root position: a parentless bordered window on
+   the cascade stack, sized to its entries. */
+static winptr mkpop(winptr own, ami_menuptr items, long rx, long ry)
+
+{
+
+    FILE*       pf = NULL;
+    winptr      pw;
+    ami_menuptr p;
+    rectangle   old;
+    char        buf[256];
+    long        n = 0, w = 40, l;
+    long        eh = BARH(rootcell);
+    long        pwid, ph;
+
+    if (popcnt >= MAXPOP) clspops(MAXPOP-1); /* bound the cascade */
+    iopenwin(&stdin, &pf, NULL, getwinid_ivf());
+    pw = txt2win(pf);
+    pw->popup = TRUE;
+    pw->pitems = items;
+    pw->mowner = own;
+    pw->psel = 0;
+    pw->phov = 0;
+    /* a plain bordered list: no bar, no sizing; entries in the bar's
+       font */
+    pw->sysbar = FALSE;
+    pw->size = FALSE;
+    pw->font = AMI_FONT_SIGN;
+    pw->fontsiz = rootcell;
+    ctxwin = NULL;
+    entercli(pw);
+    for (p = items; p; p = p->next) {
+
+        popface(p, buf, sizeof(buf));
+        l = (*strsiz_down)(stdout, buf);
+        if (l > w) w = l;
+        n++;
+
+    }
+    pwid = w+MENSEP+2*FRMBORDER;
+    ph = n*eh+2*FRMBORDER;
+    if (rx+pwid-1 > dimxg) rx = dimxg-pwid+1;
+    if (ry+ph-1 > dimyg) ry = dimyg-ph+1;
+    if (rx < 1) rx = 1;
+    if (ry < 1) ry = 1;
+    winrect(pw, &old);
+    pw->orgx = rx;
+    pw->orgy = ry;
+    pw->pmaxx = pwid;
+    pw->pmaxy = ph;
+    pw->cmaxx = pwid-2*FRMBORDER;
+    pw->cmaxy = ph-2*FRMBORDER;
+    regeom(pw, &old);
+    popfil[popcnt] = pf;
+    popstk[popcnt++] = pw;
+    drwpop(pw); /* first content presents it */
+
+    return (pw);
+
+}
+
+/* close pulldowns down to the given depth */
+static void clspops(int downto)
+
+{
+
+    winptr pw;
+
+    while (popcnt > downto) {
+
+        pw = popstk[--popcnt];
+        popstk[popcnt] = NULL;
+        pw->psel = 0;
+        fclose(popfil[popcnt]);
+        popfil[popcnt] = NULL;
+
+    }
+
+}
+
+/* close the whole menu: pulldowns and the open bar title */
+static void menudismiss(void)
+
+{
+
+    winptr mw;
+
+    clspops(0);
+    if (menuwin) {
+
+        mw = menuwin;
+        menuwin = NULL;
+        menutitle = 0;
+        drwfrm(mw);
+        {
+
+            rectangle r;
+
+            winrect(mw, &r);
+            caroff();
+            composewin(mw, &r);
+            caron();
+
+        }
+
+    }
+
+}
+
+/* redraw a window's bar and any open pulldowns, after a state change */
+static void menredraw(winptr win)
+
+{
+
+    rectangle r;
+    int       i;
+
+    if (!win->amenu) return;
+    drwfrm(win);
+    winrect(win, &r);
+    caroff();
+    composewin(win, &r);
+    caron();
+    for (i = 0; i < popcnt; i++)
+        if (popstk[i]->mowner == win) drwpop(popstk[i]);
+
+}
+
+/* a click in a pulldown: cascade a branch, or select an item */
+static void popclick(winptr pw, long lx, long ly)
+
+{
+
+    long        cy = ly-pw->coffy;
+    long        row;
+    ami_menuptr item;
+    winptr      own = pw->mowner;
+    ami_evtrec  er;
+    int         depth;
+
+    if (cy < 1) return;
+    row = (cy-1)/BARH(rootcell)+1;
+    item = mennth(pw->pitems, row);
+    if (!item || !menenb(own, item->id)) return;
+    for (depth = 0; depth < popcnt; depth++)
+        if (popstk[depth] == pw) break;
+    if (item->branch) { /* cascade the submenu beside the row */
+
+        clspops(depth+1);
+        pw->psel = row;
+        pw->phov = 0;
+        drwpop(pw);
+        mkpop(own, item->branch, pw->orgx+pw->pmaxx-4,
+              pw->orgy+pw->coffy+(row-1)*BARH(rootcell));
+
+    } else { /* an item: select and close the menu */
+
+        er.etype = ami_etmenus;
+        er.winid = own->wid;
+        er.menuid = item->id;
+        menudismiss();
+        enquepaevt(&er);
+
+    }
+
+}
+
+/* pointer motion over a popup: the hover row follows */
+static void pophover(winptr pw, long ly)
+
+{
+
+    long cy = ly-pw->coffy;
+    long row = 0;
+
+    if (cy >= 1) row = (cy-1)/BARH(rootcell)+1;
+    if (row < 1 || row > menlen(pw->pitems)) row = 0;
+    if (row != pw->phov) {
+
+        pw->phov = row;
+        drwpop(pw);
+
+    }
+
+}
+
+/* a press on the bar: open a pulldown, select a bare item, or toggle
+   the open one closed */
+static void barpress(winptr win, int n)
+
+{
+
+    ami_menuptr item;
+    ami_evtrec  er;
+    rectangle   r;
+    int         wasopen;
+
+    wasopen = (menuwin == win && menutitle == n);
+    menudismiss();
+    if (n < 1 || wasopen) return;
+    item = mennth(win->amenu, n);
+    if (!item || !menenb(win, item->id)) return;
+    if (item->branch) { /* open the pulldown under the title */
+
+        menuwin = win;
+        menutitle = n;
+        drwfrm(win);
+        winrect(win, &r);
+        caroff();
+        composewin(win, &r);
+        caron();
+        mkpop(win, item->branch,
+              win->orgx+(n <= win->mtn? win->mtx1[n-1]: 1)-1,
+              win->orgy+win->coffy);
+
+    } else { /* a bare top level item selects */
+
+        er.etype = ami_etmenus;
+        er.winid = win->wid;
+        er.menuid = item->id;
+        enquepaevt(&er);
+
+    }
+
+}
+
+/* set (or remove) a window's menu; the definition is copied */
+static void menu_ivf(FILE* f, ami_menuptr m)
+
+{
+
+    winptr    win = txt2win(f);
+    rectangle old;
+    long      delta;
+
+    /* any open menu of this window closes */
+    { int i; for (i = popcnt-1; i >= 0; i--)
+        if (popstk[i]->mowner == win) clspops(i); }
+    if (menuwin == win) { menuwin = NULL; menutitle = 0; }
+    delta = (m? BARH(rootcell): 0)-(win->amenu? BARH(rootcell): 0);
+    if (win->amenu) { frmenu(win->amenu); win->amenu = NULL; }
+    win->mtn = 0;
+    if (m) win->amenu = cpymenu(m);
+    /* the client cedes the bar's row, or takes it back: the window
+       keeps its size */
+    winrect(win, &old);
+    win->cmaxy -= delta;
+    if (win->cmaxy < 1) win->cmaxy = 1;
+    regeom(win, &old);
+    annresize(win);
+
+}
+
+/* enable or disable a menu item */
+static void menuena_ivf(FILE* f, long id, long onoff)
+
+{
+
+    winptr    win = txt2win(f);
+    menenaptr me;
+
+    for (me = win->mena; me; me = me->next) if (me->id == id) break;
+    if (!me) {
+
+        me = malloc(sizeof(menena));
+        if (!me) error("Out of memory");
+        me->id = id;
+        me->next = win->mena;
+        win->mena = me;
+
+    }
+    me->ena = !!onoff;
+    menredraw(win);
+
+}
+
+/* set an item's select state; a "one of" group clears its others */
+static void menusel_ivf(FILE* f, long id, long select)
+
+{
+
+    winptr      win = txt2win(f);
+    ami_menuptr lst = fndmenlist(win->amenu, id);
+    ami_menuptr p, gs, ge, q;
+
+    if (!lst) error("No menu item by given id");
+    /* The item's group is the contiguous run of items carrying the
+       oneof flag, closed by the item that ends the run -- the last
+       member is unflagged, by the interface convention. */
+    gs = lst;
+    p = lst;
+    while (p->id != id) {
+
+        if (!p->oneof) gs = p->next; /* a run closed; the next begins after */
+        p = p->next;
+
+    }
+    if (p->oneof || gs != p) { /* in a group: clear the other members */
+
+        ge = p;
+        while (ge->oneof && ge->next) ge = ge->next;
+        for (q = gs; ; q = q->next) {
+
+            if (q != p) q->onoff = FALSE;
+            if (q == ge) break;
+
+        }
+
+    }
+    p->onoff = !!select;
+    menredraw(win);
+
+}
+
+/* build the standard menu list around the program's own */
+static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+
+{
+
+    static struct { long sel; char* face; } std[] = {
+
+        { AMI_SMNEW, "New" }, { AMI_SMOPEN, "Open" },
+        { AMI_SMCLOSE, "Close" }, { AMI_SMSAVE, "Save" },
+        { AMI_SMSAVEAS, "Save As" }, { AMI_SMPAGESET, "Page Setup" },
+        { AMI_SMPRINT, "Print" }, { AMI_SMEXIT, "Exit" },
+        { AMI_SMUNDO, "Undo" }, { AMI_SMCUT, "Cut" },
+        { AMI_SMPASTE, "Paste" }, { AMI_SMDELETE, "Delete" },
+        { AMI_SMFIND, "Find" }, { AMI_SMFINDNEXT, "Find Next" },
+        { AMI_SMREPLACE, "Replace" }, { AMI_SMGOTO, "Goto" },
+        { AMI_SMSELECTALL, "Select All" }, { AMI_SMNEWWINDOW, "New Window" },
+        { AMI_SMTILEHORIZ, "Tile Horizontally" },
+        { AMI_SMTILEVERT, "Tile Vertically" }, { AMI_SMCASCADE, "Cascade" },
+        { AMI_SMCLOSEALL, "Close All" }, { AMI_SMHELPTOPIC, "Help Topics" },
+        { AMI_SMABOUT, "About" },
+
+    };
+    static const long filist[] = { AMI_SMNEW, AMI_SMOPEN, AMI_SMCLOSE,
+        AMI_SMSAVE, AMI_SMSAVEAS, AMI_SMPAGESET, AMI_SMPRINT, AMI_SMEXIT, 0 };
+    static const long edlist[] = { AMI_SMUNDO, AMI_SMCUT, AMI_SMPASTE,
+        AMI_SMDELETE, AMI_SMFIND, AMI_SMFINDNEXT, AMI_SMREPLACE, AMI_SMGOTO,
+        AMI_SMSELECTALL, 0 };
+    static const long wilist[] = { AMI_SMNEWWINDOW, AMI_SMTILEHORIZ,
+        AMI_SMTILEVERT, AMI_SMCASCADE, AMI_SMCLOSEALL, 0 };
+    static const long helist[] = { AMI_SMHELPTOPIC, AMI_SMABOUT, 0 };
+    static struct { const long* lst; char* face; } tops[] = {
+
+        { filist, "File" }, { edlist, "Edit" }, { NULL, NULL },
+        { wilist, "Window" }, { helist, "Help" },
+
+    };
+    ami_menuptr root = NULL, rtl = NULL;
+    long ti, i;
+
+    /* the documented order: file edit <program> window help */
+    for (ti = 0; ti < 5; ti++) {
+
+        ami_menuptr sub = NULL, subl = NULL, top;
+
+        if (!tops[ti].lst) { /* the program's own menu goes here */
+
+            if (pm) {
+
+                if (rtl) rtl->next = pm; else root = pm;
+                rtl = pm;
+                while (rtl->next) rtl = rtl->next;
+
+            }
+            continue;
+
+        }
+        for (i = 0; tops[ti].lst[i]; i++) {
+
+            long sel = tops[ti].lst[i];
+            long si;
+
+            if (!(sms & (1L<<sel))) continue;
+            for (si = 0; si < AMI_SMMAX; si++)
+                if (std[si].sel == sel) break;
+            if (si >= AMI_SMMAX) continue;
+            {
+
+                ami_menuptr e = malloc(sizeof(ami_menurec));
+
+                if (!e) error("Out of memory");
+                e->next = NULL;
+                e->branch = NULL;
+                e->onoff = FALSE;
+                e->oneof = FALSE;
+                e->bar = FALSE;
+                e->id = std[si].sel;
+                e->face = std[si].face;
+                if (subl) subl->next = e; else sub = e;
+                subl = e;
+
+            }
+
+        }
+        if (sub) { /* the list has entries: its top level title */
+
+            top = malloc(sizeof(ami_menurec));
+            if (!top) error("Out of memory");
+            top->next = NULL;
+            top->branch = sub;
+            top->onoff = FALSE;
+            top->oneof = FALSE;
+            top->bar = FALSE;
+            top->id = 0;
+            top->face = tops[ti].face;
+            if (rtl) rtl->next = top; else root = top;
+            rtl = top;
+
+        }
+
+    }
+    *sm = root;
 
 }
 
@@ -4968,6 +5771,10 @@ static void deinit_windowg(void)
     { ami_openwin_t t; _pa_openwin_ovr(openwin_down, &t); }
     { ami_blockcopyg_t t; _pa_blockcopyg_ovr(blockcopyg_down, &t); }
     { ami_getwinid_t t; _pa_getwinid_ovr(getwinid_down, &t); }
+    { ami_menu_t t; _pa_menu_ovr(menu_down, &t); }
+    { ami_menuena_t t; _pa_menuena_ovr(menuena_down, &t); }
+    { ami_menusel_t t; _pa_menusel_ovr(menusel_down, &t); }
+    { ami_stdmenu_t t; _pa_stdmenu_ovr(stdmenu_down, &t); }
     { ami_title_t t; _pa_title_ovr(title_down, &t); }
     { ami_setsizg_t t; _pa_setsizg_ovr(setsizg_down, &t); }
     { ami_setsiz_t t; _pa_setsiz_ovr(setsiz_down, &t); }
