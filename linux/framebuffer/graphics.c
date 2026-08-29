@@ -9666,6 +9666,17 @@ void grx_glassdiff(void)
     fprintf(stderr, "*** glassdiff: %ld pixels differ", n);
     if (n) fprintf(stderr, ", box %ld,%ld to %ld,%ld", x1, y1, x2, y2);
     fprintf(stderr, "\n");
+    fp = fopen("glass_report.txt", "a");
+    if (fp) {
+
+        fprintf(fp, "%ld pixels differ", n);
+        if (n) fprintf(fp, ", box %ld,%ld to %ld,%ld", x1, y1, x2, y2);
+        fprintf(fp, "\n");
+        fclose(fp);
+
+    }
+    /* the images only when the divergence is more than the pointer */
+    if (n <= 2000) return;
     fp = fopen("glass_canvas.ppm", "wb");
     if (fp) {
 

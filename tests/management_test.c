@@ -215,6 +215,7 @@ static void waitnextt(int keeptitle)
 
     if (autorun) autosettle(); /* let the screen finish before it is taken */
     screen_capture();
+    if (grx_glassdiff) grx_glassdiff(); /* the canvas-against-glass check */
 
     do {
 
