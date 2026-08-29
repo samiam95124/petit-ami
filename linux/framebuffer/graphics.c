@@ -9638,6 +9638,31 @@ says so with numbers.
 
 *******************************************************************************/
 
+void grx_devdump(const char* fn)
+
+{
+
+    long x, y;
+    FILE* fp;
+
+    if (!fbbase) return;
+    fp = fopen(fn, "wb");
+    if (!fp) return;
+    fprintf(fp, "P6\n%ld %ld\n255\n", fbcols, fbrows);
+    for (y = 0; y < fbrows; y++)
+        for (x = 0; x < fbcols; x++) {
+
+            unsigned char* dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+
+            fputc(dp[fbroff], fp);
+            fputc(dp[fbgoff], fp);
+            fputc(dp[fbboff], fp);
+
+        }
+    fclose(fp);
+
+}
+
 void grx_glassdiff(void)
 
 {
