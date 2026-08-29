@@ -927,6 +927,46 @@ static int ancclip(winptr win, rectangle* r)
 
 }
 
+/* the parent's client origin in root space: child coordinates are
+   relative to it */
+static void parorigin(winptr win, long* ox, long* oy)
+
+{
+
+    rectangle cr;
+
+    if (win->parwin) {
+
+        clirect(win->parwin, &cr);
+        *ox = cr.x1-1;
+        *oy = cr.y1-1;
+
+    } else {
+
+        *ox = 0;
+        *oy = 0;
+
+    }
+
+}
+
+/* a moved window carries its children, recursively */
+static void movekids(winptr win, long dx, long dy)
+
+{
+
+    winptr c;
+
+    for (c = win->childwin; c; c = c->childlst) {
+
+        c->orgx += dx;
+        c->orgy += dy;
+        movekids(c, dx, dy);
+
+    }
+
+}
+
 /* frame metrics from the frame state */
 static void frmmetrics(winptr win)
 
@@ -1331,6 +1371,8 @@ static void drwmbar(winptr win)
     /* the bar field */
     if (win->focus) fcolor8(FRMBAR); else fcolor8(FRMBARF);
     (*frect_down)(stdout, bd+1, by1, win->pmaxx-bd, by2);
+    (*font_down)(stdout, AMI_FONT_SIGN);
+    (*fontsiz_down)(stdout, rootcell);
     for (p = win->amenu; p; p = p->next) {
 
         l = (*strsiz_down)(stdout, p->face);
@@ -1487,8 +1529,10 @@ static void drwfrm(winptr win)
         bh = BARH(rootcell);
         bw = BTNW(rootcell);
         cy = BORD(win)+bh/2; /* the bar's center line */
-        /* the title, centered in the root font */
+        /* the title, centered in the root font AT the root size: the
+           layer's current size is whatever a client last set */
         (*font_down)(stdout, AMI_FONT_SIGN);
+        (*fontsiz_down)(stdout, rootcell);
         fcolor8(FRMTEXT);
         if (win->title) {
 
@@ -1845,6 +1889,7 @@ static void dragend(long gx, long gy)
     if (bandr.x1 == win->orgx && bandr.y1 == win->orgy &&
         bandr.x2-bandr.x1+1 == win->pmaxx &&
         bandr.y2-bandr.y1+1 == win->pmaxy) return; /* nothing moved */
+    movekids(win, bandr.x1-win->orgx, bandr.y1-win->orgy);
     win->orgx = bandr.x1;
     win->orgy = bandr.y1;
     if (bandr.x2-bandr.x1+1 != win->pmaxx ||
@@ -4548,8 +4593,19 @@ static void setposg_ivf(FILE* f, long x, long y)
     /* nothing lies behind the root: it cannot move */
     if (win->root) error("Cannot move the root window");
     winrect(win, &old);
-    win->orgx = x;
-    win->orgy = y;
+    /* a child's coordinates are relative to its parent's client */
+    {
+
+        long ox, oy, dx, dy;
+
+        parorigin(win, &ox, &oy);
+        dx = ox+x-win->orgx;
+        dy = oy+y-win->orgy;
+        win->orgx += dx;
+        win->orgy += dy;
+        movekids(win, dx, dy);
+
+    }
     calcvisall();
     regeom(win, &old);
 
