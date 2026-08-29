@@ -1010,7 +1010,7 @@ static winptr winat(long x, long y)
 
     best = NULL;
     for (wp = winlst; wp; wp = wp->winlst)
-        if (wp->visible && !wp->mined) {
+        if (wp->visible) {
 
             winrect(wp, &r);
             if (inrect(x, y, &r) && ancclip(wp, &ac) && inrect(x, y, &ac) &&
@@ -1082,14 +1082,14 @@ static void calcvis(winptr win)
     rectangle r, ac, wr, wac, wi;
 
     win->vis.n = 0;
-    if (!win->visible || win->mined) return;
+    if (!win->visible) return;
     winrect(win, &r);
     if (!ancclip(win, &ac)) return;
     if (!intersect(&r, &ac)) return;
     intersection(&wi, &r, &ac);
     addrect(&win->vis, &wi);
     for (wp = winlst; wp; wp = wp->winlst)
-        if (wp != win && wp->visible && !wp->mined &&
+        if (wp != win && wp->visible &&
             wp->zorder > win->zorder) {
 
             winrect(wp, &wr);
@@ -1168,7 +1168,7 @@ static void composewin(winptr win, rectangle* dr)
     rectangle ri;
     int       i;
 
-    if (!win->visible || win->mined) return;
+    if (!win->visible) return;
     entercmp(); /* the blits mix by the display screen's mode */
     for (i = 0; i < win->vis.n; i++) {
 
@@ -1274,6 +1274,8 @@ static ami_stdmenu_t stdmenu_down;
 
 static void clspops(int downto);
 static void frmenu(ami_menuptr m);
+static void regeom(winptr win, rectangle* old);
+static void annresize(winptr win);
 static void menu_ivf(FILE* f, ami_menuptr m);
 static void menuena_ivf(FILE* f, long id, long onoff);
 static void menusel_ivf(FILE* f, long id, long select);
@@ -1445,7 +1447,7 @@ static int frmhit(winptr win, long x, long y)
 
     if (!win->frame && !win->amenu) return (0);
     /* the sizing edges, when sizing is enabled; corners fold into them */
-    if (win->frame && win->size && !win->maxed &&
+    if (win->frame && win->size && !win->maxed && !win->mined &&
         (x <= BORD(win)+2 || x > win->pmaxx-BORD(win)-2 ||
          y <= BORD(win)+2 || y > win->pmaxy-BORD(win)-2))
         return (5);
@@ -1958,45 +1960,132 @@ Window state changes
 
 /* maximize toggle: a maximized window fills the root, frameless, per
    the manager's transparency rule */
-static void maxtoggle(winptr win)
+/* The manager carries these states itself, the windowc way: maximize
+   fills the container -- the parent's client, or the display for a
+   parentless window -- minimize reduces the window to its parked bar,
+   and normalize restores the geometry the window had before either.
+   The state announcements are made by the callers. */
+
+/* the container a window maximizes into and parks its bar in */
+static void container(winptr win, rectangle* r)
 
 {
 
-    rectangle scr;
-    ami_evtrec er;
+    if (win->parwin) clirect(win->parwin, r);
+    else setrect(r, 1, 1, dimxg, dimyg);
 
-    setrect(&scr, 1, 1, dimxg, dimyg);
-    if (!win->maxed) {
+}
 
-        win->normx = win->orgx; win->normy = win->orgy;
-        win->normw = win->cmaxx; win->normh = win->cmaxy;
-        win->maxed = TRUE;
-        win->orgx = 1; win->orgy = 1;
-        win->coffx = 0; win->coffy = 0;
-        win->pmaxx = dimxg; win->pmaxy = dimyg;
-        win->cmaxx = dimxg; win->cmaxy = dimyg;
-        quevent(win, ami_etmax);
+/* apply a place and size, children riding, and announce the change */
+static void plcgeom(winptr win, long x, long y, long pw, long ph)
 
-    } else {
+{
 
-        win->maxed = FALSE;
-        win->orgx = win->normx; win->orgy = win->normy;
-        win->cmaxx = win->normw; win->cmaxy = win->normh;
-        frmmetrics(win);
-        drwfrm(win);
-        quevent(win, ami_etnorm);
+    rectangle old;
+
+    winrect(win, &old);
+    movekids(win, x-win->orgx, y-win->orgy);
+    win->orgx = x;
+    win->orgy = y;
+    win->cmaxx = pw-(win->frame? 2*BORD(win): 0);
+    win->cmaxy = ph-win->coffy-(win->frame? BORD(win): 0);
+    if (win->cmaxx < 1) win->cmaxx = 1;
+    if (win->cmaxy < 1) win->cmaxy = 1;
+    calcvisall();
+    regeom(win, &old);
+    annresize(win);
+
+}
+
+/* note what normalize restores to, when the geometry is the normal */
+static void savnorm(winptr win)
+
+{
+
+    if (!win->maxed && !win->mined) {
+
+        win->normx = win->orgx;
+        win->normy = win->orgy;
+        win->normw = win->pmaxx;
+        win->normh = win->pmaxy;
 
     }
-    er.etype = ami_etresize;
-    er.winid = win->wid;
-    er.rszxg = win->cmaxx;
-    er.rszyg = win->cmaxy;
-    entercli(win);
-    er.rszx = win->cmaxx/(*chrsizx_down)(stdout);
-    er.rszy = win->cmaxy/(*chrsizy_down)(stdout);
-    enquepaevt(&er);
-    calcvisall();
-    composeall(&scr);
+
+}
+
+static void intmaxg(winptr win)
+
+{
+
+    rectangle c;
+
+    savnorm(win);
+    win->maxed = TRUE;
+    win->mined = FALSE;
+    container(win, &c);
+    plcgeom(win, c.x1, c.y1, c.x2-c.x1+1, c.y2-c.y1+1);
+
+}
+
+static void intming(winptr win)
+
+{
+
+    rectangle c;
+    winptr    sib;
+    long      w, h, tx, ty;
+    int       moved;
+
+    savnorm(win);
+    win->mined = TRUE;
+    win->maxed = FALSE;
+    /* The window reduces to its bar: borders, the system bar and a
+       sliver of client. Wide enough for a title and the buttons.
+       Minimized windows park along the container's bottom, left to
+       right, wrapping up a row when one fills; the slot walk steps
+       past minimized siblings of the same parent. */
+    w = 8*rootcell+3*(BTNW(rootcell)+2)+2*BORD(win)+MENSEP;
+    h = win->coffy+(win->frame? BORD(win): 0)+1;
+    container(win, &c);
+    if (w > c.x2-c.x1+1) w = c.x2-c.x1+1;
+    tx = c.x1;
+    ty = c.y2-h+1;
+    do {
+
+        moved = FALSE;
+        if (tx+w-1 > c.x2 && tx > c.x1) { /* row full: wrap up */
+
+            tx = c.x1;
+            ty -= h;
+            moved = TRUE;
+
+        }
+        if (ty < c.y1) break; /* overfull: best effort */
+        for (sib = winlst; sib; sib = sib->winlst)
+            if (sib != win && sib->mined && !sib->root &&
+                sib->parwin == win->parwin &&
+                sib->orgx < tx+w && sib->orgx+sib->pmaxx > tx &&
+                sib->orgy < ty+h && sib->orgy+sib->pmaxy > ty) {
+
+                tx = sib->orgx+sib->pmaxx; /* step past this bar */
+                moved = TRUE;
+
+            }
+
+    } while (moved);
+    if (ty < c.y1) { tx = c.x1; ty = c.y1; }
+    plcgeom(win, tx, ty, w, h);
+
+}
+
+static void intnormg(winptr win)
+
+{
+
+    if (!win->maxed && !win->mined) return;
+    win->maxed = FALSE;
+    win->mined = FALSE;
+    plcgeom(win, win->normx, win->normy, win->normw, win->normh);
 
 }
 
@@ -2712,14 +2801,29 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
                     return (TRUE);
 
                 }
-                if (hit == 3) { maxtoggle(tw); break; }
+                if (hit == 3) {
+
+                    /* maximize, or restore a maximized window */
+                    if (tw->maxed) { intnormg(tw); quevent(tw, ami_etnorm); }
+                    else if (!tw->root) {
+
+                        intmaxg(tw);
+                        quevent(tw, ami_etmax);
+
+                    }
+                    break;
+
+                }
                 if (hit == 4) {
 
-                    tw->mined = TRUE;
-                    quevent(tw, ami_etmin);
-                    calcvisall();
-                    winrect(tw, &r);
-                    composeall(&r);
+                    /* minimize, or restore a minimized window */
+                    if (tw->mined) { intnormg(tw); quevent(tw, ami_etnorm); }
+                    else if (!tw->root) {
+
+                        intming(tw);
+                        quevent(tw, ami_etmin);
+
+                    }
                     break;
 
                 }
