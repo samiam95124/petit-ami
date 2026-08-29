@@ -2488,6 +2488,7 @@ static void clswin(int fd)
 
     }
     if (focwin == win) focwin = NULL;
+    if (hovwin == win) hovwin = NULL; /* no hover on a freed window */
     if (ctxwin == win) ctxwin = NULL;
     if (drgwin == win) { banderase(); drag = dt_none; drgwin = NULL; }
     for (i = 0; i < AMI_MAXTIM; i++)
