@@ -470,6 +470,7 @@ static long     carx, cary;           /* caret block position, root space */
 static long     carw, carh;           /* caret block cell size */
 static int      incar;                /* caret update in progress */
 static int      carhold;              /* caret held off for a compound update */
+static int      wgheld;               /* composition held (test fast forward) */
 static int      curshp;               /* the pointer shape now worn */
 
 /* The pointer shape backdoor into a graphics layer that draws its own
@@ -1168,7 +1169,7 @@ static void composewin(winptr win, rectangle* dr)
     rectangle ri;
     int       i;
 
-    if (!win->visible) return;
+    if (!win->visible || wgheld) return;
     entercmp(); /* the blits mix by the display screen's mode */
     for (i = 0; i < win->vis.n; i++) {
 
@@ -1831,7 +1832,7 @@ static void caron(void)
     long      cx, cy;
     int       i;
 
-    if (carshown || incar || carhold) return;
+    if (carshown || incar || carhold || wgheld) return;
     if (!win || !win->visible || win->mined) return;
     if (!win->curvf[win->curupd-1]) return;
     incar = TRUE;
@@ -4998,6 +4999,7 @@ static void init_windowg(void)
     carshown = FALSE;
     incar = FALSE;
     curshp = 0;
+    wgheld = FALSE;
     popcnt = 0;
     menuwin = NULL;
     menutitle = 0;
@@ -5776,6 +5778,35 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
 
     }
     *sm = root;
+
+}
+
+/*******************************************************************************
+
+Hold composition
+
+A backdoor for the tests, in the layer backdoor style: a run fast
+forwarding to a selected frame holds composition through the frames it
+passes, and the release recomposes the display whole. Weak at the
+callers, so the desktop backends simply have no hold to offer.
+
+*******************************************************************************/
+
+void wg_hold(long on)
+
+{
+
+    rectangle scr;
+
+    if (!!on == wgheld) return;
+    wgheld = !!on;
+    if (!wgheld) {
+
+        calcvisall();
+        setrect(&scr, 1, 1, dimxg, dimyg);
+        composeall(&scr);
+
+    }
 
 }
 
