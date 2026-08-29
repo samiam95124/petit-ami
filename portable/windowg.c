@@ -1041,8 +1041,26 @@ static void ztotop(winptr win)
     for (wp = winlst; wp; wp = wp->winlst)
         if (wp != win && wp->zorder > win->zorder) wp->zorder--;
     win->zorder = ztop;
-    /* children ride above their parent, keeping their relative order */
-    for (c = win->childwin; c; c = c->childlst) ztotop(c);
+    /* Children ride above their parent, keeping their relative order:
+       raise them bottom first by their current order, and the order
+       carries. A raised child sits on top, so the minimum is always
+       one not yet raised. */
+    {
+
+        int n = 0;
+
+        for (c = win->childwin; c; c = c->childlst) n++;
+        while (n--) {
+
+            winptr low = NULL;
+
+            for (c = win->childwin; c; c = c->childlst)
+                if (!low || c->zorder < low->zorder) low = c;
+            if (low) ztotop(low);
+
+        }
+
+    }
 
 }
 
