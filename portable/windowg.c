@@ -4858,17 +4858,26 @@ static void back_ivf(FILE* f)
     win = txt2win(f);
     /* the root floors the Z order: it cannot reorder */
     if (win->root) error("Cannot order the root window");
-    if (win->zorder > 1) {
+    {
 
-        /* the back of the pile is above the root, which floors the
-           order; the root itself never moves */
-        for (wp = winlst; wp; wp = wp->winlst)
-            if (wp != win && wp->zorder > 0 && wp->zorder < win->zorder)
-                wp->zorder++;
-        win->zorder = 1;
-        calcvisall();
-        winrect(win, &r);
-        composeall(&r);
+        /* To back means the back of the window's own pile: behind its
+           siblings, above its parent -- a child under its parent would
+           be occluded whole -- or above the root floor for a window
+           with no parent. */
+        long fl = win->parwin? win->parwin->zorder+1: 1;
+
+        if (win->zorder > fl) {
+
+            for (wp = winlst; wp; wp = wp->winlst)
+                if (wp != win && wp->zorder >= fl &&
+                    wp->zorder < win->zorder)
+                    wp->zorder++;
+            win->zorder = fl;
+            calcvisall();
+            winrect(win, &r);
+            composeall(&r);
+
+        }
 
     }
 
