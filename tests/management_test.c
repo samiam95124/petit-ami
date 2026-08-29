@@ -125,6 +125,9 @@ extern void screen_capture_name(const char* fn);
 /* the manager's composition hold, where the display has one: the fast
    forward to a selected frame passes its frames unseen */
 extern void wg_hold(long on) __attribute__((weak));
+/* the display diagnostic, where the display offers one: at any wait,
+   'd' compares the composed canvas against the glass */
+extern void grx_glassdiff(void) __attribute__((weak));
 
 /* "management_test auto" walks every screen with no input at all,
    capturing each, and exits at the end: this is how the regression runs
@@ -213,8 +216,13 @@ static void waitnextt(int keeptitle)
     if (autorun) autosettle(); /* let the screen finish before it is taken */
     screen_capture();
 
-    do { nextevt(&er); }
-    while (er.etype != ami_etenter && er.etype != ami_etterm);
+    do {
+
+        nextevt(&er);
+        if (er.etype == ami_etchar && er.echar == 'd' && grx_glassdiff)
+            grx_glassdiff(); /* the canvas-against-glass diagnostic */
+
+    } while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
 }

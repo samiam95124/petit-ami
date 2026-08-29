@@ -9625,6 +9625,85 @@ uint32_t* grx_capture(int* width, int* height)
 
 /*******************************************************************************
 
+Compare the canvas against the glass
+
+A diagnostic backdoor: compares the composed screen canvas against the
+device pixels, row by row, reporting how many pixels differ and where,
+and writes both sides as ppm files in the working directory. When the
+display shows something the canvas does not (or the reverse), this
+says so with numbers.
+
+*******************************************************************************/
+
+void grx_glassdiff(void)
+
+{
+
+    long x, y, n = 0;
+    long x1 = -1, y1 = -1, x2 = -1, y2 = -1;
+    FILE* fp;
+
+    if (!scrcan || !fbbase) return;
+    for (y = 0; y < scrcan->h && y < fbrows; y++)
+        for (x = 0; x < scrcan->w && x < fbcols; x++) {
+
+            uint32_t cv = scrcan->px[(size_t)y*scrcan->w+x];
+            unsigned char* dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+
+            if ((dp[fbroff] != (cv>>16&0xff)) ||
+                (dp[fbgoff] != (cv>>8&0xff)) ||
+                (dp[fbboff] != (cv&0xff))) {
+
+                n++;
+                if (x1 < 0 || x < x1) x1 = x;
+                if (y1 < 0 || y < y1) y1 = y;
+                if (x > x2) x2 = x;
+                if (y > y2) y2 = y;
+
+            }
+
+        }
+    fprintf(stderr, "*** glassdiff: %ld pixels differ", n);
+    if (n) fprintf(stderr, ", box %ld,%ld to %ld,%ld", x1, y1, x2, y2);
+    fprintf(stderr, "\n");
+    fp = fopen("glass_canvas.ppm", "wb");
+    if (fp) {
+
+        fprintf(fp, "P6\n%d %d\n255\n", scrcan->w, scrcan->h);
+        for (y = 0; y < scrcan->h; y++)
+            for (x = 0; x < scrcan->w; x++) {
+
+                uint32_t cv = scrcan->px[(size_t)y*scrcan->w+x];
+                fputc(cv>>16&0xff, fp);
+                fputc(cv>>8&0xff, fp);
+                fputc(cv&0xff, fp);
+
+            }
+        fclose(fp);
+
+    }
+    fp = fopen("glass_device.ppm", "wb");
+    if (fp) {
+
+        fprintf(fp, "P6\n%ld %ld\n255\n", fbcols, fbrows);
+        for (y = 0; y < fbrows; y++)
+            for (x = 0; x < fbcols; x++) {
+
+                unsigned char* dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+
+                fputc(dp[fbroff], fp);
+                fputc(dp[fbgoff], fp);
+                fputc(dp[fbboff], fp);
+
+            }
+        fclose(fp);
+
+    }
+
+}
+
+/*******************************************************************************
+
 Initialize graphics
 
 Runs before main(), after the frame buffer module has mapped the device.
