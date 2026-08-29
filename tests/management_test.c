@@ -122,6 +122,12 @@ static enum { /* debug levels */
 
 extern void screen_capture(void);
 extern void screen_capture_name(const char* fn);
+/* the manager's composition hold, where the display has one: the fast
+   forward to a selected frame passes its frames unseen */
+extern void wg_hold(long on) __attribute__((weak));
+/* the display diagnostic, where the display offers one: at any wait,
+   'd' compares the composed canvas against the glass */
+extern void grx_glassdiff(void) __attribute__((weak));
 
 /* "management_test auto" walks every screen with no input at all,
    capturing each, and exits at the end: this is how the regression runs
@@ -156,9 +162,13 @@ static void nextevt(ami_evtrec* er)
 
 {
 
-    if (framenum+1 < tstlo) {
+    if (framenum < tstlo) {
 
-        /* before the selected range every wait answers at once */
+        /* Before the selected range every wait answers at once. The
+           gate is the frame count itself: the interactive loops that
+           run between one mark and the next belong to the frame being
+           approached, and they too pass -- only the arrival frame's
+           own wait is real. */
         er->etype = ami_etenter;
         er->winid = mainwid;
 
@@ -192,6 +202,7 @@ static void waitnextt(int keeptitle)
     framenum++;
     if (tsthi && framenum > tsthi) longjmp(terminate_buf, 1);
     if (framenum < tstlo) return; /* before the range: the count alone */
+    if (wg_hold) wg_hold(0); /* arriving: the display composes again */
     /* Stamp the frame number into the title bar, unless the caller is testing
        ami_title itself: keeptitle=TRUE preserves the title under test instead
        of clobbering it. */
@@ -204,9 +215,15 @@ static void waitnextt(int keeptitle)
 
     if (autorun) autosettle(); /* let the screen finish before it is taken */
     screen_capture();
+    if (grx_glassdiff) grx_glassdiff(); /* the canvas-against-glass check */
 
-    do { nextevt(&er); }
-    while (er.etype != ami_etenter && er.etype != ami_etterm);
+    do {
+
+        nextevt(&er);
+        if (er.etype == ami_etchar && er.echar == 'd' && grx_glassdiff)
+            grx_glassdiff(); /* the canvas-against-glass diagnostic */
+
+    } while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
 }
@@ -264,6 +281,7 @@ static void waittime(int t)
 
     ami_evtrec er;
 
+    if (framenum+1 < tstlo) return; /* pauses skip outside the range */
     ami_timer(tw, 1, t, FALSE);
     do { ami_event(stdin, &er);
     } while (er.etype != ami_ettim && er.etype != ami_etterm);
@@ -445,6 +463,10 @@ int main(int argc, char* argv[])
 
     }
     if (tstlo < 1) tstlo = 1;
+
+    /* a selected start frame arrives directly: the frames before it
+       pass with composition held, where the manager offers the hold */
+    if (tstlo > 1 && wg_hold) wg_hold(1);
 
     /* the test window and its windows: the program window and 2..4, or a
        child window and 3..5 when the program window is the desktop */

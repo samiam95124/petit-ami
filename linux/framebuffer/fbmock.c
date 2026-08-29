@@ -110,3 +110,12 @@ void frame_rgboff(long* roff, long* goff, long* boff)
     if (boff) *boff = 0;
 
 }
+
+void frame_flush(long x, long y, long w, long h)
+
+{
+
+    /* the memory is the display; there is nothing behind it to follow */
+    (void)x; (void)y; (void)w; (void)h;
+
+}

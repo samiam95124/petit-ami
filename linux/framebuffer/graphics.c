@@ -1621,6 +1621,8 @@ static void fbcopy(int x, int y, int w, int h)
         }
 
     }
+    /* the mapping alone does not promise the glass follows */
+    frame_flush(x, y, w, h);
 
 }
 
@@ -1769,6 +1771,7 @@ static void mptrdraw(void)
                 fbputpix(mptrx-sp->hotx+i, mptry-sp->hoty+j, 0xffffff);
 
     }
+    frame_flush(mptrx-sp->hotx, mptry-sp->hoty, sp->w, sp->h);
 
 }
 
@@ -8768,31 +8771,21 @@ static void sizbufg_ivf(FILE* f, long x, long y)
     sc->maxyg = y;
     sc->maxx = x/win->charspace; /* and the character grid */
     sc->maxy = y/win->linespace;
-    /* The resize hands back a fresh drawing context, as the other
-       backends do (they rebuild the screen whole): state to the same
-       defaults iniscn establishes, sized to the new grid. The content
-       intersection above is what carries over. */
+    /* The resize hands back a refreshed drawing context, as the other
+       backends do. They reset to their window's current global state;
+       here a manager above may divide the one window into many, and
+       the globals mix every window's settings -- the screen's own
+       colors, attributes, font and modes ARE its window's current
+       state, so those stand. What the desktops reset unconditionally
+       resets here: the cursor home, the line width and style, and the
+       default tabs at the new width. */
     sc->curx = 1; /* cursor at home */
     sc->cury = 1;
     sc->curxg = 1;
     sc->curyg = 1;
     sc->angle = LONG_MAX/4;
-    sc->fcrgb = win->gfcrgb; /* colors and attributes */
-    sc->bcrgb = win->gbcrgb;
-    sc->attr = win->gattr;
-    sc->autof = win->gauto;
-    sc->curv = win->gcurv;
     sc->lwidth = 1; /* single pixel width */
     sc->lstyle = ami_lssolid;
-    sc->cfont = win->gcfont;
-    sc->fmod = win->gfmod;
-    sc->bmod = win->gbmod;
-    sc->offx = win->goffx; /* viewport offset and extents */
-    sc->offy = win->goffy;
-    sc->wextx = win->gwextx;
-    sc->wexty = win->gwexty;
-    sc->vextx = win->gvextx;
-    sc->vexty = win->gvexty;
     if (BIT(sarev) & sc->attr) { /* the context follows */
 
         sc->xcxt->bg = sc->fcrgb;
@@ -9630,6 +9623,121 @@ uint32_t* grx_capture(int* width, int* height)
     *height = scrcan->h;
 
     return (buf);
+
+}
+
+/*******************************************************************************
+
+Compare the canvas against the glass
+
+A diagnostic backdoor: compares the composed screen canvas against the
+device pixels, row by row, reporting how many pixels differ and where,
+and writes both sides as ppm files in the working directory. When the
+display shows something the canvas does not (or the reverse), this
+says so with numbers.
+
+*******************************************************************************/
+
+void grx_devdump(const char* fn)
+
+{
+
+    long x, y;
+    FILE* fp;
+
+    if (!fbbase) return;
+    fp = fopen(fn, "wb");
+    if (!fp) return;
+    fprintf(fp, "P6\n%ld %ld\n255\n", fbcols, fbrows);
+    for (y = 0; y < fbrows; y++)
+        for (x = 0; x < fbcols; x++) {
+
+            unsigned char* dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+
+            fputc(dp[fbroff], fp);
+            fputc(dp[fbgoff], fp);
+            fputc(dp[fbboff], fp);
+
+        }
+    fclose(fp);
+
+}
+
+void grx_glassdiff(void)
+
+{
+
+    long x, y, n = 0;
+    long x1 = -1, y1 = -1, x2 = -1, y2 = -1;
+    FILE* fp;
+
+    if (!scrcan || !fbbase) return;
+    for (y = 0; y < scrcan->h && y < fbrows; y++)
+        for (x = 0; x < scrcan->w && x < fbcols; x++) {
+
+            uint32_t cv = scrcan->px[(size_t)y*scrcan->w+x];
+            unsigned char* dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+
+            if ((dp[fbroff] != (cv>>16&0xff)) ||
+                (dp[fbgoff] != (cv>>8&0xff)) ||
+                (dp[fbboff] != (cv&0xff))) {
+
+                n++;
+                if (x1 < 0 || x < x1) x1 = x;
+                if (y1 < 0 || y < y1) y1 = y;
+                if (x > x2) x2 = x;
+                if (y > y2) y2 = y;
+
+            }
+
+        }
+    fprintf(stderr, "*** glassdiff: %ld pixels differ", n);
+    if (n) fprintf(stderr, ", box %ld,%ld to %ld,%ld", x1, y1, x2, y2);
+    fprintf(stderr, "\n");
+    fp = fopen("glass_report.txt", "a");
+    if (fp) {
+
+        fprintf(fp, "%ld pixels differ", n);
+        if (n) fprintf(fp, ", box %ld,%ld to %ld,%ld", x1, y1, x2, y2);
+        fprintf(fp, "\n");
+        fclose(fp);
+
+    }
+    /* the images only when the divergence is more than the pointer */
+    if (n <= 2000) return;
+    fp = fopen("glass_canvas.ppm", "wb");
+    if (fp) {
+
+        fprintf(fp, "P6\n%d %d\n255\n", scrcan->w, scrcan->h);
+        for (y = 0; y < scrcan->h; y++)
+            for (x = 0; x < scrcan->w; x++) {
+
+                uint32_t cv = scrcan->px[(size_t)y*scrcan->w+x];
+                fputc(cv>>16&0xff, fp);
+                fputc(cv>>8&0xff, fp);
+                fputc(cv&0xff, fp);
+
+            }
+        fclose(fp);
+
+    }
+    fp = fopen("glass_device.ppm", "wb");
+    if (fp) {
+
+        fprintf(fp, "P6\n%ld %ld\n255\n", fbcols, fbrows);
+        for (y = 0; y < fbrows; y++)
+            for (x = 0; x < fbcols; x++) {
+
+                unsigned char* dp = fbbase+((size_t)y*fbcols+x)*fbpixsiz;
+
+                fputc(dp[fbroff], fp);
+                fputc(dp[fbgoff], fp);
+                fputc(dp[fbboff], fp);
+
+            }
+        fclose(fp);
+
+    }
 
 }
 
