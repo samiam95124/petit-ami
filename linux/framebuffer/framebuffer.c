@@ -179,10 +179,16 @@ static void* scanout(void* arg)
                     for (r = 0; r < scale; r++)
                         memcpy(xrow+((size_t)x*scale+r)*fbpixsiz,
                                pr+(size_t)x*fbpixsiz, fbpixsiz);
-                for (r = 0; r < scale; r++)
-                    memcpy(fbmem+((size_t)(scoffy+y*scale+r)*fbcols+scoffx)*
-                               fbpixsiz,
-                           xrow, lrow*scale);
+                for (r = 0; r < scale; r++) {
+
+                    size_t off = ((size_t)(scoffy+y*scale+r)*fbcols+scoffx)*
+                                 fbpixsiz;
+
+                    memcpy(fbmem+off, xrow, lrow*scale);
+                    /* declare the damage through the fd; see frame_flush */
+                    (void)pwrite(fbfd, fbmem+off, lrow*scale, off);
+
+                }
 
             }
 
@@ -376,5 +382,34 @@ void frame_rgboff(long* roff, long* goff, long* boff)
     if (roff) *roff = fbroff;
     if (goff) *goff = fbgoff;
     if (boff) *boff = fbboff;
+
+}
+
+void frame_flush(long x, long y, long w, long h)
+
+{
+
+    long j;
+
+    /* In the reduced mode the scanout thread writes the device itself
+       and declares its own damage; the shadow needs no flushing. */
+    if (shadow) return;
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x+w > fbcols) w = fbcols-x;
+    if (y+h > fbrows) h = fbrows-y;
+    if (w <= 0 || h <= 0 || fbfd < 0 || !fbmem) return;
+    /* The content is already in the mapping; writing it back through the
+       fd is a no-op on the pixels and an explicit damage report to the
+       kernel. The DRM fbdev emulation flushes write() damage reliably
+       where mapped-page tracking loses races (nvidia-drm does). */
+    if (x == 0 && w == fbcols)
+        /* full width: the rows are contiguous, one write */
+        (void)pwrite(fbfd, fbmem+(size_t)y*fbstride, (size_t)h*fbstride,
+                     (size_t)y*fbstride);
+    else for (j = 0; j < h; j++)
+        (void)pwrite(fbfd, fbmem+((size_t)(y+j)*fbcols+x)*fbpixsiz,
+                     (size_t)w*fbpixsiz,
+                     (off_t)((size_t)(y+j)*fbcols+x)*fbpixsiz);
 
 }

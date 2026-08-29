@@ -1621,6 +1621,8 @@ static void fbcopy(int x, int y, int w, int h)
         }
 
     }
+    /* the mapping alone does not promise the glass follows */
+    frame_flush(x, y, w, h);
 
 }
 
@@ -1769,6 +1771,7 @@ static void mptrdraw(void)
                 fbputpix(mptrx-sp->hotx+i, mptry-sp->hoty+j, 0xffffff);
 
     }
+    frame_flush(mptrx-sp->hotx, mptry-sp->hoty, sp->w, sp->h);
 
 }
 

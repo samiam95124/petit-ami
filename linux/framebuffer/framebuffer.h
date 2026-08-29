@@ -85,4 +85,21 @@ not assume the order.
 
 void frame_rgboff(long* roff, long* goff, long* boff);
 
+/*******************************************************************************
+
+Flush a rectangle to the display
+
+Some kernels do not scan the mapped buffer out directly: the DRM fbdev
+emulation (nvidia-drm among them) keeps its own copy and moves page-tracked
+damage to the screen, and a burst of mapped writes can race that tracking and
+never appear -- the buffer holds them, the glass does not. Writing through the
+device file descriptor declares the damage explicitly, so after writing pixels
+a caller names the touched rectangle here and the display is guaranteed to
+follow. Where the mapping is the scanout itself this costs a redundant copy
+and changes nothing.
+
+*******************************************************************************/
+
+void frame_flush(long x, long y, long w, long h);
+
 #endif /* FRAMEBUFFER_H */
