@@ -159,9 +159,13 @@ static void nextevt(ami_evtrec* er)
 
 {
 
-    if (framenum+1 < tstlo) {
+    if (framenum < tstlo) {
 
-        /* before the selected range every wait answers at once */
+        /* Before the selected range every wait answers at once. The
+           gate is the frame count itself: the interactive loops that
+           run between one mark and the next belong to the frame being
+           approached, and they too pass -- only the arrival frame's
+           own wait is real. */
         er->etype = ami_etenter;
         er->winid = mainwid;
 
