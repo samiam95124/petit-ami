@@ -4639,9 +4639,10 @@ static void setsizg_ivf(FILE* f, long x, long y)
        the frame */
     win->pmaxx = x;
     win->pmaxy = y;
+    /* the client is what the decorations leave: coffy carries the top
+       chrome including any menu band, as frmmetrics keeps it */
     win->cmaxx = x-(win->frame? 2*BORD(win): 0);
-    win->cmaxy = y-(win->frame? BORD(win)+(win->sysbar? BARH(rootcell): 0)
-                              +BORD(win): 0);
+    win->cmaxy = y-win->coffy-(win->frame? BORD(win): 0);
     if (win->cmaxx < 1) win->cmaxx = 1;
     if (win->cmaxy < 1) win->cmaxy = 1;
     regeom(win, &old);
@@ -4806,6 +4807,9 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy,
         if (BIT(ami_wmsysbar) & ms) fy += BARH(rootcell);
 
     }
+    /* the menu row is not a frame decoration: it is a band above the
+       client, frameless or not, as frmmetrics counts it */
+    if (BIT(ami_wmmenu) & ms) fy += BARH(rootcell);
     if (wx) *wx = cx+fx;
     if (wy) *wy = cy+fy;
 

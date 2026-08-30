@@ -367,7 +367,8 @@ typedef enum {
 
     ami_wmframe, /* frame on/off */
     ami_wmsize,  /* size bars on/off */
-    ami_wmsysbar /* system bar on/off */
+    ami_wmsysbar, /* system bar on/off */
+    ami_wmmenu   /* menu on/off */
 
 } ami_winmod;
 typedef long ami_winmodset;
