@@ -61,21 +61,21 @@
 #define BUFLEN 250
 
 /* ports for the loopback servers; one per test to avoid reuse collisions */
-#define PORT_TCP   42421
-#define PORT_TLS   42422
-#define PORT_MSG   42423
-#define PORT_DTLS  42424
-#define PORT_CERT  42425
-#define PORT_TCP6  42426
-#define PORT_TLS6  42427
-#define PORT_MSG6  42428
-#define PORT_DTLS6 42429
-#define PORT_MAXM  42430
-#define PORT_MAXM6 42431
-#define PORT_TRUNC 42432
-#define PORT_SIM1  42433
-#define PORT_SIM2  42434
-#define PORT_RETRY 42435
+#define PORT_TCP   24421
+#define PORT_TLS   24422
+#define PORT_MSG   24423
+#define PORT_DTLS  24424
+#define PORT_CERT  24425
+#define PORT_TCP6  24426
+#define PORT_TLS6  24427
+#define PORT_MSG6  24428
+#define PORT_DTLS6 24429
+#define PORT_MAXM  24430
+#define PORT_MAXM6 24431
+#define PORT_TRUNC 24432
+#define PORT_SIM1  24433
+#define PORT_SIM2  24434
+#define PORT_RETRY 24435
 
 static int passes = 0;
 static int fails  = 0;
