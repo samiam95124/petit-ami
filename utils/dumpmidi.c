@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h> /* for SEEK_SET/SEEK_CUR/SEEK_END when libc stdio.h is shadowed */
 
 /*
  * Print unknown midi event codes

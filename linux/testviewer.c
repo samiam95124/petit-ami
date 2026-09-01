@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <unistd.h> /* for SEEK_SET/SEEK_CUR/SEEK_END when libc stdio.h is shadowed */
 #include <png.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>

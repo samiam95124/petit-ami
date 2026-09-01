@@ -39,6 +39,18 @@ extern "C" {
  * at link time.
  */
 
+/*
+ * Format checking: the attribute rides the prototypes below, and through
+ * the function-like macros it lands on the stdio_ names, so gcc's
+ * -Wformat polices every call in the tree. Empty where the compiler
+ * has no such attribute.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define __stdio_format(kind, fi, va) __attribute__((format(kind, fi, va)))
+#else
+#define __stdio_format(kind, fi, va)
+#endif
+
 #ifdef STDIO_BYPASS
 
 /*
@@ -229,20 +241,20 @@ FILE *tmpfile(void);
 char *tmpnam(char s[]);
 int setvbuf(FILE* stream, char *buf, int mode, size_t size);
 void setbuf(FILE* stream, char *buf);
-int fprintf(FILE* stream, const char *format, ...);
-int printf(const char* format, ...);
-int sprintf(char* s, const char *format, ...);
-int snprintf(char* s, size_t n, const char *format, ...);
-int vprintf(const char* format, va_list arg);
-int vfprintf(FILE* stream, const char *format, va_list arg);
-int vsprintf(char* s, const char *format, va_list arg);
-int vsnprintf(char* s, size_t n, const char *format, va_list arg);
-int fscanf(FILE* stream, const char *format, ...);
-int scanf(const char* format, ...);
-int sscanf(const char* s, const char *format, ...);
-int vscanf(const char *format, va_list arg);
-int vfscanf(FILE* stream, const char *format, va_list arg);
-int vsscanf(const char* s, const char *format, va_list arg);
+int fprintf(FILE* stream, const char *format, ...) __stdio_format(printf, 2, 3);
+int printf(const char* format, ...) __stdio_format(printf, 1, 2);
+int sprintf(char* s, const char *format, ...) __stdio_format(printf, 2, 3);
+int snprintf(char* s, size_t n, const char *format, ...) __stdio_format(printf, 3, 4);
+int vprintf(const char* format, va_list arg) __stdio_format(printf, 1, 0);
+int vfprintf(FILE* stream, const char *format, va_list arg) __stdio_format(printf, 2, 0);
+int vsprintf(char* s, const char *format, va_list arg) __stdio_format(printf, 2, 0);
+int vsnprintf(char* s, size_t n, const char *format, va_list arg) __stdio_format(printf, 3, 0);
+int fscanf(FILE* stream, const char *format, ...) __stdio_format(scanf, 2, 3);
+int scanf(const char* format, ...) __stdio_format(scanf, 1, 2);
+int sscanf(const char* s, const char *format, ...) __stdio_format(scanf, 2, 3);
+int vscanf(const char *format, va_list arg) __stdio_format(scanf, 1, 0);
+int vfscanf(FILE* stream, const char *format, va_list arg) __stdio_format(scanf, 2, 0);
+int vsscanf(const char* s, const char *format, va_list arg) __stdio_format(scanf, 2, 0);
 int fgetc(FILE *stream);
 char *fgets(char *s, int n, FILE *stream);
 int fputc(int c, FILE *stream);
