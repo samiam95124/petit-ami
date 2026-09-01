@@ -289,7 +289,7 @@ ifeq ($(OSTYPE),Windows_NT)
 		CPP=g++
 
 	endif
-	CFLAGS=-g3 -Iinclude
+	CFLAGS=-g3 -Wformat -Iinclude
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -306,7 +306,7 @@ else ifeq ($(OSTYPE),Darwin)
 	    SSL_LIBS=$(SSL_PREFIX)/lib/libssl.dylib $(SSL_PREFIX)/lib/libcrypto.dylib
 	endif
 	FT_PREFIX=$(shell /opt/homebrew/bin/brew --prefix freetype)
-	CFLAGS=-g3 -Iinclude $(SSL_CFLAGS) -I$(FT_PREFIX)/include/freetype2 -I/opt/X11/include
+	CFLAGS=-g3 -Wformat -Iinclude $(SSL_CFLAGS) -I$(FT_PREFIX)/include/freetype2 -I/opt/X11/include
 
 else ifeq ($(OSTYPE),FreeBSD)
 
