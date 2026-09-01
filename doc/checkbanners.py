@@ -67,16 +67,16 @@ def render(tmp):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return os.path.join(tmp, "ami.pdf")
 
-def dropped(text):
+def dropped(nums):
     """the blank leaves the export left out: places where the printed page
-    numbers of two pages in a row differ by two"""
+    numbers of two pages in a row differ by two. nums carries each page's
+    printed number (None for none) and whether the page is a blank leaf."""
     out, prev = [], None
-    for p in text:
-        n = printed(p)
+    for n, blank in nums:
         if n is None:
             # a page with nothing on it is a blank leaf that was kept; it
             # carries no number, but it holds the place of one
-            if prev is not None and not p.strip(): prev += 1
+            if prev is not None and blank: prev += 1
             continue
         if prev is not None and n == prev+2: out.append(prev+1)
         prev = n
@@ -91,12 +91,18 @@ def pages(pdf):
     words = [re.findall(r'<word xMin="([\d.]+)" yMin="([\d.]+)" '
                         r'xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)</word>', p)
              for p in re.findall(r'<page [^>]*>(.*?)</page>', box, re.S)]
-    return txt.split("\f"), words
+    heights = [float(h) for h in
+               re.findall(r'<page width="[\d.]+" height="([\d.]+)"', box)]
+    return txt.split("\f"), words, heights
 
-def printed(page):
-    """the page number the page prints, which is the last number standing alone"""
-    n = re.findall(r'(?m)^\s*(\d{1,4})\s*$', page)
-    return int(n[-1]) if n else None
+def printed(words, height):
+    """the page number the page prints: digits standing alone in the footer,
+    the bottom stretch of the page. Position, not text order, so a table of
+    contents entry's target number wrapped onto its own line cannot pass
+    for the page number."""
+    n = [w for a, b, c, d, w in words
+         if w.strip().isdigit() and len(w.strip()) <= 4 and float(b) > height-120]
+    return int(n[-1].strip()) if n else None
 
 def printsblanks():
     """whether the document itself prints its inserted blank leaves.
@@ -116,7 +122,9 @@ def main():
     else:
         tmp = tempfile.mkdtemp()
         pdf = render(tmp)
-    text, words = pages(pdf)
+    text, words, heights = pages(pdf)
+    nums = [(printed(words[i], heights[i]), not text[i].strip())
+            for i in range(len(words))]
     faults = 0
     if os.path.exists(ODT) and not printsblanks():
         faults += 1
@@ -131,7 +139,7 @@ def main():
             print("%2d  %-40s no chapter page" % (n, title[:40])); faults += 1
             continue
         i = found[-1]
-        page = printed(text[i])
+        page = nums[i][0]
         # the banner is the large text on the page
         big = [(float(a), float(b), float(c), float(d), w)
                for a, b, c, d, w in words[i] if float(d)-float(b) > 14]
@@ -146,7 +154,7 @@ def main():
         if note: faults += 1
         print("%2d  %-40s page %-5s right %5.1f%s"
               % (n, title[:40], page, max(x[2] for x in big), note))
-    gone = dropped(text)
+    gone = dropped(nums)
     if gone:
         faults += len(gone)
         print()
