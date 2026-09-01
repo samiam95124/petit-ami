@@ -6000,12 +6000,15 @@ static void readline(int fd)
     lcmp = FALSE; /* set line not complete */
     do { /* get line characters */
 
-        ievent(f, &er); /* get next event */
+        /* The file plays no part in fetching an event: the root is read
+           through stdin whatever is passed. It was passed f here, which
+           on the first turn of this loop had never been set. */
+        ievent(stdin, &er); /* get next event */
         ofn = xltwin[er.winid+MAXFIL]; /* get logical output file */
-        f = opnfil[ofn]->sfp; /* get window file */
         if (ofn >= 0 && opnfil[ofn]->inl == fd) {
 
             /* output file indexes our input file */
+            f = opnfil[ofn]->sfp; /* get window file, echoes land there */
             win = lwn2win(er.winid); /* get the window from the id */
             if (win->inpptr < 0) { /* buffer is flagged empty */
 
