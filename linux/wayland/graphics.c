@@ -15296,6 +15296,8 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_wi
         dec->frmgeom(win, ms, &pfw, &pfh, &cwox, &cwoy);
         *wx = cx+pfw;
         *wy = cy+pfh;
+        /* the menu bar adds its band above the client */
+        if (BIT(ami_wmmenu) & ms) *wy += win->menuspcy;
         return;
 
     }
@@ -15319,6 +15321,8 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_wi
         *wy = cy+frmexthgt[frmcfgsys];
 
     }
+    /* the menu bar adds its band above the client, whatever the frame */
+    if (BIT(ami_wmmenu) & ms) *wy += win->menuspcy;
 
 }
 

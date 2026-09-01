@@ -6961,7 +6961,8 @@ static void iwinclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmod
     size = !!(BIT(ami_wmsize) & ms);
     sysbar = !!(BIT(ami_wmsysbar) & ms);
     *wx = cx+(frame && size)*2;
-    *wy = cy+(frame && size)*2+(frame && sysbar)*2;
+    *wy = cy+(frame && size)*2+(frame && sysbar)*2
+            +!!(BIT(ami_wmmenu) & ms); /* the menu row, frameless or not */
 
 }
 

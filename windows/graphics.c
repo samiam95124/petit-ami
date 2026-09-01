@@ -11646,8 +11646,9 @@ static void iwinclientg(winptr win, long cx, long cy, long* wx, long* wy,
 
     }
     fl = redstyle(fl); /* reduce for caption-less window */
-    /* find window size from client size */
-    b = adjwinrect(win, &cr, fl, FALSE);
+    /* find window size from client size; the menu bit is Windows'
+       own bMenu, the bar row AdjustWindowRect accounts */
+    b = adjwinrect(win, &cr, fl, !!(BIT(ami_wmmenu) & ms));
     if (!b) winerr(); /* process windows error */
     *wx = cr.right-cr.left; /* return window size */
     *wy = cr.bottom-cr.top;
