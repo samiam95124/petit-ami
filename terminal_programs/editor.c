@@ -437,7 +437,7 @@ int getlin(FILE*  f, /* file to read */
 {
 
     int i; /* index for string */
-    char c;
+    int c;  /* fgetc returns int: EOF and a 0xff byte must stay apart */
 
     for (i = 0; i < l; i++) s[i] = ' '; /* clear destination line */
     i = 0; /* set 1st character position */
