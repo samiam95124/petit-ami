@@ -22,6 +22,13 @@
 # With no test arguments, all tests are run. Returns the number of failing
 # tests, so 0 means a pass.
 #
+# The _testr tests are the same picture tests run remotely: the client links
+# graph_client and draws through a graph_server this script starts on this
+# machine (port 4909, so a server of yours on the default port is untouched).
+# The display is the server's, so there are no captures to compare; a remote
+# run passes when it walks every pattern and exits clean with nothing on the
+# error channel.
+#
 # Notes:
 #
 # The test binaries load the Petit-Ami shared libraries relative to the
@@ -53,7 +60,8 @@ done
 if [ -z "$tests" ]; then
 
     tests="stdio_test services_test network_test graphics_test \
-           management_test widget_test"
+           management_test widget_test \
+           graphics_testr management_testr widget_testr"
 
 fi
 
@@ -91,6 +99,39 @@ mask()
 }
 
 #
+# The remote display server, started once when the first remote test wants
+# it, on a port of its own; killed by pid on the way out, never by name.
+#
+rport=4909
+rsrvpid=""
+
+startrsrv()
+{
+
+    if [ -z "$rsrvpid" ]; then
+
+        GRAPH_PORT=$rport bin/graph_server > /dev/null 2>&1 &
+        rsrvpid=$!
+        sleep 2
+
+    fi
+
+}
+
+stoprsrv()
+{
+
+    if [ -n "$rsrvpid" ]; then
+
+        kill "$rsrvpid" 2> /dev/null
+        wait "$rsrvpid" 2> /dev/null
+        rsrvpid=""
+
+    fi
+
+}
+
+#
 # Run one test, output to the named .lst file
 #
 runtest()
@@ -107,6 +148,14 @@ runtest()
              LANG="en_US.UTF-8" \
              timeout 300 "$root/bin/$1" < /dev/null) \
              > "tests/$1.lst" 2>&1
+        ;;
+
+    graphics_testr|management_testr|widget_testr)
+        # the same walk, drawn through the remote server on this machine
+        startrsrv
+        GRAPH_PORT=$rport timeout 300 "bin/$1" auto < /dev/null \
+            > "tests/$1.out" 2>&1
+        remoterc=$?
         ;;
 
     graphics_test|management_test|widget_test)
@@ -143,8 +192,9 @@ for t in $tests; do
     fi
     case "$t" in
 
-    graphics_test|management_test|widget_test) pict=1 ;;
-    *)                                         pict=0 ;;
+    graphics_test|management_test|widget_test)    pict=1; remote=0 ;;
+    graphics_testr|management_testr|widget_testr) pict=1; remote=1 ;;
+    *)                                            pict=0; remote=0 ;;
 
     esac
     if [ "$pict" = "1" ] && [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ]; then
@@ -154,7 +204,37 @@ for t in $tests; do
         continue
 
     fi
+    if [ "$remote" = "1" ] && [ ! -x bin/graph_server ]; then
+
+        echo "$t: no bin/graph_server, run make first"
+        fails=$((fails+1))
+        continue
+
+    fi
     runtest "$t"
+    if [ "$remote" = "1" ]; then
+
+        # no pictures to compare: the display is the server's. The run
+        # passes when it walks out clean and says nothing on the way.
+        if [ "$remoterc" = "0" ] && [ ! -s "tests/$t.out" ]; then
+
+            rm -f "tests/$t.dif"
+            echo "$t: pass"
+
+        else
+
+            {
+                echo "remote run failed: exit $remoterc"
+                echo "client output:"
+                cat "tests/$t.out"
+            } > "tests/$t.dif"
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+
+        fi
+        continue
+
+    fi
     if [ "$pict" = "1" ]; then
 
         # a stream of PNGs: compared whole, since a picture has no fields
@@ -217,4 +297,5 @@ for t in $tests; do
 
 done
 
+stoprsrv
 exit $fails

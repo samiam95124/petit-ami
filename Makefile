@@ -776,7 +776,8 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5 clock calc
+     line2 line4 line5 clock calc \
+     graph_server graphics_testr management_testr widget_testr
     
 endif 
 
@@ -1839,9 +1840,10 @@ management_testr: tests/management_test.c portable/graph_client.o \
 # The widget test run remotely: linked with graph_client, the display
 # side served by graph_server.
 #
-widget_testr: tests/widget_test.c portable/graph_client.o
+widget_testr: tests/widget_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/widget_test.c portable/graph_client.o \
-	    $(LINUXSTDIO) linux/services.o \
+	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/widget_testr
 
