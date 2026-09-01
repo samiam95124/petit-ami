@@ -64,7 +64,7 @@ Finds a random number between the given top and 1.
 
 *******************************************************************************/
 
-int rand(int top)
+int randn(int top)
 
 {
 
@@ -217,8 +217,8 @@ void clear(void)
 
         do {
 
-            x = rand(MAXXS-1);
-            y = rand(MAXYS-1);
+            x = randn(MAXXS-1);
+            y = randn(MAXYS-1);
 
         } while (board[x][y].mine); /* no mine exists at square */
         board[x][y].mine = TRUE; /* place mine */

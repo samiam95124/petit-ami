@@ -379,6 +379,12 @@ int main(void)
 
 {
 
+    if (ami_maxx(stdout) > MAXDIM || ami_maxy(stdout) > MAXDIM) {
+
+        fprintf(stderr, "*** Error: Screen exceeds maximum size\n");
+        exit(1);
+
+    }
     ami_select(stdout, 2, 2); /* switch screens */
     ami_auto(stdout, FALSE); /* turn off scrolling */
     ami_curvis(stdout, FALSE); /* turn off cursor */
