@@ -6876,8 +6876,8 @@ static void iquerycolor(
 
             } else {
 
-                wp->cbc->btn = th_selecttextfocus;
-                wp->cbc->btd = th_selecttextfocus;
+                wp->cbc->btn = themetable[th_selecttextfocus];
+                wp->cbc->btd = themetable[th_selecttextfocus];
 
             }
             wp->check = TRUE; /* set use check instead of text */
