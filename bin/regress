@@ -22,6 +22,16 @@
 # With no test arguments, all tests are run. Returns the number of failing
 # tests, so 0 means a pass.
 #
+# The picture standards are of a desktop's look -- the frame the screen tests
+# size themselves against, the menus, the theme -- and GNOME and Plasma draw
+# through different decoration modules, so each desktop keeps a set of its
+# own: tests/<test>.gnome.cmp and tests/<test>.plasma.cmp. The set is chosen
+# the way the decorations choose themselves, from XDG_CURRENT_DESKTOP, and a
+# desktop that has no set yet is told to make one with --update.
+#
+# A picture run that fails is kept as tests/<test>.fail-<stamp>.lst, so the
+# screens that differed survive the re-run that overwrites the .lst.
+#
 # The _testr tests are the same picture tests run remotely: the client links
 # graph_client and draws through a graph_server this script starts on this
 # machine (port 4909, so a server of yours on the default port is untouched).
@@ -180,6 +190,14 @@ runtest()
 # the PNG signature, for counting the screens in a capture stream
 pngsig=$(printf '\211PNG')
 
+# the desktop the screens are drawn in, which names the picture standards
+case "$XDG_CURRENT_DESKTOP" in
+
+*KDE*) desk="plasma" ;;
+*)     desk="gnome" ;;
+
+esac
+
 fails=0
 for t in $tests; do
 
@@ -246,28 +264,43 @@ for t in $tests; do
             continue
 
         fi
+        std="tests/$t.$desk.cmp"
         if [ "$update" = "1" ]; then
 
-            cp "tests/$t.lst" "tests/$t.cmp"
-            echo "$t: tests/$t.cmp regenerated, please review with bin/testviewer"
+            cp "tests/$t.lst" "$std"
+            echo "$t: $std regenerated, please review with bin/testviewer"
 
-        elif cmp -s "tests/$t.lst" "tests/$t.cmp"; then
+        elif [ ! -f "$std" ]; then
+
+            {
+                echo "no $std: the $desk desktop has no standard for $t yet"
+                echo "make one with: bin/regress --update $t, then review it"
+            } > "tests/$t.dif"
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+
+        elif cmp -s "tests/$t.lst" "$std"; then
 
             rm -f "tests/$t.dif"
             echo "$t: pass"
 
         else
 
+            # the run is kept aside, so the screens that differed survive
+            # the re-run that overwrites the .lst
+            keep="tests/$t.fail-$(date +%Y%m%d-%H%M%S).lst"
+            cp "tests/$t.lst" "$keep"
             {
-                echo "screens differ from tests/$t.cmp"
-                echo "standard: $(wc -c < "tests/$t.cmp") bytes,\
- $(grep -a -o "$pngsig" "tests/$t.cmp" | wc -l) screens"
+                echo "screens differ from $std"
+                echo "standard: $(wc -c < "$std") bytes,\
+ $(grep -a -o "$pngsig" "$std" | wc -l) screens"
                 echo "this run: $(wc -c < "tests/$t.lst") bytes,\
  $(grep -a -o "$pngsig" "tests/$t.lst" | wc -l) screens"
-                cmp "tests/$t.cmp" "tests/$t.lst" 2>&1
+                cmp "$std" "tests/$t.lst" 2>&1
+                echo "this run kept as $keep"
                 echo "view either with: bin/testviewer <file>"
             } > "tests/$t.dif"
-            echo "$t: *** fail *** (see tests/$t.dif)"
+            echo "$t: *** fail *** (see tests/$t.dif, run kept as $keep)"
             fails=$((fails+1))
 
         fi
