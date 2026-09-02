@@ -67,13 +67,13 @@ frame can be called out by number and revisited alone.
 static jmp_buf terminate_buf;
 static FILE*      tw;           /* the window under test */
 static int        rooted = FALSE; /* the program window is a desktop */
-static long       mainwid;      /* the test window's id */
-static long       wid2, wid3, wid4; /* the ids of the windows it opens */
+static ami_long   mainwid;      /* the test window's id */
+static ami_long   wid2, wid3, wid4; /* the ids of the windows it opens */
 static FILE*      win2;
 static FILE*      win3;
 static FILE*      win4;
-static long       x, x2, y, y2;
-static long       ox, oy;       /* original size of window */
+static ami_long   x, x2, y, y2;
+static ami_long   ox, oy;       /* original size of window */
 static int        fb;           /* front/back flipper */
 static ami_evtrec  er;
 static ami_menuptr mp;           /* menu pointer */
@@ -89,10 +89,10 @@ static int        mincnt;       /* minimize counter */
 static int        maxcnt;       /* maximize counter */
 static int        nrmcnt;       /* normalize counter */
 static int        i;
-static long       xs, ys;
-static long       mxs, mys;      /* maximum window size the WM will grant */
-static long       cs;
-static long       t, et;
+static ami_long   xs, ys;
+static ami_long   mxs, mys;      /* maximum window size the WM will grant */
+static ami_long   cs;
+static ami_long   t, et;
 static ami_color   c1, c2, c3;
 
 /*
@@ -124,7 +124,7 @@ extern void screen_capture(void);
 extern void screen_capture_name(const char* fn);
 /* the manager's composition hold, where the display has one: the fast
    forward to a selected frame passes its frames unseen */
-extern void wg_hold(long on) __attribute__((weak));
+extern void wg_hold(ami_long on) __attribute__((weak));
 /* the display diagnostic, where the display offers one: at any wait,
    'd' compares the composed canvas against the glass */
 extern void grx_glassdiff(void) __attribute__((weak));
@@ -244,7 +244,7 @@ static void waitnextprint(void)
 
         nextevt(&er);
         if (er.etype == ami_etchar)
-            fprintf(tw, "Window: %ld char: %c\n", er.winid, er.echar);
+            fprintf(tw, "Window: %lld char: %c\n", AMI_LONG_CAST(er.winid), er.echar);
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -253,7 +253,7 @@ static void waitnextprint(void)
 
 /* print centered string */
 
-static void prtcen(long y, const char* s)
+static void prtcen(ami_long y, const char* s)
 
 {
 
@@ -264,7 +264,7 @@ static void prtcen(long y, const char* s)
 
 /* print centered string graphical */
 
-static void prtceng(long y, const char* s)
+static void prtceng(ami_long y, const char* s)
 
 {
 
@@ -360,7 +360,7 @@ static void chrgrid(void)
 
 /* display frame test */
 
-static void frameinside(const string s, long x, long y)
+static void frameinside(const string s, ami_long x, ami_long y)
 
 {
 
@@ -381,7 +381,7 @@ static void frametest(const string s)
 {
 
     ami_evtrec er;
-    long      x, y;
+    ami_long  x, y;
 
     x = ami_maxxg(tw); /* set size */
     y = ami_maxyg(tw);
@@ -406,7 +406,7 @@ static void frametest(const string s)
 
 /* Finds the largest square that fits into the screen, then applies a ratio to
    that. Used to determine a relative size that fits the screen. */
-static void sqrrat(long* xs, long* ys, float rat)
+static void sqrrat(ami_long* xs, ami_long* ys, float rat)
 
 {
 
@@ -432,7 +432,7 @@ int main(int argc, char* argv[])
 
 {
 
-    long xr;
+    ami_long xr;
 
     if (setjmp(terminate_buf)) goto terminate;
 
@@ -498,17 +498,17 @@ int main(int argc, char* argv[])
     fprintf(tw, "Managed screen test vs. 0.1\n");
     fprintf(tw, "\n");
     ami_scnsiz(tw, &x, &y);
-    fprintf(tw, "Screen size character: x: %ld y: %ld\n", x, y);
+    fprintf(tw, "Screen size character: x: %lld y: %lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_scnsizg(tw, &x, &y);
-    fprintf(tw, "Screen size pixel: x: %ld y: %ld\n", x, y);
+    fprintf(tw, "Screen size pixel: x: %lld y: %lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     fprintf(tw, "\n");
     ami_getsiz(tw, &x, &y);
-    fprintf(tw, "Window size character: x: %ld y: %ld\n", x, y);
+    fprintf(tw, "Window size character: x: %lld y: %lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_getsizg(tw, &ox, &oy);
-    fprintf(tw, "Window size graphical: x: %ld y: %ld\n", ox, oy);
+    fprintf(tw, "Window size graphical: x: %lld y: %lld\n", AMI_LONG_CAST(ox), AMI_LONG_CAST(oy));
     fprintf(tw, "\n");
-    fprintf(tw, "Client size character: x: %ld y: %ld\n", ami_maxx(tw), ami_maxy(tw));
-    fprintf(tw, "Client size graphical: x: %ld y: %ld\n", ami_maxxg(tw), ami_maxyg(tw));
+    fprintf(tw, "Client size character: x: %lld y: %lld\n", AMI_LONG_CAST(ami_maxx(tw)), AMI_LONG_CAST(ami_maxy(tw)));
+    fprintf(tw, "Client size graphical: x: %lld y: %lld\n", AMI_LONG_CAST(ami_maxxg(tw)), AMI_LONG_CAST(ami_maxyg(tw)));
     fprintf(tw, "\n");
     fprintf(tw, "Hit return in any window to continue for each test\n");
     waitnext();
@@ -575,7 +575,7 @@ int main(int argc, char* argv[])
     ami_home(tw);
     fprintf(tw, "Buffer should now be 50 by 50 characters, and\n");
     fprintf(tw, "painted blue\n");
-    fprintf(tw, "maxx: %ld maxy: %ld\n", ami_maxx(tw), ami_maxy(tw));
+    fprintf(tw, "maxx: %lld maxy: %lld\n", AMI_LONG_CAST(ami_maxx(tw)), AMI_LONG_CAST(ami_maxy(tw)));
     fprintf(tw, "Open up window to verify this\n");
     prtcen(ami_maxy(tw), "Buffer resize character test\n");
     ami_bcolor(tw, ami_white);
@@ -596,9 +596,9 @@ int main(int argc, char* argv[])
     ami_line(tw, 1, 1, 1, ami_maxyg(tw));
     ami_line(tw, 1, ami_maxyg(tw), ami_maxxg(tw), ami_maxyg(tw));
     ami_line(tw, ami_maxxg(tw), 1, ami_maxxg(tw), ami_maxyg(tw));
-    fprintf(tw, "Buffer should now be %ld by %ld pixels, and\n", xs, ys);
+    fprintf(tw, "Buffer should now be %lld by %lld pixels, and\n", AMI_LONG_CAST(xs), AMI_LONG_CAST(ys));
     fprintf(tw, "painted blue\n");
-    fprintf(tw, "maxxg: %ld maxyg: %ld\n", ami_maxxg(tw), ami_maxyg(tw));
+    fprintf(tw, "maxxg: %lld maxyg: %lld\n", AMI_LONG_CAST(ami_maxxg(tw)), AMI_LONG_CAST(ami_maxyg(tw)));
     fprintf(tw, "Open up window to verify this\n");
     prtcen(ami_maxy(tw), "Buffer resize graphical test");
     ami_bcolor(tw, ami_white);
@@ -617,8 +617,8 @@ int main(int argc, char* argv[])
 
             ami_setsiz(tw, 80, 25);
             fputc('\f', tw);
-            fprintf(tw, "*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %d\n",
-                   x2, y2, x, 25);
+            fprintf(tw, "*** Getsiz does not match setsiz, x: %lld y: %lld vs. x: %lld y: %d\n",
+                   AMI_LONG_CAST(x2), AMI_LONG_CAST(y2), AMI_LONG_CAST(x), 25);
             waitnext();
             longjmp(terminate_buf, 1);
 
@@ -642,8 +642,8 @@ int main(int argc, char* argv[])
 
             ami_setsiz(tw, 80, 25);
             fputc('\f', tw);
-            fprintf(tw, "*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %d y: %ld\n",
-                   x2, y2, 80, y);
+            fprintf(tw, "*** Getsiz does not match setsiz, x: %lld y: %lld vs. x: %d y: %lld\n",
+                   AMI_LONG_CAST(x2), AMI_LONG_CAST(y2), 80, AMI_LONG_CAST(y));
             fprintf(tw, "*** Getsiz does not match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
@@ -683,8 +683,8 @@ int main(int argc, char* argv[])
 
             ami_setsiz(tw, 80, 25);
             fputc('\f', tw);
-            fprintf(tw, "*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %ld\n",
-                   x2, y2, x, ys);
+            fprintf(tw, "*** Getsiz does not match setsiz, x: %lld y: %lld vs. x: %lld y: %lld\n",
+                   AMI_LONG_CAST(x2), AMI_LONG_CAST(y2), AMI_LONG_CAST(x), AMI_LONG_CAST(ys));
             fprintf(tw, "*** Getsiz does ! match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
@@ -709,8 +709,8 @@ int main(int argc, char* argv[])
 
             ami_setsiz(tw, 80, 25);
             fputc('\f', tw);
-            fprintf(tw, "*** Getsiz does not match setsiz, x: %ld y: %ld vs. x: %ld y: %ld\n",
-                   x2, y2, xs, y);
+            fprintf(tw, "*** Getsiz does not match setsiz, x: %lld y: %lld vs. x: %lld y: %lld\n",
+                   AMI_LONG_CAST(x2), AMI_LONG_CAST(y2), AMI_LONG_CAST(xs), AMI_LONG_CAST(y));
             fprintf(tw, "*** Getsiz does ! match setsiz\n");
             waitnext();
             longjmp(terminate_buf, 1);
@@ -1462,7 +1462,7 @@ int main(int argc, char* argv[])
     ami_linewidth(tw, 1);
 
     ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (20, 10) client, full frame, window size is: %ld,%ld\n", x, y);
+    fprintf(tw, "For (20, 10) client, full frame, window size is: %lld,%lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1487,7 +1487,7 @@ int main(int argc, char* argv[])
     fprintf(tw, "System bar off\n");
     ami_sysbar(win2, OFF);
     ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize));
-    fprintf(tw, "For (20, 10) client, no system bar, window size is: %ld,%ld\n", x, y);
+    fprintf(tw, "For (20, 10) client, no system bar, window size is: %lld,%lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1513,7 +1513,7 @@ int main(int argc, char* argv[])
     ami_sysbar(win2, ON);
     ami_sizable(win2, OFF);
     ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (20, 10) client, no size bars, window size is: %ld,%ld\n", x, y);
+    fprintf(tw, "For (20, 10) client, no size bars, window size is: %lld,%lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1540,7 +1540,7 @@ int main(int argc, char* argv[])
     ami_sizable(win2, ON);
     ami_frame(win2, OFF);
     ami_winclient(tw, 20, 10, &x, &y, BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (20, 10) client, no frame, window size is: %ld,%ld\n", x, y);
+    fprintf(tw, "For (20, 10) client, no frame, window size is: %lld,%lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsiz(win2, x, y);
     putc('\f', win2);
     ami_fcolor(win2, ami_black);
@@ -1574,38 +1574,38 @@ int main(int argc, char* argv[])
     ami_linewidth(tw, 1);
     ami_fcolor(win2, ami_cyan);
     ami_winclientg(tw, xr, xr, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (%ld, %ld) client, full frame, window size is: %ld,%ld\n", xr, xr, x, y);
+    fprintf(tw, "For (%lld, %lld) client, full frame, window size is: %lld,%lld\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr), AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsizg(win2, x, y);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
     ami_curvis(win2, OFF);
-    fprintf(tw, "Check client window has (%ld, %ld) surface\n", xr, xr);
+    fprintf(tw, "Check client window has (%lld, %lld) surface\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr));
     waitnext();
 
     fprintf(tw, "System bar off\n");
     ami_sysbar(win2, OFF);
     ami_winclientg(tw, xr, xr, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize));
-    fprintf(tw, "For (%ld, %ld) client, no system bar, window size is: %ld,%ld\n", xr, xr, x, y);
+    fprintf(tw, "For (%lld, %lld) client, no system bar, window size is: %lld,%lld\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr), AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsizg(win2, x, y);
     putc('\f', win2);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
-    fprintf(tw, "Check client window has (%ld, %ld) surface\n", xr, xr);
+    fprintf(tw, "Check client window has (%lld, %lld) surface\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr));
     waitnext();
 
     fprintf(tw, "Sizing bars off\n");
     ami_sysbar(win2, ON);
     ami_sizable(win2, OFF);
     ami_winclientg(tw, xr, xr, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (%ld, %ld) client, no sizing, window size is: %ld,%ld\n", xr, xr, x, y);
+    fprintf(tw, "For (%lld, %lld) client, no sizing, window size is: %lld,%lld\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr), AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsizg(win2, x, y);
     putc('\f', win2);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
-    fprintf(tw, "Check client window has (%ld, %ld) surface\n", xr, xr);
+    fprintf(tw, "Check client window has (%lld, %lld) surface\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr));
     waitnext();
 
     fprintf(tw, "frame off\n");
@@ -1613,13 +1613,13 @@ int main(int argc, char* argv[])
     ami_sizable(win2, ON);
     ami_frame(win2, OFF);
     ami_winclientg(tw, xr, xr, &x, &y, BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (%ld, %ld) client, no frame, window size is: %ld,%ld\n", xr, xr, x, y);
+    fprintf(tw, "For (%lld, %lld) client, no frame, window size is: %lld,%lld\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr), AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsizg(win2, x, y);
     putc('\f', win2);
     ami_rect(win2, 1, 1, xr, xr);
     ami_line(win2, 1, 1, xr, xr);
     ami_line(win2, 1, xr, xr, 1);
-    fprintf(tw, "Check client window has (%ld, %ld) surface\n", xr, xr);
+    fprintf(tw, "Check client window has (%lld, %lld) surface\n", AMI_LONG_CAST(xr), AMI_LONG_CAST(xr));
     waitnext();
 
     fclose(win2);
@@ -1636,7 +1636,7 @@ int main(int argc, char* argv[])
     ami_linewidth(tw, 1);
     ami_fcolor(win2, ami_cyan);
     ami_winclientg(tw, 1, 1, &x, &y, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
-    fprintf(tw, "For (200, 200) client, full frame, window size minimum is: %ld,%ld\n", x, y);
+    fprintf(tw, "For (200, 200) client, full frame, window size minimum is: %lld,%lld\n", AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     ami_setsizg(win2, 1, 1);
     ami_getsizg(win2, &x2, &y2);
     waitnext();

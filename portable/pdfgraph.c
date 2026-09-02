@@ -56,6 +56,19 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+/* The document goes to its descriptor byte for byte: Windows would otherwise
+   translate the line ends and put the .pdf's byte offsets out. The null
+   device, where a printer document parks its descriptor, is spelled
+   differently there too. */
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#ifdef _WIN32
+#define NULLDEV "nul"
+#else
+#define NULLDEV "/dev/null"
+#endif
+
 #include <graphics.h>
 
 /* the local library headers do not carry the process pipe calls */
@@ -185,8 +198,8 @@ static const char* fntnam[12] = {
 typedef struct sbuf {
 
     char* s;   /* data */
-    long  len; /* occupied */
-    long  cap; /* allocated */
+    ami_long  len; /* occupied */
+    ami_long  cap; /* allocated */
 
 } sbuf;
 
@@ -204,10 +217,10 @@ typedef struct imgrec* imgptr;
 typedef struct imgrec {
 
     imgptr         next; /* next image */
-    long           w, h; /* dimensions in pixels */
+    ami_long       w, h; /* dimensions in pixels */
     unsigned char* rgb;  /* pixel data, top down, rgb */
-    long           idx;  /* image index in document */
-    long           objn; /* assigned object number */
+    ami_long       idx;  /* image index in document */
+    ami_long       objn; /* assigned object number */
 
 } imgrec;
 
@@ -223,24 +236,24 @@ typedef struct prtrec {
     int    anyops;         /* current page has been marked */
     pgptr  pages;          /* completed pages, in order */
     pgptr  paget;          /* tail of completed pages */
-    long   npages;         /* count of completed pages */
+    ami_long   npages;         /* count of completed pages */
 
     imgptr imgs;           /* document images */
-    long   nimgs;          /* count of document images */
+    ami_long   nimgs;          /* count of document images */
     imgptr pictbl[MAXPIC]; /* loadable picture slots */
 
     /* drawing state */
     int    fr, fg, fb;     /* foreground color, 0-255 */
     int    br, bg, bb;     /* background color, 0-255 */
     mdcod  fmod, bmod;     /* foreground and background raster modes */
-    long   lw;             /* line width */
+    ami_long   lw;             /* line width */
     ami_lstyle lstyle;     /* line style */
     fmcod  fam;            /* font family */
-    long   fontc;          /* logical font code, 1-4 */
-    long   fsiz;           /* font size, the em, in pixels */
-    long   chrx, chry;     /* extra character and line spacing */
-    long   curx, cury;     /* cursor, pixels, 1 based, top left of cell */
-    long   angle;          /* character drawing angle, LONG_MAX ratio */
+    ami_long   fontc;          /* logical font code, 1-4 */
+    ami_long   fsiz;           /* font size, the em, in pixels */
+    ami_long   chrx, chry;     /* extra character and line spacing */
+    ami_long   curx, cury;     /* cursor, pixels, 1 based, top left of cell */
+    ami_long   angle;          /* character drawing angle, LONG_MAX ratio */
     int    aital, abold;   /* italic, bold */
     int    aunder, astrike;/* underline, strikeout */
     int    arev;           /* reverse */
@@ -248,14 +261,14 @@ typedef struct prtrec {
     int    acond, aext;    /* condensed, extended */
     int    autom;          /* auto wrap/eject mode */
     float  vsx, vsy;       /* view scales */
-    long   goffx, goffy;   /* view offsets */
-    long   tabs[MAXTAB];   /* tab stops, pixels, sorted */
+    ami_long   goffx, goffy;   /* view offsets */
+    ami_long   tabs[MAXTAB];   /* tab stops, pixels, sorted */
     int    ntabs;          /* number of tab stops */
 
     /* state as last emitted to the current page, -1 for unknown */
     int    efr, efg, efb;  /* emitted fill color */
     int    esr, esg, esb;  /* emitted stroke color */
-    long   elw;            /* emitted line width */
+    ami_long   elw;            /* emitted line width */
     int    elstyle;        /* emitted line style */
     int    ebm;            /* emitted blend mode */
     int    fntuse[12];     /* fonts used in the document */
@@ -366,7 +379,7 @@ needed.
 
 *******************************************************************************/
 
-static void sbcatn(sbuf* b, const char* d, long n)
+static void sbcatn(sbuf* b, const char* d, ami_long n)
 
 {
 
@@ -435,10 +448,10 @@ static prtptr txt2prt(FILE* f)
 }
 
 /* logical to physical transforms, as the display library */
-#define L2PX(p, v) ((long)((v)*(p)->vsx)+(p)->goffx)
-#define L2PY(p, v) ((long)((v)*(p)->vsy)+(p)->goffy)
-#define L2PW(p, n) ((long)((n)*(p)->vsx))
-#define L2PH(p, n) ((long)((n)*(p)->vsy))
+#define L2PX(p, v) ((ami_long)((v)*(p)->vsx)+(p)->goffx)
+#define L2PY(p, v) ((ami_long)((v)*(p)->vsy)+(p)->goffy)
+#define L2PW(p, n) ((ami_long)((n)*(p)->vsx))
+#define L2PH(p, n) ((ami_long)((n)*(p)->vsy))
 
 /* font variant in use: family*4 + bold*2 + italic */
 static int fntvar(prtptr p)
@@ -450,7 +463,7 @@ static int fntvar(prtptr p)
 }
 
 /* width of a character in em thousandths for the current variant */
-static long thwid(prtptr p, unsigned char c)
+static ami_long thwid(prtptr p, unsigned char c)
 
 {
 
@@ -492,20 +505,20 @@ static double atscl(prtptr p)
 }
 
 /* advance width of a character in pixels */
-static long chwid(prtptr p, unsigned char c)
+static ami_long chwid(prtptr p, unsigned char c)
 
 {
 
-    return ((long)(thwid(p, c)*p->fsiz*atscl(p)/1000.0)+p->chrx);
+    return ((ami_long)(thwid(p, c)*p->fsiz*atscl(p)/1000.0)+p->chrx);
 
 }
 
 /* width of a string in pixels */
-static long strwid(prtptr p, const char* s, long n)
+static ami_long strwid(prtptr p, const char* s, ami_long n)
 
 {
 
-    long w = 0;
+    ami_long w = 0;
 
     while (n--) w += chwid(p, (unsigned char)*s++);
 
@@ -514,11 +527,11 @@ static long strwid(prtptr p, const char* s, long n)
 }
 
 /* character cell width: the widest character of the font */
-static long celwid(prtptr p)
+static ami_long celwid(prtptr p)
 
 {
 
-    long w = 600, i;
+    ami_long w = 600, i;
 
     if (p->fam != fmcour) {
 
@@ -528,12 +541,12 @@ static long celwid(prtptr p)
 
     }
 
-    return ((long)(w*p->fsiz/1000.0)+p->chrx);
+    return ((ami_long)(w*p->fsiz/1000.0)+p->chrx);
 
 }
 
 /* line advance */
-static long linadv(prtptr p)
+static ami_long linadv(prtptr p)
 
 {
 
@@ -542,11 +555,11 @@ static long linadv(prtptr p)
 }
 
 /* ascent of the current font in pixels: top of cell to baseline */
-static long ascpx(prtptr p)
+static ami_long ascpx(prtptr p)
 
 {
 
-    return ((long)(p->fsiz*(double)famasc[p->fam]/
+    return ((ami_long)(p->fsiz*(double)famasc[p->fam]/
                    (famasc[p->fam]+famdsc[p->fam])));
 
 }
@@ -632,18 +645,18 @@ static void emline(prtptr p)
 
 {
 
-    long w = L2PW(p, p->lw);
-    long u;
+    ami_long w = L2PW(p, p->lw);
+    ami_long u;
 
     if (w < 1) w = 1;
-    if (w != p->elw) { sbf(&p->page, "%ld w\n", w); p->elw = w; }
+    if (w != p->elw) { sbf(&p->page, "%lld w\n", AMI_LONG_CAST(w)); p->elw = w; }
     if ((int)p->lstyle != p->elstyle) {
 
         u = w > 6? w: 6; /* keep patterns visible at hairline widths */
         switch (p->lstyle) {
 
-            case ami_lsdash: sbf(&p->page, "[%ld %ld] 0 d\n", u*8, u*4); break;
-            case ami_lsdot:  sbf(&p->page, "[%ld %ld] 0 d\n", u, u*3); break;
+            case ami_lsdash: sbf(&p->page, "[%lld %lld] 0 d\n", AMI_LONG_CAST(u*8), AMI_LONG_CAST(u*4)); break;
+            case ami_lsdot:  sbf(&p->page, "[%lld %lld] 0 d\n", AMI_LONG_CAST(u), AMI_LONG_CAST(u*3)); break;
             default:         sbf(&p->page, "[] 0 d\n");
 
         }
@@ -695,7 +708,7 @@ just as the character cell background paints on a display.
 *******************************************************************************/
 
 /* escape a string into PDF literal form */
-static void emstr(prtptr p, const char* s, long n)
+static void emstr(prtptr p, const char* s, ami_long n)
 
 {
 
@@ -718,16 +731,16 @@ static void emstr(prtptr p, const char* s, long n)
 /* set a text run at the cursor and advance. Spacing, if not NULL, is the
    width each space character is to occupy, with rem extra pixels spread over
    the first spaces, for justified writes. */
-static void emrun(prtptr p, const char* s, long n, long spc, long rem)
+static void emrun(prtptr p, const char* s, ami_long n, ami_long spc, ami_long rem)
 
 {
 
-    long   w, i, a, sw;
-    long   bx, by;
+    ami_long   w, i, a, sw;
+    ami_long   bx, by;
     int    fr, fgc, fb, br, bgc, bb;
-    long   asc;
+    ami_long   asc;
     double th, cs, sn, siz;
-    long   rise;
+    ami_long   rise;
 
     if (!n) return;
     /* the run width */
@@ -755,8 +768,8 @@ static void emrun(prtptr p, const char* s, long n, long spc, long rem)
 
         embm(p, p->bmod);
         emfill(p, br, bgc, bb);
-        sbf(&p->page, "%ld %ld %ld %ld re f\n",
-            bx-1, by-1, L2PW(p, w), L2PH(p, linadv(p)));
+        sbf(&p->page, "%lld %lld %lld %lld re f\n",
+            AMI_LONG_CAST(bx-1), AMI_LONG_CAST(by-1), AMI_LONG_CAST(L2PW(p, w)), AMI_LONG_CAST(L2PH(p, linadv(p))));
 
     }
     if (p->fmod == mdinvis) { p->curx += w; return; }
@@ -766,18 +779,18 @@ static void emrun(prtptr p, const char* s, long n, long spc, long rem)
     asc = ascpx(p);
     siz = p->fsiz*(p->asuper || p->asub? 0.6: 1.0);
     rise = 0;
-    if (p->asuper) rise = (long)(p->fsiz*0.33);
-    if (p->asub) rise = -(long)(p->fsiz*0.15);
+    if (p->asuper) rise = (ami_long)(p->fsiz*0.33);
+    if (p->asub) rise = -(ami_long)(p->fsiz*0.15);
     /* the baseline, rotated by the drawing angle */
     th = ((double)p->angle/LONG_MAX-0.25)*2.0*M_PI;
     cs = cos(th); sn = sin(th);
-    sbf(&p->page, "BT /F%d %.2f Tf\n", fntvar(p), L2PH(p, (long)siz)*1.0);
+    sbf(&p->page, "BT /F%d %.2f Tf\n", fntvar(p), L2PH(p, (ami_long)siz)*1.0);
     if (p->acond || p->aext)
         sbf(&p->page, "%d Tz\n", p->acond? 80: 120);
-    if (p->chrx) sbf(&p->page, "%ld Tc\n", L2PW(p, p->chrx));
-    if (rise) sbf(&p->page, "%ld Ts\n", L2PH(p, rise));
-    sbf(&p->page, "%.4f %.4f %.4f %.4f %ld %ld Tm\n",
-        cs, -sn, -sn, -cs, bx-1, by-1+asc);
+    if (p->chrx) sbf(&p->page, "%lld Tc\n", AMI_LONG_CAST(L2PW(p, p->chrx)));
+    if (rise) sbf(&p->page, "%lld Ts\n", AMI_LONG_CAST(L2PH(p, rise)));
+    sbf(&p->page, "%.4f %.4f %.4f %.4f %lld %lld Tm\n",
+        cs, -sn, -sn, -cs, AMI_LONG_CAST(bx-1), AMI_LONG_CAST(by-1+asc));
     if (spc < 0) { emstr(p, s, n); sbf(&p->page, "Tj ET\n"); }
     else {
 
@@ -795,8 +808,8 @@ static void emrun(prtptr p, const char* s, long n, long spc, long rem)
                 if (rem) { sw++; rem--; }
                 emstr(p, s+i, 1);
                 /* the adjustment is in em thousandths, and subtracts */
-                sbf(&p->page, "%ld ",
-                    -(long)((sw-chwid(p, ' '))*1000.0/(siz*atscl(p)/1.0)));
+                sbf(&p->page, "%lld ",
+                    AMI_LONG_CAST(-(ami_long)((sw-chwid(p, ' '))*1000.0/(siz*atscl(p)/1.0))));
                 i++;
 
             }
@@ -808,13 +821,13 @@ static void emrun(prtptr p, const char* s, long n, long spc, long rem)
     if (p->acond || p->aext) sbf(&p->page, "BT 100 Tz ET\n");
     /* underline and strikeout rules */
     if (p->aunder)
-        sbf(&p->page, "%ld %ld %ld %ld re f\n",
-            bx-1, by-1+asc+(long)(p->fsiz*0.06),
-            L2PW(p, w), (long)(p->fsiz*0.05)+1);
+        sbf(&p->page, "%lld %lld %lld %lld re f\n",
+            AMI_LONG_CAST(bx-1), AMI_LONG_CAST(by-1+asc+(ami_long)(p->fsiz*0.06)),
+            AMI_LONG_CAST(L2PW(p, w)), AMI_LONG_CAST((ami_long)(p->fsiz*0.05)+1));
     if (p->astrike)
-        sbf(&p->page, "%ld %ld %ld %ld re f\n",
-            bx-1, by-1+asc-(long)(asc*0.30),
-            L2PW(p, w), (long)(p->fsiz*0.05)+1);
+        sbf(&p->page, "%lld %lld %lld %lld re f\n",
+            AMI_LONG_CAST(bx-1), AMI_LONG_CAST(by-1+asc-(ami_long)(asc*0.30)),
+            AMI_LONG_CAST(L2PW(p, w)), AMI_LONG_CAST((ami_long)(p->fsiz*0.05)+1));
     p->curx += w;
 
 }
@@ -885,13 +898,13 @@ static void assemble(prtptr p, sbuf* doc)
 
 {
 
-    long   nobj, i, k;
-    long*  off;
-    long   fobj[12];
-    long   gobj[4];
+    ami_long   nobj, i, k;
+    ami_long*  off;
+    ami_long   fobj[12];
+    ami_long   gobj[4];
     imgptr ip;
     pgptr  pg;
-    long   objn, xref;
+    ami_long   objn, xref;
 
     /* if nothing was ever printed, the document is one blank page */
     if (!p->npages && !p->anyops) formfeed(p);
@@ -905,7 +918,7 @@ static void assemble(prtptr p, sbuf* doc)
     for (i = 0; i < 4; i++) gobj[i] = objn++;
     for (ip = p->imgs; ip; ip = ip->next) ip->objn = objn++;
     nobj = objn-1+p->npages*2;
-    off = calloc(nobj+1, sizeof(long));
+    off = calloc(nobj+1, sizeof(ami_long));
     if (!off) error("Out of memory");
 
     sbf(doc, "%%PDF-1.4\n%%\342\343\317\323\n");
@@ -914,9 +927,9 @@ static void assemble(prtptr p, sbuf* doc)
     sbf(doc, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
 
     off[2] = doc->len;
-    sbf(doc, "2 0 obj\n<< /Type /Pages /Count %ld /MediaBox [0 0 %d %d]\n"
-             "/Kids [", p->npages, PDFW, PDFH);
-    for (i = 0; i < p->npages; i++) sbf(doc, "%ld 0 R ", objn+i*2+1);
+    sbf(doc, "2 0 obj\n<< /Type /Pages /Count %lld /MediaBox [0 0 %d %d]\n"
+             "/Kids [", AMI_LONG_CAST(p->npages), PDFW, PDFH);
+    for (i = 0; i < p->npages; i++) sbf(doc, "%lld 0 R ", AMI_LONG_CAST(objn+i*2+1));
     sbf(doc, "] >>\nendobj\n");
 
     off[3] = doc->len;
@@ -940,37 +953,37 @@ static void assemble(prtptr p, sbuf* doc)
     off[4] = doc->len;
     sbf(doc, "4 0 obj\n<< /ProcSet [/PDF /Text /ImageC]\n/Font << ");
     for (i = 0; i < 12; i++)
-        if (fobj[i]) sbf(doc, "/F%ld %ld 0 R ", i, fobj[i]);
+        if (fobj[i]) sbf(doc, "/F%lld %lld 0 R ", AMI_LONG_CAST(i), AMI_LONG_CAST(fobj[i]));
     sbf(doc, ">>\n/ExtGState << ");
-    for (i = 0; i < 4; i++) sbf(doc, "/GS%ld %ld 0 R ", i, gobj[i]);
+    for (i = 0; i < 4; i++) sbf(doc, "/GS%lld %lld 0 R ", AMI_LONG_CAST(i), AMI_LONG_CAST(gobj[i]));
     sbf(doc, ">>\n/XObject << ");
     for (ip = p->imgs; ip; ip = ip->next)
-        sbf(doc, "/Im%ld %ld 0 R ", ip->idx, ip->objn);
+        sbf(doc, "/Im%lld %lld 0 R ", AMI_LONG_CAST(ip->idx), AMI_LONG_CAST(ip->objn));
     sbf(doc, ">> >>\nendobj\n");
 
     for (i = 0; i < 12; i++) if (fobj[i]) {
 
         off[fobj[i]] = doc->len;
-        sbf(doc, "%ld 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /%s "
-                 "/Encoding /WinAnsiEncoding >>\nendobj\n", fobj[i], fntnam[i]);
+        sbf(doc, "%lld 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /%s "
+                 "/Encoding /WinAnsiEncoding >>\nendobj\n", AMI_LONG_CAST(fobj[i]), fntnam[i]);
 
     }
 
     for (i = 0; i < 4; i++) {
 
         off[gobj[i]] = doc->len;
-        sbf(doc, "%ld 0 obj\n<< /Type /ExtGState /BM /%s >>\nendobj\n",
-            gobj[i], bmnames[i]);
+        sbf(doc, "%lld 0 obj\n<< /Type /ExtGState /BM /%s >>\nendobj\n",
+            AMI_LONG_CAST(gobj[i]), bmnames[i]);
 
     }
 
     for (ip = p->imgs; ip; ip = ip->next) {
 
         off[ip->objn] = doc->len;
-        sbf(doc, "%ld 0 obj\n<< /Type /XObject /Subtype /Image /Width %ld "
-                 "/Height %ld /ColorSpace /DeviceRGB /BitsPerComponent 8 "
-                 "/Length %ld >>\nstream\n", ip->objn, ip->w, ip->h,
-                 ip->w*ip->h*3);
+        sbf(doc, "%lld 0 obj\n<< /Type /XObject /Subtype /Image /Width %lld "
+                 "/Height %lld /ColorSpace /DeviceRGB /BitsPerComponent 8 "
+                 "/Length %lld >>\nstream\n", AMI_LONG_CAST(ip->objn), AMI_LONG_CAST(ip->w), AMI_LONG_CAST(ip->h),
+                 AMI_LONG_CAST(ip->w*ip->h*3));
         sbcatn(doc, (char*)ip->rgb, ip->w*ip->h*3);
         sbf(doc, "\nendstream\nendobj\n");
 
@@ -980,21 +993,21 @@ static void assemble(prtptr p, sbuf* doc)
     for (pg = p->pages; pg; pg = pg->next) {
 
         off[k] = doc->len;
-        sbf(doc, "%ld 0 obj\n<< /Length %ld >>\nstream\n", k, pg->cs.len);
+        sbf(doc, "%lld 0 obj\n<< /Length %lld >>\nstream\n", AMI_LONG_CAST(k), AMI_LONG_CAST(pg->cs.len));
         sbcatn(doc, pg->cs.s, pg->cs.len);
         sbf(doc, "endstream\nendobj\n");
         off[k+1] = doc->len;
-        sbf(doc, "%ld 0 obj\n<< /Type /Page /Parent 2 0 R /Resources 4 0 R "
-                 "/Contents %ld 0 R >>\nendobj\n", k+1, k);
+        sbf(doc, "%lld 0 obj\n<< /Type /Page /Parent 2 0 R /Resources 4 0 R "
+                 "/Contents %lld 0 R >>\nendobj\n", AMI_LONG_CAST(k+1), AMI_LONG_CAST(k));
         k += 2;
 
     }
 
     xref = doc->len;
-    sbf(doc, "xref\n0 %ld\n0000000000 65535 f \n", nobj+1);
-    for (i = 1; i <= nobj; i++) sbf(doc, "%010ld 00000 n \n", off[i]);
-    sbf(doc, "trailer\n<< /Size %ld /Root 1 0 R /Info 3 0 R >>\n"
-             "startxref\n%ld\n%%%%EOF\n", nobj+1, xref);
+    sbf(doc, "xref\n0 %lld\n0000000000 65535 f \n", AMI_LONG_CAST(nobj+1));
+    for (i = 1; i <= nobj; i++) sbf(doc, "%010lld 00000 n \n", AMI_LONG_CAST(off[i]));
+    sbf(doc, "trailer\n<< /Size %lld /Root 1 0 R /Info 3 0 R >>\n"
+             "startxref\n%lld\n%%%%EOF\n", AMI_LONG_CAST(nobj+1), AMI_LONG_CAST(xref));
     free(off);
 
 }
@@ -1013,7 +1026,7 @@ static void prtout(int fd, prtptr p)
 {
 
     sbuf    doc = { NULL, 0, 0 };
-    long    i;
+    ami_long    i;
     ssize_t r;
     char    cmd[MAXPDEV+32];
     FILE*   pf;
@@ -1122,7 +1135,7 @@ void ami_openprint(FILE** f, char* n)
     prtptr p;
     int    fd, i;
     char*  cp;
-    long   pn;
+    ami_long   pn;
 
     p = calloc(1, sizeof(prtrec));
     if (!p) error("Out of memory");
@@ -1140,9 +1153,9 @@ void ami_openprint(FILE** f, char* n)
 
         }
         /* the descriptor only anchors the file id */
-        fd = open("/dev/null", O_WRONLY);
+        fd = open(NULLDEV, O_WRONLY);
 
-    } else fd = open(n, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    } else fd = open(n, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 0666);
     if (fd < 0) error("Cannot open print file");
     if (fd >= MAXPFIL) error("Invalid file handle");
 
@@ -1161,7 +1174,7 @@ void ami_openprint(FILE** f, char* n)
     prthome(p);
     /* tabs every 8 characters, as a terminal presents */
     for (i = 1; i*8*60+1 < PAGEW && p->ntabs < MAXTAB; i++)
-        p->tabs[p->ntabs++] = (long)i*8*60+1;
+        p->tabs[p->ntabs++] = (ami_long)i*8*60+1;
     prtfil[fd] = p;
 
     *f = fdopen(fd, "w");
@@ -1188,7 +1201,7 @@ static ssize_t iwrite(int fd, const void* buf, size_t n)
     prtptr      p;
     const char* s = buf;
     size_t      i = 0;
-    long        a, w;
+    ami_long    a, w;
 
     if (fd < 0 || fd >= MAXPFIL || !prtfil[fd])
         return ((*dn_write)(fd, buf, n));
@@ -1204,7 +1217,7 @@ static ssize_t iwrite(int fd, const void* buf, size_t n)
             while (i < n && (unsigned char)s[i] >= 32 &&
                    (unsigned char)s[i] != 127) {
 
-                long cw = chwid(p, (unsigned char)s[i]);
+                ami_long cw = chwid(p, (unsigned char)s[i]);
                 if (p->autom && p->curx+w+cw-1 > PAGEW) break;
                 w += cw;
                 i++;
@@ -1269,7 +1282,7 @@ static void noinput(void) { error("No input from a print file"); }
 
 /* terminal level */
 
-static void cursor_pvf(FILE* f, long x, long y)
+static void cursor_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_cursor)(f, x, y); return; }
@@ -1277,14 +1290,14 @@ static void cursor_pvf(FILE* f, long x, long y)
     p->cury = (y-1)*linadv(p)+1;
 }
 
-static long maxx_pvf(FILE* f)
+static ami_long maxx_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_maxx)(f));
     return (PAGEW/celwid(p));
 }
 
-static long maxy_pvf(FILE* f)
+static ami_long maxy_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_maxy)(f));
@@ -1301,7 +1314,7 @@ static void home_pvf(FILE* f)
 static void del_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
-    long w;
+    ami_long w;
     if (!p) { (*dn_del)(f); return; }
     w = celwid(p);
     p->curx -= w;
@@ -1312,9 +1325,9 @@ static void del_pvf(FILE* f)
         pagebeg(p);
         embm(p, p->bmod);
         emfill(p, p->br, p->bg, p->bb);
-        sbf(&p->page, "%ld %ld %ld %ld re f\n",
-            L2PX(p, p->curx)-1, L2PY(p, p->cury)-1,
-            L2PW(p, w), L2PH(p, linadv(p)));
+        sbf(&p->page, "%lld %lld %lld %lld re f\n",
+            AMI_LONG_CAST(L2PX(p, p->curx)-1), AMI_LONG_CAST(L2PY(p, p->cury)-1),
+            AMI_LONG_CAST(L2PW(p, w)), AMI_LONG_CAST(L2PH(p, linadv(p))));
 
     }
 }
@@ -1349,61 +1362,61 @@ static void right_pvf(FILE* f)
 
 /* attributes. Blink does not exist on paper, as the manual notes. */
 
-static void blink_pvf(FILE* f, long e)
+static void blink_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_blink)(f, e);
 }
 
-static void reverse_pvf(FILE* f, long e)
+static void reverse_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_reverse)(f, e); return; }
     p->arev = !!e;
 }
 
-static void underline_pvf(FILE* f, long e)
+static void underline_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_underline)(f, e); return; }
     p->aunder = !!e;
 }
 
-static void superscript_pvf(FILE* f, long e)
+static void superscript_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_superscript)(f, e); return; }
     p->asuper = !!e;
 }
 
-static void subscript_pvf(FILE* f, long e)
+static void subscript_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_subscript)(f, e); return; }
     p->asub = !!e;
 }
 
-static void italic_pvf(FILE* f, long e)
+static void italic_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_italic)(f, e); return; }
     p->aital = !!e;
 }
 
-static void bold_pvf(FILE* f, long e)
+static void bold_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_bold)(f, e); return; }
     p->abold = !!e;
 }
 
-static void strikeout_pvf(FILE* f, long e)
+static void strikeout_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_strikeout)(f, e); return; }
     p->astrike = !!e;
 }
 
-static void standout_pvf(FILE* f, long e)
+static void standout_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_standout)(f, e); return; }
@@ -1445,74 +1458,74 @@ static void bcolor_pvf(FILE* f, ami_color c)
 }
 
 /* LONG_MAX ratio to color byte */
-static int ratb(long v)
+static int ratb(ami_long v)
 {
     if (v < 0) v = 0;
     return ((int)(v/(LONG_MAX/255)));
 }
 
-static void fcolorg_pvf(FILE* f, long r, long g, long b)
+static void fcolorg_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_fcolorg)(f, r, g, b); return; }
     p->fr = ratb(r); p->fg = ratb(g); p->fb = ratb(b);
 }
 
-static void fcolorc_pvf(FILE* f, long r, long g, long b)
+static void fcolorc_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_fcolorc)(f, r, g, b); return; }
     p->fr = ratb(r); p->fg = ratb(g); p->fb = ratb(b);
 }
 
-static void bcolorg_pvf(FILE* f, long r, long g, long b)
+static void bcolorg_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_bcolorg)(f, r, g, b); return; }
     p->br = ratb(r); p->bg = ratb(g); p->bb = ratb(b);
 }
 
-static void bcolorc_pvf(FILE* f, long r, long g, long b)
+static void bcolorc_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_bcolorc)(f, r, g, b); return; }
     p->br = ratb(r); p->bg = ratb(g); p->bb = ratb(b);
 }
 
-static void auto_pvf(FILE* f, long e)
+static void auto_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_auto)(f, e); return; }
     p->autom = !!e;
 }
 
-static void curvis_pvf(FILE* f, long e)
+static void curvis_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_curvis)(f, e);
     /* there is no cursor on paper */
 }
 
-static void scroll_pvf(FILE* f, long x, long y)
+static void scroll_pvf(FILE* f, ami_long x, ami_long y)
 {
     if (!txt2prt(f)) { (*dn_scroll)(f, x, y); return; }
     error("Cannot scroll a print file");
 }
 
-static long curx_pvf(FILE* f)
+static ami_long curx_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_curx)(f));
     return ((p->curx-1)/celwid(p)+1);
 }
 
-static long cury_pvf(FILE* f)
+static ami_long cury_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_cury)(f));
     return ((p->cury-1)/linadv(p)+1);
 }
 
-static long curbnd_pvf(FILE* f)
+static ami_long curbnd_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_curbnd)(f));
@@ -1522,7 +1535,7 @@ static long curbnd_pvf(FILE* f)
 
 /* the input side does not exist on a print file */
 
-static void select_pvf(FILE* f, long u, long d)
+static void select_pvf(FILE* f, ami_long u, ami_long d)
 {
     if (!txt2prt(f)) { (*dn_select)(f, u, d); return; }
     error("Cannot select screens on a print file");
@@ -1534,61 +1547,61 @@ static void event_pvf(FILE* f, ami_evtrec* er)
     noinput();
 }
 
-static void timer_pvf(FILE* f, long i, long t, long r)
+static void timer_pvf(FILE* f, ami_long i, ami_long t, ami_long r)
 {
     if (!txt2prt(f)) { (*dn_timer)(f, i, t, r); return; }
     noinput();
 }
 
-static void killtimer_pvf(FILE* f, long i)
+static void killtimer_pvf(FILE* f, ami_long i)
 {
     if (!txt2prt(f)) { (*dn_killtimer)(f, i); return; }
     noinput();
 }
 
-static long mouse_pvf(FILE* f)
+static ami_long mouse_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_mouse)(f));
     noinput();
     return (0);
 }
 
-static long mousebutton_pvf(FILE* f, long m)
+static ami_long mousebutton_pvf(FILE* f, ami_long m)
 {
     if (!txt2prt(f)) return ((*dn_mousebutton)(f, m));
     noinput();
     return (0);
 }
 
-static long joystick_pvf(FILE* f)
+static ami_long joystick_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_joystick)(f));
     noinput();
     return (0);
 }
 
-static long joybutton_pvf(FILE* f, long j)
+static ami_long joybutton_pvf(FILE* f, ami_long j)
 {
     if (!txt2prt(f)) return ((*dn_joybutton)(f, j));
     noinput();
     return (0);
 }
 
-static long joyaxis_pvf(FILE* f, long j)
+static ami_long joyaxis_pvf(FILE* f, ami_long j)
 {
     if (!txt2prt(f)) return ((*dn_joyaxis)(f, j));
     noinput();
     return (0);
 }
 
-static long funkey_pvf(FILE* f)
+static ami_long funkey_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_funkey)(f));
     noinput();
     return (0);
 }
 
-static void frametimer_pvf(FILE* f, long e)
+static void frametimer_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) { (*dn_frametimer)(f, e); return; }
     noinput();
@@ -1602,7 +1615,7 @@ static void sendevent_pvf(FILE* f, ami_evtrec* er)
 
 /* tabs */
 
-static void instab(prtptr p, long t)
+static void instab(prtptr p, ami_long t)
 {
     int i, j;
     for (i = 0; i < p->ntabs; i++) {
@@ -1617,7 +1630,7 @@ static void instab(prtptr p, long t)
     p->ntabs++;
 }
 
-static void remtab(prtptr p, long t)
+static void remtab(prtptr p, ami_long t)
 {
     int i, j;
     for (i = 0; i < p->ntabs; i++) if (p->tabs[i] == t) {
@@ -1629,14 +1642,14 @@ static void remtab(prtptr p, long t)
     }
 }
 
-static void settab_pvf(FILE* f, long t)
+static void settab_pvf(FILE* f, ami_long t)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_settab)(f, t); return; }
     instab(p, (t-1)*celwid(p)+1);
 }
 
-static void restab_pvf(FILE* f, long t)
+static void restab_pvf(FILE* f, ami_long t)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_restab)(f, t); return; }
@@ -1650,14 +1663,14 @@ static void clrtab_pvf(FILE* f)
     p->ntabs = 0;
 }
 
-static void settabg_pvf(FILE* f, long t)
+static void settabg_pvf(FILE* f, ami_long t)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_settabg)(f, t); return; }
     instab(p, t);
 }
 
-static void restabg_pvf(FILE* f, long t)
+static void restabg_pvf(FILE* f, ami_long t)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_restabg)(f, t); return; }
@@ -1673,14 +1686,14 @@ static void wrtstr_pvf(FILE* f, char* s)
     emrun(p, s, strlen(s), -1, 0);
 }
 
-static void wrtstrn_pvf(FILE* f, char* s, long n)
+static void wrtstrn_pvf(FILE* f, char* s, ami_long n)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_wrtstrn)(f, s, n); return; }
     emrun(p, s, n, -1, 0);
 }
 
-static void sizbuf_pvf(FILE* f, long x, long y)
+static void sizbuf_pvf(FILE* f, ami_long x, ami_long y)
 {
     if (!txt2prt(f)) { (*dn_sizbuf)(f, x, y); return; }
     error("Cannot resize a print page");
@@ -1699,33 +1712,33 @@ static void title_pvf(FILE* f, char* ts)
 
 /* graphical level */
 
-static long maxxg_pvf(FILE* f)
+static ami_long maxxg_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_maxxg)(f));
     return (PAGEW);
 }
 
-static long maxyg_pvf(FILE* f)
+static ami_long maxyg_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_maxyg)(f));
     return (PAGEH);
 }
 
-static long curxg_pvf(FILE* f)
+static ami_long curxg_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_curxg)(f));
     return (p->curx);
 }
 
-static long curyg_pvf(FILE* f)
+static ami_long curyg_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_curyg)(f));
     return (p->cury);
 }
 
-static void cursorg_pvf(FILE* f, long x, long y)
+static void cursorg_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_cursorg)(f, x, y); return; }
@@ -1733,14 +1746,14 @@ static void cursorg_pvf(FILE* f, long x, long y)
     p->cury = y;
 }
 
-static long baseline_pvf(FILE* f)
+static ami_long baseline_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_baseline)(f));
     return (ascpx(p));
 }
 
-static void line_pvf(FILE* f, long x1, long y1, long x2, long y2)
+static void line_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_line)(f, x1, y1, x2, y2); return; }
@@ -1749,7 +1762,7 @@ static void line_pvf(FILE* f, long x1, long y1, long x2, long y2)
         L2PX(p, x1)-0.5, L2PY(p, y1)-0.5, L2PX(p, x2)-0.5, L2PY(p, y2)-0.5);
 }
 
-static void linewidth_pvf(FILE* f, long w)
+static void linewidth_pvf(FILE* f, ami_long w)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_linewidth)(f, w); return; }
@@ -1764,14 +1777,14 @@ static void linestyle_pvf(FILE* f, ami_lstyle style)
 }
 
 /* rationalize a rectangle to right/down */
-static void ratrect(long* x1, long* y1, long* x2, long* y2)
+static void ratrect(ami_long* x1, ami_long* y1, ami_long* x2, ami_long* y2)
 {
-    long t;
+    ami_long t;
     if (*x1 > *x2) { t = *x1; *x1 = *x2; *x2 = t; }
     if (*y1 > *y2) { t = *y1; *y1 = *y2; *y2 = t; }
 }
 
-static void rect_pvf(FILE* f, long x1, long y1, long x2, long y2)
+static void rect_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_rect)(f, x1, y1, x2, y2); return; }
@@ -1782,19 +1795,19 @@ static void rect_pvf(FILE* f, long x1, long y1, long x2, long y2)
         (double)L2PW(p, x2-x1+1)-1, (double)L2PH(p, y2-y1+1)-1);
 }
 
-static void frect_pvf(FILE* f, long x1, long y1, long x2, long y2)
+static void frect_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_frect)(f, x1, y1, x2, y2); return; }
     ratrect(&x1, &y1, &x2, &y2);
     if (!fillpre(p)) return;
-    sbf(&p->page, "%ld %ld %ld %ld re f\n",
-        L2PX(p, x1)-1, L2PY(p, y1)-1, L2PW(p, x2-x1+1), L2PH(p, y2-y1+1));
+    sbf(&p->page, "%lld %lld %lld %lld re f\n",
+        AMI_LONG_CAST(L2PX(p, x1)-1), AMI_LONG_CAST(L2PY(p, y1)-1), AMI_LONG_CAST(L2PW(p, x2-x1+1)), AMI_LONG_CAST(L2PH(p, y2-y1+1)));
 }
 
 /* emit a rounded rectangle path */
-static void rrpath(prtptr p, long x1, long y1, long x2, long y2,
-                   long xs, long ys)
+static void rrpath(prtptr p, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                   ami_long xs, ami_long ys)
 {
     double l = L2PX(p, x1)-1, t = L2PY(p, y1)-1;
     double r = l+L2PW(p, x2-x1+1), b = t+L2PH(p, y2-y1+1);
@@ -1814,8 +1827,8 @@ static void rrpath(prtptr p, long x1, long y1, long x2, long y2,
         l, t+ry,  l, t+ry-k*ry,  l+rx-k*rx, t,  l+rx, t);
 }
 
-static void rrect_pvf(FILE* f, long x1, long y1, long x2, long y2,
-                      long xs, long ys)
+static void rrect_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                      ami_long xs, ami_long ys)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_rrect)(f, x1, y1, x2, y2, xs, ys); return; }
@@ -1825,8 +1838,8 @@ static void rrect_pvf(FILE* f, long x1, long y1, long x2, long y2,
     sbf(&p->page, "S\n");
 }
 
-static void frrect_pvf(FILE* f, long x1, long y1, long x2, long y2,
-                       long xs, long ys)
+static void frrect_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                       ami_long xs, ami_long ys)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_frrect)(f, x1, y1, x2, y2, xs, ys); return; }
@@ -1864,7 +1877,7 @@ static void arcsegs(prtptr p, double cx, double cy, double rx, double ry,
 }
 
 /* find center and radii of the bounding rectangle */
-static void elpparm(prtptr p, long x1, long y1, long x2, long y2,
+static void elpparm(prtptr p, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
                     double* cx, double* cy, double* rx, double* ry)
 {
     double l = L2PX(p, x1)-1, t = L2PY(p, y1)-1;
@@ -1874,7 +1887,7 @@ static void elpparm(prtptr p, long x1, long y1, long x2, long y2,
     *rx = w/2; *ry = h/2;
 }
 
-static void ellipse_pvf(FILE* f, long x1, long y1, long x2, long y2)
+static void ellipse_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     prtptr p = txt2prt(f);
     double cx, cy, rx, ry;
@@ -1886,7 +1899,7 @@ static void ellipse_pvf(FILE* f, long x1, long y1, long x2, long y2)
     sbf(&p->page, "h S\n");
 }
 
-static void fellipse_pvf(FILE* f, long x1, long y1, long x2, long y2)
+static void fellipse_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     prtptr p = txt2prt(f);
     double cx, cy, rx, ry;
@@ -1899,13 +1912,13 @@ static void fellipse_pvf(FILE* f, long x1, long y1, long x2, long y2)
 }
 
 /* arc angle in LONG_MAX ratio to radians */
-static double arcrad(long a)
+static double arcrad(ami_long a)
 {
     return ((double)a/LONG_MAX*2.0*M_PI);
 }
 
-static void arc_pvf(FILE* f, long x1, long y1, long x2, long y2,
-                    long sa, long ea)
+static void arc_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                    ami_long sa, ami_long ea)
 {
     prtptr p = txt2prt(f);
     double cx, cy, rx, ry;
@@ -1918,8 +1931,8 @@ static void arc_pvf(FILE* f, long x1, long y1, long x2, long y2,
     sbf(&p->page, "S\n");
 }
 
-static void farc_pvf(FILE* f, long x1, long y1, long x2, long y2,
-                     long sa, long ea)
+static void farc_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                     ami_long sa, ami_long ea)
 {
     prtptr p = txt2prt(f);
     double cx, cy, rx, ry;
@@ -1935,8 +1948,8 @@ static void farc_pvf(FILE* f, long x1, long y1, long x2, long y2,
     sbf(&p->page, "h f\n");
 }
 
-static void fchord_pvf(FILE* f, long x1, long y1, long x2, long y2,
-                       long sa, long ea)
+static void fchord_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                       ami_long sa, ami_long ea)
 {
     prtptr p = txt2prt(f);
     double cx, cy, rx, ry;
@@ -1949,23 +1962,23 @@ static void fchord_pvf(FILE* f, long x1, long y1, long x2, long y2,
     sbf(&p->page, "h f\n");
 }
 
-static void ftriangle_pvf(FILE* f, long x1, long y1, long x2, long y2,
-                          long x3, long y3)
+static void ftriangle_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                          ami_long x3, ami_long y3)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_ftriangle)(f, x1, y1, x2, y2, x3, y3); return; }
     if (!fillpre(p)) return;
-    sbf(&p->page, "%ld %ld m %ld %ld l %ld %ld l h f\n",
-        L2PX(p, x1)-1, L2PY(p, y1)-1, L2PX(p, x2)-1, L2PY(p, y2)-1,
-        L2PX(p, x3)-1, L2PY(p, y3)-1);
+    sbf(&p->page, "%lld %lld m %lld %lld l %lld %lld l h f\n",
+        AMI_LONG_CAST(L2PX(p, x1)-1), AMI_LONG_CAST(L2PY(p, y1)-1), AMI_LONG_CAST(L2PX(p, x2)-1), AMI_LONG_CAST(L2PY(p, y2)-1),
+        AMI_LONG_CAST(L2PX(p, x3)-1), AMI_LONG_CAST(L2PY(p, y3)-1));
 }
 
-static void setpixel_pvf(FILE* f, long x, long y)
+static void setpixel_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_setpixel)(f, x, y); return; }
     if (!fillpre(p)) return;
-    sbf(&p->page, "%ld %ld 1 1 re f\n", L2PX(p, x)-1, L2PY(p, y)-1);
+    sbf(&p->page, "%lld %lld 1 1 re f\n", AMI_LONG_CAST(L2PX(p, x)-1), AMI_LONG_CAST(L2PY(p, y)-1));
 }
 
 /* raster modes */
@@ -2042,27 +2055,27 @@ static void bor_pvf(FILE* f)
 
 /* fonts and metrics */
 
-static long chrsizx_pvf(FILE* f)
+static ami_long chrsizx_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_chrsizx)(f));
     return (celwid(p));
 }
 
-static long chrsizy_pvf(FILE* f)
+static ami_long chrsizy_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_chrsizy)(f));
     return (linadv(p));
 }
 
-static long fonts_pvf(FILE* f)
+static ami_long fonts_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_fonts)(f));
     return (4); /* the standard set */
 }
 
-static void font_pvf(FILE* f, long fc)
+static void font_pvf(FILE* f, ami_long fc)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_font)(f, fc); return; }
@@ -2079,7 +2092,7 @@ static void font_pvf(FILE* f, long fc)
     p->fontc = fc;
 }
 
-static void fontnam_pvf(FILE* f, long fc, char* fns, long fnsl)
+static void fontnam_pvf(FILE* f, ami_long fc, char* fns, ami_long fnsl)
 {
     const char* s;
     if (!txt2prt(f)) { (*dn_fontnam)(f, fc, fns, fnsl); return; }
@@ -2096,7 +2109,7 @@ static void fontnam_pvf(FILE* f, long fc, char* fns, long fnsl)
 
 }
 
-static void fontsiz_pvf(FILE* f, long s)
+static void fontsiz_pvf(FILE* f, ami_long s)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_fontsiz)(f, s); return; }
@@ -2109,7 +2122,7 @@ static void setpoints_pvf(FILE* f, float ps)
     prtptr p = txt2prt(f);
     if (!p) { (*dn_setpoints)(f, ps); return; }
     if (ps <= 0) error("Invalid font size");
-    p->fsiz = (long)(ps/72.0*PAGEDPI+0.5);
+    p->fsiz = (ami_long)(ps/72.0*PAGEDPI+0.5);
 }
 
 static float points_pvf(FILE* f)
@@ -2119,44 +2132,44 @@ static float points_pvf(FILE* f)
     return ((float)p->fsiz*72.0/PAGEDPI);
 }
 
-static void chrspcy_pvf(FILE* f, long s)
+static void chrspcy_pvf(FILE* f, ami_long s)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_chrspcy)(f, s); return; }
     p->chry = s;
 }
 
-static void chrspcx_pvf(FILE* f, long s)
+static void chrspcx_pvf(FILE* f, ami_long s)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_chrspcx)(f, s); return; }
     p->chrx = s;
 }
 
-static long dpmx_pvf(FILE* f)
+static ami_long dpmx_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_dpmx)(f));
-    return ((long)(PAGEDPI/0.0254+0.5));
+    return ((ami_long)(PAGEDPI/0.0254+0.5));
 }
 
-static long dpmy_pvf(FILE* f)
+static ami_long dpmy_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_dpmy)(f));
-    return ((long)(PAGEDPI/0.0254+0.5));
+    return ((ami_long)(PAGEDPI/0.0254+0.5));
 }
 
-static long strsiz_pvf(FILE* f, const char* s)
+static ami_long strsiz_pvf(FILE* f, const char* s)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_strsiz)(f, s));
     return (strwid(p, s, strlen(s)));
 }
 
-static long chrpos_pvf(FILE* f, const char* s, long q)
+static ami_long chrpos_pvf(FILE* f, const char* s, ami_long q)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_chrpos)(f, s, q));
-    if (q < 0 || q >= (long)strlen(s)) error("String index out of range");
+    if (q < 0 || q >= (ami_long)strlen(s)) error("String index out of range");
     return (strwid(p, s, q));
 }
 
@@ -2164,9 +2177,9 @@ static long chrpos_pvf(FILE* f, const char* s, long q)
 
 /* find justified space width and remainder for width n, as the display
    library */
-static void jstparm(prtptr p, const char* s, long n, long* spc, long* rem)
+static void jstparm(prtptr p, const char* s, ami_long n, ami_long* spc, ami_long* rem)
 {
-    long l = strlen(s), i, ns = 0, cs = 0, sz = 0;
+    ami_long l = strlen(s), i, ns = 0, cs = 0, sz = 0;
 
     for (i = 0; i < l; i++)
         if (s[i] == ' ') { sz += MINJST; ns++; }
@@ -2182,21 +2195,21 @@ static void jstparm(prtptr p, const char* s, long n, long* spc, long* rem)
     }
 }
 
-static void writejust_pvf(FILE* f, const char* s, long n)
+static void writejust_pvf(FILE* f, const char* s, ami_long n)
 {
     prtptr p = txt2prt(f);
-    long spc, rem;
+    ami_long spc, rem;
     if (!p) { (*dn_writejust)(f, s, n); return; }
     jstparm(p, s, n, &spc, &rem);
     emrun(p, s, strlen(s), spc, rem);
 }
 
-static long justpos_pvf(FILE* f, const char* s, long q, long n)
+static ami_long justpos_pvf(FILE* f, const char* s, ami_long q, ami_long n)
 {
     prtptr p = txt2prt(f);
-    long spc, rem, cp = 0, i;
+    ami_long spc, rem, cp = 0, i;
     if (!p) return ((*dn_justpos)(f, s, q, n));
-    if (q < 0 || q >= (long)strlen(s)) error("String index out of range");
+    if (q < 0 || q >= (ami_long)strlen(s)) error("String index out of range");
     jstparm(p, s, n, &spc, &rem);
     for (i = 0; i < q; i++)
         if (s[i] == ' ') { cp += spc; if (rem) { cp++; rem--; } }
@@ -2204,14 +2217,14 @@ static long justpos_pvf(FILE* f, const char* s, long q, long n)
     return (cp);
 }
 
-static void condensed_pvf(FILE* f, long e)
+static void condensed_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_condensed)(f, e); return; }
     p->acond = !!e;
 }
 
-static void extended_pvf(FILE* f, long e)
+static void extended_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_extended)(f, e); return; }
@@ -2221,40 +2234,40 @@ static void extended_pvf(FILE* f, long e)
 /* the weights and effects the standard fonts do not carry are quietly
    without effect, as they are on displays without them */
 
-static void xlight_pvf(FILE* f, long e)
+static void xlight_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_xlight)(f, e);
 }
 
-static void light_pvf(FILE* f, long e)
+static void light_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_light)(f, e);
 }
 
-static void xbold_pvf(FILE* f, long e)
+static void xbold_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_xbold)(f, e);
 }
 
-static void hollow_pvf(FILE* f, long e)
+static void hollow_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_hollow)(f, e);
 }
 
-static void raised_pvf(FILE* f, long e)
+static void raised_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_raised)(f, e);
 }
 
 /* pictures */
 
-static unsigned long rd32(FILE* pf)
+static ami_ulong rd32(FILE* pf)
 {
-    unsigned long v;
+    ami_ulong v;
     v = getc(pf);
-    v |= (unsigned long)getc(pf) << 8;
-    v |= (unsigned long)getc(pf) << 16;
-    v |= (unsigned long)getc(pf) << 24;
+    v |= (ami_ulong)getc(pf) << 8;
+    v |= (ami_ulong)getc(pf) << 16;
+    v |= (ami_ulong)getc(pf) << 24;
     return (v);
 }
 
@@ -2266,13 +2279,13 @@ static unsigned int rd16(FILE* pf)
     return (v);
 }
 
-static void loadpict_pvf(FILE* f, long pn, char* fn)
+static void loadpict_pvf(FILE* f, ami_long pn, char* fn)
 {
     prtptr p = txt2prt(f);
     FILE*  pf;
     imgptr ip;
     char   fnb[256];
-    long   dofs, w, h, i, x;
+    ami_long   dofs, w, h, i, x;
     int    bot;
 
     if (!p) { (*dn_loadpict)(f, pn, fn); return; }
@@ -2287,8 +2300,8 @@ static void loadpict_pvf(FILE* f, long pn, char* fn)
     rd32(pf); rd32(pf); /* file size, reserved */
     dofs = rd32(pf);
     rd32(pf); /* header size */
-    w = (long)(int)rd32(pf);
-    h = (long)(int)rd32(pf);
+    w = (ami_long)(int)rd32(pf);
+    h = (ami_long)(int)rd32(pf);
     bot = h > 0; /* bottom up rows */
     if (h < 0) h = -h;
     rd16(pf); /* planes */
@@ -2304,7 +2317,7 @@ static void loadpict_pvf(FILE* f, long pn, char* fn)
     fseek(pf, dofs, SEEK_SET);
     for (i = 0; i < h; i++) {
 
-        long r = bot? h-1-i: i; /* destination row, top down */
+        ami_long r = bot? h-1-i: i; /* destination row, top down */
         unsigned char* d = ip->rgb+r*w*3;
         for (x = 0; x < w; x++) {
 
@@ -2325,7 +2338,7 @@ static void loadpict_pvf(FILE* f, long pn, char* fn)
     p->pictbl[pn-1] = ip;
 }
 
-static long pictsizx_pvf(FILE* f, long pn)
+static ami_long pictsizx_pvf(FILE* f, ami_long pn)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_pictsizx)(f, pn));
@@ -2334,7 +2347,7 @@ static long pictsizx_pvf(FILE* f, long pn)
     return (p->pictbl[pn-1]->w);
 }
 
-static long pictsizy_pvf(FILE* f, long pn)
+static ami_long pictsizy_pvf(FILE* f, ami_long pn)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_pictsizy)(f, pn));
@@ -2343,10 +2356,10 @@ static long pictsizy_pvf(FILE* f, long pn)
     return (p->pictbl[pn-1]->h);
 }
 
-static void picture_pvf(FILE* f, long pn, long x1, long y1, long x2, long y2)
+static void picture_pvf(FILE* f, ami_long pn, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     prtptr p = txt2prt(f);
-    long   x, y, w, h;
+    ami_long   x, y, w, h;
     if (!p) { (*dn_picture)(f, pn, x1, y1, x2, y2); return; }
     if (pn < 1 || pn > MAXPIC || !p->pictbl[pn-1])
         error("Invalid picture handle");
@@ -2355,11 +2368,11 @@ static void picture_pvf(FILE* f, long pn, long x1, long y1, long x2, long y2)
     x = L2PX(p, x1)-1; y = L2PY(p, y1)-1;
     w = L2PW(p, x2-x1+1); h = L2PH(p, y2-y1+1);
     /* the image unit square is y up; stand it on its feet in page space */
-    sbf(&p->page, "q %ld 0 0 %ld %ld %ld cm /Im%ld Do Q\n",
-        w, -h, x, y+h, p->pictbl[pn-1]->idx);
+    sbf(&p->page, "q %lld 0 0 %lld %lld %lld cm /Im%lld Do Q\n",
+        AMI_LONG_CAST(w), AMI_LONG_CAST(-h), AMI_LONG_CAST(x), AMI_LONG_CAST(y+h), AMI_LONG_CAST(p->pictbl[pn-1]->idx));
 }
 
-static void delpict_pvf(FILE* f, long pn)
+static void delpict_pvf(FILE* f, ami_long pn)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_delpict)(f, pn); return; }
@@ -2371,13 +2384,13 @@ static void delpict_pvf(FILE* f, long pn)
 
 /* views and transforms */
 
-static void scrollg_pvf(FILE* f, long x, long y)
+static void scrollg_pvf(FILE* f, ami_long x, ami_long y)
 {
     if (!txt2prt(f)) { (*dn_scrollg)(f, x, y); return; }
     error("Cannot scroll a print file");
 }
 
-static void path_pvf(FILE* f, long a)
+static void path_pvf(FILE* f, ami_long a)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_path)(f, a); return; }
@@ -2385,7 +2398,7 @@ static void path_pvf(FILE* f, long a)
     p->angle = a;
 }
 
-static void viewoffg_pvf(FILE* f, long x, long y)
+static void viewoffg_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_viewoffg)(f, x, y); return; }
@@ -2401,23 +2414,23 @@ static void viewscale_pvf(FILE* f, float x, float y)
     p->vsy = y;
 }
 
-static long scalex_pvf(FILE* f, long x)
+static ami_long scalex_pvf(FILE* f, ami_long x)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_scalex)(f, x));
     return (L2PX(p, x));
 }
 
-static long scaley_pvf(FILE* f, long y)
+static ami_long scaley_pvf(FILE* f, ami_long y)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_scaley)(f, y));
     return (L2PY(p, y));
 }
 
-static void blockcopyg_pvf(FILE* f, long s, long d, long sx1, long sy1,
-                           long sx2, long sy2, long dx1, long dy1,
-                           long dx2, long dy2)
+static void blockcopyg_pvf(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1,
+                           ami_long sx2, ami_long sy2, ami_long dx1, ami_long dy1,
+                           ami_long dx2, ami_long dy2)
 {
     if (!txt2prt(f)) {
 
@@ -2428,7 +2441,7 @@ static void blockcopyg_pvf(FILE* f, long s, long d, long sx1, long sy1,
     error("No screens on a print file");
 }
 
-static void openwin_pvf(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void openwin_pvf(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 {
     if (parent && txt2prt(parent)) error("Cannot open a window on a print file");
     (*dn_openwin)(infile, outfile, parent, wid);

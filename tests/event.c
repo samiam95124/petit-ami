@@ -67,24 +67,24 @@ int main()
             case ami_etprint:   printf("print document\n"); break;
             case ami_etprintb:  printf("print block\n"); break;
             case ami_etprints:  printf("print screen\n"); break;
-            case ami_etfun:     printf("Function key, number: %ld\n", er.fkey); break;
+            case ami_etfun:     printf("Function key, number: %lld\n", AMI_LONG_CAST(er.fkey)); break;
             case ami_etmenu:    printf("display menu\n"); break;
-            case ami_etmouba:   printf("mouse button assertion, mouse: %ld button: %ld\n",
-                                      er.amoun, er.amoubn); break;
-            case ami_etmoubd:   printf("mouse button deassertion, mouse: %ld button: %ld\n",
-                                      er.dmoun, er.dmoubn); break;
-            case ami_etmoumov:  printf("mouse move, mouse: %ld x: %ld y: %ld\n",
-                                      er.mmoun, er.moupx, er.moupy); break;
-            case ami_ettim:     printf("timer matures, timer: %ld\n", er.timnum); break;
-            case ami_etjoyba:   printf("joystick button assertion, stick: %ld button: %ld\n",
-                                      er.ajoyn, er.ajoybn); break;
-            case ami_etjoybd:   printf("joystick button deassertion, stick: %ld button: %ld\n",
-                                      er.djoyn, er.djoybn); break;
-            case ami_etjoymov:  printf("joystick move, stick: %ld x: %ld y: %ld z: %ld\n",
-                                      er.mjoyn, er.joypx, er.joypy, er.joypz); break;
+            case ami_etmouba:   printf("mouse button assertion, mouse: %lld button: %lld\n",
+                                      AMI_LONG_CAST(er.amoun), AMI_LONG_CAST(er.amoubn)); break;
+            case ami_etmoubd:   printf("mouse button deassertion, mouse: %lld button: %lld\n",
+                                      AMI_LONG_CAST(er.dmoun), AMI_LONG_CAST(er.dmoubn)); break;
+            case ami_etmoumov:  printf("mouse move, mouse: %lld x: %lld y: %lld\n",
+                                      AMI_LONG_CAST(er.mmoun), AMI_LONG_CAST(er.moupx), AMI_LONG_CAST(er.moupy)); break;
+            case ami_ettim:     printf("timer matures, timer: %lld\n", AMI_LONG_CAST(er.timnum)); break;
+            case ami_etjoyba:   printf("joystick button assertion, stick: %lld button: %lld\n",
+                                      AMI_LONG_CAST(er.ajoyn), AMI_LONG_CAST(er.ajoybn)); break;
+            case ami_etjoybd:   printf("joystick button deassertion, stick: %lld button: %lld\n",
+                                      AMI_LONG_CAST(er.djoyn), AMI_LONG_CAST(er.djoybn)); break;
+            case ami_etjoymov:  printf("joystick move, stick: %lld x: %lld y: %lld z: %lld\n",
+                                      AMI_LONG_CAST(er.mjoyn), AMI_LONG_CAST(er.joypx), AMI_LONG_CAST(er.joypy), AMI_LONG_CAST(er.joypz)); break;
             case ami_etresize:
                 printf("Window resized\n");
-                printf("New size: x: %ld y: %ld\n", ami_maxx(stdout), ami_maxy(stdout));
+                printf("New size: x: %lld y: %lld\n", AMI_LONG_CAST(ami_maxx(stdout)), AMI_LONG_CAST(ami_maxy(stdout)));
                 break;
             case ami_etterm:    printf("terminate program\n"); break;
             default: ;

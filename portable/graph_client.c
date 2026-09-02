@@ -44,12 +44,17 @@
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/socket.h>
 
 #include <graphics.h>
 #include <sound.h>
 #include <network.h>
 #include <graph_remote.h>
+
+#ifdef _WIN32
+/* the receiver thread is ended outright at close (see the deinit); the call
+   is declared here rather than pulling windows.h into the client */
+__declspec(dllimport) int __stdcall TerminateThread(void* thread, unsigned long code);
+#endif
 
 #define MAXFDS  512  /* file descriptors tracked for window files */
 #define MAXHND  512  /* window handles */
@@ -57,11 +62,11 @@
 #define MAXLIN  512  /* standard input line assembly */
 
 /* connection state */
-static long          cmdfn = -1;  /* command channel */
-static long          evtfn = -1;  /* event channel */
-static unsigned long srvaddr;     /* server address */
-static long          srvport;     /* command port */
-static long          msgmax;      /* channel message size bound */
+static ami_long      cmdfn = -1;  /* command channel */
+static ami_long      evtfn = -1;  /* event channel */
+static ami_ulong srvaddr;     /* server address */
+static ami_long      srvport;     /* command port */
+static ami_long      msgmax;      /* channel message size bound */
 static int           connected;   /* the link is up */
 static int           gtrace;      /* diagnostic trace: GRAPH_TRACE set;
                                      every message prints to the error
@@ -72,10 +77,10 @@ static int           gsecure;     /* secure channels: GRAPH_SECURE set;
 
 /* message assembly */
 static unsigned char* sbuf;       /* send buffer, msgmax bytes */
-static long           soff;       /* send offset */
+static ami_long       soff;       /* send offset */
 static unsigned char* rbuf;       /* receive buffer, msgmax bytes */
-static long           roff;       /* receive parse offset */
-static long           rlen;       /* received length */
+static ami_long       roff;       /* receive parse offset */
+static ami_long       rlen;       /* received length */
 static short          sseq;       /* request serial */
 /* The flow window: a command burst must not outrun the server's socket
    into datagram loss, loopback being reliable only while the consumer
@@ -96,14 +101,14 @@ static short          sseq;       /* request serial */
    The byte fence paces a bulk stream to the consumer, which for wave
    output is the playback rate itself. */
 #define GRWINBYTES 65536
-static long           sentb;      /* messages since the last fence */
-static long           sentbytes;  /* bytes since the last fence */
+static ami_long       sentb;      /* messages since the last fence */
+static ami_long       sentbytes;  /* bytes since the last fence */
 static int            inquery;    /* a round trip is in progress */
 
 /* window bookkeeping */
-static long fdh[MAXFDS];          /* file descriptor to window handle */
-static long h2lw[MAXHND];         /* window handle to logical window id */
-static long nexth = 2;            /* next handle; 1 is the main window */
+static ami_long fdh[MAXFDS];          /* file descriptor to window handle */
+static ami_long h2lw[MAXHND];         /* window handle to logical window id */
+static ami_long nexth = 2;            /* next handle; 1 is the main window */
 
 /* The query cache: the stable metrics of a window, served locally after
    the first round trip. Remotely a query is a round trip, and programs
@@ -129,9 +134,9 @@ static long nexth = 2;            /* next handle; 1 is the main window */
 typedef struct qcache {
 
     unsigned valid; /* which entries hold */
-    long     maxx, maxy, maxxg, maxyg;
-    long     chrsizx, chrsizy, baselin;
-    long     dpmx, dpmy, fonts;
+    ami_long maxx, maxy, maxxg, maxyg;
+    ami_long chrsizx, chrsizy, baselin;
+    ami_long dpmx, dpmy, fonts;
     float    points;
 
 } qcache;
@@ -139,7 +144,7 @@ typedef struct qcache {
 static qcache qc[MAXHND];
 
 /* the resize event, seen by the receiver, drops the window's sizes */
-static void qcresize(long h)
+static void qcresize(ami_long h)
 
 {
 
@@ -153,16 +158,16 @@ static pthread_t       evthrd;     /* the receiver thread */
 static pthread_mutex_t evlock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  evcond = PTHREAD_COND_INITIALIZER;
 static ami_evtrec*     evq;        /* event queue ring, grows as needed */
-static long            evqsiz;     /* ring size */
-static long            evqhead;    /* take point */
-static long            evqcnt;     /* events held */
+static ami_long        evqsiz;     /* ring size */
+static ami_long        evqhead;    /* take point */
+static ami_long        evqcnt;     /* events held */
 static ami_pevthan     evthan[MAXEVH]; /* per code handlers */
 static ami_pevthan     evtshan;    /* master handler */
 
 /* line assembly for standard input */
 static char linebuf[MAXLIN];
-static long linelen;
-static long linepos;
+static ami_long linelen;
+static ami_long linepos;
 static int  linefull;
 
 /* types of system vectors for override calls */
@@ -206,17 +211,15 @@ Message channels arrive with short receive timeouts, meant for transient
 exchanges where a lost datagram should fail the read. These channels are
 persistent: a quiet stretch is normal, a dialog can hold a reply for as
 long as the user thinks, and the protocol requires a reliable carrier.
-Clear the timeout; the logical id of a message channel is its descriptor.
+Clear the timeout.
 
 *******************************************************************************/
 
-static void persistent(long fn)
+static void persistent(ami_long fn)
 
 {
 
-    struct timeval tv = { 0, 0 };
-
-    setsockopt((int)fn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    ami_tmomsg(fn, 0); /* no bound on the read */
 
 }
 
@@ -235,7 +238,7 @@ static gr_msghdr* rhdr(void) { return ((gr_msghdr*)rbuf); }
 /* forward: the fence in send0() uses these, defined below */
 static void qsend(void);
 static void flushcmd(void);
-static long gi(void);
+static ami_long gi(void);
 static void servefile(void);
 static void dosync(void);
 
@@ -245,7 +248,7 @@ static void dosync(void);
    case, must not arrive after the calls that followed it. The flush
    lands its own message through the write interdiction before this one
    builds. */
-static void begin(int mid, long wid)
+static void begin(int mid, ami_long wid)
 
 {
 
@@ -258,7 +261,7 @@ static void begin(int mid, long wid)
 }
 
 /* payload values */
-static void pi(long v)
+static void pi(ami_long v)
 
 {
 
@@ -288,7 +291,7 @@ static void p4(int v)
 
 }
 
-static void psn(const char* s, long n)
+static void psn(const char* s, ami_long n)
 
 {
 
@@ -317,8 +320,8 @@ static void ps(const char* s)
 #define BATLIM 1400 /* batch bound: one wire MTU's worth */
 
 static unsigned char*  batbuf;   /* the batch, NULL until the layer is up */
-static long            batmax;   /* its bound */
-static long            batlen;   /* bytes gathered */
+static ami_long        batmax;   /* its bound */
+static ami_long        batlen;   /* bytes gathered */
 static pthread_mutex_t batlock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  batcond = PTHREAD_COND_INITIALIZER;
 
@@ -378,8 +381,8 @@ static void send0(void)
 
     shdr()->len = (int)soff;
     if (gtrace)
-        fprintf(stderr, "gc> %-16s w%-3ld s%-5d len%ld\n",
-                gr_msgname(shdr()->mid), shdr()->wid, shdr()->seq, soff);
+        fprintf(stderr, "gc> %-16s w%-3lld s%-5d len%lld\n",
+                gr_msgname(shdr()->mid), AMI_LONG_CAST(shdr()->wid), shdr()->seq, AMI_LONG_CAST(soff));
     if (!batbuf) ami_wrmsg(cmdfn, sbuf, soff); /* the layer is not up */
     else {
 
@@ -404,11 +407,11 @@ static void send0(void)
 }
 
 /* reply values */
-static long gi(void)
+static ami_long gi(void)
 
 {
 
-    long v;
+    ami_long v;
 
     if (roff+8 > rlen) error("Reply truncated");
     memcpy(&v, rbuf+roff, 8);
@@ -448,12 +451,12 @@ static int g4(void)
 
 /* a counted string into a caller's buffer. The buffer rule of the API:
    a result filling the buffer exactly leaves the terminator off. */
-static void gs(char* dst, long dl)
+static void gs(char* dst, ami_long dl)
 
 {
 
-    long n = g4();
-    long c = n;
+    ami_long n = g4();
+    ami_long c = n;
 
     if (roff+n > rlen) error("Reply truncated");
     if (c > dl) c = dl;
@@ -480,7 +483,7 @@ static void servefile(void)
 {
 
     char   fn[256];
-    long   n, port;
+    ami_long   n, port;
     FILE*  nf;
     FILE*  lf;
     char   buf[4096];
@@ -491,7 +494,7 @@ static void servefile(void)
     roff = sizeof(gr_msghdr);
     n = g4();
     if (roff+n > rlen) error("Message truncated");
-    if (n > (long)sizeof(fn)-1) n = sizeof(fn)-1;
+    if (n > (ami_long)sizeof(fn)-1) n = sizeof(fn)-1;
     memcpy(fn, rbuf+roff, n);
     fn[n] = 0;
     roff += n;
@@ -543,10 +546,10 @@ static void qsend(void)
     for (;;) {
 
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) error("Short message from server");
+        if (rlen < (ami_long)sizeof(gr_msghdr)) error("Short message from server");
         if (gtrace)
-            fprintf(stderr, "gc< %-16s w%-3ld s%-5d len%ld\n",
-                    gr_msgname(rhdr()->mid), rhdr()->wid, rhdr()->seq, rlen);
+            fprintf(stderr, "gc< %-16s w%-3lld s%-5d len%lld\n",
+                    gr_msgname(rhdr()->mid), AMI_LONG_CAST(rhdr()->wid), rhdr()->seq, AMI_LONG_CAST(rlen));
         if (rhdr()->mid == GR_MFILEREQ) { servefile(); continue; }
         if (rhdr()->mid != GR_MREPLY) error("Protocol failure: not a reply");
         if (rhdr()->seq != sseq) {
@@ -577,9 +580,6 @@ static void dosync(void)
 
 {
 
-    struct timeval tv;
-    fd_set         fs;
-
     flushcmd(); /* the fence orders after everything batched */
     inquery = 1;
     for (;;) {
@@ -591,19 +591,15 @@ static void dosync(void)
         soff = sizeof(gr_msghdr);
         shdr()->len = (int)soff;
         if (gtrace)
-            fprintf(stderr, "gc> %-16s w0   s%-5d len%ld\n",
-                    gr_msgname(GR_MSYNC), sseq, soff);
+            fprintf(stderr, "gc> %-16s w0   s%-5d len%lld\n",
+                    gr_msgname(GR_MSYNC), sseq, AMI_LONG_CAST(soff));
         ami_wrmsg(cmdfn, sbuf, soff);
-        /* the bound by select, the read by the message call, which
-           under the secure channel is also what decrypts */
-        FD_ZERO(&fs);
-        FD_SET((int)cmdfn, &fs);
-        tv.tv_sec = 0;
-        tv.tv_usec = 200000;
-        if (select((int)cmdfn+1, &fs, NULL, NULL, &tv) <= 0)
+        /* the bound by the ready test, the read by the message call,
+           which under the secure channel is also what decrypts */
+        if (!ami_rdymsg(cmdfn, 200000))
             continue; /* lost: fence again */
         rlen = ami_rdmsg(cmdfn, rbuf, msgmax);
-        if (rlen < (long)sizeof(gr_msghdr)) continue;
+        if (rlen < (ami_long)sizeof(gr_msghdr)) continue;
         if (rhdr()->mid == GR_MFILEREQ) { servefile(); continue; }
         if (rhdr()->mid == GR_MREPLY) break; /* any sync's reply serves */
 
@@ -621,7 +617,7 @@ Window handles
 *******************************************************************************/
 
 /* window handle from file */
-static long wh(FILE* f)
+static ami_long wh(FILE* f)
 
 {
 
@@ -669,7 +665,7 @@ static ami_menuptr gmenu(void)
     ami_menuptr lp = NULL;
     ami_menuptr e;
     int         n, i;
-    long        flags, sl;
+    ami_long    flags, sl;
 
     n = g4();
     for (i = 0; i < n; i++) {
@@ -736,7 +732,7 @@ static void wire2evt(gr_msgevt* we, ami_evtrec* er)
 
 {
 
-    long h = we->winid;
+    ami_long h = we->winid;
 
     memset(er, 0, sizeof(ami_evtrec));
     if (h >= 1 && h < MAXHND) er->winid = h2lw[h];
@@ -775,7 +771,7 @@ static void evqput(ami_evtrec* er)
 {
 
     ami_evtrec* nq;
-    long        i;
+    ami_long    i;
 
     if (evqcnt) {
 
@@ -810,7 +806,7 @@ static void* evrun(void* arg)
     gr_msghdr*     h;
     gr_msgevt*     we;
     ami_evtrec     er;
-    long           n;
+    ami_long       n;
 
     (void)arg;
     ebuf = malloc(msgmax);
@@ -818,7 +814,7 @@ static void* evrun(void* arg)
     for (;;) {
 
         n = ami_rdmsg(evtfn, ebuf, msgmax);
-        if (n < (long)sizeof(gr_msghdr)) error("Short message from server");
+        if (n < (ami_long)sizeof(gr_msghdr)) error("Short message from server");
         h = (gr_msghdr*)ebuf;
         if (h->mid == GR_MERROR) {
 
@@ -834,11 +830,11 @@ static void* evrun(void* arg)
         }
         if (h->mid != GR_MEVENT) error("Protocol failure: not an event");
         we = (gr_msgevt*)(ebuf+sizeof(gr_msghdr));
-        if ((long)we->etype == (long)ami_etresize) qcresize(we->winid);
+        if ((ami_long)we->etype == (ami_long)ami_etresize) qcresize(we->winid);
         wire2evt(we, &er);
         if (gtrace)
-            fprintf(stderr, "gc<e %-15s w%ld\n",
-                    gr_evtname((long)er.etype), er.winid);
+            fprintf(stderr, "gc<e %-15s w%lld\n",
+                    gr_evtname((ami_long)er.etype), AMI_LONG_CAST(er.winid));
         pthread_mutex_lock(&evlock);
         evqput(&er);
         pthread_mutex_unlock(&evlock);
@@ -854,6 +850,7 @@ static void* evrun(void* arg)
    The signals wait on their own thread, so injecting is ordinary thread
    work; a second interrupt, the program having ignored the first, is
    force. */
+#ifndef _WIN32
 static void* sigrun(void* arg)
 
 {
@@ -885,6 +882,30 @@ static void* sigrun(void* arg)
     return (NULL);
 
 }
+#else
+/* Windows runs the console interrupt handler on a thread of its own, so
+   the injection is ordinary thread work here too, with no signal to wait
+   on. The disposition resets on delivery and is put back. */
+static void winsig(int sig)
+
+{
+
+    static int asked = 0;
+    ami_evtrec er;
+
+    signal(sig, winsig);
+    if (asked) exit(1); /* asked nicely once already */
+    asked = 1;
+    if (gtrace) fprintf(stderr, "gc:  interrupt -> ETTERM injected\n");
+    memset(&er, 0, sizeof(er));
+    er.winid = 1;
+    er.etype = ami_etterm;
+    pthread_mutex_lock(&evlock);
+    evqput(&er);
+    pthread_mutex_unlock(&evlock);
+
+}
+#endif
 
 /* dispatch an event through the override handlers; TRUE if it was
    consumed */
@@ -972,14 +993,14 @@ static ssize_t iwrite(int fd, const void* buf, size_t n)
 
     const char* s = buf;
     size_t      i = 0;
-    long        chunk;
+    ami_long    chunk;
 
     if (!connected || fd < 0 || fd >= MAXFDS || !fdh[fd])
         return ((*dn_write)(fd, buf, n));
-    chunk = msgmax-(long)sizeof(gr_msghdr)-4;
+    chunk = msgmax-(ami_long)sizeof(gr_msghdr)-4;
     while (i < (size_t)n) {
 
-        long c = n-i > (size_t)chunk? chunk: (long)(n-i);
+        ami_long c = n-i > (size_t)chunk? chunk: (ami_long)(n-i);
         shdr()->mid = GR_MWRITE;
         shdr()->seq = 0;
         shdr()->wid = fdh[fd];
@@ -997,7 +1018,7 @@ static ssize_t iwrite(int fd, const void* buf, size_t n)
 }
 
 /* echo through the write stream of the main window */
-static void echo(const char* s, long n)
+static void echo(const char* s, ami_long n)
 
 {
 
@@ -1010,7 +1031,7 @@ static ssize_t iread(int fd, void* buf, size_t n)
 {
 
     ami_evtrec er;
-    long       c;
+    ami_long   c;
 
     if (!connected || fd != 0) return ((*dn_read)(fd, buf, n));
     /* assemble a line from the event stream, echoing */
@@ -1044,7 +1065,7 @@ static ssize_t iread(int fd, void* buf, size_t n)
 
     }
     c = linelen-linepos;
-    if (c > (long)n) c = n;
+    if (c > (ami_long)n) c = n;
     memcpy(buf, linebuf+linepos, c);
     linepos += c;
     if (linepos >= linelen) linefull = 0;
@@ -1079,16 +1100,16 @@ reply.
 
 *******************************************************************************/
 
-void ami_cursor(FILE* f, long x, long y)
+void ami_cursor(FILE* f, ami_long x, ami_long y)
     { begin(GR_MCURSOR, wh(f)); pi(x); pi(y); send0(); }
-long ami_maxx(FILE* f)
-    { long h = wh(f);
+ami_long ami_maxx(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCMAXX)) {
           begin(GR_MMAXX, h); qsend();
           qc[h].maxx = gi(); qc[h].valid |= QCMAXX; }
       return (qc[h].maxx); }
-long ami_maxy(FILE* f)
-    { long h = wh(f);
+ami_long ami_maxy(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCMAXY)) {
           begin(GR_MMAXY, h); qsend();
           qc[h].maxy = gi(); qc[h].valid |= QCMAXY; }
@@ -1105,80 +1126,80 @@ void ami_left(FILE* f)
     { begin(GR_MLEFT, wh(f)); send0(); }
 void ami_right(FILE* f)
     { begin(GR_MRIGHT, wh(f)); send0(); }
-void ami_blink(FILE* f, long e)
+void ami_blink(FILE* f, ami_long e)
     { begin(GR_MBLINK, wh(f)); pi(e); send0(); }
-void ami_reverse(FILE* f, long e)
+void ami_reverse(FILE* f, ami_long e)
     { begin(GR_MREVERSE, wh(f)); pi(e); send0(); }
-void ami_underline(FILE* f, long e)
+void ami_underline(FILE* f, ami_long e)
     { begin(GR_MUNDERLINE, wh(f)); pi(e); send0(); }
-void ami_superscript(FILE* f, long e)
+void ami_superscript(FILE* f, ami_long e)
     { begin(GR_MSUPERSCRIPT, wh(f)); pi(e); send0(); }
-void ami_subscript(FILE* f, long e)
+void ami_subscript(FILE* f, ami_long e)
     { begin(GR_MSUBSCRIPT, wh(f)); pi(e); send0(); }
-void ami_italic(FILE* f, long e)
+void ami_italic(FILE* f, ami_long e)
     { begin(GR_MITALIC, wh(f)); pi(e); send0(); }
-void ami_bold(FILE* f, long e)
+void ami_bold(FILE* f, ami_long e)
     { begin(GR_MBOLD, wh(f)); pi(e); send0(); }
-void ami_strikeout(FILE* f, long e)
+void ami_strikeout(FILE* f, ami_long e)
     { begin(GR_MSTRIKEOUT, wh(f)); pi(e); send0(); }
-void ami_standout(FILE* f, long e)
+void ami_standout(FILE* f, ami_long e)
     { begin(GR_MSTANDOUT, wh(f)); pi(e); send0(); }
 void ami_fcolor(FILE* f, ami_color c)
-    { begin(GR_MFCOLOR, wh(f)); pi((long)c); send0(); }
+    { begin(GR_MFCOLOR, wh(f)); pi((ami_long)c); send0(); }
 void ami_bcolor(FILE* f, ami_color c)
-    { begin(GR_MBCOLOR, wh(f)); pi((long)c); send0(); }
-void ami_auto(FILE* f, long e)
+    { begin(GR_MBCOLOR, wh(f)); pi((ami_long)c); send0(); }
+void ami_auto(FILE* f, ami_long e)
     { begin(GR_MAUTO, wh(f)); pi(e); send0(); }
-void ami_curvis(FILE* f, long e)
+void ami_curvis(FILE* f, ami_long e)
     { begin(GR_MCURVIS, wh(f)); pi(e); send0(); }
-void ami_scroll(FILE* f, long x, long y)
+void ami_scroll(FILE* f, ami_long x, ami_long y)
     { begin(GR_MSCROLL, wh(f)); pi(x); pi(y); send0(); }
-long ami_curx(FILE* f)
+ami_long ami_curx(FILE* f)
     { begin(GR_MCURX, wh(f)); qsend(); return (gi()); }
-long ami_cury(FILE* f)
+ami_long ami_cury(FILE* f)
     { begin(GR_MCURY, wh(f)); qsend(); return (gi()); }
-long ami_curbnd(FILE* f)
+ami_long ami_curbnd(FILE* f)
     { begin(GR_MCURBND, wh(f)); qsend(); return (gi()); }
-void ami_select(FILE* f, long u, long d)
+void ami_select(FILE* f, ami_long u, ami_long d)
     { begin(GR_MSELECT, wh(f)); pi(u); pi(d); send0(); }
-void ami_timer(FILE* f, long i, long t, long r)
+void ami_timer(FILE* f, ami_long i, ami_long t, ami_long r)
     { begin(GR_MTIMER, wh(f)); pi(i); pi(t); pi(r); send0(); }
-void ami_killtimer(FILE* f, long i)
+void ami_killtimer(FILE* f, ami_long i)
     { begin(GR_MKILLTIMER, wh(f)); pi(i); send0(); }
-long ami_mouse(FILE* f)
+ami_long ami_mouse(FILE* f)
     { begin(GR_MMOUSE, wh(f)); qsend(); return (gi()); }
-long ami_mousebutton(FILE* f, long m)
+ami_long ami_mousebutton(FILE* f, ami_long m)
     { begin(GR_MMOUSEBUTTON, wh(f)); pi(m); qsend(); return (gi()); }
-long ami_joystick(FILE* f)
+ami_long ami_joystick(FILE* f)
     { begin(GR_MJOYSTICK, wh(f)); qsend(); return (gi()); }
-long ami_joybutton(FILE* f, long j)
+ami_long ami_joybutton(FILE* f, ami_long j)
     { begin(GR_MJOYBUTTON, wh(f)); pi(j); qsend(); return (gi()); }
-long ami_joyaxis(FILE* f, long j)
+ami_long ami_joyaxis(FILE* f, ami_long j)
     { begin(GR_MJOYAXIS, wh(f)); pi(j); qsend(); return (gi()); }
-void ami_settab(FILE* f, long t)
+void ami_settab(FILE* f, ami_long t)
     { begin(GR_MSETTAB, wh(f)); pi(t); send0(); }
-void ami_restab(FILE* f, long t)
+void ami_restab(FILE* f, ami_long t)
     { begin(GR_MRESTAB, wh(f)); pi(t); send0(); }
 void ami_clrtab(FILE* f)
     { begin(GR_MCLRTAB, wh(f)); send0(); }
-long ami_funkey(FILE* f)
+ami_long ami_funkey(FILE* f)
     { begin(GR_MFUNKEY, wh(f)); qsend(); return (gi()); }
-void ami_frametimer(FILE* f, long e)
+void ami_frametimer(FILE* f, ami_long e)
     { begin(GR_MFRAMETIMER, wh(f)); pi(e); send0(); }
-void ami_autohold(long e)
+void ami_autohold(ami_long e)
     { begin(GR_MAUTOHOLD, 0); pi(e); send0(); }
 void ami_wrtstr(FILE* f, char* s)
     { begin(GR_MWRTSTR, wh(f)); ps(s); send0(); }
-void ami_wrtstrn(FILE* f, char* s, long n)
+void ami_wrtstrn(FILE* f, char* s, ami_long n)
     { begin(GR_MWRTSTRN, wh(f)); psn(s, n); send0(); }
-void ami_sizbuf(FILE* f, long x, long y)
-    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+void ami_sizbuf(FILE* f, ami_long x, ami_long y)
+    { ami_long h = wh(f); qc[h].valid &= ~QCSIZES;
       begin(GR_MSIZBUF, h); pi(x); pi(y); send0(); }
 void ami_title(FILE* f, char* ts)
     { begin(GR_MTITLE, wh(f)); ps(ts); send0(); }
-void ami_fcolorc(FILE* f, long r, long g, long b)
+void ami_fcolorc(FILE* f, ami_long r, ami_long g, ami_long b)
     { begin(GR_MFCOLORC, wh(f)); pi(r); pi(g); pi(b); send0(); }
-void ami_bcolorc(FILE* f, long r, long g, long b)
+void ami_bcolorc(FILE* f, ami_long r, ami_long g, ami_long b)
     { begin(GR_MBCOLORC, wh(f)); pi(r); pi(g); pi(b); send0(); }
 
 /*******************************************************************************
@@ -1187,64 +1208,64 @@ The API: graphical level
 
 *******************************************************************************/
 
-long ami_maxxg(FILE* f)
-    { long h = wh(f);
+ami_long ami_maxxg(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCMAXXG)) {
           begin(GR_MMAXXG, h); qsend();
           qc[h].maxxg = gi(); qc[h].valid |= QCMAXXG; }
       return (qc[h].maxxg); }
-long ami_maxyg(FILE* f)
-    { long h = wh(f);
+ami_long ami_maxyg(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCMAXYG)) {
           begin(GR_MMAXYG, h); qsend();
           qc[h].maxyg = gi(); qc[h].valid |= QCMAXYG; }
       return (qc[h].maxyg); }
-long ami_curxg(FILE* f)
+ami_long ami_curxg(FILE* f)
     { begin(GR_MCURXG, wh(f)); qsend(); return (gi()); }
-long ami_curyg(FILE* f)
+ami_long ami_curyg(FILE* f)
     { begin(GR_MCURYG, wh(f)); qsend(); return (gi()); }
-void ami_line(FILE* f, long x1, long y1, long x2, long y2)
+void ami_line(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { begin(GR_MLINE, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); send0(); }
-void ami_linewidth(FILE* f, long w)
+void ami_linewidth(FILE* f, ami_long w)
     { begin(GR_MLINEWIDTH, wh(f)); pi(w); send0(); }
 void ami_linestyle(FILE* f, ami_lstyle style)
-    { begin(GR_MLINESTYLE, wh(f)); pi((long)style); send0(); }
-void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
+    { begin(GR_MLINESTYLE, wh(f)); pi((ami_long)style); send0(); }
+void ami_rect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { begin(GR_MRECT, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); send0(); }
-void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
+void ami_frect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { begin(GR_MFRECT, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); send0(); }
-void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+void ami_rrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
     { begin(GR_MRRECT, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(xs); pi(ys);
       send0(); }
-void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+void ami_frrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
     { begin(GR_MFRRECT, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(xs); pi(ys);
       send0(); }
-void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
+void ami_ellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { begin(GR_MELLIPSE, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); send0(); }
-void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
+void ami_fellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { begin(GR_MFELLIPSE, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); send0(); }
-void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_arc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
     { begin(GR_MARC, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(sa); pi(ea);
       send0(); }
-void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_farc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
     { begin(GR_MFARC, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(sa); pi(ea);
       send0(); }
-void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_fchord(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
     { begin(GR_MFCHORD, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(sa); pi(ea);
       send0(); }
-void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3,
-                   long y3)
+void ami_ftriangle(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3,
+                   ami_long y3)
     { begin(GR_MFTRIANGLE, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(x3);
       pi(y3); send0(); }
-void ami_cursorg(FILE* f, long x, long y)
+void ami_cursorg(FILE* f, ami_long x, ami_long y)
     { begin(GR_MCURSORG, wh(f)); pi(x); pi(y); send0(); }
-long ami_baseline(FILE* f)
-    { long h = wh(f);
+ami_long ami_baseline(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCBASELIN)) {
           begin(GR_MBASELINE, h); qsend();
           qc[h].baselin = gi(); qc[h].valid |= QCBASELIN; }
       return (qc[h].baselin); }
-void ami_setpixel(FILE* f, long x, long y)
+void ami_setpixel(FILE* f, ami_long x, ami_long y)
     { begin(GR_MSETPIXEL, wh(f)); pi(x); pi(y); send0(); }
 void ami_fover(FILE* f)
     { begin(GR_MFOVER, wh(f)); send0(); }
@@ -1266,116 +1287,116 @@ void ami_for(FILE* f)
     { begin(GR_MFOR, wh(f)); send0(); }
 void ami_bor(FILE* f)
     { begin(GR_MBOR, wh(f)); send0(); }
-long ami_chrsizx(FILE* f)
-    { long h = wh(f);
+ami_long ami_chrsizx(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCCHRSIZX)) {
           begin(GR_MCHRSIZX, h); qsend();
           qc[h].chrsizx = gi(); qc[h].valid |= QCCHRSIZX; }
       return (qc[h].chrsizx); }
-long ami_chrsizy(FILE* f)
-    { long h = wh(f);
+ami_long ami_chrsizy(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCCHRSIZY)) {
           begin(GR_MCHRSIZY, h); qsend();
           qc[h].chrsizy = gi(); qc[h].valid |= QCCHRSIZY; }
       return (qc[h].chrsizy); }
-long ami_fonts(FILE* f)
-    { long h = wh(f);
+ami_long ami_fonts(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCFONTS)) {
           begin(GR_MFONTS, h); qsend();
           qc[h].fonts = gi(); qc[h].valid |= QCFONTS; }
       return (qc[h].fonts); }
-void ami_font(FILE* f, long fc)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+void ami_font(FILE* f, ami_long fc)
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MFONT, h); pi(fc); send0(); }
-void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
+void ami_fontnam(FILE* f, ami_long fc, char* fns, ami_long fnsl)
     { begin(GR_MFONTNAM, wh(f)); pi(fc); qsend(); gs(fns, fnsl); }
-void ami_fontsiz(FILE* f, long s)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+void ami_fontsiz(FILE* f, ami_long s)
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MFONTSIZ, h); pi(s); send0(); }
 void ami_setpoints(FILE* f, float ps)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MSETPOINTS, h); pf(ps); send0(); }
 float ami_points(FILE* f)
-    { long h = wh(f);
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCPOINTS)) {
           begin(GR_MPOINTS, h); qsend();
           qc[h].points = (float)gf(); qc[h].valid |= QCPOINTS; }
       return (qc[h].points); }
-void ami_chrspcy(FILE* f, long s)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+void ami_chrspcy(FILE* f, ami_long s)
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MCHRSPCY, h); pi(s); send0(); }
-void ami_chrspcx(FILE* f, long s)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+void ami_chrspcx(FILE* f, ami_long s)
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MCHRSPCX, h); pi(s); send0(); }
-long ami_dpmx(FILE* f)
-    { long h = wh(f);
+ami_long ami_dpmx(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCDPMX)) {
           begin(GR_MDPMX, h); qsend();
           qc[h].dpmx = gi(); qc[h].valid |= QCDPMX; }
       return (qc[h].dpmx); }
-long ami_dpmy(FILE* f)
-    { long h = wh(f);
+ami_long ami_dpmy(FILE* f)
+    { ami_long h = wh(f);
       if (!(qc[h].valid&QCDPMY)) {
           begin(GR_MDPMY, h); qsend();
           qc[h].dpmy = gi(); qc[h].valid |= QCDPMY; }
       return (qc[h].dpmy); }
-long ami_strsiz(FILE* f, const char* s)
+ami_long ami_strsiz(FILE* f, const char* s)
     { begin(GR_MSTRSIZ, wh(f)); ps(s); qsend(); return (gi()); }
-long ami_chrpos(FILE* f, const char* s, long p)
+ami_long ami_chrpos(FILE* f, const char* s, ami_long p)
     { begin(GR_MCHRPOS, wh(f)); ps(s); pi(p); qsend(); return (gi()); }
-void ami_writejust(FILE* f, const char* s, long n)
+void ami_writejust(FILE* f, const char* s, ami_long n)
     { begin(GR_MWRITEJUST, wh(f)); ps(s); pi(n); send0(); }
-long ami_justpos(FILE* f, const char* s, long p, long n)
+ami_long ami_justpos(FILE* f, const char* s, ami_long p, ami_long n)
     { begin(GR_MJUSTPOS, wh(f)); ps(s); pi(p); pi(n); qsend(); return (gi()); }
-void ami_condensed(FILE* f, long e)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+void ami_condensed(FILE* f, ami_long e)
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MCONDENSED, h); pi(e); send0(); }
-void ami_extended(FILE* f, long e)
-    { long h = wh(f); qc[h].valid &= ~QCCHARS;
+void ami_extended(FILE* f, ami_long e)
+    { ami_long h = wh(f); qc[h].valid &= ~QCCHARS;
       begin(GR_MEXTENDED, h); pi(e); send0(); }
-void ami_xlight(FILE* f, long e)
+void ami_xlight(FILE* f, ami_long e)
     { begin(GR_MXLIGHT, wh(f)); pi(e); send0(); }
-void ami_light(FILE* f, long e)
+void ami_light(FILE* f, ami_long e)
     { begin(GR_MLIGHT, wh(f)); pi(e); send0(); }
-void ami_xbold(FILE* f, long e)
+void ami_xbold(FILE* f, ami_long e)
     { begin(GR_MXBOLD, wh(f)); pi(e); send0(); }
-void ami_hollow(FILE* f, long e)
+void ami_hollow(FILE* f, ami_long e)
     { begin(GR_MHOLLOW, wh(f)); pi(e); send0(); }
-void ami_raised(FILE* f, long e)
+void ami_raised(FILE* f, ami_long e)
     { begin(GR_MRAISED, wh(f)); pi(e); send0(); }
-void ami_settabg(FILE* f, long t)
+void ami_settabg(FILE* f, ami_long t)
     { begin(GR_MSETTABG, wh(f)); pi(t); send0(); }
-void ami_restabg(FILE* f, long t)
+void ami_restabg(FILE* f, ami_long t)
     { begin(GR_MRESTABG, wh(f)); pi(t); send0(); }
-void ami_fcolorg(FILE* f, long r, long g, long b)
+void ami_fcolorg(FILE* f, ami_long r, ami_long g, ami_long b)
     { begin(GR_MFCOLORG, wh(f)); pi(r); pi(g); pi(b); send0(); }
-void ami_bcolorg(FILE* f, long r, long g, long b)
+void ami_bcolorg(FILE* f, ami_long r, ami_long g, ami_long b)
     { begin(GR_MBCOLORG, wh(f)); pi(r); pi(g); pi(b); send0(); }
-void ami_loadpict(FILE* f, long p, char* fn)
+void ami_loadpict(FILE* f, ami_long p, char* fn)
     { begin(GR_MLOADPICT, wh(f)); pi(p); ps(fn); qsend(); gi(); }
-long ami_pictsizx(FILE* f, long p)
+ami_long ami_pictsizx(FILE* f, ami_long p)
     { begin(GR_MPICTSIZX, wh(f)); pi(p); qsend(); return (gi()); }
-long ami_pictsizy(FILE* f, long p)
+ami_long ami_pictsizy(FILE* f, ami_long p)
     { begin(GR_MPICTSIZY, wh(f)); pi(p); qsend(); return (gi()); }
-void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
+void ami_picture(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { begin(GR_MPICTURE, wh(f)); pi(p); pi(x1); pi(y1); pi(x2); pi(y2);
       send0(); }
-void ami_delpict(FILE* f, long p)
+void ami_delpict(FILE* f, ami_long p)
     { begin(GR_MDELPICT, wh(f)); pi(p); send0(); }
-void ami_scrollg(FILE* f, long x, long y)
+void ami_scrollg(FILE* f, ami_long x, ami_long y)
     { begin(GR_MSCROLLG, wh(f)); pi(x); pi(y); send0(); }
-void ami_path(FILE* f, long a)
+void ami_path(FILE* f, ami_long a)
     { begin(GR_MPATH, wh(f)); pi(a); send0(); }
-void ami_viewoffg(FILE* f, long x, long y)
+void ami_viewoffg(FILE* f, ami_long x, ami_long y)
     { begin(GR_MVIEWOFFG, wh(f)); pi(x); pi(y); send0(); }
 void ami_viewscale(FILE* f, float x, float y)
     { begin(GR_MVIEWSCALE, wh(f)); pf(x); pf(y); send0(); }
-long ami_scalex(FILE* f, long x)
+ami_long ami_scalex(FILE* f, ami_long x)
     { begin(GR_MSCALEX, wh(f)); pi(x); qsend(); return (gi()); }
-long ami_scaley(FILE* f, long y)
+ami_long ami_scaley(FILE* f, ami_long y)
     { begin(GR_MSCALEY, wh(f)); pi(y); qsend(); return (gi()); }
-void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
-                    long sy2, long dx1, long dy1, long dx2, long dy2)
+void ami_blockcopyg(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1, ami_long sx2,
+                    ami_long sy2, ami_long dx1, ami_long dy1, ami_long dx2, ami_long dy2)
     { begin(GR_MBLOCKCOPYG, wh(f)); pi(s); pi(d); pi(sx1); pi(sy1); pi(sx2);
       pi(sy2); pi(dx1); pi(dy1); pi(dx2); pi(dy2); send0(); }
 
@@ -1385,15 +1406,19 @@ The API: window management
 
 *******************************************************************************/
 
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
-    long h, fd;
+    ami_long h, fd;
 
     h = nexth++;
     if (h >= MAXHND) error("Out of window handles");
+#ifdef _WIN32
+    fd = open("nul", O_WRONLY);
+#else
     fd = open("/dev/null", O_WRONLY);
+#endif
     if (fd < 0 || fd >= MAXFDS) error("Cannot open window file");
     fdh[fd] = h;
     h2lw[h] = wid;
@@ -1410,63 +1435,63 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 }
 
-void ami_buffer(FILE* f, long e)
-    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+void ami_buffer(FILE* f, ami_long e)
+    { ami_long h = wh(f); qc[h].valid &= ~QCSIZES;
       begin(GR_MBUFFER, h); pi(e); send0(); }
-void ami_sizbufg(FILE* f, long x, long y)
-    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+void ami_sizbufg(FILE* f, ami_long x, ami_long y)
+    { ami_long h = wh(f); qc[h].valid &= ~QCSIZES;
       begin(GR_MSIZBUFG, h); pi(x); pi(y); send0(); }
-void ami_getsiz(FILE* f, long* x, long* y)
+void ami_getsiz(FILE* f, ami_long* x, ami_long* y)
     { begin(GR_MGETSIZ, wh(f)); qsend(); *x = gi(); *y = gi(); }
-void ami_getsizg(FILE* f, long* x, long* y)
+void ami_getsizg(FILE* f, ami_long* x, ami_long* y)
     { begin(GR_MGETSIZG, wh(f)); qsend(); *x = gi(); *y = gi(); }
-void ami_setsiz(FILE* f, long x, long y)
-    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+void ami_setsiz(FILE* f, ami_long x, ami_long y)
+    { ami_long h = wh(f); qc[h].valid &= ~QCSIZES;
       begin(GR_MSETSIZ, h); pi(x); pi(y); send0(); }
-void ami_setsizg(FILE* f, long x, long y)
-    { long h = wh(f); qc[h].valid &= ~QCSIZES;
+void ami_setsizg(FILE* f, ami_long x, ami_long y)
+    { ami_long h = wh(f); qc[h].valid &= ~QCSIZES;
       begin(GR_MSETSIZG, h); pi(x); pi(y); send0(); }
-void ami_setpos(FILE* f, long x, long y)
+void ami_setpos(FILE* f, ami_long x, ami_long y)
     { begin(GR_MSETPOS, wh(f)); pi(x); pi(y); send0(); }
-void ami_setposg(FILE* f, long x, long y)
+void ami_setposg(FILE* f, ami_long x, ami_long y)
     { begin(GR_MSETPOSG, wh(f)); pi(x); pi(y); send0(); }
 void ami_dragwin(FILE* f)
     { begin(GR_MDRAGWIN, wh(f)); send0(); }
-void ami_scnsiz(FILE* f, long* x, long* y)
+void ami_scnsiz(FILE* f, ami_long* x, ami_long* y)
     { begin(GR_MSCNSIZ, wh(f)); qsend(); *x = gi(); *y = gi(); }
-void ami_scnsizg(FILE* f, long* x, long* y)
+void ami_scnsizg(FILE* f, ami_long* x, ami_long* y)
     { begin(GR_MSCNSIZG, wh(f)); qsend(); *x = gi(); *y = gi(); }
-void ami_scncen(FILE* f, long* x, long* y)
+void ami_scncen(FILE* f, ami_long* x, ami_long* y)
     { begin(GR_MSCNCEN, wh(f)); qsend(); *x = gi(); *y = gi(); }
-void ami_scnceng(FILE* f, long* x, long* y)
+void ami_scnceng(FILE* f, ami_long* x, ami_long* y)
     { begin(GR_MSCNCENG, wh(f)); qsend(); *x = gi(); *y = gi(); }
-void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy,
+void ami_winclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy,
                    ami_winmodset ms)
-    { begin(GR_MWINCLIENT, wh(f)); pi(cx); pi(cy); pi((long)ms); qsend();
+    { begin(GR_MWINCLIENT, wh(f)); pi(cx); pi(cy); pi((ami_long)ms); qsend();
       *wx = gi(); *wy = gi(); }
-void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy,
+void ami_winclientg(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy,
                     ami_winmodset ms)
-    { begin(GR_MWINCLIENTG, wh(f)); pi(cx); pi(cy); pi((long)ms); qsend();
+    { begin(GR_MWINCLIENTG, wh(f)); pi(cx); pi(cy); pi((ami_long)ms); qsend();
       *wx = gi(); *wy = gi(); }
 void ami_front(FILE* f)
     { begin(GR_MFRONT, wh(f)); send0(); }
 void ami_back(FILE* f)
     { begin(GR_MBACK, wh(f)); send0(); }
-void ami_frame(FILE* f, long e)
+void ami_frame(FILE* f, ami_long e)
     { begin(GR_MFRAME, wh(f)); pi(e); send0(); }
-void ami_sizable(FILE* f, long e)
+void ami_sizable(FILE* f, ami_long e)
     { begin(GR_MSIZABLE, wh(f)); pi(e); send0(); }
-void ami_sysbar(FILE* f, long e)
+void ami_sysbar(FILE* f, ami_long e)
     { begin(GR_MSYSBAR, wh(f)); pi(e); send0(); }
 void ami_menu(FILE* f, ami_menuptr m)
     { begin(GR_MMENU, wh(f)); pmenu(m); send0(); }
-void ami_menuena(FILE* f, long id, long onoff)
+void ami_menuena(FILE* f, ami_long id, ami_long onoff)
     { begin(GR_MMENUENA, wh(f)); pi(id); pi(onoff); send0(); }
-void ami_menusel(FILE* f, long id, long select)
+void ami_menusel(FILE* f, ami_long id, ami_long select)
     { begin(GR_MMENUSEL, wh(f)); pi(id); pi(select); send0(); }
 void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
-    { begin(GR_MSTDMENU, 0); pi((long)sms); pmenu(pm); qsend(); *sm = gmenu(); }
-long ami_getwinid(void)
+    { begin(GR_MSTDMENU, 0); pi((ami_long)sms); pmenu(pm); qsend(); *sm = gmenu(); }
+ami_long ami_getwinid(void)
     { begin(GR_MGETWINID, 0); qsend(); return (gi()); }
 void ami_focus(FILE* f)
     { begin(GR_MFOCUS, wh(f)); send0(); }
@@ -1477,238 +1502,238 @@ The API: widgets
 
 *******************************************************************************/
 
-long ami_getwigid(FILE* f)
+ami_long ami_getwigid(FILE* f)
     { begin(GR_MGETWIGID, wh(f)); qsend(); return (gi()); }
-void ami_killwidget(FILE* f, long id)
+void ami_killwidget(FILE* f, ami_long id)
     { begin(GR_MKILLWIDGET, wh(f)); pi(id); send0(); }
-void ami_selectwidget(FILE* f, long id, long e)
+void ami_selectwidget(FILE* f, ami_long id, ami_long e)
     { begin(GR_MSELECTWIDGET, wh(f)); pi(id); pi(e); send0(); }
-void ami_enablewidget(FILE* f, long id, long e)
+void ami_enablewidget(FILE* f, ami_long id, ami_long e)
     { begin(GR_MENABLEWIDGET, wh(f)); pi(id); pi(e); send0(); }
-void ami_getwidgettext(FILE* f, long id, char* s, long sl)
+void ami_getwidgettext(FILE* f, ami_long id, char* s, ami_long sl)
     { begin(GR_MGETWIDGETTEXT, wh(f)); pi(id); qsend(); gs(s, sl); }
-void ami_putwidgettext(FILE* f, long id, char* s)
+void ami_putwidgettext(FILE* f, ami_long id, char* s)
     { begin(GR_MPUTWIDGETTEXT, wh(f)); pi(id); ps(s); send0(); }
-void ami_sizwidget(FILE* f, long id, long x, long y)
+void ami_sizwidget(FILE* f, ami_long id, ami_long x, ami_long y)
     { begin(GR_MSIZWIDGET, wh(f)); pi(id); pi(x); pi(y); send0(); }
-void ami_sizwidgetg(FILE* f, long id, long x, long y)
+void ami_sizwidgetg(FILE* f, ami_long id, ami_long x, ami_long y)
     { begin(GR_MSIZWIDGETG, wh(f)); pi(id); pi(x); pi(y); send0(); }
-void ami_poswidget(FILE* f, long id, long x, long y)
+void ami_poswidget(FILE* f, ami_long id, ami_long x, ami_long y)
     { begin(GR_MPOSWIDGET, wh(f)); pi(id); pi(x); pi(y); send0(); }
-void ami_poswidgetg(FILE* f, long id, long x, long y)
+void ami_poswidgetg(FILE* f, ami_long id, ami_long x, ami_long y)
     { begin(GR_MPOSWIDGETG, wh(f)); pi(id); pi(x); pi(y); send0(); }
-void ami_backwidget(FILE* f, long id)
+void ami_backwidget(FILE* f, ami_long id)
     { begin(GR_MBACKWIDGET, wh(f)); pi(id); send0(); }
-void ami_frontwidget(FILE* f, long id)
+void ami_frontwidget(FILE* f, ami_long id)
     { begin(GR_MFRONTWIDGET, wh(f)); pi(id); send0(); }
-void ami_focuswidget(FILE* f, long id)
+void ami_focuswidget(FILE* f, ami_long id)
     { begin(GR_MFOCUSWIDGET, wh(f)); pi(id); send0(); }
-void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_buttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MBUTTONSIZ, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
+void ami_buttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MBUTTONSIZG, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_button(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { begin(GR_MBUTTON, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s); pi(id);
       send0(); }
-void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_buttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { begin(GR_MBUTTONG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s); pi(id);
       send0(); }
-void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MCHECKBOXSIZ, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MCHECKBOXSIZG, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_checkbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { begin(GR_MCHECKBOX, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s); pi(id);
       send0(); }
-void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s,
-                   long id)
+void ami_checkboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s,
+                   ami_long id)
     { begin(GR_MCHECKBOXG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s);
       pi(id); send0(); }
-void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MRADIOBUTTONSIZ, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MRADIOBUTTONSIZG, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s,
-                     long id)
+void ami_radiobutton(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s,
+                     ami_long id)
     { begin(GR_MRADIOBUTTON, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s);
       pi(id); send0(); }
-void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s,
-                      long id)
+void ami_radiobuttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s,
+                      ami_long id)
     { begin(GR_MRADIOBUTTONG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s);
       pi(id); send0(); }
-void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h,
-                   long* ox, long* oy)
+void ami_groupsizg(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                   ami_long* ox, ami_long* oy)
     { begin(GR_MGROUPSIZG, wh(f)); ps(s); pi(cw); pi(ch); qsend();
       *w = gi(); *h = gi(); *ox = gi(); *oy = gi(); }
-void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
-                  long* ox, long* oy)
+void ami_groupsiz(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                  ami_long* ox, ami_long* oy)
     { begin(GR_MGROUPSIZ, wh(f)); ps(s); pi(cw); pi(ch); qsend();
       *w = gi(); *h = gi(); *ox = gi(); *oy = gi(); }
-void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_group(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { begin(GR_MGROUP, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s); pi(id);
       send0(); }
-void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_groupg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { begin(GR_MGROUPG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); ps(s); pi(id);
       send0(); }
-void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_background(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MBACKGROUND, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_backgroundg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MBACKGROUNDG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_scrollvertsizg(FILE* f, long* w, long* h)
+void ami_scrollvertsizg(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSCROLLVERTSIZG, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_scrollvertsiz(FILE* f, long* w, long* h)
+void ami_scrollvertsiz(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSCROLLVERTSIZ, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MSCROLLVERT, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MSCROLLVERTG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_scrollhorizsizg(FILE* f, long* w, long* h)
+void ami_scrollhorizsizg(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSCROLLHORIZSIZG, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_scrollhorizsiz(FILE* f, long* w, long* h)
+void ami_scrollhorizsiz(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSCROLLHORIZSIZ, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MSCROLLHORIZ, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MSCROLLHORIZG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_scrollpos(FILE* f, long id, long r)
+void ami_scrollpos(FILE* f, ami_long id, ami_long r)
     { begin(GR_MSCROLLPOS, wh(f)); pi(id); pi(r); send0(); }
-void ami_scrollsiz(FILE* f, long id, long r)
+void ami_scrollsiz(FILE* f, ami_long id, ami_long r)
     { begin(GR_MSCROLLSIZ, wh(f)); pi(id); pi(r); send0(); }
-void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
+void ami_numselboxsizg(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
     { begin(GR_MNUMSELBOXSIZG, wh(f)); pi(l); pi(u); qsend();
       *w = gi(); *h = gi(); }
-void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
+void ami_numselboxsiz(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
     { begin(GR_MNUMSELBOXSIZ, wh(f)); pi(l); pi(u); qsend();
       *w = gi(); *h = gi(); }
-void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
-                   long id)
+void ami_numselbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                   ami_long id)
     { begin(GR_MNUMSELBOX, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(l);
       pi(u); pi(id); send0(); }
-void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
-                    long id)
+void ami_numselboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                    ami_long id)
     { begin(GR_MNUMSELBOXG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(l);
       pi(u); pi(id); send0(); }
-void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
+void ami_editboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MEDITBOXSIZG, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_editboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { begin(GR_MEDITBOXSIZ, wh(f)); ps(s); qsend(); *w = gi(); *h = gi(); }
-void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MEDITBOX, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MEDITBOXG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_progbarsizg(FILE* f, long* w, long* h)
+void ami_progbarsizg(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MPROGBARSIZG, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_progbarsiz(FILE* f, long* w, long* h)
+void ami_progbarsiz(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MPROGBARSIZ, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MPROGBAR, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { begin(GR_MPROGBARG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(id);
       send0(); }
-void ami_progbarpos(FILE* f, long id, long pos)
+void ami_progbarpos(FILE* f, ami_long id, ami_long pos)
     { begin(GR_MPROGBARPOS, wh(f)); pi(id); pi(pos); send0(); }
-void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
     { begin(GR_MLISTBOXSIZG, wh(f)); pslst(sp); qsend(); *w = gi(); *h = gi(); }
-void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
     { begin(GR_MLISTBOXSIZ, wh(f)); pslst(sp); qsend(); *w = gi(); *h = gi(); }
-void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                 long id)
+void ami_listbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                 ami_long id)
     { begin(GR_MLISTBOX, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
       pi(id); send0(); }
-void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                  long id)
+void ami_listboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                  ami_long id)
     { begin(GR_MLISTBOXG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
       pi(id); send0(); }
-void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
-                     long* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow,
+                     ami_long* oh)
     { begin(GR_MDROPBOXSIZG, wh(f)); pslst(sp); qsend();
       *cw = gi(); *ch = gi(); *ow = gi(); *oh = gi(); }
-void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
-                    long* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow,
+                    ami_long* oh)
     { begin(GR_MDROPBOXSIZ, wh(f)); pslst(sp); qsend();
       *cw = gi(); *ch = gi(); *ow = gi(); *oh = gi(); }
-void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                 long id)
+void ami_dropbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                 ami_long id)
     { begin(GR_MDROPBOX, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
       pi(id); send0(); }
-void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                  long id)
+void ami_dropboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                  ami_long id)
     { begin(GR_MDROPBOXG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
       pi(id); send0(); }
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
-                         long* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow,
+                         ami_long* oh)
     { begin(GR_MDROPEDITBOXSIZG, wh(f)); pslst(sp); qsend();
       *cw = gi(); *ch = gi(); *ow = gi(); *oh = gi(); }
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
-                        long* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow,
+                        ami_long* oh)
     { begin(GR_MDROPEDITBOXSIZ, wh(f)); pslst(sp); qsend();
       *cw = gi(); *ch = gi(); *ow = gi(); *oh = gi(); }
-void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
-                     ami_strptr sp, long id)
+void ami_dropeditbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                     ami_strptr sp, ami_long id)
     { begin(GR_MDROPEDITBOX, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
       pi(id); send0(); }
-void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2,
-                      ami_strptr sp, long id)
+void ami_dropeditboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                      ami_strptr sp, ami_long id)
     { begin(GR_MDROPEDITBOXG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2);
       pslst(sp); pi(id); send0(); }
-void ami_slidehorizsizg(FILE* f, long* w, long* h)
+void ami_slidehorizsizg(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSLIDEHORIZSIZG, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_slidehorizsiz(FILE* f, long* w, long* h)
+void ami_slidehorizsiz(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSLIDEHORIZSIZ, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark,
-                    long id)
+void ami_slidehoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                    ami_long id)
     { begin(GR_MSLIDEHORIZ, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(mark);
       pi(id); send0(); }
-void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark,
-                     long id)
+void ami_slidehorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                     ami_long id)
     { begin(GR_MSLIDEHORIZG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(mark);
       pi(id); send0(); }
-void ami_slidevertsizg(FILE* f, long* w, long* h)
+void ami_slidevertsizg(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSLIDEVERTSIZG, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_slidevertsiz(FILE* f, long* w, long* h)
+void ami_slidevertsiz(FILE* f, ami_long* w, ami_long* h)
     { begin(GR_MSLIDEVERTSIZ, wh(f)); qsend(); *w = gi(); *h = gi(); }
-void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark,
-                   long id)
+void ami_slidevert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                   ami_long id)
     { begin(GR_MSLIDEVERT, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(mark);
       pi(id); send0(); }
-void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark,
-                    long id)
+void ami_slidevertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                    ami_long id)
     { begin(GR_MSLIDEVERTG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pi(mark);
       pi(id); send0(); }
-void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w,
-                    long* h, long* ox, long* oy)
-    { begin(GR_MTABBARSIZG, wh(f)); pslst(sp); pi((long)tor); pi(cw); pi(ch); qsend();
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w,
+                    ami_long* h, ami_long* ox, ami_long* oy)
+    { begin(GR_MTABBARSIZG, wh(f)); pslst(sp); pi((ami_long)tor); pi(cw); pi(ch); qsend();
       *w = gi(); *h = gi(); *ox = gi(); *oy = gi(); }
-void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-                   long* ox, long* oy)
-    { begin(GR_MTABBARSIZ, wh(f)); pslst(sp); pi((long)tor); pi(cw); pi(ch); qsend();
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                   ami_long* ox, ami_long* oy)
+    { begin(GR_MTABBARSIZ, wh(f)); pslst(sp); pi((ami_long)tor); pi(cw); pi(ch); qsend();
       *w = gi(); *h = gi(); *ox = gi(); *oy = gi(); }
-void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long* cw,
-                       long* ch, long* ox, long* oy)
-    { begin(GR_MTABBARCLIENTG, wh(f)); pi((long)tor); pi(w); pi(h); qsend();
+void ami_tabbarclientg(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw,
+                       ami_long* ch, ami_long* ox, ami_long* oy)
+    { begin(GR_MTABBARCLIENTG, wh(f)); pi((ami_long)tor); pi(w); pi(h); qsend();
       *cw = gi(); *ch = gi(); *ox = gi(); *oy = gi(); }
-void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw,
-                      long* ch, long* ox, long* oy)
-    { begin(GR_MTABBARCLIENT, wh(f)); pi((long)tor); pi(w); pi(h); qsend();
+void ami_tabbarclient(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw,
+                      ami_long* ch, ami_long* ox, ami_long* oy)
+    { begin(GR_MTABBARCLIENT, wh(f)); pi((ami_long)tor); pi(w); pi(h); qsend();
       *cw = gi(); *ch = gi(); *ox = gi(); *oy = gi(); }
-void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                ami_tabori tor, long id)
+void ami_tabbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                ami_tabori tor, ami_long id)
     { begin(GR_MTABBAR, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
-      pi((long)tor); pi(id); send0(); }
-void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                 ami_tabori tor, long id)
+      pi((ami_long)tor); pi(id); send0(); }
+void ami_tabbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                 ami_tabori tor, ami_long id)
     { begin(GR_MTABBARG, wh(f)); pi(x1); pi(y1); pi(x2); pi(y2); pslst(sp);
-      pi((long)tor); pi(id); send0(); }
-void ami_tabsel(FILE* f, long id, long tn)
+      pi((ami_long)tor); pi(id); send0(); }
+void ami_tabsel(FILE* f, ami_long id, ami_long tn)
     { begin(GR_MTABSEL, wh(f)); pi(id); pi(tn); send0(); }
 
 /*******************************************************************************
@@ -1720,23 +1745,23 @@ The API: dialogs
 void ami_alert(char* title, char* message)
     { begin(GR_MALERT, 0); ps(title); ps(message); qsend(); }
       /* the reply comes on dismissal: alert is modal by contract */
-void ami_querycolor(long* r, long* g, long* b)
+void ami_querycolor(ami_long* r, ami_long* g, ami_long* b)
     { begin(GR_MQUERYCOLOR, 0); pi(*r); pi(*g); pi(*b); qsend();
       *r = gi(); *g = gi(); *b = gi(); }
-void ami_queryopen(char* s, long sl)
+void ami_queryopen(char* s, ami_long sl)
     { begin(GR_MQUERYOPEN, 0); ps(s); qsend(); gs(s, sl); }
-void ami_querysave(char* s, long sl)
+void ami_querysave(char* s, ami_long sl)
     { begin(GR_MQUERYSAVE, 0); ps(s); qsend(); gs(s, sl); }
-void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
-    { begin(GR_MQUERYFIND, 0); ps(s); pi((long)*opt); qsend(); gs(s, sl);
+void ami_queryfind(char* s, ami_long sl, ami_qfnopts* opt)
+    { begin(GR_MQUERYFIND, 0); ps(s); pi((ami_long)*opt); qsend(); gs(s, sl);
       *opt = (ami_qfnopts)gi(); }
-void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
-    { begin(GR_MQUERYFINDREP, 0); ps(s); ps(r); pi((long)*opt); qsend();
+void ami_queryfindrep(char* s, ami_long sl, char* r, ami_long rl, ami_qfropts* opt)
+    { begin(GR_MQUERYFINDREP, 0); ps(s); ps(r); pi((ami_long)*opt); qsend();
       gs(s, sl); gs(r, rl); *opt = (ami_qfropts)gi(); }
-void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
-                   long* br, long* bg, long* bb, ami_qfteffects* effect)
+void ami_queryfont(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb,
+                   ami_long* br, ami_long* bg, ami_long* bb, ami_qfteffects* effect)
     { begin(GR_MQUERYFONT, wh(f)); pi(*fc); pi(*s); pi(*fr); pi(*fg); pi(*fb);
-      pi(*br); pi(*bg); pi(*bb); pi((long)*effect); qsend();
+      pi(*br); pi(*bg); pi(*bb); pi((ami_long)*effect); qsend();
       *fc = gi(); *s = gi(); *fr = gi(); *fg = gi(); *fb = gi();
       *br = gi(); *bg = gi(); *bb = gi(); *effect = (ami_qfteffects)gi(); }
 
@@ -1758,7 +1783,7 @@ which is why those calls are queries.
 *******************************************************************************/
 
 /* the channel voice pattern: port, time, channel, and one value */
-static void sndc1(int mid, long p, long t, long c, long v)
+static void sndc1(int mid, ami_long p, ami_long t, ami_long c, ami_long v)
 
 {
 
@@ -1770,93 +1795,93 @@ static void sndc1(int mid, long p, long t, long c, long v)
 
 void ami_starttimeout(void) { begin(GR_MSTARTTIMEOUT, 0); send0(); }
 void ami_stoptimeout(void) { begin(GR_MSTOPTIMEOUT, 0); send0(); }
-long ami_curtimeout(void)
+ami_long ami_curtimeout(void)
     { begin(GR_MCURTIMEOUT, 0); qsend(); return (gi()); }
 void ami_starttimein(void) { begin(GR_MSTARTTIMEIN, 0); send0(); }
 void ami_stoptimein(void) { begin(GR_MSTOPTIMEIN, 0); send0(); }
-long ami_curtimein(void)
+ami_long ami_curtimein(void)
     { begin(GR_MCURTIMEIN, 0); qsend(); return (gi()); }
-long ami_synthout(void)
+ami_long ami_synthout(void)
     { begin(GR_MSYNTHOUT, 0); qsend(); return (gi()); }
-long ami_synthin(void)
+ami_long ami_synthin(void)
     { begin(GR_MSYNTHIN, 0); qsend(); return (gi()); }
-void ami_opensynthout(long p)
+void ami_opensynthout(ami_long p)
     { begin(GR_MOPENSYNTHOUT, 0); pi(p); send0(); }
-void ami_closesynthout(long p)
+void ami_closesynthout(ami_long p)
     { begin(GR_MCLOSESYNTHOUT, 0); pi(p); send0(); }
-void ami_opensynthin(long p)
+void ami_opensynthin(ami_long p)
     { begin(GR_MOPENSYNTHIN, 0); pi(p); send0(); }
-void ami_closesynthin(long p)
+void ami_closesynthin(ami_long p)
     { begin(GR_MCLOSESYNTHIN, 0); pi(p); send0(); }
-void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteon(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
     { begin(GR_MNOTEON, 0); pi(p); pi(t); pi(c); pi(n); pi(v); send0(); }
-void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteoff(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
     { begin(GR_MNOTEOFF, 0); pi(p); pi(t); pi(c); pi(n); pi(v); send0(); }
-void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
+void ami_instchange(ami_long p, ami_long t, ami_channel c, ami_instrument i)
     { sndc1(GR_MINSTCHANGE, p, t, c, i); }
-void ami_attack(long p, long t, ami_channel c, long at)
+void ami_attack(ami_long p, ami_long t, ami_channel c, ami_long at)
     { sndc1(GR_MATTACK, p, t, c, at); }
-void ami_release(long p, long t, ami_channel c, long rt)
+void ami_release(ami_long p, ami_long t, ami_channel c, ami_long rt)
     { sndc1(GR_MRELEASE, p, t, c, rt); }
-void ami_legato(long p, long t, ami_channel c, long b)
+void ami_legato(ami_long p, ami_long t, ami_channel c, ami_long b)
     { sndc1(GR_MLEGATO, p, t, c, b); }
-void ami_portamento(long p, long t, ami_channel c, long b)
+void ami_portamento(ami_long p, ami_long t, ami_channel c, ami_long b)
     { sndc1(GR_MPORTAMENTO, p, t, c, b); }
-void ami_vibrato(long p, long t, ami_channel c, long v)
+void ami_vibrato(ami_long p, ami_long t, ami_channel c, ami_long v)
     { sndc1(GR_MVIBRATO, p, t, c, v); }
-void ami_volsynthchan(long p, long t, ami_channel c, long v)
+void ami_volsynthchan(ami_long p, ami_long t, ami_channel c, ami_long v)
     { sndc1(GR_MVOLSYNTHCHAN, p, t, c, v); }
-void ami_porttime(long p, long t, ami_channel c, long v)
+void ami_porttime(ami_long p, ami_long t, ami_channel c, ami_long v)
     { sndc1(GR_MPORTTIME, p, t, c, v); }
-void ami_balance(long p, long t, ami_channel c, long b)
+void ami_balance(ami_long p, ami_long t, ami_channel c, ami_long b)
     { sndc1(GR_MBALANCE, p, t, c, b); }
-void ami_pan(long p, long t, ami_channel c, long b)
+void ami_pan(ami_long p, ami_long t, ami_channel c, ami_long b)
     { sndc1(GR_MPAN, p, t, c, b); }
-void ami_timbre(long p, long t, ami_channel c, long tb)
+void ami_timbre(ami_long p, ami_long t, ami_channel c, ami_long tb)
     { sndc1(GR_MTIMBRE, p, t, c, tb); }
-void ami_brightness(long p, long t, ami_channel c, long b)
+void ami_brightness(ami_long p, ami_long t, ami_channel c, ami_long b)
     { sndc1(GR_MBRIGHTNESS, p, t, c, b); }
-void ami_reverb(long p, long t, ami_channel c, long r)
+void ami_reverb(ami_long p, ami_long t, ami_channel c, ami_long r)
     { sndc1(GR_MREVERB, p, t, c, r); }
-void ami_tremulo(long p, long t, ami_channel c, long tr)
+void ami_tremulo(ami_long p, ami_long t, ami_channel c, ami_long tr)
     { sndc1(GR_MTREMULO, p, t, c, tr); }
-void ami_chorus(long p, long t, ami_channel c, long cr)
+void ami_chorus(ami_long p, ami_long t, ami_channel c, ami_long cr)
     { sndc1(GR_MCHORUS, p, t, c, cr); }
-void ami_celeste(long p, long t, ami_channel c, long ce)
+void ami_celeste(ami_long p, ami_long t, ami_channel c, ami_long ce)
     { sndc1(GR_MCELESTE, p, t, c, ce); }
-void ami_phaser(long p, long t, ami_channel c, long ph)
+void ami_phaser(ami_long p, ami_long t, ami_channel c, ami_long ph)
     { sndc1(GR_MPHASER, p, t, c, ph); }
-void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
+void ami_aftertouch(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long at)
     { begin(GR_MAFTERTOUCH, 0); pi(p); pi(t); pi(c); pi(n); pi(at); send0(); }
-void ami_pressure(long p, long t, ami_channel c, long pr)
+void ami_pressure(ami_long p, ami_long t, ami_channel c, ami_long pr)
     { sndc1(GR_MPRESSURE, p, t, c, pr); }
-void ami_pitch(long p, long t, ami_channel c, long pt)
+void ami_pitch(ami_long p, ami_long t, ami_channel c, ami_long pt)
     { sndc1(GR_MPITCH, p, t, c, pt); }
-void ami_pitchrange(long p, long t, ami_channel c, long v)
+void ami_pitchrange(ami_long p, ami_long t, ami_channel c, ami_long v)
     { sndc1(GR_MPITCHRANGE, p, t, c, v); }
-void ami_mono(long p, long t, ami_channel c, long ch)
+void ami_mono(ami_long p, ami_long t, ami_channel c, ami_long ch)
     { sndc1(GR_MMONO, p, t, c, ch); }
-void ami_poly(long p, long t, ami_channel c)
+void ami_poly(ami_long p, ami_long t, ami_channel c)
     { begin(GR_MPOLY, 0); pi(p); pi(t); pi(c); send0(); }
-void ami_loadsynth(long s, string sf)
+void ami_loadsynth(ami_long s, string sf)
     { begin(GR_MLOADSYNTH, 0); pi(s); ps(sf); qsend(); gi(); }
-void ami_playsynth(long p, long t, long s)
+void ami_playsynth(ami_long p, ami_long t, ami_long s)
     { begin(GR_MPLAYSYNTH, 0); pi(p); pi(t); pi(s); send0(); }
-void ami_delsynth(long s) { begin(GR_MDELSYNTH, 0); pi(s); send0(); }
-void ami_waitsynth(long p)
+void ami_delsynth(ami_long s) { begin(GR_MDELSYNTH, 0); pi(s); send0(); }
+void ami_waitsynth(ami_long p)
     { begin(GR_MWAITSYNTH, 0); pi(p); qsend(); gi(); }
 
-void ami_wrsynth(long p, ami_seqptr sp)
+void ami_wrsynth(ami_long p, ami_seqptr sp)
 
 {
 
-    long u[3];
+    ami_long u[3];
 
     begin(GR_MWRSYNTH, 0);
     pi(p);
     pi(sp->port);
     pi(sp->time);
-    pi((long)sp->st);
+    pi((ami_long)sp->st);
     /* the union rides as its three widest words */
     memcpy(u, &sp->ntc, sizeof(u));
     pi(u[0]); pi(u[1]); pi(u[2]);
@@ -1864,11 +1889,11 @@ void ami_wrsynth(long p, ami_seqptr sp)
 
 }
 
-void ami_rdsynth(long p, ami_seqptr sp)
+void ami_rdsynth(ami_long p, ami_seqptr sp)
 
 {
 
-    long u[3];
+    ami_long u[3];
 
     begin(GR_MRDSYNTH, 0);
     pi(p);
@@ -1882,53 +1907,53 @@ void ami_rdsynth(long p, ami_seqptr sp)
 
 }
 
-long ami_waveout(void)
+ami_long ami_waveout(void)
     { begin(GR_MWAVEOUT, 0); qsend(); return (gi()); }
-long ami_wavein(void)
+ami_long ami_wavein(void)
     { begin(GR_MWAVEIN, 0); qsend(); return (gi()); }
-void ami_openwaveout(long p)
+void ami_openwaveout(ami_long p)
     { begin(GR_MOPENWAVEOUT, 0); pi(p); send0(); }
-void ami_closewaveout(long p)
+void ami_closewaveout(ami_long p)
     { begin(GR_MCLOSEWAVEOUT, 0); pi(p); send0(); }
-void ami_loadwave(long w, string fn)
+void ami_loadwave(ami_long w, string fn)
     { begin(GR_MLOADWAVE, 0); pi(w); ps(fn); qsend(); gi(); }
-void ami_playwave(long p, long t, long w)
+void ami_playwave(ami_long p, ami_long t, ami_long w)
     { begin(GR_MPLAYWAVE, 0); pi(p); pi(t); pi(w); send0(); }
-void ami_delwave(long w) { begin(GR_MDELWAVE, 0); pi(w); send0(); }
-void ami_volwave(long p, long t, long v)
+void ami_delwave(ami_long w) { begin(GR_MDELWAVE, 0); pi(w); send0(); }
+void ami_volwave(ami_long p, ami_long t, ami_long v)
     { begin(GR_MVOLWAVE, 0); pi(p); pi(t); pi(v); send0(); }
-void ami_waitwave(long p)
+void ami_waitwave(ami_long p)
     { begin(GR_MWAITWAVE, 0); pi(p); qsend(); gi(); }
 /* The frame size of an output port, channels times sample bytes, is
    tracked from the parameter calls so the raw stream can chunk on
    frame boundaries. A raw stream requires the parameters set first,
    which is also what the device needs to interpret the samples. */
 #define MAXWAVP 100 /* maximum wave ports, matching the library */
-static long wochan[MAXWAVP]; /* channels set per output port */
-static long wobits[MAXWAVP]; /* sample bits set per output port */
+static ami_long wochan[MAXWAVP]; /* channels set per output port */
+static ami_long wobits[MAXWAVP]; /* sample bits set per output port */
 
-void ami_chanwaveout(long p, long c)
+void ami_chanwaveout(ami_long p, ami_long c)
     { if (p >= 1 && p <= MAXWAVP) wochan[p-1] = c;
       begin(GR_MCHANWAVEOUT, 0); pi(p); pi(c); send0(); }
-void ami_ratewaveout(long p, long r)
+void ami_ratewaveout(ami_long p, ami_long r)
     { begin(GR_MRATEWAVEOUT, 0); pi(p); pi(r); send0(); }
-void ami_lenwaveout(long p, long l)
+void ami_lenwaveout(ami_long p, ami_long l)
     { if (p >= 1 && p <= MAXWAVP) wobits[p-1] = l;
       begin(GR_MLENWAVEOUT, 0); pi(p); pi(l); send0(); }
-void ami_sgnwaveout(long p, long s)
+void ami_sgnwaveout(ami_long p, ami_long s)
     { begin(GR_MSGNWAVEOUT, 0); pi(p); pi(s); send0(); }
-void ami_fltwaveout(long p, long f)
+void ami_fltwaveout(ami_long p, ami_long f)
     { begin(GR_MFLTWAVEOUT, 0); pi(p); pi(f); send0(); }
-void ami_endwaveout(long p, long e)
+void ami_endwaveout(ami_long p, ami_long e)
     { begin(GR_MENDWAVEOUT, 0); pi(p); pi(e); send0(); }
 
-void ami_wrwave(long p, byte* buff, long len)
+void ami_wrwave(ami_long p, byte* buff, ami_long len)
 
 {
 
-    long fsiz;  /* frame size in bytes */
-    long chunk; /* frames per message */
-    long n;
+    ami_long fsiz;  /* frame size in bytes */
+    ami_long chunk; /* frames per message */
+    ami_long n;
 
     /* Lengths are in samples, one frame of every channel; the byte
        stream chunks to the channel bound on frame boundaries. The
@@ -1955,29 +1980,29 @@ void ami_wrwave(long p, byte* buff, long len)
 
 }
 
-void ami_openwavein(long p)
+void ami_openwavein(ami_long p)
     { begin(GR_MOPENWAVEIN, 0); pi(p); send0(); }
-void ami_closewavein(long p)
+void ami_closewavein(ami_long p)
     { begin(GR_MCLOSEWAVEIN, 0); pi(p); send0(); }
-long ami_chanwavein(long p)
+ami_long ami_chanwavein(ami_long p)
     { begin(GR_MCHANWAVEIN, 0); pi(p); qsend(); return (gi()); }
-long ami_ratewavein(long p)
+ami_long ami_ratewavein(ami_long p)
     { begin(GR_MRATEWAVEIN, 0); pi(p); qsend(); return (gi()); }
-long ami_lenwavein(long p)
+ami_long ami_lenwavein(ami_long p)
     { begin(GR_MLENWAVEIN, 0); pi(p); qsend(); return (gi()); }
-long ami_sgnwavein(long p)
+ami_long ami_sgnwavein(ami_long p)
     { begin(GR_MSGNWAVEIN, 0); pi(p); qsend(); return (gi()); }
-long ami_endwavein(long p)
+ami_long ami_endwavein(ami_long p)
     { begin(GR_MENDWAVEIN, 0); pi(p); qsend(); return (gi()); }
-long ami_fltwavein(long p)
+ami_long ami_fltwavein(ami_long p)
     { begin(GR_MFLTWAVEIN, 0); pi(p); qsend(); return (gi()); }
 
-long ami_rdwave(long p, byte* buff, long len)
+ami_long ami_rdwave(ami_long p, byte* buff, ami_long len)
 
 {
 
-    long total = 0;
-    long got, dl;
+    ami_long total = 0;
+    ami_long got, dl;
 
     /* Lengths are in samples, one frame of every channel. The server
        clamps each answer to the channel bound and this loops until the
@@ -2003,36 +2028,36 @@ long ami_rdwave(long p, byte* buff, long len)
 
 }
 
-void ami_synthoutname(long p, string name, long len)
+void ami_synthoutname(ami_long p, string name, ami_long len)
     { begin(GR_MSYNTHOUTNAME, 0); pi(p); qsend(); gs(name, len); }
-void ami_synthinname(long p, string name, long len)
+void ami_synthinname(ami_long p, string name, ami_long len)
     { begin(GR_MSYNTHINNAME, 0); pi(p); qsend(); gs(name, len); }
-void ami_waveoutname(long p, string name, long len)
+void ami_waveoutname(ami_long p, string name, ami_long len)
     { begin(GR_MWAVEOUTNAME, 0); pi(p); qsend(); gs(name, len); }
-void ami_waveinname(long p, string name, long len)
+void ami_waveinname(ami_long p, string name, ami_long len)
     { begin(GR_MWAVEINNAME, 0); pi(p); qsend(); gs(name, len); }
-long ami_setparamsynthin(long p, string name, string value)
+ami_long ami_setparamsynthin(ami_long p, string name, string value)
     { begin(GR_MSETPARAMSYNTHIN, 0); pi(p); ps(name); ps(value); qsend();
       return (gi()); }
-long ami_setparamsynthout(long p, string name, string value)
+ami_long ami_setparamsynthout(ami_long p, string name, string value)
     { begin(GR_MSETPARAMSYNTHOUT, 0); pi(p); ps(name); ps(value); qsend();
       return (gi()); }
-long ami_setparamwavein(long p, string name, string value)
+ami_long ami_setparamwavein(ami_long p, string name, string value)
     { begin(GR_MSETPARAMWAVEIN, 0); pi(p); ps(name); ps(value); qsend();
       return (gi()); }
-long ami_setparamwaveout(long p, string name, string value)
+ami_long ami_setparamwaveout(ami_long p, string name, string value)
     { begin(GR_MSETPARAMWAVEOUT, 0); pi(p); ps(name); ps(value); qsend();
       return (gi()); }
-void ami_getparamsynthin(long p, string name, string value, long len)
+void ami_getparamsynthin(ami_long p, string name, string value, ami_long len)
     { begin(GR_MGETPARAMSYNTHIN, 0); pi(p); ps(name); qsend();
       gs(value, len); }
-void ami_getparamsynthout(long p, string name, string value, long len)
+void ami_getparamsynthout(ami_long p, string name, string value, ami_long len)
     { begin(GR_MGETPARAMSYNTHOUT, 0); pi(p); ps(name); qsend();
       gs(value, len); }
-void ami_getparamwavein(long p, string name, string value, long len)
+void ami_getparamwavein(ami_long p, string name, string value, ami_long len)
     { begin(GR_MGETPARAMWAVEIN, 0); pi(p); ps(name); qsend();
       gs(value, len); }
-void ami_getparamwaveout(long p, string name, string value, long len)
+void ami_getparamwaveout(ami_long p, string name, string value, ami_long len)
     { begin(GR_MGETPARAMWAVEOUT, 0); pi(p); ps(name); qsend();
       gs(value, len); }
 
@@ -2052,7 +2077,7 @@ static void ami_init_graph_client(void)
 
     const char* sa;
     const char* sp;
-    long        v;
+    ami_long    v;
 
     sa = getenv("GRAPH_SERVER");
     if (!sa || !sa[0]) sa = "127.0.0.1";
@@ -2092,36 +2117,30 @@ static void ami_init_graph_client(void)
        takes a timeout for just this exchange. */
     {
 
-        struct timeval tv;
-        fd_set        fs;
-        ssize_t       r = -1;
-        int           try;
+        ssize_t r = -1;
+        int     try;
 
         /* A datagram handshake retries: the hello is idempotent. The
-           bound is by select and the read by the message call, which
+           bound is by the ready test and the read by the message call, which
            under the secure channel is also what decrypts: a raw recv
            on a DTLS channel sees only ciphertext. */
-        for (try = 0; try < 3 && r < (long)sizeof(gr_msghdr); try++) {
+        for (try = 0; try < 3 && r < (ami_long)sizeof(gr_msghdr); try++) {
 
             begin(GR_MHELLO, 0);
             pi(GR_VERSION);
             sseq++;
             shdr()->seq = sseq;
             send0();
-            FD_ZERO(&fs);
-            FD_SET((int)cmdfn, &fs);
-            tv.tv_sec = 2;
-            tv.tv_usec = 0;
-            if (select((int)cmdfn+1, &fs, NULL, NULL, &tv) > 0)
+            if (ami_rdymsg(cmdfn, 2*1000000L))
                 r = ami_rdmsg(cmdfn, rbuf, msgmax);
 
         }
-        if (r < (long)sizeof(gr_msghdr)) {
+        if (r < (ami_long)sizeof(gr_msghdr)) {
 
             static char es[128];
 
             snprintf(es, sizeof(es),
-                     "No display server at %s port %ld", sa, srvport);
+                     "No display server at %s port %lld", sa, AMI_LONG_CAST(srvport));
             error(es);
 
         }
@@ -2149,6 +2168,7 @@ static void ami_init_graph_client(void)
     evqsiz = 256;
     evq = malloc(evqsiz*sizeof(ami_evtrec));
     if (!evq) error("Out of memory");
+#ifndef _WIN32
     {
 
         sigset_t  set;
@@ -2166,6 +2186,10 @@ static void ami_init_graph_client(void)
         pthread_create(&st, NULL, sigrun, NULL);
 
     }
+#else
+    signal(SIGINT, winsig);
+    signal(SIGTERM, winsig);
+#endif
     if (pthread_create(&evthrd, NULL, evrun, NULL))
         error("Cannot start event receiver");
     /* the command batch comes up last: until then send0 is direct */
@@ -2203,8 +2227,16 @@ static void ami_deinit_graph_client(void)
            each piece takes down only if it exists. */
         if (evq) {
 
+#ifndef _WIN32
             pthread_cancel(evthrd);
             pthread_join(evthrd, NULL);
+#else
+            /* winpthreads cancels only at its own wait points, and the
+               receiver sits in a socket read: it is ended outright, which
+               is what the cancel amounts to elsewhere, before its channel
+               goes away beneath it */
+            TerminateThread(pthread_gethandle(evthrd), 0);
+#endif
 
         }
         ami_clsmsg(cmdfn);

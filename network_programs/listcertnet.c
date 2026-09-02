@@ -85,10 +85,10 @@ int main(
 
 {
 
-    /* server IPv4 address */ unsigned long addr;
+    /* server IPv4 address */ ami_ulong addr;
     /* server SSL file */     FILE*         fp;
     /* certificate tree */    ami_certptr    list;
-    /* port number */         long          port;
+    /* port number */         int           port;
     int num;
 
     if (argc != 4) {

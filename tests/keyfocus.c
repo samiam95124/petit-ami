@@ -11,7 +11,7 @@
 int main(void)
 {
     ami_evtrec er;
-    long w, h, bw, bh;
+    ami_long w, h, bw, bh;
     ami_title(stdout, "Keys and widgets");
     ami_auto(stdout, FALSE);
     ami_curvis(stdout, FALSE);
@@ -24,7 +24,7 @@ int main(void)
         if (er.etype == ami_etchar)
             fprintf(stderr, "window got char '%c'\n", er.echar);
         else if (er.etype == ami_etbutton)
-            fprintf(stderr, "button %ld\n", er.butid);
+            fprintf(stderr, "button %lld\n", AMI_LONG_CAST(er.butid));
         else if (er.etype == ami_etmouba)
             fprintf(stderr, "click\n");
         else if (er.etype == ami_etenter) fprintf(stderr, "window got enter\n");

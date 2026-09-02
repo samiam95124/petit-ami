@@ -16,11 +16,11 @@ Gets and prints the certificate chain given by the server.
 int main(int argc, char **argv)
 {
 
-    long fn;
-    unsigned long addr;
+    int fn;
+    ami_ulong addr;
     char cbuff[4096];
-    long len;
-    long port;
+    int len;
+    int port;
     int i;
 
     if (argc < 3) {

@@ -70,8 +70,8 @@ class first: public window {
 
     {
 
-        fprintf(stderr, "window 1's evbutton(id=%ld): my own button, no "
-                        "other\n", id);
+        fprintf(stderr, "window 1's evbutton(id=%lld): my own button, no "
+                        "other\n", AMI_LONG_CAST(id));
         presses++;
 
         return (1);
@@ -144,7 +144,7 @@ int main(void)
         event(&er);
         if (er.etype == etbutton)
             fprintf(stderr, "loop: an unclaimed button event arrived "
-                            "(winid=%ld)\n", er.winid);
+                            "(winid=%lld)\n", AMI_LONG_CAST(er.winid));
 
     } while (er.etype != etterm &&
              !(er.etype == etchar && er.echar == 'q') &&

@@ -88,14 +88,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     /** next entry in free list */            recptr next; \
     /** output file for the widget window */  FILE*  wf; \
     /** parent window */                      FILE*  parent; \
-    /** id number, client assigned */         long   id; \
-    /** widget window id */                   long   wid; \
-    /** widget is enabled */                  long   enb; \
-    /** focused */                            long   focus; \
-    /** hovered */                            long   hover; \
-    /** position of widget in parent */       long   px, py; \
+    /** id number, client assigned */         ami_long   id; \
+    /** widget window id */                   ami_long   wid; \
+    /** widget is enabled */                  ami_long   enb; \
+    /** focused */                            ami_long   focus; \
+    /** hovered */                            ami_long   hover; \
+    /** position of widget in parent */       ami_long   px, py; \
     /** construction complete: events dispatch only from here */ \
-                                              long   live;
+                                              ami_long   live;
 
 /* the base's view of a widget record: the head alone */
 typedef struct wbwig* wbwigptr;
@@ -131,7 +131,7 @@ typedef struct wbpkg* wbpkgptr;
 typedef struct wbpkg {
 
     /** package list link */                  wbpkgptr      next;
-    /** widget record size, package's own */  long          recsiz;
+    /** widget record size, package's own */  ami_long      recsiz;
     /** event handler for its widgets */      wb_dispatch_t dispatch;
     /** record field initializer, or NULL */  wb_wiginit_t  wiginit;
     /** pre-teardown, or NULL */              wb_wigkill_t  wigkill;
@@ -144,7 +144,7 @@ typedef struct wbpkg {
 } wbpkg;
 
 /* register the package: hooks the event chain and close() on first use */
-void wb_init(wbpkg* pk, long recsiz, wb_dispatch_t dispatch,
+void wb_init(wbpkg* pk, ami_long recsiz, wb_dispatch_t dispatch,
              wb_wiginit_t wiginit, wb_wigkill_t wigkill,
              wb_wigfree_t wigfree, wb_error_t errrep);
 /* unregister the package, taking down any widgets it still holds; the
@@ -157,15 +157,15 @@ void* wb_getwig(wbpkg* pk);
    rectangle, graphical coordinates, registered under the id. *wpr NULL
    allocates a record; a predefined record passes in through it (how a
    package builds compound widgets). The record returns through it. */
-void wb_widget(wbpkg* pk, FILE* f, long x1, long y1, long x2, long y2,
-               long id, void* wpr);
+void wb_widget(wbpkg* pk, FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+               ami_long id, void* wpr);
 /* find a widget by parent window and id; errors if there is none */
-void* wb_fndwig(wbpkg* pk, FILE* f, long id);
+void* wb_fndwig(wbpkg* pk, FILE* f, ami_long id);
 /* take a widget down: pre-teardown callback, window closed, record
    released */
-void wb_killwidget(wbpkg* pk, FILE* f, long id);
+void wb_killwidget(wbpkg* pk, FILE* f, ami_long id);
 /* allocate an anonymous (negative) widget id in the window */
-long wb_getwigid(wbpkg* pk, FILE* f);
+ami_long wb_getwigid(wbpkg* pk, FILE* f);
 /* kill every widget on the window, every package, without closing it;
    what a session leaves behind must not greet the next one */
 void wb_purge(FILE* f);

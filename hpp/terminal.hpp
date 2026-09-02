@@ -92,67 +92,67 @@ typedef enum {
 
 typedef struct {
 
-    /* identifier of window for event */ long winid;
+    /* identifier of window for event */ ami_long winid;
     /* event type */                     evtcod etype;
-    /* event was handled */              long handled;
+    /* event was handled */              ami_long handled;
     union {
 
         /* these events require parameter data */
 
         /** etchar: ANSI character returned */  char echar;
-        /** ettim: timer handle that matured */ long timnum;
+        /** ettim: timer handle that matured */ ami_long timnum;
         /** etmoumov: */
         struct {
 
-            /** mouse number */   long mmoun;
-            /** mouse movement */ long moupx, moupy;
+            /** mouse number */   ami_long mmoun;
+            /** mouse movement */ ami_long moupx, moupy;
 
         };
         /** etmouba */
         struct {
 
-            /** mouse handle */  long amoun;
-            /** button number */ long amoubn;
+            /** mouse handle */  ami_long amoun;
+            /** button number */ ami_long amoubn;
 
         };
         /** etmoubd */
         struct {
 
-            /** mouse handle */  long dmoun;
-            /** button number */ long dmoubn;
+            /** mouse handle */  ami_long dmoun;
+            /** button number */ ami_long dmoubn;
 
         };
         /** etjoyba */
         struct {
 
-            /** joystick number */ long ajoyn;
-            /** button number */   long ajoybn;
+            /** joystick number */ ami_long ajoyn;
+            /** button number */   ami_long ajoybn;
 
         };
         /** etjoybd */
         struct {
 
-            /** joystick number */ long djoyn;
-            /** button number */   long djoybn;
+            /** joystick number */ ami_long djoyn;
+            /** button number */   ami_long djoybn;
 
         };
         /** etjoymov */
         struct {
 
-            /** joystick number */      long mjoyn;
-            /** joystick coordinates */ long joypx, joypy, joypz;
-                                        long joyp4, joyp5, joyp6;
+            /** joystick number */      ami_long mjoyn;
+            /** joystick coordinates */ ami_long joypx, joypy, joypz;
+                                        ami_long joyp4, joyp5, joyp6;
 
         };
-        /** function key */ long fkey;
+        /** function key */ ami_long fkey;
         /** etresize */
         struct {
 
-            long rszx, rszy;
+            ami_long rszx, rszy;
 
         };
         /* etmenus */
-        long menuid; /* menu item selected */
+        ami_long menuid; /* menu item selected */
 
      };
 
@@ -162,12 +162,12 @@ typedef struct {
 typedef void (*pevthan)(evtrec*);
 
 /* procedural interface */
-void cursor(FILE* f, long x, long y);
-void cursor(long x, long y);
-long  maxx(FILE* f);
-long  maxx(void);
-long  maxy(FILE* f);
-long  maxy(void);
+void cursor(FILE* f, ami_long x, ami_long y);
+void cursor(ami_long x, ami_long y);
+ami_long  maxx(FILE* f);
+ami_long  maxx(void);
+ami_long  maxy(FILE* f);
+ami_long  maxy(void);
 void home(FILE* f);
 void home(void);
 void del(FILE* f);
@@ -180,77 +180,77 @@ void left(FILE* f);
 void left(void);
 void right(FILE* f);
 void right(void);
-void blink(FILE* f, long e);
-void blink(long e);
-void reverse(FILE* f, long e);
-void reverse(long e);
-void underline(FILE* f, long e);
-void underline(long e);
-void superscript(FILE* f, long e);
-void superscript(long e);
-void subscript(FILE* f, long e);
-void subscript(long e);
-void italic(FILE* f, long e);
-void italic(long e);
-void bold(FILE* f, long e);
-void bold(long e);
-void strikeout(FILE* f, long e);
-void strikeout(long e);
-void standout(FILE* f, long e);
-void standout(long e);
+void blink(FILE* f, ami_long e);
+void blink(ami_long e);
+void reverse(FILE* f, ami_long e);
+void reverse(ami_long e);
+void underline(FILE* f, ami_long e);
+void underline(ami_long e);
+void superscript(FILE* f, ami_long e);
+void superscript(ami_long e);
+void subscript(FILE* f, ami_long e);
+void subscript(ami_long e);
+void italic(FILE* f, ami_long e);
+void italic(ami_long e);
+void bold(FILE* f, ami_long e);
+void bold(ami_long e);
+void strikeout(FILE* f, ami_long e);
+void strikeout(ami_long e);
+void standout(FILE* f, ami_long e);
+void standout(ami_long e);
 void fcolor(FILE* f, color c);
 void fcolor(color c);
 void bcolor(FILE* f, color c);
 void bcolor(color c);
-void autom(FILE* f, long e);
-void autom(long e);
-void curvis(FILE* f, long e);
-void curvis(long e);
-void scroll(FILE* f, long x, long y);
-void scroll(long x, long y);
-long  curx(FILE* f);
-long  curx(void);
-long  cury(FILE* f);
-long  cury(void);
-long  curbnd(FILE* f);
-long  curbnd(void);
-void select(FILE *f, long u, long d);
-void select(long u, long d);
+void autom(FILE* f, ami_long e);
+void autom(ami_long e);
+void curvis(FILE* f, ami_long e);
+void curvis(ami_long e);
+void scroll(FILE* f, ami_long x, ami_long y);
+void scroll(ami_long x, ami_long y);
+ami_long  curx(FILE* f);
+ami_long  curx(void);
+ami_long  cury(FILE* f);
+ami_long  cury(void);
+ami_long  curbnd(FILE* f);
+ami_long  curbnd(void);
+void select(FILE *f, ami_long u, ami_long d);
+void select(ami_long u, ami_long d);
 void event(FILE* f, evtrec* er);
 void event(evtrec* er);
-void timer(FILE* f, long i, long t, long r);
-void timer(long i, long t, long r);
-void killtimer(FILE* f, long i);
-void killtimer(long i);
-long  mouse(FILE *f);
-long  mouse(void);
-long  mousebutton(FILE* f, long m);
-long  mousebutton(long m);
-long  joystick(FILE* f);
-long  joystick(void);
-long  joybutton(FILE* f, long j);
-long  joybutton(long j);
-long  joyaxis(FILE* f, long j);
-long  joyaxis(long j);
-void settab(FILE* f, long t);
-void settab(long t);
-void restab(FILE* f, long t);
-void restab(long t);
+void timer(FILE* f, ami_long i, ami_long t, ami_long r);
+void timer(ami_long i, ami_long t, ami_long r);
+void killtimer(FILE* f, ami_long i);
+void killtimer(ami_long i);
+ami_long  mouse(FILE *f);
+ami_long  mouse(void);
+ami_long  mousebutton(FILE* f, ami_long m);
+ami_long  mousebutton(ami_long m);
+ami_long  joystick(FILE* f);
+ami_long  joystick(void);
+ami_long  joybutton(FILE* f, ami_long j);
+ami_long  joybutton(ami_long j);
+ami_long  joyaxis(FILE* f, ami_long j);
+ami_long  joyaxis(ami_long j);
+void settab(FILE* f, ami_long t);
+void settab(ami_long t);
+void restab(FILE* f, ami_long t);
+void restab(ami_long t);
 void clrtab(FILE* f);
 void clrtab(void);
-long  funkey(FILE* f);
-long  funkey(void);
-void frametimer(FILE* f, long e);
-void frametimer(long e);
-void autohold(long e);
+ami_long  funkey(FILE* f);
+ami_long  funkey(void);
+void frametimer(FILE* f, ami_long e);
+void frametimer(ami_long e);
+void autohold(ami_long e);
 void wrtstr(FILE* f, char *s);
 void wrtstr(char *s);
-void wrtstr(FILE* f, char *s, long n);
-void wrtstr(char *s, long n);
-void wrtstrn(FILE* f, char* s, long n);
-void wrtstrn(char* s, long n);
-void sizbuf(FILE* f, long x, long y);
-void sizbuf(long x, long y);
+void wrtstr(FILE* f, char *s, ami_long n);
+void wrtstr(char *s, ami_long n);
+void wrtstrn(FILE* f, char* s, ami_long n);
+void wrtstrn(char* s, ami_long n);
+void sizbuf(FILE* f, ami_long x, ami_long y);
+void sizbuf(ami_long x, ami_long y);
 void eventover(evtcod e, pevthan eh, pevthan* oeh);
 void eventsover(pevthan eh, pevthan* oeh);
 
@@ -273,106 +273,106 @@ term(const term&) = delete;
 term& operator=(const term&) = delete;
 
 /* methods */
-void cursor(long x, long y);
-long  maxx(void);
-long  maxy(void);
+void cursor(ami_long x, ami_long y);
+ami_long  maxx(void);
+ami_long  maxy(void);
 void home(void);
 void del(void);
 void up(void);
 void down(void);
 void left(void);
 void right(void);
-void blink(long e);
-void reverse(long e);
-void underline(long e);
-void superscript(long e);
-void subscript(long e);
-void italic(long e);
-void bold(long e);
-void strikeout(long e);
-void standout(long e);
+void blink(ami_long e);
+void reverse(ami_long e);
+void underline(ami_long e);
+void superscript(ami_long e);
+void subscript(ami_long e);
+void italic(ami_long e);
+void bold(ami_long e);
+void strikeout(ami_long e);
+void standout(ami_long e);
 void fcolor(color c);
 void bcolor(color c);
-void autom(long e);
-void curvis(long e);
-void scroll(long x, long y);
-long  curx(void);
-long  cury(void);
-long  curbnd(void);
-void select(long u, long d);
+void autom(ami_long e);
+void curvis(ami_long e);
+void scroll(ami_long x, ami_long y);
+ami_long  curx(void);
+ami_long  cury(void);
+ami_long  curbnd(void);
+void select(ami_long u, ami_long d);
 void event(evtrec* er);
-void timer(long i, long t, long r);
-void killtimer(long i);
-long  mouse(void);
-long  mousebutton(long m);
-long  joystick(void);
-long  joybutton(long j);
-long  joyaxis(long j);
-void settab(long t);
-void restab(long t);
+void timer(ami_long i, ami_long t, ami_long r);
+void killtimer(ami_long i);
+ami_long  mouse(void);
+ami_long  mousebutton(ami_long m);
+ami_long  joystick(void);
+ami_long  joybutton(ami_long j);
+ami_long  joyaxis(ami_long j);
+void settab(ami_long t);
+void restab(ami_long t);
 void clrtab(void);
-long  funkey(void);
-void frametimer(long e);
-void autohold(long e);
+ami_long  funkey(void);
+void frametimer(ami_long e);
+void autohold(ami_long e);
 void wrtstr(char *s);
-void wrtstr(char *s, long n);
-void wrtstrn(char *s, long n);
-void sizbuf(long x, long y);
+void wrtstr(char *s, ami_long n);
+void wrtstrn(char *s, ami_long n);
+void sizbuf(ami_long x, ami_long y);
 static void termCB(evtrec* er);
 
 /* virtual callbacks */
-virtual long evchar(char c);
-virtual long evup(void);
-virtual long evdown(void);
-virtual long evleft(void);
-virtual long evright(void);
-virtual long evleftw(void);
-virtual long evrightw(void);
-virtual long evhome(void);
-virtual long evhomes(void);
-virtual long evhomel(void);
-virtual long evend(void);
-virtual long evends(void);
-virtual long evendl(void);
-virtual long evscrl(void);
-virtual long evscrr(void);
-virtual long evscru(void);
-virtual long evscrd(void);
-virtual long evpagd(void);
-virtual long evpagu(void);
-virtual long evtab(void);
-virtual long eventer(void);
-virtual long evinsert(void);
-virtual long evinsertl(void);
-virtual long evinsertt(void);
-virtual long evdel(void);
-virtual long evdell(void);
-virtual long evdelcf(void);
-virtual long evdelcb(void);
-virtual long evcopy(void);
-virtual long evcopyl(void);
-virtual long evcan(void);
-virtual long evstop(void);
-virtual long evcont(void);
-virtual long evprint(void);
-virtual long evprintb(void);
-virtual long evprints(void);
-virtual long evfun(long k);
-virtual long evmenu(void);
-virtual long evmouba(long m, long b);
-virtual long evmoubd(long m, long b);
-virtual long evmoumov(long m, long x, long y);
-virtual long evtim(long t);
-virtual long evjoyba(long j, long b);
-virtual long evjoybd(long j, long b);
-virtual long evjoymov(long j, long x, long y, long z);
-virtual long evresize(long rszx, long rszy);
-virtual long evfocus(void);
-virtual long evnofocus(void);
-virtual long evhover(void);
-virtual long evnohover(void);
-virtual long evterm(void);
-virtual long evframe(void);
+virtual ami_long evchar(char c);
+virtual ami_long evup(void);
+virtual ami_long evdown(void);
+virtual ami_long evleft(void);
+virtual ami_long evright(void);
+virtual ami_long evleftw(void);
+virtual ami_long evrightw(void);
+virtual ami_long evhome(void);
+virtual ami_long evhomes(void);
+virtual ami_long evhomel(void);
+virtual ami_long evend(void);
+virtual ami_long evends(void);
+virtual ami_long evendl(void);
+virtual ami_long evscrl(void);
+virtual ami_long evscrr(void);
+virtual ami_long evscru(void);
+virtual ami_long evscrd(void);
+virtual ami_long evpagd(void);
+virtual ami_long evpagu(void);
+virtual ami_long evtab(void);
+virtual ami_long eventer(void);
+virtual ami_long evinsert(void);
+virtual ami_long evinsertl(void);
+virtual ami_long evinsertt(void);
+virtual ami_long evdel(void);
+virtual ami_long evdell(void);
+virtual ami_long evdelcf(void);
+virtual ami_long evdelcb(void);
+virtual ami_long evcopy(void);
+virtual ami_long evcopyl(void);
+virtual ami_long evcan(void);
+virtual ami_long evstop(void);
+virtual ami_long evcont(void);
+virtual ami_long evprint(void);
+virtual ami_long evprintb(void);
+virtual ami_long evprints(void);
+virtual ami_long evfun(ami_long k);
+virtual ami_long evmenu(void);
+virtual ami_long evmouba(ami_long m, ami_long b);
+virtual ami_long evmoubd(ami_long m, ami_long b);
+virtual ami_long evmoumov(ami_long m, ami_long x, ami_long y);
+virtual ami_long evtim(ami_long t);
+virtual ami_long evjoyba(ami_long j, ami_long b);
+virtual ami_long evjoybd(ami_long j, ami_long b);
+virtual ami_long evjoymov(ami_long j, ami_long x, ami_long y, ami_long z);
+virtual ami_long evresize(ami_long rszx, ami_long rszy);
+virtual ami_long evfocus(void);
+virtual ami_long evnofocus(void);
+virtual ami_long evhover(void);
+virtual ami_long evnohover(void);
+virtual ami_long evterm(void);
+virtual ami_long evframe(void);
 
 }; /* class term */
 

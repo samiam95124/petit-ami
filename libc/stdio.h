@@ -46,7 +46,17 @@ extern "C" {
  * has no such attribute.
  */
 #if defined(__GNUC__) || defined(__clang__)
-#define __stdio_format(kind, fi, va) __attribute__((format(kind, fi, va)))
+/* The dialect checked against. On MinGW the plain printf archetype is the
+   Microsoft C runtime's, which has no %zu and takes I64 for a long long; this
+   stdio speaks the C99 dialect, which gcc calls GNU's. */
+#if defined(__MINGW32__) && !defined(__clang__)
+#define __stdio_printf gnu_printf
+#define __stdio_scanf  gnu_scanf
+#else
+#define __stdio_printf printf
+#define __stdio_scanf  scanf
+#endif
+#define __stdio_format(kind, fi, va) __attribute__((format(__stdio_##kind, fi, va)))
 #else
 #define __stdio_format(kind, fi, va)
 #endif

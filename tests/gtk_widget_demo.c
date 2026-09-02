@@ -86,8 +86,8 @@ static void on_check(GtkCheckButton* c, gpointer u)
         gtk_check_button_get_active(c)? "checked": "unchecked"); }
 
 static void on_radio(GtkCheckButton* c, gpointer u)
-    { if (gtk_check_button_get_active(c)) status("radio button %ld chosen",
-        (long)(intptr_t)u); }
+    { if (gtk_check_button_get_active(c)) status("radio button %lld chosen",
+        AMI_LONG_CAST((long)(intptr_t)u)); }
 
 static void on_edit(GtkEntry* e, gpointer u)
     { (void)u; status("edit box says: %s",

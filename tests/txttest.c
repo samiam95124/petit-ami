@@ -17,7 +17,7 @@
 #include <terminal.h>
 
 /* place a string at a position */
-static void at(FILE* p, long x, long y, const char* s)
+static void at(FILE* p, ami_long x, ami_long y, const char* s)
 
 {
 
@@ -27,11 +27,11 @@ static void at(FILE* p, long x, long y, const char* s)
 }
 
 /* center a string on a line */
-static void center(FILE* p, long y, const char* s)
+static void center(FILE* p, ami_long y, const char* s)
 
 {
 
-    at(p, (ami_maxx(p)-(long)strlen(s))/2+1, y, s);
+    at(p, (ami_maxx(p)-(ami_long)strlen(s))/2+1, y, s);
 
 }
 
@@ -40,8 +40,8 @@ int main(int argc, char* argv[])
 {
 
     FILE* p;
-    long  mx, my;
-    long  i;
+    ami_long  mx, my;
+    ami_long  i;
 
     ami_openprint(&p, argc > 1? argv[1]: "txttest.txt");
     mx = ami_maxx(p);
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
     /* ==================== page 1: text and positioning ==================== */
 
     fprintf(p, "txtterminal test, page 1: text and positioning\n");
-    fprintf(p, "the page is %ld x %ld characters\n", mx, my);
+    fprintf(p, "the page is %lld x %lld characters\n", AMI_LONG_CAST(mx), AMI_LONG_CAST(my));
     fprintf(p, "\n");
     fprintf(p, "plain stream text: the quick brown fox jumps over the lazy "
                "dog 0123456789\n");
@@ -110,8 +110,8 @@ int main(int argc, char* argv[])
     ami_sizbuf(p, 100, 50);
     mx = ami_maxx(p);
     my = ami_maxy(p);
-    fprintf(p, "txtterminal test, page 3: the page resized to %ld x %ld\n\n",
-            mx, my);
+    fprintf(p, "txtterminal test, page 3: the page resized to %lld x %lld\n\n",
+            AMI_LONG_CAST(mx), AMI_LONG_CAST(my));
     at(p, 81, 4, "past column eighty");
     center(p, 6, "centered on the hundred column page");
     at(p, 1, my, "line fifty, the new bottom");

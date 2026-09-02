@@ -144,7 +144,7 @@ extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
 #endif
 
 /* rectangle, 1 based inclusive */
-typedef struct { long x1, y1, x2, y2; } rectangle;
+typedef struct { ami_long x1, y1, x2, y2; } rectangle;
 
 /* rectangle list, the visible region of a window */
 #define MAXVIS 64 /* rectangles a visible region may shatter into */
@@ -181,7 +181,7 @@ typedef struct winrec {
     int      root;              /* window is the root surface window */
     int      parlfn;            /* logical parent */
     winptr   parwin;            /* link to parent (or NULL for parentless) */
-    long     wid;               /* this window logical id */
+    ami_long wid;               /* this window logical id */
     winptr   childwin;          /* list of child windows */
     winptr   childlst;          /* list pointer if this is a child */
     winptr   winlst;            /* master list of all windows */
@@ -193,22 +193,22 @@ typedef struct winrec {
     int      curdsp;            /* client's displayed screen, 1-MAXCON */
     int      curupd;            /* client's updated screen, 1-MAXCON */
     /* geometry, all pixels */
-    long     orgx, orgy;        /* window origin in root, 1 based */
-    long     pmaxx, pmaxy;      /* whole window size (frame included) */
-    long     coffx, coffy;      /* client offset within the window */
-    long     cmaxx, cmaxy;      /* onscreen client size */
-    long     bufx, bufy;        /* client buffer size */
-    long     normx, normy;      /* geometry restored to by normalize */
-    long     normw, normh;
+    ami_long orgx, orgy;        /* window origin in root, 1 based */
+    ami_long pmaxx, pmaxy;      /* whole window size (frame included) */
+    ami_long coffx, coffy;      /* client offset within the window */
+    ami_long cmaxx, cmaxy;      /* onscreen client size */
+    ami_long bufx, bufy;        /* client buffer size */
+    ami_long normx, normy;      /* geometry restored to by normalize */
+    ami_long normw, normh;
     int      maxed;             /* window is maximized */
     int      mined;             /* window is minimized */
     /* the window's font context in the layer, reapplied on entry */
-    long     font;              /* logical font number */
-    long     fontsiz;           /* cell height, 0 until set */
+    ami_long font;              /* logical font number */
+    ami_long fontsiz;           /* cell height, 0 until set */
     float    points;            /* point size set, 0 if not */
-    long     chrspcx, chrspcy;  /* extra character spacing */
+    ami_long chrspcx, chrspcy;  /* extra character spacing */
     int      attrs;             /* font-changing attribute states */
-    long     leadx, leady;      /* not used yet */
+    ami_long leadx, leady;      /* not used yet */
     /* window state */
     int      bufmod;            /* client asked for buffered mode (the
                                    backing is kept either way) */
@@ -222,24 +222,24 @@ typedef struct winrec {
     rectlist vis;               /* visible region, root coordinates */
     char     inpbuf[MAXLIN];    /* input line buffer */
     int      inpptr;            /* input line index */
-    long     mpx, mpy;          /* last mouse position sent, client chars */
-    long     mpxg, mpyg;        /* last mouse position sent, client pixels */
+    ami_long mpx, mpy;          /* last mouse position sent, client chars */
+    ami_long mpxg, mpyg;        /* last mouse position sent, client pixels */
     int      mb1, mb2, mb3;     /* buttons the window believes are down */
     int      autof[MAXCON];     /* auto state per client screen */
     int      curvf[MAXCON];     /* caret visibility per client screen */
     /* menus */
     ami_menuptr amenu;          /* the window's menu, a private copy */
     struct menena* mena;        /* menu item enable states */
-    long     mtx1[24];          /* bar title spans, window local */
-    long     mtx2[24];
+    ami_long mtx1[24];          /* bar title spans, window local */
+    ami_long mtx2[24];
     int      mtn;               /* count of bar titles tracked */
     int      popup;             /* window is a menu popup */
     ami_menuptr pitems;         /* popup: the menu level shown */
     struct winrec* mowner;      /* popup: the menu's owner window */
-    long     psel;              /* popup: row with an open cascade */
-    long     phov;              /* popup: hovered row */
+    ami_long psel;              /* popup: row with an open cascade */
+    ami_long phov;              /* popup: hovered row */
     int      timers[AMI_MAXTIM]; /* timers active on this window */
-    long     frmtim;            /* frame timer active */
+    ami_long frmtim;            /* frame timer active */
 
 } winrec;
 
@@ -444,30 +444,30 @@ static int      ztop;                 /* highest Z order in use, -1 none */
 static winptr   focwin;               /* window with the keyboard focus */
 static winptr   hovwin;               /* window under the pointer */
 static int      fend;                 /* end of program ordered */
-static long     fautohold;            /* automatic hold on exit */
+static ami_long fautohold;            /* automatic hold on exit */
 static paevtque* paqfre;              /* free PA event queue entries */
 static paevtque* paqevt;              /* PA event input queue */
 static ami_pevthan evthan[ami_etdsize+1]; /* event handler routines */
 static ami_pevthan evtshan;           /* master event handler */
 static winptr   timtbl[AMI_MAXTIM];   /* layer timer to window map */
 static winptr   frmtimwin;            /* window holding the frame timer */
-static long     dimxg, dimyg;         /* the root surface size in pixels */
-static long     rootcell;             /* the root font cell height */
+static ami_long dimxg, dimyg;         /* the root surface size in pixels */
+static ami_long rootcell;             /* the root font cell height */
 static int      scnuse[MAXCON*10+1];  /* layer screens in use; index 1 up */
 static int      scnmax;               /* the layer's real screen count */
 static winptr   ctxwin;               /* window whose context the layer
                                          currently holds (font, screens) */
 static dragtyp  drag;                 /* active drag type */
 static winptr   drgwin;               /* window being dragged */
-static long     drgax, drgay;         /* drag anchor, root pixels */
-static long     drgox, drgoy;         /* window origin at drag start */
-static long     drgow, drgoh;         /* window size at drag start */
+static ami_long drgax, drgay;         /* drag anchor, root pixels */
+static ami_long drgox, drgoy;         /* window origin at drag start */
+static ami_long drgow, drgoh;         /* window size at drag start */
 static unsigned drgedges;             /* sizing edges grabbed */
 static rectangle bandr;               /* the band rectangle on screen */
 static int      banddrawn;            /* band outline is on the display */
 static int      carshown;             /* caret block is on the display */
-static long     carx, cary;           /* caret block position, root space */
-static long     carw, carh;           /* caret block cell size */
+static ami_long carx, cary;           /* caret block position, root space */
+static ami_long carw, carh;           /* caret block cell size */
 static int      incar;                /* caret update in progress */
 static int      carhold;              /* caret held off for a compound update */
 static int      wgheld;               /* composition held (test fast forward) */
@@ -521,7 +521,7 @@ subtracting the windows above it.
 
 *******************************************************************************/
 
-static void setrect(rectangle* r, long x1, long y1, long x2, long y2)
+static void setrect(rectangle* r, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -559,7 +559,7 @@ static int emptyrect(rectangle* r)
 
 }
 
-static int inrect(long x, long y, rectangle* r)
+static int inrect(ami_long x, ami_long y, rectangle* r)
 
 {
 
@@ -676,7 +676,7 @@ static winptr txt2win(FILE* f)
 
 }
 
-static winptr lwn2win(long wid)
+static winptr lwn2win(ami_long wid)
 
 {
 
@@ -767,7 +767,7 @@ static void alcbacking(winptr win, int i)
 
 {
 
-    long cs, mx, t, n;
+    ami_long cs, mx, t, n;
 
     char ff = '\f';
 
@@ -930,7 +930,7 @@ static int ancclip(winptr win, rectangle* r)
 
 /* the parent's client origin in root space: child coordinates are
    relative to it */
-static void parorigin(winptr win, long* ox, long* oy)
+static void parorigin(winptr win, ami_long* ox, ami_long* oy)
 
 {
 
@@ -952,7 +952,7 @@ static void parorigin(winptr win, long* ox, long* oy)
 }
 
 /* a moved window carries its children, recursively */
-static void movekids(winptr win, long dx, long dy)
+static void movekids(winptr win, ami_long dx, ami_long dy)
 
 {
 
@@ -1001,7 +1001,7 @@ Z order and hit testing
 *******************************************************************************/
 
 /* the topmost visible window containing the root point */
-static winptr winat(long x, long y)
+static winptr winat(ami_long x, ami_long y)
 
 {
 
@@ -1129,7 +1129,7 @@ static void comprect(winptr win, rectangle* r)
 {
 
     rectangle cr, ri;
-    long      sx, sy;
+    ami_long  sx, sy;
 
     if ((win->frame || win->amenu) && win->frmscn) {
 
@@ -1247,7 +1247,7 @@ typedef struct menena* menenaptr;
 typedef struct menena {
 
     menenaptr next;
-    long      id;
+    ami_long  id;
     int       ena;
 
 } menena;
@@ -1278,16 +1278,16 @@ static void frmenu(ami_menuptr m);
 static void regeom(winptr win, rectangle* old);
 static void annresize(winptr win);
 static void menu_ivf(FILE* f, ami_menuptr m);
-static void menuena_ivf(FILE* f, long id, long onoff);
-static void menusel_ivf(FILE* f, long id, long select);
+static void menuena_ivf(FILE* f, ami_long id, ami_long onoff);
+static void menusel_ivf(FILE* f, ami_long id, ami_long select);
 static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
-static void popclick(winptr pw, long lx, long ly);
-static void pophover(winptr pw, long ly);
+static void popclick(winptr pw, ami_long lx, ami_long ly);
+static void pophover(winptr pw, ami_long ly);
 static void barpress(winptr win, int n);
 static void menudismiss(void);
 
 /* is a menu item enabled for a window */
-static int menenb(winptr win, long id)
+static int menenb(winptr win, ami_long id)
 
 {
 
@@ -1301,7 +1301,7 @@ static int menenb(winptr win, long id)
 }
 
 /* the nth entry of a menu level */
-static ami_menuptr mennth(ami_menuptr m, long n)
+static ami_menuptr mennth(ami_menuptr m, ami_long n)
 
 {
 
@@ -1312,11 +1312,11 @@ static ami_menuptr mennth(ami_menuptr m, long n)
 }
 
 /* the length of a menu level */
-static long menlen(ami_menuptr m)
+static ami_long menlen(ami_menuptr m)
 
 {
 
-    long n = 0;
+    ami_long n = 0;
 
     while (m) { n++; m = m->next; }
 
@@ -1325,7 +1325,7 @@ static long menlen(ami_menuptr m)
 }
 
 /* the bar title under a window local x, 1-n, or 0 */
-static int mbarhitn(winptr win, long x)
+static int mbarhitn(winptr win, ami_long x)
 
 {
 
@@ -1359,8 +1359,8 @@ static void fcolor8(int r, int g, int b)
 
 {
 
-    (*fcolorc_down)(stdout, (long)r*(LONG_MAX/255), (long)g*(LONG_MAX/255),
-                    (long)b*(LONG_MAX/255));
+    (*fcolorc_down)(stdout, (ami_long)r*(LONG_MAX/255), (ami_long)g*(LONG_MAX/255),
+                    (ami_long)b*(LONG_MAX/255));
 
 }
 
@@ -1368,8 +1368,8 @@ static void bcolor8(int r, int g, int b)
 
 {
 
-    (*bcolorc_down)(stdout, (long)r*(LONG_MAX/255), (long)g*(LONG_MAX/255),
-                    (long)b*(LONG_MAX/255));
+    (*bcolorc_down)(stdout, (ami_long)r*(LONG_MAX/255), (ami_long)g*(LONG_MAX/255),
+                    (ami_long)b*(LONG_MAX/255));
 
 }
 
@@ -1381,12 +1381,12 @@ static void drwmbar(winptr win)
 {
 
     ami_menuptr p;
-    long bd = win->frame? BORD(win): 0;
-    long by1 = win->coffy-BARH(rootcell)+1;
-    long by2 = win->coffy;
-    long x = bd+1+MENSEP/2;
-    long cy = by1+(BARH(rootcell)-rootcell)/2;
-    long l;
+    ami_long bd = win->frame? BORD(win): 0;
+    ami_long by1 = win->coffy-BARH(rootcell)+1;
+    ami_long by2 = win->coffy;
+    ami_long x = bd+1+MENSEP/2;
+    ami_long cy = by1+(BARH(rootcell)-rootcell)/2;
+    ami_long l;
     int  n = 0;
 
     /* the bar field */
@@ -1426,11 +1426,11 @@ static void drwmbar(winptr win)
 
 /* the x spans of the frame buttons, window local; right to left:
    close, maximize, minimize */
-static void btnspan(winptr win, int n, long* x1, long* x2)
+static void btnspan(winptr win, int n, ami_long* x1, ami_long* x2)
 
 {
 
-    long bw = BTNW(rootcell);
+    ami_long bw = BTNW(rootcell);
 
     *x2 = win->pmaxx-BORD(win)-1-n*(bw+2);
     *x1 = *x2-bw+1;
@@ -1439,11 +1439,11 @@ static void btnspan(winptr win, int n, long* x1, long* x2)
 
 /* which frame element is at the window-local point: 0 none, 1 title,
    2 close, 3 maximize, 4 minimize, 5 sizing edge */
-static int frmhit(winptr win, long x, long y)
+static int frmhit(winptr win, ami_long x, ami_long y)
 
 {
 
-    long x1, x2;
+    ami_long x1, x2;
     int  n;
 
     if (!win->frame && !win->amenu) return (0);
@@ -1475,7 +1475,7 @@ static int frmhit(winptr win, long x, long y)
 /* The invisible sizing halo: the topmost sizable window whose halo
    covers a point just outside its rectangle takes the sizing grab,
    unless the window the point actually lies in stands above it. */
-static winptr haloat(long x, long y, winptr over)
+static winptr haloat(ami_long x, ami_long y, winptr over)
 
 {
 
@@ -1500,12 +1500,12 @@ static winptr haloat(long x, long y, winptr over)
 }
 
 /* the sizing edges a point grabs: 1 top, 2 bottom, 4 left, 8 right */
-static unsigned frmedges(winptr win, long x, long y)
+static unsigned frmedges(winptr win, ami_long x, ami_long y)
 
 {
 
     unsigned e = 0;
-    long     cz = CORNERZ; /* the widened corner zone */
+    ami_long cz = CORNERZ; /* the widened corner zone */
 
     if (x <= BORD(win)+2 || (x <= cz && (y <= cz || y > win->pmaxy-cz)))
         e |= 4;
@@ -1527,7 +1527,7 @@ static void drwfrm(winptr win)
 
 {
 
-    long x1, x2, bw, bh, cy, l, n;
+    ami_long x1, x2, bw, bh, cy, l, n;
     char* tp;
 
     if ((!win->frame && !win->amenu) || !win->frmscn) return;
@@ -1829,7 +1829,7 @@ static void caron(void)
 
     winptr    win = focwin;
     rectangle cr, car;
-    long      cx, cy;
+    ami_long  cx, cy;
     int       i;
 
     if (carshown || incar || carhold || wgheld) return;
@@ -1863,13 +1863,13 @@ static void caron(void)
 }
 
 /* the band rectangle from the drag state and pointer */
-static void bandcalc(long gx, long gy)
+static void bandcalc(ami_long gx, ami_long gy)
 
 {
 
-    long dx = gx-drgax;
-    long dy = gy-drgay;
-    long nx = drgox, ny = drgoy, nw = drgow, nh = drgoh;
+    ami_long dx = gx-drgax;
+    ami_long dy = gy-drgay;
+    ami_long nx = drgox, ny = drgoy, nw = drgow, nh = drgoh;
 
     if (drag == dt_move) {
 
@@ -1891,7 +1891,7 @@ static void bandcalc(long gx, long gy)
 }
 
 /* end the drag, applying what the band outlined */
-static void dragend(long gx, long gy)
+static void dragend(ami_long gx, ami_long gy)
 
 {
 
@@ -1978,7 +1978,7 @@ static void container(winptr win, rectangle* r)
 }
 
 /* apply a place and size, children riding, and announce the change */
-static void plcgeom(winptr win, long x, long y, long pw, long ph)
+static void plcgeom(winptr win, ami_long x, ami_long y, ami_long pw, ami_long ph)
 
 {
 
@@ -2034,7 +2034,7 @@ static void intming(winptr win)
 
     rectangle c;
     winptr    sib;
-    long      w, h, tx, ty;
+    ami_long  w, h, tx, ty;
     int       moved;
 
     savnorm(win);
@@ -2576,15 +2576,15 @@ owners.
 
 *******************************************************************************/
 
-static long rootmx = 1, rootmy = 1; /* the pointer, root pixels */
+static ami_long rootmx = 1, rootmy = 1; /* the pointer, root pixels */
 
 /* deliver pending mouse coordinate change for a window, pixel first then
    character, one event per call */
-static int moudeliver(winptr win, long cxg, long cyg, ami_evtrec* er)
+static int moudeliver(winptr win, ami_long cxg, ami_long cyg, ami_evtrec* er)
 
 {
 
-    long cx, cy;
+    ami_long cx, cy;
 
     if (cxg == win->mpxg && cyg == win->mpyg) return (FALSE);
     win->mpxg = cxg;
@@ -2623,7 +2623,7 @@ static int transevt(ami_evtrec* le, ami_evtrec* er)
 {
 
     winptr    tw;
-    long      lx, ly, cxg, cyg;
+    ami_long  lx, ly, cxg, cyg;
     int       hit;
     rectangle r;
 
@@ -2995,7 +2995,7 @@ asked for each so the maturing event routes home.
 
 *******************************************************************************/
 
-static void timer_ivf(FILE* f, long i, long t, long r)
+static void timer_ivf(FILE* f, ami_long i, ami_long t, ami_long r)
 
 {
 
@@ -3008,7 +3008,7 @@ static void timer_ivf(FILE* f, long i, long t, long r)
 
 }
 
-static void killtimer_ivf(FILE* f, long i)
+static void killtimer_ivf(FILE* f, ami_long i)
 
 {
 
@@ -3018,7 +3018,7 @@ static void killtimer_ivf(FILE* f, long i)
 
 }
 
-static void frametimer_ivf(FILE* f, long e)
+static void frametimer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3030,7 +3030,7 @@ static void frametimer_ivf(FILE* f, long e)
 
 }
 
-static void autohold_ivf(long e)
+static void autohold_ivf(ami_long e)
 
 {
 
@@ -3051,7 +3051,7 @@ display.
 
 *******************************************************************************/
 
-static void line_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void line_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -3064,7 +3064,7 @@ static void line_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 }
 
-static void rect_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void rect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -3077,7 +3077,7 @@ static void rect_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 }
 
-static void frect_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void frect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -3090,7 +3090,7 @@ static void frect_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 }
 
-static void rrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+static void rrect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
@@ -3103,7 +3103,7 @@ static void rrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long
 
 }
 
-static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+static void frrect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
@@ -3116,7 +3116,7 @@ static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, lon
 
 }
 
-static void ellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void ellipse_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -3129,7 +3129,7 @@ static void ellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 }
 
-static void fellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void fellipse_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -3142,7 +3142,7 @@ static void fellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
 
 }
 
-static void arc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void arc_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -3155,7 +3155,7 @@ static void arc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long e
 
 }
 
-static void farc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void farc_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -3168,7 +3168,7 @@ static void farc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long 
 
 }
 
-static void fchord_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void fchord_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -3181,7 +3181,7 @@ static void fchord_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, lon
 
 }
 
-static void ftriangle_ivf(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
+static void ftriangle_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
 
 {
 
@@ -3194,7 +3194,7 @@ static void ftriangle_ivf(FILE* f, long x1, long y1, long x2, long y2, long x3, 
 
 }
 
-static void setpixel_ivf(FILE* f, long x, long y)
+static void setpixel_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3207,7 +3207,7 @@ static void setpixel_ivf(FILE* f, long x, long y)
 
 }
 
-static void scroll_ivf(FILE* f, long x, long y)
+static void scroll_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3220,7 +3220,7 @@ static void scroll_ivf(FILE* f, long x, long y)
 
 }
 
-static void scrollg_ivf(FILE* f, long x, long y)
+static void scrollg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3233,7 +3233,7 @@ static void scrollg_ivf(FILE* f, long x, long y)
 
 }
 
-static void picture_ivf(FILE* f, long p, long x1, long y1, long x2, long y2)
+static void picture_ivf(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -3246,7 +3246,7 @@ static void picture_ivf(FILE* f, long p, long x1, long y1, long x2, long y2)
 
 }
 
-static void writejust_ivf(FILE* f, const char* s, long n)
+static void writejust_ivf(FILE* f, const char* s, ami_long n)
 
 {
 
@@ -3350,7 +3350,7 @@ static void wrtstr_ivf(FILE* f, char* s)
 
 }
 
-static void wrtstrn_ivf(FILE* f, char* s, long n)
+static void wrtstrn_ivf(FILE* f, char* s, ami_long n)
 
 {
 
@@ -3363,7 +3363,7 @@ static void wrtstrn_ivf(FILE* f, char* s, long n)
 
 }
 
-static void cursor_ivf(FILE* f, long x, long y)
+static void cursor_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3377,7 +3377,7 @@ static void cursor_ivf(FILE* f, long x, long y)
 
 }
 
-static void cursorg_ivf(FILE* f, long x, long y)
+static void cursorg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3391,7 +3391,7 @@ static void cursorg_ivf(FILE* f, long x, long y)
 
 }
 
-static void auto_ivf(FILE* f, long e)
+static void auto_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3404,7 +3404,7 @@ static void auto_ivf(FILE* f, long e)
 
 }
 
-static void curvis_ivf(FILE* f, long e)
+static void curvis_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3442,7 +3442,7 @@ static void bcolor_ivf(FILE* f, ami_color c)
 
 }
 
-static void fcolorc_ivf(FILE* f, long r, long g, long b)
+static void fcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -3454,7 +3454,7 @@ static void fcolorc_ivf(FILE* f, long r, long g, long b)
 
 }
 
-static void bcolorc_ivf(FILE* f, long r, long g, long b)
+static void bcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -3466,7 +3466,7 @@ static void bcolorc_ivf(FILE* f, long r, long g, long b)
 
 }
 
-static void fcolorg_ivf(FILE* f, long r, long g, long b)
+static void fcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -3478,7 +3478,7 @@ static void fcolorg_ivf(FILE* f, long r, long g, long b)
 
 }
 
-static void bcolorg_ivf(FILE* f, long r, long g, long b)
+static void bcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -3610,7 +3610,7 @@ static void bor_ivf(FILE* f)
 
 }
 
-static void linewidth_ivf(FILE* f, long w)
+static void linewidth_ivf(FILE* f, ami_long w)
 
 {
 
@@ -3634,7 +3634,7 @@ static void linestyle_ivf(FILE* f, ami_lstyle style)
 
 }
 
-static void settab_ivf(FILE* f, long t)
+static void settab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -3646,7 +3646,7 @@ static void settab_ivf(FILE* f, long t)
 
 }
 
-static void settabg_ivf(FILE* f, long t)
+static void settabg_ivf(FILE* f, ami_long t)
 
 {
 
@@ -3658,7 +3658,7 @@ static void settabg_ivf(FILE* f, long t)
 
 }
 
-static void restab_ivf(FILE* f, long t)
+static void restab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -3670,7 +3670,7 @@ static void restab_ivf(FILE* f, long t)
 
 }
 
-static void restabg_ivf(FILE* f, long t)
+static void restabg_ivf(FILE* f, ami_long t)
 
 {
 
@@ -3694,7 +3694,7 @@ static void clrtab_ivf(FILE* f)
 
 }
 
-static void viewoffg_ivf(FILE* f, long x, long y)
+static void viewoffg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3718,7 +3718,7 @@ static void viewscale_ivf(FILE* f, float x, float y)
 
 }
 
-static void path_ivf(FILE* f, long a)
+static void path_ivf(FILE* f, ami_long a)
 
 {
 
@@ -3730,7 +3730,7 @@ static void path_ivf(FILE* f, long a)
 
 }
 
-static void blink_ivf(FILE* f, long e)
+static void blink_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3742,7 +3742,7 @@ static void blink_ivf(FILE* f, long e)
 
 }
 
-static void reverse_ivf(FILE* f, long e)
+static void reverse_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3754,7 +3754,7 @@ static void reverse_ivf(FILE* f, long e)
 
 }
 
-static void underline_ivf(FILE* f, long e)
+static void underline_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3766,7 +3766,7 @@ static void underline_ivf(FILE* f, long e)
 
 }
 
-static void superscript_ivf(FILE* f, long e)
+static void superscript_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3778,7 +3778,7 @@ static void superscript_ivf(FILE* f, long e)
 
 }
 
-static void subscript_ivf(FILE* f, long e)
+static void subscript_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3790,7 +3790,7 @@ static void subscript_ivf(FILE* f, long e)
 
 }
 
-static void strikeout_ivf(FILE* f, long e)
+static void strikeout_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3802,7 +3802,7 @@ static void strikeout_ivf(FILE* f, long e)
 
 }
 
-static void standout_ivf(FILE* f, long e)
+static void standout_ivf(FILE* f, ami_long e)
 
 {
 
@@ -3814,7 +3814,7 @@ static void standout_ivf(FILE* f, long e)
 
 }
 
-static void loadpict_ivf(FILE* f, long p, char* fn)
+static void loadpict_ivf(FILE* f, ami_long p, char* fn)
 
 {
 
@@ -3826,7 +3826,7 @@ static void loadpict_ivf(FILE* f, long p, char* fn)
 
 }
 
-static void delpict_ivf(FILE* f, long p)
+static void delpict_ivf(FILE* f, ami_long p)
 
 {
 
@@ -3838,7 +3838,7 @@ static void delpict_ivf(FILE* f, long p)
 
 }
 
-static long curx_ivf(FILE* f)
+static ami_long curx_ivf(FILE* f)
 
 {
 
@@ -3851,7 +3851,7 @@ static long curx_ivf(FILE* f)
 
 }
 
-static long cury_ivf(FILE* f)
+static ami_long cury_ivf(FILE* f)
 
 {
 
@@ -3864,7 +3864,7 @@ static long cury_ivf(FILE* f)
 
 }
 
-static long curxg_ivf(FILE* f)
+static ami_long curxg_ivf(FILE* f)
 
 {
 
@@ -3877,7 +3877,7 @@ static long curxg_ivf(FILE* f)
 
 }
 
-static long curyg_ivf(FILE* f)
+static ami_long curyg_ivf(FILE* f)
 
 {
 
@@ -3890,7 +3890,7 @@ static long curyg_ivf(FILE* f)
 
 }
 
-static long curbnd_ivf(FILE* f)
+static ami_long curbnd_ivf(FILE* f)
 
 {
 
@@ -3903,7 +3903,7 @@ static long curbnd_ivf(FILE* f)
 
 }
 
-static long chrsizx_ivf(FILE* f)
+static ami_long chrsizx_ivf(FILE* f)
 
 {
 
@@ -3916,7 +3916,7 @@ static long chrsizx_ivf(FILE* f)
 
 }
 
-static long chrsizy_ivf(FILE* f)
+static ami_long chrsizy_ivf(FILE* f)
 
 {
 
@@ -3929,7 +3929,7 @@ static long chrsizy_ivf(FILE* f)
 
 }
 
-static long baseline_ivf(FILE* f)
+static ami_long baseline_ivf(FILE* f)
 
 {
 
@@ -3942,7 +3942,7 @@ static long baseline_ivf(FILE* f)
 
 }
 
-static long strsiz_ivf(FILE* f, const char* s)
+static ami_long strsiz_ivf(FILE* f, const char* s)
 
 {
 
@@ -3955,7 +3955,7 @@ static long strsiz_ivf(FILE* f, const char* s)
 
 }
 
-static long chrpos_ivf(FILE* f, const char* s, long p)
+static ami_long chrpos_ivf(FILE* f, const char* s, ami_long p)
 
 {
 
@@ -3968,7 +3968,7 @@ static long chrpos_ivf(FILE* f, const char* s, long p)
 
 }
 
-static long justpos_ivf(FILE* f, const char* s, long p, long n)
+static ami_long justpos_ivf(FILE* f, const char* s, ami_long p, ami_long n)
 
 {
 
@@ -3981,7 +3981,7 @@ static long justpos_ivf(FILE* f, const char* s, long p, long n)
 
 }
 
-static long dpmx_ivf(FILE* f)
+static ami_long dpmx_ivf(FILE* f)
 
 {
 
@@ -3994,7 +3994,7 @@ static long dpmx_ivf(FILE* f)
 
 }
 
-static long dpmy_ivf(FILE* f)
+static ami_long dpmy_ivf(FILE* f)
 
 {
 
@@ -4007,7 +4007,7 @@ static long dpmy_ivf(FILE* f)
 
 }
 
-static long fonts_ivf(FILE* f)
+static ami_long fonts_ivf(FILE* f)
 
 {
 
@@ -4033,7 +4033,7 @@ static float points_ivf(FILE* f)
 
 }
 
-static long pictsizx_ivf(FILE* f, long p)
+static ami_long pictsizx_ivf(FILE* f, ami_long p)
 
 {
 
@@ -4046,7 +4046,7 @@ static long pictsizx_ivf(FILE* f, long p)
 
 }
 
-static long pictsizy_ivf(FILE* f, long p)
+static ami_long pictsizy_ivf(FILE* f, ami_long p)
 
 {
 
@@ -4059,7 +4059,7 @@ static long pictsizy_ivf(FILE* f, long p)
 
 }
 
-static long scalex_ivf(FILE* f, long x)
+static ami_long scalex_ivf(FILE* f, ami_long x)
 
 {
 
@@ -4072,7 +4072,7 @@ static long scalex_ivf(FILE* f, long x)
 
 }
 
-static long scaley_ivf(FILE* f, long y)
+static ami_long scaley_ivf(FILE* f, ami_long y)
 
 {
 
@@ -4085,7 +4085,7 @@ static long scaley_ivf(FILE* f, long y)
 
 }
 
-static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
+static void fontnam_ivf(FILE* f, ami_long fc, char* fns, ami_long fnsl)
 
 {
 
@@ -4097,7 +4097,7 @@ static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
 
 }
 
-static long mouse_ivf(FILE* f)
+static ami_long mouse_ivf(FILE* f)
 
 {
 
@@ -4105,7 +4105,7 @@ static long mouse_ivf(FILE* f)
 
 }
 
-static long mousebutton_ivf(FILE* f, long m)
+static ami_long mousebutton_ivf(FILE* f, ami_long m)
 
 {
 
@@ -4113,7 +4113,7 @@ static long mousebutton_ivf(FILE* f, long m)
 
 }
 
-static long joystick_ivf(FILE* f)
+static ami_long joystick_ivf(FILE* f)
 
 {
 
@@ -4121,7 +4121,7 @@ static long joystick_ivf(FILE* f)
 
 }
 
-static long joybutton_ivf(FILE* f, long j)
+static ami_long joybutton_ivf(FILE* f, ami_long j)
 
 {
 
@@ -4129,7 +4129,7 @@ static long joybutton_ivf(FILE* f, long j)
 
 }
 
-static long joyaxis_ivf(FILE* f, long j)
+static ami_long joyaxis_ivf(FILE* f, ami_long j)
 
 {
 
@@ -4137,7 +4137,7 @@ static long joyaxis_ivf(FILE* f, long j)
 
 }
 
-static long funkey_ivf(FILE* f)
+static ami_long funkey_ivf(FILE* f)
 
 {
 
@@ -4155,7 +4155,7 @@ switches windows.
 
 *******************************************************************************/
 
-static void font_ivf(FILE* f, long fc)
+static void font_ivf(FILE* f, ami_long fc)
 
 {
 
@@ -4168,7 +4168,7 @@ static void font_ivf(FILE* f, long fc)
 
 }
 
-static void fontsiz_ivf(FILE* f, long s)
+static void fontsiz_ivf(FILE* f, ami_long s)
 
 {
 
@@ -4196,7 +4196,7 @@ static void setpoints_ivf(FILE* f, float ps)
 
 }
 
-static void chrspcx_ivf(FILE* f, long s)
+static void chrspcx_ivf(FILE* f, ami_long s)
 
 {
 
@@ -4209,7 +4209,7 @@ static void chrspcx_ivf(FILE* f, long s)
 
 }
 
-static void chrspcy_ivf(FILE* f, long s)
+static void chrspcy_ivf(FILE* f, ami_long s)
 
 {
 
@@ -4223,7 +4223,7 @@ static void chrspcy_ivf(FILE* f, long s)
 }
 
 /* an attribute that reselects the font: record the bit, pass down */
-static void fontattr(FILE* f, long e, int bit, void (*down)(FILE*, long))
+static void fontattr(FILE* f, ami_long e, int bit, void (*down)(FILE*, ami_long))
 
 {
 
@@ -4236,23 +4236,23 @@ static void fontattr(FILE* f, long e, int bit, void (*down)(FILE*, long))
 
 }
 
-static void bold_ivf(FILE* f, long e)
+static void bold_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WABOLD, bold_down); }
-static void italic_ivf(FILE* f, long e)
+static void italic_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WAITAL, italic_down); }
-static void condensed_ivf(FILE* f, long e)
+static void condensed_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WACOND, condensed_down); }
-static void extended_ivf(FILE* f, long e)
+static void extended_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WAEXT, extended_down); }
-static void xlight_ivf(FILE* f, long e)
+static void xlight_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WAXLIGHT, xlight_down); }
-static void light_ivf(FILE* f, long e)
+static void light_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WALIGHT, light_down); }
-static void xbold_ivf(FILE* f, long e)
+static void xbold_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WAXBOLD, xbold_down); }
-static void hollow_ivf(FILE* f, long e)
+static void hollow_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WAHOLLOW, hollow_down); }
-static void raised_ivf(FILE* f, long e)
+static void raised_ivf(FILE* f, ami_long e)
     { fontattr(f, e, WARAISED, raised_down); }
 
 /*******************************************************************************
@@ -4261,7 +4261,7 @@ Sizes, screens and buffers
 
 *******************************************************************************/
 
-static long maxx_ivf(FILE* f)
+static ami_long maxx_ivf(FILE* f)
 
 {
 
@@ -4274,7 +4274,7 @@ static long maxx_ivf(FILE* f)
 
 }
 
-static long maxy_ivf(FILE* f)
+static ami_long maxy_ivf(FILE* f)
 
 {
 
@@ -4287,7 +4287,7 @@ static long maxy_ivf(FILE* f)
 
 }
 
-static long maxxg_ivf(FILE* f)
+static ami_long maxxg_ivf(FILE* f)
 
 {
 
@@ -4299,7 +4299,7 @@ static long maxxg_ivf(FILE* f)
 
 }
 
-static long maxyg_ivf(FILE* f)
+static ami_long maxyg_ivf(FILE* f)
 
 {
 
@@ -4311,7 +4311,7 @@ static long maxyg_ivf(FILE* f)
 
 }
 
-static void select_ivf(FILE* f, long u, long d)
+static void select_ivf(FILE* f, ami_long u, ami_long d)
 
 {
 
@@ -4335,7 +4335,7 @@ static void select_ivf(FILE* f, long u, long d)
 
 }
 
-static void buffer_ivf(FILE* f, long e)
+static void buffer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4348,7 +4348,7 @@ static void buffer_ivf(FILE* f, long e)
 
 }
 
-static void sizbufg_ivf(FILE* f, long x, long y)
+static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -4365,7 +4365,7 @@ static void sizbufg_ivf(FILE* f, long x, long y)
 
 }
 
-static void sizbuf_ivf(FILE* f, long x, long y)
+static void sizbuf_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -4403,7 +4403,7 @@ static winptr getwin(void)
 }
 
 /* set up a new window record and present it */
-static void opnwin(int fn, int pfn, long wid, int root)
+static void opnwin(int fn, int pfn, ami_long wid, int root)
 
 {
 
@@ -4500,7 +4500,7 @@ static void opnwin(int fn, int pfn, long wid, int root)
 }
 
 /* open an input and output pair for a window */
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
@@ -4551,7 +4551,7 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 }
 
-static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
@@ -4559,11 +4559,11 @@ static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
 
 }
 
-static long getwinid_ivf(void)
+static ami_long getwinid_ivf(void)
 
 {
 
-    long wid;
+    ami_long wid;
 
     /* allocated ids are negative -- buried -- so they never collide
        with the positive ids programs pick for themselves */
@@ -4620,13 +4620,13 @@ static void regeom(winptr win, rectangle* old)
 
 }
 
-static void setsizg_ivf(FILE* f, long x, long y)
+static void setsizg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
     winptr     win;
     rectangle  old;
-    long       ocx, ocy;
+    ami_long   ocx, ocy;
     ami_evtrec er;
 
     win = txt2win(f);
@@ -4667,7 +4667,7 @@ static void setsizg_ivf(FILE* f, long x, long y)
 
 }
 
-static void setsiz_ivf(FILE* f, long x, long y)
+static void setsiz_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -4682,7 +4682,7 @@ static void setsiz_ivf(FILE* f, long x, long y)
 
 }
 
-static void getsizg_ivf(FILE* f, long* x, long* y)
+static void getsizg_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -4694,7 +4694,7 @@ static void getsizg_ivf(FILE* f, long* x, long* y)
 
 }
 
-static void getsiz_ivf(FILE* f, long* x, long* y)
+static void getsiz_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -4707,7 +4707,7 @@ static void getsiz_ivf(FILE* f, long* x, long* y)
 
 }
 
-static void setposg_ivf(FILE* f, long x, long y)
+static void setposg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -4721,7 +4721,7 @@ static void setposg_ivf(FILE* f, long x, long y)
     /* a child's coordinates are relative to its parent's client */
     {
 
-        long ox, oy, dx, dy;
+        ami_long ox, oy, dx, dy;
 
         parorigin(win, &ox, &oy);
         dx = ox+x-win->orgx;
@@ -4736,7 +4736,7 @@ static void setposg_ivf(FILE* f, long x, long y)
 
 }
 
-static void setpos_ivf(FILE* f, long x, long y)
+static void setpos_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -4749,7 +4749,7 @@ static void setpos_ivf(FILE* f, long x, long y)
 
 }
 
-static void scnsizg_ivf(FILE* f, long* x, long* y)
+static void scnsizg_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -4758,7 +4758,7 @@ static void scnsizg_ivf(FILE* f, long* x, long* y)
 
 }
 
-static void scnsiz_ivf(FILE* f, long* x, long* y)
+static void scnsiz_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -4771,7 +4771,7 @@ static void scnsiz_ivf(FILE* f, long* x, long* y)
 
 }
 
-static void scnceng_ivf(FILE* f, long* x, long* y)
+static void scnceng_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -4780,7 +4780,7 @@ static void scnceng_ivf(FILE* f, long* x, long* y)
 
 }
 
-static void scncen_ivf(FILE* f, long* x, long* y)
+static void scncen_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -4793,12 +4793,12 @@ static void scncen_ivf(FILE* f, long* x, long* y)
 
 }
 
-static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy,
+static void winclientg_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy,
                            ami_winmodset ms)
 
 {
 
-    long fx = 0, fy = 0;
+    ami_long fx = 0, fy = 0;
 
     if (BIT(ami_wmframe) & ms) {
 
@@ -4815,13 +4815,13 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy,
 
 }
 
-static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy,
+static void winclient_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy,
                           ami_winmodset ms)
 
 {
 
     winptr win;
-    long   csx, csy;
+    ami_long   csx, csy;
 
     win = txt2win(f);
     entercli(win);
@@ -4870,7 +4870,7 @@ static void back_ivf(FILE* f)
            siblings, above its parent -- a child under its parent would
            be occluded whole -- or above the root floor for a window
            with no parent. */
-        long fl = win->parwin? win->parwin->zorder+1: 1;
+        ami_long fl = win->parwin? win->parwin->zorder+1: 1;
 
         if (win->zorder > fl) {
 
@@ -4889,7 +4889,7 @@ static void back_ivf(FILE* f)
 
 }
 
-static void frame_ivf(FILE* f, long e)
+static void frame_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4904,7 +4904,7 @@ static void frame_ivf(FILE* f, long e)
 
 }
 
-static void sizable_ivf(FILE* f, long e)
+static void sizable_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4920,7 +4920,7 @@ static void sizable_ivf(FILE* f, long e)
 
 }
 
-static void sysbar_ivf(FILE* f, long e)
+static void sysbar_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4946,9 +4946,9 @@ static void focus_ivf(FILE* f)
 
 /* blockcopyg: the client's screen numbers map to the window's backing
    screens in the layer */
-static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
-                           long sx2, long sy2, long dx1, long dy1,
-                           long dx2, long dy2)
+static void blockcopyg_ivf(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1,
+                           ami_long sx2, ami_long sy2, ami_long dx1, ami_long dy1,
+                           ami_long dx2, ami_long dy2)
 
 {
 
@@ -4960,7 +4960,7 @@ static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
         error("Invalid screen number");
     for (i = 0; i < 2; i++) {
 
-        long n = i? d: s;
+        ami_long n = i? d: s;
 
         if (!win->scns[n-1]) alcbacking(win, n-1);
 
@@ -5296,7 +5296,7 @@ static void frmenu(ami_menuptr m)
 }
 
 /* the sibling list holding the item with the given id */
-static ami_menuptr fndmenlist(ami_menuptr root, long id)
+static ami_menuptr fndmenlist(ami_menuptr root, ami_long id)
 
 {
 
@@ -5331,9 +5331,9 @@ static void drwpop(winptr pw)
 {
 
     ami_menuptr p;
-    long eh = BARH(rootcell);
-    long y = 1;
-    long i = 1;
+    ami_long eh = BARH(rootcell);
+    ami_long y = 1;
+    ami_long i = 1;
     char buf[256];
     winptr own = pw->mowner;
 
@@ -5370,7 +5370,7 @@ static void drwpop(winptr pw)
 
 /* Open a pulldown at a root position: a parentless bordered window on
    the cascade stack, sized to its entries. */
-static winptr mkpop(winptr own, ami_menuptr items, long rx, long ry)
+static winptr mkpop(winptr own, ami_menuptr items, ami_long rx, ami_long ry)
 
 {
 
@@ -5379,9 +5379,9 @@ static winptr mkpop(winptr own, ami_menuptr items, long rx, long ry)
     ami_menuptr p;
     rectangle   old;
     char        buf[256];
-    long        n = 0, w = 40, l;
-    long        eh = BARH(rootcell);
-    long        pwid, ph;
+    ami_long    n = 0, w = 40, l;
+    ami_long    eh = BARH(rootcell);
+    ami_long    pwid, ph;
 
     if (popcnt >= MAXPOP) clspops(MAXPOP-1); /* bound the cascade */
     iopenwin(&stdin, &pf, NULL, getwinid_ivf());
@@ -5497,12 +5497,12 @@ static void menredraw(winptr win)
 }
 
 /* a click in a pulldown: cascade a branch, or select an item */
-static void popclick(winptr pw, long lx, long ly)
+static void popclick(winptr pw, ami_long lx, ami_long ly)
 
 {
 
-    long        cy = ly-pw->coffy;
-    long        row;
+    ami_long    cy = ly-pw->coffy;
+    ami_long    row;
     ami_menuptr item;
     winptr      own = pw->mowner;
     ami_evtrec  er;
@@ -5536,12 +5536,12 @@ static void popclick(winptr pw, long lx, long ly)
 }
 
 /* pointer motion over a popup: the hover row follows */
-static void pophover(winptr pw, long ly)
+static void pophover(winptr pw, ami_long ly)
 
 {
 
-    long cy = ly-pw->coffy;
-    long row = 0;
+    ami_long cy = ly-pw->coffy;
+    ami_long row = 0;
 
     if (cy >= 1) row = (cy-1)/BARH(rootcell)+1;
     if (row < 1 || row > menlen(pw->pitems)) row = 0;
@@ -5601,7 +5601,7 @@ static void menu_ivf(FILE* f, ami_menuptr m)
 
     winptr    win = txt2win(f);
     rectangle old;
-    long      delta;
+    ami_long  delta;
 
     /* any open menu of this window closes */
     { int i; for (i = popcnt-1; i >= 0; i--)
@@ -5622,7 +5622,7 @@ static void menu_ivf(FILE* f, ami_menuptr m)
 }
 
 /* enable or disable a menu item */
-static void menuena_ivf(FILE* f, long id, long onoff)
+static void menuena_ivf(FILE* f, ami_long id, ami_long onoff)
 
 {
 
@@ -5645,7 +5645,7 @@ static void menuena_ivf(FILE* f, long id, long onoff)
 }
 
 /* set an item's select state; a "one of" group clears its others */
-static void menusel_ivf(FILE* f, long id, long select)
+static void menusel_ivf(FILE* f, ami_long id, ami_long select)
 
 {
 
@@ -5687,7 +5687,7 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
 
 {
 
-    static struct { long sel; char* face; } std[] = {
+    static struct { ami_long sel; char* face; } std[] = {
 
         { AMI_SMNEW, "New" }, { AMI_SMOPEN, "Open" },
         { AMI_SMCLOSE, "Close" }, { AMI_SMSAVE, "Save" },
@@ -5704,22 +5704,22 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
         { AMI_SMABOUT, "About" },
 
     };
-    static const long filist[] = { AMI_SMNEW, AMI_SMOPEN, AMI_SMCLOSE,
+    static const ami_long filist[] = { AMI_SMNEW, AMI_SMOPEN, AMI_SMCLOSE,
         AMI_SMSAVE, AMI_SMSAVEAS, AMI_SMPAGESET, AMI_SMPRINT, AMI_SMEXIT, 0 };
-    static const long edlist[] = { AMI_SMUNDO, AMI_SMCUT, AMI_SMPASTE,
+    static const ami_long edlist[] = { AMI_SMUNDO, AMI_SMCUT, AMI_SMPASTE,
         AMI_SMDELETE, AMI_SMFIND, AMI_SMFINDNEXT, AMI_SMREPLACE, AMI_SMGOTO,
         AMI_SMSELECTALL, 0 };
-    static const long wilist[] = { AMI_SMNEWWINDOW, AMI_SMTILEHORIZ,
+    static const ami_long wilist[] = { AMI_SMNEWWINDOW, AMI_SMTILEHORIZ,
         AMI_SMTILEVERT, AMI_SMCASCADE, AMI_SMCLOSEALL, 0 };
-    static const long helist[] = { AMI_SMHELPTOPIC, AMI_SMABOUT, 0 };
-    static struct { const long* lst; char* face; } tops[] = {
+    static const ami_long helist[] = { AMI_SMHELPTOPIC, AMI_SMABOUT, 0 };
+    static struct { const ami_long* lst; char* face; } tops[] = {
 
         { filist, "File" }, { edlist, "Edit" }, { NULL, NULL },
         { wilist, "Window" }, { helist, "Help" },
 
     };
     ami_menuptr root = NULL, rtl = NULL;
-    long ti, i;
+    ami_long ti, i;
 
     /* the documented order: file edit <program> window help */
     for (ti = 0; ti < 5; ti++) {
@@ -5740,8 +5740,8 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
         }
         for (i = 0; tops[ti].lst[i]; i++) {
 
-            long sel = tops[ti].lst[i];
-            long si;
+            ami_long sel = tops[ti].lst[i];
+            ami_long si;
 
             if (!(sms & (1L<<sel))) continue;
             for (si = 0; si < AMI_SMMAX; si++)
@@ -5797,7 +5797,7 @@ callers, so the desktop backends simply have no hold to offer.
 
 *******************************************************************************/
 
-void wg_hold(long on)
+void wg_hold(ami_long on)
 
 {
 

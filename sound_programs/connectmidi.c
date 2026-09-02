@@ -20,8 +20,8 @@ int main(int argc, char **argv)
 
     int i;
     int key;
-    long sport;
-    long dport;
+    int sport;
+    int dport;
     ami_seqmsg sr;
 
     if (argc != 1 && argc != 3) {

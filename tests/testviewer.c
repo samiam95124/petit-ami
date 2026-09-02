@@ -39,7 +39,7 @@
  * inverted from standard C. Wrap it so we can write portable-looking code:
  * pa_fseek() returns 0 on success like stdlib fseek().
  */
-static int pa_fseek(FILE *f, long off, int whence) {
+static int pa_fseek(FILE *f, ami_long off, int whence) {
     return fseek(f, off, whence) ? 0 : -1;
 }
 
@@ -49,7 +49,7 @@ static int pa_fseek(FILE *f, long off, int whence) {
 #define PIC_SLOT         1
 
 typedef struct {
-    long     offset;     /* byte offset of this BMP within test_images */
+    ami_long offset;     /* byte offset of this BMP within test_images */
     uint32_t size;       /* total BMP size from BITMAPFILEHEADER.bfSize */
 } frame_idx_t;
 
@@ -84,7 +84,7 @@ static int build_index(const char *filename) {
     if (!frames) { fclose(f); return -1; }
 
     for (;;) {
-        long off = ftell(f);
+        ami_long off = ftell(f);
         uint8_t hdr[14];
         size_t got = fread(hdr, 1, 14, f);
         if (got == 0) break;                      /* clean end of file */
@@ -92,14 +92,14 @@ static int build_index(const char *filename) {
             /* Trailing garbage (e.g. stale bytes from a previous larger
                run). Treat it as the end of the valid stream. */
             fprintf(stderr,
-                    "testviewer: stopping at offset %ld after %d frame(s) "
-                    "(trailing non-BMP data)\n", off, nframes);
+                    "testviewer: stopping at offset %lld after %d frame(s) "
+                    "(trailing non-BMP data)\n", AMI_LONG_CAST(off), nframes);
             break;
         }
         uint32_t bfsize = read_u32_le(&hdr[2]);
         if (bfsize < 14) {
-            fprintf(stderr, "testviewer: bogus bfSize=%u at offset %ld\n",
-                    bfsize, off);
+            fprintf(stderr, "testviewer: bogus bfSize=%u at offset %lld\n",
+                    bfsize, AMI_LONG_CAST(off));
             fclose(f);
             return -1;
         }
@@ -116,7 +116,7 @@ static int build_index(const char *filename) {
         nframes++;
 
         /* skip the rest of this BMP */
-        if (pa_fseek(f, off + (long)bfsize, SEEK_SET) != 0) {
+        if (pa_fseek(f, off + (ami_long)bfsize, SEEK_SET) != 0) {
             fprintf(stderr, "testviewer: seek past frame %d failed\n",
                     nframes - 1);
             fclose(f);
@@ -183,20 +183,20 @@ static void show_frame(const char *src_name, int i) {
     if (cur_frame >= 0) ami_delpict(stdout, PIC_SLOT);
 
     ami_loadpict(stdout, PIC_SLOT, TEMP_NAME_NOEXT);
-    long px = ami_pictsizx(stdout, PIC_SLOT);
-    long py = ami_pictsizy(stdout, PIC_SLOT);
+    ami_long px = ami_pictsizx(stdout, PIC_SLOT);
+    ami_long py = ami_pictsizy(stdout, PIC_SLOT);
 
-    long win_x = ami_maxxg(stdout);
-    long win_y = ami_maxyg(stdout);
+    ami_long win_x = ami_maxxg(stdout);
+    ami_long win_y = ami_maxyg(stdout);
 
     /* scale to fit, preserving aspect ratio */
     double sx = (double)win_x / (double)px;
     double sy = (double)win_y / (double)py;
     double s  = sx < sy ? sx : sy;
-    long dw = (long)(px * s);
-    long dh = (long)(py * s);
-    long ox = (win_x - dw) / 2 + 1;
-    long oy = (win_y - dh) / 2 + 1;
+    ami_long dw = (ami_long)(px * s);
+    ami_long dh = (ami_long)(py * s);
+    ami_long ox = (win_x - dw) / 2 + 1;
+    ami_long oy = (win_y - dh) / 2 + 1;
 
     /* clear background */
     ami_fcolor(stdout, ami_white);

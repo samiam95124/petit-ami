@@ -130,29 +130,30 @@
 
 #ifndef __GRAPH_REMOTE_H__
 #define __GRAPH_REMOTE_H__
+#include <localdefs.h>
 
 #define GR_VERSION 1    /* protocol version, carried in the hello exchange */
 #define GR_DEFPORT 4901 /* default command port; the event channel is +1,
                            the file transfer port +2 */
 
 /* the fixed message header. The types are chosen for the wire widths on the
-   supported platforms: int is 32 bits, short 16, long 64, little endian. */
+   supported platforms: int is 32 bits, short 16, ami_long 64, little endian. */
 typedef struct gr_msghdr {
 
     int   len; /* total message length, header included */
     short mid; /* message id */
     short seq; /* request serial, echoed by the reply */
-    long  wid; /* window handle, 0 if not meaningful */
+    ami_long  wid; /* window handle, 0 if not meaningful */
 
 } gr_msghdr;
 
 /* the event record as it rides the wire, after the header */
 typedef struct gr_msgevt {
 
-    long winid;  /* window handle the event belongs to */
-    long etype;  /* event code */
-    long handled;/* handled flag */
-    long p[8];   /* the union fields, in declaration order */
+    ami_long winid;  /* window handle the event belongs to */
+    ami_long etype;  /* event code */
+    ami_long handled;/* handled flag */
+    ami_long p[8];   /* the union fields, in declaration order */
 
 } gr_msgevt;
 
@@ -926,7 +927,7 @@ static const char* gr_msgname(int mid)
     }
 }
 
-static const char* gr_evtname(long e)
+static const char* gr_evtname(ami_long e)
 {
     switch (e) {
         case ami_etchar: return "CHAR";

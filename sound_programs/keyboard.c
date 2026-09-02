@@ -20,10 +20,10 @@ Yes, its the standard annoying utility to turn your keyoard into an organ.
 
 ami_evtrec  er;    /* event record */
 ami_channel chan;  /* channel */
-long       velo;  /* velocity */
+int        velo;  /* velocity */
 int        keycnt[36];
 int        ki;
-long port = AMI_SYNTH_OUT; /* set default synth out */
+ami_long port = AMI_SYNTH_OUT; /* set default synth out */
 
 ami_optrec opttbl[] = {
 
@@ -149,8 +149,8 @@ int main(int argc, char **argv)
 
 {
 
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

@@ -39,20 +39,20 @@ is missing the section says so and stands down.
 #define SECOND 10000 /* one second */
 
 
-long dport = AMI_SYNTH_OUT; /* set default synth out */
-long wport = AMI_WAVE_OUT;  /* wave output port */
-long iport = AMI_WAVE_IN;   /* wave input port */
-long sport = 0;             /* synth input port; 0 skips the section, since
+ami_long dport = AMI_SYNTH_OUT; /* set default synth out */
+ami_long wport = AMI_WAVE_OUT;  /* wave output port */
+ami_long iport = AMI_WAVE_IN;   /* wave input port */
+ami_long sport = 0;             /* synth input port; 0 skips the section, since
                                reading a keyboard nobody plays blocks */
-long nomidi = FALSE;        /* skip the synthesizer listening tests and go
+ami_long nomidi = FALSE;        /* skip the synthesizer listening tests and go
                                straight to the sections after them */
 
-long tstlo = 1;             /* first test to run */
-long tsthi = 1000;          /* last test to run */
+ami_long tstlo = 1;             /* first test to run */
+ami_long tsthi = 1000;          /* last test to run */
 
 /* is the test within the selected range? sound_test n runs test n
    alone; sound_test n x runs n through x; no arguments runs all */
-static int tst(long n)
+static int tst(ami_long n)
 
 {
 
@@ -87,7 +87,7 @@ wait time in 100 microseconds.
 
 *******************************************************************************/
 
-static void waittime(long t)
+static void waittime(ami_long t)
 
 {
 
@@ -156,9 +156,9 @@ static void makewav(const char* fn, double freq, double secs)
 {
 
     FILE* f;
-    long  n = (long)(TESTRATE*secs);
-    long  dlen = n*2;
-    long  i;
+    ami_long  n = (ami_long)(TESTRATE*secs);
+    ami_long  dlen = n*2;
+    ami_long  i;
 
     f = fopen(fn, "wb");
     if (!f) { printf("could not write %s\n", fn); return; }
@@ -183,7 +183,7 @@ static void makewav(const char* fn, double freq, double secs)
 
         /* the tone, eased in and out so it does not click */
         double a = sin(2.0*3.14159265*freq*i/TESTRATE)*20000.0;
-        long   e = n/50;
+        ami_long   e = n/50;
         short  s;
 
         if (i < e) a = a*i/e;
@@ -270,7 +270,7 @@ static int virtclients(int* cl, int max)
 }
 
 /* one checked result of the loop test */
-static long loopfails;
+static ami_long loopfails;
 
 static void loopchk(const char* what, int ok)
 
@@ -281,7 +281,7 @@ static void loopchk(const char* what, int ok)
 
 }
 
-static int loopnear(long a, long b, long tol)
+static int loopnear(ami_long a, ami_long b, ami_long tol)
 
 {
 
@@ -298,12 +298,12 @@ the given port.
 
 *******************************************************************************/
 
-void playrand(long port, long notes)
+void playrand(ami_long port, ami_long notes)
 
 {
 
-    long key;
-    long i;
+    ami_long key;
+    ami_long i;
 
     srand(42);
     for( i = 0; i < notes; i++) {
@@ -331,7 +331,7 @@ Just plays a test note, with 1/4 on and off times. Plays middle C.
 
 *******************************************************************************/
 
-void playnote(long port, ami_note n)
+void playnote(ami_long port, ami_note n)
 
 {
 
@@ -351,7 +351,7 @@ Plays a simple scale with on time.
 
 *******************************************************************************/
 
-void playscale(long port, long t)
+void playscale(ami_long port, ami_long t)
 
 {
 
@@ -395,8 +395,8 @@ int main(int argc, char *argv[])
     int           o; /* octave */
     ami_instrument ins; /* instrument */
     int           i, x, j;
-    long          argi = 1;
-    long          argcl;
+    ami_long      argi = 1;
+    ami_long      argcl;
 
     /* parse user options */
     argcl = argc;
@@ -464,7 +464,7 @@ int main(int argc, char *argv[])
     printf("Run through the entire scale of notes available\n");
     for (n = AMI_NOTE_C+AMI_OCTAVE_1; n <= AMI_NOTE_G+AMI_OCTAVE_11; n++) {
 
-        printf("%ld ", n);
+        printf("%lld ", AMI_LONG_CAST(n));
         ami_noteon(dport, 0, 1, n, LONG_MAX);
         waittime(SECOND/10);
         ami_noteoff(dport, 0, 1, n, 0);
@@ -484,7 +484,7 @@ int main(int argc, char *argv[])
     printf("Instruments: ");
     for (ins = AMI_INST_ACOUSTIC_GRAND; ins <= AMI_INST_GUNSHOT; ins++) {
 
-        printf("%ld ", ins);
+        printf("%lld ", AMI_LONG_CAST(ins));
         ami_instchange(dport, 0, 1, ins);
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/10);
@@ -507,7 +507,7 @@ int main(int argc, char *argv[])
     printf("Instruments: ");
     for (n = AMI_NOTE_ACOUSTIC_BASS_DRUM; n <= AMI_NOTE_OPEN_TRIANGLE; n++) {
 
-        printf("%ld ", n);
+        printf("%lld ", AMI_LONG_CAST(n));
         ami_noteon(dport, 0, 10, n, LONG_MAX);
         waittime(SECOND/10);
         ami_noteoff(dport, 0, 10, n, 0);
@@ -624,7 +624,7 @@ int main(int argc, char *argv[])
     waitret();
     for (i = 0; i <= 10; i++) {
 
-        printf("Attack: %ld\n", i*(LONG_MAX/10));
+        printf("Attack: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/10)));
         ami_attack(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
@@ -643,7 +643,7 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     for (i = 0; i <= 10; i++) {
 
-        printf("Attack: %ld\n", i*(LONG_MAX/10));
+        printf("Attack: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/10)));
         ami_attack(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
@@ -663,7 +663,7 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     for (i = 0; i <= 10; i++) {
 
-        printf("Release: %ld\n", i*(LONG_MAX/10));
+        printf("Release: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/10)));
         ami_release(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
@@ -682,7 +682,7 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     for (i = 0; i <= 10; i++) {
 
-        printf("Release: %ld\n", i*(LONG_MAX/10));
+        printf("Release: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/10)));
         ami_release(dport, 0, 1, i*(LONG_MAX/10));
         playnote(dport, AMI_NOTE_C+AMI_OCTAVE_6);
 
@@ -762,7 +762,7 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     for (i = 0; i < 10; i++) {
 
-        printf("Portamento time: %ld\n", i*(LONG_MAX/10));
+        printf("Portamento time: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/10)));
         ami_porttime(dport, 0, 1, i*(LONG_MAX/10));
         ami_portamento(dport, 0, 1, FALSE);
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
@@ -797,7 +797,7 @@ int main(int argc, char *argv[])
     ami_instchange(dport, 0, 1, AMI_INST_DRAWBAR_ORGAN);
     for (i = 0; i < 10; i++) {
 
-        printf("Portamento time: %ld\n", i*(LONG_MAX/10));
+        printf("Portamento time: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/10)));
         ami_portamento(dport, 0, 1, FALSE);
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX); /* play middle C */
         waittime(SECOND/4);
@@ -832,7 +832,7 @@ int main(int argc, char *argv[])
     /* advance volume sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Volume: %ld\n", i*(LONG_MAX/20));
+        printf("Volume: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_volsynthchan(dport, 0, 1, i*(LONG_MAX/20));
         waittime(SECOND/4);
 
@@ -855,7 +855,7 @@ int main(int argc, char *argv[])
     /* advance volume sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Balance: %ld\n", (i-10)*(LONG_MAX/10));
+        printf("Balance: %lld\n", AMI_LONG_CAST((i-10)*(LONG_MAX/10)));
         ami_balance(dport, 0, 1, (i-10)*(LONG_MAX/10));
         waittime(SECOND/4);
 
@@ -877,7 +877,7 @@ int main(int argc, char *argv[])
     /* advance vibrato sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Vibrato: %ld\n", i*(LONG_MAX/20));
+        printf("Vibrato: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_vibrato(dport, 0, 1, i*(LONG_MAX/20));
         waittime(SECOND);
 
@@ -900,7 +900,7 @@ int main(int argc, char *argv[])
     /* advance pan sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Pan: %ld\n", (i-10)*(LONG_MAX/10));
+        printf("Pan: %lld\n", AMI_LONG_CAST((i-10)*(LONG_MAX/10)));
         ami_pan(dport, 0, 1, (i-10)*(LONG_MAX/10));
         waittime(SECOND/4);
 
@@ -921,7 +921,7 @@ int main(int argc, char *argv[])
     /* advance timbre sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Timbre: %ld\n", i*(LONG_MAX/20));
+        printf("Timbre: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_timbre(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -944,7 +944,7 @@ int main(int argc, char *argv[])
     /* advance brightness sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Brightness: %ld\n", i*(LONG_MAX/20));
+        printf("Brightness: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_brightness(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -967,7 +967,7 @@ int main(int argc, char *argv[])
     /* advance reverb sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Reverb: %ld\n", i*(LONG_MAX/20));
+        printf("Reverb: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_reverb(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -991,7 +991,7 @@ int main(int argc, char *argv[])
     /* advance tremulo sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Tremulo: %ld\n", i*(LONG_MAX/20));
+        printf("Tremulo: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_tremulo(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -1015,7 +1015,7 @@ int main(int argc, char *argv[])
     /* advance chorus sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Chorus: %ld\n", i*(LONG_MAX/20));
+        printf("Chorus: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_chorus(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -1038,7 +1038,7 @@ int main(int argc, char *argv[])
     /* advance celeste sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Celeste: %ld\n", i*(LONG_MAX/20));
+        printf("Celeste: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_celeste(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -1061,7 +1061,7 @@ int main(int argc, char *argv[])
     /* advance phaser sets on channel while playing */
     for (i = 0; i < 20; i++) {
 
-        printf("Phaser: %ld\n", i*(LONG_MAX/20));
+        printf("Phaser: %lld\n", AMI_LONG_CAST(i*(LONG_MAX/20)));
         ami_phaser(dport, 0, 1, i*(LONG_MAX/20));
         ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
         waittime(SECOND/4);
@@ -1086,12 +1086,12 @@ int main(int argc, char *argv[])
     ami_noteon(dport, 0, 1, AMI_NOTE_C+AMI_OCTAVE_6, LONG_MAX);
     for (j = 0; j < 10; j++) {
 
-        printf("Pitchrange: %ld\n", j*(LONG_MAX/10));
+        printf("Pitchrange: %lld\n", AMI_LONG_CAST(j*(LONG_MAX/10)));
         ami_pitchrange(dport, 0, 1, j*(LONG_MAX/10));
         for (x = 0; x < 10; x++)
             for (i = 0; i < 10; i++) {
 
-            printf("Pitch: %ld\n", (i-5)*(LONG_MAX/5));
+            printf("Pitch: %lld\n", AMI_LONG_CAST((i-5)*(LONG_MAX/5)));
             ami_pitch(dport, 0, 1, (i-5)*(LONG_MAX/5));
             waittime(SECOND/100);
 
@@ -1121,32 +1121,32 @@ newtests:
 
         char nm[200];
 
-        printf("Output synthesizers: %ld\n", ami_synthout());
+        printf("Output synthesizers: %lld\n", AMI_LONG_CAST(ami_synthout()));
         for (i = 1; i <= ami_synthout(); i++) {
 
             ami_synthoutname(i, nm, sizeof(nm));
-            printf("    %2ld: %s\n", (long)i, nm);
+            printf("    %2lld: %s\n", AMI_LONG_CAST((ami_long)i), nm);
 
         }
-        printf("Input synthesizers: %ld\n", ami_synthin());
+        printf("Input synthesizers: %lld\n", AMI_LONG_CAST(ami_synthin()));
         for (i = 1; i <= ami_synthin(); i++) {
 
             ami_synthinname(i, nm, sizeof(nm));
-            printf("    %2ld: %s\n", (long)i, nm);
+            printf("    %2lld: %s\n", AMI_LONG_CAST((ami_long)i), nm);
 
         }
-        printf("Output wave devices: %ld\n", ami_waveout());
+        printf("Output wave devices: %lld\n", AMI_LONG_CAST(ami_waveout()));
         for (i = 1; i <= ami_waveout(); i++) {
 
             ami_waveoutname(i, nm, sizeof(nm));
-            printf("    %2ld: %s\n", (long)i, nm);
+            printf("    %2lld: %s\n", AMI_LONG_CAST((ami_long)i), nm);
 
         }
-        printf("Input wave devices: %ld\n", ami_wavein());
+        printf("Input wave devices: %lld\n", AMI_LONG_CAST(ami_wavein()));
         for (i = 1; i <= ami_wavein(); i++) {
 
             ami_waveinname(i, nm, sizeof(nm));
-            printf("    %2ld: %s\n", (long)i, nm);
+            printf("    %2lld: %s\n", AMI_LONG_CAST((ami_long)i), nm);
 
         }
 
@@ -1168,26 +1168,26 @@ newtests:
 
         ami_getparamsynthout(dport, "name", val, sizeof(val));
         printf("getparamsynthout(name): \"%s\"\n", val);
-        printf("setparamsynthout(name): %ld\n",
-               ami_setparamsynthout(dport, "name", "value"));
+        printf("setparamsynthout(name): %lld\n",
+               AMI_LONG_CAST(ami_setparamsynthout(dport, "name", "value")));
         if (ami_synthin() > 0) {
 
             ami_getparamsynthin(1, "name", val, sizeof(val));
             printf("getparamsynthin(name):  \"%s\"\n", val);
-            printf("setparamsynthin(name):  %ld\n",
-                   ami_setparamsynthin(1, "name", "value"));
+            printf("setparamsynthin(name):  %lld\n",
+                   AMI_LONG_CAST(ami_setparamsynthin(1, "name", "value")));
 
         }
         ami_getparamwaveout(wport, "name", val, sizeof(val));
         printf("getparamwaveout(name):  \"%s\"\n", val);
-        printf("setparamwaveout(name):  %ld\n",
-               ami_setparamwaveout(wport, "name", "value"));
+        printf("setparamwaveout(name):  %lld\n",
+               AMI_LONG_CAST(ami_setparamwaveout(wport, "name", "value")));
         if (ami_wavein() > 0) {
 
             ami_getparamwavein(iport, "name", val, sizeof(val));
             printf("getparamwavein(name):   \"%s\"\n", val);
-            printf("setparamwavein(name):   %ld\n",
-                   ami_setparamwavein(iport, "name", "value"));
+            printf("setparamwavein(name):   %lld\n",
+                   AMI_LONG_CAST(ami_setparamwavein(iport, "name", "value")));
 
         }
 
@@ -1212,7 +1212,7 @@ newtests:
     printf("once, which the elapsed times printed show.\n");
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);
     ami_starttimeout();
-    printf("time before queueing: %ld\n", ami_curtimeout());
+    printf("time before queueing: %lld\n", AMI_LONG_CAST(ami_curtimeout()));
     {
 
         static const ami_note sc[8] = {
@@ -1232,10 +1232,10 @@ newtests:
         }
 
     }
-    printf("time after queueing:  %ld (all eight notes are queued)\n",
-           ami_curtimeout());
+    printf("time after queueing:  %lld (all eight notes are queued)\n",
+           AMI_LONG_CAST(ami_curtimeout()));
     waittime(SECOND*3+SECOND/2);
-    printf("time after playing:   %ld\n", ami_curtimeout());
+    printf("time after playing:   %lld\n", AMI_LONG_CAST(ami_curtimeout()));
     ami_stoptimeout();
     printf("Complete\n");
     waitret();
@@ -1370,7 +1370,7 @@ newtests:
     {
 
         static short buf[TESTRATE/10]; /* a tenth of a second a write */
-        long j;
+        ami_long j;
 
         for (i = 0; i < 20; i++) {
 
@@ -1420,12 +1420,12 @@ newtests:
     printf("\n===== Test 40 =====\n\n");
     if (ami_wavein() > 0) {
 
-        long ch, ra, lb, sg, en, fl;
-        long bps, total, got;
+        ami_long ch, ra, lb, sg, en, fl;
+        ami_long bps, total, got;
         byte* rec;
 
-        printf("Wave input. Three seconds are recorded from input port %ld\n",
-               iport);
+        printf("Wave input. Three seconds are recorded from input port %lld\n",
+               AMI_LONG_CAST(iport));
         printf("-- make some noise -- and played back to you.\n");
         waitret();
         ami_openwavein(iport);
@@ -1435,8 +1435,8 @@ newtests:
         sg = ami_sgnwavein(iport);
         en = ami_endwavein(iport);
         fl = ami_fltwavein(iport);
-        printf("The device delivers: %ld channels at %ld hertz, %ld bits,\n",
-               ch, ra, lb);
+        printf("The device delivers: %lld channels at %lld hertz, %lld bits,\n",
+               AMI_LONG_CAST(ch), AMI_LONG_CAST(ra), AMI_LONG_CAST(lb));
         printf("%s, %s endian, %s\n", sg? "signed": "unsigned",
                en? "big": "little", fl? "float": "integer");
         /* lengths to rdwave and wrwave are in samples -- one frame of
@@ -1489,7 +1489,7 @@ newtests:
     printf("decoder, and every message checked against what was sent.\n");
     {
 
-        long vout = 0, vin = 0;
+        ami_long vout = 0, vin = 0;
         char nm[200];
 
         for (i = 1; i <= ami_synthout() && !vout; i++) {
@@ -1598,8 +1598,8 @@ newtests:
 
         ami_seqmsg sm;
 
-        printf("Synthesizer input from port %ld. Play eight notes on the\n",
-               sport);
+        printf("Synthesizer input from port %lld. Play eight notes on the\n",
+               AMI_LONG_CAST(sport));
         printf("keyboard; each is echoed to the output synthesizer and\n");
         printf("printed with the time it arrived.\n");
         ami_opensynthin(sport);
@@ -1609,19 +1609,19 @@ newtests:
             ami_rdsynth(sport, &sm);
             if (sm.st == st_noteon) {
 
-                printf("note on:  note %3ld velocity %ld time %ld\n",
-                       (long)sm.ntn, sm.ntv, ami_curtimein());
+                printf("note on:  note %3lld velocity %lld time %lld\n",
+                       AMI_LONG_CAST((ami_long)sm.ntn), AMI_LONG_CAST(sm.ntv), AMI_LONG_CAST(ami_curtimein()));
                 ami_noteon(dport, 0, 1, sm.ntn, sm.ntv);
                 i++;
 
             } else if (sm.st == st_noteoff) {
 
-                printf("note off: note %3ld time %ld\n", (long)sm.ntn,
-                       ami_curtimein());
+                printf("note off: note %3lld time %lld\n", AMI_LONG_CAST((ami_long)sm.ntn),
+                       AMI_LONG_CAST(ami_curtimein()));
                 ami_noteoff(dport, 0, 1, sm.ntn, sm.ntv);
 
-            } else printf("other message: type %d time %ld\n", sm.st,
-                          ami_curtimein());
+            } else printf("other message: type %d time %lld\n", sm.st,
+                          AMI_LONG_CAST(ami_curtimein()));
 
         }
         ami_stoptimein();

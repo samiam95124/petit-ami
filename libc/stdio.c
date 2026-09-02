@@ -112,6 +112,8 @@ A test suite for the module is provided in tests/stdio_test.c.
 #include <ctype.h>
 #include <sys/stat.h>
 
+#include <localdefs.h>
+
 /* We use a custom stdio.h */
 
 #define FALSE 0
@@ -1381,7 +1383,7 @@ static double strtodi(
 
 {
 
-    long double v;    /* value (extended precision: avoids overflow to inf and
+    long double v;  /* value (extended precision: avoids overflow to inf and
                          accumulated error when scaling by large exponents) */
     long double frac; /* fractional digit scale */
     int    sgn;  /* sign of number */
@@ -1926,11 +1928,8 @@ systems (link() returns EXDEV), and it generally cannot rename directories
 
 ******************************************************************************/
 
-/* On Windows/MinGW the custom stdio is linked in to override the built in
-   stdio calls directly (STDIO_BYPASS is not defined), and Windows provides no
-   POSIX link() call to build this link()/unlink() based rename() from. Windows
-   does not require the custom rename(), so it is omitted here and the native
-   C runtime rename() is linked in its place. */
+/* Windows provides no POSIX link() to build the link()/unlink() rename()
+   from; its own is below. */
 #ifndef __MINGW32__
 int rename(
     /** existing file name */ const char *oldname,
@@ -1965,21 +1964,58 @@ int rename(
 }
 #endif
 
-/* On Windows the portable link()/unlink() rename() above is unavailable (no
-   POSIX link()). A non-STDIO_BYPASS build simply uses the native CRT rename()
-   in its place, so nothing is needed. A STDIO_BYPASS consumer, however, has its
-   rename() calls coined to stdio_rename() (see stdio.h), so that funnel entry
-   must exist: provide it for the Windows bypass build, mapping to the CRT
-   rename(). The coining macro is suspended only around the call, so the coined
-   name is defined in terms of the real one. */
-#if defined(__MINGW32__) && defined(STDIO_BYPASS)
-int stdio_rename(const char *oldname, const char *newname)
+/* On Windows the C runtime's rename() refuses an existing target, where
+   rename() is specified to replace it, so the runtime's is not used: MoveFileEx
+   gives the replacing move, across volumes as well. The two calls are declared
+   here rather than pulling windows.h into stdio. */
+#ifdef __MINGW32__
+__declspec(dllimport) int __stdcall MoveFileExA(const char* oldname,
+                                                const char* newname,
+                                                unsigned long flags);
+__declspec(dllimport) unsigned long __stdcall GetLastError(void);
+#define WINRENAME_REPLACE 0x1 /* MOVEFILE_REPLACE_EXISTING */
+#define WINRENAME_COPY    0x2 /* MOVEFILE_COPY_ALLOWED */
+
+static int winrename(const char *oldname, const char *newname)
+
 {
-#undef rename
-    extern int rename(const char *oldname, const char *newname);
-    return rename(oldname, newname); /* native CRT rename */
-#define rename(...) stdio_rename(__VA_ARGS__)
+
+    if (!strcmp(oldname, newname)) return (0); /* nothing to do */
+    if (!MoveFileExA(oldname, newname, WINRENAME_REPLACE | WINRENAME_COPY)) {
+
+        errno = GetLastError() == 2? ENOENT: EACCES; /* 2: file not found */
+        return (-1);
+
+    }
+
+    return (0); /* success */
+
 }
+
+#ifndef STDIO_BYPASS
+/* the custom stdio overrides the C runtime's calls directly: this rename()
+   takes the place of the runtime's */
+int rename(
+    /** existing file name */ const char *oldname,
+    /** new file name */      const char *newname
+)
+
+{
+
+    return (winrename(oldname, newname));
+
+}
+#else
+/* A STDIO_BYPASS consumer has its rename() calls coined to stdio_rename()
+   (see stdio.h), so that funnel entry is the one provided. */
+int stdio_rename(const char *oldname, const char *newname)
+
+{
+
+    return (winrename(oldname, newname));
+
+}
+#endif
 #endif
 
 /** **************************************************************************
@@ -4998,6 +5034,7 @@ aborts on its vtable validation. This section closes the audited gaps
 #if !defined(STDIO_BYPASS) && defined(__linux__)
 
 #include <sys/wait.h>
+
 
 /* wint_t/wchar_t without wchar.h, which would drag glibc's FILE in */
 typedef unsigned int wint_t_;

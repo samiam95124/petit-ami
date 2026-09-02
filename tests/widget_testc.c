@@ -59,21 +59,21 @@ static char          s[100];
 static char          ss[100], rs[100];
 static int           prog;
 static ami_strptr     sp, lp;
-static long          x, y, lm, xs, ys, bx, by, ix,iy;
-static long          r, g, b;
+static ami_long      x, y, lm, xs, ys, bx, by, ix,iy;
+static ami_long      r, g, b;
 static ami_qfnopts    optf;
 static ami_qfropts    optfr;
-static long          fc;
-static long          fs;
-static long          fr, fg, fb;
-static long          br, bg, bb;
+static ami_long      fc;
+static ami_long      fs;
+static ami_long      fr, fg, fb;
+static ami_long      br, bg, bb;
 static ami_qfteffects fe;
-static long          cx, cy;
-static long          ox, oy;
-static long          cox, coy;
-static long          csx, csy;
+static ami_long      cx, cy;
+static ami_long      ox, oy;
+static ami_long      cox, coy;
+static ami_long      csx, csy;
 
-static long          i;
+static ami_long      i;
 static int           cnt;
 static char          fns[100];
 
@@ -144,7 +144,7 @@ int main(void)
 
 {
 
-    long wx, wy;
+    ami_long wx, wy;
 
     if (setjmp(terminate_buf)) goto terminate;
 
@@ -195,7 +195,7 @@ int main(void)
             if (er.butid == 1) fprintf(tw, "Hello to you, too\n");
             else if (er.butid == 2) fprintf(tw, "Bark bark\n");
             else if (er.butid == 3) fprintf(tw, "Sniff sniff\n");
-            else fprintf(tw, "!!! No button with id: %ld !!!\n", er.butid);
+            else fprintf(tw, "!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         };
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -214,7 +214,7 @@ int main(void)
             if (er.butid == 1) fprintf(tw, "Hello to you, too\n");
             else if (er.butid == 2) fprintf(tw, "Bark bark\n");
             else if (er.butid == 3) fprintf(tw, "Sniff sniff\n");
-            else fprintf(tw, "!!! No button with id: %ld !!!\n", er.butid);
+            else fprintf(tw, "!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         };
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -265,7 +265,7 @@ int main(void)
                 chk3 = !chk3;
                 ami_selectwidget(tw, 3, chk3);
 
-            } else fprintf(tw, "!!! No button with id: %ld !!!\n", er.butid);
+            } else fprintf(tw, "!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -299,7 +299,7 @@ int main(void)
                 chk3 = !chk3;
                 ami_selectwidget(tw, 3, chk3);
 
-            } else fprintf(tw, "!!! No button with id: %ld !!!\n", er.butid);
+            } else fprintf(tw, "!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -350,7 +350,7 @@ int main(void)
                 chk3 = !chk3;
                 ami_selectwidget(tw, 3, chk3);
 
-            } else fprintf(tw, "!!! No button with id: %ld !!!", er.butid);
+            } else fprintf(tw, "!!! No button with id: %lld !!!", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -384,7 +384,7 @@ int main(void)
                 chk3 = !chk3;
                 ami_selectwidget(tw, 3, chk3);
 
-            } else fprintf(tw, "!!! No button with id: %ld !!!\n", er.butid);
+            } else fprintf(tw, "!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -454,17 +454,17 @@ int main(void)
 
         ami_event(stdin, &er);
         if (er.etype == ami_etsclull)
-            fprintf(tw, "Scrollbar: %ld up/left line\n", er.sclulid);
+            fprintf(tw, "Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            fprintf(tw, "Scrollbar: %ld down/right line\n", er.scldrid);
+            fprintf(tw, "Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            fprintf(tw, "Scrollbar: %ld up/left page\n", er.sclupid);
+            fprintf(tw, "Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            fprintf(tw, "Scrollbar: %ld down/right page\n", er.scldpid);
+            fprintf(tw, "Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(tw, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            fprintf(tw, "Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            fprintf(tw, "Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -494,17 +494,17 @@ int main(void)
 
         ami_event(stdin, &er);
         if (er.etype == ami_etsclull)
-            fprintf(tw, "Scrollbar: %ld up/left line\n", er.sclulid);
+            fprintf(tw, "Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            fprintf(tw, "Scrollbar: %ld down/right line\n", er.scldrid);
+            fprintf(tw, "Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            fprintf(tw, "Scrollbar: %ld up/left page\n", er.sclupid);
+            fprintf(tw, "Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            fprintf(tw, "Scrollbar: %ld down/right page\n", er.scldpid);
+            fprintf(tw, "Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(tw, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            fprintf(tw, "Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            fprintf(tw, "Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -530,17 +530,17 @@ int main(void)
 
         ami_event(stdin, &er);
         if (er.etype == ami_etsclull)
-            fprintf(tw, "Scrollbar: %ld up/left line\n", er.sclulid);
+            fprintf(tw, "Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            fprintf(tw, "Scrollbar: %ld down/right line\n", er.scldrid);
+            fprintf(tw, "Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            fprintf(tw, "Scrollbar: %ld up/left page\n", er.sclupid);
+            fprintf(tw, "Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            fprintf(tw, "Scrollbar: %ld down/right page\n", er.scldpid);
+            fprintf(tw, "Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(tw, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            fprintf(tw, "Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            fprintf(tw, "Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -566,17 +566,17 @@ int main(void)
 
         ami_event(stdin, &er);
         if (er.etype == ami_etsclull)
-            fprintf(tw, "Scrollbar: %ld up/left line\n", er.sclulid);
+            fprintf(tw, "Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            fprintf(tw, "Scrollbar: %ld down/right line\n", er.scldrid);
+            fprintf(tw, "Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            fprintf(tw, "Scrollbar: %ld up/left page\n", er.sclupid);
+            fprintf(tw, "Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            fprintf(tw, "Scrollbar: %ld down/right page\n", er.scldpid);
+            fprintf(tw, "Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(tw, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            fprintf(tw, "Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            fprintf(tw, "Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -599,7 +599,7 @@ int main(void)
     do {
 
         ami_event(stdin, &er);
-        if (er.etype == ami_etnumbox) fprintf(tw, "You selected: %ld\n", er.numbsl);
+        if (er.etype == ami_etnumbox) fprintf(tw, "You selected: %lld\n", AMI_LONG_CAST(er.numbsl));
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
@@ -807,7 +807,7 @@ int main(void)
 
         ami_event(stdin, &er);
         if (er.etype == ami_etsldpos)
-            fprintf(tw, "Slider id: %ld position: %ld\n", er.sldpid, er.sldpos);
+            fprintf(tw, "Slider id: %lld position: %lld\n", AMI_LONG_CAST(er.sldpid), AMI_LONG_CAST(er.sldpos));
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
@@ -1062,7 +1062,7 @@ int main(void)
     ami_querycolor(&r, &g, &b);
     fprintf(tw, "\n");
     fprintf(tw, "Dialog should have completed now\n");
-    fprintf(tw, "Colors are: red: %ld green: %ld blue: %ld\n", r, g, b);
+    fprintf(tw, "Colors are: red: %lld green: %lld blue: %lld\n", AMI_LONG_CAST(r), AMI_LONG_CAST(g), AMI_LONG_CAST(b));
     waitnext();
 
     /* ************************* Open file query test ************************ */
@@ -1180,10 +1180,10 @@ int main(void)
     ami_queryfont(tw, &fc, &fs, &fr, &fg, &fb, &br, &bg, &bb, &fe);
     fprintf(tw, "\n");
     fprintf(tw, "Dialog should have completed now\n");
-    fprintf(tw, "Font code: %ld\n", fc);
-    fprintf(tw, "Font size: %ld\n", fs);
-    fprintf(tw, "Foreground color: Red: %ld Green: %ld Blue: %ld\n", fr, fg, fb);
-    fprintf(tw, "Background color: Red: %ld Green: %ld Blue: %ld\n", br, bg, bb);
+    fprintf(tw, "Font code: %lld\n", AMI_LONG_CAST(fc));
+    fprintf(tw, "Font size: %lld\n", AMI_LONG_CAST(fs));
+    fprintf(tw, "Foreground color: Red: %lld Green: %lld Blue: %lld\n", AMI_LONG_CAST(fr), AMI_LONG_CAST(fg), AMI_LONG_CAST(fb));
+    fprintf(tw, "Background color: Red: %lld Green: %lld Blue: %lld\n", AMI_LONG_CAST(br), AMI_LONG_CAST(bg), AMI_LONG_CAST(bb));
     if (BIT(ami_qfteblink)&fe) fprintf(tw, "Blink\n");
     if (BIT(ami_qftereverse)&fe) fprintf(tw, "Reverse\n");
     if (BIT(ami_qfteunderline)&fe) fprintf(tw, "Underline\n");

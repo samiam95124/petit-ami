@@ -28,13 +28,13 @@ test 125: "tru" s/b "tru"
 test 126: "[(null)]" s/b "[(null)]"
 test 130: "50% of x" s/b "50% of x"
 test 131: "1,2,3" s/b "1,2,3"
-test 132: "5000000000" s/b "5000000000"
+test 132: "2000000000" s/b "2000000000"
 test 133: "123456789012345" s/b "123456789012345"
 test 134: "4000000000" s/b "4000000000"
 test 135: "deadbeefcafe" s/b "deadbeefcafe"
 test 136: "4000000000" s/b "4000000000"
 test 137: "-7" s/b "-7"
-test 138: "5000000000 then 42" s/b "5000000000 then 42"
+test 138: "2000000000 then 42" s/b "2000000000 then 42"
 test 140: "3.141590" s/b "3.141590"
 test 141: "3.14" s/b "3.14"
 test 142: "2" s/b "2"
@@ -74,7 +74,7 @@ test 210: n=2 i=12 j=56 s/b n=2 i=12 j=56
 test 211: n=2 s="abc" i=123 s/b n=2 s="abc" i=123
 test 212: n=2 s="key" s2="value" s/b n=2 s="key" s2="value"
 test 213: n=1 i=42 k=2 s/b n=1 i=42 k=2
-test 214: n=1 v=5000000000 s/b n=1 v=5000000000
+test 214: n=1 v=2000000000 s/b n=1 v=2000000000
 test 215: n=1 v=123456789012345 s/b n=1 v=123456789012345
 test 216: n=1 v=-7 s/b n=1 v=-7
 test 217: n=1 v=4000000000 s/b n=1 v=4000000000
@@ -146,7 +146,7 @@ test 611: X s/b X (write after read)
 
 Group 7: temporary files
 
-test 700: "/tmp/tmp.*.1" "/tmp/tmp.*.2" distinct=1 s/b 1
+test 700: "*tmp.*.1" "*tmp.*.2" distinct=1 s/b 1
 test 701: 1 s/b 1 (name does not pre-exist)
 test 702: 1 s/b 1 (length * < L_tmpnam 64)
 test 703: 1 s/b 1 (tmpnam(NULL) returns a name)

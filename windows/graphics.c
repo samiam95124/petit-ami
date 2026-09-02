@@ -170,6 +170,7 @@ static enum { /* debug levels */
 #define UM_IM      0x408 /* intratask message */
 #define UM_EDITCR  0x409 /* edit widget sends cr */
 #define UM_NUMCR   0x410 /* number select widget sends cr */
+#define UM_SNDEVT  0x411 /* sendevent: an event record for the window */
 /* standard file handles */
 #define INPFIL    0     /* input */
 #define OUTFIL    1     /* output */
@@ -223,6 +224,9 @@ typedef enum {
 typedef struct fontrec {
 
     char*           fn;   /* name of font */
+    char*           face; /* the face the system is asked for: the name,
+                             except where the name is a logical one over
+                             another face, as the technical font's is */
     int             fix;  /* fixed pitch font flag */
     int             sys;  /* font is system fixed (default) */
     struct fontrec* next; /* next font in list */
@@ -241,10 +245,10 @@ typedef struct metrec {
     struct metrec* next;   /* next entry */
     HMENU          han;    /* handle of menu entry is attached to */
     int            inx;    /* index position, 0-n, of item */
-    long           onoff;  /* the item is on-off highlighted */
-    long           select; /* the current on/off state of the highlight */
+    ami_long       onoff;  /* the item is on-off highlighted */
+    ami_long       select; /* the current on/off state of the highlight */
     struct metrec* oneof;  /* "one of" chain pointer */
-    long           id;     /* user id of item */
+    ami_long       id;     /* user id of item */
 
 } metrec, *metptr;
 
@@ -262,12 +266,12 @@ typedef struct wigrec {
     struct wigrec* next; /* next entry in list */
     HWND           han;  /* handle to widget window */
     HWND           han2; /* handle to "buddy" window */
-    long           id;   /* logical id of widget */
+    ami_long       id;   /* logical id of widget */
     wigtyp         typ;  /* type of widget */
     int            siz;  /* size of slider in scroll widget, in windows terms */
     WNDPROC        wprc; /* subclassed windows procedure, converted to int */
-    long           low;  /* low limit of up/down control */
-    long           high; /* high limit of up/down control */
+    ami_long       low;  /* low limit of up/down control */
+    ami_long       high; /* high limit of up/down control */
     int            enb;  /* widget is enabled */
 
 } wigrec, *wigptr;
@@ -279,37 +283,37 @@ typedef struct scncon { /* screen context */
     HPEN    fpen;        /* foreground pen handle */
     HBRUSH  fbrush;      /* foreground brush handle */
     HPEN    fspen;       /* foreground single pixel pen */
-    long    lwidth;      /* width of lines */
+    ami_long    lwidth;      /* width of lines */
     ami_lstyle lstyle;   /* style of lines */
-    long    angle;       /* text drawing path angle */
+    ami_long    angle;       /* text drawing path angle */
     /* note that the pixel and character dimensions and positions are kept
       in parallel for both characters and pixels */
-    long    maxx;        /* maximum characters in x */
-    long    maxy;        /* maximum characters in y */
-    long    maxxg;       /* maximum pixels in x */
-    long    maxyg;       /* maximum pixels in y */
-    long    curx;        /* current cursor location x */
-    long    cury;        /* current cursor location y */
-    long    curxg;       /* current cursor location in pixels x */
-    long    curyg;       /* current cursor location in pixels y */
+    ami_long    maxx;        /* maximum characters in x */
+    ami_long    maxy;        /* maximum characters in y */
+    ami_long    maxxg;       /* maximum pixels in x */
+    ami_long    maxyg;       /* maximum pixels in y */
+    ami_long    curx;        /* current cursor location x */
+    ami_long    cury;        /* current cursor location y */
+    ami_long    curxg;       /* current cursor location in pixels x */
+    ami_long    curyg;       /* current cursor location in pixels y */
     int     fcrgb;       /* current writing foreground color in rgb */
     int     bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
     mode    bmod;        /* background mix mode */
     HFONT   font;        /* current font handle */
     fontptr cfont;       /* active font entry */
-    long    cspc;        /* character spacing */
-    long    lspc;        /* line spacing */
+    ami_long    cspc;        /* character spacing */
+    ami_long    lspc;        /* line spacing */
     int     attr;        /* set of active attributes */
     int     autof;       /* current status of scroll and wrap */
     int     tab[MAXTAB]; /* tabbing array */
     int     curv;        /* cursor visible */
-    long    offx;        /* viewport offset x */
-    long    offy;        /* viewport offset y */
-    long    wextx;       /* window extent x */
-    long    wexty;       /* window extent y */
-    long    vextx;       /* viewport extent x */
-    long    vexty;       /* viewport extent y */
+    ami_long    offx;        /* viewport offset x */
+    ami_long    offy;        /* viewport offset y */
+    ami_long    wextx;       /* window extent x */
+    ami_long    wexty;       /* window extent y */
+    ami_long    vextx;       /* viewport extent x */
+    ami_long    vexty;       /* viewport extent y */
 
 } scncon, *scnptr;
 
@@ -318,8 +322,8 @@ typedef struct pict { /* picture tracking record */
     HBITMAP han; /* handle to bitmap */
     HDC     hdc; /* handle to DC for bitmap */
     HGDIOBJ ohn; /* handle to previous object */
-    long    sx;  /* size in x */
-    long    sy;  /* size in y */
+    ami_long    sx;  /* size in x */
+    ami_long    sy;  /* size in y */
 
 } pict;
 
@@ -335,65 +339,65 @@ typedef struct winrec {
     int      curupd;          /* index for current update screen */
     /* global sets. these are the global set parameters that apply to any new
       created screen buffer */
-    long     gmaxx;           /* maximum x size */
-    long     gmaxy;           /* maximum y size */
-    long     gmaxxg;          /* size of client area in x */
-    long     gmaxyg;          /* size of client area in y */
-    long     bufx;            /* buffer size x characters */
-    long     bufy;            /* buffer size y characters */
-    long     bufxg;           /* buffer size x pixels */
-    long     bufyg;           /* buffer size y pixels */
+    ami_long gmaxx;           /* maximum x size */
+    ami_long gmaxy;           /* maximum y size */
+    ami_long gmaxxg;          /* size of client area in x */
+    ami_long gmaxyg;          /* size of client area in y */
+    ami_long bufx;            /* buffer size x characters */
+    ami_long bufy;            /* buffer size y characters */
+    ami_long bufxg;           /* buffer size x pixels */
+    ami_long bufyg;           /* buffer size y pixels */
     int      gattr;           /* current attributes */
     int      gauto;           /* state of auto */
     int      gfcrgb;          /* foreground color in rgb */
     int      gbcrgb;          /* background color in rgb */
     int      gcurv;           /* state of cursor visible */
     fontptr  gcfont;          /* current font select */
-    long     gfhigh;          /* current font height */
+    ami_long gfhigh;          /* current font height */
     mode     gfmod;           /* foreground mix mode */
     mode     gbmod;           /* background mix mode */
-    long     goffx;           /* viewport offset x */
-    long     goffy;           /* viewport offset y */
-    long     gwextx;          /* window extent x */
-    long     gwexty;          /* window extent y */
-    long     gvextx;          /* viewpor extent x */
-    long     gvexty;          /* viewport extent y */
-    long     termfnt;         /* terminal font number */
-    long     bookfnt;         /* book font number */
-    long     signfnt;         /* sign font number */
-    long     techfnt;         /* technical font number */
+    ami_long goffx;           /* viewport offset x */
+    ami_long goffy;           /* viewport offset y */
+    ami_long gwextx;          /* window extent x */
+    ami_long gwexty;          /* window extent y */
+    ami_long gvextx;          /* viewpor extent x */
+    ami_long gvexty;          /* viewport extent y */
+    ami_long termfnt;         /* terminal font number */
+    ami_long bookfnt;         /* book font number */
+    ami_long signfnt;         /* sign font number */
+    ami_long techfnt;         /* technical font number */
     int      mb1;             /* mouse assert status button 1 */
     int      mb2;             /* mouse assert status button 2 */
     int      mb3;             /* mouse assert status button 3 */
-    long     mpx, mpy;        /* mouse current position */
-    long     mpxg, mpyg;      /* mouse current position graphical */
+    ami_long mpx, mpy;        /* mouse current position */
+    ami_long mpxg, mpyg;      /* mouse current position graphical */
     int      nmb1;            /* new mouse assert status button 1 */
     int      nmb2;            /* new mouse assert status button 2 */
     int      nmb3;            /* new mouse assert status button 3 */
-    long     nmpx, nmpy;      /* new mouse current position */
-    long     nmpxg, nmpyg;    /* new mouse current position graphical */
-    long     linespace;       /* line spacing in pixels */
-    long     charspace;       /* character spacing in pixels */
-    long     curspace;        /* size of cursor, in pixels */
-    long     baseoff;         /* font baseline offset from top */
+    ami_long nmpx, nmpy;      /* new mouse current position */
+    ami_long nmpxg, nmpyg;    /* new mouse current position graphical */
+    ami_long linespace;       /* line spacing in pixels */
+    ami_long charspace;       /* character spacing in pixels */
+    ami_long curspace;        /* size of cursor, in pixels */
+    ami_long baseoff;         /* font baseline offset from top */
     int      shift;           /* state of shift key */
     int      cntrl;           /* state of control key */
     int      fcurdwn;         /* cursor on screen flag */
     int      numjoy;          /* number of joysticks found */
     int      joy1cap;         /* joystick 1 is captured */
     int      joy2cap;         /* joystick 2 is captured */
-    long     joy1xs;          /* last joystick position 1x */
-    long     joy1ys;          /* last joystick position 1y */
-    long     joy1zs;          /* last joystick position 1z */
-    long     joy2xs;          /* last joystick position 2x */
-    long     joy2ys;          /* last joystick position 2y */
-    long     joy2zs;          /* last joystick position 2z */
-    long     shsize;          /* display screen size x in millimeters */
-    long     svsize;          /* display screen size y in millimeters */
-    long     shres;           /* display screen pixels in x */
-    long     svres;           /* display screen pixels in y */
-    long     sdpmx;           /* display screen find dots per meter x */
-    long     sdpmy;           /* display screen find dots per meter y */
+    ami_long joy1xs;          /* last joystick position 1x */
+    ami_long joy1ys;          /* last joystick position 1y */
+    ami_long joy1zs;          /* last joystick position 1z */
+    ami_long joy2xs;          /* last joystick position 2x */
+    ami_long joy2ys;          /* last joystick position 2y */
+    ami_long joy2zs;          /* last joystick position 2z */
+    ami_long shsize;          /* display screen size x in millimeters */
+    ami_long svsize;          /* display screen size y in millimeters */
+    ami_long shres;           /* display screen pixels in x */
+    ami_long svres;           /* display screen pixels in y */
+    ami_long sdpmx;           /* display screen find dots per meter x */
+    ami_long sdpmy;           /* display screen find dots per meter y */
     char     inpbuf[MAXLIN];  /* input line buffer */
     int      inpptr;          /* input line index */
     int      frmrun;          /* framing timer is running */
@@ -474,9 +478,9 @@ typedef struct imrec { /* intermessage record */
         };
         struct { /* imqcolor */
 
-            long clrred;   /* colors */
-            long clrgreen;
-            long clrblue;
+            ami_long clrred;   /* colors */
+            ami_long clrgreen;
+            ami_long clrblue;
 
         };
         struct { /* imqopen */
@@ -492,7 +496,7 @@ typedef struct imrec { /* intermessage record */
         struct { /* imqfind */
 
             char* fndstr; /* string to find */
-            long  fndopt; /* find options */
+            ami_long  fndopt; /* find options */
             HWND  fndhan; /* dialog window handle */
 
         };
@@ -500,21 +504,21 @@ typedef struct imrec { /* intermessage record */
 
             char* fnrsch; /* string to search for */
             char* fnrrep; /* string to replace */
-            long  fnropt; /* options */
+            ami_long  fnropt; /* options */
             HWND  fnrhan; /* dialog window handle */
 
         };
         struct { /* imqfont */
 
             char* fntstr; /* font string */
-            long fnteff;   /* font effects */
-            long fntfr;    /* foreground red */
-            long fntfg;    /* foreground green */
-            long fntfb;    /* foreground blue */
-            long fntbr;    /* background red */
-            long fntbg;    /* background green */
-            long fntbb;    /* bakcground blue */
-            long fntsiz;   /* size */
+            ami_long fnteff;   /* font effects */
+            ami_long fntfr;    /* foreground red */
+            ami_long fntfg;    /* foreground green */
+            ami_long fntfb;    /* foreground blue */
+            ami_long fntbr;    /* background red */
+            ami_long fntbg;    /* background green */
+            ami_long fntbb;    /* bakcground blue */
+            ami_long fntsiz;   /* size */
 
         };
         struct { /* imupdown */
@@ -525,12 +529,12 @@ typedef struct imrec { /* intermessage record */
             int     udcx;     /* width */
             int     udcy;     /* height */
             HWND    udpar;    /* parent window */
-            long    udid;     /* id */
+            ami_long    udid;     /* id */
             HMODULE udinst;   /* instance */
             HWND    udbuddy;  /* buddy window handle */
-            long    udup;     /* upper bound */
-            long    udlow;    /* lower bound */
-            long    udpos;    /* control position */
+            ami_long    udup;     /* upper bound */
+            ami_long    udlow;    /* lower bound */
+            ami_long    udpos;    /* control position */
             HWND    udhan;    /* returns handle to control */
 
         };
@@ -544,7 +548,7 @@ typedef struct imrec { /* intermessage record */
             int     wigw;   /* width */
             int     wigh;   /* height */
             HWND    wigpar; /* parent window handle */
-            long    wigid;  /* widget id */
+            ami_long    wigid;  /* widget id */
             HMODULE wigmod; /* module */
             HWND    wigwin; /* handle to widget */
             HWND    wigscl; /* handle to superclass window */
@@ -803,10 +807,10 @@ static void prtmenuelm(ami_menuptr m, int offset)
     while (m) { /* list entries */
 
         /* print menu entries */
-        dooff(offset); fprintf(stderr, "Onoff:  %ld\n", m->onoff);
-        dooff(offset); fprintf(stderr, "Oneof:  %ld\n", m->oneof);
-        dooff(offset); fprintf(stderr, "Bar:    %ld\n", m->bar);
-        dooff(offset); fprintf(stderr, "Id:     %ld\n", m->id);
+        dooff(offset); fprintf(stderr, "Onoff:  %lld\n", AMI_LONG_CAST(m->onoff));
+        dooff(offset); fprintf(stderr, "Oneof:  %lld\n", AMI_LONG_CAST(m->oneof));
+        dooff(offset); fprintf(stderr, "Bar:    %lld\n", AMI_LONG_CAST(m->bar));
+        dooff(offset); fprintf(stderr, "Id:     %lld\n", AMI_LONG_CAST(m->id));
         dooff(offset); fprintf(stderr, "Face:   %s\n", m->face);
         fprintf(stderr, "\n");
         /* if branch exists, print that list as sublist */
@@ -844,7 +848,7 @@ static void prtwig(wigptr wp)
     fprintf(stderr, "%p", wp->han);
     fprintf(stderr, " \"buddy\" Window handle: ");
     fprintf(stderr, "%p", wp->han2);
-    fprintf(stderr, " Logical id: %ld", wp->id);
+    fprintf(stderr, " Logical id: %lld", AMI_LONG_CAST(wp->id));
     fprintf(stderr, " Type: ");
     switch (wp->typ) { /* widget */
 
@@ -1186,7 +1190,7 @@ static void winerr(void)
                   0, NULL);
     unlockmain(); /* end exclusive access */
     fprintf(stderr, "\nError: Graph: Windows error: ");
-    fprintf(stderr, lpMsgBuf);
+    fprintf(stderr, "%s", (char*)lpMsgBuf);
     fprintf(stderr, "\n");
     lockmain(); /* resume exclusive access */
 
@@ -1240,11 +1244,11 @@ if the result cannot fit in the buffer.
 
 ******************************************************************************/
 
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 
 {
 
-    long l; /* length of source string */
+    ami_long l; /* length of source string */
 
     l = strlen(s); /* find length of source */
     if (l > dl) error(estrtl); /* string too long for destination */
@@ -1567,6 +1571,7 @@ static void prtmsgstr(int mn)
         case UM_CLSWIN: fprintf(stderr, "UM_CLSWIN"); break;
         case UM_WINCLS: fprintf(stderr, "UM_WINCLS"); break;
         case UM_IM:     fprintf(stderr, "UM_IM"); break;
+        case UM_SNDEVT: fprintf(stderr, "UM_SNDEVT"); break;
         case UM_EDITCR: fprintf(stderr, "UM_EDITCR"); break;
         case UM_NUMCR:  fprintf(stderr, "UM_NUMCR"); break;
 
@@ -1591,8 +1596,8 @@ static void prtmsg(MSG* m)
     fprintf(stderr, "handle: %p", m->hwnd);
     fprintf(stderr, " message: ");
     prtmsgstr(m->message);
-    fprintf(stderr, " wparam: %08x", m->wParam);
-    fprintf(stderr, " lparam: %08x", m->lParam);
+    fprintf(stderr, " wparam: %08llx", (unsigned long long)m->wParam);
+    fprintf(stderr, " lparam: %08llx", (long long)m->lParam);
     fprintf(stderr, "\n");
 
 }
@@ -1720,70 +1725,70 @@ static void prtevt(ami_evtrec* ev)
 {
 
     prtevtcod(ev->etype);
-    fprintf(stderr, " Window: %ld Handled: %ld", ev->winid, ev->handled);
+    fprintf(stderr, " Window: %lld Handled: %lld", AMI_LONG_CAST(ev->winid), AMI_LONG_CAST(ev->handled));
     switch (ev->etype) {
 
         case ami_etchar: fprintf(stderr, " Char: %c", ev->echar); break;
-        case ami_ettim: fprintf(stderr, " Timer: %ld", ev->timnum); break;
+        case ami_ettim: fprintf(stderr, " Timer: %lld", AMI_LONG_CAST(ev->timnum)); break;
         case ami_etmoumov:
-            fprintf(stderr, " Mouse: %ld x: %ld y: %ld", ev->mmoun, ev->moupx,
-                    ev->moupy);
+            fprintf(stderr, " Mouse: %lld x: %lld y: %lld", AMI_LONG_CAST(ev->mmoun), AMI_LONG_CAST(ev->moupx),
+                    AMI_LONG_CAST(ev->moupy));
             break;
         case ami_etmouba:
-            fprintf(stderr, " Mouse: %ld Button: %ld", ev->amoun, ev->amoubn);
+            fprintf(stderr, " Mouse: %lld Button: %lld", AMI_LONG_CAST(ev->amoun), AMI_LONG_CAST(ev->amoubn));
             break;
         case ami_etmoubd:
-            fprintf(stderr, " Mouse: %ld Button: %ld", ev->dmoun, ev->dmoubn);
+            fprintf(stderr, " Mouse: %lld Button: %lld", AMI_LONG_CAST(ev->dmoun), AMI_LONG_CAST(ev->dmoubn));
             break;
         case ami_etjoyba:
-            fprintf(stderr, " Joystick: %ld Button: %ld", ev->ajoyn, ev->ajoybn);
+            fprintf(stderr, " Joystick: %lld Button: %lld", AMI_LONG_CAST(ev->ajoyn), AMI_LONG_CAST(ev->ajoybn));
             break;
         case ami_etjoybd:
-            fprintf(stderr, " Joystick: %ld Button: %ld", ev->djoyn, ev->djoybn);
+            fprintf(stderr, " Joystick: %lld Button: %lld", AMI_LONG_CAST(ev->djoyn), AMI_LONG_CAST(ev->djoybn));
             break;
         case ami_etjoymov:
-            fprintf(stderr, " Joystick: %ld x: %ld y: %ld z: %ld", ev->mjoyn,
-                    ev->joypx, ev->joypy, ev->joypz);
+            fprintf(stderr, " Joystick: %lld x: %lld y: %lld z: %lld", AMI_LONG_CAST(ev->mjoyn),
+                    AMI_LONG_CAST(ev->joypx), AMI_LONG_CAST(ev->joypy), AMI_LONG_CAST(ev->joypz));
             break;
-        case ami_etfun: fprintf(stderr, " Function key: %ld", ev->fkey);
+        case ami_etfun: fprintf(stderr, " Function key: %lld", AMI_LONG_CAST(ev->fkey));
         case ami_etmoumovg:
-            fprintf(stderr, " Mouse: %ld x: %ld y: %ld", ev->mmoung, ev->moupxg,
-                    ev->moupyg);
+            fprintf(stderr, " Mouse: %lld x: %lld y: %lld", AMI_LONG_CAST(ev->mmoung), AMI_LONG_CAST(ev->moupxg),
+                    AMI_LONG_CAST(ev->moupyg));
             break;
         case ami_etredraw:
-            fprintf(stderr, " bounds: sx: %ld sy: %ld ex: %ld ey: %ld", ev->rsx,
-                    ev->rsy, ev->rex, ev->rey);
+            fprintf(stderr, " bounds: sx: %lld sy: %lld ex: %lld ey: %lld", AMI_LONG_CAST(ev->rsx),
+                    AMI_LONG_CAST(ev->rsy), AMI_LONG_CAST(ev->rex), AMI_LONG_CAST(ev->rey));
             break;
-        case ami_etmenus: fprintf(stderr, " Menu: %ld", ev->menuid); break;
-        case ami_etbutton: fprintf(stderr, " Button: %ld", ev->butid); break;
-        case ami_etchkbox: fprintf(stderr, " Checkbox: %ld", ev->ckbxid); break;
-        case ami_etradbut: fprintf(stderr, " Button: %ld", ev->radbid); break;
-        case ami_etsclull: fprintf(stderr, " Scroll bar: %ld", ev->sclulid); break;
-        case ami_etscldrl: fprintf(stderr, " Scroll bar: %ld", ev->scldrid); break;
-        case ami_etsclulp: fprintf(stderr, " Scroll bar: %ld", ev->sclupid); break;
-        case ami_etscldrp: fprintf(stderr, " Scroll bar: %ld", ev->scldpid); break;
+        case ami_etmenus: fprintf(stderr, " Menu: %lld", AMI_LONG_CAST(ev->menuid)); break;
+        case ami_etbutton: fprintf(stderr, " Button: %lld", AMI_LONG_CAST(ev->butid)); break;
+        case ami_etchkbox: fprintf(stderr, " Checkbox: %lld", AMI_LONG_CAST(ev->ckbxid)); break;
+        case ami_etradbut: fprintf(stderr, " Button: %lld", AMI_LONG_CAST(ev->radbid)); break;
+        case ami_etsclull: fprintf(stderr, " Scroll bar: %lld", AMI_LONG_CAST(ev->sclulid)); break;
+        case ami_etscldrl: fprintf(stderr, " Scroll bar: %lld", AMI_LONG_CAST(ev->scldrid)); break;
+        case ami_etsclulp: fprintf(stderr, " Scroll bar: %lld", AMI_LONG_CAST(ev->sclupid)); break;
+        case ami_etscldrp: fprintf(stderr, " Scroll bar: %lld", AMI_LONG_CAST(ev->scldpid)); break;
         case ami_etsclpos:
-            fprintf(stderr, " Scroll bar: %ld position: %ld", ev->sclpid,
-                    ev->sclpos);
+            fprintf(stderr, " Scroll bar: %lld position: %lld", AMI_LONG_CAST(ev->sclpid),
+                    AMI_LONG_CAST(ev->sclpos));
             break;
-        case ami_etedtbox: fprintf(stderr, " Edit box: %ld", ev->edtbid); break;
+        case ami_etedtbox: fprintf(stderr, " Edit box: %lld", AMI_LONG_CAST(ev->edtbid)); break;
         case ami_etnumbox:
-            fprintf(stderr, " Number box: %ld value: %ld", ev->numbid,
-                    ev->numbsl);
+            fprintf(stderr, " Number box: %lld value: %lld", AMI_LONG_CAST(ev->numbid),
+                    AMI_LONG_CAST(ev->numbsl));
             break;
         case ami_etlstbox:
-            fprintf(stderr, " List box: %ld select: %ld", ev->lstbid, ev->lstbsl);
+            fprintf(stderr, " List box: %lld select: %lld", AMI_LONG_CAST(ev->lstbid), AMI_LONG_CAST(ev->lstbsl));
             break;
         case ami_etdrpbox:
-            fprintf(stderr, " Drop box: %ld select: %ld", ev->drpbid, ev->drpbsl);
+            fprintf(stderr, " Drop box: %lld select: %lld", AMI_LONG_CAST(ev->drpbid), AMI_LONG_CAST(ev->drpbsl));
             break;
-        case ami_etdrebox: fprintf(stderr, " Drop edit box: %ld", ev->drebid);
+        case ami_etdrebox: fprintf(stderr, " Drop edit box: %lld", AMI_LONG_CAST(ev->drebid));
             break;
         case ami_etsldpos:
-            fprintf(stderr, " Slider: %ld position: %ld", ev->sldpid, ev->sldpos);
+            fprintf(stderr, " Slider: %lld position: %lld", AMI_LONG_CAST(ev->sldpid), AMI_LONG_CAST(ev->sldpos));
             break;
         case ami_ettabbar:
-            fprintf(stderr, " Tab bar: %ld select: %ld", ev->tabid, ev->tabsel);
+            fprintf(stderr, " Tab bar: %lld select: %lld", AMI_LONG_CAST(ev->tabid), AMI_LONG_CAST(ev->tabsel));
             break;
 
     }
@@ -2278,7 +2283,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(long wid)
+static winptr lwn2win(ami_long wid)
 
 {
 
@@ -2452,7 +2457,7 @@ Finds the given widget by number.
 
 *******************************************************************************/
 
-static wigptr fndwig(winptr win, long id)
+static wigptr fndwig(winptr win, ami_long id)
 
 {
 
@@ -2539,7 +2544,7 @@ Translates colors to rgb, in ratioed LONG_MAX form.
 
 *******************************************************************************/
 
-static void colrgb(ami_color c, long* r, long* g, long* b)
+static void colrgb(ami_color c, ami_long* r, ami_long* g, ami_long* b)
 
 {
 
@@ -2570,7 +2575,7 @@ colors.
 
 *******************************************************************************/
 
-static void rgbcol(long r, long g, long b, ami_color* c)
+static void rgbcol(ami_long r, ami_long g, ami_long b, ami_color* c)
 
 {
 
@@ -2595,7 +2600,7 @@ bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static long rgb2win(long r, long g, long b)
+static ami_long rgb2win(ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -2611,7 +2616,7 @@ Translates a windows int color to our ratioed LONG_MAX rgb color.
 
 *******************************************************************************/
 
-static void win2rgb(long wc, long* r, long* g, long* b)
+static void win2rgb(ami_long wc, ami_long* r, ami_long* g, ami_long* b)
 
 {
 
@@ -2725,7 +2730,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-static long icurbnd(scnptr sc)
+static ami_long icurbnd(scnptr sc)
 
 {
 
@@ -2734,7 +2739,7 @@ static long icurbnd(scnptr sc)
 
 }
 
-long ami_curbnd(FILE* f)
+static ami_long curbnd_ivf(FILE* f)
 
 {
 
@@ -2770,7 +2775,10 @@ static void curon(winptr win)
         /* cursor not already down, cursor visible, cursor in bounds, screen
            in focus */
         b = ShowCaret(win->winhan); /* show the caret */
-        if (!b) winerr(); /* process error */
+        /* a window that has never had the focus has no caret to show, and
+           the call says so with access denied: the cursor is a matter of
+           focus, not an error */
+        if (!b && GetLastError() != ERROR_ACCESS_DENIED) winerr();
         win->fcurdwn = TRUE; /* set cursor on screen */
 
     }
@@ -2794,7 +2802,7 @@ static void curoff(winptr win)
     if (win->fcurdwn) { /* cursor visable */
 
         b = HideCaret(win->winhan); /* hide the caret */
-        if (!b) winerr(); /* process error */
+        if (!b && GetLastError() != ERROR_ACCESS_DENIED) winerr(); /* no caret: see curon */
         win->fcurdwn = FALSE; /* set cursor not on screen */
 
     }
@@ -2826,7 +2834,7 @@ static void cursts(winptr win)
 
             /* cursor not already down, cursor visible, cursor in bounds */
             b = ShowCaret(win->winhan); /* show the caret */
-            if (!b) winerr(); /* process error */
+            if (!b && GetLastError() != ERROR_ACCESS_DENIED) winerr(); /* no caret: see curon */
             win->fcurdwn = TRUE; /* set cursor on screen */
 
         }
@@ -2837,7 +2845,7 @@ static void cursts(winptr win)
         if (win->fcurdwn) { /* cursor visable */
 
             b = HideCaret(win->winhan); /* hide the caret */
-            if (!b) winerr(); /* process error */
+            if (!b && GetLastError() != ERROR_ACCESS_DENIED) winerr(); /* no caret: see curon */
             win->fcurdwn = FALSE; /* set cursor not on screen */
 
         }
@@ -2894,9 +2902,9 @@ static void chgcur(winptr win)
     if (win->focus) { /* change it */
 
         b = DestroyCaret(); /* remove text cursor */
-        if (!b) winerr(); /* process error */
+        if (!b && GetLastError() != ERROR_ACCESS_DENIED) winerr(); /* caret owned elsewhere or absent: see curon */
         b = CreateCaret(win->winhan, 0, win->curspace, 3); /* activate caret */
-        if (!b) winerr(); /* process error */
+        if (!b && GetLastError() != ERROR_ACCESS_DENIED) winerr(); /* caret owned elsewhere or absent: see curon */
         win->fcurdwn = FALSE; /* set cursor not down */
         setcur(win); /* replace it */
 
@@ -3015,7 +3023,7 @@ static void newfont(winptr win)
                           BIT(saundl) & sc->attr, BIT(sastkout) & sc->attr, ANSI_CHARSET,
                           OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
                           FQUALITY, DEFAULT_PITCH,
-                          sc->cfont->fn);
+                          sc->cfont->face);
         if (!win->screens[win->curupd-1]->font) winerr(); /* process windows error */
         /* select to buffer DC */
         rv = SelectObject(win->screens[win->curupd-1]->bdc, sc->font);
@@ -3492,7 +3500,7 @@ to the window.
 
 *******************************************************************************/
 
-static void iscrollg(winptr win, long x, long y)
+static void iscrollg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -3591,7 +3599,7 @@ static void iscrollg(winptr win, long x, long y)
 
 }
 
-void ami_scrollg(FILE* f, long x, long y)
+static void scrollg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3604,7 +3612,7 @@ void ami_scrollg(FILE* f, long x, long y)
 
 }
 
-void ami_scroll(FILE* f, long x, long y)
+static void scroll_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3625,7 +3633,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(winptr win, long x, long y)
+static void icursor(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -3645,7 +3653,7 @@ static void icursor(winptr win, long x, long y)
 
 }
 
-void ami_cursor(FILE* f, long x, long y)
+static void cursor_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3666,7 +3674,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-static void icursorg(winptr win, long x, long y)
+static void icursorg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -3685,7 +3693,7 @@ static void icursorg(winptr win, long x, long y)
 
 }
 
-void ami_cursorg(FILE* f, long x, long y)
+static void cursorg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -3707,7 +3715,7 @@ to the font baseline. The baseline is the line all characters rest on.
 
 *******************************************************************************/
 
-long ami_baseline(FILE* f)
+static ami_long baseline_ivf(FILE* f)
 
 {
 
@@ -3732,7 +3740,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-long ami_maxx(FILE* f)
+static ami_long maxx_ivf(FILE* f)
 
 {
 
@@ -3757,7 +3765,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-long ami_maxy(FILE* f)
+static ami_long maxy_ivf(FILE* f)
 
 {
 
@@ -3782,7 +3790,7 @@ pixels.
 
 *******************************************************************************/
 
-long ami_maxxg(FILE* f)
+static ami_long maxxg_ivf(FILE* f)
 
 {
 
@@ -3807,7 +3815,7 @@ pixels.
 
 *******************************************************************************/
 
-long ami_maxyg(FILE* f)
+static ami_long maxyg_ivf(FILE* f)
 
 {
 
@@ -3843,7 +3851,7 @@ static void ihome(winptr win)
 
 }
 
-void ami_home(FILE* f)
+static void home_ivf(FILE* f)
 
 {
 
@@ -3893,7 +3901,7 @@ static void iup(winptr win)
 
 }
 
-void ami_up(FILE* f)
+static void up_ivf(FILE* f)
 
 {
 
@@ -3940,7 +3948,7 @@ static void idown(winptr win)
 
 }
 
-void ami_down(FILE* f)
+static void down_ivf(FILE* f)
 
 {
 
@@ -3999,7 +4007,7 @@ static void ileft(winptr win)
 
 }
 
-void ami_left(FILE* f)
+static void left_ivf(FILE* f)
 
 {
 
@@ -4055,7 +4063,7 @@ void iright(winptr win)
 
 }
 
-void ami_right(FILE* f)
+static void right_ivf(FILE* f)
 
 {
 
@@ -4114,7 +4122,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_blink(FILE* f, long e)
+static void blink_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4131,7 +4139,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-static void ireverse(winptr win, long e)
+static void ireverse(winptr win, ami_long e)
 
 {
 
@@ -4181,7 +4189,7 @@ static void ireverse(winptr win, long e)
 
 }
 
-void ami_reverse(FILE* f, long e)
+static void reverse_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4205,7 +4213,7 @@ character drawn.
 
 *******************************************************************************/
 
-static void iunderline(winptr win, long e)
+static void iunderline(winptr win, ami_long e)
 
 {
 
@@ -4227,7 +4235,7 @@ static void iunderline(winptr win, long e)
 
 }
 
-void ami_underline(FILE* f, long e)
+static void underline_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4249,7 +4257,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void isuperscript(winptr win, long e)
+static void isuperscript(winptr win, ami_long e)
 
 {
 
@@ -4271,7 +4279,7 @@ static void isuperscript(winptr win, long e)
 
 }
 
-void ami_superscript(FILE* f, long e)
+static void superscript_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4293,7 +4301,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void isubscript(winptr win, long e)
+static void isubscript(winptr win, ami_long e)
 
 {
 
@@ -4315,7 +4323,7 @@ static void isubscript(winptr win, long e)
 
 }
 
-void ami_subscript(FILE* f, long e)
+static void subscript_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4342,7 +4350,7 @@ italic on fixed fonts.
 
 *******************************************************************************/
 
-static void iitalic(winptr win, long e)
+static void iitalic(winptr win, ami_long e)
 
 {
 
@@ -4364,7 +4372,7 @@ static void iitalic(winptr win, long e)
 
 }
 
-void ami_italic(FILE* f, long e)
+static void italic_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4390,7 +4398,7 @@ colors, which an ATTRIBUTE command seems to mess with not.
 
 *******************************************************************************/
 
-static void ibold(winptr win, long e)
+static void ibold(winptr win, ami_long e)
 
 {
 
@@ -4412,7 +4420,7 @@ static void ibold(winptr win, long e)
 
 }
 
-void ami_bold(FILE* f, long e)
+static void bold_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4436,7 +4444,7 @@ just placed.
 
 *******************************************************************************/
 
-static void istrikeout(winptr win, long e)
+static void istrikeout(winptr win, ami_long e)
 
 {
 
@@ -4458,7 +4466,7 @@ static void istrikeout(winptr win, long e)
 
 }
 
-void ami_strikeout(FILE* f, long e)
+static void strikeout_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4480,7 +4488,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_standout(FILE* f, long e)
+static void standout_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4562,7 +4570,7 @@ static void ifcolor(winptr win, ami_color c)
 
 }
 
-void ami_fcolor(FILE* f, ami_color c)
+static void fcolor_ivf(FILE* f, ami_color c)
 
 {
 
@@ -4585,7 +4593,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-static void ifcolorg(winptr win, long r, long g, long b)
+static void ifcolorg(winptr win, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -4651,7 +4659,7 @@ static void ifcolorg(winptr win, long r, long g, long b)
 
 }
 
-void ami_fcolorg(FILE* f, long r, long g, long b)
+static void fcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -4664,7 +4672,7 @@ void ami_fcolorg(FILE* f, long r, long g, long b)
 
 }
 
-void ami_fcolorc(FILE* f, long r, long g, long b)
+static void fcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -4721,7 +4729,7 @@ static void ibcolor(winptr win, ami_color c)
 
 }
 
-void ami_bcolor(FILE* f, ami_color c)
+static void bcolor_ivf(FILE* f, ami_color c)
 
 {
 
@@ -4744,7 +4752,7 @@ up, we will be ready.
 
 *******************************************************************************/
 
-static void ibcolorg(winptr win, long r, long g, long b)
+static void ibcolorg(winptr win, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -4785,7 +4793,7 @@ static void ibcolorg(winptr win, long r, long g, long b)
 
 }
 
-void ami_bcolorg(FILE* f, long r, long g, long b)
+static void bcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -4798,7 +4806,7 @@ void ami_bcolorg(FILE* f, long r, long g, long b)
 
 }
 
-void ami_bcolorc(FILE* f, long r, long g, long b)
+static void bcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -4831,7 +4839,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(winptr win, long e)
+static void iauto(winptr win, ami_long e)
 
 {
 
@@ -4852,7 +4860,7 @@ static void iauto(winptr win, long e)
 
 }
 
-void ami_auto(FILE* f, long e)
+static void auto_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4883,7 +4891,7 @@ void icurvis(winptr win, int e)
 
 }
 
-void ami_curvis(FILE* f, long e)
+static void curvis_ivf(FILE* f, ami_long e)
 
 {
 
@@ -4904,7 +4912,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-long ami_curx(FILE* f)
+static ami_long curx_ivf(FILE* f)
 
 {
 
@@ -4928,7 +4936,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-long ami_cury(FILE* f)
+static ami_long cury_ivf(FILE* f)
 
 {
 
@@ -4952,7 +4960,7 @@ Returns the current location of the cursor in x, in pixels.
 
 *******************************************************************************/
 
-long ami_curxg(FILE* f)
+static ami_long curxg_ivf(FILE* f)
 
 {
 
@@ -4976,7 +4984,7 @@ Returns the current location of the cursor in y, in pixels.
 
 *******************************************************************************/
 
-long ami_curyg(FILE* f)
+static ami_long curyg_ivf(FILE* f)
 
 {
 
@@ -5007,7 +5015,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-static void iselect(winptr win, long u, long d)
+static void iselect(winptr win, ami_long u, ami_long d)
 
 {
 
@@ -5043,7 +5051,7 @@ static void iselect(winptr win, long u, long d)
 
 }
 
-void ami_select(FILE* f, long u, long d)
+static void select_ivf(FILE* f, ami_long u, ami_long d)
 
 {
 
@@ -5235,7 +5243,7 @@ static void iwrtstr(winptr win,  char* s)
 
 }
 
-void ami_wrtstr(FILE* f, char* s)
+static void wrtstr_ivf(FILE* f, char* s)
 
 {
 
@@ -5267,7 +5275,7 @@ static void idel(winptr win)
 
 }
 
-void ami_del(FILE* f)
+static void del_ivf(FILE* f)
 
 {
 
@@ -5288,7 +5296,7 @@ Draws a single line in the foreground color.
 
 *******************************************************************************/
 
-static void iline(winptr win, long x1, long y1, long x2, long y2)
+static void iline(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5338,7 +5346,7 @@ static void iline(winptr win, long x1, long y1, long x2, long y2)
 
 }
 
-void ami_line(FILE* f, long x1, long y1, long x2, long y2)
+static void line_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5359,7 +5367,7 @@ Draws a rectangle in foreground color.
 
 *******************************************************************************/
 
-static void irect(winptr win, long x1, long y1, long x2, long y2)
+static void irect(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5385,7 +5393,7 @@ static void irect(winptr win, long x1, long y1, long x2, long y2)
 
 }
 
-void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
+static void rect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5406,7 +5414,7 @@ Draws a filled rectangle in foreground color.
 
 *******************************************************************************/
 
-static void ifrect(winptr win, long x1, long y1, long x2, long y2)
+static void ifrect(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5454,7 +5462,7 @@ static void ifrect(winptr win, long x1, long y1, long x2, long y2)
 
 }
 
-void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
+static void frect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5475,7 +5483,7 @@ Draws a rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-static void irrect(winptr win, long x1, long y1, long x2, long y2, long xs, long ys)
+static void irrect(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
@@ -5502,7 +5510,7 @@ static void irrect(winptr win, long x1, long y1, long x2, long y2, long xs, long
 
 }
 
-void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+static void rrect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
@@ -5523,7 +5531,7 @@ Draws a filled rounded rectangle in foreground color.
 
 *******************************************************************************/
 
-static void ifrrect(winptr win, long x1, long y1, long x2, long y2, long xs, long ys)
+static void ifrrect(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
@@ -5571,7 +5579,7 @@ static void ifrrect(winptr win, long x1, long y1, long x2, long y2, long xs, lon
 
 }
 
-void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+static void frrect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
@@ -5592,7 +5600,7 @@ Draws an ellipse with the current foreground color and line width.
 
 *******************************************************************************/
 
-static void iellipse(winptr win, long x1, long y1, long x2, long y2)
+static void iellipse(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5618,7 +5626,7 @@ static void iellipse(winptr win, long x1, long y1, long x2, long y2)
 
 }
 
-void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
+static void ellipse_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5639,7 +5647,7 @@ Draws a filled ellipse with the current foreground color.
 
 *******************************************************************************/
 
-static void ifellipse(winptr win, long x1, long y1, long x2, long y2)
+static void ifellipse(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5687,7 +5695,7 @@ static void ifellipse(winptr win, long x1, long y1, long x2, long y2)
 
 }
 
-void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
+static void fellipse_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -5728,7 +5736,7 @@ Negative angles are allowed.
 
 *******************************************************************************/
 
-static void iarc(winptr win, long x1, long y1, long x2, long y2, long sa, long ea)
+static void iarc(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -5774,7 +5782,7 @@ static void iarc(winptr win, long x1, long y1, long x2, long y2, long sa, long e
 
 }
 
-void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void arc_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -5796,7 +5804,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-static void ifarc(winptr win, long x1, long y1, long x2, long y2, long sa, long ea)
+static void ifarc(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -5865,7 +5873,7 @@ static void ifarc(winptr win, long x1, long y1, long x2, long y2, long sa, long 
 
 }
 
-void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void farc_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -5887,7 +5895,7 @@ as for the arc int above.
 
 *******************************************************************************/
 
-static void ifchord(winptr win, long x1, long y1, long x2, long y2, long sa, long ea)
+static void ifchord(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -5956,7 +5964,7 @@ static void ifchord(winptr win, long x1, long y1, long x2, long y2, long sa, lon
 
 }
 
-void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void fchord_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
@@ -5977,7 +5985,7 @@ Draws a filled triangle in the current foreground color.
 
 *******************************************************************************/
 
-static void iftriangle(winptr win, long x1, long y1, long x2, long y2, long x3, long y3)
+static void iftriangle(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
 
 {
 
@@ -6033,7 +6041,7 @@ static void iftriangle(winptr win, long x1, long y1, long x2, long y2, long x3, 
 
 }
 
-void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
+static void ftriangle_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
 
 {
 
@@ -6054,7 +6062,7 @@ Sets a single logical pixel to the foreground color.
 
 *******************************************************************************/
 
-static void isetpixel(winptr win, long x, long y)
+static void isetpixel(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -6081,7 +6089,7 @@ static void isetpixel(winptr win, long x, long y)
 
 }
 
-void ami_setpixel(FILE* f, long x, long y)
+static void setpixel_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -6116,7 +6124,7 @@ static void ifover(winptr win)
 
 }
 
-void ami_fover(FILE* f)
+static void fover_ivf(FILE* f)
 
 {
 
@@ -6151,7 +6159,7 @@ static void ibover(winptr win)
 
 }
 
-void ami_bover(FILE* f)
+static void bover_ivf(FILE* f)
 
 {
 
@@ -6186,7 +6194,7 @@ static void ifinvis(winptr win)
 
 }
 
-void ami_finvis(FILE* f)
+static void finvis_ivf(FILE* f)
 
 {
 
@@ -6221,7 +6229,7 @@ static void ibinvis(winptr win)
 
 }
 
-void ami_binvis(FILE* f)
+static void binvis_ivf(FILE* f)
 
 {
 
@@ -6256,7 +6264,7 @@ static void ifxor(winptr win)
 
 }
 
-void ami_fxor(FILE* f)
+static void fxor_ivf(FILE* f)
 
 {
 
@@ -6286,7 +6294,7 @@ static void ibxor(winptr win)
 
 }
 
-void ami_bxor(FILE* f)
+static void bxor_ivf(FILE* f)
 
 {
 
@@ -6307,7 +6315,7 @@ Sets the width of lines and several other figures.
 
 *******************************************************************************/
 
-static void ilinewidth(winptr win, long w)
+static void ilinewidth(winptr win, ami_long w)
 
 {
 
@@ -6336,7 +6344,7 @@ static void ilinewidth(winptr win, long w)
 
 }
 
-void ami_linewidth(FILE* f, long w)
+static void linewidth_ivf(FILE* f, ami_long w)
 
 {
 
@@ -6385,7 +6393,7 @@ static void ilinestyle(winptr win, ami_lstyle style)
 
 }
 
-void ami_linestyle(FILE* f, ami_lstyle style)
+static void linestyle_ivf(FILE* f, ami_lstyle style)
 
 {
 
@@ -6406,7 +6414,7 @@ Returns the character width.
 
 *******************************************************************************/
 
-long ami_chrsizx(FILE* f)
+static ami_long chrsizx_ivf(FILE* f)
 
 {
 
@@ -6430,7 +6438,7 @@ Returns the character height.
 
 *******************************************************************************/
 
-long ami_chrsizy(FILE* f)
+static ami_long chrsizy_ivf(FILE* f)
 
 {
 
@@ -6454,7 +6462,7 @@ Finds the total number of installed fonts.
 
 *******************************************************************************/
 
-long ami_fonts(FILE* f)
+static ami_long fonts_ivf(FILE* f)
 
 {
 
@@ -6470,7 +6478,7 @@ Changes the current font to the indicated logical font number.
 
 *******************************************************************************/
 
-static void ifont(winptr win, long fc)
+static void ifont(winptr win, ami_long fc)
 
 {
 
@@ -6496,7 +6504,7 @@ static void ifont(winptr win, long fc)
 
 }
 
-void ami_font(FILE* f, long fc)
+static void font_ivf(FILE* f, ami_long fc)
 
 {
 
@@ -6519,7 +6527,7 @@ shorter name is zero terminated, and it is an error if the name cannot fit.
 
 *******************************************************************************/
 
-static void ifontnam(winptr win, long fc, char* fns, long fnsl)
+static void ifontnam(winptr win, ami_long fc, char* fns, ami_long fnsl)
 
 {
 
@@ -6540,7 +6548,7 @@ static void ifontnam(winptr win, long fc, char* fns, long fnsl)
 
 }
 
-void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
+static void fontnam_ivf(FILE* f, ami_long fc, char* fns, ami_long fnsl)
 
 {
 
@@ -6562,7 +6570,7 @@ and line spacing are changed, as well as the baseline.
 
 *******************************************************************************/
 
-static void ifontsiz(winptr win, long s)
+static void ifontsiz(winptr win, ami_long s)
 
 {
 
@@ -6576,7 +6584,7 @@ static void ifontsiz(winptr win, long s)
 
 }
 
-void ami_fontsiz(FILE* f, long s)
+static void fontsiz_ivf(FILE* f, ami_long s)
 
 {
 
@@ -6604,7 +6612,7 @@ character cell height can be queried via ami_chrsizy().
 
 *******************************************************************************/
 
-void ami_setpoints(FILE* f, float ps)
+static void setpoints_ivf(FILE* f, float ps)
 
 {
 
@@ -6627,7 +6635,7 @@ void ami_setpoints(FILE* f, float ps)
     tf = CreateFont(-pixsiz, 0, 0, 0, FW_REGULAR, FALSE, FALSE, FALSE,
                     ANSI_CHARSET, OUT_TT_ONLY_PRECIS, CLIP_DEFAULT_PRECIS,
                     FQUALITY, sc->cfont->sys? FIXED_PITCH: DEFAULT_PITCH,
-                    sc->cfont->sys? "Consolas": sc->cfont->fn);
+                    sc->cfont->sys? "Consolas": sc->cfont->face);
     if (!tf) winerr(); /* process windows error */
     of = SelectObject(sc->bdc, tf); /* select to buffer DC */
     if (of == HGDI_ERROR) error(enosel);
@@ -6653,7 +6661,7 @@ internal leading, taken from the metrics of the currently selected font.
 
 *******************************************************************************/
 
-float ami_points(FILE* f)
+static float points_ivf(FILE* f)
 
 {
 
@@ -6686,7 +6694,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_chrspcy(FILE* f, long s)
+static void chrspcy_ivf(FILE* f, ami_long s)
 
 {
 
@@ -6705,7 +6713,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-void ami_chrspcx(FILE* f, long s)
+static void chrspcx_ivf(FILE* f, ami_long s)
 
 {
 
@@ -6721,7 +6729,7 @@ Returns the number of dots per meter resolution in x.
 
 *******************************************************************************/
 
-long ami_dpmx(FILE* f)
+static ami_long dpmx_ivf(FILE* f)
 
 {
 
@@ -6745,7 +6753,7 @@ Returns the number of dots per meter resolution in y.
 
 *******************************************************************************/
 
-long ami_dpmy(FILE* f)
+static ami_long dpmy_ivf(FILE* f)
 
 {
 
@@ -6770,7 +6778,7 @@ character spacing and kerning.
 
 *******************************************************************************/
 
-static long istrsiz(winptr win, const char* s)
+static ami_long istrsiz(winptr win, const char* s)
 
 {
 
@@ -6788,7 +6796,7 @@ static long istrsiz(winptr win, const char* s)
 
 }
 
-long ami_strsiz(FILE* f, const char* s)
+static ami_long strsiz_ivf(FILE* f, const char* s)
 
 {
 
@@ -6812,7 +6820,7 @@ Finds the pixel offset to the given character in the string.
 
 *******************************************************************************/
 
-static long ichrpos(winptr win, const char* s, long p)
+static ami_long ichrpos(winptr win, const char* s, ami_long p)
 
 {
 
@@ -6837,7 +6845,7 @@ static long ichrpos(winptr win, const char* s, long p)
 
 }
 
-long ami_chrpos(FILE* f, const char* s, long p)
+static ami_long chrpos_ivf(FILE* f, const char* s, ami_long p)
 
 {
 
@@ -6863,7 +6871,7 @@ the system font.
 
 *******************************************************************************/
 
-static void iwritejust(winptr win, const char* s, long n)
+static void iwritejust(winptr win, const char* s, ami_long n)
 
 {
 
@@ -6926,7 +6934,7 @@ static void iwritejust(winptr win, const char* s, long n)
 
 }
 
-void ami_writejust(FILE* f, const char* s, long n)
+static void writejust_ivf(FILE* f, const char* s, ami_long n)
 
 {
 
@@ -6951,7 +6959,7 @@ spaces, with the fractional part lost.
 
 *******************************************************************************/
 
-static long ijustpos(winptr win, const char* s, long p, long n)
+static ami_long ijustpos(winptr win, const char* s, ami_long p, ami_long n)
 
 {
 
@@ -6996,7 +7004,7 @@ static long ijustpos(winptr win, const char* s, long p, long n)
 
 }
 
-long ami_justpos(FILE* f, const char* s, long p, long n)
+static ami_long justpos_ivf(FILE* f, const char* s, ami_long p, ami_long n)
 
 {
 
@@ -7023,7 +7031,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void icondensed(winptr win, long e)
+static void icondensed(winptr win, ami_long e)
 
 {
 
@@ -7045,7 +7053,7 @@ static void icondensed(winptr win, long e)
 
 }
 
-void ami_condensed(FILE* f, long e)
+static void condensed_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7071,7 +7079,7 @@ Not implemented yet.
 
 *******************************************************************************/
 
-static void iextended(winptr win, long e)
+static void iextended(winptr win, ami_long e)
 
 {
 
@@ -7093,7 +7101,7 @@ static void iextended(winptr win, long e)
 
 }
 
-void ami_extended(FILE* f, long e)
+static void extended_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7117,7 +7125,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ixlight(winptr win, long e)
+static void ixlight(winptr win, ami_long e)
 
 {
 
@@ -7139,7 +7147,7 @@ static void ixlight(winptr win, long e)
 
 }
 
-void ami_xlight(FILE* f, long e)
+static void xlight_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7163,7 +7171,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ilight(winptr win, long e)
+static void ilight(winptr win, ami_long e)
 
 {
 
@@ -7185,7 +7193,7 @@ static void ilight(winptr win, long e)
 
 }
 
-void ami_light(FILE* f, long e)
+static void light_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7209,7 +7217,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ixbold(winptr win, long e)
+static void ixbold(winptr win, ami_long e)
 
 {
 
@@ -7231,7 +7239,7 @@ static void ixbold(winptr win, long e)
 
 }
 
-void ami_xbold(FILE* f, long e)
+static void xbold_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7255,7 +7263,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ihollow(winptr win, long e)
+static void ihollow(winptr win, ami_long e)
 
 {
 
@@ -7277,7 +7285,7 @@ static void ihollow(winptr win, long e)
 
 }
 
-void ami_hollow(FILE* f, long e)
+static void hollow_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7301,7 +7309,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void iraised(winptr win, long e)
+static void iraised(winptr win, ami_long e)
 
 {
 
@@ -7323,7 +7331,7 @@ static void iraised(winptr win, long e)
 
 }
 
-void ami_raised(FILE* f, long e)
+static void raised_ivf(FILE* f, ami_long e)
 
 {
 
@@ -7344,7 +7352,7 @@ Deletes a loaded picture.
 
 *******************************************************************************/
 
-static void idelpict(winptr win, long p)
+static void idelpict(winptr win, ami_long p)
 
 {
 
@@ -7364,7 +7372,7 @@ static void idelpict(winptr win, long p)
 
 }
 
-void ami_delpict(FILE* f, long p)
+static void delpict_ivf(FILE* f, ami_long p)
 
 {
 
@@ -7422,7 +7430,7 @@ static int exists(char *fn)
 
 }
 
-static void iloadpict(winptr win, long p, char* fn)
+static void iloadpict(winptr win, ami_long p, char* fn)
 
 {
 
@@ -7470,7 +7478,7 @@ static void iloadpict(winptr win, long p, char* fn)
 
 }
 
-void ami_loadpict(FILE* f, long p, char* fn)
+static void loadpict_ivf(FILE* f, ami_long p, char* fn)
 
 {
 
@@ -7491,7 +7499,7 @@ Returns the size in x of the logical picture.
 
 *******************************************************************************/
 
-long ami_pictsizx(FILE* f, long p)
+static ami_long pictsizx_ivf(FILE* f, ami_long p)
 
 {
 
@@ -7517,7 +7525,7 @@ Returns the size in y of the logical picture.
 
 *******************************************************************************/
 
-long ami_pictsizy(FILE* f, long p)
+static ami_long pictsizy_ivf(FILE* f, ami_long p)
 
 {
 
@@ -7546,7 +7554,7 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 *******************************************************************************/
 
-static void ipicture(winptr win, long p, long x1, long y1, long x2, long y2)
+static void ipicture(winptr win, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -7591,7 +7599,7 @@ static void ipicture(winptr win, long p, long x1, long y1, long x2, long y2)
 
 }
 
-void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
+static void picture_ivf(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -7619,7 +7627,7 @@ the character grid.
 
 *******************************************************************************/
 
-static void ipath(winptr win, long a)
+static void ipath(winptr win, ami_long a)
 
 {
 
@@ -7636,7 +7644,7 @@ static void ipath(winptr win, long a)
 
 }
 
-void ami_path(FILE* f, long a)
+static void path_ivf(FILE* f, ami_long a)
 
 {
 
@@ -7658,7 +7666,7 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 *******************************************************************************/
 
-static void iviewoffg(winptr win, long x, long y)
+static void iviewoffg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -7676,7 +7684,7 @@ static void iviewoffg(winptr win, long x, long y)
 
 }
 
-void ami_viewoffg(FILE* f, long x, long y)
+static void viewoffg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -7733,7 +7741,7 @@ static void iviewscale(winptr win, float x, float y)
 
 }
 
-void ami_viewscale(FILE* f, float x, float y)
+static void viewscale_ivf(FILE* f, float x, float y)
 
 {
 
@@ -8174,8 +8182,8 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
     int    r;          /* result holder */
     int    b;          /* int result */
     int    v;          /* value */
-    long   x, y, z;    /* joystick readback */
-    long   dx, dy, dz; /* joystick readback differences */
+    ami_long   x, y, z;    /* joystick readback */
+    ami_long   dx, dy, dz; /* joystick readback differences */
     int    nm;         /* notification message */
     float  f;          /* floating point temp */
     NMHDR* nhp;        /* notification header */
@@ -8263,6 +8271,17 @@ static void winevt(winptr win, ami_evtrec* er, MSG* msg, int ofn, int* keep)
             *keep = TRUE; /* set keep event */
 
         }
+
+    } else if (msg->message == UM_SNDEVT) { /* an event from sendevent */
+
+        /* the record rides the message; it becomes the window's own */
+        ami_evtrec* ep = (ami_evtrec*)msg->lParam;
+        ami_long    wid = er->winid; /* the window it was sent to */
+
+        *er = *ep; /* the record as sent */
+        free(ep);
+        er->winid = wid;
+        *keep = TRUE; /* set keep event */
 
     } else if (msg->message == WM_CHAR) keyevent(er, msg, keep); /* process characters */
     else if (msg->message == WM_KEYDOWN) {
@@ -8648,7 +8667,7 @@ static void sigevt(ami_evtrec* er, MSG* msg, int* keep)
 
 }
 
-static void ievent(long ifn, ami_evtrec* er)
+static void ievent(ami_long ifn, ami_evtrec* er)
 
 {
 
@@ -8732,7 +8751,7 @@ static void ievent(long ifn, ami_evtrec* er)
 
 /* external event interface */
 
-void ami_event(FILE* f, ami_evtrec* er)
+static void event_ivf(FILE* f, ami_evtrec* er)
 
 {
 
@@ -8744,7 +8763,9 @@ void ami_event(FILE* f, ami_evtrec* er)
         unlockmain(); /* end exclusive access */
         er->handled = 1; /* set event is handled by default */
         (evtshan)(er); /* call master event handler */
-        if (!er->handled) { /* send it to fanout */
+        /* the fanout covers the standard codes; a user code, as sendevent
+           carries, goes back to the caller */
+        if (!er->handled && er->etype <= ami_etdsize) { /* send it to fanout */
 
             er->handled = 1; /* set event is handled by default */
             (*evthan[er->etype])(er); /* call event handler first */
@@ -8767,7 +8788,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void ami_eventover(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
+static void eventover_ivf(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh)
 
 {
 
@@ -8787,7 +8808,7 @@ call down into the stack by executing the overridden event.
 
 *******************************************************************************/
 
-void ami_eventsover(ami_pevthan eh,  ami_pevthan* oeh)
+static void eventsover_ivf(ami_pevthan eh,  ami_pevthan* oeh)
 
 {
 
@@ -8890,10 +8911,10 @@ the associated input file.
 *******************************************************************************/
 
 static void itimer(winptr win, /* file to send event to */
-                   long    lf,  /* logical file number */
-                   long    i,   /* timer handle */
-                   long   t,   /* number of tenth-milliseconds to run */
-                   long    r)   /* timer is to rerun after completion */
+                   ami_long    lf,  /* logical file number */
+                   ami_long    i,   /* timer handle */
+                   ami_long   t,   /* number of tenth-milliseconds to run */
+                   ami_long    r)   /* timer is to rerun after completion */
 
 {
 
@@ -8918,10 +8939,10 @@ static void itimer(winptr win, /* file to send event to */
 
 }
 
-void ami_timer(FILE* f, /* file to send event to */
-                     long   i, /* timer handle */
-                     long  t, /* number of tenth-milliseconds to run */
-                     long   r) /* timer is to rerun after completion */
+static void timer_ivf(FILE* f, /* file to send event to */
+                     ami_long   i, /* timer handle */
+                     ami_long  t, /* number of tenth-milliseconds to run */
+                     ami_long   r) /* timer is to rerun after completion */
 
 {
 
@@ -8943,7 +8964,7 @@ Kills a given timer, by it"s id number. Only repeating timers should be killed.
 *******************************************************************************/
 
 static void ikilltimer(winptr win, /* file to kill timer on */
-                       long    i)   /* handle of timer */
+                       ami_long    i)   /* handle of timer */
 
 {
 
@@ -8955,8 +8976,8 @@ static void ikilltimer(winptr win, /* file to kill timer on */
 
 }
 
-void ami_killtimer(FILE* f, /* file to kill timer on */
-               long   i) /* handle of timer */
+static void killtimer_ivf(FILE* f, /* file to kill timer on */
+               ami_long   i) /* handle of timer */
 
 {
 
@@ -8980,7 +9001,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-static void iframetimer(winptr win, long lf, long e)
+static void iframetimer(winptr win, ami_long lf, ami_long e)
 
 {
 
@@ -9012,7 +9033,7 @@ static void iframetimer(winptr win, long lf, long e)
 
 }
 
-void ami_frametimer(FILE* f, long e)
+static void frametimer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -9040,7 +9061,7 @@ holding graph unaware programs.
 
 *******************************************************************************/
 
-void ami_autohold(long e)
+static void autohold_ivf(ami_long e)
 
 {
 
@@ -9056,7 +9077,7 @@ Returns the number of mice implemented. Windows supports only one mouse.
 
 *******************************************************************************/
 
-long ami_mouse(FILE* f)
+static ami_long mouse_ivf(FILE* f)
 
 {
 
@@ -9077,7 +9098,7 @@ version.
 
 *******************************************************************************/
 
-long ami_mousebutton(FILE* f, long m)
+static ami_long mousebutton_ivf(FILE* f, ami_long m)
 
 {
 
@@ -9100,7 +9121,7 @@ Return number of joysticks attached.
 
 *******************************************************************************/
 
-long ami_joystick(FILE* f)
+static ami_long joystick_ivf(FILE* f)
 
 {
 
@@ -9125,7 +9146,7 @@ cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
-long ami_joybutton(FILE* f, long j)
+static ami_long joybutton_ivf(FILE* f, ami_long j)
 
 {
 
@@ -9167,7 +9188,7 @@ joystick cannot be accessed, as when it has been disconnected.
 
 *******************************************************************************/
 
-static long ijoyaxis(winptr win, long j)
+static ami_long ijoyaxis(winptr win, ami_long j)
 
 {
 
@@ -9188,7 +9209,7 @@ static long ijoyaxis(winptr win, long j)
 
 }
 
-long ami_joyaxis(FILE* f, long j)
+static ami_long joyaxis_ivf(FILE* f, ami_long j)
 
 {
 
@@ -9212,7 +9233,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void isettabg(winptr win, long t)
+static void isettabg(winptr win, ami_long t)
 
 {
 
@@ -9238,7 +9259,7 @@ static void isettabg(winptr win, long t)
 
 }
 
-void ami_settabg(FILE* f, long t)
+static void settabg_ivf(FILE* f, ami_long t)
 
 {
 
@@ -9259,7 +9280,7 @@ Sets a tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void ami_settab(FILE* f, long t)
+static void settab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -9280,7 +9301,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void irestabg(winptr win, long t)
+static void irestabg(winptr win, ami_long t)
 
 {
 
@@ -9303,7 +9324,7 @@ static void irestabg(winptr win, long t)
 
 }
 
-void ami_restabg(FILE* f, long t)
+static void restabg_ivf(FILE* f, ami_long t)
 
 {
 
@@ -9324,7 +9345,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-void ami_restab(FILE* f, long t)
+static void restab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -9346,7 +9367,7 @@ arrangement.
 
 *******************************************************************************/
 
-void ami_clrtab(FILE* f)
+static void clrtab_ivf(FILE* f)
 
 {
 
@@ -9370,7 +9391,7 @@ function keys as well.
 
 *******************************************************************************/
 
-long ami_funkey(FILE* f)
+static ami_long funkey_ivf(FILE* f)
 
 {
 
@@ -9816,6 +9837,7 @@ static int CALLBACK enumfont(const LOGFONT* lfd, const TEXTMETRIC* pfd, DWORD ft
       fntlst = fp;
       fntcnt = fntcnt+1; /* count font */
       fp->fn = str(lfde->elfFullName); /* create string and copy */
+      fp->face = fp->fn; /* the face is the name */
       fp->fix = (lfde->elfLogFont.lfPitchAndFamily & 3) == FIXED_PITCH;
       fp->sys = FALSE; /* set not system */
 
@@ -9976,6 +9998,7 @@ void stdfont(void)
     fp->fix = TRUE; /* set fixed */
     fp->sys = TRUE; /* set system */
     fp->fn = str("System Fixed");
+    fp->face = fp->fn; /* the face is the name */
     fp->next = nfl; /* push to fonts list */
     nfl = fp;
     fntcnt = fntcnt+1; /* add to font count */
@@ -10015,9 +10038,14 @@ void stdfont(void)
     /* search 4: technical font, make copy of sign */
     fp = (fontptr)imalloc(sizeof(fontrec));
 
-    /* copy sign font parameters, but with new name */
+    /* copy sign font parameters, but with new name. The face stays the
+       sign font's: "Technical" is no installed face, and asked for it the
+       font mapper substitutes as it pleases, differently from run to run */
     fp->fn = str("Technical");
+    fp->face = sp->face;
     fp->fix = sp->fix;
+    fp->sys = FALSE; /* not the system font: the entry is fresh, and left
+                        unset this took what the heap held */
     fp->next = nfl; /* insert to target list */
     nfl = fp;
     fntcnt++; /* add to font count */
@@ -10056,7 +10084,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-void ami_title(FILE* f, char* ts)
+static void title_ivf(FILE* f, char* ts)
 
 {
 
@@ -10413,18 +10441,18 @@ static void opnwin(int fn, int pfn)
     win->gmaxy = maxyd; /* character max y */
 
 #if 0
-    dbg_printf(dlinfo, "Display width in pixels:  %ld\n", win->shres);
-    dbg_printf(dlinfo, "Display height in pixels: %ld\n", win->svres);
-    dbg_printf(dlinfo, "Display width in mm:      %ld\n", win->shsize);
-    dbg_printf(dlinfo, "Display height in mm:     %ld\n", win->svsize);
-    dbg_printf(dlinfo, "Dots per meter x:         %ld\n", win->sdpmx);
-    dbg_printf(dlinfo, "Dots per meter y:         %ld\n", win->sdpmy);
-    dbg_printf(dlinfo, "Client width in pixels:   %ld\n", win->gmaxxg);
-    dbg_printf(dlinfo, "Client height in pixels:  %ld\n", win->gmaxyg);
-    dbg_printf(dlinfo, "Characters in x:          %ld\n", win->gmaxx);
-    dbg_printf(dlinfo, "Characters in y:          %ld\n", win->gmaxy);
-    dbg_printf(dlinfo, "Character size x:         %ld\n", win->charspace);
-    dbg_printf(dlinfo, "Character size y:         %ld\n", win->linespace);
+    dbg_printf(dlinfo, "Display width in pixels:  %lld\n", AMI_LONG_CAST(win->shres));
+    dbg_printf(dlinfo, "Display height in pixels: %lld\n", AMI_LONG_CAST(win->svres));
+    dbg_printf(dlinfo, "Display width in mm:      %lld\n", AMI_LONG_CAST(win->shsize));
+    dbg_printf(dlinfo, "Display height in mm:     %lld\n", AMI_LONG_CAST(win->svsize));
+    dbg_printf(dlinfo, "Dots per meter x:         %lld\n", AMI_LONG_CAST(win->sdpmx));
+    dbg_printf(dlinfo, "Dots per meter y:         %lld\n", AMI_LONG_CAST(win->sdpmy));
+    dbg_printf(dlinfo, "Client width in pixels:   %lld\n", AMI_LONG_CAST(win->gmaxxg));
+    dbg_printf(dlinfo, "Client height in pixels:  %lld\n", AMI_LONG_CAST(win->gmaxyg));
+    dbg_printf(dlinfo, "Characters in x:          %lld\n", AMI_LONG_CAST(win->gmaxx));
+    dbg_printf(dlinfo, "Characters in y:          %lld\n", AMI_LONG_CAST(win->gmaxy));
+    dbg_printf(dlinfo, "Character size x:         %lld\n", AMI_LONG_CAST(win->charspace));
+    dbg_printf(dlinfo, "Character size y:         %lld\n", AMI_LONG_CAST(win->linespace));
 #endif
 
     cr.left = 0; /* set up desired client rectangle */
@@ -10666,7 +10694,7 @@ static int fndfil(FILE* fp)
 
 }
 
-static void iopenwin(FILE** infile, FILE** outfile, long pfn, long wid)
+static void iopenwin(FILE** infile, FILE** outfile, ami_long pfn, ami_long wid)
 
 {
 
@@ -10707,7 +10735,7 @@ static void iopenwin(FILE** infile, FILE** outfile, long pfn, long wid)
 
 }
 
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
@@ -10732,7 +10760,7 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 *******************************************************************************/
 
-static void isizbufg(winptr win, long x, long y)
+static void isizbufg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -10778,7 +10806,7 @@ static void isizbufg(winptr win, long x, long y)
 
 }
 
-void ami_sizbufg(FILE* f, long x, long y)
+static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -10799,7 +10827,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-void ami_sizbuf(FILE* f, long x, long y)
+static void sizbuf_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -10822,7 +10850,7 @@ freed.
 
 *******************************************************************************/
 
-static void ibuffer(winptr win, long e)
+static void ibuffer(winptr win, ami_long e)
 
 {
 
@@ -10895,7 +10923,7 @@ static void ibuffer(winptr win, long e)
 
 }
 
-void ami_buffer(FILE* f, long e)
+static void buffer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11077,7 +11105,7 @@ static void imenu(winptr win, ami_menuptr m)
 
 }
 
-void ami_menu(FILE* f, ami_menuptr m)
+static void menu_ivf(FILE* f, ami_menuptr m)
 
 {
 
@@ -11099,7 +11127,7 @@ If the entry exists more than once, it generates an error.
 
 *******************************************************************************/
 
-static metptr fndmenu(winptr win, long id)
+static metptr fndmenu(winptr win, ami_long id)
 
 {
 
@@ -11134,7 +11162,7 @@ and will no longer send messages.
 
 *******************************************************************************/
 
-static void imenuena(winptr win, long id, long onoff)
+static void imenuena(winptr win, ami_long id, ami_long onoff)
 
 {
 
@@ -11155,7 +11183,7 @@ static void imenuena(winptr win, long id, long onoff)
 
 }
 
-void ami_menuena(FILE* f, long id, long onoff)
+static void menuena_ivf(FILE* f, ami_long id, ami_long onoff)
 
 {
 
@@ -11212,7 +11240,7 @@ static void clrlst(int* fl, metptr mp)
 
 }
 
-static void imenusel(winptr win, long id, long select)
+static void imenusel(winptr win, ami_long id, ami_long select)
 
 {
 
@@ -11236,7 +11264,7 @@ static void imenusel(winptr win, long id, long select)
 
 }
 
-void ami_menusel(FILE* f, long id, long select)
+static void menusel_ivf(FILE* f, ami_long id, ami_long select)
 
 {
 
@@ -11298,7 +11326,7 @@ static void ifront(winptr win)
 
 }
 
-void ami_front(FILE* f)
+static void front_ivf(FILE* f)
 
 {
 
@@ -11333,7 +11361,7 @@ static void iback(winptr win)
 
 }
 
-void ami_back(FILE* f)
+static void back_ivf(FILE* f)
 
 {
 
@@ -11354,7 +11382,7 @@ Gets the onscreen window size.
 
 *******************************************************************************/
 
-static void igetsizg(winptr win, long* x, long* y)
+static void igetsizg(winptr win, ami_long* x, ami_long* y)
 
 {
 
@@ -11368,7 +11396,7 @@ static void igetsizg(winptr win, long* x, long* y)
 
 }
 
-void ami_getsizg(FILE* f, long* x, long* y)
+static void getsizg_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -11394,7 +11422,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_getsiz(FILE* f, long* x, long* y)
+static void getsiz_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -11429,7 +11457,7 @@ Sets the onscreen window to the given size.
 
 *******************************************************************************/
 
-static void isetsizg(winptr win, long x, long y)
+static void isetsizg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -11442,7 +11470,7 @@ static void isetsizg(winptr win, long x, long y)
 
 }
 
-void ami_setsizg(FILE* f, long x, long y)
+static void setsizg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -11468,7 +11496,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_setsiz(FILE* f, long x, long y)
+static void setsiz_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -11503,7 +11531,7 @@ Sets the onscreen window to the given position in its parent.
 
 *******************************************************************************/
 
-static void isetposg(winptr win, long x, long y)
+static void isetposg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -11516,7 +11544,7 @@ static void isetposg(winptr win, long x, long y)
 
 }
 
-void ami_setposg(FILE* f, long x, long y)
+static void setposg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -11542,7 +11570,7 @@ relative measurement.
 
 *******************************************************************************/
 
-void ami_setpos(FILE* f, long x, long y)
+static void setpos_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -11577,7 +11605,7 @@ Gets the total screen size.
 
 *******************************************************************************/
 
-static void iscnsizg(winptr win, long* x, long* y)
+static void iscnsizg(winptr win, ami_long* x, ami_long* y)
 
 {
 
@@ -11593,7 +11621,7 @@ static void iscnsizg(winptr win, long* x, long* y)
 
 }
 
-void ami_scnsizg(FILE* f, long* x, long* y)
+static void scnsizg_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -11621,7 +11649,7 @@ Do we also need a menu style type ?
 
 *******************************************************************************/
 
-static void iwinclientg(winptr win, long cx, long cy, long* wx, long* wy,
+static void iwinclientg(winptr win, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy,
                         ami_winmodset ms)
 
 {
@@ -11656,7 +11684,7 @@ static void iwinclientg(winptr win, long cx, long cy, long* wx, long* wy,
 
 }
 
-void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+static void winclient_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 
 {
 
@@ -11685,7 +11713,7 @@ void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset 
 
 }
 
-void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+static void winclientg_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 
 {
 
@@ -11709,7 +11737,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-void ami_scnsiz(FILE* f, long* x, long* y)
+static void scnsiz_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -11732,7 +11760,7 @@ Turns the window frame on and off.
 
 *******************************************************************************/
 
-static void iframe(winptr win, long e)
+static void iframe(winptr win, ami_long e)
 
 {
 
@@ -11782,7 +11810,7 @@ static void iframe(winptr win, long e)
 
 }
 
-void ami_frame(FILE* f, long e)
+static void frame_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11803,7 +11831,7 @@ Turns the window sizing on and off.
 
 *******************************************************************************/
 
-static void isizable(winptr win, long e)
+static void isizable(winptr win, ami_long e)
 
 {
 
@@ -11860,7 +11888,7 @@ static void isizable(winptr win, long e)
 
 }
 
-void ami_sizable(FILE* f, long e)
+static void sizable_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11881,7 +11909,7 @@ Turns the system bar on and off.
 
 *******************************************************************************/
 
-static void isysbar(winptr win, long e)
+static void isysbar(winptr win, ami_long e)
 
 {
 
@@ -11938,7 +11966,7 @@ static void isysbar(winptr win, long e)
 
 }
 
-void ami_sysbar(FILE* f, long e)
+static void sysbar_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11997,7 +12025,7 @@ end of the menu,  the program selections placed in the menu.
 *******************************************************************************/
 
 /* get menu entry */
-static void getmenu(ami_menuptr* m, long id, char* face)
+static void getmenu(ami_menuptr* m, ami_long id, char* face)
 
 {
 
@@ -12028,7 +12056,7 @@ static void additem(ami_stdmenusel sms, int i, ami_menuptr* m, ami_menuptr* l,
 
 }
 
-void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
 
 {
 
@@ -12132,8 +12160,8 @@ trying to start them on the main window.
 *******************************************************************************/
 
 /* create widget according to type */
-static HWND createwidget(winptr win, wigtyp typ, long x1, long y1, long x2, long y2,
-                         char* s, long id, long exfl)
+static HWND createwidget(winptr win, wigtyp typ, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                         char* s, ami_long id, ami_long exfl)
 
 {
 
@@ -12229,7 +12257,10 @@ static HWND createwidget(winptr win, wigtyp typ, long x1, long y1, long x2, long
     ip->wt = typ; /* set type of widget */
     ip->wigcls = clsstr; /* place class string */
     ip->wigtxt = str(s); /* place face text */
-    ip->wigflg = WS_CHILD | WS_VISIBLE | fl;
+    /* siblings clip each other: widgets that overlap, as the overlaid tab
+       bars do, then paint in z order, not in whatever order their paints
+       arrive */
+    ip->wigflg = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | fl;
     ip->wigx = x1-1; /* place origin */
     ip->wigy = y1-1;
     ip->wigw = x2-x1+1; /* place size */
@@ -12251,8 +12282,8 @@ static HWND createwidget(winptr win, wigtyp typ, long x1, long y1, long x2, long
 
 }
 
-static void widget(winptr win, long x1, long y1, long x2, long y2, char* s, long id,
-                   wigtyp typ, long exfl, wigptr* wp)
+static void widget(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id,
+                   wigtyp typ, ami_long exfl, wigptr* wp)
 
 {
 
@@ -12277,7 +12308,7 @@ Removes the widget by id from the window.
 
 *******************************************************************************/
 
-static void ikillwidget(winptr win, long id)
+static void ikillwidget(winptr win, ami_long id)
 
 {
 
@@ -12292,7 +12323,7 @@ static void ikillwidget(winptr win, long id)
 
 }
 
-void ami_killwidget(FILE* f, long id)
+static void killwidget_ivf(FILE* f, ami_long id)
 
 {
 
@@ -12316,7 +12347,7 @@ without effect.
 
 *******************************************************************************/
 
-static void iselectwidget(winptr win, long id, long e)
+static void iselectwidget(winptr win, ami_long id, ami_long e)
 
 {
 
@@ -12353,7 +12384,7 @@ static void iselectwidget(winptr win, long id, long e)
 
 }
 
-void ami_selectwidget(FILE* f, long id, long e)
+static void selectwidget_ivf(FILE* f, ami_long id, ami_long e)
 
 {
 
@@ -12374,7 +12405,7 @@ Enables or disables a widget.
 
 *******************************************************************************/
 
-static void ienablewidget(winptr win, long id, long e)
+static void ienablewidget(winptr win, ami_long id, ami_long e)
 
 {
 
@@ -12398,7 +12429,7 @@ static void ienablewidget(winptr win, long id, long e)
 
 }
 
-void ami_enablewidget(FILE* f, long id, long e)
+static void enablewidget_ivf(FILE* f, ami_long id, ami_long e)
 
 {
 
@@ -12425,7 +12456,7 @@ error if the text cannot fit in the buffer.
 
 *******************************************************************************/
 
-static void igetwidgettext(winptr win, long id, char* s, long sl)
+static void igetwidgettext(winptr win, ami_long id, char* s, ami_long sl)
 
 {
 
@@ -12453,7 +12484,7 @@ static void igetwidgettext(winptr win, long id, char* s, long sl)
 
 }
 
-void ami_getwidgettext(FILE* f, long id, char* s, long sl)
+static void getwidgettext_ivf(FILE* f, ami_long id, char* s, ami_long sl)
 
 {
 
@@ -12474,7 +12505,7 @@ Places text into an edit box.
 
 *******************************************************************************/
 
-static void iputwidgettext(winptr win, long id, char* s)
+static void iputwidgettext(winptr win, ami_long id, char* s)
 
 {
 
@@ -12493,7 +12524,7 @@ static void iputwidgettext(winptr win, long id, char* s)
 
 }
 
-void ami_putwidgettext(FILE* f, long id, char* s)
+static void putwidgettext_ivf(FILE* f, ami_long id, char* s)
 
 {
 
@@ -12514,7 +12545,7 @@ Changes the size of a widget.
 
 *******************************************************************************/
 
-static void isizwidgetg(winptr win, long id,  long x, long y)
+static void isizwidgetg(winptr win, ami_long id,  ami_long x, ami_long y)
 
 {
 
@@ -12538,7 +12569,7 @@ static void isizwidgetg(winptr win, long id,  long x, long y)
 
 }
 
-void ami_sizwidgetg(FILE* f, long id, long x, long y)
+static void sizwidgetg_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -12559,7 +12590,7 @@ Changes the parent position of a widget.
 
 *******************************************************************************/
 
-static void iposwidgetg(winptr win, long id, long x, long y)
+static void iposwidgetg(winptr win, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -12583,7 +12614,7 @@ static void iposwidgetg(winptr win, long id, long x, long y)
 
 }
 
-void ami_poswidgetg(FILE* f, long id, long x, long y)
+static void poswidgetg_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -12602,7 +12633,7 @@ Place widget to back of Z order
 
 *******************************************************************************/
 
-static void ibackwidget(winptr win, long id)
+static void ibackwidget(winptr win, ami_long id)
 
 {
 
@@ -12628,7 +12659,7 @@ static void ibackwidget(winptr win, long id)
 
 }
 
-void ami_backwidget(FILE* f, long id)
+static void backwidget_ivf(FILE* f, ami_long id)
 
 {
 
@@ -12647,7 +12678,7 @@ Place widget to front of Z order
 
 *******************************************************************************/
 
-static void ifrontwidget(winptr win, long id)
+static void ifrontwidget(winptr win, ami_long id)
 
 {
 
@@ -12674,7 +12705,7 @@ static void ifrontwidget(winptr win, long id)
 
 }
 
-void ami_frontwidget(FILE* f, long id)
+static void frontwidget_ivf(FILE* f, ami_long id)
 
 {
 
@@ -12696,7 +12727,7 @@ a button is calculated and returned.
 
 *******************************************************************************/
 
-static void ibuttonsizg(winptr win, char* s, long* w, long* h)
+static void ibuttonsizg(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12714,7 +12745,7 @@ static void ibuttonsizg(winptr win, char* s, long* w, long* h)
 
 }
 
-static void ibuttonsiz(winptr win, char* s, long* w, long* h)
+static void ibuttonsiz(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12725,7 +12756,7 @@ static void ibuttonsiz(winptr win, char* s, long* w, long* h)
 
 }
 
-void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
+static void buttonsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12738,7 +12769,7 @@ void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
+static void buttonsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12759,7 +12790,7 @@ Creates a standard button within the specified rectangle, on the given window.
 
 *******************************************************************************/
 
-static void ibuttong(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void ibuttong(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12770,7 +12801,7 @@ static void ibuttong(winptr win, long x1, long y1, long x2, long y2, char* s, lo
 
 }
 
-static void ibutton(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void ibutton(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12783,7 +12814,7 @@ static void ibutton(winptr win, long x1, long y1, long x2, long y2, char* s, lon
 
 }
 
-void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void buttong_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12796,7 +12827,7 @@ void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 }
 
-void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void button_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12818,7 +12849,7 @@ a checkbox is calculated and returned.
 
 *******************************************************************************/
 
-static void icheckboxsizg(winptr win, char* s, long* w, long* h)
+static void icheckboxsizg(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12837,7 +12868,7 @@ static void icheckboxsizg(winptr win, char* s, long* w, long* h)
 
 }
 
-static void icheckboxsiz(winptr win, char* s, long* w, long* h)
+static void icheckboxsiz(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12848,7 +12879,7 @@ static void icheckboxsiz(winptr win, char* s, long* w, long* h)
 
 }
 
-void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
+static void checkboxsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12861,7 +12892,7 @@ void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
+static void checkboxsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12883,7 +12914,7 @@ window.
 
 *******************************************************************************/
 
-static void icheckboxg(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void icheckboxg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12894,7 +12925,7 @@ static void icheckboxg(winptr win, long x1, long y1, long x2, long y2, char* s, 
 
 }
 
-static void icheckbox(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void icheckbox(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12907,7 +12938,7 @@ static void icheckbox(winptr win, long x1, long y1, long x2, long y2, char* s, l
 
 }
 
-void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void checkboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12920,7 +12951,7 @@ void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id
 
 }
 
-void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void checkbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -12942,7 +12973,7 @@ size of a radio button is calculated and returned.
 
 *******************************************************************************/
 
-static void iradiobuttonsizg(winptr win, char* s, long* w, long* h)
+static void iradiobuttonsizg(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12961,7 +12992,7 @@ static void iradiobuttonsizg(winptr win, char* s, long* w, long* h)
 
 }
 
-static void iradiobuttonsiz(winptr win, char* s, long* w, long* h)
+static void iradiobuttonsiz(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12972,7 +13003,7 @@ static void iradiobuttonsiz(winptr win, char* s, long* w, long* h)
 
 }
 
-void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
+static void radiobuttonsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -12985,7 +13016,7 @@ void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
+static void radiobuttonsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -13007,7 +13038,7 @@ window.
 
 *******************************************************************************/
 
-static void iradiobuttong(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void iradiobuttong(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13018,7 +13049,7 @@ static void iradiobuttong(winptr win, long x1, long y1, long x2, long y2, char* 
 
 }
 
-static void iradiobutton(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void iradiobutton(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13031,7 +13062,7 @@ static void iradiobutton(winptr win, long x1, long y1, long x2, long y2, char* s
 
 }
 
-void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void radiobuttong_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13044,7 +13075,7 @@ void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long
 
 }
 
-void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void radiobutton_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13066,8 +13097,8 @@ size of a group is calculated and returned.
 
 *******************************************************************************/
 
-static void igroupsizg(winptr win, char* s, long cw, long ch, long* w, long* h,
-                       long* ox, long* oy)
+static void igroupsizg(winptr win, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                       ami_long* ox, ami_long* oy)
 
 {
 
@@ -13090,8 +13121,8 @@ static void igroupsizg(winptr win, char* s, long cw, long ch, long* w, long* h,
 
 }
 
-static void igroupsiz(winptr win, char* s, long cw, long ch, long* w, long* h,
-                      long* ox, long* oy)
+static void igroupsiz(winptr win, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                      ami_long* ox, ami_long* oy)
 
 {
 
@@ -13107,8 +13138,8 @@ static void igroupsiz(winptr win, char* s, long cw, long ch, long* w, long* h,
 
 }
 
-void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h,
-                  long* ox, long* oy)
+static void groupsizg_ivf(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                  ami_long* ox, ami_long* oy)
 
 {
 
@@ -13121,8 +13152,8 @@ void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h,
 
 }
 
-void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
-              long* ox, long* oy)
+static void groupsiz_ivf(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+              ami_long* ox, ami_long* oy)
 
 {
 
@@ -13144,7 +13175,7 @@ no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-static void igroupg(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void igroupg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13155,7 +13186,7 @@ static void igroupg(winptr win, long x1, long y1, long x2, long y2, char* s, lon
 
 }
 
-static void igroup(winptr win, long x1, long y1, long x2, long y2, char* s, long id)
+static void igroup(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13168,7 +13199,7 @@ static void igroup(winptr win, long x1, long y1, long x2, long y2, char* s, long
 
 }
 
-void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void groupg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13181,7 +13212,7 @@ void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 }
 
-void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void group_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -13203,7 +13234,7 @@ generates no messages. It is used as a background for other widgets.
 
 *******************************************************************************/
 
-static void ibackgroundg(winptr win, long x1, long y1, long x2, long y2, long id)
+static void ibackgroundg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13214,7 +13245,7 @@ static void ibackgroundg(winptr win, long x1, long y1, long x2, long y2, long id
 
 }
 
-static void ibackground(winptr win, long x1, long y1, long x2, long y2, long id)
+static void ibackground(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13227,7 +13258,7 @@ static void ibackground(winptr win, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void backgroundg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13240,7 +13271,7 @@ void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void background_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13262,7 +13293,7 @@ scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-static void iscrollvertsizg(winptr win, long* w, long* h)
+static void iscrollvertsizg(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -13273,7 +13304,7 @@ static void iscrollvertsizg(winptr win, long* w, long* h)
 
 }
 
-static void iscrollvertsiz(winptr win, long* w, long* h)
+static void iscrollvertsiz(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -13283,7 +13314,7 @@ static void iscrollvertsiz(winptr win, long* w, long* h)
 
 }
 
-void ami_scrollvertsizg(FILE* f, long* w, long* h)
+static void scrollvertsizg_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -13296,7 +13327,7 @@ void ami_scrollvertsizg(FILE* f, long* w, long* h)
 
 }
 
-void ami_scrollvertsiz(FILE* f, long* w, long* h)
+static void scrollvertsiz_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -13317,7 +13348,7 @@ Creates a vertical scrollbar.
 
 *******************************************************************************/
 
-static void iscrollvertg(winptr win, long x1, long y1, long x2, long y2, long id)
+static void iscrollvertg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13344,7 +13375,7 @@ static void iscrollvertg(winptr win, long x1, long y1, long x2, long y2, long id
 
 }
 
-static void iscrollvert(winptr win, long x1, long y1, long x2, long y2, long id)
+static void iscrollvert(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13357,7 +13388,7 @@ static void iscrollvert(winptr win, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollvertg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13370,7 +13401,7 @@ void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollvert_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13392,7 +13423,7 @@ horizontal scrollbar is calculated and returned.
 
 *******************************************************************************/
 
-static void iscrollhorizsizg(winptr win, long* w, long* h)
+static void iscrollhorizsizg(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -13403,7 +13434,7 @@ static void iscrollhorizsizg(winptr win, long* w, long* h)
 
 }
 
-static void iscrollhorizsiz(winptr win, long* w, long* h)
+static void iscrollhorizsiz(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -13413,7 +13444,7 @@ static void iscrollhorizsiz(winptr win, long* w, long* h)
 
 }
 
-void ami_scrollhorizsizg(FILE* f, long* w, long* h)
+static void scrollhorizsizg_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -13426,7 +13457,7 @@ void ami_scrollhorizsizg(FILE* f, long* w, long* h)
 
 }
 
-void ami_scrollhorizsiz(FILE* f, long* w, long* h)
+static void scrollhorizsiz_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -13447,7 +13478,7 @@ Creates a horizontal scrollbar.
 
 *******************************************************************************/
 
-static void iscrollhorizg(winptr win, long x1, long y1, long x2, long y2, long id)
+static void iscrollhorizg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13474,7 +13505,7 @@ static void iscrollhorizg(winptr win, long x1, long y1, long x2, long y2, long i
 
 }
 
-static void iscrollhoriz(winptr win, long x1, long y1, long x2, long y2, long id)
+static void iscrollhoriz(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13487,7 +13518,7 @@ static void iscrollhoriz(winptr win, long x1, long y1, long x2, long y2, long id
 
 }
 
-void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollhorizg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13500,7 +13531,7 @@ void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollhoriz_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13521,7 +13552,7 @@ Sets the current position of a scrollbar slider.
 
 *******************************************************************************/
 
-static void iscrollpos(winptr win, long id, long r)
+static void iscrollpos(winptr win, ami_long id, ami_long r)
 
 {
 
@@ -13544,7 +13575,7 @@ static void iscrollpos(winptr win, long id, long r)
 
 }
 
-void ami_scrollpos(FILE* f, long id, long r)
+static void scrollpos_ivf(FILE* f, ami_long id, ami_long r)
 
 {
 
@@ -13565,7 +13596,7 @@ Sets the current size of a scrollbar slider.
 
 *******************************************************************************/
 
-static void iscrollsiz(winptr win, long id, long r)
+static void iscrollsiz(winptr win, ami_long id, ami_long r)
 
 {
 
@@ -13591,7 +13622,7 @@ static void iscrollsiz(winptr win, long id, long r)
 
 }
 
-void ami_scrollsiz(FILE* f, long id, long r)
+static void scrollsiz_ivf(FILE* f, ami_long id, ami_long r)
 
 {
 
@@ -13690,7 +13721,7 @@ select box is calculated and returned.
 
 *******************************************************************************/
 
-static void inumselboxsizg(winptr win, long l, long u,  long* w, long* h)
+static void inumselboxsizg(winptr win, ami_long l, ami_long u,  ami_long* w, ami_long* h)
 
 {
 
@@ -13710,7 +13741,7 @@ static void inumselboxsizg(winptr win, long l, long u,  long* w, long* h)
 
 }
 
-static void inumselboxsiz(winptr win, long l, long u, long* w, long* h)
+static void inumselboxsiz(winptr win, ami_long l, ami_long u, ami_long* w, ami_long* h)
 
 {
 
@@ -13721,7 +13752,7 @@ static void inumselboxsiz(winptr win, long l, long u, long* w, long* h)
 
 }
 
-void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
+static void numselboxsizg_ivf(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
 
 {
 
@@ -13734,7 +13765,7 @@ void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
 
 }
 
-void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
+static void numselboxsiz_ivf(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
 
 {
 
@@ -13755,8 +13786,8 @@ Creates an up/down control for numeric selection.
 
 *******************************************************************************/
 
-static void inumselboxg(winptr win, long x1, long y1, long x2, long y2, long l, long u,
-                 long id)
+static void inumselboxg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                 ami_long id)
 
 {
 
@@ -13810,8 +13841,8 @@ static void inumselboxg(winptr win, long x1, long y1, long x2, long y2, long l, 
 
 }
 
-static void inumselbox(winptr win, long x1, long y1, long x2, long y2, long l, long u,
-                long id)
+static void inumselbox(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                ami_long id)
 
 {
 
@@ -13824,7 +13855,7 @@ static void inumselbox(winptr win, long x1, long y1, long x2, long y2, long l, l
 
 }
 
-void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
+static void numselboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
 
 {
 
@@ -13837,7 +13868,7 @@ void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
 
 }
 
-void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
+static void numselbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
 
 {
 
@@ -13906,7 +13937,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-static void ieditboxsizg(winptr win, char* s, long* w, long* h)
+static void ieditboxsizg(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -13924,7 +13955,7 @@ static void ieditboxsizg(winptr win, char* s, long* w, long* h)
 
 }
 
-static void ieditboxsiz(winptr win, char* s, long* w, long* h)
+static void ieditboxsiz(winptr win, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -13935,7 +13966,7 @@ static void ieditboxsiz(winptr win, char* s, long* w, long* h)
 
 }
 
-void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
+static void editboxsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -13948,7 +13979,7 @@ void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
+static void editboxsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -13969,7 +14000,7 @@ Creates single line edit box
 
 *******************************************************************************/
 
-static void ieditboxg(winptr win, long x1, long y1, long x2, long y2, long id)
+static void ieditboxg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13986,7 +14017,7 @@ static void ieditboxg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 }
 
-static void ieditbox(winptr win, long x1, long y1, long x2, long y2, long id)
+static void ieditbox(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -13999,7 +14030,7 @@ static void ieditbox(winptr win, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_editboxg(FILE* f,  long x1, long y1, long x2, long y2, long id)
+static void editboxg_ivf(FILE* f,  ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -14012,7 +14043,7 @@ void ami_editboxg(FILE* f,  long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void editbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -14034,7 +14065,7 @@ size of an edit box is calculated and returned.
 
 *******************************************************************************/
 
-static void iprogbarsizg(winptr win, long* w, long* h)
+static void iprogbarsizg(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -14046,7 +14077,7 @@ static void iprogbarsizg(winptr win, long* w, long* h)
 
 }
 
-static void iprogbarsiz(winptr win, long* w, long* h)
+static void iprogbarsiz(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -14057,7 +14088,7 @@ static void iprogbarsiz(winptr win, long* w, long* h)
 
 };
 
-void ami_progbarsizg(FILE* f, long* w, long* h)
+static void progbarsizg_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -14070,7 +14101,7 @@ void ami_progbarsizg(FILE* f, long* w, long* h)
 
 }
 
-void ami_progbarsiz(FILE* f, long* w, long* h)
+static void progbarsiz_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -14091,7 +14122,7 @@ Creates a progress bar.
 
 *******************************************************************************/
 
-static void iprogbarg(winptr win, long x1, long y1, long x2, long y2, long id)
+static void iprogbarg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -14108,7 +14139,7 @@ static void iprogbarg(winptr win, long x1, long y1, long x2, long y2, long id)
 
 }
 
-static void iprogbar(winptr win, long x1, long y1, long x2, long y2, long id)
+static void iprogbar(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -14121,7 +14152,7 @@ static void iprogbar(winptr win, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void progbarg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -14134,7 +14165,7 @@ void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void progbar_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -14155,7 +14186,7 @@ Sets the position of a progress bar, from 0 to LONG_MAX.
 
 *******************************************************************************/
 
-static void iprogbarpos(winptr win, long id, long pos)
+static void iprogbarpos(winptr win, ami_long id, ami_long pos)
 
 {
 
@@ -14173,7 +14204,7 @@ static void iprogbarpos(winptr win, long id, long pos)
 
 }
 
-void ami_progbarpos(FILE* f, long id, long pos)
+static void progbarpos_ivf(FILE* f, ami_long id, ami_long pos)
 
 {
 
@@ -14202,7 +14233,7 @@ specified rectangle, one way or another.
 
 *******************************************************************************/
 
-static void ilistboxsizg(winptr win, ami_strptr sp, long* w, long* h)
+static void ilistboxsizg(winptr win, ami_strptr sp, ami_long* w, ami_long* h)
 
 {
 
@@ -14229,7 +14260,7 @@ static void ilistboxsizg(winptr win, ami_strptr sp, long* w, long* h)
 
 }
 
-static void ilistboxsiz(winptr win, ami_strptr sp, long* w, long* h)
+static void ilistboxsiz(winptr win, ami_strptr sp, ami_long* w, ami_long* h)
 
 {
 
@@ -14240,7 +14271,7 @@ static void ilistboxsiz(winptr win, ami_strptr sp, long* w, long* h)
 
 }
 
-void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
+static void listboxsizg_ivf(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
 
 {
 
@@ -14253,7 +14284,7 @@ void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
 
 }
 
-void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
+static void listboxsiz_ivf(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
 
 {
 
@@ -14274,7 +14305,7 @@ Creates a list box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-static void ilistboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void ilistboxg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14295,7 +14326,7 @@ static void ilistboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr
 
 }
 
-static void ilistbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void ilistbox(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14308,7 +14339,7 @@ static void ilistbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr 
 
 }
 
-void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void listboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14321,7 +14352,7 @@ void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, lo
 
 }
 
-void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void listbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14368,8 +14399,8 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-static void idropboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
-                         long* ow, long* oh)
+static void idropboxsizg(winptr win, ami_strptr sp, ami_long* cw, ami_long* ch,
+                         ami_long* ow, ami_long* oh)
 
 {
 
@@ -14413,8 +14444,8 @@ static void idropboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
 
 }
 
-static void idropboxsiz(winptr win, ami_strptr sp, long* cw, long* ch,
-                        long* ow, long* oh)
+static void idropboxsiz(winptr win, ami_strptr sp, ami_long* cw, ami_long* ch,
+                        ami_long* ow, ami_long* oh)
 
 {
 
@@ -14427,7 +14458,7 @@ static void idropboxsiz(winptr win, ami_strptr sp, long* cw, long* ch,
 
 }
 
-void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropboxsizg_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 
 {
 
@@ -14440,7 +14471,7 @@ void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long*
 
 }
 
-void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropboxsiz_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 
 {
 
@@ -14461,8 +14492,8 @@ Creates a dropdown box. Fills it with the string list provided.
 
 *******************************************************************************/
 
-static void idropboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
-                      long id)
+static void idropboxg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                      ami_long id)
 
 {
 
@@ -14489,8 +14520,8 @@ static void idropboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr
 
 }
 
-static void idropbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
-                     long id)
+static void idropbox(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                     ami_long id)
 
 {
 
@@ -14503,7 +14534,7 @@ static void idropbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr 
 
 }
 
-void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14516,7 +14547,7 @@ void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, lo
 
 }
 
-void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14543,8 +14574,8 @@ selections can be scrolled.
 
 *******************************************************************************/
 
-static void idropeditboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
-                             long* ow, long* oh)
+static void idropeditboxsizg(winptr win, ami_strptr sp, ami_long* cw, ami_long* ch,
+                             ami_long* ow, ami_long* oh)
 
 {
 
@@ -14588,7 +14619,7 @@ static void idropeditboxsizg(winptr win, ami_strptr sp, long* cw, long* ch,
 
 }
 
-static void idropeditboxsiz(winptr win, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void idropeditboxsiz(winptr win, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 
 {
 
@@ -14601,7 +14632,7 @@ static void idropeditboxsiz(winptr win, ami_strptr sp, long* cw, long* ch, long*
 
 }
 
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 
 {
 
@@ -14614,7 +14645,7 @@ void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, l
 
 }
 
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 
 {
 
@@ -14638,8 +14669,8 @@ box.
 
 *******************************************************************************/
 
-static void idropeditboxg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
-                   long id)
+static void idropeditboxg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                   ami_long id)
 
 {
 
@@ -14667,7 +14698,7 @@ static void idropeditboxg(winptr win, long x1, long y1, long x2, long y2, ami_st
 
 }
 
-static void idropeditbox(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void idropeditbox(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14680,7 +14711,7 @@ static void idropeditbox(winptr win, long x1, long y1, long x2, long y2, ami_str
 
 }
 
-void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropeditboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14693,7 +14724,7 @@ void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp
 
 }
 
-void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropeditbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 
 {
 
@@ -14738,7 +14769,7 @@ static int slidethumb(int vert)
 
 }
 
-static void islidehorizsizg(winptr win, long* w, long* h)
+static void islidehorizsizg(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -14755,7 +14786,7 @@ static void islidehorizsizg(winptr win, long* w, long* h)
 
 }
 
-static void islidehorizsiz(winptr win, long* w, long* h)
+static void islidehorizsiz(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -14766,7 +14797,7 @@ static void islidehorizsiz(winptr win, long* w, long* h)
 
 }
 
-void ami_slidehorizsizg(FILE* f, long* w, long* h)
+static void slidehorizsizg_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -14779,7 +14810,7 @@ void ami_slidehorizsizg(FILE* f, long* w, long* h)
 
 }
 
-void ami_slidehorizsiz(FILE* f, long* w, long* h)
+static void slidehorizsiz_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -14802,7 +14833,7 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-static void islidehorizg(winptr win, long x1, long y1, long x2, long y2, long mark, long id)
+static void islidehorizg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -14821,7 +14852,7 @@ static void islidehorizg(winptr win, long x1, long y1, long x2, long y2, long ma
 
 }
 
-static void islidehoriz(winptr win, long x1, long y1, long x2, long y2, long mark, long id)
+static void islidehoriz(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -14834,7 +14865,7 @@ static void islidehoriz(winptr win, long x1, long y1, long x2, long y2, long mar
 
 }
 
-void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidehorizg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -14847,7 +14878,7 @@ void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, lon
 
 }
 
-void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidehoriz_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -14869,7 +14900,7 @@ slider is calculated and returned.
 
 *******************************************************************************/
 
-static void islidevertsizg(winptr win, long* w, long* h)
+static void islidevertsizg(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -14886,7 +14917,7 @@ static void islidevertsizg(winptr win, long* w, long* h)
 
 }
 
-static void islidevertsiz(winptr win, long* w, long* h)
+static void islidevertsiz(winptr win, ami_long* w, ami_long* h)
 
 {
 
@@ -14897,7 +14928,7 @@ static void islidevertsiz(winptr win, long* w, long* h)
 
 }
 
-void ami_slidevertsizg(FILE* f, long* w, long* h)
+static void slidevertsizg_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -14910,7 +14941,7 @@ void ami_slidevertsizg(FILE* f, long* w, long* h)
 
 }
 
-void ami_slidevertsiz(FILE* f, long* w, long* h)
+static void slidevertsiz_ivf(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -14933,8 +14964,8 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 *******************************************************************************/
 
-static void islidevertg(winptr win, long x1, long y1, long x2, long y2, long mark,
-                        long id)
+static void islidevertg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                        ami_long id)
 
 {
 
@@ -14953,7 +14984,7 @@ static void islidevertg(winptr win, long x1, long y1, long x2, long y2, long mar
 
 }
 
-static void islidevert(winptr win, long x1, long y1, long x2, long y2, long mark, long id)
+static void islidevert(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -14966,7 +14997,7 @@ static void islidevert(winptr win, long x1, long y1, long x2, long y2, long mark
 
 }
 
-void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidevertg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -14979,7 +15010,7 @@ void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long
 
 }
 
-void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidevert_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 
 {
 
@@ -15045,8 +15076,8 @@ calculated and returned.
 
 *******************************************************************************/
 
-static void itabbarsizg(winptr win, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-                        long* ox, long* oy)
+static void itabbarsizg(winptr win, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                        ami_long* ox, ami_long* oy)
 
 {
 
@@ -15090,12 +15121,12 @@ static void itabbarsizg(winptr win, ami_strptr sp, ami_tabori tor, long cw, long
 
 }
 
-static void itabbarsiz(winptr win, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-                       long* ox, long* oy)
+static void itabbarsiz(winptr win, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                       ami_long* ox, ami_long* oy)
 
 {
 
-    long gw, gh, gox, goy;
+    ami_long gw, gh, gox, goy;
 
     /* convert client sizes to graphical */
     cw = cw*win->charspace;
@@ -15112,8 +15143,8 @@ static void itabbarsiz(winptr win, ami_strptr sp, ami_tabori tor, long cw, long 
 
 }
 
-void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-                long* ox, long* oy)
+static void tabbarsizg_ivf(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                ami_long* ox, ami_long* oy)
 
 {
 
@@ -15126,8 +15157,8 @@ void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, lo
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-               long* ox, long* oy)
+static void tabbarsiz_ivf(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+               ami_long* ox, ami_long* oy)
 
 {
 
@@ -15150,8 +15181,8 @@ flexible.
 
 *******************************************************************************/
 
-static void itabbarclientg(winptr win, ami_tabori tor, long w, long h, long* cw, long* ch,
-                           long* ox, long* oy)
+static void itabbarclientg(winptr win, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch,
+                           ami_long* ox, ami_long* oy)
 
 {
 
@@ -15195,17 +15226,19 @@ static void itabbarclientg(winptr win, ami_tabori tor, long w, long h, long* cw,
 
 }
 
-static void itabbarclient(winptr win, ami_tabori tor, long w, long h, long* cw, long* ch,
-                          long* ox, long* oy)
+static void itabbarclient(winptr win, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch,
+                          ami_long* ox, ami_long* oy)
 
 {
 
-    long gw, gh, gox, goy;
+    ami_long gw, gh, gox, goy;
 
     /* convert sizes to graphical */
     w = w*win->charspace;
     h = h*win->linespace;
-    itabbarsizg(win, sp, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
+    /* the client area turns on the strip's thickness, not on the tabs, so
+       the list is not wanted here */
+    itabbarsizg(win, NULL, tor, w, h, &gw, &gh, &gox, &goy); /* get size */
     /* change graphical size to character */
     *cw = (gw-1)/win->charspace+1;
     *ch = (gh-1)/win->linespace+1;
@@ -15217,8 +15250,8 @@ static void itabbarclient(winptr win, ami_tabori tor, long w, long h, long* cw, 
 
 }
 
-void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long*  cw, long* ch,
-                   long* ox, long* oy)
+static void tabbarclientg_ivf(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long*  cw, ami_long* ch,
+                   ami_long* ox, ami_long* oy)
 
 {
 
@@ -15231,8 +15264,8 @@ void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long*  cw, long*
 
 }
 
-void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
-                  long* ox, long* oy)
+static void tabbarclient_ivf(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch,
+                  ami_long* ox, ami_long* oy)
 
 {
 
@@ -15257,8 +15290,8 @@ creating and distroying another widget.
 
 *******************************************************************************/
 
-static void itabbarg(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
-                     ami_tabori tor, long id)
+static void itabbarg(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                     ami_tabori tor, ami_long id)
 
 {
 
@@ -15299,8 +15332,8 @@ static void itabbarg(winptr win, long x1, long y1, long x2, long y2, ami_strptr 
 
 }
 
-static void itabbar(winptr win, long x1, long y1, long x2, long y2, ami_strptr sp,
-                    ami_tabori tor, long id)
+static void itabbar(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                    ami_tabori tor, ami_long id)
 
 {
 
@@ -15313,8 +15346,8 @@ static void itabbar(winptr win, long x1, long y1, long x2, long y2, ami_strptr s
 
 }
 
-void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor,
-             long id)
+static void tabbarg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor,
+             ami_long id)
 
 {
 
@@ -15327,8 +15360,8 @@ void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami
 
 }
 
-void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor,
-            long id)
+static void tabbar_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor,
+            ami_long id)
 
 {
 
@@ -15350,7 +15383,7 @@ of the tab.
 
 *******************************************************************************/
 
-static void itabsel(winptr win, long id, long tn)
+static void itabsel(winptr win, ami_long id, ami_long tn)
 
 {
 
@@ -15368,7 +15401,7 @@ static void itabsel(winptr win, long id, long tn)
 
 }
 
-void ami_tabsel(FILE* f, long id, long tn)
+static void tabsel_ivf(FILE* f, ami_long id, ami_long tn)
 
 {
 
@@ -15389,7 +15422,7 @@ Outputs a message dialog with the given title and message strings.
 
 *******************************************************************************/
 
-void ami_alert(char* title, char* message)
+static void alert_ivf(char* title, char* message)
 
 {
 
@@ -15418,7 +15451,7 @@ Bug: does not take the input color as the default.
 
 *******************************************************************************/
 
-void ami_querycolor(long* r, long* g, long* b)
+static void querycolor_ivf(ami_long* r, ami_long* g, ami_long* b)
 
 {
 
@@ -15461,7 +15494,7 @@ it is an error if the result cannot fit in the buffer.
 
 *******************************************************************************/
 
-void ami_queryopen(char* s, long sl)
+static void queryopen_ivf(char* s, ami_long sl)
 
 {
 
@@ -15501,7 +15534,7 @@ it is an error if the result cannot fit in the buffer.
 
 *******************************************************************************/
 
-void ami_querysave(char* s, long sl)
+static void querysave_ivf(char* s, ami_long sl)
 
 {
 
@@ -15551,7 +15584,7 @@ table this issue until later.
 
 *******************************************************************************/
 
-void ami_queryfind(char* s, long sl, long* opt)
+static void queryfind_ivf(char* s, ami_long sl, ami_long* opt)
 
 {
 
@@ -15595,7 +15628,7 @@ Bug: See comment, queryfind.
 
 *******************************************************************************/
 
-void ami_queryfindrep(char* s, long sl, char* r, long rl, long* opt)
+static void queryfindrep_ivf(char* s, ami_long sl, char* r, ami_long rl, ami_long* opt)
 
 {
 
@@ -15638,7 +15671,7 @@ user as the defaults.
 
 /* find font number in fonts list */
 
-static long fndfntnum(winptr win, char* fns)
+static ami_long fndfntnum(winptr win, char* fns)
 
 {
 
@@ -15663,8 +15696,8 @@ static long fndfntnum(winptr win, char* fns)
 
 }
 
-static void iqueryfont(winptr win, long* fc, long* s, long* fr, long* fg, long* fb,
-                       long* br, long* bg, long* bb, long* effect)
+static void iqueryfont(winptr win, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb,
+                       ami_long* br, ami_long* bg, ami_long* bb, ami_long* effect)
 
 {
 
@@ -15702,8 +15735,8 @@ static void iqueryfont(winptr win, long* fc, long* s, long* fr, long* fg, long* 
 
 }
 
-void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
-               long* br, long* bg, long* bb, long* effect)
+static void queryfont_ivf(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb,
+               ami_long* br, ami_long* bg, ami_long* bb, ami_long* effect)
 
 {
 
@@ -16756,7 +16789,9 @@ Graph startup
 
 *******************************************************************************/
 
-static void ami_init_graph (void) __attribute__((constructor (103)));
+/* 102, as the other graphics ports: the modules that stack on the API, the
+   .pdf print output among them, attach at 103 and must find this beneath */
+static void ami_init_graph (void) __attribute__((constructor (102)));
 static void ami_init_graph()
 
 {
@@ -17049,7 +17084,7 @@ until implemented.
 *******************************************************************************/
 
 /* write string with explicit length (not NUL terminated) */
-void ami_wrtstrn(FILE* f, char* s, long n)
+static void wrtstrn_ivf(FILE* f, char* s, ami_long n)
 
 {
 
@@ -17064,16 +17099,28 @@ void ami_wrtstrn(FILE* f, char* s, long n)
 }
 
 /* send event into the input queue: not implemented */
-void ami_sendevent(FILE* f, ami_evtrec* er)
+static void sendevent_ivf(FILE* f, ami_evtrec* er)
 
 {
 
-   /* not implemented */
+    winptr      win; /* window context */
+    ami_evtrec* ep;  /* the record's copy */
+
+    /* The record rides the window's message queue as a message of its own,
+       and comes back out of event() on the window's input file. This is
+       what another thread uses to wake the one waiting in event(). */
+    lockmain(); /* start exclusive access */
+    win = txt2win(f); /* get windows context */
+    unlockmain(); /* end exclusive access */
+    ep = malloc(sizeof(ami_evtrec));
+    if (!ep) error(enomem);
+    *ep = *er;
+    putmsg(win->winhan, UM_SNDEVT, 0, (LPARAM)ep);
 
 }
 
 /* foreground/background raster op selections: not implemented */
-void ami_fand(FILE* f)
+static void fand_ivf(FILE* f)
 
 {
 
@@ -17081,7 +17128,7 @@ void ami_fand(FILE* f)
 
 }
 
-void ami_band(FILE* f)
+static void band_ivf(FILE* f)
 
 {
 
@@ -17089,7 +17136,7 @@ void ami_band(FILE* f)
 
 }
 
-void ami_for(FILE* f)
+static void for_ivf(FILE* f)
 
 {
 
@@ -17097,7 +17144,7 @@ void ami_for(FILE* f)
 
 }
 
-void ami_bor(FILE* f)
+static void bor_ivf(FILE* f)
 
 {
 
@@ -17106,7 +17153,7 @@ void ami_bor(FILE* f)
 }
 
 /* scale coordinates: no scaling in this port, identity */
-long ami_scalex(FILE* f, long x)
+static ami_long scalex_ivf(FILE* f, ami_long x)
 
 {
 
@@ -17114,7 +17161,7 @@ long ami_scalex(FILE* f, long x)
 
 }
 
-long ami_scaley(FILE* f, long y)
+static ami_long scaley_ivf(FILE* f, ami_long y)
 
 {
 
@@ -17132,7 +17179,7 @@ void ami_dragwin(FILE* f)
 }
 
 /* find screen center, character and graphical: not implemented */
-void ami_scncen(FILE* f, long* x, long* y)
+static void scncen_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -17141,7 +17188,7 @@ void ami_scncen(FILE* f, long* x, long* y)
 
 }
 
-void ami_scnceng(FILE* f, long* x, long* y)
+static void scnceng_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -17151,7 +17198,7 @@ void ami_scnceng(FILE* f, long* x, long* y)
 }
 
 /* set focus to window: not implemented */
-void ami_focus(FILE* f)
+static void focus_ivf(FILE* f)
 
 {
 
@@ -17165,11 +17212,11 @@ void ami_focus(FILE* f)
    distinct ids; tracking them through the window equivalence table (which on
    windows does not yet carry the negative id range linux does) comes with
    the portable widget port. */
-long ami_getwinid(void)
+static ami_long getwinid_ivf(void)
 
 {
 
-   static long anonwid = 0; /* last anonymous window id given out */
+   static ami_long anonwid = 0; /* last anonymous window id given out */
 
    if (anonwid <= -MAXFIL) error(ewinuse); /* out of anonymous ids */
    anonwid--; /* next anonymous id */
@@ -17178,7 +17225,7 @@ long ami_getwinid(void)
 
 }
 
-long ami_getwigid(FILE* f)
+static ami_long getwigid_ivf(FILE* f)
 
 {
 
@@ -17187,7 +17234,7 @@ long ami_getwigid(FILE* f)
 }
 
 /* widget geometry management: not implemented */
-void ami_sizwidget(FILE* f, long id, long x, long y)
+static void sizwidget_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -17195,7 +17242,7 @@ void ami_sizwidget(FILE* f, long id, long x, long y)
 
 }
 
-void ami_poswidget(FILE* f, long id, long x, long y)
+static void poswidget_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -17203,10 +17250,963 @@ void ami_poswidget(FILE* f, long id, long x, long y)
 
 }
 
-void ami_focuswidget(FILE* f, long id)
+static void focuswidget_ivf(FILE* f, ami_long id)
 
 {
 
    /* not implemented */
 
 }
+
+/*******************************************************************************
+
+Graphics API override layer
+
+Every entry point above is defined under its internal vector function name
+(<name>_ivf), and the public ami_<name> below dispatches through a vector
+that _pa_<name>_ovr can replace, which is how a module such as the .pdf print
+output (portable/pdfgraph.c) interposes on the API. A call made from within
+this file uses the public name and so passes through the vector, as in the
+terminal port. Entry points the port does not implement have empty internal
+functions here, so that an overrider can still take them.
+
+*******************************************************************************/
+
+#define APIOVER(name) void _pa_##name##_ovr(ami_##name##_t nfp, ami_##name##_t* ofp) \
+                      { *ofp = name##_vect; name##_vect = nfp; }
+
+static void blockcopyg_ivf(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1, ami_long sx2, ami_long sy2, ami_long dx1, ami_long dy1, ami_long dx2, ami_long dy2)
+    { /* not implemented */ }
+
+static ami_scrollg_t scrollg_vect = scrollg_ivf;
+APIOVER(scrollg)
+void ami_scrollg(FILE* f, ami_long x, ami_long y)
+    { (*scrollg_vect)(f, x, y); }
+static ami_scroll_t scroll_vect = scroll_ivf;
+APIOVER(scroll)
+void ami_scroll(FILE* f, ami_long x, ami_long y)
+    { (*scroll_vect)(f, x, y); }
+static ami_cursor_t cursor_vect = cursor_ivf;
+APIOVER(cursor)
+void ami_cursor(FILE* f, ami_long x, ami_long y)
+    { (*cursor_vect)(f, x, y); }
+static ami_cursorg_t cursorg_vect = cursorg_ivf;
+APIOVER(cursorg)
+void ami_cursorg(FILE* f, ami_long x, ami_long y)
+    { (*cursorg_vect)(f, x, y); }
+static ami_baseline_t baseline_vect = baseline_ivf;
+APIOVER(baseline)
+ami_long ami_baseline(FILE* f)
+    { return (*baseline_vect)(f); }
+static ami_maxx_t maxx_vect = maxx_ivf;
+APIOVER(maxx)
+ami_long ami_maxx(FILE* f)
+    { return (*maxx_vect)(f); }
+static ami_maxy_t maxy_vect = maxy_ivf;
+APIOVER(maxy)
+ami_long ami_maxy(FILE* f)
+    { return (*maxy_vect)(f); }
+static ami_maxxg_t maxxg_vect = maxxg_ivf;
+APIOVER(maxxg)
+ami_long ami_maxxg(FILE* f)
+    { return (*maxxg_vect)(f); }
+static ami_maxyg_t maxyg_vect = maxyg_ivf;
+APIOVER(maxyg)
+ami_long ami_maxyg(FILE* f)
+    { return (*maxyg_vect)(f); }
+static ami_home_t home_vect = home_ivf;
+APIOVER(home)
+void ami_home(FILE* f)
+    { (*home_vect)(f); }
+static ami_up_t up_vect = up_ivf;
+APIOVER(up)
+void ami_up(FILE* f)
+    { (*up_vect)(f); }
+static ami_down_t down_vect = down_ivf;
+APIOVER(down)
+void ami_down(FILE* f)
+    { (*down_vect)(f); }
+static ami_left_t left_vect = left_ivf;
+APIOVER(left)
+void ami_left(FILE* f)
+    { (*left_vect)(f); }
+static ami_right_t right_vect = right_ivf;
+APIOVER(right)
+void ami_right(FILE* f)
+    { (*right_vect)(f); }
+static ami_blink_t blink_vect = blink_ivf;
+APIOVER(blink)
+void ami_blink(FILE* f, ami_long e)
+    { (*blink_vect)(f, e); }
+static ami_reverse_t reverse_vect = reverse_ivf;
+APIOVER(reverse)
+void ami_reverse(FILE* f, ami_long e)
+    { (*reverse_vect)(f, e); }
+static ami_underline_t underline_vect = underline_ivf;
+APIOVER(underline)
+void ami_underline(FILE* f, ami_long e)
+    { (*underline_vect)(f, e); }
+static ami_superscript_t superscript_vect = superscript_ivf;
+APIOVER(superscript)
+void ami_superscript(FILE* f, ami_long e)
+    { (*superscript_vect)(f, e); }
+static ami_subscript_t subscript_vect = subscript_ivf;
+APIOVER(subscript)
+void ami_subscript(FILE* f, ami_long e)
+    { (*subscript_vect)(f, e); }
+static ami_italic_t italic_vect = italic_ivf;
+APIOVER(italic)
+void ami_italic(FILE* f, ami_long e)
+    { (*italic_vect)(f, e); }
+static ami_bold_t bold_vect = bold_ivf;
+APIOVER(bold)
+void ami_bold(FILE* f, ami_long e)
+    { (*bold_vect)(f, e); }
+static ami_strikeout_t strikeout_vect = strikeout_ivf;
+APIOVER(strikeout)
+void ami_strikeout(FILE* f, ami_long e)
+    { (*strikeout_vect)(f, e); }
+static ami_standout_t standout_vect = standout_ivf;
+APIOVER(standout)
+void ami_standout(FILE* f, ami_long e)
+    { (*standout_vect)(f, e); }
+static ami_fcolor_t fcolor_vect = fcolor_ivf;
+APIOVER(fcolor)
+void ami_fcolor(FILE* f, ami_color c)
+    { (*fcolor_vect)(f, c); }
+static ami_fcolorc_t fcolorc_vect = fcolorc_ivf;
+APIOVER(fcolorc)
+void ami_fcolorc(FILE* f, ami_long r, ami_long g, ami_long b)
+    { (*fcolorc_vect)(f, r, g, b); }
+static ami_fcolorg_t fcolorg_vect = fcolorg_ivf;
+APIOVER(fcolorg)
+void ami_fcolorg(FILE* f, ami_long r, ami_long g, ami_long b)
+    { (*fcolorg_vect)(f, r, g, b); }
+static ami_bcolor_t bcolor_vect = bcolor_ivf;
+APIOVER(bcolor)
+void ami_bcolor(FILE* f, ami_color c)
+    { (*bcolor_vect)(f, c); }
+static ami_bcolorc_t bcolorc_vect = bcolorc_ivf;
+APIOVER(bcolorc)
+void ami_bcolorc(FILE* f, ami_long r, ami_long g, ami_long b)
+    { (*bcolorc_vect)(f, r, g, b); }
+static ami_bcolorg_t bcolorg_vect = bcolorg_ivf;
+APIOVER(bcolorg)
+void ami_bcolorg(FILE* f, ami_long r, ami_long g, ami_long b)
+    { (*bcolorg_vect)(f, r, g, b); }
+static ami_curbnd_t curbnd_vect = curbnd_ivf;
+APIOVER(curbnd)
+ami_long ami_curbnd(FILE* f)
+    { return (*curbnd_vect)(f); }
+static ami_auto_t auto_vect = auto_ivf;
+APIOVER(auto)
+void ami_auto(FILE* f, ami_long e)
+    { (*auto_vect)(f, e); }
+static ami_curvis_t curvis_vect = curvis_ivf;
+APIOVER(curvis)
+void ami_curvis(FILE* f, ami_long e)
+    { (*curvis_vect)(f, e); }
+static ami_curx_t curx_vect = curx_ivf;
+APIOVER(curx)
+ami_long ami_curx(FILE* f)
+    { return (*curx_vect)(f); }
+static ami_cury_t cury_vect = cury_ivf;
+APIOVER(cury)
+ami_long ami_cury(FILE* f)
+    { return (*cury_vect)(f); }
+static ami_curxg_t curxg_vect = curxg_ivf;
+APIOVER(curxg)
+ami_long ami_curxg(FILE* f)
+    { return (*curxg_vect)(f); }
+static ami_curyg_t curyg_vect = curyg_ivf;
+APIOVER(curyg)
+ami_long ami_curyg(FILE* f)
+    { return (*curyg_vect)(f); }
+static ami_select_t select_vect = select_ivf;
+APIOVER(select)
+void ami_select(FILE* f, ami_long u, ami_long d)
+    { (*select_vect)(f, u, d); }
+static ami_wrtstr_t wrtstr_vect = wrtstr_ivf;
+APIOVER(wrtstr)
+void ami_wrtstr(FILE* f, char* s)
+    { (*wrtstr_vect)(f, s); }
+static ami_wrtstrn_t wrtstrn_vect = wrtstrn_ivf;
+APIOVER(wrtstrn)
+void ami_wrtstrn(FILE* f, char* s, ami_long n)
+    { (*wrtstrn_vect)(f, s, n); }
+static ami_sizbuf_t sizbuf_vect = sizbuf_ivf;
+APIOVER(sizbuf)
+void ami_sizbuf(FILE* f, ami_long x, ami_long y)
+    { (*sizbuf_vect)(f, x, y); }
+static ami_del_t del_vect = del_ivf;
+APIOVER(del)
+void ami_del(FILE* f)
+    { (*del_vect)(f); }
+static ami_line_t line_vect = line_ivf;
+APIOVER(line)
+void ami_line(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+    { (*line_vect)(f, x1, y1, x2, y2); }
+static ami_rect_t rect_vect = rect_ivf;
+APIOVER(rect)
+void ami_rect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+    { (*rect_vect)(f, x1, y1, x2, y2); }
+static ami_frect_t frect_vect = frect_ivf;
+APIOVER(frect)
+void ami_frect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+    { (*frect_vect)(f, x1, y1, x2, y2); }
+static ami_rrect_t rrect_vect = rrect_ivf;
+APIOVER(rrect)
+void ami_rrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
+    { (*rrect_vect)(f, x1, y1, x2, y2, xs, ys); }
+static ami_frrect_t frrect_vect = frrect_ivf;
+APIOVER(frrect)
+void ami_frrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
+    { (*frrect_vect)(f, x1, y1, x2, y2, xs, ys); }
+static ami_ellipse_t ellipse_vect = ellipse_ivf;
+APIOVER(ellipse)
+void ami_ellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+    { (*ellipse_vect)(f, x1, y1, x2, y2); }
+static ami_fellipse_t fellipse_vect = fellipse_ivf;
+APIOVER(fellipse)
+void ami_fellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+    { (*fellipse_vect)(f, x1, y1, x2, y2); }
+static ami_arc_t arc_vect = arc_ivf;
+APIOVER(arc)
+void ami_arc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
+    { (*arc_vect)(f, x1, y1, x2, y2, sa, ea); }
+static ami_farc_t farc_vect = farc_ivf;
+APIOVER(farc)
+void ami_farc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
+    { (*farc_vect)(f, x1, y1, x2, y2, sa, ea); }
+static ami_fchord_t fchord_vect = fchord_ivf;
+APIOVER(fchord)
+void ami_fchord(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
+    { (*fchord_vect)(f, x1, y1, x2, y2, sa, ea); }
+static ami_ftriangle_t ftriangle_vect = ftriangle_ivf;
+APIOVER(ftriangle)
+void ami_ftriangle(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
+    { (*ftriangle_vect)(f, x1, y1, x2, y2, x3, y3); }
+static ami_setpixel_t setpixel_vect = setpixel_ivf;
+APIOVER(setpixel)
+void ami_setpixel(FILE* f, ami_long x, ami_long y)
+    { (*setpixel_vect)(f, x, y); }
+static ami_fover_t fover_vect = fover_ivf;
+APIOVER(fover)
+void ami_fover(FILE* f)
+    { (*fover_vect)(f); }
+static ami_bover_t bover_vect = bover_ivf;
+APIOVER(bover)
+void ami_bover(FILE* f)
+    { (*bover_vect)(f); }
+static ami_finvis_t finvis_vect = finvis_ivf;
+APIOVER(finvis)
+void ami_finvis(FILE* f)
+    { (*finvis_vect)(f); }
+static ami_binvis_t binvis_vect = binvis_ivf;
+APIOVER(binvis)
+void ami_binvis(FILE* f)
+    { (*binvis_vect)(f); }
+static ami_fxor_t fxor_vect = fxor_ivf;
+APIOVER(fxor)
+void ami_fxor(FILE* f)
+    { (*fxor_vect)(f); }
+static ami_bxor_t bxor_vect = bxor_ivf;
+APIOVER(bxor)
+void ami_bxor(FILE* f)
+    { (*bxor_vect)(f); }
+static ami_fand_t fand_vect = fand_ivf;
+APIOVER(fand)
+void ami_fand(FILE* f)
+    { (*fand_vect)(f); }
+static ami_band_t band_vect = band_ivf;
+APIOVER(band)
+void ami_band(FILE* f)
+    { (*band_vect)(f); }
+static ami_for_t for_vect = for_ivf;
+APIOVER(for)
+void ami_for(FILE* f)
+    { (*for_vect)(f); }
+static ami_bor_t bor_vect = bor_ivf;
+APIOVER(bor)
+void ami_bor(FILE* f)
+    { (*bor_vect)(f); }
+static ami_linewidth_t linewidth_vect = linewidth_ivf;
+APIOVER(linewidth)
+void ami_linewidth(FILE* f, ami_long w)
+    { (*linewidth_vect)(f, w); }
+static ami_linestyle_t linestyle_vect = linestyle_ivf;
+APIOVER(linestyle)
+void ami_linestyle(FILE* f, ami_lstyle style)
+    { (*linestyle_vect)(f, style); }
+static ami_chrsizx_t chrsizx_vect = chrsizx_ivf;
+APIOVER(chrsizx)
+ami_long ami_chrsizx(FILE* f)
+    { return (*chrsizx_vect)(f); }
+static ami_chrsizy_t chrsizy_vect = chrsizy_ivf;
+APIOVER(chrsizy)
+ami_long ami_chrsizy(FILE* f)
+    { return (*chrsizy_vect)(f); }
+static ami_fonts_t fonts_vect = fonts_ivf;
+APIOVER(fonts)
+ami_long ami_fonts(FILE* f)
+    { return (*fonts_vect)(f); }
+static ami_font_t font_vect = font_ivf;
+APIOVER(font)
+void ami_font(FILE* f, ami_long fc)
+    { (*font_vect)(f, fc); }
+static ami_fontnam_t fontnam_vect = fontnam_ivf;
+APIOVER(fontnam)
+void ami_fontnam(FILE* f, ami_long fc, char* fns, ami_long fnsl)
+    { (*fontnam_vect)(f, fc, fns, fnsl); }
+static ami_fontsiz_t fontsiz_vect = fontsiz_ivf;
+APIOVER(fontsiz)
+void ami_fontsiz(FILE* f, ami_long s)
+    { (*fontsiz_vect)(f, s); }
+static ami_setpoints_t setpoints_vect = setpoints_ivf;
+APIOVER(setpoints)
+void ami_setpoints(FILE* f, float ps)
+    { (*setpoints_vect)(f, ps); }
+static ami_points_t points_vect = points_ivf;
+APIOVER(points)
+float ami_points(FILE* f)
+    { return (*points_vect)(f); }
+static ami_chrspcy_t chrspcy_vect = chrspcy_ivf;
+APIOVER(chrspcy)
+void ami_chrspcy(FILE* f, ami_long s)
+    { (*chrspcy_vect)(f, s); }
+static ami_chrspcx_t chrspcx_vect = chrspcx_ivf;
+APIOVER(chrspcx)
+void ami_chrspcx(FILE* f, ami_long s)
+    { (*chrspcx_vect)(f, s); }
+static ami_dpmx_t dpmx_vect = dpmx_ivf;
+APIOVER(dpmx)
+ami_long ami_dpmx(FILE* f)
+    { return (*dpmx_vect)(f); }
+static ami_dpmy_t dpmy_vect = dpmy_ivf;
+APIOVER(dpmy)
+ami_long ami_dpmy(FILE* f)
+    { return (*dpmy_vect)(f); }
+static ami_strsiz_t strsiz_vect = strsiz_ivf;
+APIOVER(strsiz)
+ami_long ami_strsiz(FILE* f, const char* s)
+    { return (*strsiz_vect)(f, s); }
+static ami_chrpos_t chrpos_vect = chrpos_ivf;
+APIOVER(chrpos)
+ami_long ami_chrpos(FILE* f, const char* s, ami_long p)
+    { return (*chrpos_vect)(f, s, p); }
+static ami_writejust_t writejust_vect = writejust_ivf;
+APIOVER(writejust)
+void ami_writejust(FILE* f, const char* s, ami_long n)
+    { (*writejust_vect)(f, s, n); }
+static ami_justpos_t justpos_vect = justpos_ivf;
+APIOVER(justpos)
+ami_long ami_justpos(FILE* f, const char* s, ami_long p, ami_long n)
+    { return (*justpos_vect)(f, s, p, n); }
+static ami_condensed_t condensed_vect = condensed_ivf;
+APIOVER(condensed)
+void ami_condensed(FILE* f, ami_long e)
+    { (*condensed_vect)(f, e); }
+static ami_extended_t extended_vect = extended_ivf;
+APIOVER(extended)
+void ami_extended(FILE* f, ami_long e)
+    { (*extended_vect)(f, e); }
+static ami_xlight_t xlight_vect = xlight_ivf;
+APIOVER(xlight)
+void ami_xlight(FILE* f, ami_long e)
+    { (*xlight_vect)(f, e); }
+static ami_light_t light_vect = light_ivf;
+APIOVER(light)
+void ami_light(FILE* f, ami_long e)
+    { (*light_vect)(f, e); }
+static ami_xbold_t xbold_vect = xbold_ivf;
+APIOVER(xbold)
+void ami_xbold(FILE* f, ami_long e)
+    { (*xbold_vect)(f, e); }
+static ami_hollow_t hollow_vect = hollow_ivf;
+APIOVER(hollow)
+void ami_hollow(FILE* f, ami_long e)
+    { (*hollow_vect)(f, e); }
+static ami_raised_t raised_vect = raised_ivf;
+APIOVER(raised)
+void ami_raised(FILE* f, ami_long e)
+    { (*raised_vect)(f, e); }
+static ami_delpict_t delpict_vect = delpict_ivf;
+APIOVER(delpict)
+void ami_delpict(FILE* f, ami_long p)
+    { (*delpict_vect)(f, p); }
+static ami_loadpict_t loadpict_vect = loadpict_ivf;
+APIOVER(loadpict)
+void ami_loadpict(FILE* f, ami_long p, char* fn)
+    { (*loadpict_vect)(f, p, fn); }
+static ami_pictsizx_t pictsizx_vect = pictsizx_ivf;
+APIOVER(pictsizx)
+ami_long ami_pictsizx(FILE* f, ami_long p)
+    { return (*pictsizx_vect)(f, p); }
+static ami_pictsizy_t pictsizy_vect = pictsizy_ivf;
+APIOVER(pictsizy)
+ami_long ami_pictsizy(FILE* f, ami_long p)
+    { return (*pictsizy_vect)(f, p); }
+static ami_picture_t picture_vect = picture_ivf;
+APIOVER(picture)
+void ami_picture(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+    { (*picture_vect)(f, p, x1, y1, x2, y2); }
+static ami_event_t event_vect = event_ivf;
+APIOVER(event)
+void ami_event(FILE* f, ami_evtrec* er)
+    { (*event_vect)(f, er); }
+static ami_sendevent_t sendevent_vect = sendevent_ivf;
+APIOVER(sendevent)
+void ami_sendevent(FILE* f, ami_evtrec* er)
+    { (*sendevent_vect)(f, er); }
+static ami_eventover_t eventover_vect = eventover_ivf;
+APIOVER(eventover)
+void ami_eventover(ami_evtcod e, ami_pevthan eh, ami_pevthan* oeh)
+    { (*eventover_vect)(e, eh, oeh); }
+static ami_eventsover_t eventsover_vect = eventsover_ivf;
+APIOVER(eventsover)
+void ami_eventsover(ami_pevthan eh, ami_pevthan* oeh)
+    { (*eventsover_vect)(eh, oeh); }
+static ami_timer_t timer_vect = timer_ivf;
+APIOVER(timer)
+void ami_timer(FILE* f, ami_long i, ami_long t, ami_long r)
+    { (*timer_vect)(f, i, t, r); }
+static ami_killtimer_t killtimer_vect = killtimer_ivf;
+APIOVER(killtimer)
+void ami_killtimer(FILE* f, ami_long i)
+    { (*killtimer_vect)(f, i); }
+static ami_frametimer_t frametimer_vect = frametimer_ivf;
+APIOVER(frametimer)
+void ami_frametimer(FILE* f, ami_long e)
+    { (*frametimer_vect)(f, e); }
+static ami_autohold_t autohold_vect = autohold_ivf;
+APIOVER(autohold)
+void ami_autohold(ami_long e)
+    { (*autohold_vect)(e); }
+static ami_mouse_t mouse_vect = mouse_ivf;
+APIOVER(mouse)
+ami_long ami_mouse(FILE* f)
+    { return (*mouse_vect)(f); }
+static ami_mousebutton_t mousebutton_vect = mousebutton_ivf;
+APIOVER(mousebutton)
+ami_long ami_mousebutton(FILE* f, ami_long m)
+    { return (*mousebutton_vect)(f, m); }
+static ami_joystick_t joystick_vect = joystick_ivf;
+APIOVER(joystick)
+ami_long ami_joystick(FILE* f)
+    { return (*joystick_vect)(f); }
+static ami_joybutton_t joybutton_vect = joybutton_ivf;
+APIOVER(joybutton)
+ami_long ami_joybutton(FILE* f, ami_long j)
+    { return (*joybutton_vect)(f, j); }
+static ami_joyaxis_t joyaxis_vect = joyaxis_ivf;
+APIOVER(joyaxis)
+ami_long ami_joyaxis(FILE* f, ami_long j)
+    { return (*joyaxis_vect)(f, j); }
+static ami_settabg_t settabg_vect = settabg_ivf;
+APIOVER(settabg)
+void ami_settabg(FILE* f, ami_long t)
+    { (*settabg_vect)(f, t); }
+static ami_settab_t settab_vect = settab_ivf;
+APIOVER(settab)
+void ami_settab(FILE* f, ami_long t)
+    { (*settab_vect)(f, t); }
+static ami_restabg_t restabg_vect = restabg_ivf;
+APIOVER(restabg)
+void ami_restabg(FILE* f, ami_long t)
+    { (*restabg_vect)(f, t); }
+static ami_restab_t restab_vect = restab_ivf;
+APIOVER(restab)
+void ami_restab(FILE* f, ami_long t)
+    { (*restab_vect)(f, t); }
+static ami_clrtab_t clrtab_vect = clrtab_ivf;
+APIOVER(clrtab)
+void ami_clrtab(FILE* f)
+    { (*clrtab_vect)(f); }
+static ami_funkey_t funkey_vect = funkey_ivf;
+APIOVER(funkey)
+ami_long ami_funkey(FILE* f)
+    { return (*funkey_vect)(f); }
+static ami_title_t title_vect = title_ivf;
+APIOVER(title)
+void ami_title(FILE* f, char* ts)
+    { (*title_vect)(f, ts); }
+static ami_getwinid_t getwinid_vect = getwinid_ivf;
+APIOVER(getwinid)
+ami_long ami_getwinid(void)
+    { return (*getwinid_vect)(); }
+static ami_openwin_t openwin_vect = openwin_ivf;
+APIOVER(openwin)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
+    { (*openwin_vect)(infile, outfile, parent, wid); }
+static ami_sizbufg_t sizbufg_vect = sizbufg_ivf;
+APIOVER(sizbufg)
+void ami_sizbufg(FILE* f, ami_long x, ami_long y)
+    { (*sizbufg_vect)(f, x, y); }
+static ami_buffer_t buffer_vect = buffer_ivf;
+APIOVER(buffer)
+void ami_buffer(FILE* f, ami_long e)
+    { (*buffer_vect)(f, e); }
+static ami_menu_t menu_vect = menu_ivf;
+APIOVER(menu)
+void ami_menu(FILE* f, ami_menuptr m)
+    { (*menu_vect)(f, m); }
+static ami_menuena_t menuena_vect = menuena_ivf;
+APIOVER(menuena)
+void ami_menuena(FILE* f, ami_long id, ami_long onoff)
+    { (*menuena_vect)(f, id, onoff); }
+static ami_menusel_t menusel_vect = menusel_ivf;
+APIOVER(menusel)
+void ami_menusel(FILE* f, ami_long id, ami_long select)
+    { (*menusel_vect)(f, id, select); }
+static ami_stdmenu_t stdmenu_vect = stdmenu_ivf;
+APIOVER(stdmenu)
+void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
+    { (*stdmenu_vect)(sms, sm, pm); }
+static ami_front_t front_vect = front_ivf;
+APIOVER(front)
+void ami_front(FILE* f)
+    { (*front_vect)(f); }
+static ami_back_t back_vect = back_ivf;
+APIOVER(back)
+void ami_back(FILE* f)
+    { (*back_vect)(f); }
+static ami_getsizg_t getsizg_vect = getsizg_ivf;
+APIOVER(getsizg)
+void ami_getsizg(FILE* f, ami_long* x, ami_long* y)
+    { (*getsizg_vect)(f, x, y); }
+static ami_getsiz_t getsiz_vect = getsiz_ivf;
+APIOVER(getsiz)
+void ami_getsiz(FILE* f, ami_long* x, ami_long* y)
+    { (*getsiz_vect)(f, x, y); }
+static ami_setsizg_t setsizg_vect = setsizg_ivf;
+APIOVER(setsizg)
+void ami_setsizg(FILE* f, ami_long x, ami_long y)
+    { (*setsizg_vect)(f, x, y); }
+static ami_setsiz_t setsiz_vect = setsiz_ivf;
+APIOVER(setsiz)
+void ami_setsiz(FILE* f, ami_long x, ami_long y)
+    { (*setsiz_vect)(f, x, y); }
+static ami_setposg_t setposg_vect = setposg_ivf;
+APIOVER(setposg)
+void ami_setposg(FILE* f, ami_long x, ami_long y)
+    { (*setposg_vect)(f, x, y); }
+static ami_setpos_t setpos_vect = setpos_ivf;
+APIOVER(setpos)
+void ami_setpos(FILE* f, ami_long x, ami_long y)
+    { (*setpos_vect)(f, x, y); }
+static ami_scnsizg_t scnsizg_vect = scnsizg_ivf;
+APIOVER(scnsizg)
+void ami_scnsizg(FILE* f, ami_long* x, ami_long* y)
+    { (*scnsizg_vect)(f, x, y); }
+static ami_scnsiz_t scnsiz_vect = scnsiz_ivf;
+APIOVER(scnsiz)
+void ami_scnsiz(FILE* f, ami_long* x, ami_long* y)
+    { (*scnsiz_vect)(f, x, y); }
+static ami_scnceng_t scnceng_vect = scnceng_ivf;
+APIOVER(scnceng)
+void ami_scnceng(FILE* f, ami_long* x, ami_long* y)
+    { (*scnceng_vect)(f, x, y); }
+static ami_scncen_t scncen_vect = scncen_ivf;
+APIOVER(scncen)
+void ami_scncen(FILE* f, ami_long* x, ami_long* y)
+    { (*scncen_vect)(f, x, y); }
+static ami_winclientg_t winclientg_vect = winclientg_ivf;
+APIOVER(winclientg)
+void ami_winclientg(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
+    { (*winclientg_vect)(f, cx, cy, wx, wy, ms); }
+static ami_winclient_t winclient_vect = winclient_ivf;
+APIOVER(winclient)
+void ami_winclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
+    { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
+static ami_frame_t frame_vect = frame_ivf;
+APIOVER(frame)
+void ami_frame(FILE* f, ami_long e)
+    { (*frame_vect)(f, e); }
+static ami_sizable_t sizable_vect = sizable_ivf;
+APIOVER(sizable)
+void ami_sizable(FILE* f, ami_long e)
+    { (*sizable_vect)(f, e); }
+static ami_sysbar_t sysbar_vect = sysbar_ivf;
+APIOVER(sysbar)
+void ami_sysbar(FILE* f, ami_long e)
+    { (*sysbar_vect)(f, e); }
+static ami_focus_t focus_vect = focus_ivf;
+APIOVER(focus)
+void ami_focus(FILE* f)
+    { (*focus_vect)(f); }
+static ami_path_t path_vect = path_ivf;
+APIOVER(path)
+void ami_path(FILE* f, ami_long a)
+    { (*path_vect)(f, a); }
+static ami_viewoffg_t viewoffg_vect = viewoffg_ivf;
+APIOVER(viewoffg)
+void ami_viewoffg(FILE* f, ami_long x, ami_long y)
+    { (*viewoffg_vect)(f, x, y); }
+static ami_viewscale_t viewscale_vect = viewscale_ivf;
+APIOVER(viewscale)
+void ami_viewscale(FILE* f, float x, float y)
+    { (*viewscale_vect)(f, x, y); }
+static ami_scalex_t scalex_vect = scalex_ivf;
+APIOVER(scalex)
+ami_long ami_scalex(FILE* f, ami_long x)
+    { return (*scalex_vect)(f, x); }
+static ami_scaley_t scaley_vect = scaley_ivf;
+APIOVER(scaley)
+ami_long ami_scaley(FILE* f, ami_long y)
+    { return (*scaley_vect)(f, y); }
+static ami_blockcopyg_t blockcopyg_vect = blockcopyg_ivf;
+APIOVER(blockcopyg)
+void ami_blockcopyg(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1, ami_long sx2, ami_long sy2, ami_long dx1, ami_long dy1, ami_long dx2, ami_long dy2)
+    { (*blockcopyg_vect)(f, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
+static ami_getwigid_t getwigid_vect = getwigid_ivf;
+APIOVER(getwigid)
+ami_long ami_getwigid(FILE* f)
+    { return (*getwigid_vect)(f); }
+static ami_killwidget_t killwidget_vect = killwidget_ivf;
+APIOVER(killwidget)
+void ami_killwidget(FILE* f, ami_long id)
+    { (*killwidget_vect)(f, id); }
+static ami_selectwidget_t selectwidget_vect = selectwidget_ivf;
+APIOVER(selectwidget)
+void ami_selectwidget(FILE* f, ami_long id, ami_long e)
+    { (*selectwidget_vect)(f, id, e); }
+static ami_enablewidget_t enablewidget_vect = enablewidget_ivf;
+APIOVER(enablewidget)
+void ami_enablewidget(FILE* f, ami_long id, ami_long e)
+    { (*enablewidget_vect)(f, id, e); }
+static ami_getwidgettext_t getwidgettext_vect = getwidgettext_ivf;
+APIOVER(getwidgettext)
+void ami_getwidgettext(FILE* f, ami_long id, char* s, ami_long sl)
+    { (*getwidgettext_vect)(f, id, s, sl); }
+static ami_putwidgettext_t putwidgettext_vect = putwidgettext_ivf;
+APIOVER(putwidgettext)
+void ami_putwidgettext(FILE* f, ami_long id, char* s)
+    { (*putwidgettext_vect)(f, id, s); }
+static ami_sizwidget_t sizwidget_vect = sizwidget_ivf;
+APIOVER(sizwidget)
+void ami_sizwidget(FILE* f, ami_long id, ami_long x, ami_long y)
+    { (*sizwidget_vect)(f, id, x, y); }
+static ami_sizwidgetg_t sizwidgetg_vect = sizwidgetg_ivf;
+APIOVER(sizwidgetg)
+void ami_sizwidgetg(FILE* f, ami_long id, ami_long x, ami_long y)
+    { (*sizwidgetg_vect)(f, id, x, y); }
+static ami_poswidget_t poswidget_vect = poswidget_ivf;
+APIOVER(poswidget)
+void ami_poswidget(FILE* f, ami_long id, ami_long x, ami_long y)
+    { (*poswidget_vect)(f, id, x, y); }
+static ami_poswidgetg_t poswidgetg_vect = poswidgetg_ivf;
+APIOVER(poswidgetg)
+void ami_poswidgetg(FILE* f, ami_long id, ami_long x, ami_long y)
+    { (*poswidgetg_vect)(f, id, x, y); }
+static ami_backwidget_t backwidget_vect = backwidget_ivf;
+APIOVER(backwidget)
+void ami_backwidget(FILE* f, ami_long id)
+    { (*backwidget_vect)(f, id); }
+static ami_frontwidget_t frontwidget_vect = frontwidget_ivf;
+APIOVER(frontwidget)
+void ami_frontwidget(FILE* f, ami_long id)
+    { (*frontwidget_vect)(f, id); }
+static ami_focuswidget_t focuswidget_vect = focuswidget_ivf;
+APIOVER(focuswidget)
+void ami_focuswidget(FILE* f, ami_long id)
+    { (*focuswidget_vect)(f, id); }
+static ami_buttonsiz_t buttonsiz_vect = buttonsiz_ivf;
+APIOVER(buttonsiz)
+void ami_buttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*buttonsiz_vect)(f, s, w, h); }
+static ami_buttonsizg_t buttonsizg_vect = buttonsizg_ivf;
+APIOVER(buttonsizg)
+void ami_buttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*buttonsizg_vect)(f, s, w, h); }
+static ami_button_t button_vect = button_ivf;
+APIOVER(button)
+void ami_button(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*button_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_buttong_t buttong_vect = buttong_ivf;
+APIOVER(buttong)
+void ami_buttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*buttong_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_checkboxsiz_t checkboxsiz_vect = checkboxsiz_ivf;
+APIOVER(checkboxsiz)
+void ami_checkboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*checkboxsiz_vect)(f, s, w, h); }
+static ami_checkboxsizg_t checkboxsizg_vect = checkboxsizg_ivf;
+APIOVER(checkboxsizg)
+void ami_checkboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*checkboxsizg_vect)(f, s, w, h); }
+static ami_checkbox_t checkbox_vect = checkbox_ivf;
+APIOVER(checkbox)
+void ami_checkbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*checkbox_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_checkboxg_t checkboxg_vect = checkboxg_ivf;
+APIOVER(checkboxg)
+void ami_checkboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*checkboxg_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_radiobuttonsiz_t radiobuttonsiz_vect = radiobuttonsiz_ivf;
+APIOVER(radiobuttonsiz)
+void ami_radiobuttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*radiobuttonsiz_vect)(f, s, w, h); }
+static ami_radiobuttonsizg_t radiobuttonsizg_vect = radiobuttonsizg_ivf;
+APIOVER(radiobuttonsizg)
+void ami_radiobuttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*radiobuttonsizg_vect)(f, s, w, h); }
+static ami_radiobutton_t radiobutton_vect = radiobutton_ivf;
+APIOVER(radiobutton)
+void ami_radiobutton(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*radiobutton_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_radiobuttong_t radiobuttong_vect = radiobuttong_ivf;
+APIOVER(radiobuttong)
+void ami_radiobuttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*radiobuttong_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_groupsizg_t groupsizg_vect = groupsizg_ivf;
+APIOVER(groupsizg)
+void ami_groupsizg(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
+    { (*groupsizg_vect)(f, s, cw, ch, w, h, ox, oy); }
+static ami_groupsiz_t groupsiz_vect = groupsiz_ivf;
+APIOVER(groupsiz)
+void ami_groupsiz(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
+    { (*groupsiz_vect)(f, s, cw, ch, w, h, ox, oy); }
+static ami_group_t group_vect = group_ivf;
+APIOVER(group)
+void ami_group(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*group_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_groupg_t groupg_vect = groupg_ivf;
+APIOVER(groupg)
+void ami_groupg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
+    { (*groupg_vect)(f, x1, y1, x2, y2, s, id); }
+static ami_background_t background_vect = background_ivf;
+APIOVER(background)
+void ami_background(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*background_vect)(f, x1, y1, x2, y2, id); }
+static ami_backgroundg_t backgroundg_vect = backgroundg_ivf;
+APIOVER(backgroundg)
+void ami_backgroundg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*backgroundg_vect)(f, x1, y1, x2, y2, id); }
+static ami_scrollvertsizg_t scrollvertsizg_vect = scrollvertsizg_ivf;
+APIOVER(scrollvertsizg)
+void ami_scrollvertsizg(FILE* f, ami_long* w, ami_long* h)
+    { (*scrollvertsizg_vect)(f, w, h); }
+static ami_scrollvertsiz_t scrollvertsiz_vect = scrollvertsiz_ivf;
+APIOVER(scrollvertsiz)
+void ami_scrollvertsiz(FILE* f, ami_long* w, ami_long* h)
+    { (*scrollvertsiz_vect)(f, w, h); }
+static ami_scrollvert_t scrollvert_vect = scrollvert_ivf;
+APIOVER(scrollvert)
+void ami_scrollvert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*scrollvert_vect)(f, x1, y1, x2, y2, id); }
+static ami_scrollvertg_t scrollvertg_vect = scrollvertg_ivf;
+APIOVER(scrollvertg)
+void ami_scrollvertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*scrollvertg_vect)(f, x1, y1, x2, y2, id); }
+static ami_scrollhorizsizg_t scrollhorizsizg_vect = scrollhorizsizg_ivf;
+APIOVER(scrollhorizsizg)
+void ami_scrollhorizsizg(FILE* f, ami_long* w, ami_long* h)
+    { (*scrollhorizsizg_vect)(f, w, h); }
+static ami_scrollhorizsiz_t scrollhorizsiz_vect = scrollhorizsiz_ivf;
+APIOVER(scrollhorizsiz)
+void ami_scrollhorizsiz(FILE* f, ami_long* w, ami_long* h)
+    { (*scrollhorizsiz_vect)(f, w, h); }
+static ami_scrollhoriz_t scrollhoriz_vect = scrollhoriz_ivf;
+APIOVER(scrollhoriz)
+void ami_scrollhoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*scrollhoriz_vect)(f, x1, y1, x2, y2, id); }
+static ami_scrollhorizg_t scrollhorizg_vect = scrollhorizg_ivf;
+APIOVER(scrollhorizg)
+void ami_scrollhorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*scrollhorizg_vect)(f, x1, y1, x2, y2, id); }
+static ami_scrollpos_t scrollpos_vect = scrollpos_ivf;
+APIOVER(scrollpos)
+void ami_scrollpos(FILE* f, ami_long id, ami_long r)
+    { (*scrollpos_vect)(f, id, r); }
+static ami_scrollsiz_t scrollsiz_vect = scrollsiz_ivf;
+APIOVER(scrollsiz)
+void ami_scrollsiz(FILE* f, ami_long id, ami_long r)
+    { (*scrollsiz_vect)(f, id, r); }
+static ami_numselboxsizg_t numselboxsizg_vect = numselboxsizg_ivf;
+APIOVER(numselboxsizg)
+void ami_numselboxsizg(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
+    { (*numselboxsizg_vect)(f, l, u, w, h); }
+static ami_numselboxsiz_t numselboxsiz_vect = numselboxsiz_ivf;
+APIOVER(numselboxsiz)
+void ami_numselboxsiz(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
+    { (*numselboxsiz_vect)(f, l, u, w, h); }
+static ami_numselbox_t numselbox_vect = numselbox_ivf;
+APIOVER(numselbox)
+void ami_numselbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
+    { (*numselbox_vect)(f, x1, y1, x2, y2, l, u, id); }
+static ami_numselboxg_t numselboxg_vect = numselboxg_ivf;
+APIOVER(numselboxg)
+void ami_numselboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
+    { (*numselboxg_vect)(f, x1, y1, x2, y2, l, u, id); }
+static ami_editboxsizg_t editboxsizg_vect = editboxsizg_ivf;
+APIOVER(editboxsizg)
+void ami_editboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*editboxsizg_vect)(f, s, w, h); }
+static ami_editboxsiz_t editboxsiz_vect = editboxsiz_ivf;
+APIOVER(editboxsiz)
+void ami_editboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
+    { (*editboxsiz_vect)(f, s, w, h); }
+static ami_editbox_t editbox_vect = editbox_ivf;
+APIOVER(editbox)
+void ami_editbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*editbox_vect)(f, x1, y1, x2, y2, id); }
+static ami_editboxg_t editboxg_vect = editboxg_ivf;
+APIOVER(editboxg)
+void ami_editboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*editboxg_vect)(f, x1, y1, x2, y2, id); }
+static ami_progbarsizg_t progbarsizg_vect = progbarsizg_ivf;
+APIOVER(progbarsizg)
+void ami_progbarsizg(FILE* f, ami_long* w, ami_long* h)
+    { (*progbarsizg_vect)(f, w, h); }
+static ami_progbarsiz_t progbarsiz_vect = progbarsiz_ivf;
+APIOVER(progbarsiz)
+void ami_progbarsiz(FILE* f, ami_long* w, ami_long* h)
+    { (*progbarsiz_vect)(f, w, h); }
+static ami_progbar_t progbar_vect = progbar_ivf;
+APIOVER(progbar)
+void ami_progbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*progbar_vect)(f, x1, y1, x2, y2, id); }
+static ami_progbarg_t progbarg_vect = progbarg_ivf;
+APIOVER(progbarg)
+void ami_progbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
+    { (*progbarg_vect)(f, x1, y1, x2, y2, id); }
+static ami_progbarpos_t progbarpos_vect = progbarpos_ivf;
+APIOVER(progbarpos)
+void ami_progbarpos(FILE* f, ami_long id, ami_long pos)
+    { (*progbarpos_vect)(f, id, pos); }
+static ami_listboxsizg_t listboxsizg_vect = listboxsizg_ivf;
+APIOVER(listboxsizg)
+void ami_listboxsizg(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
+    { (*listboxsizg_vect)(f, sp, w, h); }
+static ami_listboxsiz_t listboxsiz_vect = listboxsiz_ivf;
+APIOVER(listboxsiz)
+void ami_listboxsiz(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
+    { (*listboxsiz_vect)(f, sp, w, h); }
+static ami_listbox_t listbox_vect = listbox_ivf;
+APIOVER(listbox)
+void ami_listbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
+    { (*listbox_vect)(f, x1, y1, x2, y2, sp, id); }
+static ami_listboxg_t listboxg_vect = listboxg_ivf;
+APIOVER(listboxg)
+void ami_listboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
+    { (*listboxg_vect)(f, x1, y1, x2, y2, sp, id); }
+static ami_dropboxsizg_t dropboxsizg_vect = dropboxsizg_ivf;
+APIOVER(dropboxsizg)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
+    { (*dropboxsizg_vect)(f, sp, cw, ch, ow, oh); }
+static ami_dropboxsiz_t dropboxsiz_vect = dropboxsiz_ivf;
+APIOVER(dropboxsiz)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
+    { (*dropboxsiz_vect)(f, sp, cw, ch, ow, oh); }
+static ami_dropbox_t dropbox_vect = dropbox_ivf;
+APIOVER(dropbox)
+void ami_dropbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
+    { (*dropbox_vect)(f, x1, y1, x2, y2, sp, id); }
+static ami_dropboxg_t dropboxg_vect = dropboxg_ivf;
+APIOVER(dropboxg)
+void ami_dropboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
+    { (*dropboxg_vect)(f, x1, y1, x2, y2, sp, id); }
+static ami_dropeditboxsizg_t dropeditboxsizg_vect = dropeditboxsizg_ivf;
+APIOVER(dropeditboxsizg)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
+    { (*dropeditboxsizg_vect)(f, sp, cw, ch, ow, oh); }
+static ami_dropeditboxsiz_t dropeditboxsiz_vect = dropeditboxsiz_ivf;
+APIOVER(dropeditboxsiz)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
+    { (*dropeditboxsiz_vect)(f, sp, cw, ch, ow, oh); }
+static ami_dropeditbox_t dropeditbox_vect = dropeditbox_ivf;
+APIOVER(dropeditbox)
+void ami_dropeditbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
+    { (*dropeditbox_vect)(f, x1, y1, x2, y2, sp, id); }
+static ami_dropeditboxg_t dropeditboxg_vect = dropeditboxg_ivf;
+APIOVER(dropeditboxg)
+void ami_dropeditboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
+    { (*dropeditboxg_vect)(f, x1, y1, x2, y2, sp, id); }
+static ami_slidehorizsizg_t slidehorizsizg_vect = slidehorizsizg_ivf;
+APIOVER(slidehorizsizg)
+void ami_slidehorizsizg(FILE* f, ami_long* w, ami_long* h)
+    { (*slidehorizsizg_vect)(f, w, h); }
+static ami_slidehorizsiz_t slidehorizsiz_vect = slidehorizsiz_ivf;
+APIOVER(slidehorizsiz)
+void ami_slidehorizsiz(FILE* f, ami_long* w, ami_long* h)
+    { (*slidehorizsiz_vect)(f, w, h); }
+static ami_slidehoriz_t slidehoriz_vect = slidehoriz_ivf;
+APIOVER(slidehoriz)
+void ami_slidehoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
+    { (*slidehoriz_vect)(f, x1, y1, x2, y2, mark, id); }
+static ami_slidehorizg_t slidehorizg_vect = slidehorizg_ivf;
+APIOVER(slidehorizg)
+void ami_slidehorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
+    { (*slidehorizg_vect)(f, x1, y1, x2, y2, mark, id); }
+static ami_slidevertsizg_t slidevertsizg_vect = slidevertsizg_ivf;
+APIOVER(slidevertsizg)
+void ami_slidevertsizg(FILE* f, ami_long* w, ami_long* h)
+    { (*slidevertsizg_vect)(f, w, h); }
+static ami_slidevertsiz_t slidevertsiz_vect = slidevertsiz_ivf;
+APIOVER(slidevertsiz)
+void ami_slidevertsiz(FILE* f, ami_long* w, ami_long* h)
+    { (*slidevertsiz_vect)(f, w, h); }
+static ami_slidevert_t slidevert_vect = slidevert_ivf;
+APIOVER(slidevert)
+void ami_slidevert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
+    { (*slidevert_vect)(f, x1, y1, x2, y2, mark, id); }
+static ami_slidevertg_t slidevertg_vect = slidevertg_ivf;
+APIOVER(slidevertg)
+void ami_slidevertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
+    { (*slidevertg_vect)(f, x1, y1, x2, y2, mark, id); }
+static ami_tabbarsizg_t tabbarsizg_vect = tabbarsizg_ivf;
+APIOVER(tabbarsizg)
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
+    { (*tabbarsizg_vect)(f, sp, tor, cw, ch, w, h, ox, oy); }
+static ami_tabbarsiz_t tabbarsiz_vect = tabbarsiz_ivf;
+APIOVER(tabbarsiz)
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
+    { (*tabbarsiz_vect)(f, sp, tor, cw, ch, w, h, ox, oy); }
+static ami_tabbarclientg_t tabbarclientg_vect = tabbarclientg_ivf;
+APIOVER(tabbarclientg)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch, ami_long* ox, ami_long* oy)
+    { (*tabbarclientg_vect)(f, tor, w, h, cw, ch, ox, oy); }
+static ami_tabbarclient_t tabbarclient_vect = tabbarclient_ivf;
+APIOVER(tabbarclient)
+void ami_tabbarclient(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch, ami_long* ox, ami_long* oy)
+    { (*tabbarclient_vect)(f, tor, w, h, cw, ch, ox, oy); }
+static ami_tabbar_t tabbar_vect = tabbar_ivf;
+APIOVER(tabbar)
+void ami_tabbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor, ami_long id)
+    { (*tabbar_vect)(f, x1, y1, x2, y2, sp, tor, id); }
+static ami_tabbarg_t tabbarg_vect = tabbarg_ivf;
+APIOVER(tabbarg)
+void ami_tabbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor, ami_long id)
+    { (*tabbarg_vect)(f, x1, y1, x2, y2, sp, tor, id); }
+static ami_tabsel_t tabsel_vect = tabsel_ivf;
+APIOVER(tabsel)
+void ami_tabsel(FILE* f, ami_long id, ami_long tn)
+    { (*tabsel_vect)(f, id, tn); }
+static ami_alert_t alert_vect = alert_ivf;
+APIOVER(alert)
+void ami_alert(char* title, char* message)
+    { (*alert_vect)(title, message); }
+static ami_querycolor_t querycolor_vect = querycolor_ivf;
+APIOVER(querycolor)
+void ami_querycolor(ami_long* r, ami_long* g, ami_long* b)
+    { (*querycolor_vect)(r, g, b); }
+static ami_queryopen_t queryopen_vect = queryopen_ivf;
+APIOVER(queryopen)
+void ami_queryopen(char* s, ami_long sl)
+    { (*queryopen_vect)(s, sl); }
+static ami_querysave_t querysave_vect = querysave_ivf;
+APIOVER(querysave)
+void ami_querysave(char* s, ami_long sl)
+    { (*querysave_vect)(s, sl); }
+static ami_queryfind_t queryfind_vect = queryfind_ivf;
+APIOVER(queryfind)
+void ami_queryfind(char* s, ami_long sl, ami_long* opt)
+    { (*queryfind_vect)(s, sl, opt); }
+static ami_queryfindrep_t queryfindrep_vect = queryfindrep_ivf;
+APIOVER(queryfindrep)
+void ami_queryfindrep(char* s, ami_long sl, char* r, ami_long rl, ami_long* opt)
+    { (*queryfindrep_vect)(s, sl, r, rl, opt); }
+static ami_queryfont_t queryfont_vect = queryfont_ivf;
+APIOVER(queryfont)
+void ami_queryfont(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb, ami_long* br, ami_long* bg, ami_long* bb, ami_long* effect)
+    { (*queryfont_vect)(f, fc, s, fr, fg, fb, br, bg, bb, effect); }

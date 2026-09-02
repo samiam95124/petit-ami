@@ -135,7 +135,7 @@ int mouse_x;                       /* current mouse x */
 #define CTL_JOYSTICK 2
 #define JOY_THRESHOLD (LONG_MAX / 20) /* joystick must move this much to take over */
 int active_ctl;                    /* which device is controlling */
-long last_joyx;                    /* last joystick x for change detection */
+int last_joyx;                    /* last joystick x for change detection */
 
 bullet_t pbullets[MAX_PBULLETS];   /* player bullets */
 bullet_t abullets[MAX_ABULLETS];   /* alien bullets */
@@ -1130,12 +1130,12 @@ int main(void)
             /* only take over if joystick moved significantly. Note the
                difference is taken on halved values, since the full scale
                difference of two long axis readings can overflow a long */
-            long jdelta = er.joypx/2 - last_joyx/2;
+            ami_long jdelta = er.joypx/2 - last_joyx/2;
             if (jdelta < 0) jdelta = -jdelta;
             if (jdelta > JOY_THRESHOLD/2) active_ctl = CTL_JOYSTICK;
             last_joyx = er.joypx;
             if (active_ctl == CTL_JOYSTICK && game_started && !game_over) {
-                long jchr = LONG_MAX / ((scr_w - 2) / 2);
+                int jchr = LONG_MAX / ((scr_w - 2) / 2);
                 player_x = scr_w / 2 + er.joypx / jchr;
                 if (player_x < player_w / 2) player_x = player_w / 2;
                 if (player_x > scr_w - player_w / 2)

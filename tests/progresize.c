@@ -53,7 +53,7 @@ static void reader(void)
 {
 
     char  buf[65536];
-    long  n;
+    ami_long  n;
 
     while (TRUE) {
 
@@ -77,18 +77,18 @@ int main(int argc, char* argv[])
 {
 
     ami_evtrec er;
-    long       w, h;
-    long       moving = FALSE;  /* the bar is moved along on a timer */
-    long       follow = FALSE;  /* buffer follow, as a resizable program does */
-    long       replace = FALSE; /* and the bar is put in its place again */
-    long       work = FALSE;    /* a second thread reads files, as a fetch does */
-    long       menu = FALSE;    /* the window carries a menu bar */
-    long       overflow = FALSE;/* the position goes negative now and then */
-    long       full = FALSE;    /* and now and then it is the whole bar */
-    long       bar = FALSE;     /* there is a progress bar in the window */
-    long       i;
-    long       resizes = 0;
-    long       step = 0;
+    ami_long   w, h;
+    ami_long   moving = FALSE;  /* the bar is moved along on a timer */
+    ami_long   follow = FALSE;  /* buffer follow, as a resizable program does */
+    ami_long   replace = FALSE; /* and the bar is put in its place again */
+    ami_long   work = FALSE;    /* a second thread reads files, as a fetch does */
+    ami_long   menu = FALSE;    /* the window carries a menu bar */
+    ami_long   overflow = FALSE;/* the position goes negative now and then */
+    ami_long   full = FALSE;    /* and now and then it is the whole bar */
+    ami_long   bar = FALSE;     /* there is a progress bar in the window */
+    ami_long   i;
+    ami_long   resizes = 0;
+    ami_long   step = 0;
 
     for (i = 1; i < argc; i++) {
 
@@ -124,8 +124,8 @@ int main(int argc, char* argv[])
     /* the bar is only made if it is wanted, so that what its presence
        alone changes can be seen */
     if (bar) ami_progbarg(stdout, 20, 20, 20+w, 20+h, PROGID);
-    fprintf(stderr, "moved=%ld follow=%ld replace=%ld\n", moving, follow,
-            replace);
+    fprintf(stderr, "moved=%lld follow=%lld replace=%lld\n", AMI_LONG_CAST(moving), AMI_LONG_CAST(follow),
+            AMI_LONG_CAST(replace));
     /* stdout is the window in a graphics program, so anything meant to be
        read goes to the error stream */
     /* a tenth of a second, in hundred microsecond counts */
@@ -148,16 +148,16 @@ int main(int argc, char* argv[])
                 ami_sizwidgetg(stdout, PROGID, w, h);
 
             }
-            fprintf(stderr, "band and bar at y %ld, window says %ldx%ld\n",
-                    ami_maxyg(stdout)-30, ami_maxxg(stdout),
-                    ami_maxyg(stdout));
+            fprintf(stderr, "band and bar at y %lld, window says %lldx%lld\n",
+                    AMI_LONG_CAST(ami_maxyg(stdout)-30), AMI_LONG_CAST(ami_maxxg(stdout)),
+                    AMI_LONG_CAST(ami_maxyg(stdout)));
 
     }
     if (er.etype == ami_etresize) {
 
             resizes++;
-            fprintf(stderr, "resize %ld: win %ld, %ldx%ld\n", resizes,
-                    er.winid, er.rszxg, er.rszyg);
+            fprintf(stderr, "resize %lld: win %lld, %lldx%lld\n", AMI_LONG_CAST(resizes),
+                    AMI_LONG_CAST(er.winid), AMI_LONG_CAST(er.rszxg), AMI_LONG_CAST(er.rszyg));
             /* what a program that lays itself out again does */
             if (follow) ami_sizbufg(stdout, er.rszxg, er.rszyg);
             if (replace) {

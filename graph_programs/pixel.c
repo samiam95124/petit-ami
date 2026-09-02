@@ -14,7 +14,7 @@ reversing to white, and cycles forever.
 
 #define ACCEL 1000
 
-static long x, y, xd, yd, i;
+static int x, y, xd, yd, i;
 
 static jmp_buf terminate_buf;
 

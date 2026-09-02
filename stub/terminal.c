@@ -77,7 +77,7 @@ This is the external interface to cursor.
 
 *******************************************************************************/
 
-void ami_cursor(FILE *f, long x, long y)
+void ami_cursor(FILE *f, ami_long x, ami_long y)
 
 {
 
@@ -93,7 +93,7 @@ This is the external interface to curbnd.
 
 *******************************************************************************/
 
-long ami_curbnd(FILE *f)
+ami_long ami_curbnd(FILE *f)
 
 {
 
@@ -112,7 +112,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-long ami_maxx(FILE *f)
+ami_long ami_maxx(FILE *f)
 
 {
 
@@ -131,7 +131,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-long ami_maxy(FILE *f)
+ami_long ami_maxy(FILE *f)
 
 {
 
@@ -253,7 +253,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_blink(FILE *f, long e)
+void ami_blink(FILE *f, ami_long e)
 
 {
 
@@ -273,7 +273,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_reverse(FILE *f, long e)
+void ami_reverse(FILE *f, ami_long e)
 
 {
 
@@ -293,7 +293,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_underline(FILE *f, long e)
+void ami_underline(FILE *f, ami_long e)
 
 {
 
@@ -310,7 +310,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_superscript(FILE *f, long e)
+void ami_superscript(FILE *f, ami_long e)
 
 {
 
@@ -327,7 +327,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_subscript(FILE *f, long e)
+void ami_subscript(FILE *f, ami_long e)
 
 {
 
@@ -344,7 +344,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_italic(FILE *f, long e)
+void ami_italic(FILE *f, ami_long e)
 
 {
 
@@ -364,7 +364,7 @@ colors, which an ATTRIBUTE command seems to mess with !
 
 *******************************************************************************/
 
-void ami_bold(FILE *f, long e)
+void ami_bold(FILE *f, ami_long e)
 
 {
 
@@ -382,7 +382,7 @@ Not implemented.
 
 *******************************************************************************/
 
-void ami_strikeout(FILE *f, long e)
+void ami_strikeout(FILE *f, ami_long e)
 
 {
 
@@ -399,7 +399,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-void ami_standout(FILE *f, long e)
+void ami_standout(FILE *f, ami_long e)
 
 {
 
@@ -448,7 +448,7 @@ off the screen at the top or bottom will scroll up or down, respectively.
 
 *******************************************************************************/
 
-void ami_auto(FILE *f, long e)
+void ami_auto(FILE *f, ami_long e)
 
 {
 
@@ -464,7 +464,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-void ami_curvis(FILE *f, long e)
+void ami_curvis(FILE *f, ami_long e)
 
 {
 
@@ -481,7 +481,7 @@ long.
 
 *******************************************************************************/
 
-void ami_scroll(FILE *f, long x, long y)
+void ami_scroll(FILE *f, ami_long x, ami_long y)
 
 {
 
@@ -497,7 +497,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-long ami_curx(FILE *f)
+ami_long ami_curx(FILE *f)
 
 {
 
@@ -515,7 +515,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-long ami_cury(FILE *f)
+ami_long ami_cury(FILE *f)
 
 {
 
@@ -542,7 +542,7 @@ Note that split update and display screens are not implemented at present.
 
 *******************************************************************************/
 
-void ami_select(FILE *f, long u, long d)
+void ami_select(FILE *f, ami_long u, ami_long d)
 
 {
 
@@ -575,9 +575,9 @@ Set timer
 *******************************************************************************/
 
 void ami_timer(/* file to send event to */              FILE *f,
-              /* timer handle */                       long i,
-              /* number of 100us counts */             long t,
-              /* timer is to rerun after completion */ long r)
+              /* timer handle */                       ami_long i,
+              /* number of 100us counts */             ami_long t,
+              /* timer is to rerun after completion */ ami_long r)
 
 {
 
@@ -596,7 +596,7 @@ in reserve.
 *******************************************************************************/
 
 void ami_killtimer(/* file to kill timer on */ FILE *f,
-                  /* handle of timer */       long i)
+                  /* handle of timer */       ami_long i)
 
 {
 
@@ -614,7 +614,7 @@ if none is available, never changing it's state.
 
 *******************************************************************************/
 
-long ami_mouse(FILE *f)
+ami_long ami_mouse(FILE *f)
 
 {
 
@@ -633,7 +633,7 @@ to assume 3 buttons.
 
 *******************************************************************************/
 
-long ami_mousebutton(FILE *f, long m)
+ami_long ami_mousebutton(FILE *f, ami_long m)
 
 {
 
@@ -652,7 +652,7 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-long ami_joystick(FILE *f)
+ami_long ami_joystick(FILE *f)
 
 {
 
@@ -671,7 +671,7 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-long ami_joybutton(FILE *f, long j)
+ami_long ami_joybutton(FILE *f, ami_long j)
 
 {
 
@@ -692,7 +692,7 @@ Note that Windows 95 has no joystick capability.
 
 *******************************************************************************/
 
-long ami_joyaxis(FILE *f, long j)
+ami_long ami_joyaxis(FILE *f, ami_long j)
 
 {
 
@@ -712,7 +712,7 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 
 *******************************************************************************/
 
-void ami_settab(FILE* f, long t)
+void ami_settab(FILE* f, ami_long t)
 
 {
 
@@ -728,7 +728,7 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 
 *******************************************************************************/
 
-void ami_restab(FILE* f, long t)
+void ami_restab(FILE* f, ami_long t)
 
 {
 
@@ -764,7 +764,7 @@ but more can be allocated if needed.
 
 *******************************************************************************/
 
-long ami_funkey(FILE* f)
+ami_long ami_funkey(FILE* f)
 
 {
 
@@ -784,7 +784,7 @@ Not currently implemented.
 
 *******************************************************************************/
 
-void ami_frametimer(FILE* f, long e)
+void ami_frametimer(FILE* f, ami_long e)
 
 {
 
@@ -802,7 +802,7 @@ We don't implement automatic hold here.
 
 *******************************************************************************/
 
-void ami_autohold(long e)
+void ami_autohold(ami_long e)
 
 {
 

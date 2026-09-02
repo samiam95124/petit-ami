@@ -37,27 +37,27 @@ at the top of mailcore.h.
 #include <services.h>
 
 #include <mailcore.h>
-long imaptag;   /* the number the next command is tagged with */
+ami_long imaptag;   /* the number the next command is tagged with */
 FILE* imap;
 
 /* the store's directory names, defined with the store code below */
-void srvdir(long srv, char* dn, long dnl);
-void safename(const char* nm, char* fn, long fnl);
+void srvdir(ami_long srv, char* dn, ami_long dnl);
+void safename(const char* nm, char* fn, ami_long fnl);
 
 /* What both front ends read. The types and the declarations are in
    mailcore.h; this is where they live. */
 foldrec folders[MAXFOLDER];
-long    foldct;
-long    foldsel = -1;    /* the folder being shown */
+ami_long    foldct;
+ami_long    foldsel = -1;    /* the folder being shown */
 msgrec* msgs;            /* the messages of that folder */
-long    msgct;
-long    msgsel = -1;     /* the message being read */
-long    msgtop;          /* the first message shown */
+ami_long    msgct;
+ami_long    msgsel = -1;     /* the message being read */
+ami_long    msgtop;          /* the first message shown */
 srvrec servers[MAXSRV];
-long   srvct;    /* how many there are */
-long   pollsec = DEFPOLL; /* how often to look, in seconds */
-long   sendsrv;
-long   sendwant;
+ami_long   srvct;    /* how many there are */
+ami_long   pollsec = DEFPOLL; /* how often to look, in seconds */
+ami_long   sendsrv;
+ami_long   sendwant;
 char   outto[MAXSTR];
 char   outcc[MAXSTR];
 char   outsub[MAXSTR];
@@ -65,18 +65,18 @@ char*  outbody;
 char   outinreply[MAXSTR];
 char   outrefs[MAXSTR*2];
 char imapsrv[MAXSTR] = "imap.gmail.com";
-long imapport = 993;
+ami_long imapport = 993;
 char smtpsrv[MAXSTR] = "smtp.gmail.com";
-long smtpport = 465;
+ami_long smtpport = 465;
 char username[MAXSTR];
 char password[MAXSTR];
 char store[MAXSTR];      /* the directory the mail is kept in */
-long limit = DEFLIMIT;   /* messages fetched from a folder */
-long diag;               /* report the conversation to stderr */
+ami_long limit = DEFLIMIT;   /* messages fetched from a folder */
+ami_long diag;               /* report the conversation to stderr */
 char* mailprog;          /* argv[0], to find the rules by */
 char*     mailprog;    /* argv[0], to find the help file by */
 
-void* getmem(long n)
+void* getmem(ami_long n)
 
 {
 
@@ -94,7 +94,7 @@ void trim(char* s)
 {
 
     char* p = s;
-    long  n;
+    ami_long  n;
 
     while (*p == ' ' || *p == '\t') p++;
     if (p != s) memmove(s, p, strlen(p)+1);
@@ -105,7 +105,7 @@ void trim(char* s)
 }
 
 /* copy with a limit, always terminated */
-void copystr(char* d, const char* s, long n)
+void copystr(char* d, const char* s, ami_long n)
 
 {
 
@@ -137,7 +137,7 @@ so the two cannot drift apart without being noticed.
 
 *******************************************************************************/
 
-static void digestbytes(const char* data, long len, char* hex); /* forward */
+static void digestbytes(const char* data, ami_long len, char* hex); /* forward */
 
 /* The SHA-256 of a message, taken over one canonical form of it so that
    the same message gives the same digest wherever it is seen. What
@@ -147,12 +147,12 @@ static void digestbytes(const char* data, long len, char* hex); /* forward */
    that trail the message. Undo both before taking the digest, and the
    message as received and the message as stored agree -- which is the
    whole point of having one. */
-static void digestof(const char* data, long len, char* hex)
+static void digestof(const char* data, ami_long len, char* hex)
 
 {
 
     char* norm = malloc(len+1);
-    long  i, o = 0;
+    ami_long  i, o = 0;
     int   atbol = TRUE;
 
     if (!norm) { fail("Out of memory"); exit(1); }
@@ -160,7 +160,7 @@ static void digestof(const char* data, long len, char* hex)
 
         if (atbol && data[i] == '>') { /* a line the storing escaped? */
 
-            long j = i;
+            ami_long j = i;
 
             while (j < len && data[j] == '>') j++;
             if (j+5 <= len && !strncmp(data+j, "From ", 5)) i++; /* one off */
@@ -177,21 +177,21 @@ static void digestof(const char* data, long len, char* hex)
 }
 
 /* the SHA-256 of a block of bytes, as hex */
-static void digestbytes(const char* data, long len, char* hex)
+static void digestbytes(const char* data, ami_long len, char* hex)
 
 {
 
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned int  n = 0;
     EVP_MD_CTX*   c = EVP_MD_CTX_new();
-    long          i;
+    ami_long      i;
 
     if (!c) { fail("Out of memory"); exit(1); }
     EVP_DigestInit_ex(c, EVP_sha256(), NULL);
     EVP_DigestUpdate(c, data, len);
     EVP_DigestFinal_ex(c, md, &n);
     EVP_MD_CTX_free(c);
-    for (i = 0; i < (long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
+    for (i = 0; i < (ami_long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
     hex[n*2] = 0;
 
 }
@@ -203,21 +203,21 @@ static void digestbytes(const char* data, long len, char* hex)
 
 typedef struct digent {
 
-    long           fold; /* the folder holding the message */
-    long           rec;  /* and which of its messages it is */
+    ami_long       fold; /* the folder holding the message */
+    ami_long       rec;  /* and which of its messages it is */
     struct digent* next;
 
 } digent;
 
 static digent* digtab[DIGBKT];
-long    digct;
+ami_long    digct;
 
-static long dighash(const char* d)
+static ami_long dighash(const char* d)
 
 {
 
-    long h = 0;
-    long i;
+    ami_long h = 0;
+    ami_long i;
 
     /* the digest is already spread evenly, so any few of its characters
        make as good a bucket as all of them */
@@ -242,7 +242,7 @@ static const char* digof(const digent* p)
 }
 
 /* the message this digest names, or none */
-static int finddigest(const char* d, long* fold, long* rec)
+static int finddigest(const char* d, ami_long* fold, ami_long* rec)
 
 {
 
@@ -270,12 +270,12 @@ static int hasdigest(const char* d)
 
 }
 
-static void adddigest(long fold, long rec)
+static void adddigest(ami_long fold, ami_long rec)
 
 {
 
     digent* p;
-    long    b;
+    ami_long    b;
     const char* d = folders[fold].idx[rec].dig;
 
     if (hasdigest(d)) return;
@@ -296,7 +296,7 @@ static void rehashall(void)
 
 {
 
-    long i, j;
+    ami_long i, j;
 
     for (i = 0; i < DIGBKT; i++) {
 
@@ -348,7 +348,7 @@ record is a line and has to stay one.
    at the mailbox again. */
 #define IDXHEAD "ami-mail-index 2"
 
-static void idxfile(long fold, char* fn, long fnl)
+static void idxfile(ami_long fold, char* fn, ami_long fnl)
 
 {
 
@@ -356,7 +356,7 @@ static void idxfile(long fold, char* fn, long fnl)
 
 }
 
-static void digfile(long fold, char* fn, long fnl)
+static void digfile(ami_long fold, char* fn, ami_long fnl)
 
 {
 
@@ -388,11 +388,11 @@ static void idxput(FILE* f, const char* s)
 }
 
 /* and back again: the next field of the line, up to the tab */
-static char* idxget(char* p, char* d, long dl)
+static char* idxget(char* p, char* d, ami_long dl)
 
 {
 
-    long i = 0;
+    ami_long i = 0;
 
     if (!p) { if (dl) *d = 0; return (NULL); }
     if (*p == '\t') p++;
@@ -420,7 +420,7 @@ static void idxwrite(FILE* f, const msgrec* m)
 
 {
 
-    fprintf(f, "%ld\t%ld\t%ld", m->off, m->len, m->date);
+    fprintf(f, "%lld\t%lld\t%lld", AMI_LONG_CAST(m->off), AMI_LONG_CAST(m->len), AMI_LONG_CAST(m->date));
     idxput(f, m->dig);
     idxput(f, m->cat);
     idxput(f, m->when);
@@ -468,8 +468,8 @@ static int idxread(char* line, msgrec* m)
    holding the lock and points the display at the array again
    afterwards, which is the same protection by another road. */
 static msgrec* bidx;
-static long    bct;
-static long    bmax;
+static ami_long    bct;
+static ami_long    bmax;
 
 static msgrec* bldroom(void)
 
@@ -488,7 +488,7 @@ static msgrec* bldroom(void)
 }
 
 /* room for one more in a folder's index */
-static msgrec* idxroom(long fold)
+static msgrec* idxroom(ami_long fold)
 
 {
 
@@ -510,16 +510,16 @@ static msgrec* idxroom(long fold)
    reaches furthest into it. The file is written in the order messages
    arrive but sorted in memory, so it is the highest end and not the
    last line. */
-static long idxend(void)
+static ami_long idxend(void)
 
 {
 
-    long i;
-    long e = 0;
+    ami_long i;
+    ami_long e = 0;
 
     for (i = 0; i < bct; i++) {
 
-        long x = bidx[i].off+bidx[i].len;
+        ami_long x = bidx[i].off+bidx[i].len;
 
         if (x > e) e = x;
 
@@ -548,29 +548,29 @@ thing.
    have a separator line where the index says the last message begins.
    Anything else means the mailbox has been rewritten -- by a move, by a
    hand, by another program -- and the index is not to be trusted. */
-static int idxfits(long fold)
+static int idxfits(ami_long fold)
 
 {
 
     struct stat sb;
-    long        e;
-    long        off = -1;
-    long        i;
+    ami_long    e;
+    ami_long    off = -1;
+    ami_long    i;
     FILE*       f;
     char        buf[300];
-    long        back, n;
+    ami_long    back, n;
     char*       ln;
 
     if (stat(folders[fold].file, &sb)) return (FALSE); /* no mailbox */
     e = idxend();
     if (!e) return (bct == 0); /* nothing named, nothing to fit */
-    if (e > (long)sb.st_size) return (FALSE);  /* the mailbox lost bytes */
+    if (e > (ami_long)sb.st_size) return (FALSE);  /* the mailbox lost bytes */
     for (i = 0; i < bct; i++)
         if (bidx[i].off+bidx[i].len == e) { off = bidx[i].off; break; }
     if (off <= 0) return (FALSE);
     f = fopen(folders[fold].file, "r");
     if (!f) return (FALSE);
-    back = off > (long)sizeof(buf)-1? (long)sizeof(buf)-1: off;
+    back = off > (ami_long)sizeof(buf)-1? (ami_long)sizeof(buf)-1: off;
     fseek(f, off-back, SEEK_SET);
     n = fread(buf, 1, back, f);
     fclose(f);
@@ -586,14 +586,14 @@ static int idxfits(long fold)
 }
 
 /* read the index file, if there is one */
-static void idxload(long fold)
+static void idxload(ami_long fold)
 
 {
 
     char  fn[MAXSTR*2+8];
     FILE* f;
     char* line;
-    long  lsz = MAXSTR*4+SNIPPET*2+400;
+    ami_long  lsz = MAXSTR*4+SNIPPET*2+400;
 
     bct = 0;
     folders[fold].idxok = FALSE;
@@ -621,13 +621,13 @@ static void idxload(long fold)
 }
 
 /* write the whole of it */
-static void idxsave(long fold)
+static void idxsave(ami_long fold)
 
 {
 
     char  fn[MAXSTR*2+8];
     FILE* f;
-    long  i;
+    ami_long  i;
 
     idxfile(fold, fn, sizeof(fn));
     f = fopen(fn, "w");
@@ -645,7 +645,7 @@ static void idxsave(long fold)
    rewritten -- by a move, or by a hand -- so every offset in it is
    wrong. What is in it cannot be patched: a message moved is the same
    message, but it is not in the same place. */
-void idxdrop(long fold)
+void idxdrop(ami_long fold)
 
 {
 
@@ -660,7 +660,7 @@ void idxdrop(long fold)
 }
 
 /* and add to it as messages arrive */
-static void idxappend(long fold, const msgrec* m)
+static void idxappend(ami_long fold, const msgrec* m)
 
 {
 
@@ -698,11 +698,11 @@ void migratestore(void)
         char nm[MAXSTR];
         char dn[MAXSTR];
         char old[MAXSTR*2], new[MAXSTR*2];
-        long n, i;
-        long srv = -2;
+        ami_long n, i;
+        ami_long srv = -2;
         const char* leaf = NULL;
         static const char* ext[] = { "", ".state", ".dig", ".idx" };
-        long e;
+        ami_long e;
 
         copystr(nm, fp->name, sizeof(nm));
         n = strlen(nm);
@@ -710,7 +710,7 @@ void migratestore(void)
         if (!strncmp(nm, "local_", 6)) { srv = -1; leaf = nm+6; }
         else for (i = 0; i < srvct; i++) { /* named for an account? */
 
-            long k = strlen(servers[i].name);
+            ami_long k = strlen(servers[i].name);
 
             if (!strncmp(nm, servers[i].name, k) && nm[k] == '_')
                 { srv = i; leaf = nm+k+1; break; }
@@ -726,7 +726,7 @@ void migratestore(void)
             char  sn[MAXSTR*2+8];
             char  real[MAXSTR];
             char  lf[MAXSTR];
-            long  v, u, u2;
+            ami_long  v, u, u2;
             FILE* sf;
 
             copystr(lf, leaf, sizeof(lf));
@@ -741,10 +741,10 @@ void migratestore(void)
             sf = fopen(sn, "r");
             if (sf) {
 
-                if (fscanf(sf, "%ld %ld %ld %499[^\n]", &v, &u, &u2,
+                if (fscanf(sf, "%lld %lld %lld %499[^\n]", (long long*)(&v), (long long*)(&u), (long long*)(&u2),
                            real) == 4 ||
-                    (rewind(sf), fscanf(sf, "%ld %ld %499[^\n]",
-                                        &v, &u, real) == 3)) {
+                    (rewind(sf), fscanf(sf, "%lld %lld %499[^\n]",
+                                        (long long*)(&v), (long long*)(&u), real) == 3)) {
 
                     trim(real);
                     if (!strncmp(real, "[Gmail]/", 8))
@@ -834,7 +834,7 @@ setting to a line, so it can be read and corrected with any editor.
 *******************************************************************************/
 
 /* where the account is kept */
-static void acctfile(char* fn, long fnl)
+static void acctfile(char* fn, ami_long fnl)
 
 {
 
@@ -844,7 +844,7 @@ static void acctfile(char* fn, long fnl)
 
 /* Make the one being talked to be this one. The protocol routines work
    from these, so setting them is how a server is chosen. */
-void useserver(long i)
+void useserver(ami_long i)
 
 {
 
@@ -947,7 +947,7 @@ void writeaccount(void)
     char   fn[MAXSTR*2];
     FILE*  f;
     mode_t um;
-    long   i;
+    ami_long   i;
 
     acctfile(fn, sizeof(fn));
     /* The mask is set around the open so that the file is never readable
@@ -968,18 +968,18 @@ void writeaccount(void)
 
     }
     fprintf(f, "# Mail accounts. Written by the Config form in mail.\n");
-    fprintf(f, "poll %ld\n", pollsec);
-    fprintf(f, "sendfrom %ld\n", sendsrv);
+    fprintf(f, "poll %lld\n", AMI_LONG_CAST(pollsec));
+    fprintf(f, "sendfrom %lld\n", AMI_LONG_CAST(sendsrv));
     for (i = 0; i < srvct; i++) {
 
         fprintf(f, "\nserver %s\n", servers[i].name);
         fprintf(f, "imap %s\n", servers[i].imap);
-        fprintf(f, "imapport %ld\n", servers[i].imapport);
+        fprintf(f, "imapport %lld\n", AMI_LONG_CAST(servers[i].imapport));
         fprintf(f, "smtp %s\n", servers[i].smtp);
-        fprintf(f, "smtpport %ld\n", servers[i].smtpport);
+        fprintf(f, "smtpport %lld\n", AMI_LONG_CAST(servers[i].smtpport));
         fprintf(f, "user %s\n", servers[i].user);
         fprintf(f, "pass %s\n", servers[i].pass);
-        fprintf(f, "limit %ld\n", servers[i].limit);
+        fprintf(f, "limit %lld\n", AMI_LONG_CAST(servers[i].limit));
         fprintf(f, "end\n");
 
     }
@@ -993,7 +993,7 @@ int haveaccount(void)
 
 {
 
-    long i;
+    ami_long i;
 
     for (i = 0; i < srvct; i++)
         if (*servers[i].imap && *servers[i].user && *servers[i].pass)
@@ -1015,7 +1015,7 @@ on it is not a subject line anybody can read.
 
 *******************************************************************************/
 
-static long b64val(int c)
+static ami_long b64val(int c)
 
 {
 
@@ -1030,16 +1030,16 @@ static long b64val(int c)
 }
 
 /* decode base64 into the buffer, giving the length */
-static long b64dec(const char* s, long n, char* d, long dn)
+static ami_long b64dec(const char* s, ami_long n, char* d, ami_long dn)
 
 {
 
-    long acc = 0, bits = 0, o = 0;
-    long i;
+    ami_long acc = 0, bits = 0, o = 0;
+    ami_long i;
 
     for (i = 0; i < n && o < dn-1; i++) {
 
-        long v = b64val(s[i]);
+        ami_long v = b64val(s[i]);
 
         if (v < 0) continue; /* whitespace, padding, anything else */
         acc = (acc<<6) | v;
@@ -1060,11 +1060,11 @@ static long b64dec(const char* s, long n, char* d, long dn)
 
 /* decode quoted printable into the buffer, giving the length. In a header
    word an underscore stands for a space; in a body it does not. */
-static long qpdec(const char* s, long n, char* d, long dn, int inhdr)
+static ami_long qpdec(const char* s, ami_long n, char* d, ami_long dn, int inhdr)
 
 {
 
-    long i, o = 0;
+    ami_long i, o = 0;
 
     for (i = 0; i < n && o < dn-1; i++) {
 
@@ -1099,9 +1099,9 @@ static void hdrdecode(char* s)
 
     char  out[MAXSTR];
     char* p = s;
-    long  o = 0;
+    ami_long  o = 0;
 
-    while (*p && o < (long)sizeof(out)-1) {
+    while (*p && o < (ami_long)sizeof(out)-1) {
 
         if (p[0] == '=' && p[1] == '?') {
 
@@ -1138,12 +1138,12 @@ static void hdrdecode(char* s)
 /* Find a header in a message and give its value, unfolded and decoded.
    The message is the whole thing, headers then a blank line then the
    body, which is how it is stored. */
-int findheader(const char* msg, const char* name, char* val, long vn)
+int findheader(const char* msg, const char* name, char* val, ami_long vn)
 
 {
 
     const char* p = msg;
-    long        nl = strlen(name);
+    ami_long    nl = strlen(name);
 
     *val = 0;
     while (*p && !(p[0] == '\n' && (p[1] == '\n' || (p[1] == '\r' &&
@@ -1152,7 +1152,7 @@ int findheader(const char* msg, const char* name, char* val, long vn)
         if (!strncasecmp(p, name, nl) && p[nl] == ':') {
 
             const char* v = p+nl+1;
-            long        o = 0;
+            ami_long    o = 0;
 
             while (*v == ' ' || *v == '\t') v++;
             /* take it, and any line after it that begins with a blank,
@@ -1234,7 +1234,7 @@ typedef struct catrule {
 } catrule;
 
 static catrule* catrules;
-static long     catct;
+static ami_long catct;
 
 /* read the rules, once */
 static void loadcats(void)
@@ -1249,7 +1249,7 @@ static void loadcats(void)
     FILE*    f = NULL;
     char     line[MAXSTR];
     catrule* last = NULL;
-    long     i;
+    ami_long i;
 
     if (catrules) return;
     dir[0] = 0;
@@ -1304,7 +1304,7 @@ static int holds(const char* hay, const char* needle)
 
 {
 
-    long n = strlen(needle);
+    ami_long n = strlen(needle);
     const char* p;
 
     if (!n) return (FALSE);
@@ -1335,7 +1335,7 @@ static int isbulk(const char* msg)
 }
 
 /* what kind of mail this message is */
-void classify(const char* msg, char* cat, long cl)
+void classify(const char* msg, char* cat, ami_long cl)
 
 {
 
@@ -1382,12 +1382,12 @@ pretty but is better than showing the markup.
 *******************************************************************************/
 
 /* the value of a parameter of a header, as charset= or boundary= */
-static void hdrparam(const char* hdr, const char* name, char* val, long vn)
+static void hdrparam(const char* hdr, const char* name, char* val, ami_long vn)
 
 {
 
     const char* p = hdr;
-    long        nl = strlen(name);
+    ami_long    nl = strlen(name);
 
     *val = 0;
     while ((p = strchr(p, ';'))) {
@@ -1397,7 +1397,7 @@ static void hdrparam(const char* hdr, const char* name, char* val, long vn)
         if (!strncasecmp(p, name, nl) && p[nl] == '=') {
 
             const char* v = p+nl+1;
-            long        o = 0;
+            ami_long    o = 0;
             char        q = 0;
 
             if (*v == '"') q = *v++;
@@ -1414,11 +1414,11 @@ static void hdrparam(const char* hdr, const char* name, char* val, long vn)
 }
 
 /* take the tags out of html, leaving what was between them */
-static void detag(const char* s, char* d, long dn)
+static void detag(const char* s, char* d, ami_long dn)
 
 {
 
-    long o = 0;
+    ami_long o = 0;
     int  sp = FALSE;
 
     while (*s && o < dn-1) {
@@ -1472,7 +1472,7 @@ static void detag(const char* s, char* d, long dn)
 }
 
 /* decode one part according to what its headers say it is */
-static char* decodepart(const char* part, long len, int* ishtml, long want)
+static char* decodepart(const char* part, ami_long len, int* ishtml, ami_long want)
 
 {
 
@@ -1481,8 +1481,8 @@ static char* decodepart(const char* part, long len, int* ishtml, long want)
     char* raw = getmem(len+1);
     char* out;
     const char* body;
-    long  bl;
-    long  room;
+    ami_long  bl;
+    ami_long  room;
 
     memcpy(raw, part, len);
     raw[len] = 0;
@@ -1518,14 +1518,14 @@ static char* decodepart(const char* part, long len, int* ishtml, long want)
 /* What a part says it is. Only the head of it is looked at: a part can
    be an attachment of twenty megabytes, and its headers are in the
    first few lines of it. */
-static void parttype(const char* part, long len, char* typ, long tn)
+static void parttype(const char* part, ami_long len, char* typ, ami_long tn)
 
 {
 
     char hdr[4000];
-    long n = len;
+    ami_long n = len;
 
-    if (n > (long)sizeof(hdr)-1) n = sizeof(hdr)-1;
+    if (n > (ami_long)sizeof(hdr)-1) n = sizeof(hdr)-1;
     memcpy(hdr, part, n);
     hdr[n] = 0;
     findheader(hdr, "Content-Type", typ, tn);
@@ -1535,7 +1535,7 @@ static void parttype(const char* part, long len, char* typ, long tn)
 /* Find the text of a message: the plain text part if there is one, the
    html one with its tags taken out if there is not. Multipart messages
    are walked into, since the plain part is nearly always inside one. */
-char* textof(const char* msg, long len, long want)
+char* textof(const char* msg, ami_long len, ami_long want)
 
 {
 
@@ -1545,7 +1545,7 @@ char* textof(const char* msg, long len, long want)
     int   besthtml = TRUE;
     char  sep[MAXSTR+8];
     const char* p;
-    long  sl;
+    ami_long  sl;
 
     findheader(msg, "Content-Type", typ, sizeof(typ));
     if (strncasecmp(typ, "multipart/", 10)) { /* one part, the whole thing */
@@ -1569,7 +1569,7 @@ char* textof(const char* msg, long len, long want)
     hdrparam(typ, "boundary", bound, sizeof(bound));
     if (!*bound) { /* multipart with no boundary: take it as it lies */
 
-        long  n = want > 0 && want < len? want: len;
+        ami_long  n = want > 0 && want < len? want: len;
         char* t = getmem(n+1);
 
         memcpy(t, msg, n);
@@ -1653,13 +1653,13 @@ static const char* months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
 /* pull a date apart, giving the time it stands for, and how to show it */
-long parsedate(const char* s, char* show, long sn)
+ami_long parsedate(const char* s, char* show, ami_long sn)
 
 {
 
     char      mon[10];
-    long      day = 0, year = 0, hour = 0, min = 0, sec = 0;
-    long      i;
+    ami_long  day = 0, year = 0, hour = 0, min = 0, sec = 0;
+    ami_long  i;
     struct tm tm;
     time_t    t;
     time_t    now = time(NULL);
@@ -1673,8 +1673,8 @@ long parsedate(const char* s, char* show, long sn)
 
     }
     mon[0] = 0;
-    if (sscanf(s, " %ld %9s %ld %ld:%ld:%ld", &day, mon, &year,
-               &hour, &min, &sec) < 3) return (0);
+    if (sscanf(s, " %lld %9s %lld %lld:%lld:%lld", (long long*)(&day), mon, (long long*)(&year),
+               (long long*)(&hour), (long long*)(&min), (long long*)(&sec)) < 3) return (0);
     for (i = 0; i < 12; i++) if (!strncasecmp(mon, months[i], 3)) break;
     if (i >= 12) return (0);
     if (year < 100) year += year < 70? 2000: 1900;
@@ -1694,7 +1694,7 @@ long parsedate(const char* s, char* show, long sn)
     {
 
         const char* z = s;
-        long        off = 0;   /* seconds east of UTC */
+        ami_long    off = 0;   /* seconds east of UTC */
         int         got = FALSE;
 
         /* the offset comes after the time, as +hhmm or a name */
@@ -1712,9 +1712,9 @@ long parsedate(const char* s, char* show, long sn)
         while (*z == ' ') z++;
         if (*z == '+' || *z == '-') {
 
-            long hh = 0, mm = 0;
+            ami_long hh = 0, mm = 0;
 
-            if (sscanf(z+1, "%2ld%2ld", &hh, &mm) == 2) {
+            if (sscanf(z+1, "%2lld%2lld", (long long*)(&hh), (long long*)(&mm)) == 2) {
 
                 off = (hh*60+mm)*60;
                 if (*z == '-') off = -off;
@@ -1724,7 +1724,7 @@ long parsedate(const char* s, char* show, long sn)
 
         } else if (isalpha((unsigned char)*z)) {
 
-            static const struct { const char* nm; long off; } zones[] = {
+            static const struct { const char* nm; ami_long off; } zones[] = {
 
                 { "UT", 0 }, { "GMT", 0 }, { "Z", 0 },
                 { "EST", -5 }, { "EDT", -4 }, { "CST", -6 }, { "CDT", -5 },
@@ -1732,7 +1732,7 @@ long parsedate(const char* s, char* show, long sn)
                 { NULL, 0 }
 
             };
-            long k;
+            ami_long k;
 
             for (k = 0; zones[k].nm; k++)
                 if (!strncasecmp(z, zones[k].nm, strlen(zones[k].nm))) {
@@ -1770,10 +1770,10 @@ long parsedate(const char* s, char* show, long sn)
         localtime_r(&t, &lt);
         if (now-t < 12*60*60) {
 
-            long h12 = lt.tm_hour%12;
+            ami_long h12 = lt.tm_hour%12;
 
             if (!h12) h12 = 12;
-            snprintf(show, sn, "%ld:%02d %s", h12, lt.tm_min,
+            snprintf(show, sn, "%lld:%02d %s", AMI_LONG_CAST(h12), lt.tm_min,
                      lt.tm_hour < 12? "AM": "PM");
 
         } else if (now-t < 300L*24*60*60)
@@ -1783,7 +1783,7 @@ long parsedate(const char* s, char* show, long sn)
 
     }
 
-    return ((long)t);
+    return ((ami_long)t);
 
 }
 
@@ -1802,12 +1802,12 @@ have always done and what they all undo on the way out.
 
 /* the address out of a From header: what is inside the angle brackets if
    there are any, the whole thing if not */
-void addrof(const char* from, char* addr, long an)
+void addrof(const char* from, char* addr, ami_long an)
 
 {
 
     const char* p = strchr(from, '<');
-    long        o = 0;
+    ami_long    o = 0;
 
     if (p) {
 
@@ -1823,12 +1823,12 @@ void addrof(const char* from, char* addr, long an)
 /* The name to show for a sender. "Scott Franco <x@y.com>" shows as the
    name, "x@y.com" shows as the address: what the sender called
    themselves if they said, what they are if they did not. */
-void nameof(const char* from, char* name, long nn)
+void nameof(const char* from, char* name, ami_long nn)
 
 {
 
     const char* p = strchr(from, '<');
-    long        o = 0;
+    ami_long    o = 0;
 
     if (p && p != from) { /* there is a name before the address */
 
@@ -1851,18 +1851,18 @@ void nameof(const char* from, char* name, long nn)
    which is not the length it went in as, since storing escapes any line
    that could be mistaken for a separator. Those two are what the index
    needs to find it again. */
-static long mboxwrite(const char* file, const char* msg, long len,
-                      long* stored)
+static ami_long mboxwrite(const char* file, const char* msg, ami_long len,
+                      ami_long* stored)
 
 {
 
     FILE* f = fopen(file, "a");
-    long  off;
+    ami_long  off;
     char  from[MAXSTR];
     char  addr[MAXSTR];
     char  date[MAXSTR];
     char  show[40];
-    long  when;
+    ami_long  when;
     const char* p;
     const char* e;
 
@@ -1871,7 +1871,7 @@ static long mboxwrite(const char* file, const char* msg, long len,
     addrof(from, addr, sizeof(addr));
     findheader(msg, "Date", date, sizeof(date));
     when = parsedate(date, show, sizeof(show));
-    if (!when) when = (long)time(NULL);
+    if (!when) when = (ami_long)time(NULL);
     {
 
         time_t t = when;
@@ -1915,11 +1915,11 @@ opened, so nothing is held twice.
 *******************************************************************************/
 
 /* the start of the message, for the list: the first text, run together */
-static void snipof(const char* text, char* snip, long sn)
+static void snipof(const char* text, char* snip, ami_long sn)
 
 {
 
-    long o = 0;
+    ami_long o = 0;
 
     while (*text && o < sn-1) {
 
@@ -1951,8 +1951,8 @@ static void snipof(const char* text, char* snip, long sn)
    headers and the beginning of the body, which is all the list shows --
    while len is the length of the whole thing, which is what reading it
    later will need. */
-static void fillrec(msgrec* m, const char* msg, long have, long len,
-                    long off, const char* dig)
+static void fillrec(msgrec* m, const char* msg, ami_long have, ami_long len,
+                    ami_long off, const char* dig)
 
 {
 
@@ -2013,23 +2013,23 @@ void dlock(void);
 void dunlock(void);
 void serveindex(void);
 void servesend(void);
-int reachable(const char* host, long port, long secs);
+int reachable(const char* host, ami_long port, ami_long secs);
 
 char wrkwhat[MAXSTR]; /* what is being worked on */
-long wrkpos;          /* how far into it */
-long wrkmax;          /* and how big it is */
-long wrkfolds;        /* the folder pane wants redrawing */
-long wrklist;         /* and so does the message list */
-long wrkstop;         /* drop what you are doing */
-long wrkbusy;         /* it has something in hand just now */
-long idxwant = -1;
-long idxfold = -1;
-long idxdoing = -1;   /* the folder being read just now */
-long wrkgo;      /* a fetch is running on the other thread */
+ami_long wrkpos;          /* how far into it */
+ami_long wrkmax;          /* and how big it is */
+ami_long wrkfolds;        /* the folder pane wants redrawing */
+ami_long wrklist;         /* and so does the message list */
+ami_long wrkstop;         /* drop what you are doing */
+ami_long wrkbusy;         /* it has something in hand just now */
+ami_long idxwant = -1;
+ami_long idxfold = -1;
+ami_long idxdoing = -1;   /* the folder being read just now */
+ami_long wrkgo;      /* a fetch is running on the other thread */
 char failsaid[MAXSTR*3];
 char sentsaid[MAXSTR]; /* and what went right */
-long sendfail;         /* and whether it was a send that failed */
-long failwait;
+ami_long sendfail;         /* and whether it was a send that failed */
+ami_long failwait;
 
 /* one line of it, or one piece of a line too long to come in one */
 /* How much of a message is kept for what the list shows: the headers
@@ -2057,7 +2057,7 @@ typedef struct {
 
     EVP_MD_CTX* c;
     char        pend[PENDMAX]; /* line ends held back */
-    long        pendn;
+    ami_long    pendn;
 
 } digrun;
 
@@ -2072,15 +2072,15 @@ void digstart(digrun* d)
 
 }
 
-/* one line of it, or one piece of a line too long to come in one */void digline(digrun* d, const char* p, long n, int atbol)
+/* one line of it, or one piece of a line too long to come in one */void digline(digrun* d, const char* p, ami_long n, int atbol)
 
 {
 
-    long t;
+    ami_long t;
 
     if (atbol && n && *p == '>') { /* a line the storing escaped? */
 
-        long j = 0;
+        ami_long j = 0;
 
         while (j < n && p[j] == '>') j++;
         if (j+5 <= n && !strncmp(p+j, "From ", 5)) { p++; n--; } /* one off */
@@ -2117,12 +2117,12 @@ static void digend(digrun* d, char* hex)
 
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned int  n = 0;
-    long          i;
+    ami_long      i;
 
     EVP_DigestFinal_ex(d->c, md, &n);
     EVP_MD_CTX_free(d->c);
     d->c = NULL;
-    for (i = 0; i < (long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
+    for (i = 0; i < (ami_long)n; i++) sprintf(hex+i*2, "%02x", md[i]);
     hex[n*2] = 0;
 
 }
@@ -2149,20 +2149,20 @@ typedef struct {
 
     char    file[MAXSTR*2];
     msgrec* idx;
-    long    ct;
-    long    max;
-    long    ok;
+    ami_long    ct;
+    ami_long    max;
+    ami_long    ok;
 
 } idxkeep;
 
 static idxkeep* kept;
-static long     keptct;
+static ami_long keptct;
 
 void idxsetaside(void)
 
 {
 
-    long i;
+    ami_long i;
 
     free(kept);
     kept = getmem(sizeof(idxkeep)*(foldct? foldct: 1));
@@ -2189,7 +2189,7 @@ void idxgiveback(void)
 
 {
 
-    long i, j;
+    ami_long i, j;
 
     for (i = 0; i < foldct; i++)
         for (j = 0; j < keptct; j++)
@@ -2218,7 +2218,7 @@ void idxgiveback(void)
    the index was complete and nothing was read at all. It was missing
    from exactly that path once, and the whole store lost its dedup: a
    second fetch stored every message it already had. */
-static void idxdone(long fold)
+static void idxdone(ami_long fold)
 
 {
 
@@ -2249,7 +2249,7 @@ static void idxdone(long fold)
 
 /* Read a folder: its index file if there is a good one, and whatever
    the mailbox holds past the end of what that names. */
-void indexfolder(long fold)
+void indexfolder(ami_long fold)
 
 {
 
@@ -2258,13 +2258,13 @@ void indexfolder(long fold)
     char   line[MAXLINE];
     char   hex[DIGLEN];
     digrun dg;
-    long   holdn = 0;
-    long   start = -1;    /* where the message being read began */
-    long   endpos = 0;    /* and where its last line of substance ended */
-    long   pos = 0;       /* where in the file the next piece begins */
-    long   size = 0;
-    long   from = 0;      /* where the reading of the mailbox begins */
-    long   had;           /* how many were already known */
+    ami_long   holdn = 0;
+    ami_long   start = -1;    /* where the message being read began */
+    ami_long   endpos = 0;    /* and where its last line of substance ended */
+    ami_long   pos = 0;       /* where in the file the next piece begins */
+    ami_long   size = 0;
+    ami_long   from = 0;      /* where the reading of the mailbox begins */
+    ami_long   had;           /* how many were already known */
     int    blank = TRUE;  /* the line before this one held nothing */
     int    atbol = TRUE;  /* and this piece begins a line */
     int    stopped = FALSE;
@@ -2297,8 +2297,8 @@ void indexfolder(long fold)
 
         fclose(f);
         idxdone(fold);
-        if (diag) fprintf(stderr, "index: %s, %ld known, nothing new\n",
-                          folders[fold].name, folders[fold].idxct);
+        if (diag) fprintf(stderr, "index: %s, %lld known, nothing new\n",
+                          folders[fold].name, AMI_LONG_CAST(folders[fold].idxct));
 
         return;
 
@@ -2313,7 +2313,7 @@ void indexfolder(long fold)
        starts with has to ask that first. */
     while (fgets(line, sizeof(line), f)) {
 
-        long ll = strlen(line);
+        ami_long ll = strlen(line);
         int  sep = atbol && blank && !strncmp(line, "From ", 5);
 
         if (sep) {
@@ -2349,7 +2349,7 @@ void indexfolder(long fold)
             digline(&dg, line, ll, atbol);
             if (holdn < MSGCAP) {
 
-                long take = ll;
+                ami_long take = ll;
 
                 if (take > MSGCAP-holdn) take = MSGCAP-holdn;
                 memcpy(hold+holdn, line, take);
@@ -2381,7 +2381,7 @@ void indexfolder(long fold)
     if (!from) idxsave(fold);
     else {
 
-        long i;
+        ami_long i;
 
         for (i = had; i < bct; i++) idxappend(fold, &bidx[i]);
 
@@ -2392,9 +2392,9 @@ void indexfolder(long fold)
         struct timespec t1;
 
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        fprintf(stderr, "index: %s, %ld new of %ld, read from %ld of %ld, "
-                "%.0fms\n", folders[fold].name, folders[fold].idxct-had,
-                folders[fold].idxct, from, size,
+        fprintf(stderr, "index: %s, %lld new of %lld, read from %lld of %lld, "
+                "%.0fms\n", folders[fold].name, AMI_LONG_CAST(folders[fold].idxct-had),
+                AMI_LONG_CAST(folders[fold].idxct), AMI_LONG_CAST(from), AMI_LONG_CAST(size),
                 (t1.tv_sec-t0.tv_sec)*1000.0+(t1.tv_nsec-t0.tv_nsec)/1000000.0);
 
     }
@@ -2408,7 +2408,7 @@ void countfolders(void)
 
 {
 
-    long i;
+    ami_long i;
 
     for (i = 0; i < foldct; i++) {
 
@@ -2419,7 +2419,7 @@ void countfolders(void)
 
 }
 
-void srvdir(long srv, char* dn, long dnl)
+void srvdir(ami_long srv, char* dn, ami_long dnl)
 
 {
 
@@ -2432,11 +2432,11 @@ void srvdir(long srv, char* dn, long dnl)
 }
 
 /* a name with the awkward characters taken out, fit to be a file name */
-void safename(const char* nm, char* fn, long fnl)
+void safename(const char* nm, char* fn, ami_long fnl)
 
 {
 
-    long i;
+    ami_long i;
 
     snprintf(fn, fnl, "%s", nm);
     for (i = 0; fn[i]; i++)
@@ -2446,12 +2446,12 @@ void safename(const char* nm, char* fn, long fnl)
 }
 
 /* the file a local folder of this name lives in */
-static void localfile(const char* show, char* fn, long fnl)
+static void localfile(const char* show, char* fn, ami_long fnl)
 
 {
 
     char nm[MAXSTR/2];
-    long i;
+    ami_long i;
 
     copystr(nm, show, sizeof(nm));
     for (i = 0; nm[i]; i++)
@@ -2471,11 +2471,11 @@ static void localfile(const char* show, char* fn, long fnl)
 /* Find a local folder by its shown name, or make one. Making one is
    writing its name file, so it comes back after a restart, and putting
    it in the list, which keeps locals after the server's folders. */
-long localfolder(const char* show)
+ami_long localfolder(const char* show)
 
 {
 
-    long     i;
+    ami_long i;
     foldrec* f;
     char     fn[MAXSTR*2+8];
     FILE*    sf;
@@ -2508,7 +2508,7 @@ long localfolder(const char* show)
    which, by index in the folder's message list. The blocks are moved
    whole and verbatim -- separator line to trailing blank -- so nothing
    is reencoded, requoted or otherwise touched on the way. */
-long movelocal(long fold, const char* dstfile, const char* set)
+ami_long movelocal(ami_long fold, const char* dstfile, const char* set)
 
 {
 
@@ -2517,9 +2517,9 @@ long movelocal(long fold, const char* dstfile, const char* set)
     FILE* dst;
     char  tmp[MAXSTR*2+8];
     char* buf;
-    long  n;
-    long  i, start, blkstart;
-    long  moved = 0;
+    ami_long  n;
+    ami_long  i, start, blkstart;
+    ami_long  moved = 0;
 
     f = fopen(folders[fold].file, "r");
     if (!f) return (0);
@@ -2559,7 +2559,7 @@ long movelocal(long fold, const char* dstfile, const char* set)
 
             if (start >= 0) { /* the block that just ended */
 
-                long m;
+                ami_long m;
 
                 for (m = 0; m < msgct; m++) if (msgs[m].off == start) break;
                 if (m < msgct && set[m]) {
@@ -2580,7 +2580,7 @@ long movelocal(long fold, const char* dstfile, const char* set)
     }
     if (start >= 0) { /* the last block */
 
-        long m;
+        ami_long m;
 
         for (m = 0; m < msgct; m++) if (msgs[m].off == start) break;
         if (m < msgct && set[m]) {
@@ -2618,14 +2618,14 @@ including newlines. That is how a message arrives.
 *******************************************************************************/
 
 /* send a command, with a tag of its own, and say what the tag was */
-static void imsend(char* tag, long tn, const char* fmt, ...)
+static void imsend(char* tag, ami_long tn, const char* fmt, ...)
 
 {
 
     va_list ap;
     char    cmd[MAXLINE];
 
-    snprintf(tag, tn, "a%03ld", ++imaptag);
+    snprintf(tag, tn, "a%03lld", AMI_LONG_CAST(++imaptag));
     va_start(ap, fmt);
     vsnprintf(cmd, sizeof(cmd), fmt, ap);
     va_end(ap);
@@ -2635,7 +2635,7 @@ static void imsend(char* tag, long tn, const char* fmt, ...)
 
 }
 
-static long netquiet; /* the last read got nothing at all */
+static ami_long netquiet; /* the last read got nothing at all */
 
 /*******************************************************************************
 
@@ -2674,7 +2674,7 @@ from a path that already holds it and deadlock.
 
 *******************************************************************************/
 
-long datlock;          /* what the two of them share */
+ami_long datlock;          /* what the two of them share */
 
 void dlock(void)
 
@@ -2692,14 +2692,14 @@ void dunlock(void)
 
 }
 
-long wrkstart;  /* the thread has been made */
-long timerrun;  /* the timer that watches it is going */
-long wrkdone;   /* it finished, and nobody has noticed yet */
-long wrkrelist; /* this fetch is to ask what folders there are */
-long wrkcount;  /* and this one is only to count the store */
+ami_long wrkstart;  /* the thread has been made */
+ami_long timerrun;  /* the timer that watches it is going */
+ami_long wrkdone;   /* it finished, and nobody has noticed yet */
+ami_long wrkrelist; /* this fetch is to ask what folders there are */
+ami_long wrkcount;  /* and this one is only to count the store */
 
 /* get one line back, without its line ending */
-static int imline(char* buf, long bn)
+static int imline(char* buf, ami_long bn)
 
 {
 
@@ -2724,7 +2724,7 @@ static int imline(char* buf, long bn)
 
 /* Is there a literal at the end of this line, and how long? A literal is
    the count in braces, last thing on the line. */
-static long literalof(const char* line)
+static ami_long literalof(const char* line)
 
 {
 
@@ -2738,16 +2738,16 @@ static long literalof(const char* line)
 }
 
 /* read exactly n bytes, which is what a literal is */
-static char* imliteral(long n)
+static char* imliteral(ami_long n)
 
 {
 
     char* buf = getmem(n+1);
-    long  got = 0;
+    ami_long  got = 0;
 
     while (got < n) {
 
-        long r = fread(buf+got, 1, n-got, imap);
+        ami_long r = fread(buf+got, 1, n-got, imap);
 
         if (r <= 0) break;
         got += r;
@@ -2769,7 +2769,7 @@ static int imwait(const char* tag, void (*line)(const char*))
 {
 
     char line1[MAXLINE];
-    long tl = strlen(tag);
+    ami_long tl = strlen(tag);
 
     imanswer[0] = 0;
     while (imline(line1, sizeof(line1))) {
@@ -2797,7 +2797,7 @@ static int imwait(const char* tag, void (*line)(const char*))
 }
 
 /* the folder list, gathered from the LIST replies */
-static long listsrv = -1; /* the server whose folders are arriving */
+static ami_long listsrv = -1; /* the server whose folders are arriving */
 
 static void listline(const char* line)
 
@@ -2806,7 +2806,7 @@ static void listline(const char* line)
     const char* p;
     const char* q;
     char        name[MAXSTR];
-    long        o = 0;
+    ami_long    o = 0;
     foldrec*    f;
 
     if (strncmp(line, "* LIST", 6)) return;
@@ -2868,7 +2868,7 @@ static void listline(const char* line)
     {
 
         char fn[MAXSTR/2];
-        long i;
+        ami_long i;
 
         char  dn[MAXSTR];
         char  sn[MAXSTR*2+8];
@@ -2891,9 +2891,9 @@ static void listline(const char* line)
         if (sf) {
 
             char real[MAXSTR];
-            long v, u;
+            ami_long v, u;
 
-            if (fscanf(sf, "%ld %ld %499[^\n]", &v, &u, real) == 3) {
+            if (fscanf(sf, "%lld %lld %499[^\n]", (long long*)(&v), (long long*)(&u), real) == 3) {
 
                 trim(real);
                 if (strcmp(real, name)) { /* somebody else's */
@@ -2923,7 +2923,7 @@ static void listline(const char* line)
    or the one holding what is ours. The folders of a directory are its
    mailboxes, and each keeps its real name in the state file beside it,
    since a file name has had the awkward characters taken out of it. */
-void storefolders(long srv)
+void storefolders(ami_long srv)
 
 {
 
@@ -2939,7 +2939,7 @@ void storefolders(long srv)
 
         foldrec* f;
         char     nm[MAXSTR/2];
-        long     n;
+        ami_long n;
 
         copystr(nm, fp->name, sizeof(nm));
         n = strlen(nm);
@@ -2950,7 +2950,7 @@ void storefolders(long srv)
         { /* the file name had its spaces taken out; put them back for
              the reader, until a fetch writes the real name beside it */
 
-            long k;
+            ami_long k;
 
             for (k = 0; f->show[k]; k++) if (f->show[k] == '_')
                 f->show[k] = ' ';
@@ -2964,17 +2964,17 @@ void storefolders(long srv)
 
             char  sn[MAXSTR*2+8];
             char  real[MAXSTR];
-            long  v, u, u2;
+            ami_long  v, u, u2;
             FILE* sf;
 
             snprintf(sn, sizeof(sn), "%s.state", f->file);
             sf = fopen(sn, "r");
             if (sf) {
 
-                if (fscanf(sf, "%ld %ld %ld %499[^\n]", &v, &u, &u2,
+                if (fscanf(sf, "%lld %lld %lld %499[^\n]", (long long*)(&v), (long long*)(&u), (long long*)(&u2),
                            real) == 4 ||
-                    (rewind(sf), fscanf(sf, "%ld %ld %499[^\n]",
-                                        &v, &u, real) == 3)) {
+                    (rewind(sf), fscanf(sf, "%lld %lld %499[^\n]",
+                                        (long long*)(&v), (long long*)(&u), real) == 3)) {
 
                     trim(real);
                     copystr(f->name, real, MAXSTR);
@@ -2999,7 +2999,7 @@ void storeall(void)
 
 {
 
-    long i;
+    ami_long i;
 
     for (i = 0; i < srvct; i++) storefolders(i);
     storefolders(-1);
@@ -3011,7 +3011,7 @@ static int imapopen(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     char          tag[20];
     char          line[MAXLINE];
 
@@ -3020,8 +3020,8 @@ static int imapopen(void)
 
         char msg[MAXSTR*2];
 
-        snprintf(msg, sizeof(msg), "Cannot reach %s on port %ld.", imapsrv,
-                 imapport);
+        snprintf(msg, sizeof(msg), "Cannot reach %s on port %lld.", imapsrv,
+                 AMI_LONG_CAST(imapport));
         fail(msg);
 
         return (FALSE);
@@ -3065,11 +3065,11 @@ static int imapopen(void)
     /* The password is sent in the clear inside the TLS connection, which
        is what LOGIN is and what every mail program does. It is never
        written to the diagnostic. */
-    if (diag) fprintf(stderr, "> a%03ld LOGIN %s <password>\n",
-                      imaptag+1, username);
+    if (diag) fprintf(stderr, "> a%03lld LOGIN %s <password>\n",
+                      AMI_LONG_CAST(imaptag+1), username);
     {
 
-        long sav = diag;
+        ami_long sav = diag;
 
         diag = FALSE;
         netquiet = FALSE;
@@ -3130,7 +3130,7 @@ void imapclose(void)
 }
 
 /* ask the server what folders there are */
-int getfolders(long srv)
+int getfolders(ami_long srv)
 
 {
 
@@ -3155,15 +3155,15 @@ int getfolders(long srv)
    false the moment somebody asks for more of the folder than they asked
    for last time. Those older messages are all below the mark, so every
    one of them was skipped and raising the limit did nothing at all. */
-static void readstate(long fold, long* validity, long* lowuid,
-                      long* lastuid)
+static void readstate(ami_long fold, ami_long* validity, ami_long* lowuid,
+                      ami_long* lastuid)
 
 {
 
     char  fn[MAXSTR*2+8];
     FILE* f;
     char  line[MAXSTR];
-    long  a, b, c;
+    ami_long  a, b, c;
 
     *validity = 0;
     *lowuid = 0;
@@ -3173,14 +3173,14 @@ static void readstate(long fold, long* validity, long* lowuid,
     if (!f) return;
     if (fgets(line, sizeof(line), f)) {
 
-        if (sscanf(line, "%ld %ld %ld", &a, &b, &c) == 3 && c >= b) {
+        if (sscanf(line, "%lld %lld %lld", (long long*)(&a), (long long*)(&b), (long long*)(&c)) == 3 && c >= b) {
 
             /* validity, the oldest taken, the newest */
             *validity = a;
             *lowuid = b;
             *lastuid = c;
 
-        } else if (sscanf(line, "%ld %ld", &a, &b) == 2) {
+        } else if (sscanf(line, "%lld %lld", (long long*)(&a), (long long*)(&b)) == 2) {
 
             /* the older form, which knew only the newest. Nothing can be
                said about what is below it, so nothing is assumed: the
@@ -3199,7 +3199,7 @@ static void readstate(long fold, long* validity, long* lowuid,
 
 }
 
-static void writestate(long fold, long validity, long lowuid, long lastuid)
+static void writestate(ami_long fold, ami_long validity, ami_long lowuid, ami_long lastuid)
 
 {
 
@@ -3213,14 +3213,14 @@ static void writestate(long fold, long validity, long lowuid, long lastuid)
        awkward characters taken out of the name, which cannot be undone,
        so without this a folder read back from the store on its own
        shows as _Gmail__Sent_Mail rather than Sent Mail. */
-    fprintf(f, "%ld %ld %ld %s\n", validity, lowuid, lastuid,
+    fprintf(f, "%lld %lld %lld %s\n", AMI_LONG_CAST(validity), AMI_LONG_CAST(lowuid), AMI_LONG_CAST(lastuid),
             folders[fold].name);
     fclose(f);
 
 }
 
 /* what EXAMINE says about the folder, gathered from its untagged lines */
-static long exists, uidvalidity;
+static ami_long exists, uidvalidity;
 
 static void examline(const char* line)
 
@@ -3228,14 +3228,14 @@ static void examline(const char* line)
 
     const char* p;
     char        what[40];
-    long        n;
+    ami_long    n;
 
     /* The word is checked, not assumed. sscanf gives the number of
        assignments it made before it gave up, so "* 0 RECENT" against
        "* %ld EXISTS" assigns the 0 and answers 1 just as a real EXISTS
        does -- and RECENT comes straight after EXISTS, so the count was
        being thrown away and every folder looked empty. */
-    if (sscanf(line, "* %ld %39s", &n, what) == 2 &&
+    if (sscanf(line, "* %lld %39s", (long long*)(&n), what) == 2 &&
         !strcasecmp(what, "EXISTS")) exists = n;
     p = strstr(line, "[UIDVALIDITY ");
     if (p) uidvalidity = atol(p+13);
@@ -3243,9 +3243,9 @@ static void examline(const char* line)
 }
 
 /* the uids of the messages asked for, gathered from the FETCH replies */
-static long* uidlist;
-static long  uidct;
-static long  uidmax;
+static ami_long* uidlist;
+static ami_long  uidct;
+static ami_long  uidmax;
 
 static void uidline(const char* line)
 
@@ -3257,7 +3257,7 @@ static void uidline(const char* line)
     if (uidct >= uidmax) {
 
         uidmax = uidmax? uidmax*2: 256;
-        uidlist = realloc(uidlist, uidmax*sizeof(long));
+        uidlist = realloc(uidlist, uidmax*sizeof(ami_long));
         if (!uidlist) { fail("Out of memory"); exit(1); }
 
     }
@@ -3277,12 +3277,12 @@ sending half has somewhere to stand when it is written.
 *******************************************************************************/
 
 /* read a reply, which may be several lines, and give its code */
-static long smtpresp(FILE* f)
+static ami_long smtpresp(FILE* f)
 
 {
 
     char line[MAXLINE];
-    long code = 0;
+    ami_long code = 0;
 
     while (fgets(line, sizeof(line), f)) {
 
@@ -3314,18 +3314,18 @@ static void smtpsend(FILE* f, const char* fmt, ...)
 }
 
 /* base64 encode, which is how a password is given to SMTP */
-static void b64enc(const char* s, long n, char* d, long dn)
+static void b64enc(const char* s, ami_long n, char* d, ami_long dn)
 
 {
 
     static const char* tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                              "abcdefghijklmnopqrstuvwxyz0123456789+/";
-    long i, o = 0;
+    ami_long i, o = 0;
 
     for (i = 0; i < n; i += 3) {
 
-        long v = (unsigned char)s[i];
-        long r = n-i;
+        ami_long v = (unsigned char)s[i];
+        ami_long r = n-i;
 
         v = v<<8 | (r > 1? (unsigned char)s[i+1]: 0);
         v = v<<8 | (r > 2? (unsigned char)s[i+2]: 0);
@@ -3362,11 +3362,11 @@ can be read, searched and counted like any other.
 /* Split a list of addresses on commas, giving each in turn. Quoted
    display names can hold commas, so the split ignores anything inside
    quotes or angle brackets. */
-const char* nextaddr(const char* p, char* d, long dl)
+const char* nextaddr(const char* p, char* d, ami_long dl)
 
 {
 
-    long i = 0;
+    ami_long i = 0;
     int  quote = FALSE;
     int  angle = FALSE;
 
@@ -3390,21 +3390,21 @@ const char* nextaddr(const char* p, char* d, long dl)
 
 /* Something that will do as a message id: the time, a count within the
    second, and the sending account's domain. */
-static void makemsgid(char* d, long dl)
+static void makemsgid(char* d, ami_long dl)
 
 {
 
-    static long ct;
+    static ami_long ct;
     const char* at = sendsrv >= 0 && sendsrv < srvct?
                      strchr(servers[sendsrv].user, '@'): NULL;
 
-    snprintf(d, dl, "<%ld.%ld.amimail@%s>", (long)time(NULL), ++ct,
+    snprintf(d, dl, "<%lld.%lld.amimail@%s>", AMI_LONG_CAST((ami_long)time(NULL)), AMI_LONG_CAST(++ct),
              at? at+1: "localhost");
 
 }
 
 /* the date, as a message header wants it */
-static void makedate(char* d, long dl)
+static void makedate(char* d, ami_long dl)
 
 {
 
@@ -3422,11 +3422,11 @@ static void makedate(char* d, long dl)
    display. */
 void sendmail(const char* to, const char* cc, const char* subject,
                      const char* body, const char* inreply,
-                     const char* refs, char* err, long errl)
+                     const char* refs, char* err, ami_long errl)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     FILE*  f;
     char   b64[MAXSTR*2];
     char   one[MAXSTR];
@@ -3435,15 +3435,15 @@ void sendmail(const char* to, const char* cc, const char* subject,
                              has open: the two run at once */
     char   suser[MAXSTR];
     char   spass[MAXSTR];
-    long   sport;
+    ami_long   sport;
     char   msgid[MAXSTR];
     char   date[MAXSTR];
     char*  msg;
-    long   msgl;
-    long   o = 0;
-    long   code;
+    ami_long   msgl;
+    ami_long   o = 0;
+    ami_long   code;
     const char* p;
-    long   sent = 0;
+    ami_long   sent = 0;
 
     *err = 0;
     if (sendsrv < 0 || sendsrv >= srvct) sendsrv = 0;
@@ -3463,9 +3463,9 @@ void sendmail(const char* to, const char* cc, const char* subject,
     }
     if (!reachable(ssrv, sport, 10)) {
 
-        snprintf(err, errl, "Cannot reach %s on port %ld.\n"
+        snprintf(err, errl, "Cannot reach %s on port %lld.\n"
                  "Check the sending server and its port in Config/Servers. "
-                 "Gmail sends on 465.", ssrv, sport);
+                 "Gmail sends on 465.", ssrv, AMI_LONG_CAST(sport));
 
         return;
 
@@ -3625,9 +3625,9 @@ void sendmail(const char* to, const char* cc, const char* subject,
        sent is ours as much as what is received. */
     {
 
-        long fold;
+        ami_long fold;
         char hex[DIGLEN];
-        long off, stored = 0;
+        ami_long off, stored = 0;
 
         digestof(msg, o, hex);
         /* The whole of it with the display shut out: making the folder
@@ -3666,18 +3666,18 @@ void smtpcheck(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     FILE* f;
     char  b64[MAXSTR*2];
     char  msg[MAXSTR*2];
-    long  code;
+    ami_long  code;
 
     if (!reachable(smtpsrv, smtpport, 10)) {
 
         char msg[MAXSTR*2];
 
-        snprintf(msg, sizeof(msg), "Cannot reach %s on port %ld.\n"
-                 "Gmail sends on 465.", smtpsrv, smtpport);
+        snprintf(msg, sizeof(msg), "Cannot reach %s on port %lld.\n"
+                 "Gmail sends on 465.", smtpsrv, AMI_LONG_CAST(smtpport));
         fail(msg);
 
         return;
@@ -3721,13 +3721,13 @@ void smtpcheck(void)
     if (code/100 == 2)
         snprintf(msg, sizeof(msg),
                  "Mail could be sent from this account.\n"
-                 "%s accepted the login on port %ld. Nothing was sent.",
-                 smtpsrv, smtpport);
+                 "%s accepted the login on port %lld. Nothing was sent.",
+                 smtpsrv, AMI_LONG_CAST(smtpport));
     else
         snprintf(msg, sizeof(msg),
-                 "%s would not accept the login on port %ld.\n"
+                 "%s would not accept the login on port %lld.\n"
                  "For Gmail this must be an application password.",
-                 smtpsrv, smtpport);
+                 smtpsrv, AMI_LONG_CAST(smtpport));
     fail(msg);
 
 }
@@ -3759,18 +3759,18 @@ through while it runs, and it can be stopped.
 
 *******************************************************************************/
 
-long fetching;    /* a fetch is under way */
-static long fetchsrv;    /* the server being read */
-static long fetchfold;   /* where the stepping has got to in the order */
-static long fetchcur = -1; /* and the folder that place names */
-static long fetchi;      /* which of that folder's uids is next */
-long fetchgot;    /* messages taken, this fetch */
-long fetchdup;    /* and passed over as already here */
-static long fetchlast;   /* the highest uid taken from this folder */
-static long fetchseen;   /* the highest taken before this fetch */
-static long fetchlow;    /* and the lowest, which together say what is
+ami_long fetching;    /* a fetch is under way */
+static ami_long fetchsrv;    /* the server being read */
+static ami_long fetchfold;   /* where the stepping has got to in the order */
+static ami_long fetchcur = -1; /* and the folder that place names */
+static ami_long fetchi;      /* which of that folder's uids is next */
+ami_long fetchgot;    /* messages taken, this fetch */
+ami_long fetchdup;    /* and passed over as already here */
+static ami_long fetchlast;   /* the highest uid taken from this folder */
+static ami_long fetchseen;   /* the highest taken before this fetch */
+static ami_long fetchlow;    /* and the lowest, which together say what is
                             already here rather than only how far up */
-static long fetchnewlow; /* the lowest this fetch has reached */
+static ami_long fetchnewlow; /* the lowest this fetch has reached */
 
 /*******************************************************************************
 
@@ -3797,10 +3797,10 @@ same request sent sooner, to a server that has just declined to answer.
 #define BACKMAX   900 /* and never more than a quarter of an hour */
 
 static time_t srvquiet[MAXSRV]; /* not to be asked before this time */
-static long   srvwait[MAXSRV];  /* how long it was left alone last time */
+static ami_long   srvwait[MAXSRV];  /* how long it was left alone last time */
 
 /* that account has stopped answering */
-static void serverfailed(long srv)
+static void serverfailed(ami_long srv)
 
 {
 
@@ -3808,13 +3808,13 @@ static void serverfailed(long srv)
     srvwait[srv] = srvwait[srv]? srvwait[srv]*2: BACKOFF;
     if (srvwait[srv] > BACKMAX) srvwait[srv] = BACKMAX;
     srvquiet[srv] = time(NULL)+srvwait[srv];
-    if (diag) fprintf(stderr, "! %s left alone for %lds\n",
-                      servers[srv].name, srvwait[srv]);
+    if (diag) fprintf(stderr, "! %s left alone for %llds\n",
+                      servers[srv].name, AMI_LONG_CAST(srvwait[srv]));
 
 }
 
 /* and that one is talking again */
-static void serverspoke(long srv)
+static void serverspoke(ami_long srv)
 
 {
 
@@ -3825,7 +3825,7 @@ static void serverspoke(long srv)
 }
 
 /* is this account being left alone just now? */
-int serverquiet(long srv)
+int serverquiet(ami_long srv)
 
 {
 
@@ -3858,25 +3858,25 @@ void fetchsay(void)
 
    Worked out once at the start of a fetch, into an order the stepping
    walks straight down. */
-static long fetchord[MAXFOLDER];
-static long fetchordct;
+static ami_long fetchord[MAXFOLDER];
+static ami_long fetchordct;
 
 void fetchorder(void)
 
 {
 
-    long round;
-    long i;
+    ami_long round;
+    ami_long i;
 
     fetchordct = 0;
     for (round = 0; round < MAXFOLDER; round++) {
 
-        long took = 0;
+        ami_long took = 0;
 
         for (i = 0; i < srvct; i++) { /* one folder from each, in turn */
 
-            long seen = 0;
-            long k;
+            ami_long seen = 0;
+            ami_long k;
 
             if (serverquiet(i)) continue; /* it is not answering yet */
 
@@ -3903,12 +3903,12 @@ static int fetchnext(void)
 {
 
     char tag[20];
-    long validity;
-    long lo, hi;
+    ami_long validity;
+    ami_long lo, hi;
 
     while (++fetchfold < fetchordct) {
 
-        long fold = fetchord[fetchfold];
+        ami_long fold = fetchord[fetchfold];
 
         if (folders[fold].srv != fetchsrv) { /* a different account */
 
@@ -3952,7 +3952,7 @@ static int fetchnext(void)
         hi = exists;
         lo = hi-limit+1;
         if (lo < 1) lo = 1;
-        imsend(tag, sizeof(tag), "FETCH %ld:%ld (UID)", lo, hi);
+        imsend(tag, sizeof(tag), "FETCH %lld:%lld (UID)", AMI_LONG_CAST(lo), AMI_LONG_CAST(hi));
         if (!imwait(tag, uidline)) continue;
         wrkmax = uidct; /* what this folder is offering */
         if (uidct) return (TRUE);
@@ -3970,7 +3970,7 @@ void fetchend(void)
 
 {
 
-    long i;
+    ami_long i;
 
     imapclose();
     /* What arrived was put at the end of each folder's index as it came.
@@ -3989,8 +3989,8 @@ void fetchend(void)
 
     }
     rehashall();
-    if (diag) fprintf(stderr, "fetch: %ld new, %ld already here\n",
-                      fetchgot, fetchdup);
+    if (diag) fprintf(stderr, "fetch: %lld new, %lld already here\n",
+                      AMI_LONG_CAST(fetchgot), AMI_LONG_CAST(fetchdup));
     wrkfolds = TRUE;
     wrklist = TRUE;
     wrkdone = TRUE;
@@ -4006,8 +4006,8 @@ void fetchstep(void)
 
     char  tag[20];
     char  line[MAXLINE];
-    long  uid;
-    long  n;
+    ami_long  uid;
+    ami_long  n;
     char* msg;
 
     if (wrkdone) return;
@@ -4027,7 +4027,7 @@ void fetchstep(void)
     if (fetchlow && uid >= fetchlow && uid <= fetchseen)
         { if (!fetchnewlow || uid < fetchnewlow) fetchnewlow = uid;
           fetchsay(); return; }
-    imsend(tag, sizeof(tag), "UID FETCH %ld (BODY.PEEK[])", uid);
+    imsend(tag, sizeof(tag), "UID FETCH %lld (BODY.PEEK[])", AMI_LONG_CAST(uid));
     /* the reply is a line ending in a literal, then the message itself,
        then the rest of the reply and the tagged answer */
     if (!imline(line, sizeof(line))) {
@@ -4081,7 +4081,7 @@ void fetchstep(void)
         dlock();
         {
 
-            long    off, stored = 0;
+            ami_long    off, stored = 0;
             msgrec* m;
 
             off = mboxwrite(folders[fetchcur].file, msg, n, &stored);
@@ -4120,12 +4120,12 @@ void fetchrun(void)
 
 {
 
-    long i;
+    ami_long i;
 
     if (wrkrelist) {
 
         char wasname[MAXSTR];
-        long wassrv = -1;
+        ami_long wassrv = -1;
 
         /* Asking every server what folders it has, and rebuilding the
            table from the answers. The table is what the display reads,
@@ -4187,8 +4187,8 @@ void fetchrun(void)
     serveindex();
     wrkfolds = TRUE;
     if (wrkcount) return; /* reading the store was the whole job */
-    if (diag) fprintf(stderr, "digests known: %ld over %ld folders\n",
-                      digct, foldct);
+    if (diag) fprintf(stderr, "digests known: %lld over %lld folders\n",
+                      AMI_LONG_CAST(digct), AMI_LONG_CAST(foldct));
     fetchsrv = -2; /* no server open yet */
     fetchorder();
     fetchfold = -1;
@@ -4255,11 +4255,11 @@ void serveindex(void)
 
 {
 
-    long i;
+    ami_long i;
 
     while (!wrkstop) {
 
-        long f = idxwant;
+        ami_long f = idxwant;
 
         if (f < 0) { /* nobody is waiting; read whatever wants reading */
 
@@ -4317,7 +4317,7 @@ void mailwork(void)
 /* Set the worker going, and the timer that watches it. Everything that
    wants work done goes through here. */
 /* read one message back out of the file, whole */
-char* getmsg(long fold, long i)
+char* getmsg(ami_long fold, ami_long i)
 
 {
 
@@ -4348,7 +4348,7 @@ char* getmsg(long fold, long i)
 
    The try is made without blocking and given a few seconds, since the
    whole point is not to hang on a host that is not answering. */
-int reachable(const char* host, long port, long secs)
+int reachable(const char* host, ami_long port, ami_long secs)
 
 {
 
@@ -4362,7 +4362,7 @@ int reachable(const char* host, long port, long secs)
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET; /* which is what the library speaks */
     hints.ai_socktype = SOCK_STREAM;
-    snprintf(portstr, sizeof(portstr), "%ld", port);
+    snprintf(portstr, sizeof(portstr), "%lld", AMI_LONG_CAST(port));
     if (getaddrinfo(host, portstr, &hints, &res)) return (FALSE);
     for (p = res; p && !ok; p = p->ai_next) {
 
@@ -4396,7 +4396,7 @@ int reachable(const char* host, long port, long secs)
 
     }
     freeaddrinfo(res);
-    if (!ok && diag) fprintf(stderr, "! cannot reach %s port %ld\n", host, port);
+    if (!ok && diag) fprintf(stderr, "! cannot reach %s port %lld\n", host, AMI_LONG_CAST(port));
 
     return (ok);
 
@@ -4405,14 +4405,14 @@ int reachable(const char* host, long port, long secs)
 /* Something kept beside the program: the categories, the help, the
    picture. Looked for where the program is, then where the source is,
    so that it works run from anywhere and from the build directory. */
-int resfile(const char* leaf, char* path, long pl)
+int resfile(const char* leaf, char* path, ami_long pl)
 
 {
 
     char  dir[MAXSTR];
     char* e;
     FILE* f;
-    long  i;
+    ami_long  i;
 
     dir[0] = 0;
     if (mailprog) {

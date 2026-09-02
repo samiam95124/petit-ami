@@ -289,7 +289,7 @@ ifeq ($(OSTYPE),Windows_NT)
 		CPP=g++
 
 	endif
-	CFLAGS=-g3 -Wformat -Iinclude
+	CFLAGS=-g3 -Iinclude
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -306,7 +306,7 @@ else ifeq ($(OSTYPE),Darwin)
 	    SSL_LIBS=$(SSL_PREFIX)/lib/libssl.dylib $(SSL_PREFIX)/lib/libcrypto.dylib
 	endif
 	FT_PREFIX=$(shell /opt/homebrew/bin/brew --prefix freetype)
-	CFLAGS=-g3 -Wformat -Iinclude $(SSL_CFLAGS) -I$(FT_PREFIX)/include/freetype2 -I/opt/X11/include
+	CFLAGS=-g3 -Iinclude $(SSL_CFLAGS) -I$(FT_PREFIX)/include/freetype2 -I/opt/X11/include
 
 else ifeq ($(OSTYPE),FreeBSD)
 
@@ -717,8 +717,9 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
-     line4 line5 clock calc \
-     graph_server breakoutgr breakoutwgr window_race_testr
+     line4 line5 clock calc txttest pdftest \
+     graph_server breakoutgr breakoutwgr window_race_testr \
+     graphics_testr management_testr widget_testr
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -776,7 +777,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5 clock calc \
+     line2 line4 line5 clock calc txttest pdftest \
      graph_server graphics_testr management_testr widget_testr
     
 endif 
@@ -1076,9 +1077,9 @@ lib/libami_plain.a: windows/services.o windows/sound.o windows/network.o \
         windows/network.o utils/config.o utils/option.o windows/stdio.o
 	
 lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
-    windows/terminal.o utils/config.o utils/option.o windows/stdio.o
+    windows/terminal.o portable/txtterminal.o utils/config.o utils/option.o windows/stdio.o
 	ar rcs lib/libami_term.a windows/services.o windows/sound.o \
-	    windows/network.o windows/terminal.o utils/config.o utils/option.o \
+	    windows/network.o windows/terminal.o portable/txtterminal.o utils/config.o utils/option.o \
 	    windows/stdio.o
 	
 # The termc variant is the terminal library with the character mode window
@@ -1090,17 +1091,18 @@ lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
 # whole-archive equivalent.
 #
 lib/libami_termc.a: windows/services.o windows/sound.o windows/network.o \
-    windows/terminal.o portable/windowc.o utils/config.o utils/option.o \
+    windows/terminal.o portable/txtterminal.o portable/windowc.o utils/config.o utils/option.o \
     windows/stdio.o
 	ar rcs lib/libami_termc.a windows/services.o windows/sound.o \
-	    windows/network.o windows/terminal.o portable/windowc.o \
+	    windows/network.o windows/terminal.o portable/txtterminal.o portable/windowc.o \
 	    utils/config.o utils/option.o windows/stdio.o
 	
 lib/libami_graph.a: windows/services.o windows/sound.o windows/network.o \
-    windows/graphics.o utils/config.o utils/option.o windows/stdio.o
+    windows/graphics.o portable/pdfgraph.o utils/config.o utils/option.o \
+    windows/stdio.o
 	ar rcs lib/libami_graph.a windows/services.o windows/sound.o \
-	    windows/network.o windows/graphics.o utils/config.o utils/option.o \
-	    windows/stdio.o
+	    windows/network.o windows/graphics.o portable/pdfgraph.o \
+	    utils/config.o utils/option.o windows/stdio.o
 	
 else ifeq ($(OSTYPE),Darwin)
 
@@ -1818,34 +1820,67 @@ pdftest: $(GLIBSD) tests/pdftest.c
 # The graphics test run remotely: linked with graph_client, the display
 # side served by graph_server.
 #
+ifeq ($(OSTYPE),Windows_NT)
+# the client carries the sound API itself, so the sound module stays out
+graphics_testr: tests/graphics_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o windows/services.o windows/network.o \
+	utils/config.o utils/option.o windows/stdio.o
+	$(CC) $(CFLAGS) tests/graphics_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o windows/services.o windows/network.o \
+	    utils/config.o utils/option.o windows/stdio.o \
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/graphics_testr
+else
 graphics_testr: tests/graphics_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/graphics_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/graphics_testr
+endif
 
 #
 # The management test run remotely: linked with graph_client, the display
 # side served by graph_server.
 #
+ifeq ($(OSTYPE),Windows_NT)
+# the client carries the sound API itself, so the sound module stays out
+management_testr: tests/management_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o windows/services.o windows/network.o \
+	utils/config.o utils/option.o windows/stdio.o
+	$(CC) $(CFLAGS) tests/management_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o windows/services.o windows/network.o \
+	    utils/config.o utils/option.o windows/stdio.o \
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/management_testr
+else
 management_testr: tests/management_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/management_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/management_testr
+endif
 
 #
 # The widget test run remotely: linked with graph_client, the display
 # side served by graph_server.
 #
+ifeq ($(OSTYPE),Windows_NT)
+# the client carries the sound API itself, so the sound module stays out
+widget_testr: tests/widget_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o windows/services.o windows/network.o \
+	utils/config.o utils/option.o windows/stdio.o
+	$(CC) $(CFLAGS) tests/widget_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o windows/services.o windows/network.o \
+	    utils/config.o utils/option.o windows/stdio.o \
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/widget_testr
+else
 widget_testr: tests/widget_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/widget_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/widget_testr
+endif
 
 #
 # Press on the window make/free race: child windows made and freed in a
@@ -1864,12 +1899,23 @@ endif
 # The window race test run remotely, which is where the race was found:
 # the two threads are then graph_server's own.
 #
+ifeq ($(OSTYPE),Windows_NT)
+# the client carries the sound API itself, so the sound module stays out
+window_race_testr: tests/window_race_test.c portable/graph_client.o \
+	stub/screen_capture_stub.o windows/services.o windows/network.o \
+	utils/config.o utils/option.o windows/stdio.o
+	$(CC) $(CFLAGS) tests/window_race_test.c portable/graph_client.o \
+	    stub/screen_capture_stub.o windows/services.o windows/network.o \
+	    utils/config.o utils/option.o windows/stdio.o \
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/window_race_testr
+else
 window_race_testr: tests/window_race_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/window_race_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/window_race_testr
+endif
 
 #
 # The sound test run remotely: linked with graph_client, the sound
@@ -1995,19 +2041,41 @@ breakoutwg: $(GLIBSD) graph_games/breakoutwg.c
 # and the help and about windows, which is the fuller exercise of the
 # remote protocol.
 #
+ifeq ($(OSTYPE),Windows_NT)
+# the client carries the sound API itself, so the sound module stays out
+breakoutgr: graph_games/breakoutg.c portable/graph_client.o \
+	stub/screen_capture_stub.o windows/services.o windows/network.o \
+	utils/config.o utils/option.o windows/stdio.o
+	$(CC) $(CFLAGS) graph_games/breakoutg.c portable/graph_client.o \
+	    stub/screen_capture_stub.o windows/services.o windows/network.o \
+	    utils/config.o utils/option.o windows/stdio.o \
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/breakoutgr
+else
 breakoutgr: graph_games/breakoutg.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) graph_games/breakoutg.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/breakoutgr
+endif
 
+ifeq ($(OSTYPE),Windows_NT)
+# the client carries the sound API itself, so the sound module stays out
+breakoutwgr: graph_games/breakoutwg.c portable/graph_client.o \
+	stub/screen_capture_stub.o windows/services.o windows/network.o \
+	utils/config.o utils/option.o windows/stdio.o
+	$(CC) $(CFLAGS) graph_games/breakoutwg.c portable/graph_client.o \
+	    stub/screen_capture_stub.o windows/services.o windows/network.o \
+	    utils/config.o utils/option.o windows/stdio.o \
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/breakoutwgr
+else
 breakoutwgr: graph_games/breakoutwg.c portable/graph_client.o \
 	stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) graph_games/breakoutwg.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
 	    -lssl -lcrypto -lm -lpthread -o bin/breakoutwgr
+endif
 
 #
 # Text editor

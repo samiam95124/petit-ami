@@ -45,16 +45,16 @@ point offset[8] = {
 
 square    board[MAXXS][MAXYS]; /* playing board */
 int       rndseq;              /* randomizer */
-long      x, y;                /* user move coordinates */
+int       x, y;                /* user move coordinates */
 int       done;                /* game over */
-long      centerx;             /* center of screen position x */
-long      centery;             /* center of screen position y */
-long      cursorx;             /* cursor location x */
-long      cursory;             /* cursor location y */
+int       centerx;             /* center of screen position x */
+int       centery;             /* center of screen position y */
+int       cursorx;             /* cursor location x */
+int       cursory;             /* cursor location y */
 ami_evtrec er;                  /* event record */
 int       badguess;            /* bad guess display flag */
-long      mousex;              /* mouse position x */
-long      mousey;              /* mouse position y */
+int       mousex;              /* mouse position x */
+int       mousey;              /* mouse position y */
 
 /*******************************************************************************
 

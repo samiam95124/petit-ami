@@ -128,8 +128,8 @@ typedef char bufstr[MAXSTR]; /* standard string buffer */
 /* these aren't locked because they are only set during init, read otherwise */
 static bufstr pthstr;   /* buffer for execution path */
 static bufstr langstr;  /* buffer for ami_language ami_country string (locale) */
-static long curlanguage; /* current ami_language */
-static long curcountry;  /* current ami_country */
+static ami_long curlanguage; /* current ami_language */
+static ami_long curcountry;  /* current ami_country */
 static char* prgpth;    /* program path */
 /* end of read-only group */
 
@@ -413,13 +413,13 @@ terminator (this follows the strncpy() precedent).
 
 static void cpycrit(
     /** destination buffer */        char* d,
-    /** destination buffer length */ long dl,
+    /** destination buffer length */ ami_long dl,
     /** source string */             const char* s
 )
 
 {
 
-    long l;
+    ami_long l;
 
     l = strlen(s); /* find length of source */
     if (l > dl) error("String too large for buffer");
@@ -575,8 +575,8 @@ in which case the terminating zero is left off (critical buffer convention).
 
 void ami_times(
     /** result string */           char *s,
-    /** result string length */    long sl,
-    /** time to convert */         long t
+    /** result string length */    ami_long sl,
+    /** time to convert */         ami_long t
 )
 
 {
@@ -660,8 +660,8 @@ in which case the terminating zero is left off (critical buffer convention).
 
 void ami_dates(
     /** string to place date into */   char *s,
-    /** string to place date length */ long sl,
-    /** time record to write from */   long t
+    /** string to place date length */ ami_long sl,
+    /** time record to write from */   ami_long t
 )
 
 {
@@ -762,7 +762,7 @@ Writes the time to a given file, from a time record.
 
 void ami_writetime(
         /** file to write to */ FILE *f,
-        /** time record to write from */ long t
+        /** time record to write from */ ami_long t
 )
 
 {
@@ -786,7 +786,7 @@ used by windows.
 
 void ami_writedate(
         /* file to write to */ FILE *f,
-        /* time record to write from */ long t
+        /* time record to write from */ ami_long t
 )
 
 {
@@ -806,7 +806,7 @@ Finds the current time as an S2000 integer.
 
 ********************************************************************************/
 
-long ami_time(void)
+ami_long ami_time(void)
 
 {
 
@@ -815,7 +815,7 @@ long ami_time(void)
     r = time(NULL); /* get current time */
     if (r < 0) unixerr();  /* process unix error */
 
-    return ((long) r-UNIXADJ);   /* return S2000 time */
+    return ((ami_long) r-UNIXADJ);   /* return S2000 time */
 
 }
 
@@ -830,7 +830,7 @@ timezones.
 
 ********************************************************************************/
 
-long ami_local(long t)
+ami_long ami_local(ami_long t)
 {
 
     return t+ami_timezone()+ami_daysave()*HOURSEC;
@@ -858,7 +858,7 @@ has more than enough precision to count from 0 AD to present.
 
 ********************************************************************************/
 
-long ami_clock(void)
+ami_long ami_clock(void)
 
 {
 
@@ -885,16 +885,16 @@ time that can be measured is 24 hours.
 
 ********************************************************************************/
 
-long ami_elapsed(long r)
+ami_long ami_elapsed(ami_long r)
 {
 
     /* reference time */
-    long t;
+    ami_long t;
 
     t = ami_clock();   /* get the current time */
     if (t >= r) t -= r; /* time has not wrapped */
     /* clock() wraps at 48 hours of 100us ticks, not at an integer limit */
-    else t += (long)DAYSEC*2*10000-r; /* time has wrapped */
+    else t += (ami_long)DAYSEC*2*10000-r; /* time has wrapped */
 
     return t;   /* return result */
 
@@ -912,7 +912,7 @@ is null or all blanks
 
 ********************************************************************************/
 
-long ami_validfile(
+ami_long ami_validfile(
     /* string to validate */ char *s
 )
 
@@ -939,7 +939,7 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
-long ami_validpath(
+ami_long ami_validpath(
     /* string to validate */ char *s
 )
 
@@ -965,7 +965,7 @@ on that directory.
 
 ********************************************************************************/
 
-long ami_wild(
+ami_long ami_wild(
     /* filename */ char *s
 )
 
@@ -1032,7 +1032,7 @@ in which case the terminating zero is left off (critical buffer convention).
 void ami_getenv(
     /** string name */        char* esn,
     /** string data */        char* esd,
-    /** string data length */ long esdl
+    /** string data length */ ami_long esdl
 )
 {
 
@@ -1439,7 +1439,7 @@ an abnormal termination is always nonzero.
 
 void ami_execw(
     /** program name to execute */ char *cmd,
-    /** return error */ long *err
+    /** return error */ ami_long *err
 )
 
 {
@@ -1552,7 +1552,7 @@ signal (shell convention), so an abnormal termination is always nonzero.
 void ami_execew(
         /** program name to execute */ char *cmd,
         /** environment */             ami_envrec *el,
-        /** return error */            long *err
+        /** return error */            ami_long *err
 )
 
 {
@@ -1612,7 +1612,7 @@ convention).
 
 void ami_getcur(
         /** buffer to get path */ char *fn,
-        /** length of buffer */   long l
+        /** length of buffer */   ami_long l
 )
 
 {
@@ -1673,9 +1673,9 @@ is left off (critical buffer convention).
 
 void ami_brknam(
     /** file specification */ char *fn,
-    /** path */               char *p, long pl,
-    /** name */               char *n, long nl,
-    /** extention */          char *e, long el
+    /** path */               char *p, ami_long pl,
+    /** name */               char *n, ami_long nl,
+    /** extention */          char *e, ami_long el
 )
 
 {
@@ -1760,7 +1760,7 @@ left off (critical buffer convention).
 
 void ami_maknam(
     /** file specification to build */ char *fn,
-    /** file specification length */   long fnl,
+    /** file specification length */   ami_long fnl,
     /** path */                        char *p,
     /** filename */                    char *n,
     /** extension */                   char *e
@@ -1815,7 +1815,7 @@ left off (critical buffer convention).
 
 void ami_fulnam(
     /** filename */        char *fn,
-    /** filename length */ long fnl
+    /** filename length */ ami_long fnl
 )
 {
 
@@ -1854,7 +1854,7 @@ left off (critical buffer convention).
 
 void ami_getpgm(
     /** program path */        char* p,
-    /** program path length */ long  pl
+    /** program path length */ ami_long  pl
 )
 {
 
@@ -1920,7 +1920,7 @@ left off (critical buffer convention).
 
 void ami_getusr(
     /** pathname */        char *fn,
-    /** pathname length */ long fnl
+    /** pathname length */ ami_long fnl
 )
 {
 
@@ -2335,7 +2335,7 @@ host location.
 
 *******************************************************************************/
 
-long ami_latitude(void)
+ami_long ami_latitude(void)
 
 {
 
@@ -2362,7 +2362,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-long ami_longitude(void)
+ami_long ami_longitude(void)
 
 {
 
@@ -2397,7 +2397,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-long ami_altitude(void)
+ami_long ami_altitude(void)
 
 {
 
@@ -2415,7 +2415,7 @@ determined by ami_latitude/ami_longitude.
 
 *******************************************************************************/
 
-long ami_country(void)
+ami_long ami_country(void)
 
 {
 
@@ -2706,8 +2706,8 @@ static countryety countrytab[] = {
 
 void ami_countrys(
     /** string buffer */           char* s,
-    /** length of buffer */        long len,
-    /** ISO 3166-1 ami_country code */ long c)
+    /** length of buffer */        ami_long len,
+    /** ISO 3166-1 ami_country code */ ami_long c)
 
 {
 
@@ -2729,7 +2729,7 @@ negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
-long ami_timezone(void)
+ami_long ami_timezone(void)
 
 {
 
@@ -2775,7 +2775,7 @@ Note that local() already takes daylight savings into account.
 
 *******************************************************************************/
 
-long ami_daysave(void)
+ami_long ami_daysave(void)
 
 
 {
@@ -2798,7 +2798,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-long ami_time24hour(void)
+ami_long ami_time24hour(void)
 
 {
 
@@ -2818,7 +2818,7 @@ necessarily be added at the end, and thus out of order.
 
 *******************************************************************************/
 
-long ami_language(void)
+ami_long ami_language(void)
 
 {
 
@@ -3046,8 +3046,8 @@ static langety langtab[] = {
 
 void ami_languages(
     /** string buffer */ char* s,
-    /** length of buffer */ long len,
-    /** ami_language code */ long l
+    /** length of buffer */ ami_long len,
+    /** ami_language code */ ami_long l
 )
 
 {
@@ -3115,7 +3115,7 @@ Note that ami_times() compensates for this.
 
 *******************************************************************************/
 
-long ami_timeorder(void)
+ami_long ami_timeorder(void)
 
 {
 
@@ -3147,7 +3147,7 @@ Note that ami_dates() compensates for this.
 
 *******************************************************************************/
 
-long ami_dateorder(void)
+ami_long ami_dateorder(void)
 
 {
 
@@ -3230,7 +3230,7 @@ static void* dummystart(void *function)
 
 }
 
-long ami_newthread(void (*threadmain)(void))
+ami_long ami_newthread(void (*threadmain)(void))
 
 {
 
@@ -3271,7 +3271,7 @@ Creates a new concurrency lock and returns the logical id for it.
 
 *******************************************************************************/
 
-long ami_initlock(void)
+ami_long ami_initlock(void)
 
 {
 
@@ -3314,7 +3314,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-void ami_deinitlock(long ln)
+void ami_deinitlock(ami_long ln)
 
 {
 
@@ -3343,7 +3343,7 @@ come first served.
 
 *******************************************************************************/
 
-void ami_lock(long ln)
+void ami_lock(ami_long ln)
 
 {
 
@@ -3370,7 +3370,7 @@ lock and that is in a runnable state is set to run.
 
 *******************************************************************************/
 
-void ami_unlock(long ln)
+void ami_unlock(ami_long ln)
 
 {
 
@@ -3395,7 +3395,7 @@ Creates a new concurrency signal and returns the logical id for it.
 
 *******************************************************************************/
 
-long ami_initsig(void)
+ami_long ami_initsig(void)
 
 {
 
@@ -3438,7 +3438,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-void ami_deinitsig(long sn)
+void ami_deinitsig(ami_long sn)
 
 {
 
@@ -3466,7 +3466,7 @@ signal or just one is set to run by a signal.
 
 *******************************************************************************/
 
-void ami_sendsig(long sn)
+void ami_sendsig(ami_long sn)
 
 {
 
@@ -3497,7 +3497,7 @@ still active, and not just assume it.
 
 *******************************************************************************/
 
-void ami_sendsigone(long sn)
+void ami_sendsigone(ami_long sn)
 
 {
 
@@ -3528,7 +3528,7 @@ run, and thus the wait and signal operations are synchronized together.
 
 *******************************************************************************/
 
-void ami_waitsig(long ln, long sn)
+void ami_waitsig(ami_long ln, ami_long sn)
 
 {
 

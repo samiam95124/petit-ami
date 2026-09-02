@@ -43,16 +43,16 @@ int main(int argc, char* argv[])
 
     ami_menuptr sm = NULL;
     ami_evtrec  er;
-    long        wx, wy;
-    long        i;
+    ami_long    wx, wy;
+    ami_long    i;
     int         after = FALSE;
     int         narrow = FALSE;
     int         child = FALSE;
     int         binvis = FALSE;
     int         buf = FALSE;
     int         widget = FALSE;
-    long        wide = 1500;
-    long        tall = 600;
+    ami_long    wide = 1500;
+    ami_long    tall = 600;
     FILE*       pane;
 
     for (i = 1; i < argc; i++) {
@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
         if (buf) ami_buffer(pane, TRUE);
         if (widget) {
 
-            long sw, sh;
+            ami_long sw, sh;
 
             ami_scrollvertsizg(pane, &sw, &sh);
             ami_scrollvertg(pane, 1, 1, sw, 200, 1);

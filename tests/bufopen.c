@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 
     FILE* w1;
     FILE* w2;
-    long  i;
+    ami_long  i;
     int   nobuf = FALSE;
     int   noframe = FALSE;
     int   toplevel = FALSE;

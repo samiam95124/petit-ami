@@ -15,7 +15,7 @@ Accept message file connections and give simple test messages.
 
 #define BUFLEN 250
 
-long secure = FALSE;
+ami_long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -29,12 +29,12 @@ int main(int argc, char **argv)
 {
 
     char buff[BUFLEN];
-    unsigned long addr;
-    long fn;
-    long len;
-    long argi = 1;
-    long argcl = argc;
-    long port;
+    unsigned int addr;
+    int fn;
+    int len;
+    ami_long argi = 1;
+    ami_long argcl = argc;
+    int port;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

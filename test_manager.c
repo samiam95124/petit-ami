@@ -95,9 +95,9 @@ int main(void)
     FILE*      win1;  /* subwindow 1 */
     FILE*      win2;  /* subwindow 2 */
     ami_evtrec er;    /* event record */
-    long       done;
-    long       evline; /* trace line in root window */
-    long       evcnt;  /* events traced */
+    ami_long   done;
+    ami_long   evline; /* trace line in root window */
+    ami_long   evcnt;  /* events traced */
     const char* en;
     char       buff[250];
 
@@ -161,7 +161,7 @@ int main(void)
             en = evtnam(er.etype);
             if (en) {
 
-                sprintf(buff, "%4ld: window %ld: %-8s", ++evcnt, er.winid, en);
+                sprintf(buff, "%4lld: window %lld: %-8s", AMI_LONG_CAST(++evcnt), AMI_LONG_CAST(er.winid), en);
                 ami_cursor(stdout, 1, evline+(evcnt%10));
                 printf("%-40s", buff);
 

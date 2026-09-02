@@ -79,7 +79,7 @@ address is returned as an integer.
 
 *******************************************************************************/
 
-void ami_addrnet(string name, unsigned long* addr)
+void ami_addrnet(string name, ami_ulong* addr)
 
 {
 
@@ -118,9 +118,9 @@ are used.
 
 *******************************************************************************/
 
-FILE* ami_opennet(/* IP address */      unsigned long addr,
-                 /* port */            long port,
-                 /* link is secured */ long secure
+FILE* ami_opennet(/* IP address */      ami_ulong addr,
+                 /* port */            ami_long port,
+                 /* link is secured */ ami_long secure
 )
 
 {
@@ -134,8 +134,8 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
 FILE* ami_opennetv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            long port,
-    /* link is secured */ long secure
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -156,10 +156,10 @@ DTLS, with fixed length messages.
 
 *******************************************************************************/
 
-long ami_openmsg(
-    /* ip address */      unsigned long addr,
-    /* port */            long port,
-    /* link is secured */ long secure
+ami_long ami_openmsg(
+    /* ip address */      ami_ulong addr,
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -170,11 +170,11 @@ long ami_openmsg(
 
 }
 
-long ami_openmsgv6(
+ami_long ami_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            long port,
-    /* link is secured */ long secure
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -197,8 +197,8 @@ another program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-long ami_waitmsg(/* port number to wait on */ long port,
-               /* secure mode */            long secure
+ami_long ami_waitmsg(/* port number to wait on */ ami_long port,
+               /* secure mode */            ami_long secure
                )
 
 {
@@ -223,7 +223,7 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-long ami_maxmsg(unsigned long addr, long secure)
+ami_long ami_maxmsg(ami_ulong addr, ami_long secure)
 
 {
 
@@ -247,8 +247,8 @@ packet breakage is possible.
 
 *******************************************************************************/
 
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
-                  long secure)
+ami_long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  ami_long secure)
 
 {
 
@@ -267,7 +267,7 @@ size (including 0) up to ami_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void ami_wrmsg(long fn, void* msg, unsigned long len)
+void ami_wrmsg(ami_long fn, void* msg, ami_ulong len)
 
 {
 
@@ -286,7 +286,7 @@ is known that a given message size will never be exceeded.
 
 *******************************************************************************/
 
-long ami_rdmsg(long fn, void* msg, unsigned long len)
+ami_long ami_rdmsg(ami_long fn, void* msg, ami_ulong len)
 
 {
 
@@ -298,13 +298,71 @@ long ami_rdmsg(long fn, void* msg, unsigned long len)
 
 /*******************************************************************************
 
+Test message file ready
+
+*******************************************************************************/
+
+ami_long ami_rdymsg(ami_long fn, ami_long usec)
+
+{
+
+    error("ami_rdymsg: Is not implemented");
+
+    return (0); /* this just shuts up compiler */
+
+}
+
+/*******************************************************************************
+
+Set message file timeout
+
+*******************************************************************************/
+
+void ami_tmomsg(ami_long fn, ami_long usec)
+
+{
+
+    error("ami_tmomsg: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Set message file receive buffer
+
+*******************************************************************************/
+
+void ami_bufmsg(ami_long fn, ami_long len)
+
+{
+
+    error("ami_bufmsg: Is not implemented");
+
+}
+
+/*******************************************************************************
+
+Shut down message file
+
+*******************************************************************************/
+
+void ami_shutmsg(ami_long fn)
+
+{
+
+    error("ami_shutmsg: Is not implemented");
+
+}
+
+/*******************************************************************************
+
 Close message file
 
 Closes the given message file.
 
 *******************************************************************************/
 
-void ami_clsmsg(long fn)
+void ami_clsmsg(ami_long fn)
 
 {
 
@@ -324,8 +382,8 @@ program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* ami_waitnet(/* port number to wait on */ long port,
-                 /* secure mode */            long secure
+FILE* ami_waitnet(/* port number to wait on */ ami_long port,
+                 /* secure mode */            ami_long secure
                 )
 
 {
@@ -355,7 +413,7 @@ carried on the wire. Thus it is reliable by definition.
 
 *******************************************************************************/
 
-long ami_relymsg(unsigned long addr)
+ami_long ami_relymsg(ami_ulong addr)
 
 {
 
@@ -365,7 +423,7 @@ long ami_relymsg(unsigned long addr)
 
 }
 
-long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+ami_long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -407,7 +465,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-long ami_certmsg(long fn, long which, string buff, long len)
+ami_long ami_certmsg(ami_long fn, ami_long which, string buff, ami_long len)
 
 {
 
@@ -448,7 +506,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-long ami_certnet(FILE* f, long which, string buff, long len)
+ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
 
 {
 
@@ -458,7 +516,7 @@ long ami_certnet(FILE* f, long which, string buff, long len)
 
 }
 
-void ami_certlistnet(FILE *f, long which, ami_certptr* list)
+void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list)
 
 {
 
@@ -490,7 +548,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-void ami_certlistmsg(long fn, long which, ami_certptr* list)
+void ami_certlistmsg(ami_long fn, ami_long which, ami_certptr* list)
 
 {
 

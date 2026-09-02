@@ -312,9 +312,9 @@ extern "C" {
 
 /* common types */
 
-typedef long ami_note;       /* 1..128  note number for midi */
-typedef long ami_channel;    /* 1..16   channel number */
-typedef long ami_instrument; /* 1..128  instrument number */
+typedef ami_long ami_note;       /* 1..128  note number for midi */
+typedef ami_long ami_channel;    /* 1..16   channel number */
+typedef ami_long ami_instrument; /* 1..128  instrument number */
 
 /* sequencer message types. each routine with a sequenced option has a
   sequencer message assocated with it */
@@ -333,23 +333,23 @@ typedef enum {
 typedef struct ami_seqmsg {
 
     struct ami_seqmsg* next; /* next message in list */
-    long               port; /* port to which message applies */
-    long               time; /* time to execute message */
+    ami_long           port; /* port to which message applies */
+    ami_long           time; /* time to execute message */
     ami_seqtyp         st;   /* type of message */
     union {
 
         /* st_noteon st_noteoff st_aftertouch st_pressure */
-        struct { ami_channel ntc; ami_note ntn; long ntv; };
+        struct { ami_channel ntc; ami_note ntn; ami_long ntv; };
         /* st_instchange */ struct { ami_channel icc; ami_instrument ici; };
         /* st_attack, st_release, st_vibrato, st_volsynthchan, st_porttime,
            st_balance, st_pan, st_timbre, st_brightness, st_reverb, st_tremulo,
            st_chorus, st_celeste, st_phaser, st_pitch, st_pitchrange,
-           st_mono */ struct { ami_channel vsc; long vsv; };
+           st_mono */ struct { ami_channel vsc; ami_long vsv; };
         /* st_poly */ ami_channel pc;
-        /* st_legato, st_portamento */ struct { ami_channel bsc; long bsb; };
-        /* st_playsynth */ long sid;
-        /* st_playwave */ long wt;
-        /* st_volwave */ long wv;
+        /* st_legato, st_portamento */ struct { ami_channel bsc; ami_long bsb; };
+        /* st_playsynth */ ami_long sid;
+        /* st_playwave */ ami_long wt;
+        /* st_volwave */ ami_long wv;
 
     };
 
@@ -363,124 +363,124 @@ typedef ami_seqmsg* ami_seqptr;
 
 void ami_starttimeout(void);
 void ami_stoptimeout(void);
-long ami_curtimeout(void);
+ami_long ami_curtimeout(void);
 void ami_starttimein(void);
 void ami_stoptimein(void);
-long ami_curtimein(void);
-long ami_synthout(void);
-long ami_synthin(void);
-void ami_opensynthout(long p);
-void ami_closesynthout(long p);
-void ami_opensynthin(long p);
-void ami_closesynthin(long p);
-void ami_noteon(long p, long t, ami_channel c, ami_note n, long v);
-void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v);
-void ami_instchange(long p, long t, ami_channel c, ami_instrument i);
-void ami_attack(long p, long t, ami_channel c, long at);
-void ami_release(long p, long t, ami_channel c, long rt);
-void ami_legato(long p, long t, ami_channel c, long b);
-void ami_portamento(long p, long t, ami_channel c, long b);
-void ami_vibrato(long p, long t, ami_channel c, long v);
-void ami_volsynthchan(long p, long t, ami_channel c, long v);
-void ami_porttime(long p, long t, ami_channel c, long v);
-void ami_balance(long p, long t, ami_channel c, long b);
-void ami_pan(long p, long t, ami_channel c, long b);
-void ami_timbre(long p, long t, ami_channel c, long tb);
-void ami_brightness(long p, long t, ami_channel c, long b);
-void ami_reverb(long p, long t, ami_channel c, long r);
-void ami_tremulo(long p, long t, ami_channel c, long tr);
-void ami_chorus(long p, long t, ami_channel c, long cr);
-void ami_celeste(long p, long t, ami_channel c, long ce);
-void ami_phaser(long p, long t, ami_channel c, long ph);
-void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at);
-void ami_pressure(long p, long t, ami_channel c, long pr);
-void ami_pitch(long p, long t, ami_channel c, long pt);
-void ami_pitchrange(long p, long t, ami_channel c, long v);
-void ami_mono(long p, long t, ami_channel c, long ch);
-void ami_poly(long p, long t, ami_channel c);
-void ami_loadsynth(long s, string sf);
-void ami_playsynth(long p, long t, long s);
-void ami_delsynth(long s);
-void ami_waitsynth(long p);
-void ami_wrsynth(long p, ami_seqptr sp);
-void ami_rdsynth(long p, ami_seqptr sp);
-long ami_waveout(void);
-long ami_wavein(void);
-void ami_openwaveout(long p);
-void ami_closewaveout(long p);
-void ami_loadwave(long w, string fn);
-void ami_playwave(long p, long t, long w);
-void ami_delwave(long w);
-void ami_volwave(long p, long t, long v);
-void ami_waitwave(long p);
-void ami_chanwaveout(long p, long c);
-void ami_ratewaveout(long p, long r);
-void ami_lenwaveout(long p, long l);
-void ami_sgnwaveout(long p, long s);
-void ami_fltwaveout(long p, long f);
-void ami_endwaveout(long p, long e);
-void ami_wrwave(long p, byte* buff, long len);
-void ami_openwavein(long p);
-void ami_closewavein(long p);
-long ami_chanwavein(long p);
-long ami_ratewavein(long p);
-long ami_lenwavein(long p);
-long ami_sgnwavein(long p);
-long ami_endwavein(long p);
-long ami_fltwavein(long p);
-long ami_rdwave(long p, byte* buff, long len);
-void ami_synthoutname(long p, string name, long len);
-void ami_synthinname(long p, string name, long len);
-void ami_waveoutname(long p, string name, long len);
-void ami_waveinname(long p, string name, long len);
-long ami_setparamsynthin(long p, string name, string value);
-long ami_setparamsynthout(long p, string name, string value);
-long ami_setparamwavein(long p, string name, string value);
-long ami_setparamwaveout(long p, string name, string value);
-void ami_getparamsynthin(long p, string name, string value, long len);
-void ami_getparamsynthout(long p, string name, string value, long len);
-void ami_getparamwavein(long p, string name, string value, long len);
-void ami_getparamwaveout(long p, string name, string value, long len);
+ami_long ami_curtimein(void);
+ami_long ami_synthout(void);
+ami_long ami_synthin(void);
+void ami_opensynthout(ami_long p);
+void ami_closesynthout(ami_long p);
+void ami_opensynthin(ami_long p);
+void ami_closesynthin(ami_long p);
+void ami_noteon(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v);
+void ami_noteoff(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v);
+void ami_instchange(ami_long p, ami_long t, ami_channel c, ami_instrument i);
+void ami_attack(ami_long p, ami_long t, ami_channel c, ami_long at);
+void ami_release(ami_long p, ami_long t, ami_channel c, ami_long rt);
+void ami_legato(ami_long p, ami_long t, ami_channel c, ami_long b);
+void ami_portamento(ami_long p, ami_long t, ami_channel c, ami_long b);
+void ami_vibrato(ami_long p, ami_long t, ami_channel c, ami_long v);
+void ami_volsynthchan(ami_long p, ami_long t, ami_channel c, ami_long v);
+void ami_porttime(ami_long p, ami_long t, ami_channel c, ami_long v);
+void ami_balance(ami_long p, ami_long t, ami_channel c, ami_long b);
+void ami_pan(ami_long p, ami_long t, ami_channel c, ami_long b);
+void ami_timbre(ami_long p, ami_long t, ami_channel c, ami_long tb);
+void ami_brightness(ami_long p, ami_long t, ami_channel c, ami_long b);
+void ami_reverb(ami_long p, ami_long t, ami_channel c, ami_long r);
+void ami_tremulo(ami_long p, ami_long t, ami_channel c, ami_long tr);
+void ami_chorus(ami_long p, ami_long t, ami_channel c, ami_long cr);
+void ami_celeste(ami_long p, ami_long t, ami_channel c, ami_long ce);
+void ami_phaser(ami_long p, ami_long t, ami_channel c, ami_long ph);
+void ami_aftertouch(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long at);
+void ami_pressure(ami_long p, ami_long t, ami_channel c, ami_long pr);
+void ami_pitch(ami_long p, ami_long t, ami_channel c, ami_long pt);
+void ami_pitchrange(ami_long p, ami_long t, ami_channel c, ami_long v);
+void ami_mono(ami_long p, ami_long t, ami_channel c, ami_long ch);
+void ami_poly(ami_long p, ami_long t, ami_channel c);
+void ami_loadsynth(ami_long s, string sf);
+void ami_playsynth(ami_long p, ami_long t, ami_long s);
+void ami_delsynth(ami_long s);
+void ami_waitsynth(ami_long p);
+void ami_wrsynth(ami_long p, ami_seqptr sp);
+void ami_rdsynth(ami_long p, ami_seqptr sp);
+ami_long ami_waveout(void);
+ami_long ami_wavein(void);
+void ami_openwaveout(ami_long p);
+void ami_closewaveout(ami_long p);
+void ami_loadwave(ami_long w, string fn);
+void ami_playwave(ami_long p, ami_long t, ami_long w);
+void ami_delwave(ami_long w);
+void ami_volwave(ami_long p, ami_long t, ami_long v);
+void ami_waitwave(ami_long p);
+void ami_chanwaveout(ami_long p, ami_long c);
+void ami_ratewaveout(ami_long p, ami_long r);
+void ami_lenwaveout(ami_long p, ami_long l);
+void ami_sgnwaveout(ami_long p, ami_long s);
+void ami_fltwaveout(ami_long p, ami_long f);
+void ami_endwaveout(ami_long p, ami_long e);
+void ami_wrwave(ami_long p, byte* buff, ami_long len);
+void ami_openwavein(ami_long p);
+void ami_closewavein(ami_long p);
+ami_long ami_chanwavein(ami_long p);
+ami_long ami_ratewavein(ami_long p);
+ami_long ami_lenwavein(ami_long p);
+ami_long ami_sgnwavein(ami_long p);
+ami_long ami_endwavein(ami_long p);
+ami_long ami_fltwavein(ami_long p);
+ami_long ami_rdwave(ami_long p, byte* buff, ami_long len);
+void ami_synthoutname(ami_long p, string name, ami_long len);
+void ami_synthinname(ami_long p, string name, ami_long len);
+void ami_waveoutname(ami_long p, string name, ami_long len);
+void ami_waveinname(ami_long p, string name, ami_long len);
+ami_long ami_setparamsynthin(ami_long p, string name, string value);
+ami_long ami_setparamsynthout(ami_long p, string name, string value);
+ami_long ami_setparamwavein(ami_long p, string name, string value);
+ami_long ami_setparamwaveout(ami_long p, string name, string value);
+void ami_getparamsynthin(ami_long p, string name, string value, ami_long len);
+void ami_getparamsynthout(ami_long p, string name, string value, ami_long len);
+void ami_getparamwavein(ami_long p, string name, string value, ami_long len);
+void ami_getparamwaveout(ami_long p, string name, string value, ami_long len);
 
 /* non-standard local access calls */
 
 /* register synth plug ins */
-void _pa_synthoutplug(long addend, string name,
-                      void (*opnseq)(long p), void (*clsseq)(long p),
-                      void (*wrseq)(long p, ami_seqptr sp),
-                      long (*setparam)(long p, string name, string value),
-                      void (*getparam)(long p, string name, string value, long len)
+void _pa_synthoutplug(ami_long addend, string name,
+                      void (*opnseq)(ami_long p), void (*clsseq)(ami_long p),
+                      void (*wrseq)(ami_long p, ami_seqptr sp),
+                      ami_long (*setparam)(ami_long p, string name, string value),
+                      void (*getparam)(ami_long p, string name, string value, ami_long len)
                      );
-void _pa_synthinplug(long addend, string name,
-                     void (*opnseq)(long p), void (*clsseq)(long p),
-                     void (*rdseq)(long p, ami_seqptr sp),
-                     long (*setparam)(long p, string name, string value),
-                     void (*getparam)(long p, string name, string value, long len)
+void _pa_synthinplug(ami_long addend, string name,
+                     void (*opnseq)(ami_long p), void (*clsseq)(ami_long p),
+                     void (*rdseq)(ami_long p, ami_seqptr sp),
+                     ami_long (*setparam)(ami_long p, string name, string value),
+                     void (*getparam)(ami_long p, string name, string value, ami_long len)
                     );
-void _pa_waveoutplug(long addend, string name,
-                     void (*open)(long p), void (*close)(long p),
-                     void (*chanwavout)(long p, long c),
-                     void (*ratewavout)(long p, long r),
-                     void (*lenwavout)(long p, long l),
-                     void (*sgnwavout)(long p, long s),
-                     void (*fltwavout)(long p, long f),
-                     void (*endwaveout)(long p, long e),
-                     void (*wrwav)(long p, byte* buff, long len),
-                     long (*setparam)(long p, string name, string value),
-                     void (*getparam)(long p, string name, string value, long len)
+void _pa_waveoutplug(ami_long addend, string name,
+                     void (*open)(ami_long p), void (*close)(ami_long p),
+                     void (*chanwavout)(ami_long p, ami_long c),
+                     void (*ratewavout)(ami_long p, ami_long r),
+                     void (*lenwavout)(ami_long p, ami_long l),
+                     void (*sgnwavout)(ami_long p, ami_long s),
+                     void (*fltwavout)(ami_long p, ami_long f),
+                     void (*endwaveout)(ami_long p, ami_long e),
+                     void (*wrwav)(ami_long p, byte* buff, ami_long len),
+                     ami_long (*setparam)(ami_long p, string name, string value),
+                     void (*getparam)(ami_long p, string name, string value, ami_long len)
                     );
-void _pa_waveinplug(long addend, string name,
-                    void (*open)(long p), void (*close)(long p),
-                    long (*chanwavin)(long p), long (*ratewavin)(long p),
-                    long (*lenwavin)(long p), long (*sgnwavin)(long p),
-                    long (*fltwavin)(long p), long (*endwavein)(long p),
-                    long (*rdwav)(long p, byte* buff, long len),
-                    long (*setparam)(long p, string name, string value),
-                    void (*getparam)(long p, string name, string value, long len)
+void _pa_waveinplug(ami_long addend, string name,
+                    void (*open)(ami_long p), void (*close)(ami_long p),
+                    ami_long (*chanwavin)(ami_long p), ami_long (*ratewavin)(ami_long p),
+                    ami_long (*lenwavin)(ami_long p), ami_long (*sgnwavin)(ami_long p),
+                    ami_long (*fltwavin)(ami_long p), ami_long (*endwavein)(ami_long p),
+                    ami_long (*rdwav)(ami_long p, byte* buff, ami_long len),
+                    ami_long (*setparam)(ami_long p, string name, string value),
+                    void (*getparam)(ami_long p, string name, string value, ami_long len)
                    );
 
 /* execute sequencer entry in main code */
-void _pa_excseq(long p, ami_seqptr sp);
+void _pa_excseq(ami_long p, ami_seqptr sp);
 
 #ifdef __cplusplus
 }

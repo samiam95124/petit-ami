@@ -24,36 +24,36 @@ typedef struct certfield {
 
     char*             name;     /* name of field */
     char*             data;     /* content of field */
-    long              critical; /* is a critical X509 field */
+    ami_long          critical; /* is a critical X509 field */
     struct certfield* fork;     /* sublist */
     struct certfield* next;     /* next entry in list */
 
 } certfield, *certptr;
 
 /* procedures and functions */
-void  addrnet(const char* name, unsigned long* addr);
+void  addrnet(const char* name, ami_ulong* addr);
 void  addrnetv6(const char* name, unsigned long long* addrh,
                 unsigned long long* addrl);
-FILE* opennet(unsigned long addr, long port, long secure = 0);
+FILE* opennet(ami_ulong addr, ami_long port, ami_long secure = 0);
 FILE* opennetv6(unsigned long long addrh, unsigned long long addrl,
-                long port, long secure = 0);
-long  maxmsg(unsigned long addr, long secure = 0);
-long  maxmsgv6(unsigned long long addrh, unsigned long long addrl,
-               long secure = 0);
-long  relymsg(unsigned long addr);
-long  relymsgv6(unsigned long long addrh, unsigned long long addrl);
-long  openmsg(unsigned long addr, long port, long secure = 0);
-long  openmsgv6(unsigned long long addrh, unsigned long long addrl,
-                long port, long secure = 0);
-void  wrmsg(long fn, void* msg, unsigned long len);
-long  rdmsg(long fn, void* msg, unsigned long len);
-void  clsmsg(long fn);
-FILE* waitnet(long port, long secure = 0);
-long  waitmsg(long port, long secure = 0);
-long  certnet(FILE* f, long which, char* cert, long len);
-long  certmsg(long fn, long which, char* cert, long len);
-void  certlistnet(FILE* f, long which, certptr* list);
-void  certlistmsg(long fn, long which, certptr* list);
+                ami_long port, ami_long secure = 0);
+ami_long  maxmsg(ami_ulong addr, ami_long secure = 0);
+ami_long  maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+               ami_long secure = 0);
+ami_long  relymsg(ami_ulong addr);
+ami_long  relymsgv6(unsigned long long addrh, unsigned long long addrl);
+ami_long  openmsg(ami_ulong addr, ami_long port, ami_long secure = 0);
+ami_long  openmsgv6(unsigned long long addrh, unsigned long long addrl,
+                ami_long port, ami_long secure = 0);
+void  wrmsg(ami_long fn, void* msg, ami_ulong len);
+ami_long  rdmsg(ami_long fn, void* msg, ami_ulong len);
+void  clsmsg(ami_long fn);
+FILE* waitnet(ami_long port, ami_long secure = 0);
+ami_long  waitmsg(ami_long port, ami_long secure = 0);
+ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len);
+ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len);
+void  certlistnet(FILE* f, ami_long which, certptr* list);
+void  certlistmsg(ami_long fn, ami_long which, certptr* list);
 void  certlistfree(certptr* list);
 
 /*******************************************************************************
@@ -94,15 +94,15 @@ net(const net&) = delete;
 net& operator=(const net&) = delete;
 
 /* methods */
-void opennet(unsigned long addr, long port, long secure = 0);
-void opennet(const char* name, long port, long secure = 0);
+void opennet(ami_ulong addr, ami_long port, ami_long secure = 0);
+void opennet(const char* name, ami_long port, ami_long secure = 0);
 void opennetv6(unsigned long long addrh, unsigned long long addrl,
-               long port, long secure = 0);
-void opennetv6(const char* name, long port, long secure = 0);
-void waitnet(long port, long secure = 0);
+               ami_long port, ami_long secure = 0);
+void opennetv6(const char* name, ami_long port, ami_long secure = 0);
+void waitnet(ami_long port, ami_long secure = 0);
 void close(void);
-long certnet(long which, char* cert, long len);
-void certlistnet(long which, certptr* list);
+ami_long certnet(ami_long which, char* cert, ami_long len);
+void certlistnet(ami_long which, certptr* list);
 
 /* the connection, for the stdio calls */
 operator FILE*(void);
@@ -111,8 +111,8 @@ operator FILE*(void);
 
 class msg {
 
-long fn;   /* the channel held */
-long open; /* it is held */
+ami_long fn;   /* the channel held */
+ami_long open; /* it is held */
 
 public:
 
@@ -127,17 +127,17 @@ msg(const msg&) = delete;
 msg& operator=(const msg&) = delete;
 
 /* methods */
-void openmsg(unsigned long addr, long port, long secure = 0);
-void openmsg(const char* name, long port, long secure = 0);
+void openmsg(ami_ulong addr, ami_long port, ami_long secure = 0);
+void openmsg(const char* name, ami_long port, ami_long secure = 0);
 void openmsgv6(unsigned long long addrh, unsigned long long addrl,
-               long port, long secure = 0);
-void openmsgv6(const char* name, long port, long secure = 0);
-void waitmsg(long port, long secure = 0);
-void wrmsg(void* buff, unsigned long len);
-long rdmsg(void* buff, unsigned long len);
+               ami_long port, ami_long secure = 0);
+void openmsgv6(const char* name, ami_long port, ami_long secure = 0);
+void waitmsg(ami_long port, ami_long secure = 0);
+void wrmsg(void* buff, ami_ulong len);
+ami_long rdmsg(void* buff, ami_ulong len);
 void clsmsg(void);
-long certmsg(long which, char* cert, long len);
-void certlistmsg(long which, certptr* list);
+ami_long certmsg(ami_long which, char* cert, ami_long len);
+void certlistmsg(ami_long which, certptr* list);
 
 }; /* class msg */
 

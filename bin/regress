@@ -22,12 +22,25 @@
 # With no test arguments, all tests are run. Returns the number of failing
 # tests, so 0 means a pass.
 #
+# Some text standards are of a platform's paths, environment, option character
+# and directory listing, and no mask covers that, so those tests keep a
+# standard per platform: tests/<test>.windows.cmp on Windows, tests/<test>.cmp
+# elsewhere. The tests that do are listed in plattests below; the rest share
+# one standard across the platforms.
+#
+# The print tests, txttest and pdftest, print into a file, tests/<test>.lst,
+# and that is what is compared: the text page by dif, the .pdf document whole.
+# Neither carries a date or anything else that varies from run to run, and the
+# .pdf sets its text in the standard PDF fonts, whose metrics are the module's
+# own, so one standard serves every platform.
+#
 # The picture standards are of a desktop's look -- the frame the screen tests
 # size themselves against, the menus, the theme -- and GNOME and Plasma draw
 # through different decoration modules, so each desktop keeps a set of its
 # own: tests/<test>.gnome.cmp and tests/<test>.plasma.cmp. The set is chosen
 # the way the decorations choose themselves, from XDG_CURRENT_DESKTOP, and a
-# desktop that has no set yet is told to make one with --update.
+# desktop that has no set yet is told to make one with --update. Windows is
+# a desktop of its own here, tests/<test>.windows.cmp.
 #
 # A picture run that fails is kept as tests/<test>.fail-<stamp>.lst, so the
 # screens that differed survive the re-run that overwrites the .lst.
@@ -58,6 +71,26 @@
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root" || exit 1
 
+# the platform, which names the text standards of the tests that keep one
+# per platform, and the programs
+case "$(uname -s)" in
+
+MINGW*|MSYS*|CYGWIN*) plat=".windows" ;;
+*)                    plat="" ;;
+
+esac
+plattests=" services_test "
+
+# The test's program. Windows names it with .exe, and a same-named file of
+# another platform's, such as a Linux build left in bin, must not stand for
+# it.
+binof()
+{
+
+    if [ -n "$plat" ]; then echo "bin/$1.exe"; else echo "bin/$1"; fi
+
+}
+
 update="0"
 tests=""
 for arg in "$@"; do
@@ -69,8 +102,8 @@ for arg in "$@"; do
 done
 if [ -z "$tests" ]; then
 
-    tests="stdio_test services_test network_test graphics_test \
-           management_test widget_test \
+    tests="stdio_test services_test network_test txttest pdftest \
+           graphics_test management_test widget_test \
            graphics_testr management_testr widget_testr"
 
 fi
@@ -86,8 +119,12 @@ fi
 #   varies with the time of day (12 hour locales suffix only pm times), so
 #   the line width varies run to run and the whole time is masked with '*'
 # - elapsed tick counts on the "test 11:" line of services_test
-# - process ids in temp file names from stdio_test, and the length of such
-#   a name, which grows with the digits in the pid
+# - temp file names from stdio_test: the directory, which is the platform's,
+#   and the process id; and the length of such a name, which grows with the
+#   digits in the pid
+# - the largest loopback message in network_test, which is the loopback
+#   route's MTU less the headers and so the platform's: Linux offers 65488
+#   over v6 where Windows offers 65487
 # - the daylight savings flag, which changes with the season. The timezone
 #   offset is not masked: it is a fixed property of the machine's zone now
 #   that ami_timezone handles the day wrap
@@ -100,9 +137,11 @@ mask()
         -e 's|[0-9]{2}/[0-9]{2}/[0-9]{4}|??/??/????|g' \
         -e 's|[0-9]{2}:[0-9]{2}:[0-9]{2}( [ap]m)?|*|g' \
         -e 's|^(test 11: )[0-9]+|\1*|' \
-        -e 's|/tmp/tmp\.[0-9]+\.|/tmp/tmp.*.|g' \
+        -e 's|"[^"]*tmp\.[0-9]+\.([12])"|"*tmp.*.\1"|g' \
         -e 's|^(test 702: 1 s/b 1 \(length )[0-9]+|\1*|' \
         -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
+        -e 's|^(    maximum message for (v6 )?loopback: )[0-9]+|\1*|' \
+        -e 's|^(    sent )[0-9]+( bytes \(the maxmsg(v6)? limit\), server received )[0-9]+|\1*\2*|' \
         -e 's|^(    google.com A    -> ).*|\1*|' \
         -e 's|^(    google.com AAAA -> ).*|\1*|'
 
@@ -120,7 +159,7 @@ startrsrv()
 
     if [ -z "$rsrvpid" ]; then
 
-        GRAPH_PORT=$rport bin/graph_server > /dev/null 2>&1 &
+        GRAPH_PORT=$rport "$(binof graph_server)" > /dev/null 2>&1 &
         rsrvpid=$!
         sleep 2
 
@@ -151,23 +190,31 @@ runtest()
 
     services_test)
         # fixed sandbox for the directory listing; controlled environment;
-        # PATH carries the repository bin for the exec tests
+        # PATH carries the repository bin for the exec tests. Windows names
+        # the user in USERNAME.
+        user="${USER:-$USERNAME}"
         (cd tests/regress && \
-         env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" \
+         env -i HOME="$HOME" USER="$user" LOGNAME="$user" \
              PATH="$root/bin:/usr/local/bin:/usr/bin:/bin" \
              LANG="en_US.UTF-8" \
-             timeout 300 "$root/bin/$1" < /dev/null) \
+             timeout 300 "$root/$(binof "$1")" < /dev/null) \
              > "tests/$1.lst" 2>&1
         ;;
 
     graphics_testr|management_testr|widget_testr)
         # the same walk, drawn through the remote server on this machine
         startrsrv
-        GRAPH_PORT=$rport timeout 300 "bin/$1" auto < /dev/null \
+        GRAPH_PORT=$rport timeout 300 "$(binof "$1")" auto < /dev/null \
             > "tests/$1.out" 2>&1
         remoterc=$?
         ;;
 
+    txttest|pdftest)
+        # the printer is a file: the document is the listing
+        rm -f "tests/$1.lst"
+        timeout 300 "$(binof "$1")" "tests/$1.lst" < /dev/null \
+            > "tests/$1.out" 2>&1
+        ;;
     graphics_test|management_test|widget_test)
         # "auto" walks every screen without waiting for a keypress. What
         # these tests produce is not text but the screens themselves: the
@@ -175,12 +222,12 @@ runtest()
         # file is the listing they are judged on. Each test is given its
         # own, so two runs beside each other do not write over one another.
         rm -f "tests/$1.lst"
-        timeout 300 "bin/$1" auto "tests/$1.lst" < /dev/null \
+        timeout 300 "$(binof "$1")" auto "tests/$1.lst" < /dev/null \
             > "tests/$1.out" 2>&1
         ;;
 
     *)
-        timeout 300 "bin/$1" < /dev/null > "tests/$1.lst" 2>&1
+        timeout 300 "$(binof "$1")" < /dev/null > "tests/$1.lst" 2>&1
         ;;
 
     esac
@@ -190,41 +237,45 @@ runtest()
 # the PNG signature, for counting the screens in a capture stream
 pngsig=$(printf '\211PNG')
 
-# the desktop the screens are drawn in, which names the picture standards
+# the desktop the screens are drawn in, which names the picture standards;
+# Windows draws its own look, and is its own desktop
 case "$XDG_CURRENT_DESKTOP" in
 
 *KDE*) desk="plasma" ;;
 *)     desk="gnome" ;;
 
 esac
+if [ -n "$plat" ]; then desk="windows"; fi
 
 fails=0
 for t in $tests; do
 
-    if [ ! -x "bin/$t" ]; then
+    if [ ! -x "$(binof "$t")" ]; then
 
-        echo "$t: no bin/$t, run make first"
+        echo "$t: no $(binof "$t"), run make first"
         fails=$((fails+1))
         continue
 
     fi
     case "$t" in
 
-    graphics_test|management_test|widget_test)    pict=1; remote=0 ;;
-    graphics_testr|management_testr|widget_testr) pict=1; remote=1 ;;
-    *)                                            pict=0; remote=0 ;;
+    graphics_test|management_test|widget_test)    pict=1; remote=0; whole=0 ;;
+    graphics_testr|management_testr|widget_testr) pict=1; remote=1; whole=0 ;;
+    pdftest)                                      pict=0; remote=0; whole=1 ;;
+    *)                                            pict=0; remote=0; whole=0 ;;
 
     esac
-    if [ "$pict" = "1" ] && [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ]; then
+    if [ "$pict" = "1" ] && [ -z "$plat" ] && \
+       [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ]; then
 
-        # it draws on a screen, and there is none here
+        # it draws on a screen, and there is none here; Windows always has one
         echo "$t: skipped, no display"
         continue
 
     fi
-    if [ "$remote" = "1" ] && [ ! -x bin/graph_server ]; then
+    if [ "$remote" = "1" ] && [ ! -x "$(binof graph_server)" ]; then
 
-        echo "$t: no bin/graph_server, run make first"
+        echo "$t: no $(binof graph_server), run make first"
         fails=$((fails+1))
         continue
 
@@ -307,14 +358,62 @@ for t in $tests; do
         continue
 
     fi
+    # the standard: this platform's own where the test keeps one per platform
+    std="tests/$t.cmp"
+    case "$plattests" in
+    *" $t "*) std="tests/$t$plat.cmp" ;;
+    esac
+    if [ ! -f "tests/$t.lst" ]; then
+
+        echo "$t: *** fail *** (no output produced)"
+        fails=$((fails+1))
+        continue
+
+    fi
+    if [ "$whole" = "1" ]; then
+
+        # a document compared whole: nothing in it wants masking
+        if [ "$update" = "1" ]; then
+            cp "tests/$t.lst" "$std"
+            echo "$t: $std regenerated, please review"
+        elif [ ! -f "$std" ]; then
+            {
+                echo "no $std: there is no standard for $t yet"
+                echo "make one with: bin/regress --update $t, then review it"
+            } > "tests/$t.dif"
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+        elif cmp -s "tests/$t.lst" "$std"; then
+            rm -f "tests/$t.dif"
+            echo "$t: pass"
+        else
+            {
+                echo "document differs from $std"
+                cmp "$std" "tests/$t.lst" 2>&1
+            } > "tests/$t.dif"
+            echo "$t: *** fail *** (see tests/$t.dif)"
+            fails=$((fails+1))
+        fi
+        continue
+
+    fi
     if [ "$update" = "1" ]; then
 
-        mask < "tests/$t.lst" > "tests/$t.cmp"
-        echo "$t: tests/$t.cmp regenerated, please review"
+        mask < "tests/$t.lst" > "$std"
+        echo "$t: $std regenerated, please review"
+
+    elif [ ! -f "$std" ]; then
+
+        {
+            echo "no $std: this platform has no standard for $t yet"
+            echo "make one with: bin/regress --update $t, then review it"
+        } > "tests/$t.dif"
+        echo "$t: *** fail *** (see tests/$t.dif)"
+        fails=$((fails+1))
 
     else
 
-        bin/dif -q "tests/$t.lst" "tests/$t.cmp" > "tests/$t.dif"
+        bin/dif -q "tests/$t.lst" "$std" > "tests/$t.dif"
         if [ -s "tests/$t.dif" ]; then
 
             echo "$t: *** fail *** (see tests/$t.dif)"

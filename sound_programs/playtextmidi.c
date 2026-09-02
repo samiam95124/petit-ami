@@ -76,7 +76,7 @@ Globals
 
 *******************************************************************************/
 
-long dport = AMI_SYNTH_OUT;
+int dport = AMI_SYNTH_OUT;
 
 ami_optrec opttbl[] = {
 
@@ -253,7 +253,7 @@ Scale velocity from MIDI 0-127 to Ami 0-LONG_MAX
 
 *******************************************************************************/
 
-static long scalevel(int v)
+static int scalevel(int v)
 {
     if (v <= 0) return 0;
     if (v >= 127) return LONG_MAX;
@@ -269,8 +269,8 @@ Main
 
 int main(int argc, char **argv)
 {
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
     char line[1024];
 
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

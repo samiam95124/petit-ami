@@ -37,6 +37,8 @@ int main(void) - Runs the test suite and returns non-zero if any test failed.
 #include <stdarg.h>
 #include <unistd.h> /* for SEEK_SET/SEEK_CUR/SEEK_END */
 
+#include <localdefs.h> /* ami_long: the l modifier's width */
+
 #define MAXSTR 100         /* general string buffer length */
 #define TMPNAME "stdio_test.tmp" /* scratch file name */
 #define TMPNAME2 "stdio_test2.tmp" /* second scratch file name */
@@ -76,13 +78,13 @@ Check an integer against its expected value
 
 static void chki(
     /** test number */    int n,
-    /** produced value */ long got,
-    /** expected value */ long exp
+    /** produced value */ ami_long got,
+    /** expected value */ ami_long exp
 )
 
 {
 
-    printf("test %d: %ld s/b %ld", n, got, exp);
+    printf("test %d: %lld s/b %lld", n, AMI_LONG_CAST(got), AMI_LONG_CAST(exp));
     if (got != exp) { printf("  *** FAIL ***"); fails++; }
     putchar('\n');
 
@@ -232,7 +234,7 @@ int main(void)
     char   c;              /* character scan target */
     int    n;              /* return value/count holder */
     FILE   *fp;            /* file pointer */
-    long   pos;            /* file position */
+    ami_long pos;          /* file position */
     fpos_t fpos;           /* file position record */
     char   buf[64];        /* block I/O buffer */
 
@@ -280,15 +282,16 @@ int main(void)
     sprintf(s, "%d%% of %s", 50, "x");  chks(130, s, "50% of x");
     sprintf(s, "%d,%d,%d", 1, 2, 3);    chks(131, s, "1,2,3");
 
-    /* integer length modifiers (l, ll, z, h), exercising the full width */
-    sprintf(s, "%ld", 5000000000L);            chks(132, s, "5000000000");
+    /* integer length modifiers (l, ll, z, h), exercising the full width;
+       l is the C long, 32 bits on some hosts, so its values fit that */
+    sprintf(s, "%ld", 2000000000L);            chks(132, s, "2000000000");
     sprintf(s, "%lld", 123456789012345LL);     chks(133, s, "123456789012345");
     sprintf(s, "%lu", 4000000000UL);           chks(134, s, "4000000000");
     sprintf(s, "%llx", 0xDEADBEEFCAFEULL);     chks(135, s, "deadbeefcafe");
     sprintf(s, "%zu", (size_t)4000000000U);    chks(136, s, "4000000000");
     sprintf(s, "%hd", (short)-7);              chks(137, s, "-7");
     /* a wide argument must not disturb the ones that follow it */
-    sprintf(s, "%ld then %d", 5000000000L, 42); chks(138, s, "5000000000 then 42");
+    sprintf(s, "%ld then %d", 2000000000L, 42); chks(138, s, "2000000000 then 42");
 
     /* floating point */
     sprintf(s, "%f", 3.14159);          chks(140, s, "3.141590");
@@ -417,10 +420,10 @@ int main(void)
         short     sh;  /* short target */
         size_t    z;   /* size_t target */
 
-        n = sscanf("5000000000", "%ld", &lo);
+        n = sscanf("2000000000", "%ld", &lo);
         sprintf(s, "%ld", lo);
-        printf("test 214: n=%d v=%s s/b n=1 v=5000000000\n", n, s);
-        if (n != 1 || strcmp(s, "5000000000")) fails++;
+        printf("test 214: n=%d v=%s s/b n=1 v=2000000000\n", n, s);
+        if (n != 1 || strcmp(s, "2000000000")) fails++;
 
         n = sscanf("123456789012345", "%lld", &llo);
         sprintf(s, "%lld", llo);
@@ -589,7 +592,7 @@ int main(void)
 
         fseek(fp, 5, SEEK_SET);
         pos = ftell(fp);
-        printf("test 400: %ld s/b 5 (ftell after seek)\n", pos);
+        printf("test 400: %lld s/b 5 (ftell after seek)\n", AMI_LONG_CAST(pos));
         if (pos != 5) fails++;
         i = fgetc(fp);
         printf("test 401: %c s/b 5 (char at offset 5)\n", i);
@@ -607,7 +610,7 @@ int main(void)
 
         rewind(fp);
         pos = ftell(fp);
-        printf("test 404: %ld s/b 0 (ftell after rewind)\n", pos);
+        printf("test 404: %lld s/b 0 (ftell after rewind)\n", AMI_LONG_CAST(pos));
         if (pos != 0) fails++;
 
         fseek(fp, 4, SEEK_SET);

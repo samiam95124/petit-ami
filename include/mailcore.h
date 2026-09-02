@@ -27,6 +27,7 @@ think about, and nothing in a front end should ever take the lock again.
 
 #ifndef __MAILCORE_H__
 #define __MAILCORE_H__
+#include <localdefs.h>
 
 #include <stdio.h>
 
@@ -46,8 +47,8 @@ think about, and nothing in a front end should ever take the lock again.
    length say where it is in its mailbox. */
 typedef struct {
 
-    long off;             /* where the message starts in the file */
-    long len;             /* how long it is */
+    ami_long off;             /* where the message starts in the file */
+    ami_long len;             /* how long it is */
     char from[MAXSTR];    /* who it is from, shown */
     char subject[MAXSTR]; /* the subject line */
     char addr[100];       /* the sender's address, for matching */
@@ -55,7 +56,7 @@ typedef struct {
     char cat[32];         /* what kind of mail it is */
     char snip[SNIPPET];   /* the start of the message */
     char when[40];        /* the date, shown the way mail readers show it */
-    long date;            /* the date, for sorting */
+    ami_long date;            /* the date, for sorting */
 
 } msgrec;
 
@@ -66,16 +67,16 @@ typedef struct {
     char name[MAXSTR];   /* the name the server knows it by */
     char show[MAXSTR];   /* the name shown, without the [Gmail]/ part */
     char file[MAXSTR*2]; /* the mbox file it is kept in */
-    long msgs;           /* messages in the file */
-    long dirty;          /* something has been put in it since it was read */
+    ami_long msgs;           /* messages in the file */
+    ami_long dirty;          /* something has been put in it since it was read */
     msgrec* idx;         /* every message in it, read from the index file */
-    long idxct;          /* how many */
-    long idxmax;         /* and how many the array has room for */
-    long idxok;          /* the index has been read and is good */
-    long wantidx;        /* it wants reading, when the worker gets to it */
-    long noselect;       /* the server says it holds no messages */
-    long local;          /* ours alone: a folder with no server side */
-    long srv;            /* which server it belongs to, -1 if local */
+    ami_long idxct;          /* how many */
+    ami_long idxmax;         /* and how many the array has room for */
+    ami_long idxok;          /* the index has been read and is good */
+    ami_long wantidx;        /* it wants reading, when the worker gets to it */
+    ami_long noselect;       /* the server says it holds no messages */
+    ami_long local;          /* ours alone: a folder with no server side */
+    ami_long srv;            /* which server it belongs to, -1 if local */
 
 } foldrec;
 
@@ -84,12 +85,12 @@ typedef struct {
 
     char name[64];      /* what it is called here */
     char imap[MAXSTR];  /* where the mail is read from */
-    long imapport;
+    ami_long imapport;
     char smtp[MAXSTR];  /* and where it would be sent from */
-    long smtpport;
+    ami_long smtpport;
     char user[MAXSTR];
     char pass[MAXSTR];
-    long limit;         /* messages fetched from each folder */
+    ami_long limit;         /* messages fetched from each folder */
 
 } srvrec;
 
@@ -101,7 +102,7 @@ What the front end supplies
 
 void status(const char* s);
 void fail(const char* what);
-void statprog(long pos, long max);
+void statprog(ami_long pos, ami_long max);
 
 /*******************************************************************************
 
@@ -110,23 +111,23 @@ What the core keeps
 *******************************************************************************/
 
 extern foldrec folders[MAXFOLDER];
-extern long    foldct;
-extern long    foldsel;    /* the folder being shown */
+extern ami_long    foldct;
+extern ami_long    foldsel;    /* the folder being shown */
 extern msgrec* msgs;       /* the messages of that folder */
-extern long    msgct;
-extern long    msgsel;     /* the message being read */
-extern long    msgtop;     /* the first message shown */
+extern ami_long    msgct;
+extern ami_long    msgsel;     /* the message being read */
+extern ami_long    msgtop;     /* the first message shown */
 extern srvrec  servers[MAXSRV];
-extern long    srvct;      /* how many accounts there are */
-extern long    pollsec;    /* how often to look, in seconds */
-extern long    sendsrv;    /* which account mail is sent from */
+extern ami_long    srvct;      /* how many accounts there are */
+extern ami_long    pollsec;    /* how often to look, in seconds */
+extern ami_long    sendsrv;    /* which account mail is sent from */
 extern char    store[MAXSTR];
-extern long    limit;
-extern long    diag;       /* report the conversation to stderr */
+extern ami_long    limit;
+extern ami_long    diag;       /* report the conversation to stderr */
 extern char*   mailprog;   /* argv[0], to find what is kept beside it */
 
 /* the message waiting to go out, which the compose window fills in */
-extern long    sendwant;
+extern ami_long    sendwant;
 extern char    outto[MAXSTR];
 extern char    outcc[MAXSTR];
 extern char    outsub[MAXSTR];
@@ -136,9 +137,9 @@ extern char    outrefs[MAXSTR*2];
 
 /* the connection the fetch is using */
 extern char    imapsrv[MAXSTR];
-extern long    imapport;
+extern ami_long    imapport;
 extern char    smtpsrv[MAXSTR];
-extern long    smtpport;
+extern ami_long    smtpport;
 extern char    username[MAXSTR];
 extern char    password[MAXSTR];
 
@@ -152,28 +153,28 @@ picked up on the front end's next tick.
 *******************************************************************************/
 
 extern char wrkwhat[MAXSTR]; /* what is being worked on */
-extern long wrkpos;          /* how far into it */
-extern long wrkmax;          /* and how big it is */
-extern long wrkfolds;        /* the folder pane wants redrawing */
-extern long wrklist;         /* and so does the message list */
-extern long wrkstop;         /* drop what you are doing */
-extern long wrkbusy;         /* it has something in hand just now */
-extern long wrkgo;           /* a fetch is running */
-extern long wrkdone;         /* it finished, and nobody has noticed yet */
-extern long wrkrelist;       /* this fetch is to ask what folders there are */
-extern long wrkcount;        /* and this one is only to read the store */
-extern long wrkstart;        /* the thread has been made */
-extern long fetching;        /* a fetch is under way */
-extern long timerrun;        /* the timer that watches it is going */
-extern long idxwant;         /* the folder the display wants read */
-extern long idxfold;         /* the folder its list was read from */
-extern long idxdoing;        /* and the one being read just now */
-extern long fetchgot;        /* messages taken, this fetch */
-extern long fetchdup;        /* and passed over as already here */
-extern long digct;           /* digests known over the whole store */
+extern ami_long wrkpos;          /* how far into it */
+extern ami_long wrkmax;          /* and how big it is */
+extern ami_long wrkfolds;        /* the folder pane wants redrawing */
+extern ami_long wrklist;         /* and so does the message list */
+extern ami_long wrkstop;         /* drop what you are doing */
+extern ami_long wrkbusy;         /* it has something in hand just now */
+extern ami_long wrkgo;           /* a fetch is running */
+extern ami_long wrkdone;         /* it finished, and nobody has noticed yet */
+extern ami_long wrkrelist;       /* this fetch is to ask what folders there are */
+extern ami_long wrkcount;        /* and this one is only to read the store */
+extern ami_long wrkstart;        /* the thread has been made */
+extern ami_long fetching;        /* a fetch is under way */
+extern ami_long timerrun;        /* the timer that watches it is going */
+extern ami_long idxwant;         /* the folder the display wants read */
+extern ami_long idxfold;         /* the folder its list was read from */
+extern ami_long idxdoing;        /* and the one being read just now */
+extern ami_long fetchgot;        /* messages taken, this fetch */
+extern ami_long fetchdup;        /* and passed over as already here */
+extern ami_long digct;           /* digests known over the whole store */
 extern char failsaid[MAXSTR*3]; /* what went wrong, for the front end to show */
-extern long failwait;
-extern long sendfail;        /* and whether it was a send that failed */
+extern ami_long failwait;
+extern ami_long sendfail;        /* and whether it was a send that failed */
 extern char sentsaid[MAXSTR]; /* and what went right */
 
 /*******************************************************************************
@@ -182,7 +183,7 @@ What the front end can ask for
 
 *******************************************************************************/
 
-extern long datlock;         /* made by the front end at startup, with
+extern ami_long datlock;         /* made by the front end at startup, with
                                 ami_initlock(), before the thread exists */
 void  dlock(void);           /* held for the whole of an event */
 void  dunlock(void);
@@ -192,46 +193,46 @@ void  countfolders(void);    /* their counts, from their indexes */
 void  readaccount(void);
 void  writeaccount(void);
 int   haveaccount(void);
-void  useserver(long i);
+void  useserver(ami_long i);
 void  blankserver(srvrec* r);
 void  migratestore(void);
 void  renamestore(const char* was, const char* now);
-void  indexfolder(long fold);
-void  idxdrop(long fold);
+void  indexfolder(ami_long fold);
+void  idxdrop(ami_long fold);
 void  idxsetaside(void);
 void  idxgiveback(void);
 void  useidx(void);          /* point the list at the selected folder */
-long  localfolder(const char* who);
-long  movelocal(long fold, const char* dst, const char* set);
-char* getmsg(long fold, long i);
+ami_long  localfolder(const char* who);
+ami_long  movelocal(ami_long fold, const char* dst, const char* set);
+char* getmsg(ami_long fold, ami_long i);
 void  smtpcheck(void);
 void  sendmail(const char* to, const char* cc, const char* subject,
                const char* body, const char* inreply, const char* refs,
-               char* err, long errl);
+               char* err, ami_long errl);
 void  servesend(void);
 void  serveindex(void);
-void  storefolders(long srv);
-int   getfolders(long srv);
+void  storefolders(ami_long srv);
+int   getfolders(ami_long srv);
 void  imapclose(void);
 void  fetchorder(void);
 void  fetchend(void);
 void  fetchstep(void);
 void  fetchrun(void);
-int   serverquiet(long srv);
+int   serverquiet(ami_long srv);
 void  fetchsay(void);
 
 /* the pieces a message is made of */
-int   findheader(const char* msg, const char* name, char* d, long dl);
-char* textof(const char* msg, long len, long want);
-void  classify(const char* msg, char* cat, long cl);
-void  addrof(const char* s, char* d, long dl);
-void  nameof(const char* s, char* d, long dl);
-long  parsedate(const char* s, char* show, long sn);
+int   findheader(const char* msg, const char* name, char* d, ami_long dl);
+char* textof(const char* msg, ami_long len, ami_long want);
+void  classify(const char* msg, char* cat, ami_long cl);
+void  addrof(const char* s, char* d, ami_long dl);
+void  nameof(const char* s, char* d, ami_long dl);
+ami_long  parsedate(const char* s, char* show, ami_long sn);
 void  trim(char* s);
-void  copystr(char* d, const char* s, long dl);
-void* getmem(long n);
-int   reachable(const char* host, long port, long secs);
-int   resfile(const char* leaf, char* path, long pl);
-const char* nextaddr(const char* p, char* d, long dl);
+void  copystr(char* d, const char* s, ami_long dl);
+void* getmem(ami_long n);
+int   reachable(const char* host, ami_long port, ami_long secs);
+int   resfile(const char* leaf, char* path, ami_long pl);
+const char* nextaddr(const char* p, char* d, ami_long dl);
 
 #endif

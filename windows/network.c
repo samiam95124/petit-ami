@@ -281,12 +281,25 @@ Outputs an error message using the special syslib function, then halts.
 
 *******************************************************************************/
 
+/* the installed error handler; a handler that longjmps takes the
+   error, one that returns lets the abort proceed */
+static ami_neterrhan_t neterrhan;
+
+void ami_neterror(ami_neterrhan_t handler)
+
+{
+
+    neterrhan = handler;
+
+}
+
 static void netwrterr(const char* s)
 
 {
 
     fprintf(stderr, "\nError: Network: %s\n", s);
 
+    if (neterrhan) neterrhan(s);
     exit(1);
 
 }
@@ -360,7 +373,7 @@ Prints an address in the form 1.2.3.4. A diagnostic.
 
 *******************************************************************************/
 
-static void prtadr(unsigned long addr)
+static void prtadr(ami_ulong addr)
 
 {
 
@@ -391,6 +404,7 @@ static void wskerr(void)
                   0, NULL);
     fprintf(stderr, "\n*** Windows error: %s\n", (char*)lpMsgBuf);
 
+    if (neterrhan) neterrhan("Windows socket error");
     exit(1);
 
 }
@@ -418,6 +432,7 @@ static void sslerrorqueue(void)
 {
 
     ERR_print_errors_cb(sslerrcb, NULL);
+    if (neterrhan) neterrhan("SSL error");
     exit(1);
 
 }
@@ -468,6 +483,7 @@ static void sslerror(SSL* ssl, int r)
 
     }
 
+    if (neterrhan) neterrhan("SSL error");
     exit(1);
 
 }
@@ -1047,7 +1063,7 @@ address is returned as an integer.
 
 *******************************************************************************/
 
-void ami_addrnet(const string name, unsigned long* addr)
+void ami_addrnet(const string name, ami_ulong* addr)
 
 {
 
@@ -1220,9 +1236,9 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
 
 }
 
-FILE* ami_opennet(/* IP address */      unsigned long addr,
-                 /* port */            long port,
-                 /* link is secured */ long secure
+FILE* ami_opennet(/* IP address */      ami_ulong addr,
+                 /* port */            ami_long port,
+                 /* link is secured */ ami_long secure
 )
 
 {
@@ -1263,8 +1279,8 @@ FILE* ami_opennet(/* IP address */      unsigned long addr,
 FILE* ami_opennetv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            long port,
-    /* link is secured */ long secure
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -1333,10 +1349,10 @@ static int msgfil(SOCKET sock)
 
 }
 
-long ami_openmsg(
-    /* ip address */      unsigned long addr,
-    /* port */            long port,
-    /* link is secured */ long secure
+ami_long ami_openmsg(
+    /* ip address */      ami_ulong addr,
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -1422,11 +1438,11 @@ long ami_openmsg(
 
 }
 
-long ami_openmsgv6(
+ami_long ami_openmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* port */            long port,
-    /* link is secured */ long secure
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -1522,8 +1538,8 @@ another program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-long ami_waitmsg(/* port number to wait on */ long port,
-                /* secure mode */            long secure
+ami_long ami_waitmsg(/* port number to wait on */ ami_long port,
+                /* secure mode */            ami_long secure
                 )
 
 {
@@ -1656,9 +1672,9 @@ flag the channel will be opened with.
 
 *******************************************************************************/
 
-long ami_maxmsg(
-    /* ip address */      unsigned long addr,
-    /* link is secured */ long secure
+ami_long ami_maxmsg(
+    /* ip address */      ami_ulong addr,
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -1737,10 +1753,10 @@ flag the channel will be opened with.
 
 *******************************************************************************/
 
-long ami_maxmsgv6(
+ami_long ami_maxmsgv6(
     /* v6 address low */  unsigned long long addrh,
     /* v6 address high */ unsigned long long addrl,
-    /* link is secured */ long secure
+    /* link is secured */ ami_long secure
 )
 
 {
@@ -1804,7 +1820,7 @@ size (including 0) up to ami_maxmsg() is allowed.
 
 *******************************************************************************/
 
-void ami_wrmsg(long fn, void* msg, unsigned long len)
+void ami_wrmsg(ami_long fn, void* msg, ami_ulong len)
 
 {
 
@@ -1848,7 +1864,7 @@ of the buffer should be equal to maxmsg to pass all possible messages, unless it
 is known that a given message size will never be exceeded.
 
 *******************************************************************************/
-long ami_rdmsg(long fn, void* msg, unsigned long len)
+ami_long ami_rdmsg(ami_long fn, void* msg, ami_ulong len)
 
 {
 
@@ -1903,13 +1919,122 @@ long ami_rdmsg(long fn, void* msg, unsigned long len)
 
 /*******************************************************************************
 
+Test message file ready
+
+Waits up to the given number of microseconds for a message to arrive on the
+message file, zero to poll. Returns nonzero if a read would not block. A secure
+channel is probed by the socket beneath it: the read that follows is what
+decrypts.
+
+*******************************************************************************/
+
+ami_long ami_rdymsg(ami_long fn, ami_long usec)
+
+{
+
+    fd_set         fs;
+    struct timeval tv;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn] || !opnfil[fn]->msg) error(enotmsg);
+
+    /* the file number is a parking place: the socket is the thing to probe */
+    FD_ZERO(&fs);
+    FD_SET(opnfil[fn]->sock, &fs);
+    tv.tv_sec = (ami_long)(usec/1000000);
+    tv.tv_usec = (ami_long)(usec%1000000);
+
+    return (select(0, &fs, NULL, NULL, &tv) > 0);
+
+}
+
+/*******************************************************************************
+
+Set message file timeout
+
+Bounds the reads on the message file: a read that waits longer than the given
+number of microseconds fails. Zero clears the bound, which is the setting for a
+channel that is kept: the opens bound the reads by default so that a lost reply
+fails instead of hanging.
+
+*******************************************************************************/
+
+void ami_tmomsg(ami_long fn, ami_long usec)
+
+{
+
+    DWORD ms;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn] || !opnfil[fn]->msg) error(enotmsg);
+
+    /* Windows takes the timeout as a DWORD in milliseconds */
+    ms = (DWORD)((usec+999)/1000);
+    setsockopt(opnfil[fn]->sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&ms,
+               sizeof(ms));
+
+}
+
+/*******************************************************************************
+
+Set message file receive buffer
+
+Sizes the receive buffering on the message file, in bytes. A deep buffer lets a
+burst of messages wait for a slow reader without loss.
+
+*******************************************************************************/
+
+void ami_bufmsg(ami_long fn, ami_long len)
+
+{
+
+    int rb = (int)len;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn] || !opnfil[fn]->msg) error(enotmsg);
+
+    setsockopt(opnfil[fn]->sock, SOL_SOCKET, SO_RCVBUF, (const char*)&rb,
+               sizeof(rb));
+
+}
+
+/*******************************************************************************
+
+Shut down message file
+
+Shuts the message file under its reader: a read blocked on it, in another
+thread, fails. The file still wants closing.
+
+*******************************************************************************/
+
+void ami_shutmsg(ami_long fn)
+
+{
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+
+    /* check is a message file */
+    if (!opnfil[fn] || !opnfil[fn]->msg) error(enotmsg);
+
+    shutdown(opnfil[fn]->sock, SD_BOTH);
+
+}
+
+/*******************************************************************************
+
 Close message file
 
 Closes the given message file.
 
 *******************************************************************************/
 
-void ami_clsmsg(long fn)
+void ami_clsmsg(ami_long fn)
 
 {
 
@@ -1949,8 +2074,8 @@ program tries to take the same port, it is blocked.
 
 *******************************************************************************/
 
-FILE* ami_waitnet(/* port number to wait on */ long port,
-                 /* secure mode */            long secure
+FILE* ami_waitnet(/* port number to wait on */ ami_long port,
+                 /* secure mode */            ami_long secure
                 )
 
 {
@@ -2019,7 +2144,7 @@ carried on the wire. Thus it is reliable by definition.
 
 *******************************************************************************/
 
-long ami_relymsg(unsigned long addr)
+ami_long ami_relymsg(ami_ulong addr)
 
 {
 
@@ -2027,7 +2152,7 @@ long ami_relymsg(unsigned long addr)
 
 }
 
-long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
+ami_long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl)
 
 {
 
@@ -2067,7 +2192,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-long ami_certmsg(long fn, long which, string buff, long len)
+ami_long ami_certmsg(ami_long fn, ami_long which, string buff, ami_long len)
 
 {
 
@@ -2175,7 +2300,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-long ami_certnet(FILE* f, long which, string buff, long len)
+ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
 
 {
 
@@ -2467,7 +2592,7 @@ line. Servers are required to provide certificates. Clients are not.
 
 *******************************************************************************/
 
-void ami_certlistmsg(long fn, long which, ami_certptr* list)
+void ami_certlistmsg(ami_long fn, ami_long which, ami_certptr* list)
 
 {
 
@@ -2690,7 +2815,7 @@ ami_certlistmsg, which this routine wraps.
 
 *******************************************************************************/
 
-void ami_certlistnet(FILE *f, long which, ami_certptr* list)
+void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list)
 
 {
 

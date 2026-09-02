@@ -17,10 +17,10 @@ message.
 #define BUFLEN 250
 
 /* do/do not secure connection */
-long secure = FALSE;
+ami_long secure = FALSE;
 
 /* use IPv6 or IPv4 */
-long ipv6 = FALSE;
+ami_long ipv6 = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -35,13 +35,13 @@ int main(int argc, char **argv)
 {
 
     char buff[BUFLEN];
-    unsigned long addr;
+    ami_ulong addr;
     unsigned long long addrh, addrl;
-    long fn;
-    long len;
-    long argi = 1;
-    long argcl = argc;
-    long port;
+    int fn;
+    int len;
+    ami_long argi = 1;
+    ami_long argcl = argc;
+    int port;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

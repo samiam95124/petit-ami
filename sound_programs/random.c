@@ -24,7 +24,7 @@ late 1970's-early 1980's.
 
 #define SECOND 10000
 
-long dport = AMI_SYNTH_OUT; /* set default synth out */
+ami_long dport = AMI_SYNTH_OUT; /* set default synth out */
 ami_instrument inst = AMI_INST_ACOUSTIC_GRAND; /* set default instrument */
 
 ami_optrec opttbl[] = {
@@ -37,7 +37,7 @@ ami_optrec opttbl[] = {
 
 };
 
-void waittime(long t)
+void waittime(int t)
 
 {
 
@@ -54,9 +54,9 @@ int main(int argc, char **argv)
 {
 
     int i;
-    long key;
-    long argi = 1;
-    long argcl = argc;
+    int key;
+    ami_long argi = 1;
+    ami_long argcl = argc;
 
 
     /* parse user options */
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     for( i = 0; i < 1000; i++) {
 
         /* Generate a random key */
-        key = 60 + (long)(12.0f * rand() / (float) RAND_MAX)-1;
+        key = 60 + (int)(12.0f * rand() / (float) RAND_MAX)-1;
         /* Play a note */
         ami_noteon(dport, 0, 1, key, LONG_MAX);
         /* Sleep for .1 second */

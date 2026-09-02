@@ -309,11 +309,11 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 
 {
 
-    long l;
+    ami_long l;
 
     l = strlen(s); /* find length of source */
     if (l > dl) error("String too large for destination");
@@ -500,7 +500,7 @@ Note that the port number is not checked.
 
 *******************************************************************************/
 
-static void makpcmout(long p)
+static void makpcmout(ami_long p)
 
 {
 
@@ -536,7 +536,7 @@ Note that the port number is not checked.
 
 *******************************************************************************/
 
-static void makpcmin(long p)
+static void makpcmin(ami_long p)
 
 {
 
@@ -573,7 +573,7 @@ Note that the port number is not checked.
 
 *******************************************************************************/
 
-static void makmidinp(long p)
+static void makmidinp(ami_long p)
 
 {
 
@@ -753,115 +753,115 @@ static void dmpseq(ami_seqptr p)
 
     switch (p->st) { /* sequencer message type */
 
-        case st_noteon:       printf("noteon: Time: %ld Port: %ld Channel: %ld "
-                                     "Note: %ld Velocity: %ld\n",
-                                     p->time, p->port, p->ntc, p->ntn, p->ntv);
+        case st_noteon:       printf("noteon: Time: %lld Port: %lld Channel: %lld "
+                                     "Note: %lld Velocity: %lld\n",
+                                     AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->ntc), AMI_LONG_CAST(p->ntn), AMI_LONG_CAST(p->ntv));
                               break;
-        case st_noteoff:      printf("noteoff: Time: %ld Port: %ld Channel: %ld "
-                                     "Note: %ld Velocity: %ld\n", p->time,
-                                     p->port, p->ntc, p->ntn, p->ntv);
+        case st_noteoff:      printf("noteoff: Time: %lld Port: %lld Channel: %lld "
+                                     "Note: %lld Velocity: %lld\n", AMI_LONG_CAST(p->time),
+                                     AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->ntc), AMI_LONG_CAST(p->ntn), AMI_LONG_CAST(p->ntv));
                               break;
-        case st_instchange:   printf("instchange: Time: %ld Port: %ld p->port "
-                                     "Channel: %ld Instrument: %ld\n", p->time,
-                                     p->port, p->icc, p->ici);
+        case st_instchange:   printf("instchange: Time: %lld Port: %lld p->port "
+                                     "Channel: %lld Instrument: %lld\n", AMI_LONG_CAST(p->time),
+                                     AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->icc), AMI_LONG_CAST(p->ici));
                               break;
-        case st_attack:       printf("attack: Time: %ld Port: %ld Channel: %ld "
-                                     "attack time: %ld\n", p->time, p->port,
-                                     p->vsc, p->vsv);
+        case st_attack:       printf("attack: Time: %lld Port: %lld Channel: %lld "
+                                     "attack time: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->vsc), AMI_LONG_CAST(p->vsv));
                               break;
-        case st_release:      printf("release: Time: %ld Port: %ld Channel: %ld "
-                                     "release time: %ld\n", p->time, p->port,
-                                     p->vsc, p->vsv);
+        case st_release:      printf("release: Time: %lld Port: %lld Channel: %lld "
+                                     "release time: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->vsc), AMI_LONG_CAST(p->vsv));
                               break;
-        case st_legato:       printf("legato: Time: %ld Port: %ld Channel: %ld "
-                                     "legato on/off: %ld\n", p->time, p->port,
-                                     p->bsc, p->bsb);
+        case st_legato:       printf("legato: Time: %lld Port: %lld Channel: %lld "
+                                     "legato on/off: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->bsc), AMI_LONG_CAST(p->bsb));
                               break;
-        case st_portamento:   printf("portamento: Time: %ld Port: %ld Channel: %ld "
-                                     "portamento on/off: %ld\n", p->time, p->port,
-                                     p->bsc, p->bsb);
+        case st_portamento:   printf("portamento: Time: %lld Port: %lld Channel: %lld "
+                                     "portamento on/off: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->bsc), AMI_LONG_CAST(p->bsb));
                               break;
-        case st_vibrato:      printf("vibrato: Time: %ld Port: %ld Channel: %ld "
-                                     "Vibrato: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_vibrato:      printf("vibrato: Time: %lld Port: %lld Channel: %lld "
+                                     "Vibrato: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_volsynthchan: printf("volsynthchan: Time: %ld Port: %ld Channel: %ld "
-                                     "Volume: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_volsynthchan: printf("volsynthchan: Time: %lld Port: %lld Channel: %lld "
+                                     "Volume: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_porttime:     printf("porttime: Time: %ld Port: %ld Channel: %ld "
-                                     "Portamento time: %ld\n", p->time, p->port,
-                                     p->vsc, p->vsv);
+        case st_porttime:     printf("porttime: Time: %lld Port: %lld Channel: %lld "
+                                     "Portamento time: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->vsc), AMI_LONG_CAST(p->vsv));
                               break;
-        case st_balance:      printf("attack: Time: %ld Port: %ld Channel: %ld "
-                                     "Ballance: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_balance:      printf("attack: Time: %lld Port: %lld Channel: %lld "
+                                     "Ballance: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_pan:          printf("pan: Time: %ld Port: %ld Channel: %ld "
-                                     "Pan: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_pan:          printf("pan: Time: %lld Port: %lld Channel: %lld "
+                                     "Pan: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_timbre:       printf("timbre: Time: %ld Port: %ld Channel: %ld "
-                                     "Timbre: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_timbre:       printf("timbre: Time: %lld Port: %lld Channel: %lld "
+                                     "Timbre: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_brightness:   printf("brightness: Time: %ld Port: %ld Channel: %ld "
-                                     "Brightness: %ld\n", p->time, p->port,
-                                     p->vsc, p->vsv);
+        case st_brightness:   printf("brightness: Time: %lld Port: %lld Channel: %lld "
+                                     "Brightness: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->vsc), AMI_LONG_CAST(p->vsv));
                               break;
-        case st_reverb:       printf("reverb: Time: %ld Port: %ld Channel: %ld "
-                                     "Reverb: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_reverb:       printf("reverb: Time: %lld Port: %lld Channel: %lld "
+                                     "Reverb: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_tremulo:      printf("tremulo: Time: %ld Port: %ld Channel: %ld "
-                                     "Tremulo: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_tremulo:      printf("tremulo: Time: %lld Port: %lld Channel: %lld "
+                                     "Tremulo: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_chorus:       printf("chorus: Time: %ld Port: %ld Channel: %ld "
-                                     "Chorus: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_chorus:       printf("chorus: Time: %lld Port: %lld Channel: %lld "
+                                     "Chorus: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_celeste:      printf("celeste: Time: %ld Port: %ld Channel: %ld "
-                                     "Celeste: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_celeste:      printf("celeste: Time: %lld Port: %lld Channel: %lld "
+                                     "Celeste: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_phaser:       printf("Phaser: Time: %ld Port: %ld Channel: %ld "
-                                     "Phaser: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_phaser:       printf("Phaser: Time: %lld Port: %lld Channel: %lld "
+                                     "Phaser: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_aftertouch:   printf("aftertouch: Time: %ld Port: %ld Channel: %ld "
-                                     "Note: %ld Aftertouch: %ld\n", p->time,
-                                     p->port, p->ntc, p->ntn, p->ntv);
+        case st_aftertouch:   printf("aftertouch: Time: %lld Port: %lld Channel: %lld "
+                                     "Note: %lld Aftertouch: %lld\n", AMI_LONG_CAST(p->time),
+                                     AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->ntc), AMI_LONG_CAST(p->ntn), AMI_LONG_CAST(p->ntv));
                               break;
-        case st_pressure:     printf("pressure: Time: %ld Port: %ld Channel: %ld "
-                                     "Pressure: %ld\n", p->time, p->port, p->ntc,
-                                     p->ntv);
+        case st_pressure:     printf("pressure: Time: %lld Port: %lld Channel: %lld "
+                                     "Pressure: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->ntc),
+                                     AMI_LONG_CAST(p->ntv));
                               break;
-        case st_pitch:        printf("pitch: Time: %ld Port: %ld Channel: %ld "
-                                     "Pitch: %ld\n", p->time, p->port, p->vsc,
-                                     p->vsv);
+        case st_pitch:        printf("pitch: Time: %lld Port: %lld Channel: %lld "
+                                     "Pitch: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->vsc),
+                                     AMI_LONG_CAST(p->vsv));
                               break;
-        case st_pitchrange:   printf("pitchrange: Time: %ld Port: %ld Channel: %ld "
-                                     "Pitch range: %ld\n", p->time, p->port,
-                                     p->vsc, p->vsv);
+        case st_pitchrange:   printf("pitchrange: Time: %lld Port: %lld Channel: %lld "
+                                     "Pitch range: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->vsc), AMI_LONG_CAST(p->vsv));
                               break;
-        case st_mono:         printf("mono: Time: %ld Port: %ld Channel: %ld "
-                                     "Mono notes: %ld\n", p->time, p->port,
-                                     p->vsc, p->vsv);
+        case st_mono:         printf("mono: Time: %lld Port: %lld Channel: %lld "
+                                     "Mono notes: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->vsc), AMI_LONG_CAST(p->vsv));
                               break;
-        case st_poly:         printf("poly: Time: %ld Port: %ld Channel: %ld\n",
-                                     p->time, p->port, p->pc);
+        case st_poly:         printf("poly: Time: %lld Port: %lld Channel: %lld\n",
+                                     AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->pc));
                               break;
-        case st_playsynth:    printf("playsynth: Time: %ld Port: %ld "
-                                     ".mid file id: %ld\n", p->time, p->port,
-                                     p->sid);
+        case st_playsynth:    printf("playsynth: Time: %lld Port: %lld "
+                                     ".mid file id: %lld\n", AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port),
+                                     AMI_LONG_CAST(p->sid));
                               break;
-        case st_playwave:     printf("playwave: Time: %ld Port: %ld "
-                                     ".wav file logical number: %ld\n", p->time,
-                                     p->port, p->wt);
+        case st_playwave:     printf("playwave: Time: %lld Port: %lld "
+                                     ".wav file logical number: %lld\n", AMI_LONG_CAST(p->time),
+                                     AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->wt));
                               break;
-        case st_volwave:      printf("volwave: Time: %ld Port: %ld Volume: %ld\n",
-                                     p->time, p->port, p->wv);
+        case st_volwave:      printf("volwave: Time: %lld Port: %lld Volume: %lld\n",
+                                     AMI_LONG_CAST(p->time), AMI_LONG_CAST(p->port), AMI_LONG_CAST(p->wv));
                               break;
 
     }
@@ -1005,7 +1005,7 @@ The device entry must already be allocated.
 
 *******************************************************************************/
 
-static void loadinpar(long p)
+static void loadinpar(ami_long p)
 
 {
 
@@ -1091,7 +1091,7 @@ Returns the total number of output midi ports.
 
 ********************************************************************************/
 
-long ami_synthout(void)
+ami_long ami_synthout(void)
 
 {
 
@@ -1107,7 +1107,7 @@ Returns the total number of input midi ports.
 
 *******************************************************************************/
 
-long ami_synthin(void)
+ami_long ami_synthin(void)
 
 {
 
@@ -1126,7 +1126,7 @@ midi chained devices outside the computer.
 
 ********************************************************************************/
 
-void ami_opensynthout(long p)
+void ami_opensynthout(ami_long p)
 
 {
 
@@ -1143,7 +1143,7 @@ Closes a previously opened midi output port.
 
 ********************************************************************************/
 
-void ami_closesynthout(long p)
+void ami_closesynthout(ami_long p)
 
 {
 
@@ -1227,7 +1227,7 @@ sequencer started.
 
 ********************************************************************************/
 
-long ami_curtimeout(void)
+ami_long ami_curtimeout(void)
 
 {
 
@@ -1284,7 +1284,7 @@ sequencer started.
 
 *******************************************************************************/
 
-long ami_curtimein(void)
+ami_long ami_curtimein(void)
 
 {
 
@@ -1306,7 +1306,7 @@ The velocity is set as 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteon(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
 
 {
 
@@ -1360,7 +1360,7 @@ The velocity is set as 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteoff(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
 
 {
 
@@ -1411,7 +1411,7 @@ by Midi GM encoding, 1 to 128. Takes a time for sequencing.
 
 ********************************************************************************/
 
-void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
+void ami_instchange(ami_long p, ami_long t, ami_channel c, ami_instrument i)
 
 {
 
@@ -1459,7 +1459,7 @@ Processes a controller value set, from 0 to 127.
 
 ********************************************************************************/
 
-static void ctlchg(long p, long t, ami_channel c, int cn, int v)
+static void ctlchg(ami_long p, ami_long t, ami_channel c, int cn, int v)
 
 {
 
@@ -1480,7 +1480,7 @@ full on.
 
 ********************************************************************************/
 
-void ami_attack(long p, long t, ami_channel c, long at)
+void ami_attack(ami_long p, ami_long t, ami_channel c, ami_long at)
 
 {
 
@@ -1526,7 +1526,7 @@ full on.
 
 ********************************************************************************/
 
-void ami_release(long p, long t, ami_channel c, long rt)
+void ami_release(ami_long p, ami_long t, ami_channel c, ami_long rt)
 
 {
 
@@ -1571,7 +1571,7 @@ Sets the legato mode on/off.
 
 ********************************************************************************/
 
-void ami_legato(long p, long t, ami_channel c, long b)
+void ami_legato(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -1618,7 +1618,7 @@ Sets the portamento mode on/off.
 
 ********************************************************************************/
 
-void ami_portamento(long p, long t, ami_channel c, long b)
+void ami_portamento(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -1664,7 +1664,7 @@ Sets synthesizer volume, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_volsynthchan(long p, long t, ami_channel c, long v)
+void ami_volsynthchan(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -1711,7 +1711,7 @@ LONG_MAX is all right.
 
 ********************************************************************************/
 
-void ami_balance(long p, long t, ami_channel c, long b)
+void ami_balance(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -1759,7 +1759,7 @@ Sets portamento time, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_porttime(long p, long t, ami_channel c, long v)
+void ami_porttime(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -1806,7 +1806,7 @@ Sets modulaton value, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_vibrato(long p, long t, ami_channel c, long v)
+void ami_vibrato(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -1854,7 +1854,7 @@ LONG_MAX is hard right.
 
 ********************************************************************************/
 
-void ami_pan(long p, long t, ami_channel c, long b)
+void ami_pan(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -1901,7 +1901,7 @@ Sets the sound timbre, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_timbre(long p, long t, ami_channel c, long tb)
+void ami_timbre(ami_long p, ami_long t, ami_channel c, ami_long tb)
 
 {
 
@@ -1946,7 +1946,7 @@ Sets the sound brightness, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_brightness(long p, long t, ami_channel c, long b)
+void ami_brightness(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -1991,7 +1991,7 @@ Sets the sound reverb, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_reverb(long p, long t, ami_channel c, long r)
+void ami_reverb(ami_long p, ami_long t, ami_channel c, ami_long r)
 
 {
 
@@ -2036,7 +2036,7 @@ Sets the sound tremulo, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_tremulo(long p, long t, ami_channel c, long tr)
+void ami_tremulo(ami_long p, ami_long t, ami_channel c, ami_long tr)
 
 {
 
@@ -2081,7 +2081,7 @@ Sets the sound chorus, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_chorus(long p, long t, ami_channel c, long cr)
+void ami_chorus(ami_long p, ami_long t, ami_channel c, ami_long cr)
 
 {
 
@@ -2126,7 +2126,7 @@ Sets the sound celeste, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_celeste(long p, long t, ami_channel c, long ce)
+void ami_celeste(ami_long p, ami_long t, ami_channel c, ami_long ce)
 
 {
 
@@ -2171,7 +2171,7 @@ Sets the sound phaser, 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_phaser(long p, long t, ami_channel c, long ph)
+void ami_phaser(ami_long p, ami_long t, ami_channel c, ami_long ph)
 
 {
 
@@ -2220,7 +2220,7 @@ could be reached with a slide, for example.
 
 ********************************************************************************/
 
-void ami_pitchrange(long p, long t, ami_channel c, long v)
+void ami_pitchrange(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -2271,7 +2271,7 @@ with 0 being "allways select single note mode".
 
 ********************************************************************************/
 
-void ami_mono(long p, long t, ami_channel c, long ch)
+void ami_mono(ami_long p, ami_long t, ami_channel c, ami_long ch)
 
 {
 
@@ -2317,7 +2317,7 @@ Reenables polyphonic mode after a monophonic operation.
 
 ********************************************************************************/
 
-void ami_poly(long p, long t, ami_channel c)
+void ami_poly(ami_long p, ami_long t, ami_channel c)
 
 {
 
@@ -2361,7 +2361,7 @@ Controls aftertouch, 0 to LONG_MAX, on a note.
 
 ********************************************************************************/
 
-void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
+void ami_aftertouch(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long at)
 
 {
 
@@ -2411,7 +2411,7 @@ Controls channel pressure, 0 to LONG_MAX, on a note.
 
 ********************************************************************************/
 
-void ami_pressure(long p, long t, ami_channel c, long pr)
+void ami_pressure(ami_long p, ami_long t, ami_channel c, ami_long pr)
 
 {
 
@@ -2461,7 +2461,7 @@ is 4 half steps total. A "half step" is the difference between, say, C && C#.
 
 ********************************************************************************/
 
-void ami_pitch(long p, long t, ami_channel c, long pt)
+void ami_pitch(ami_long p, ami_long t, ami_channel c, ami_long pt)
 
 {
 
@@ -2519,7 +2519,7 @@ the subsequent play operation.
 
 *******************************************************************************/
 
-void ami_loadsynth(long s, string fn)
+void ami_loadsynth(ami_long s, string fn)
 
 {
 
@@ -2545,7 +2545,7 @@ result in this routine blocking until it is complete.
 
 *******************************************************************************/
 
-void ami_delsynth(long s)
+void ami_delsynth(ami_long s)
 
 {
 
@@ -2575,7 +2575,7 @@ it is open, then reopening it afterwards.
 
 ********************************************************************************/
 
-void ami_playsynth(long p, long t, long s)
+void ami_playsynth(ami_long p, ami_long t, ami_long s)
 
 {
 
@@ -2653,7 +2653,7 @@ sequencer(s), including background tasks.
 
 *******************************************************************************/
 
-void ami_waitsynth(long p)
+void ami_waitsynth(ami_long p)
 
 {
 
@@ -2674,7 +2674,7 @@ Returns the number of wave output devices available.
 
 ********************************************************************************/
 
-long ami_waveout(void)
+ami_long ami_waveout(void)
 
 {
 
@@ -2690,7 +2690,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-long ami_wavein(void)
+ami_long ami_wavein(void)
 
 {
 
@@ -2707,7 +2707,7 @@ output device. This is presently a no-op for windows.
 
 ********************************************************************************/
 
-void ami_openwaveout(long p)
+void ami_openwaveout(ami_long p)
 
 {
 
@@ -2728,7 +2728,7 @@ Closes a wave output device by number. This is presently a no-op for windows.
 
 ********************************************************************************/
 
-void ami_closewaveout(long p)
+void ami_closewaveout(ami_long p)
 
 {
 
@@ -2762,7 +2762,7 @@ the test system, the latency to play is acceptable.
 
 *******************************************************************************/
 
-void ami_loadwave(long w, string fn)
+void ami_loadwave(ami_long w, string fn)
 
 {
 
@@ -2785,7 +2785,7 @@ redefined.
 
 *******************************************************************************/
 
-void ami_delwave(long w)
+void ami_delwave(ami_long w)
 
 {
 
@@ -2811,7 +2811,7 @@ static DWORD WINAPI waveplaythread(LPVOID lpParameter)
 
 {
 
-    long w = (long)(INT_PTR)lpParameter; /* get wave number */
+    ami_long w = (ami_long)(INT_PTR)lpParameter; /* get wave number */
 
     /* play sound without error checking, wait complete */
     PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_SYNC);
@@ -2820,7 +2820,7 @@ static DWORD WINAPI waveplaythread(LPVOID lpParameter)
 
 }
 
-void ami_playwave(long p, long t, long w)
+void ami_playwave(ami_long p, ami_long t, ami_long w)
 
 {
 
@@ -2868,7 +2868,7 @@ Adjusts the volume on waveform playback. The volume value is from 0 to LONG_MAX.
 
 ********************************************************************************/
 
-void ami_volwave(long p, long t, long v)
+void ami_volwave(ami_long p, ami_long t, ami_long v)
 
 {
 
@@ -2894,7 +2894,7 @@ wait until they all stop.
 
 *******************************************************************************/
 
-void ami_waitwave(long p)
+void ami_waitwave(ami_long p)
 
 {
 
@@ -2923,7 +2923,7 @@ for the next sample.
 
 *******************************************************************************/
 
-void ami_chanwaveout(long p, long c)
+void ami_chanwaveout(ami_long p, ami_long c)
 
 {
 
@@ -2947,7 +2947,7 @@ required.
 
 *******************************************************************************/
 
-void ami_ratewaveout(long p, long r)
+void ami_ratewaveout(ami_long p, ami_long r)
 
 {
 
@@ -2971,7 +2971,7 @@ cound would mainly indicate precision only.
 
 *******************************************************************************/
 
-void ami_lenwaveout(long p, long l)
+void ami_lenwaveout(ami_long p, ami_long l)
 
 {
 
@@ -2992,7 +2992,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-void ami_sgnwaveout(long p, long s)
+void ami_sgnwaveout(ami_long p, ami_long s)
 
 {
 
@@ -3012,7 +3012,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-void ami_fltwaveout(long p, long f)
+void ami_fltwaveout(ami_long p, ami_long f)
 
 {
 
@@ -3034,7 +3034,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-void ami_endwaveout(long p, long e)
+void ami_endwaveout(ami_long p, ami_long e)
 
 {
 
@@ -3069,7 +3069,7 @@ for the waveOut interface API we are using.
 
 *******************************************************************************/
 
-void ami_wrwave(long p, byte* buff, long len)
+void ami_wrwave(ami_long p, byte* buff, ami_long len)
 
 {
 
@@ -3201,7 +3201,7 @@ but we assert them here on open.
 
 *******************************************************************************/
 
-void ami_openwavein(long p)
+void ami_openwavein(ami_long p)
 
 {
 
@@ -3226,7 +3226,7 @@ Closes a wave input device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewavein(long p)
+void ami_closewavein(ami_long p)
 
 {
 
@@ -3259,7 +3259,7 @@ sample.
 
 *******************************************************************************/
 
-long ami_chanwavein(long p)
+ami_long ami_chanwavein(ami_long p)
 
 {
 
@@ -3287,7 +3287,7 @@ Windows does not tell us the native format of devices, so we choose an "ideal".
 
 *******************************************************************************/
 
-long ami_ratewavein(long p)
+ami_long ami_ratewavein(ami_long p)
 
 {
 
@@ -3324,7 +3324,7 @@ Windows does not tell us the native format of devices, so we choose an "ideal".
 
 *******************************************************************************/
 
-long ami_lenwavein(long p)
+ami_long ami_lenwavein(ami_long p)
 
 {
 
@@ -3349,7 +3349,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-long ami_sgnwavein(long p)
+ami_long ami_sgnwavein(ami_long p)
 
 {
 
@@ -3373,7 +3373,7 @@ Returns true if the given wave input device has big endian sampling.
 
 *******************************************************************************/
 
-long ami_endwavein(long p)
+ami_long ami_endwavein(ami_long p)
 
 {
 
@@ -3397,7 +3397,7 @@ Returns true if the given wave input device has floating point sampling.
 
 *******************************************************************************/
 
-long ami_fltwavein(long p)
+ami_long ami_fltwavein(ami_long p)
 
 {
 
@@ -3441,7 +3441,7 @@ ami_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-long ami_rdwave(long p, byte* buff, long len)
+ami_long ami_rdwave(ami_long p, byte* buff, ami_long len)
 
 {
 
@@ -3451,7 +3451,7 @@ long ami_rdwave(long p, byte* buff, long len)
     LPWAVEHDR    wp;
     devptr       dp;
     unsigned*    rem;
-    long         total; /* total bytes to transfer */
+    ami_long     total; /* total bytes to transfer */
 
     if (p < 1 || p > MAXWAVP) error("Invalid wave input port number");
     if (p > waveInGetNumDevs()) error("No system wave input device exists");
@@ -3585,7 +3585,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_synthoutname(long p, string name, long len)
+void ami_synthoutname(ami_long p, string name, ami_long len)
 
 {
 
@@ -3609,7 +3609,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_synthinname(long p, string name, long len)
+void ami_synthinname(ami_long p, string name, ami_long len)
 
 {
 
@@ -3633,7 +3633,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_waveoutname(long p, string name, long len)
+void ami_waveoutname(ami_long p, string name, ami_long len)
 
 {
 
@@ -3657,7 +3657,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_waveinname(long p, string name, long len)
+void ami_waveinname(ami_long p, string name, ami_long len)
 
 {
 
@@ -3724,7 +3724,7 @@ The given synthesizer port is opened and ready for reading.
 
 *******************************************************************************/
 
-void ami_opensynthin(long p)
+void ami_opensynthin(ami_long p)
 
 {
 
@@ -3780,7 +3780,7 @@ Closes the given synthesizer port for reading.
 
 *******************************************************************************/
 
-void ami_closesynthin(long p)
+void ami_closesynthin(ami_long p)
 
 {
 
@@ -3804,7 +3804,7 @@ a parameter.
 
 *******************************************************************************/
 
-void ami_wrsynth(long p, ami_seqptr sp)
+void ami_wrsynth(ami_long p, ami_seqptr sp)
 
 {
 
@@ -3866,13 +3866,13 @@ Algorithm used here.
 
 *******************************************************************************/
 
-static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
+static void parseq(ami_long p, ami_seqptr sp, byte b1, byte b2, byte b3)
 
 {
 
-    long pv; /* pitch value expanded to full scale */
+    ami_long pv; /* pitch value expanded to full scale */
 
-    long t;
+    ami_long t;
     byte p1;
     byte p2;
     byte p3;
@@ -3893,7 +3893,7 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
                   sp->st = st_noteoff; /* set type */
                   sp->ntc = (b1&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = (long)p2*MIDISCL(7); /* set velocity */
+                  sp->ntv = (ami_long)p2*MIDISCL(7); /* set velocity */
                   break;
         case 0x9: /* note on */
                   p1 = b2;
@@ -3903,7 +3903,7 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
                   sp->st = st_noteon; /* set type */
                   sp->ntc = (b1&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = (long)p2*MIDISCL(7); /* set velocity */
+                  sp->ntv = (ami_long)p2*MIDISCL(7); /* set velocity */
                   break;
         case 0xa: /* polyphonic key pressure */
                   p1 = b2;
@@ -3913,7 +3913,7 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
                   sp->st = st_aftertouch; /* set type */
                   sp->ntc = (b1&15)+1; /* set channel */
                   sp->ntn = p1+1; /* set note */
-                  sp->ntv = (long)p2*MIDISCL(7); /* set aftertouch */
+                  sp->ntv = (ami_long)p2*MIDISCL(7); /* set aftertouch */
                   break;
         case 0xb: /* controller change/channel mode */
                   p1 = b2;
@@ -3978,7 +3978,7 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
                   sp->time = t; /* set time */
                   sp->st = st_pressure; /* set type */
                   sp->ntc = (b1&15)+1; /* set channel */
-                  sp->ntv = (long)p1*MIDISCL(7); /* set pressure */
+                  sp->ntv = (ami_long)p1*MIDISCL(7); /* set pressure */
                   break;
         case 0xe: /* pitch bend */
                   p1 = b2;
@@ -3997,7 +3997,7 @@ static void parseq(long p, ami_seqptr sp, byte b1, byte b2, byte b3)
                      16384 at the extreme of the bend, which is preferable
                      to handing out a value the API does not admit and whose
                      negation would overflow. */
-                  pv = ((long)(p2<<7|p1)-0x2000)*(LONG_MAX/8192+1);
+                  pv = ((ami_long)(p2<<7|p1)-0x2000)*(LONG_MAX/8192+1);
                   if (pv < -LONG_MAX) pv = -LONG_MAX;
                   sp->vsv = pv; /* set pitch */
                   break;
@@ -4037,7 +4037,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void ami_rdsynth(long p, ami_seqptr sp)
+void ami_rdsynth(ami_long p, ami_seqptr sp)
 
 {
 
@@ -4081,7 +4081,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthout(long p, string name, string value, long len)
+void ami_getparamsynthout(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -4104,7 +4104,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthin(long p, string name, string value, long len)
+void ami_getparamsynthin(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -4127,7 +4127,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwaveout(long p, string name, string value, long len)
+void ami_getparamwaveout(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -4150,7 +4150,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwavein(long p, string name, string value, long len)
+void ami_getparamwavein(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -4171,7 +4171,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamsynthout(long p, string name, string value)
+ami_long ami_setparamsynthout(ami_long p, string name, string value)
 
 {
 
@@ -4194,7 +4194,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamsynthin(long p, string name, string value)
+ami_long ami_setparamsynthin(ami_long p, string name, string value)
 
 {
 
@@ -4217,7 +4217,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamwaveout(long p, string name, string value)
+ami_long ami_setparamwaveout(ami_long p, string name, string value)
 
 {
 
@@ -4240,7 +4240,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamwavein(long p, string name, string value)
+ami_long ami_setparamwavein(ami_long p, string name, string value)
 
 {
 

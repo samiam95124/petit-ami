@@ -14,7 +14,7 @@ Plays the given midi file.
 #include <sound.h>
 #include <option.h>
 
-long dport = AMI_SYNTH_OUT; /* set default synth out */
+ami_long dport = AMI_SYNTH_OUT; /* set default synth out */
 
 ami_optrec opttbl[] = {
 
@@ -28,8 +28,8 @@ int main(int argc, char **argv)
 
 {
 
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

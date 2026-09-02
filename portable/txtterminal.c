@@ -44,6 +44,19 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+/* The document goes to its descriptor byte for byte: Windows would otherwise
+   translate the line ends and put the .pdf's byte offsets out. The null
+   device, where a printer document parks its descriptor, is spelled
+   differently there too. */
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#ifdef _WIN32
+#define NULLDEV "nul"
+#else
+#define NULLDEV "/dev/null"
+#endif
+
 #include <terminal.h>
 
 /* the local library headers do not carry the process pipe calls */
@@ -66,16 +79,16 @@ typedef struct prtrec {
     char  pdev[MAXPDEV];  /* printer name, empty for system default */
 
     char* grid;           /* the page, w*h characters */
-    long  w, h;           /* page dimensions in characters */
-    long  curx, cury;     /* cursor, 1 based */
+    ami_long  w, h;           /* page dimensions in characters */
+    ami_long  curx, cury;     /* cursor, 1 based */
     int   autom;          /* auto wrap/eject mode */
     int   dirty;          /* the page holds output */
-    long  tabs[MAXTAB];   /* tab stops, character positions, sorted */
+    ami_long  tabs[MAXTAB];   /* tab stops, character positions, sorted */
     int   ntabs;          /* number of tab stops */
 
     char* out;            /* accumulated printer output */
-    long  outlen;         /* occupied */
-    long  outcap;         /* allocated */
+    ami_long  outlen;         /* occupied */
+    ami_long  outcap;         /* allocated */
 
 } prtrec;
 
@@ -182,7 +195,7 @@ static void prthome(prtptr p)
 }
 
 /* accumulate printer output */
-static void outcat(prtptr p, const char* d, long n)
+static void outcat(prtptr p, const char* d, ami_long n)
 
 {
 
@@ -217,9 +230,9 @@ static void formfeed(int fd, prtptr p)
 
 {
 
-    long    y, x, last;
+    ami_long    y, x, last;
     ssize_t r;
-    long    i;
+    ami_long    i;
 
     /* find the last line holding anything */
     last = 0;
@@ -369,7 +382,7 @@ void ami_openprint(FILE** f, char* n)
     prtptr p;
     int    fd, i;
     char*  cp;
-    long   pn;
+    ami_long   pn;
 
     p = calloc(1, sizeof(prtrec));
     if (!p) error("Out of memory");
@@ -387,9 +400,9 @@ void ami_openprint(FILE** f, char* n)
 
         }
         /* the descriptor only anchors the file id */
-        fd = open("/dev/null", O_WRONLY);
+        fd = open(NULLDEV, O_WRONLY);
 
-    } else fd = open(n, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+    } else fd = open(n, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 0666);
     if (fd < 0) error("Cannot open print file");
     if (fd >= MAXPFIL) error("Invalid file handle");
 
@@ -483,7 +496,7 @@ are accepted and ignored: plain text carries neither.
 
 static void noinput(void) { error("No input from a print file"); }
 
-static void cursor_pvf(FILE* f, long x, long y)
+static void cursor_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_cursor)(f, x, y); return; }
@@ -491,14 +504,14 @@ static void cursor_pvf(FILE* f, long x, long y)
     p->cury = y;
 }
 
-static long maxx_pvf(FILE* f)
+static ami_long maxx_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_maxx)(f));
     return (p->w);
 }
 
-static long maxy_pvf(FILE* f)
+static ami_long maxy_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_maxy)(f));
@@ -555,47 +568,47 @@ static void right_pvf(FILE* f)
 
 /* the attributes and colors do not exist in plain text; accepted, ignored */
 
-static void blink_pvf(FILE* f, long e)
+static void blink_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_blink)(f, e);
 }
 
-static void reverse_pvf(FILE* f, long e)
+static void reverse_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_reverse)(f, e);
 }
 
-static void underline_pvf(FILE* f, long e)
+static void underline_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_underline)(f, e);
 }
 
-static void superscript_pvf(FILE* f, long e)
+static void superscript_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_superscript)(f, e);
 }
 
-static void subscript_pvf(FILE* f, long e)
+static void subscript_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_subscript)(f, e);
 }
 
-static void italic_pvf(FILE* f, long e)
+static void italic_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_italic)(f, e);
 }
 
-static void bold_pvf(FILE* f, long e)
+static void bold_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_bold)(f, e);
 }
 
-static void strikeout_pvf(FILE* f, long e)
+static void strikeout_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_strikeout)(f, e);
 }
 
-static void standout_pvf(FILE* f, long e)
+static void standout_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_standout)(f, e);
 }
@@ -610,23 +623,23 @@ static void bcolor_pvf(FILE* f, ami_color c)
     if (!txt2prt(f)) (*dn_bcolor)(f, c);
 }
 
-static void fcolorc_pvf(FILE* f, long r, long g, long b)
+static void fcolorc_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     if (!txt2prt(f)) (*dn_fcolorc)(f, r, g, b);
 }
 
-static void bcolorc_pvf(FILE* f, long r, long g, long b)
+static void bcolorc_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     if (!txt2prt(f)) (*dn_bcolorc)(f, r, g, b);
 }
 
-static void curvis_pvf(FILE* f, long e)
+static void curvis_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) (*dn_curvis)(f, e);
     /* there is no cursor on paper */
 }
 
-static long curbnd_pvf(FILE* f)
+static ami_long curbnd_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_curbnd)(f));
@@ -634,18 +647,18 @@ static long curbnd_pvf(FILE* f)
             p->cury >= 1 && p->cury <= p->h);
 }
 
-static void auto_pvf(FILE* f, long e)
+static void auto_pvf(FILE* f, ami_long e)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_auto)(f, e); return; }
     p->autom = !!e;
 }
 
-static void scroll_pvf(FILE* f, long x, long y)
+static void scroll_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     char*  ng;
-    long   dx, dy, sx, sy;
+    ami_long   dx, dy, sx, sy;
     if (!p) { (*dn_scroll)(f, x, y); return; }
     /* the page is a real buffer: shift the contents, blank fill */
     ng = malloc(p->w*p->h);
@@ -665,14 +678,14 @@ static void scroll_pvf(FILE* f, long x, long y)
 
 }
 
-static long curx_pvf(FILE* f)
+static ami_long curx_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_curx)(f));
     return (p->curx);
 }
 
-static long cury_pvf(FILE* f)
+static ami_long cury_pvf(FILE* f)
 {
     prtptr p = txt2prt(f);
     if (!p) return ((*dn_cury)(f));
@@ -681,7 +694,7 @@ static long cury_pvf(FILE* f)
 
 /* the input side does not exist on a print file */
 
-static void select_pvf(FILE* f, long u, long d)
+static void select_pvf(FILE* f, ami_long u, ami_long d)
 {
     if (!txt2prt(f)) { (*dn_select)(f, u, d); return; }
     error("Cannot select screens on a print file");
@@ -693,61 +706,61 @@ static void event_pvf(FILE* f, ami_evtrec* er)
     noinput();
 }
 
-static void timer_pvf(FILE* f, long i, long t, long r)
+static void timer_pvf(FILE* f, ami_long i, ami_long t, ami_long r)
 {
     if (!txt2prt(f)) { (*dn_timer)(f, i, t, r); return; }
     noinput();
 }
 
-static void killtimer_pvf(FILE* f, long i)
+static void killtimer_pvf(FILE* f, ami_long i)
 {
     if (!txt2prt(f)) { (*dn_killtimer)(f, i); return; }
     noinput();
 }
 
-static long mouse_pvf(FILE* f)
+static ami_long mouse_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_mouse)(f));
     noinput();
     return (0);
 }
 
-static long mousebutton_pvf(FILE* f, long m)
+static ami_long mousebutton_pvf(FILE* f, ami_long m)
 {
     if (!txt2prt(f)) return ((*dn_mousebutton)(f, m));
     noinput();
     return (0);
 }
 
-static long joystick_pvf(FILE* f)
+static ami_long joystick_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_joystick)(f));
     noinput();
     return (0);
 }
 
-static long joybutton_pvf(FILE* f, long j)
+static ami_long joybutton_pvf(FILE* f, ami_long j)
 {
     if (!txt2prt(f)) return ((*dn_joybutton)(f, j));
     noinput();
     return (0);
 }
 
-static long joyaxis_pvf(FILE* f, long j)
+static ami_long joyaxis_pvf(FILE* f, ami_long j)
 {
     if (!txt2prt(f)) return ((*dn_joyaxis)(f, j));
     noinput();
     return (0);
 }
 
-static long funkey_pvf(FILE* f)
+static ami_long funkey_pvf(FILE* f)
 {
     if (!txt2prt(f)) return ((*dn_funkey)(f));
     noinput();
     return (0);
 }
 
-static void frametimer_pvf(FILE* f, long e)
+static void frametimer_pvf(FILE* f, ami_long e)
 {
     if (!txt2prt(f)) { (*dn_frametimer)(f, e); return; }
     noinput();
@@ -761,7 +774,7 @@ static void sendevent_pvf(FILE* f, ami_evtrec* er)
 
 /* tabs */
 
-static void instab(prtptr p, long t)
+static void instab(prtptr p, ami_long t)
 {
     int i, j;
     for (i = 0; i < p->ntabs; i++) {
@@ -776,14 +789,14 @@ static void instab(prtptr p, long t)
     p->ntabs++;
 }
 
-static void settab_pvf(FILE* f, long t)
+static void settab_pvf(FILE* f, ami_long t)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_settab)(f, t); return; }
     instab(p, t);
 }
 
-static void restab_pvf(FILE* f, long t)
+static void restab_pvf(FILE* f, ami_long t)
 {
     prtptr p = txt2prt(f);
     int i, j;
@@ -819,7 +832,7 @@ static void wrtstr_pvf(FILE* f, char* s)
     }
 }
 
-static void wrtstrn_pvf(FILE* f, char* s, long n)
+static void wrtstrn_pvf(FILE* f, char* s, ami_long n)
 {
     prtptr p = txt2prt(f);
     if (!p) { (*dn_wrtstrn)(f, s, n); return; }
@@ -834,7 +847,7 @@ static void wrtstrn_pvf(FILE* f, char* s, long n)
 
 /* the buffer size is the page size */
 
-static void sizbuf_pvf(FILE* f, long x, long y)
+static void sizbuf_pvf(FILE* f, ami_long x, ami_long y)
 {
     prtptr p = txt2prt(f);
     char*  ng;
@@ -864,7 +877,7 @@ static void title_pvf(FILE* f, char* ts)
     if (!txt2prt(f)) (*dn_title)(f, ts);
 }
 
-static void titlen_pvf(FILE* f, char* ts, long l)
+static void titlen_pvf(FILE* f, char* ts, ami_long l)
 {
     if (!txt2prt(f)) (*dn_titlen)(f, ts, l);
 }

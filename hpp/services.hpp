@@ -20,7 +20,7 @@ extern "C" {
 namespace services {
 
 /* length of character set */
-const long csetlen = 32;
+const ami_long csetlen = 32;
 
 /* attributes */
 typedef enum {
@@ -32,7 +32,7 @@ typedef enum {
     atloop  /* contains heriarchy loop */
 
 } attribute;
-typedef long attrset; /* attributes in a set */
+typedef ami_long attrset; /* attributes in a set */
 
 /* permissions */
 typedef enum {
@@ -46,20 +46,20 @@ typedef enum {
     pmren    /* may be renamed/moved */
 
 } permission;
-typedef long permset; /* permissions in a set */
+typedef ami_long permset; /* permissions in a set */
 
 /* standard directory format */
 typedef struct filrec {
 
     char*          name;    /* name of file (zero terminated) */
-    long           namel;   /* length of filename */
+    ami_long       namel;   /* length of filename */
     long long      size;    /* size of file */
     long long      alloc;   /* allocation of file */
     attrset        attr;    /* attributes */
-    long           create;  /* time of creation */
-    long           modify;  /* time of last modification */
-    long           access;  /* time of last access */
-    long           backup;  /* time of last backup */
+    ami_long       create;  /* time of creation */
+    ami_long       modify;  /* time of last modification */
+    ami_long       access;  /* time of last access */
+    ami_long       backup;  /* time of last backup */
     permset        user;    /* user permissions */
     permset        group;   /* group permissions */
     permset        other;   /* other permissions */
@@ -82,45 +82,45 @@ typedef envrec* envptr; /* pointer to environment record */
 typedef unsigned char chrset[csetlen];
 
 /* the set operators of the C header, as inline functions */
-inline long bit(long b) { return 1l<<b; }
-inline long incset(const unsigned char* s, long b)
+inline ami_long bit(ami_long b) { return 1l<<b; }
+inline ami_long incset(const unsigned char* s, ami_long b)
     { return !!(s[b>>3] & bit(b%8)); }
-inline void addcset(unsigned char* s, long b) { s[b>>3] |= bit(b%8); }
-inline void subcset(unsigned char* s, long b) { s[b>>3] &= ~bit(b%8); }
+inline void addcset(unsigned char* s, ami_long b) { s[b>>3] |= bit(b%8); }
+inline void subcset(unsigned char* s, ami_long b) { s[b>>3] &= ~bit(b%8); }
 inline void clrcset(unsigned char* s)
-    { for (long i = 0; i < csetlen; i++) s[i] = 0; }
-inline long iniset(long s, long b) { return !!(s & bit(b)); }
-inline long addiset(long s, long b) { return s | bit(b); }
-inline long subiset(long s, long b) { return s & ~bit(b); }
+    { for (ami_long i = 0; i < csetlen; i++) s[i] = 0; }
+inline ami_long iniset(ami_long s, ami_long b) { return !!(s & bit(b)); }
+inline ami_long addiset(ami_long s, ami_long b) { return s | bit(b); }
+inline ami_long subiset(ami_long s, ami_long b) { return s & ~bit(b); }
 
 /* procedures and functions */
 void list(const char* f, filptr* lp);
-void times(char* s, long sl, long t);
-void dates(char* s, long sl, long t);
-void writetime(FILE* f, long t);
-void writedate(FILE* f, long t);
-long time(void);
-long local(long t);
-long clock(void);
-long elapsed(long r);
-long validfile(const char* s);
-long validpath(const char* s);
-long wild(const char* s);
-void getenv(const char* ls, char* ds, long dsl);
+void times(char* s, ami_long sl, ami_long t);
+void dates(char* s, ami_long sl, ami_long t);
+void writetime(FILE* f, ami_long t);
+void writedate(FILE* f, ami_long t);
+ami_long time(void);
+ami_long local(ami_long t);
+ami_long clock(void);
+ami_long elapsed(ami_long r);
+ami_long validfile(const char* s);
+ami_long validpath(const char* s);
+ami_long wild(const char* s);
+void getenv(const char* ls, char* ds, ami_long dsl);
 void setenv(const char* sn, const char* sd);
 void allenv(envptr* el);
 void remenv(const char* sn);
 void exec(const char* cmd);
 void exece(const char* cmd, envptr el);
-void execw(const char* cmd, long* e);
-void execew(const char* cmd, envptr el, long* e);
-void getcur(char* fn, long l);
+void execw(const char* cmd, ami_long* e);
+void execew(const char* cmd, envptr el, ami_long* e);
+void getcur(char* fn, ami_long l);
 void setcur(const char* fn);
-void brknam(const char* fn, char* p, long pl, char* n, long nl, char* e, long el);
-void maknam(char* fn, long fnl, const char* p, const char* n, const char* e);
-void fulnam(char* fn, long fnl);
-void getpgm(char* p, long pl);
-void getusr(char* fn, long fnl);
+void brknam(const char* fn, char* p, ami_long pl, char* n, ami_long nl, char* e, ami_long el);
+void maknam(char* fn, ami_long fnl, const char* p, const char* n, const char* e);
+void fulnam(char* fn, ami_long fnl);
+void getpgm(char* p, ami_long pl);
+void getusr(char* fn, ami_long fnl);
 void setatr(const char* fn, attrset at);
 void resatr(const char* fn, attrset at);
 void bakupd(const char* fn);
@@ -135,33 +135,33 @@ void rempth(const char* fn);
 void filchr(chrset fc);
 char optchr(void);
 char pthchr(void);
-long latitude(void);
-long longitude(void);
-long altitude(void);
-long country(void);
-void countrys(char* s, long sl, long c);
-long timezone(void);
-long daysave(void);
-long time24hour(void);
-long language(void);
-void languages(char* s, long sl, long l);
+ami_long latitude(void);
+ami_long longitude(void);
+ami_long altitude(void);
+ami_long country(void);
+void countrys(char* s, ami_long sl, ami_long c);
+ami_long timezone(void);
+ami_long daysave(void);
+ami_long time24hour(void);
+ami_long language(void);
+void languages(char* s, ami_long sl, ami_long l);
 char decimal(void);
 char numbersep(void);
-long timeorder(void);
-long dateorder(void);
+ami_long timeorder(void);
+ami_long dateorder(void);
 char datesep(void);
 char timesep(void);
 char currchr(void);
-long newthread(void (*threadmain)(void));
-long initlock(void);
-void deinitlock(long ln);
-void lock(long ln);
-void unlock(long ln);
-long initsig(void);
-void deinitsig(long sn);
-void sendsig(long sn);
-void sendsigone(long sn);
-void waitsig(long ln, long sn);
+ami_long newthread(void (*threadmain)(void));
+ami_long initlock(void);
+void deinitlock(ami_long ln);
+void lock(ami_long ln);
+void unlock(ami_long ln);
+ami_long initsig(void);
+void deinitsig(ami_long sn);
+void sendsig(ami_long sn);
+void sendsigone(ami_long sn);
+void waitsig(ami_long ln, ami_long sn);
 
 /*******************************************************************************
 
@@ -182,7 +182,7 @@ These hold identifiers, not hooks: any number of each may exist.
 
 class thread {
 
-long tid; /* the thread identifier */
+ami_long tid; /* the thread identifier */
 
 public:
 
@@ -199,7 +199,7 @@ class mutex {
 
 friend class signal;
 
-long ln; /* the lock identifier */
+ami_long ln; /* the lock identifier */
 
 public:
 
@@ -221,7 +221,7 @@ void unlock(void);
 
 class signal {
 
-long sn; /* the signal identifier */
+ami_long sn; /* the signal identifier */
 
 public:
 

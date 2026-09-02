@@ -32,7 +32,7 @@ static void init_fbmock(void)
     long r, c;
 
     s = getenv("FBMOCK_SIZE");
-    if (s && sscanf(s, "%ldx%ld", &c, &r) == 2 && c > 0 && r > 0)
+    if (s && sscanf(s, "%lldx%lld", (long long*)(&c), (long long*)(&r)) == 2 && c > 0 && r > 0)
         { cols = c; rows = r; }
     mem = calloc((size_t)rows*cols, 4);
     if (!mem) { fprintf(stderr, "*** fbmock: no memory\n"); exit(1); }
@@ -56,7 +56,7 @@ static void deinit_fbmock(void)
         f = fopen(fn, "w");
         if (f) {
 
-            fprintf(f, "P6\n%ld %ld\n255\n", cols, rows);
+            fprintf(f, "P6\n%lld %lld\n255\n", AMI_LONG_CAST(cols), AMI_LONG_CAST(rows));
             for (y = 0; y < rows; y++) for (x = 0; x < cols; x++) {
 
                 p = mem+((size_t)y*cols+x)*4;

@@ -364,13 +364,13 @@ returned.
 
 *******************************************************************************/
 
-int system_event_addsetim(int sid, long t, long r)
+int system_event_addsetim(int sid, ami_long t, ami_long r)
 
 {
 
     struct itimerspec ts;
     int    rv;
-    long   tl;
+    ami_long   tl;
     int    fid;
     pid_t  pid;
 

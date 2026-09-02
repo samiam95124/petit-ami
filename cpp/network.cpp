@@ -36,41 +36,41 @@ extern "C" {
 namespace network {
 
 /* procedures and functions */
-void  addrnet(const char* name, unsigned long* addr)
+void  addrnet(const char* name, ami_ulong* addr)
     { ami_addrnet((char*)name, addr); }
 void  addrnetv6(const char* name, unsigned long long* addrh,
                 unsigned long long* addrl)
     { ami_addrnetv6((char*)name, addrh, addrl); }
-FILE* opennet(unsigned long addr, long port, long secure)
+FILE* opennet(ami_ulong addr, ami_long port, ami_long secure)
     { return ami_opennet(addr, port, secure); }
 FILE* opennetv6(unsigned long long addrh, unsigned long long addrl,
-                long port, long secure)
+                ami_long port, ami_long secure)
     { return ami_opennetv6(addrh, addrl, port, secure); }
-long  maxmsg(unsigned long addr, long secure)
+ami_long  maxmsg(ami_ulong addr, ami_long secure)
     { return ami_maxmsg(addr, secure); }
-long  maxmsgv6(unsigned long long addrh, unsigned long long addrl, long secure)
+ami_long  maxmsgv6(unsigned long long addrh, unsigned long long addrl, ami_long secure)
     { return ami_maxmsgv6(addrh, addrl, secure); }
-long  relymsg(unsigned long addr) { return ami_relymsg(addr); }
-long  relymsgv6(unsigned long long addrh, unsigned long long addrl)
+ami_long  relymsg(ami_ulong addr) { return ami_relymsg(addr); }
+ami_long  relymsgv6(unsigned long long addrh, unsigned long long addrl)
     { return ami_relymsgv6(addrh, addrl); }
-long  openmsg(unsigned long addr, long port, long secure)
+ami_long  openmsg(ami_ulong addr, ami_long port, ami_long secure)
     { return ami_openmsg(addr, port, secure); }
-long  openmsgv6(unsigned long long addrh, unsigned long long addrl,
-                long port, long secure)
+ami_long  openmsgv6(unsigned long long addrh, unsigned long long addrl,
+                ami_long port, ami_long secure)
     { return ami_openmsgv6(addrh, addrl, port, secure); }
-void  wrmsg(long fn, void* msg, unsigned long len) { ami_wrmsg(fn, msg, len); }
-long  rdmsg(long fn, void* msg, unsigned long len)
+void  wrmsg(ami_long fn, void* msg, ami_ulong len) { ami_wrmsg(fn, msg, len); }
+ami_long  rdmsg(ami_long fn, void* msg, ami_ulong len)
     { return ami_rdmsg(fn, msg, len); }
-void  clsmsg(long fn) { ami_clsmsg(fn); }
-FILE* waitnet(long port, long secure) { return ami_waitnet(port, secure); }
-long  waitmsg(long port, long secure) { return ami_waitmsg(port, secure); }
-long  certnet(FILE* f, long which, char* cert, long len)
+void  clsmsg(ami_long fn) { ami_clsmsg(fn); }
+FILE* waitnet(ami_long port, ami_long secure) { return ami_waitnet(port, secure); }
+ami_long  waitmsg(ami_long port, ami_long secure) { return ami_waitmsg(port, secure); }
+ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len)
     { return ami_certnet(f, which, cert, len); }
-long  certmsg(long fn, long which, char* cert, long len)
+ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len)
     { return ami_certmsg(fn, which, cert, len); }
-void  certlistnet(FILE* f, long which, certptr* list)
+void  certlistnet(FILE* f, ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
-void  certlistmsg(long fn, long which, certptr* list)
+void  certlistmsg(ami_long fn, ami_long which, certptr* list)
     { ami_certlistmsg(fn, which, (ami_certptr*)list); }
 void  certlistfree(certptr* list) { ami_certlistfree((ami_certptr*)list); }
 
@@ -94,7 +94,7 @@ net::~net(void)
 
 /* An object holds one connection: opening over a held one lets go of
    the old one first. The same rule as the sound port objects. */
-void net::opennet(unsigned long addr, long port, long secure)
+void net::opennet(ami_ulong addr, ami_long port, ami_long secure)
 
 {
 
@@ -104,11 +104,11 @@ void net::opennet(unsigned long addr, long port, long secure)
 }
 
 /* as a convenience, the name form makes the lookup on the way */
-void net::opennet(const char* name, long port, long secure)
+void net::opennet(const char* name, ami_long port, ami_long secure)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
 
     ami_addrnet((char*)name, &addr);
     opennet(addr, port, secure);
@@ -116,7 +116,7 @@ void net::opennet(const char* name, long port, long secure)
 }
 
 void net::opennetv6(unsigned long long addrh, unsigned long long addrl,
-                    long port, long secure)
+                    ami_long port, ami_long secure)
 
 {
 
@@ -125,7 +125,7 @@ void net::opennetv6(unsigned long long addrh, unsigned long long addrl,
 
 }
 
-void net::opennetv6(const char* name, long port, long secure)
+void net::opennetv6(const char* name, ami_long port, ami_long secure)
 
 {
 
@@ -136,7 +136,7 @@ void net::opennetv6(const char* name, long port, long secure)
 
 }
 
-void net::waitnet(long port, long secure)
+void net::waitnet(ami_long port, ami_long secure)
 
 {
 
@@ -153,9 +153,9 @@ void net::close(void)
 
 }
 
-long net::certnet(long which, char* cert, long len)
+ami_long net::certnet(ami_long which, char* cert, ami_long len)
     { return ami_certnet(f, which, cert, len); }
-void net::certlistnet(long which, certptr* list)
+void net::certlistnet(ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
 
 net::operator FILE*(void) { return f; }
@@ -178,7 +178,7 @@ msg::~msg(void)
 
 }
 
-void msg::openmsg(unsigned long addr, long port, long secure)
+void msg::openmsg(ami_ulong addr, ami_long port, ami_long secure)
 
 {
 
@@ -188,11 +188,11 @@ void msg::openmsg(unsigned long addr, long port, long secure)
 
 }
 
-void msg::openmsg(const char* name, long port, long secure)
+void msg::openmsg(const char* name, ami_long port, ami_long secure)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
 
     ami_addrnet((char*)name, &addr);
     openmsg(addr, port, secure);
@@ -200,7 +200,7 @@ void msg::openmsg(const char* name, long port, long secure)
 }
 
 void msg::openmsgv6(unsigned long long addrh, unsigned long long addrl,
-                    long port, long secure)
+                    ami_long port, ami_long secure)
 
 {
 
@@ -210,7 +210,7 @@ void msg::openmsgv6(unsigned long long addrh, unsigned long long addrl,
 
 }
 
-void msg::openmsgv6(const char* name, long port, long secure)
+void msg::openmsgv6(const char* name, ami_long port, ami_long secure)
 
 {
 
@@ -221,7 +221,7 @@ void msg::openmsgv6(const char* name, long port, long secure)
 
 }
 
-void msg::waitmsg(long port, long secure)
+void msg::waitmsg(ami_long port, ami_long secure)
 
 {
 
@@ -231,8 +231,8 @@ void msg::waitmsg(long port, long secure)
 
 }
 
-void msg::wrmsg(void* buff, unsigned long len) { ami_wrmsg(fn, buff, len); }
-long msg::rdmsg(void* buff, unsigned long len)
+void msg::wrmsg(void* buff, ami_ulong len) { ami_wrmsg(fn, buff, len); }
+ami_long msg::rdmsg(void* buff, ami_ulong len)
     { return ami_rdmsg(fn, buff, len); }
 
 void msg::clsmsg(void)
@@ -243,9 +243,9 @@ void msg::clsmsg(void)
 
 }
 
-long msg::certmsg(long which, char* cert, long len)
+ami_long msg::certmsg(ami_long which, char* cert, ami_long len)
     { return ami_certmsg(fn, which, cert, len); }
-void msg::certlistmsg(long which, certptr* list)
+void msg::certlistmsg(ami_long which, certptr* list)
     { ami_certlistmsg(fn, which, (ami_certptr*)list); }
 
 } /* namespace network */

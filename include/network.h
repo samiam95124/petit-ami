@@ -70,30 +70,41 @@ typedef struct ami_certfield {
 
     string               name;     /* name of field */
     string               data;     /* content of field */
-    long              critical; /* is a critical X509 field */
+    ami_long          critical; /* is a critical X509 field */
     struct ami_certfield* fork;     /* sublist */
     struct ami_certfield* next;     /* next entry in list */
 
 } ami_certfield, *ami_certptr;
 
-void ami_addrnet(const string name, unsigned long* addr);
+void ami_addrnet(const string name, ami_ulong* addr);
 void ami_addrnetv6(const string name, unsigned long long* addrh,
                   unsigned long long* addrl);
-FILE* ami_opennet(unsigned long addr, long port, long secure);
+FILE* ami_opennet(ami_ulong addr, ami_long port, ami_long secure);
 FILE* ami_opennetv6(unsigned long long addrh, unsigned long long addrl,
-                   long port, long secure);
-long ami_maxmsg(unsigned long addr, long secure);
-long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
-                  long secure);
-long ami_relymsg(unsigned long addr);
-long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl);
-long ami_openmsg(unsigned long addr, long port, long secure);
-long ami_openmsgv6(unsigned long long addrh, unsigned long long addrl, long port,
-                 long secure);
-void ami_wrmsg(long fn, void* msg, unsigned long len);
-long ami_rdmsg(long fn, void* msg, unsigned long len);
-void ami_clsmsg(long fn);
-FILE* ami_waitnet(long port, long secure);
+                   ami_long port, ami_long secure);
+ami_long ami_maxmsg(ami_ulong addr, ami_long secure);
+ami_long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
+                  ami_long secure);
+ami_long ami_relymsg(ami_ulong addr);
+ami_long ami_relymsgv6(unsigned long long addrh, unsigned long long addrl);
+ami_long ami_openmsg(ami_ulong addr, ami_long port, ami_long secure);
+ami_long ami_openmsgv6(unsigned long long addrh, unsigned long long addrl, ami_long port,
+                 ami_long secure);
+void ami_wrmsg(ami_long fn, void* msg, ami_ulong len);
+ami_long ami_rdmsg(ami_long fn, void* msg, ami_ulong len);
+/* Is a message waiting on the channel? Waits up to usec microseconds for
+   one, zero to poll. Nonzero when a read would not block. */
+ami_long ami_rdymsg(ami_long fn, ami_long usec);
+/* Bound the reads on a message channel: one that waits longer than usec
+   microseconds fails. Zero clears the bound, for a channel that is kept. */
+void ami_tmomsg(ami_long fn, ami_long usec);
+/* Size the receive buffering on a message channel, in bytes. */
+void ami_bufmsg(ami_long fn, ami_long len);
+/* Shut a message channel under its reader: a read blocked on it fails.
+   The channel still wants closing. */
+void ami_shutmsg(ami_long fn);
+void ami_clsmsg(ami_long fn);
+FILE* ami_waitnet(ami_long port, ami_long secure);
 /* Install a network error handler. Called with the error text before
    the abort; a handler that longjmps takes the error, one that returns
    lets the abort proceed. A server that recycles failed connections
@@ -101,11 +112,11 @@ FILE* ami_waitnet(long port, long secure);
    an error where a clear channel just falls silent. */
 typedef void (*ami_neterrhan_t)(const char* es);
 void ami_neterror(ami_neterrhan_t handler);
-long ami_waitmsg(long port, long secure);
-long ami_certnet(FILE* f, long which, string cert, long len);
-long ami_certmsg(long fn, long which, string cert, long len);
-void ami_certlistnet(FILE *f, long which, ami_certptr* list);
-void ami_certlistmsg(long fn, long which, ami_certptr* list);
+ami_long ami_waitmsg(ami_long port, ami_long secure);
+ami_long ami_certnet(FILE* f, ami_long which, string cert, ami_long len);
+ami_long ami_certmsg(ami_long fn, ami_long which, string cert, ami_long len);
+void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list);
+void ami_certlistmsg(ami_long fn, ami_long which, ami_certptr* list);
 void ami_certlistfree(ami_certptr* list);
 
 #ifdef __cplusplus

@@ -33,16 +33,16 @@ extern "C" {
 typedef struct {
 
     string   name; /* name of option */
-    long*     flag; /* flag encounter */
-    long*     ival; /* integer value */
+    ami_long*     flag; /* flag encounter */
+    ami_long*     ival; /* integer value */
     float*   fval; /* floating point value */
     string   str;  /* string value */
 
 } ami_optrec, *ami_optptr;
 
 void ami_dequote(string s);
-long ami_option(string s, ami_optrec opts[], long single);
-long ami_options(long* argi, long* argc, char **argv, ami_optrec  opts[], long single);
+ami_long ami_option(string s, ami_optrec opts[], ami_long single);
+ami_long ami_options(ami_long* argi, ami_long* argc, char **argv, ami_optrec  opts[], ami_long single);
 
 #ifdef __cplusplus
 }

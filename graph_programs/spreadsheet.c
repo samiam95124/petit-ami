@@ -136,25 +136,25 @@ typedef struct {
 
 static cellrec cells[ROWS][COLS];
 
-static long   curx, cury;      /* the current cell, 0 based */
-static long   orgx, orgy;      /* top left cell shown, 0 based */
-static long   colw, rowh;      /* cell size in pixels */
-static long   hdrw, hdrh;      /* header sizes in pixels */
-static long   cellx, celly;    /* whole cells that fit in the grid area */
-static long   gridx0, gridy0;  /* the grid area, in pixels */
-static long   gridx1, gridy1;
-static long   sbw, sbh;        /* scroll bar thickness */
-static long   coldig = COLDIG; /* column width in digits */
+static int    curx, cury;      /* the current cell, 0 based */
+static int    orgx, orgy;      /* top left cell shown, 0 based */
+static int    colw, rowh;      /* cell size in pixels */
+static int    hdrw, hdrh;      /* header sizes in pixels */
+static int    cellx, celly;    /* whole cells that fit in the grid area */
+static int    gridx0, gridy0;  /* the grid area, in pixels */
+static int    gridx1, gridy1;
+static ami_long sbw, sbh;        /* scroll bar thickness */
+static int    coldig = COLDIG; /* column width in digits */
 static char   entry[CELLEN];   /* the entry under construction */
 static int    entering;        /* an entry is being typed */
 static char   filename[500];   /* the file this sheet came from */
 static int    modified;        /* the sheet has unsaved changes */
 static int    evalnest;        /* formula evaluation depth */
-static long   mpx, mpy;        /* the mouse, tracked in pixels */
+static int    mpx, mpy;        /* the mouse, tracked in pixels */
 static int    diag;            /* report to stderr, from -d */
 static char*  undtxt;          /* the contents a cell had before the last
                                   change, for undo */
-static long   undx, undy;      /* the cell that change was in */
+static int    undx, undy;      /* the cell that change was in */
 static int    undval;          /* there is something to undo */
 static char*  clip;            /* the cut cell, for paste */
 
@@ -173,7 +173,7 @@ Cell naming
 *******************************************************************************/
 
 /* the name of a column, as A or AB */
-static void colnam(long x, char* s)
+static void colnam(ami_long x, char* s)
 
 {
 
@@ -183,25 +183,25 @@ static void colnam(long x, char* s)
 }
 
 /* the name of a cell, as A1 */
-static void cellnam(long x, long y, char* s)
+static void cellnam(ami_long x, ami_long y, char* s)
 
 {
 
     char c[4];
 
     colnam(x, c);
-    sprintf(s, "%s%ld", c, y+1);
+    sprintf(s, "%s%lld", c, AMI_LONG_CAST(y+1));
 
 }
 
 /* parse a cell reference at the parse position; returns TRUE and the
    coordinates if one is there */
-static int cellref(long* x, long* y)
+static int cellref(ami_long* x, ami_long* y)
 
 {
 
     const char* sp = pp;
-    long r = 0;
+    int r = 0;
 
     if (!isalpha((unsigned char)*pp)) return (FALSE);
     *x = toupper((unsigned char)*pp)-'A';
@@ -232,7 +232,7 @@ stack overflow.
 
 *******************************************************************************/
 
-static double cellval(long x, long y); /* forward */
+static double cellval(ami_long x, ami_long y); /* forward */
 
 static void skipsp(void) { while (*pp == ' ') pp++; }
 
@@ -241,9 +241,9 @@ static double range(int fn)
 
 {
 
-    long x1, y1, x2, y2, x, y;
+    ami_long x1, y1, x2, y2, x, y;
     double acc = 0, v;
-    long   n = 0;
+    int    n = 0;
     int    first = TRUE;
 
     skipsp();
@@ -293,7 +293,7 @@ static double factor(void)
 {
 
     double v;
-    long   x, y;
+    ami_long x, y;
     char   name[16];
     int    i;
 
@@ -390,7 +390,7 @@ static double expr(void)
 
 /* the value of a cell: a number as itself, a formula evaluated, text as
    zero */
-static double cellval(long x, long y)
+static double cellval(ami_long x, ami_long y)
 
 {
 
@@ -437,7 +437,7 @@ static void recalc(void)
 
 {
 
-    long x, y;
+    ami_long x, y;
     cellrec* c;
     char* ep;
 
@@ -478,7 +478,7 @@ Sheet contents
 *******************************************************************************/
 
 /* place contents in a cell, or clear it with NULL */
-static void setcell(long x, long y, const char* s)
+static void setcell(ami_long x, ami_long y, const char* s)
 
 {
 
@@ -515,7 +515,7 @@ static void clearsheet(void)
 
 {
 
-    long x, y;
+    ami_long x, y;
 
     for (y = 0; y < ROWS; y++) for (x = 0; x < COLS; x++)
         if (cells[y][x].text) {
@@ -532,7 +532,7 @@ static void clearsheet(void)
 }
 
 /* what a cell displays: its value, or its text, or an error */
-static void celldsp(long x, long y, char* s, long sl)
+static void celldsp(ami_long x, ami_long y, char* s, int sl)
 
 {
 
@@ -612,7 +612,7 @@ static void buf16(buffer* b, unsigned v)
 
 }
 
-static void buf32(buffer* b, unsigned long v)
+static void buf32(buffer* b, unsigned int v)
 
 {
 
@@ -651,7 +651,7 @@ static void bufxml(buffer* b, const char* s)
 typedef struct {
 
     const char* name;
-    unsigned long crc;
+    unsigned int crc;
     size_t len;
     size_t off;
 
@@ -682,13 +682,13 @@ static void zipadd(buffer* z, zipent* e, const char* name, const char* data,
 
 }
 
-static void zipend(buffer* z, zipent* ents, long n)
+static void zipend(buffer* z, zipent* ents, int n)
 
 {
 
     size_t dir = z->len;
     size_t dirlen;
-    long   i;
+    int    i;
 
     for (i = 0; i < n; i++) {
 
@@ -731,7 +731,7 @@ static void odfformula(buffer* b, const char* f)
 {
 
     const char* p = f+1; /* past the = */
-    long x, y;
+    ami_long x, y;
 
     bufstr(b, "of:=");
     while (*p) {
@@ -788,11 +788,11 @@ static void odfformula(buffer* b, const char* f)
 
 /* The same in reverse: of:=SUM([.A1:.A3]) becomes =SUM(A1:A3). The
    result carries its own leading =, whatever the source had. */
-static void plainformula(char* d, const char* s, long dl)
+static void plainformula(char* d, const char* s, int dl)
 
 {
 
-    long i = 0;
+    int i = 0;
     const char* b;
 
     if (!strncmp(s, "of:", 3)) s += 3;
@@ -816,7 +816,7 @@ static void odscontent(buffer* b)
 
 {
 
-    long x, y, lastx, lasty, gap;
+    ami_long x, y, lastx, lasty, gap;
     char s[CELLEN];
     cellrec* c;
 
@@ -835,7 +835,7 @@ static void odscontent(buffer* b)
         if (cells[y][x].text) { if (y > lasty) lasty = y;
                                 if (x > lastx) lastx = x; }
     bufstr(b, "<table:table-column table:number-columns-repeated=\"");
-    sprintf(s, "%ld", lastx+1 > 0? lastx+1: 1);
+    sprintf(s, "%d", lastx+1 > 0? lastx+1: 1);
     bufstr(b, s);
     bufstr(b, "\"/>");
     for (y = 0; y <= lasty; y++) {
@@ -849,7 +849,7 @@ static void odscontent(buffer* b)
             if (gap) {
 
                 bufstr(b, "<table:table-cell table:number-columns-repeated=\"");
-                sprintf(s, "%ld", gap);
+                sprintf(s, "%d", gap);
                 bufstr(b, s);
                 bufstr(b, "\"/>");
                 gap = 0;
@@ -951,7 +951,7 @@ static char* odsread(const char* fn)
     buffer raw = { NULL, 0, 0 };
     char   buf[4096];
     size_t n;
-    long   i, cd, cnt, ent;
+    int    i, cd, cnt, ent;
     char*  out = NULL;
     unsigned char* d;
 
@@ -962,33 +962,33 @@ static char* odsread(const char* fn)
     d = (unsigned char*)raw.p;
     /* the end of central directory record, last in the file */
     cd = -1;
-    for (i = (long)raw.len-22; i >= 0; i--)
+    for (i = (int)raw.len-22; i >= 0; i--)
         if (d[i] == 0x50 && d[i+1] == 0x4b && d[i+2] == 0x05 &&
             d[i+3] == 0x06) { cd = i; break; }
     if (cd < 0) { free(raw.p); return (NULL); } /* not a zip */
     cnt = d[cd+10]|d[cd+11] << 8;
-    ent = d[cd+16]|d[cd+17] << 8|(long)d[cd+18] << 16|(long)d[cd+19] << 24;
+    ent = d[cd+16]|d[cd+17] << 8|(int)d[cd+18] << 16|(int)d[cd+19] << 24;
     /* the directory entries, looking for content.xml */
-    for (i = 0; i < cnt && ent+46 <= (long)raw.len; i++) {
+    for (i = 0; i < cnt && ent+46 <= (int)raw.len; i++) {
 
         unsigned char* p = d+ent;
-        long method, nlen, elen, clen, csize, usize, loc;
+        int method, nlen, elen, clen, csize, usize, loc;
 
         if (!(p[0] == 0x50 && p[1] == 0x4b && p[2] == 0x01 && p[3] == 0x02))
             break;
         method = p[10]|p[11] << 8;
-        csize = p[20]|p[21] << 8|(long)p[22] << 16|(long)p[23] << 24;
-        usize = p[24]|p[25] << 8|(long)p[26] << 16|(long)p[27] << 24;
+        csize = p[20]|p[21] << 8|(int)p[22] << 16|(int)p[23] << 24;
+        usize = p[24]|p[25] << 8|(int)p[26] << 16|(int)p[27] << 24;
         nlen = p[28]|p[29] << 8;
         elen = p[30]|p[31] << 8;
         clen = p[32]|p[33] << 8;
-        loc = p[42]|p[43] << 8|(long)p[44] << 16|(long)p[45] << 24;
+        loc = p[42]|p[43] << 8|(int)p[44] << 16|(int)p[45] << 24;
         if (nlen == 11 && !memcmp(p+46, "content.xml", 11)) {
 
             unsigned char* lp = d+loc;
             char* data;
 
-            if (loc < 0 || loc+30 > (long)raw.len) break;
+            if (loc < 0 || loc+30 > (int)raw.len) break;
             /* the local header carries its own name and extra lengths */
             data = (char*)lp+30+(lp[26]|lp[27] << 8)+(lp[28]|lp[29] << 8);
             if (method == 0) { /* stored */
@@ -1029,13 +1029,13 @@ static char* odsread(const char* fn)
 }
 
 /* the text of an xml attribute, or NULL: the tag is one element */
-static int xmlatt(const char* tag, const char* name, char* d, long dl)
+static int xmlatt(const char* tag, const char* name, char* d, int dl)
 
 {
 
     const char* p = tag;
-    long n = strlen(name);
-    long i = 0;
+    int n = strlen(name);
+    int i = 0;
 
     while ((p = strstr(p, name))) {
 
@@ -1066,12 +1066,12 @@ static int xmlatt(const char* tag, const char* name, char* d, long dl)
 }
 
 /* the text of the <text:p> runs inside a cell element */
-static void xmltext(const char* cell, const char* end, char* d, long dl)
+static void xmltext(const char* cell, const char* end, char* d, int dl)
 
 {
 
     const char* p = cell;
-    long i = 0;
+    int i = 0;
 
     while ((p = strstr(p, "<text:p")) && p < end) {
 
@@ -1100,7 +1100,7 @@ static void loadsheet(const char* fn)
 
     char* xml;
     char* p;
-    long  x = 0, y = -1;
+    ami_long x = 0, y = -1;
     char  att[CELLEN], txt[CELLEN];
     FILE* t;
 
@@ -1125,7 +1125,7 @@ static void loadsheet(const char* fn)
         if (!strncmp(p, "<table:table-row", 16)) { /* a row, maybe repeated */
 
             char* e = strchr(p, '>');
-            long  rep = 1;
+            int   rep = 1;
 
             if (!e) break;
             *e = 0; /* the element alone, for the attribute search */
@@ -1142,8 +1142,8 @@ static void loadsheet(const char* fn)
 
             char* e = strchr(p, '>');
             char* close;
-            long  rep = 1;
-            long  empty = TRUE;
+            int   rep = 1;
+            int   empty = TRUE;
             int   selfend; /* the element closes itself: it holds nothing */
 
             if (!e) break;
@@ -1222,7 +1222,7 @@ sheet reflows on a resize or a column width change.
    the obvious double form rounds up to one past it, and the cast back
    overflows to a negative -- which the scroll bar rejects as an invalid
    position, exactly at the end of the sheet, where num reaches den. */
-static long fullscale(long num, long den)
+static int fullscale(int num, int den)
 
 {
 
@@ -1235,11 +1235,11 @@ static long fullscale(long num, long den)
 
 /* Set a scroll bar from the view: the thumb is the visible share of the
    sheet, at the scrolled position. */
-static void setbar(long id, long org, long vis, long total)
+static void setbar(int id, int org, int vis, int total)
 
 {
 
-    long max = total-vis;
+    int max = total-vis;
 
     if (max < 1) max = 1;
     ami_scrollsiz(stdout, id, fullscale(vis, total));
@@ -1248,14 +1248,14 @@ static void setbar(long id, long org, long vis, long total)
 }
 
 /* a cell offset from a bar position, over the given travel */
-static long barcell(long pos, long travel)
+static int barcell(int pos, int travel)
 
 {
 
     if (travel < 1 || pos <= 0) return (0);
     if (pos >= LONG_MAX) return (travel);
 
-    return ((long)((double)travel*((double)pos/LONG_MAX)+0.5));
+    return ((int)((double)travel*((double)pos/LONG_MAX)+0.5));
 
 }
 
@@ -1291,16 +1291,16 @@ static void layout(void)
     setbar(SBVERT, orgy, celly, ROWS);
     setbar(SBHORIZ, orgx, cellx, COLS);
     if (diag) fprintf(stderr,
-        "layout: window %ldx%ld grid %ld,%ld-%ld,%ld cells %ldx%ld "
-        "bars: vert at %ld,%ld %ldx%ld horiz at %ld,%ld %ldx%ld\n",
-        ami_maxxg(stdout), ami_maxyg(stdout), gridx0, gridy0, gridx1, gridy1,
-        cellx, celly, gridx1+1, gridy0, sbw, gridy1-gridy0,
-        gridx0, gridy1+1, gridx1-gridx0, sbh);
+        "layout: window %lldx%lld grid %d,%d-%d,%d cells %dx%d "
+        "bars: vert at %d,%d %lldx%d horiz at %d,%d %dx%lld\n",
+        AMI_LONG_CAST(ami_maxxg(stdout)), AMI_LONG_CAST(ami_maxyg(stdout)), gridx0, gridy0, gridx1, gridy1,
+        cellx, celly, gridx1+1, gridy0, AMI_LONG_CAST(sbw), gridy1-gridy0,
+        gridx0, gridy1+1, gridx1-gridx0, AMI_LONG_CAST(sbh));
 
 }
 
 /* the pixel origin of a displayed cell */
-static void cellpos(long x, long y, long* px, long* py)
+static void cellpos(ami_long x, ami_long y, int* px, int* py)
 
 {
 
@@ -1314,12 +1314,12 @@ static void cellpos(long x, long y, long* px, long* py)
    at the first cell holding anything, or at the edge of the grid.
    Numbers do not run on: a number that does not fit is not a number the
    reader can trust, so it shows as # marks instead. */
-static long spillwid(long x, long y)
+static ami_long spillwid(ami_long x, ami_long y)
 
 {
 
-    long w = colw;
-    long i, px, py;
+    int w = colw;
+    int i, px, py;
 
     for (i = x+1; i < COLS; i++) {
 
@@ -1337,11 +1337,11 @@ static long spillwid(long x, long y)
 }
 
 /* clip a string to a pixel width, in place */
-static void clipstr(char* s, long w)
+static void clipstr(char* s, int w)
 
 {
 
-    long i = strlen(s);
+    int i = strlen(s);
 
     while (i && ami_strsiz(stdout, s) > w) s[--i] = 0;
 
@@ -1350,11 +1350,11 @@ static void clipstr(char* s, long w)
 /* The face of one cell. The faces of a row go down before any of its
    contents, so that text running past its own cell is not painted over
    by the cells it runs into. */
-static void drawface(long x, long y)
+static void drawface(ami_long x, ami_long y)
 
 {
 
-    long px, py;
+    int px, py;
 
     if (x < orgx || y < orgy) return;
     cellpos(x, y, &px, &py);
@@ -1367,13 +1367,13 @@ static void drawface(long x, long y)
 }
 
 /* the contents of one cell */
-static void drawcell(long x, long y)
+static void drawcell(ami_long x, ami_long y)
 
 {
 
-    long px, py;
+    int px, py;
     char s[CELLEN];
-    long tw;
+    int tw;
     int  val; /* the cell shows a value, not text */
 
     if (x < orgx || y < orgy) return;
@@ -1391,9 +1391,9 @@ static void drawcell(long x, long y)
         ami_fcolor(stdout, ami_black);
         if (ami_strsiz(stdout, s) > colw-4) { /* it does not fit */
 
-            long i;
+            int i;
 
-            for (i = 0; i < (long)sizeof(s)-1; i++) s[i] = '#';
+            for (i = 0; i < (int)sizeof(s)-1; i++) s[i] = '#';
             s[i] = 0;
             clipstr(s, colw-4);
 
@@ -1403,8 +1403,8 @@ static void drawcell(long x, long y)
 
     } else { /* text to the left, running on if it must */
 
-        long w = spillwid(x, y);
-        long ex;
+        ami_long w = spillwid(x, y);
+        int ex;
 
         /* clipped first, so what follows measures the text as it will
            actually be drawn */
@@ -1437,12 +1437,12 @@ static void drawall(void)
 
 {
 
-    long x, y, px, py;
+    ami_long x, y, px, py;
     char s[CELLEN+40];
     char nam[16];
 
-    long nx = (gridx1-gridx0+colw-1)/colw+1; /* cells to cover the area */
-    long ny = (gridy1-gridy0+rowh-1)/rowh+1;
+    int nx = (gridx1-gridx0+colw-1)/colw+1; /* cells to cover the area */
+    int ny = (gridy1-gridy0+rowh-1)/rowh+1;
 
     ami_fcolor(stdout, ami_white);
     ami_frect(stdout, 1, 1, ami_maxxg(stdout), ami_maxyg(stdout));
@@ -1475,7 +1475,7 @@ static void drawall(void)
 
         cellpos(orgx, y, &px, &py);
         if (py > gridy1) break;
-        sprintf(s, "%ld", y+1);
+        sprintf(s, "%lld", AMI_LONG_CAST(y+1));
         ami_cursorg(stdout, hdrw-2-ami_strsiz(stdout, s), py+2);
         fprintf(stdout, "%s", s);
 
@@ -1524,7 +1524,7 @@ static void follow(void)
 
 {
 
-    long ox = orgx, oy = orgy;
+    int ox = orgx, oy = orgy;
 
     if (curx < orgx) orgx = curx;
     if (curx >= orgx+cellx) orgx = curx-cellx+1;
@@ -1547,11 +1547,11 @@ static void follow(void)
    the view would drag the slider back to the nearest whole cell -- which
    on a bar with few cells of travel is most of the way back where it
    started, so the bar appeared not to work. */
-static void scrollto(long nx, long ny, long frombar)
+static void scrollto(int nx, int ny, int frombar)
 
 {
 
-    long ox = orgx, oy = orgy;
+    int ox = orgx, oy = orgy;
 
     orgx = nx;
     orgy = ny;
@@ -1593,26 +1593,26 @@ typedef struct { char* title; char* text; } helprec;
 /* The wrapped text, one entry per line as it appears on the screen. The
    text is wrapped once, when the topic is picked or the window resized,
    and drawn from there, which is what makes it scrollable. */
-typedef struct { char* s; int bold; long ind; } helpline;
+typedef struct { char* s; int bold; int ind; } helpline;
 
 static FILE*     helpwf;      /* the help window, NULL when closed */
 static char*     helpbuf;     /* the help file, read whole */
 static helprec*  helptopics;  /* the topics in it */
-static long      helptopicct;
-static long*     helpmatch;   /* the topics the search matched */
-static long      helpmatches; /* how many of them */
-static long      helpsel;     /* the topic shown, -1 for none */
-static long      helpx0, helpy0; /* the topic list, in pixels */
-static long      helpx1, helpy1;
+static int       helptopicct;
+static int*     helpmatch;   /* the topics the search matched */
+static int       helpmatches; /* how many of them */
+static int       helpsel;     /* the topic shown, -1 for none */
+static int       helpx0, helpy0; /* the topic list, in pixels */
+static int       helpx1, helpy1;
 static int       helplistup;  /* the list box has been made */
 static helpline* helplines;   /* the topic, wrapped to the pane */
-static long      helplinect;
-static long      helplinemax;
-static long      helptop;     /* first wrapped line shown */
-static long      helppage;    /* wrapped lines the pane holds */
+static int       helplinect;
+static int       helplinemax;
+static int       helptop;     /* first wrapped line shown */
+static int       helppage;    /* wrapped lines the pane holds */
 static char*     helpprog;    /* argv[0], to find the help file by */
 
-static void helpout(const char* s, int bold, long ind); /* forward */
+static void helpout(const char* s, int bold, int ind); /* forward */
 
 /*******************************************************************************
 
@@ -1651,7 +1651,7 @@ static int helpread(void)
     char  dir[500];
     char* e;
     FILE* f = NULL;
-    long  i, n;
+    int   i, n;
 
     /* the directory the program was run from, with its slash */
     dir[0] = 0;
@@ -1706,7 +1706,7 @@ static void helpsplit(void)
 
     char*  p;
     char** head; /* the # of each topic */
-    long   n, i;
+    int    n, i;
 
     /* count the heads, then take them, walking by lines both times */
     n = 0;
@@ -1719,7 +1719,7 @@ static void helpsplit(void)
     }
     head = malloc((n+1)*sizeof(char*));
     helptopics = malloc((n+1)*sizeof(helprec));
-    helpmatch = malloc((n+1)*sizeof(long));
+    helpmatch = malloc((n+1)*sizeof(int));
     if (!head || !helptopics || !helpmatch)
         { ami_alert("spreadsheet", "Out of memory"); exit(1); }
     n = 0;
@@ -1772,7 +1772,7 @@ static void helpload(void)
                  "program; if the file is missing, only the help is.",
                  HELPFILE);
         helptopics = malloc(sizeof(helprec));
-        helpmatch = malloc(sizeof(long));
+        helpmatch = malloc(sizeof(int));
         if (!helptopics || !helpmatch)
             { ami_alert("spreadsheet", "Out of memory"); exit(1); }
         helptopics[0].title = "No help file";
@@ -1794,13 +1794,13 @@ The topic list
    is the subject of holds it many times, and one that merely mentions
    it in passing holds it once, and the reader can tell them apart
    without opening either. */
-static long helpcount(const helprec* h, const char* what)
+static int helpcount(const helprec* h, const char* what)
 
 {
 
     const char* p;
-    long        n = strlen(what);
-    long        c = 0;
+    int         n = strlen(what);
+    int         c = 0;
 
     if (!n) return (0); /* an empty search matches everything, uncounted */
     for (p = h->title; *p; p++)
@@ -1821,7 +1821,7 @@ static void helpfill(const char* what)
 {
 
     ami_strptr sl = NULL, sp, lp = NULL;
-    long       i, c;
+    int        i, c;
     char       lab[300];
 
     /* the strings are ours until the list box has them; it copies */
@@ -1832,7 +1832,7 @@ static void helpfill(const char* what)
         if (*what && !c) continue; /* not this one */
         /* the count goes beside the title, so that a topic the word is
            the subject of can be told from one that mentions it once */
-        if (*what) snprintf(lab, sizeof(lab), "%s (%ld)",
+        if (*what) snprintf(lab, sizeof(lab), "%s (%d)",
                             helptopics[i].title, c);
         else snprintf(lab, sizeof(lab), "%s", helptopics[i].title);
         sp = malloc(sizeof(ami_strrec));
@@ -1882,7 +1882,7 @@ which is the only thing that can change the answer.
 *******************************************************************************/
 
 /* keep one finished line */
-static void helpout(const char* s, int bold, long ind)
+static void helpout(const char* s, int bold, int ind)
 
 {
 
@@ -1906,13 +1906,13 @@ static void helpout(const char* s, int bold, long ind)
    breaks already turned into spaces. The break goes at the last word
    that still fits, and fitting is measured with the font rather than
    counted in characters, since the font is not fixed pitch. */
-static void helpwrap(const char* s, int bold, long ind, long w)
+static void helpwrap(const char* s, int bold, int ind, int w)
 
 {
 
     char line[500];
     char try[500];
-    long n;
+    int n;
 
     ami_bold(helpwf, bold);
     while (*s) {
@@ -1924,11 +1924,11 @@ static void helpwrap(const char* s, int bold, long ind, long w)
         while (*q) { /* as many whole words as fit */
 
             const char* e = q;
-            long        m;
+            int         m;
 
             while (*e && *e != ' ') e++; /* the next word */
             m = e-s;
-            if (m >= (long)sizeof(try)) break;
+            if (m >= (int)sizeof(try)) break;
             memcpy(try, s, m);
             try[m] = 0;
             if (n && ami_strsiz(helpwf, try) > w-ind) break;
@@ -1943,7 +1943,7 @@ static void helpwrap(const char* s, int bold, long ind, long w)
 
             while (*q && *q != ' ') q++;
             n = q-s;
-            if (n >= (long)sizeof(line)) n = sizeof(line)-1;
+            if (n >= (int)sizeof(line)) n = sizeof(line)-1;
             memcpy(line, s, n);
             line[n] = 0;
 
@@ -1961,16 +1961,16 @@ static void helpwrap(const char* s, int bold, long ind, long w)
    blank line ends a paragraph, ## is a heading within the topic, and -
    is a list item, which is wrapped with its later lines lined up under
    the first word rather than under the dash. */
-static void helplay1(long w)
+static void helplay1(int w)
 
 {
 
     const char* p;
     char        para[4000];
-    long        pl = 0;
+    int         pl = 0;
     int         bold = FALSE;
-    long        ind = 0;
-    long        i;
+    int         ind = 0;
+    int         i;
 
     for (i = 0; i < helplinect; i++) free(helplines[i].s);
     helplinect = 0;
@@ -1983,7 +1983,7 @@ static void helplay1(long w)
     while (1) {
 
         const char* e = p;
-        long        n;
+        int         n;
 
         while (*e && *e != '\n') e++;
         n = e-p;
@@ -2006,21 +2006,21 @@ static void helplay1(long w)
             while (*t == ' ') t++;
             bold = TRUE;
             n -= t-p;
-            if (n > (long)sizeof(para)-1) n = sizeof(para)-1;
+            if (n > (int)sizeof(para)-1) n = sizeof(para)-1;
             memcpy(para, t, n);
             pl = n;
 
         } else if (*p == '-' || *p == '*') { /* a list item */
 
             ind = ami_strsiz(helpwf, "00");
-            if (n > (long)sizeof(para)-1) n = sizeof(para)-1;
+            if (n > (int)sizeof(para)-1) n = sizeof(para)-1;
             memcpy(para, p, n);
             pl = n;
 
         } else { /* ordinary text, joined to the line before it */
 
-            if (pl && pl < (long)sizeof(para)-1) para[pl++] = ' ';
-            if (pl+n > (long)sizeof(para)-1) n = sizeof(para)-1-pl;
+            if (pl && pl < (int)sizeof(para)-1) para[pl++] = ' ';
+            if (pl+n > (int)sizeof(para)-1) n = sizeof(para)-1-pl;
             memcpy(para+pl, p, n);
             pl += n;
 
@@ -2036,10 +2036,10 @@ static void helpdraw(void)
 
 {
 
-    long chrh = ami_chrsizy(helpwf);
-    long x = helpx1+ami_strsiz(helpwf, "00");
-    long y = helpy0;
-    long i;
+    ami_long chrh = ami_chrsizy(helpwf);
+    ami_long x = helpx1+ami_strsiz(helpwf, "00");
+    ami_long y = helpy0;
+    int i;
 
     /* down to and including the line the count is written on, which is
        under the pane: leave it out and each count is written over the
@@ -2070,7 +2070,7 @@ static void helpdraw(void)
         char more[80];
 
         if (helptop+helppage >= helplinect) strcpy(more, "-- end --");
-        else sprintf(more, "-- %ld more line%s, wheel or page keys --",
+        else sprintf(more, "-- %d more line%s, wheel or page keys --",
                      helplinect-helptop-helppage,
                      helplinect-helptop-helppage == 1? "": "s");
         ami_fcolor(helpwf, ami_blue);
@@ -2094,11 +2094,11 @@ static void helptext(void)
 }
 
 /* scroll the topic by so many lines */
-static void helpscroll(long by)
+static void helpscroll(int by)
 
 {
 
-    long was = helptop;
+    int was = helptop;
 
     helptop += by;
     if (helptop > helplinect-helppage) helptop = helplinect-helppage;
@@ -2112,10 +2112,10 @@ static void helplay(void)
 
 {
 
-    long chrh = ami_chrsizy(helpwf);
-    long chrw = ami_strsiz(helpwf, "0");
-    long lw   = chrw*30;  /* the topic list */
-    long bw, bh, ew, eh;
+    ami_long chrh = ami_chrsizy(helpwf);
+    ami_long chrw = ami_strsiz(helpwf, "0");
+    int lw   = chrw*30;  /* the topic list */
+    ami_long bw, bh, ew, eh;
 
     ami_buttonsizg(helpwf, "Close", &bw, &bh);
     ami_editboxsizg(helpwf, "0", &ew, &eh);
@@ -2155,7 +2155,7 @@ static void helpclose(void)
 
 {
 
-    long i;
+    int i;
 
     if (!helpwf) return;
     fclose(helpwf);
@@ -2172,7 +2172,7 @@ static void helpopen(void)
 
 {
 
-    long wx, wy;
+    ami_long wx, wy;
 
     if (helpwf) { ami_front(helpwf); return; }
     helpload();
@@ -2327,8 +2327,8 @@ static void findcell(const char* what)
 
 {
 
-    long i, n = (long)ROWS*COLS;
-    long x = curx, y = cury;
+    int i, n = (int)ROWS*COLS;
+    ami_long x = curx, y = cury;
 
     for (i = 0; i < n; i++) { /* every cell once, from the next */
 
@@ -2354,7 +2354,7 @@ static void gotocell(const char* name)
 
 {
 
-    long x, y;
+    ami_long x, y;
 
     pp = name;
     perr = FALSE;
@@ -2414,7 +2414,7 @@ int main(int argc, char* argv[])
 
     ami_evtrec er;
     char  fn[500];
-    long  x, y;
+    ami_long x, y;
 
     helpprog = argv[0]; /* the help file is looked for beside the program */
     if (argc > 1 && !strcmp(argv[1], "-d")) { /* report what happens */
@@ -2456,21 +2456,21 @@ int main(int argc, char* argv[])
         if (diag) switch (er.etype) { /* the events the bars send */
 
             case ami_etmouba:
-                fprintf(stderr, "click button %ld at %ld,%ld\n",
-                        er.amoubn, mpx, mpy);
+                fprintf(stderr, "click button %lld at %d,%d\n",
+                        AMI_LONG_CAST(er.amoubn), mpx, mpy);
                 break;
-            case ami_etsclull: fprintf(stderr, "scroll line back, bar %ld\n",
-                                       er.sclulid); break;
-            case ami_etscldrl: fprintf(stderr, "scroll line on, bar %ld\n",
-                                       er.scldrid); break;
-            case ami_etsclulp: fprintf(stderr, "scroll page back, bar %ld\n",
-                                       er.sclupid); break;
-            case ami_etscldrp: fprintf(stderr, "scroll page on, bar %ld\n",
-                                       er.scldpid); break;
-            case ami_etsclpos: fprintf(stderr, "scroll to %ld, bar %ld\n",
-                                       er.sclpos, er.sclpid); break;
-            case ami_etresize: fprintf(stderr, "resize to %ldx%ld\n",
-                                       er.rszxg, er.rszyg); break;
+            case ami_etsclull: fprintf(stderr, "scroll line back, bar %lld\n",
+                                       AMI_LONG_CAST(er.sclulid)); break;
+            case ami_etscldrl: fprintf(stderr, "scroll line on, bar %lld\n",
+                                       AMI_LONG_CAST(er.scldrid)); break;
+            case ami_etsclulp: fprintf(stderr, "scroll page back, bar %lld\n",
+                                       AMI_LONG_CAST(er.sclupid)); break;
+            case ami_etscldrp: fprintf(stderr, "scroll page on, bar %lld\n",
+                                       AMI_LONG_CAST(er.scldpid)); break;
+            case ami_etsclpos: fprintf(stderr, "scroll to %lld, bar %lld\n",
+                                       AMI_LONG_CAST(er.sclpos), AMI_LONG_CAST(er.sclpid)); break;
+            case ami_etresize: fprintf(stderr, "resize to %lldx%lld\n",
+                                       AMI_LONG_CAST(er.rszxg), AMI_LONG_CAST(er.rszyg)); break;
             case ami_etredraw: fprintf(stderr, "redraw\n"); break;
             default: break;
 

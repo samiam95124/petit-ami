@@ -38,12 +38,12 @@
 #define BUTTON_ID 1
 
 /* place or replace the widget centered in the window */
-static void place(long widgeted)
+static void place(ami_long widgeted)
 
 {
 
-    long bs; /* button size */
-    long bx, by;
+    ami_long bs; /* button size */
+    ami_long bx, by;
 
     if (widgeted) kickbuttonkill(stdout, BUTTON_ID);
     bs = ami_maxyg(stdout)/2; /* a square, half the window height */

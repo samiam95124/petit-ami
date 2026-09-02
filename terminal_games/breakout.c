@@ -69,7 +69,7 @@ float     bfy;                        /* ball exact position y; the cell is
                                          way a line draw does */
 int       baltim;                     /* ball start timer */
 ami_evtrec er;                         /* event record */
-long      jchr;                       /* joystick units per character */
+int       jchr;                       /* joystick units per character */
 int       score;                      /* score */
 int       scrchg;                     /* score has changed */
 rectangle paddle;                     /* paddle rectangle */
@@ -83,7 +83,7 @@ int       fldbrk;                     /* bricks hit this field */
 int       padw;                       /* paddle width */
 int       hpadw;                      /* half paddle width */
 int       padstp;                     /* paddle step per key event */
-long      joylst;                     /* last joystick x reported */
+int       joylst;                     /* last joystick x reported */
 int       joyini;                     /* joystick baseline taken */
 int       mcap;                       /* paddle is captured to the mouse */
 int       lstmx;                      /* last mouse position x */

@@ -132,11 +132,11 @@ typedef struct {
     MIDIEndpointRef endpoint;
     MIDIPortRef     midiPort;
     /* plug-in overrides */
-    void (*opn)(long p);
-    void (*cls)(long p);
-    void (*wrseq)(long p, ami_seqptr sp);
-    long (*setparam)(long p, string name, string value);
-    void (*getparam)(long p, string name, string value, long len);
+    void (*opn)(ami_long p);
+    void (*cls)(ami_long p);
+    void (*wrseq)(ami_long p, ami_seqptr sp);
+    ami_long (*setparam)(ami_long p, string name, string value);
+    void (*getparam)(ami_long p, string name, string value, ami_long len);
     char name[256];
 } synthoutdev;
 
@@ -145,11 +145,11 @@ typedef struct {
     int          open;
     MIDIEndpointRef endpoint;
     MIDIPortRef     midiPort;
-    void (*opn)(long p);
-    void (*cls)(long p);
-    void (*rdseq)(long p, ami_seqptr sp);
-    long (*setparam)(long p, string name, string value);
-    void (*getparam)(long p, string name, string value, long len);
+    void (*opn)(ami_long p);
+    void (*cls)(ami_long p);
+    void (*rdseq)(ami_long p, ami_seqptr sp);
+    ami_long (*setparam)(ami_long p, string name, string value);
+    void (*getparam)(ami_long p, string name, string value, ami_long len);
     char name[256];
 } synthindev;
 
@@ -164,17 +164,17 @@ typedef struct {
     int           big;     /* big endian */
     AudioQueueRef queue;   /* AudioQueue for streaming */
     int           fmtset;  /* format needs (re-)configuration */
-    void (*opn)(long p);
-    void (*cls)(long p);
-    void (*chanwavout)(long p, long c);
-    void (*ratewavout)(long p, long r);
-    void (*lenwavout)(long p, long l);
-    void (*sgnwavout)(long p, long s);
-    void (*fltwavout)(long p, long f);
-    void (*endwaveout)(long p, long e);
-    void (*wrwav)(long p, byte* buff, long len);
-    long (*setparam)(long p, string name, string value);
-    void (*getparam)(long p, string name, string value, long len);
+    void (*opn)(ami_long p);
+    void (*cls)(ami_long p);
+    void (*chanwavout)(ami_long p, ami_long c);
+    void (*ratewavout)(ami_long p, ami_long r);
+    void (*lenwavout)(ami_long p, ami_long l);
+    void (*sgnwavout)(ami_long p, ami_long s);
+    void (*fltwavout)(ami_long p, ami_long f);
+    void (*endwaveout)(ami_long p, ami_long e);
+    void (*wrwav)(ami_long p, byte* buff, ami_long len);
+    ami_long (*setparam)(ami_long p, string name, string value);
+    void (*getparam)(ami_long p, string name, string value, ami_long len);
     char name[256];
 } waveoutdev;
 
@@ -188,17 +188,17 @@ typedef struct {
     int           flt;
     int           big;
     AudioQueueRef queue;
-    void (*opn)(long p);
-    void (*cls)(long p);
-    long (*chanwavin)(long p);
-    long (*ratewavin)(long p);
-    long (*lenwavin)(long p);
-    long (*sgnwavin)(long p);
-    long (*fltwavin)(long p);
-    long (*endwavein)(long p);
-    long (*rdwav)(long p, byte* buff, long len);
-    long (*setparam)(long p, string name, string value);
-    void (*getparam)(long p, string name, string value, long len);
+    void (*opn)(ami_long p);
+    void (*cls)(ami_long p);
+    ami_long (*chanwavin)(ami_long p);
+    ami_long (*ratewavin)(ami_long p);
+    ami_long (*lenwavin)(ami_long p);
+    ami_long (*sgnwavin)(ami_long p);
+    ami_long (*fltwavin)(ami_long p);
+    ami_long (*endwavein)(ami_long p);
+    ami_long (*rdwav)(ami_long p, byte* buff, ami_long len);
+    ami_long (*setparam)(ami_long p, string name, string value);
+    void (*getparam)(ami_long p, string name, string value, ami_long len);
     char name[256];
 } waveindev;
 
@@ -280,9 +280,9 @@ static void error(const char* s)
    buffer convention: a result that fills the entire buffer is not zero
    terminated, a shorter result is zero terminated, and it is an error if the
    result cannot fit. */
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 {
-    long l = (long)strlen(s); /* find length of source */
+    ami_long l = (ami_long)strlen(s); /* find length of source */
     if (l > dl) error("String too large for destination");
     memcpy(d, s, l); /* copy string into place */
     if (l < dl) d[l] = 0; /* terminate if shorter than buffer */
@@ -294,12 +294,12 @@ static void cpycrit(char* d, long dl, const char* s)
 *                                                                              *
 *******************************************************************************/
 
-static long timediff(struct timeval* rt)
+static ami_long timediff(struct timeval* rt)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    long ds = (long)(tv.tv_sec  - rt->tv_sec);
-    long du = (long)(tv.tv_usec - rt->tv_usec);
+    ami_long ds = (ami_long)(tv.tv_sec  - rt->tv_sec);
+    ami_long du = (ami_long)(tv.tv_usec - rt->tv_usec);
     return ds * 10000 + du / 100;
 }
 
@@ -340,14 +340,14 @@ static void insseq(ami_seqptr sp)
 
 /* forward declarations */
 static void excseq(ami_seqptr sp);
-static void playwave_kickoff(long port, long wt);
-static void playsynth_kickoff(long port, long sid);
+static void playwave_kickoff(ami_long port, ami_long wt);
+static void playsynth_kickoff(ami_long port, ami_long sid);
 
 static void acttim(void)
 {
     if (!seqtimact && seqlst) {
-        long elap = timediff(&strtim);
-        long tl = seqlst->time - elap;
+        ami_long elap = timediff(&strtim);
+        ami_long tl = seqlst->time - elap;
         if (tl < 0) tl = 0;
         struct kevent kev;
         /* NOTE_NSECONDS: tl is in 100us units → convert to nanoseconds */
@@ -371,7 +371,7 @@ static void* sequencer_thread(void* arg)
         if (n == 0) continue;
 
         pthread_mutex_lock(&seqlock);
-        long elap = timediff(&strtim);
+        ami_long elap = timediff(&strtim);
         while (seqlst && seqlst->time <= elap) {
             ami_seqptr sp = seqlst;
             seqlst = sp->next;
@@ -413,7 +413,7 @@ static void seqorexe(ami_seqptr sp)
         excseq(sp);
         putseq(sp);
     } else {
-        long elap = timediff(&strtim);
+        ami_long elap = timediff(&strtim);
         if (sp->time <= elap) {
             excseq(sp);
             putseq(sp);
@@ -432,7 +432,7 @@ static void seqorexe(ami_seqptr sp)
 *                                                                              *
 *******************************************************************************/
 
-static void midisend(long port, UInt32 status, UInt32 data1, UInt32 data2)
+static void midisend(ami_long port, UInt32 status, UInt32 data1, UInt32 data2)
 {
     synthoutdev* d = &synthout_tab[port - 1];
     if (!d->open) return;
@@ -449,7 +449,7 @@ static void midisend(long port, UInt32 status, UInt32 data1, UInt32 data2)
     }
 }
 
-static void ctlchg(long port, ami_channel c, int cn, int v)
+static void ctlchg(ami_long port, ami_channel c, int cn, int v)
 {
     midisend(port, 0xB0 + (c - 1), cn, v);
 }
@@ -462,7 +462,7 @@ static void ctlchg(long port, ami_channel c, int cn, int v)
 
 static void excseq(ami_seqptr sp)
 {
-    long b, pt;
+    ami_long b, pt;
 
     /* if the port has a plug-in wrseq, use it */
     if (sp->port >= 1 && sp->port <= synthout_num &&
@@ -591,7 +591,7 @@ static void excseq(ami_seqptr sp)
     }
 }
 
-void _pa_excseq(long p, ami_seqptr sp)
+void _pa_excseq(ami_long p, ami_seqptr sp)
 {
     excseq(sp);
 }
@@ -717,7 +717,7 @@ void ami_stoptimeout(void)
     pthread_mutex_unlock(&seqlock);
 }
 
-long ami_curtimeout(void)
+ami_long ami_curtimeout(void)
 {
     if (!seqrun) return 0;
     return timediff(&strtim);
@@ -734,7 +734,7 @@ void ami_stoptimein(void)
     seqrunin = FALSE;
 }
 
-long ami_curtimein(void)
+ami_long ami_curtimein(void)
 {
     if (!seqrunin) return 0;
     return timediff(&sintim);
@@ -746,34 +746,34 @@ long ami_curtimein(void)
 *                                                                              *
 *******************************************************************************/
 
-long ami_synthout(void)  { return synthout_num; }
-long ami_synthin(void)   { return synthin_num; }
-long ami_waveout(void)   { return waveout_num; }
-long ami_wavein(void)    { return wavein_num; }
+ami_long ami_synthout(void)  { return synthout_num; }
+ami_long ami_synthin(void)   { return synthin_num; }
+ami_long ami_waveout(void)   { return waveout_num; }
+ami_long ami_wavein(void)    { return wavein_num; }
 
 /* Device names are returned by the critical buffer convention: a result that
    fills the entire buffer is not zero terminated, a shorter result is zero
    terminated, and it is an error if the result cannot fit. */
 
-void ami_synthoutname(long p, string name, long len)
+void ami_synthoutname(ami_long p, string name, ami_long len)
 {
     if (p < 1 || p > synthout_num) { cpycrit(name, len, ""); return; }
     cpycrit(name, len, synthout_tab[p - 1].name);
 }
 
-void ami_synthinname(long p, string name, long len)
+void ami_synthinname(ami_long p, string name, ami_long len)
 {
     if (p < 1 || p > synthin_num) { cpycrit(name, len, ""); return; }
     cpycrit(name, len, synthin_tab[p - 1].name);
 }
 
-void ami_waveoutname(long p, string name, long len)
+void ami_waveoutname(ami_long p, string name, ami_long len)
 {
     if (p < 1 || p > waveout_num) { cpycrit(name, len, ""); return; }
     cpycrit(name, len, waveout_tab[p - 1].name);
 }
 
-void ami_waveinname(long p, string name, long len)
+void ami_waveinname(ami_long p, string name, ami_long len)
 {
     if (p < 1 || p > wavein_num) { cpycrit(name, len, ""); return; }
     cpycrit(name, len, wavein_tab[p - 1].name);
@@ -785,7 +785,7 @@ void ami_waveinname(long p, string name, long len)
 *                                                                              *
 *******************************************************************************/
 
-void ami_opensynthout(long p)
+void ami_opensynthout(ami_long p)
 {
     if (p < 1 || p > synthout_num) error("Invalid synth output port");
     synthoutdev* d = &synthout_tab[p - 1];
@@ -825,7 +825,7 @@ void ami_opensynthout(long p)
     d->open = TRUE;
 }
 
-void ami_closesynthout(long p)
+void ami_closesynthout(ami_long p)
 {
     if (p < 1 || p > synthout_num) return;
     synthoutdev* d = &synthout_tab[p - 1];
@@ -850,7 +850,7 @@ void ami_closesynthout(long p)
 *                                                                              *
 *******************************************************************************/
 
-void ami_opensynthin(long p)
+void ami_opensynthin(ami_long p)
 {
     if (p < 1 || p > synthin_num) error("Invalid synth input port");
     synthindev* d = &synthin_tab[p - 1];
@@ -861,7 +861,7 @@ void ami_opensynthin(long p)
     d->open = TRUE;
 }
 
-void ami_closesynthin(long p)
+void ami_closesynthin(ami_long p)
 {
     if (p < 1 || p > synthin_num) return;
     synthindev* d = &synthin_tab[p - 1];
@@ -876,7 +876,7 @@ void ami_closesynthin(long p)
 *                                                                              *
 *******************************************************************************/
 
-void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteon(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -885,7 +885,7 @@ void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
     seqorexe(sp);
 }
 
-void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteoff(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -894,7 +894,7 @@ void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
     seqorexe(sp);
 }
 
-void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
+void ami_instchange(ami_long p, ami_long t, ami_channel c, ami_instrument i)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -903,7 +903,7 @@ void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
     seqorexe(sp);
 }
 
-void ami_attack(long p, long t, ami_channel c, long at)
+void ami_attack(ami_long p, ami_long t, ami_channel c, ami_long at)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -912,7 +912,7 @@ void ami_attack(long p, long t, ami_channel c, long at)
     seqorexe(sp);
 }
 
-void ami_release(long p, long t, ami_channel c, long rt)
+void ami_release(ami_long p, ami_long t, ami_channel c, ami_long rt)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -921,7 +921,7 @@ void ami_release(long p, long t, ami_channel c, long rt)
     seqorexe(sp);
 }
 
-void ami_legato(long p, long t, ami_channel c, long b)
+void ami_legato(ami_long p, ami_long t, ami_channel c, ami_long b)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -930,7 +930,7 @@ void ami_legato(long p, long t, ami_channel c, long b)
     seqorexe(sp);
 }
 
-void ami_portamento(long p, long t, ami_channel c, long b)
+void ami_portamento(ami_long p, ami_long t, ami_channel c, ami_long b)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -939,7 +939,7 @@ void ami_portamento(long p, long t, ami_channel c, long b)
     seqorexe(sp);
 }
 
-void ami_vibrato(long p, long t, ami_channel c, long v)
+void ami_vibrato(ami_long p, ami_long t, ami_channel c, ami_long v)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -948,7 +948,7 @@ void ami_vibrato(long p, long t, ami_channel c, long v)
     seqorexe(sp);
 }
 
-void ami_volsynthchan(long p, long t, ami_channel c, long v)
+void ami_volsynthchan(ami_long p, ami_long t, ami_channel c, ami_long v)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -957,7 +957,7 @@ void ami_volsynthchan(long p, long t, ami_channel c, long v)
     seqorexe(sp);
 }
 
-void ami_porttime(long p, long t, ami_channel c, long v)
+void ami_porttime(ami_long p, ami_long t, ami_channel c, ami_long v)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -966,7 +966,7 @@ void ami_porttime(long p, long t, ami_channel c, long v)
     seqorexe(sp);
 }
 
-void ami_balance(long p, long t, ami_channel c, long b)
+void ami_balance(ami_long p, ami_long t, ami_channel c, ami_long b)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -975,7 +975,7 @@ void ami_balance(long p, long t, ami_channel c, long b)
     seqorexe(sp);
 }
 
-void ami_pan(long p, long t, ami_channel c, long b)
+void ami_pan(ami_long p, ami_long t, ami_channel c, ami_long b)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -984,7 +984,7 @@ void ami_pan(long p, long t, ami_channel c, long b)
     seqorexe(sp);
 }
 
-void ami_timbre(long p, long t, ami_channel c, long tb)
+void ami_timbre(ami_long p, ami_long t, ami_channel c, ami_long tb)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -993,7 +993,7 @@ void ami_timbre(long p, long t, ami_channel c, long tb)
     seqorexe(sp);
 }
 
-void ami_brightness(long p, long t, ami_channel c, long b)
+void ami_brightness(ami_long p, ami_long t, ami_channel c, ami_long b)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1002,7 +1002,7 @@ void ami_brightness(long p, long t, ami_channel c, long b)
     seqorexe(sp);
 }
 
-void ami_reverb(long p, long t, ami_channel c, long r)
+void ami_reverb(ami_long p, ami_long t, ami_channel c, ami_long r)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1011,7 +1011,7 @@ void ami_reverb(long p, long t, ami_channel c, long r)
     seqorexe(sp);
 }
 
-void ami_tremulo(long p, long t, ami_channel c, long tr)
+void ami_tremulo(ami_long p, ami_long t, ami_channel c, ami_long tr)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1020,7 +1020,7 @@ void ami_tremulo(long p, long t, ami_channel c, long tr)
     seqorexe(sp);
 }
 
-void ami_chorus(long p, long t, ami_channel c, long cr)
+void ami_chorus(ami_long p, ami_long t, ami_channel c, ami_long cr)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1029,7 +1029,7 @@ void ami_chorus(long p, long t, ami_channel c, long cr)
     seqorexe(sp);
 }
 
-void ami_celeste(long p, long t, ami_channel c, long ce)
+void ami_celeste(ami_long p, ami_long t, ami_channel c, ami_long ce)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1038,7 +1038,7 @@ void ami_celeste(long p, long t, ami_channel c, long ce)
     seqorexe(sp);
 }
 
-void ami_phaser(long p, long t, ami_channel c, long ph)
+void ami_phaser(ami_long p, ami_long t, ami_channel c, ami_long ph)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1047,7 +1047,7 @@ void ami_phaser(long p, long t, ami_channel c, long ph)
     seqorexe(sp);
 }
 
-void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
+void ami_aftertouch(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long at)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1056,7 +1056,7 @@ void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
     seqorexe(sp);
 }
 
-void ami_pressure(long p, long t, ami_channel c, long pr)
+void ami_pressure(ami_long p, ami_long t, ami_channel c, ami_long pr)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1065,7 +1065,7 @@ void ami_pressure(long p, long t, ami_channel c, long pr)
     seqorexe(sp);
 }
 
-void ami_pitch(long p, long t, ami_channel c, long pt)
+void ami_pitch(ami_long p, ami_long t, ami_channel c, ami_long pt)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1074,7 +1074,7 @@ void ami_pitch(long p, long t, ami_channel c, long pt)
     seqorexe(sp);
 }
 
-void ami_pitchrange(long p, long t, ami_channel c, long v)
+void ami_pitchrange(ami_long p, ami_long t, ami_channel c, ami_long v)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1083,7 +1083,7 @@ void ami_pitchrange(long p, long t, ami_channel c, long v)
     seqorexe(sp);
 }
 
-void ami_mono(long p, long t, ami_channel c, long ch)
+void ami_mono(ami_long p, ami_long t, ami_channel c, ami_long ch)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1092,7 +1092,7 @@ void ami_mono(long p, long t, ami_channel c, long ch)
     seqorexe(sp);
 }
 
-void ami_poly(long p, long t, ami_channel c)
+void ami_poly(ami_long p, ami_long t, ami_channel c)
 {
     ami_seqptr sp;
     getseq(&sp);
@@ -1107,7 +1107,7 @@ void ami_poly(long p, long t, ami_channel c)
 *                                                                              *
 *******************************************************************************/
 
-void ami_loadsynth(long s, string fn)
+void ami_loadsynth(ami_long s, string fn)
 {
     if (s < 1 || s > MAXMIDT) error("Invalid synth file slot");
     pthread_mutex_lock(&synlck);
@@ -1116,7 +1116,7 @@ void ami_loadsynth(long s, string fn)
     pthread_mutex_unlock(&synlck);
 }
 
-void ami_delsynth(long s)
+void ami_delsynth(ami_long s)
 {
     if (s < 1 || s > MAXMIDT) error("Invalid synth file slot");
     pthread_mutex_lock(&synlck);
@@ -1127,9 +1127,9 @@ void ami_delsynth(long s)
 /* thread function: play a MIDI file via MusicPlayer through the DLS synth */
 static void* playsynth_thread(void* arg)
 {
-    long* args = (long*)arg;
-    long port = args[0];
-    long sid  = args[1];
+    ami_long* args = (ami_long*)arg;
+    ami_long port = args[0];
+    ami_long sid  = args[1];
     free(args);
 
     /* get the filename */
@@ -1207,13 +1207,13 @@ done:
     return NULL;
 }
 
-static void playsynth_kickoff(long port, long sid)
+static void playsynth_kickoff(ami_long port, ami_long sid)
 {
     pthread_mutex_lock(&snmlck);
     numseq++;
     pthread_mutex_unlock(&snmlck);
 
-    long* args = (long*)malloc(2 * sizeof(long));
+    ami_long* args = (ami_long*)malloc(2 * sizeof(ami_long));
     args[0] = port;
     args[1] = sid;
     pthread_t tid;
@@ -1224,7 +1224,7 @@ static void playsynth_kickoff(long port, long sid)
     pthread_attr_destroy(&attr);
 }
 
-void ami_playsynth(long p, long t, long s)
+void ami_playsynth(ami_long p, ami_long t, ami_long s)
 {
     if (p < 1 || p > synthout_num) error("Invalid synth port");
     if (s < 1 || s > MAXMIDT) error("Invalid synth file slot");
@@ -1239,7 +1239,7 @@ void ami_playsynth(long p, long t, long s)
     }
 }
 
-void ami_waitsynth(long p)
+void ami_waitsynth(ami_long p)
 {
     pthread_mutex_lock(&snmlck);
     while (numseq > 0)
@@ -1247,14 +1247,14 @@ void ami_waitsynth(long p)
     pthread_mutex_unlock(&snmlck);
 }
 
-void ami_wrsynth(long p, ami_seqptr sp)
+void ami_wrsynth(ami_long p, ami_seqptr sp)
 {
     if (p < 1 || p > synthout_num) error("Invalid synth port");
     sp->port = p;
     excseq(sp);
 }
 
-void ami_rdsynth(long p, ami_seqptr sp)
+void ami_rdsynth(ami_long p, ami_seqptr sp)
 {
     if (p < 1 || p > synthin_num) error("Invalid synth input port");
     /* TODO: implement CoreMIDI input reading */
@@ -1267,7 +1267,7 @@ void ami_rdsynth(long p, ami_seqptr sp)
 *                                                                              *
 *******************************************************************************/
 
-void ami_openwaveout(long p)
+void ami_openwaveout(ami_long p)
 {
     if (p < 1 || p > waveout_num) error("Invalid wave output port");
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1277,7 +1277,7 @@ void ami_openwaveout(long p)
     d->open = TRUE;
 }
 
-void ami_closewaveout(long p)
+void ami_closewaveout(ami_long p)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1291,7 +1291,7 @@ void ami_closewaveout(long p)
     d->open = FALSE;
 }
 
-void ami_chanwaveout(long p, long c)
+void ami_chanwaveout(ami_long p, ami_long c)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1300,7 +1300,7 @@ void ami_chanwaveout(long p, long c)
     d->fmtset = TRUE;
 }
 
-void ami_ratewaveout(long p, long r)
+void ami_ratewaveout(ami_long p, ami_long r)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1309,7 +1309,7 @@ void ami_ratewaveout(long p, long r)
     d->fmtset = TRUE;
 }
 
-void ami_lenwaveout(long p, long l)
+void ami_lenwaveout(ami_long p, ami_long l)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1318,7 +1318,7 @@ void ami_lenwaveout(long p, long l)
     d->fmtset = TRUE;
 }
 
-void ami_sgnwaveout(long p, long s)
+void ami_sgnwaveout(ami_long p, ami_long s)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1327,7 +1327,7 @@ void ami_sgnwaveout(long p, long s)
     d->fmtset = TRUE;
 }
 
-void ami_fltwaveout(long p, long f)
+void ami_fltwaveout(ami_long p, ami_long f)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1336,7 +1336,7 @@ void ami_fltwaveout(long p, long f)
     d->fmtset = TRUE;
 }
 
-void ami_endwaveout(long p, long e)
+void ami_endwaveout(ami_long p, ami_long e)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1403,7 +1403,7 @@ static void ensure_aq_out(waveoutdev* d)
     d->fmtset = FALSE;
 }
 
-void ami_wrwave(long p, byte* buff, long len)
+void ami_wrwave(ami_long p, byte* buff, ami_long len)
 {
     if (p < 1 || p > waveout_num) return;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1426,7 +1426,7 @@ void ami_wrwave(long p, byte* buff, long len)
 *                                                                              *
 *******************************************************************************/
 
-void ami_loadwave(long w, string fn)
+void ami_loadwave(ami_long w, string fn)
 {
     if (w < 1 || w > MAXWAVT) error("Invalid wave file slot");
     pthread_mutex_lock(&wavlck);
@@ -1435,7 +1435,7 @@ void ami_loadwave(long w, string fn)
     pthread_mutex_unlock(&wavlck);
 }
 
-void ami_delwave(long w)
+void ami_delwave(ami_long w)
 {
     if (w < 1 || w > MAXWAVT) error("Invalid wave file slot");
     pthread_mutex_lock(&wavlck);
@@ -1479,9 +1479,9 @@ static void aq_play_cb(void* data, AudioQueueRef q,
 
 static void* playwave_thread(void* arg)
 {
-    long* args = (long*)arg;
-    long port = args[0];
-    long wt   = args[1];
+    ami_long* args = (ami_long*)arg;
+    ami_long port = args[0];
+    ami_long wt   = args[1];
     free(args);
     (void)port;
 
@@ -1562,13 +1562,13 @@ done:
     return NULL;
 }
 
-static void playwave_kickoff(long port, long wt)
+static void playwave_kickoff(ami_long port, ami_long wt)
 {
     pthread_mutex_lock(&wnmlck);
     numwav++;
     pthread_mutex_unlock(&wnmlck);
 
-    long* args = (long*)malloc(2 * sizeof(long));
+    ami_long* args = (ami_long*)malloc(2 * sizeof(ami_long));
     args[0] = port;
     args[1] = wt;
     pthread_t tid;
@@ -1579,7 +1579,7 @@ static void playwave_kickoff(long port, long wt)
     pthread_attr_destroy(&attr);
 }
 
-void ami_playwave(long p, long t, long w)
+void ami_playwave(ami_long p, ami_long t, ami_long w)
 {
     if (p < 1 || p > waveout_num) error("Invalid wave output port");
     if (w < 1 || w > MAXWAVT) error("Invalid wave file slot");
@@ -1594,13 +1594,13 @@ void ami_playwave(long p, long t, long w)
     }
 }
 
-void ami_volwave(long p, long t, long v)
+void ami_volwave(ami_long p, ami_long t, ami_long v)
 {
     /* not implemented at present */
     (void)p; (void)t; (void)v;
 }
 
-void ami_waitwave(long p)
+void ami_waitwave(ami_long p)
 {
     (void)p;
     pthread_mutex_lock(&wnmlck);
@@ -1615,7 +1615,7 @@ void ami_waitwave(long p)
 *                                                                              *
 *******************************************************************************/
 
-void ami_openwavein(long p)
+void ami_openwavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) error("Invalid wave input port");
     waveindev* d = &wavein_tab[p - 1];
@@ -1625,7 +1625,7 @@ void ami_openwavein(long p)
     d->open = TRUE;
 }
 
-void ami_closewavein(long p)
+void ami_closewavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return;
     waveindev* d = &wavein_tab[p - 1];
@@ -1639,7 +1639,7 @@ void ami_closewavein(long p)
     d->open = FALSE;
 }
 
-long ami_chanwavein(long p)
+ami_long ami_chanwavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return 1;
     waveindev* d = &wavein_tab[p - 1];
@@ -1647,7 +1647,7 @@ long ami_chanwavein(long p)
     return d->chan;
 }
 
-long ami_ratewavein(long p)
+ami_long ami_ratewavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return 44100;
     waveindev* d = &wavein_tab[p - 1];
@@ -1655,7 +1655,7 @@ long ami_ratewavein(long p)
     return d->rate;
 }
 
-long ami_lenwavein(long p)
+ami_long ami_lenwavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return 16;
     waveindev* d = &wavein_tab[p - 1];
@@ -1663,7 +1663,7 @@ long ami_lenwavein(long p)
     return d->bits;
 }
 
-long ami_sgnwavein(long p)
+ami_long ami_sgnwavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return TRUE;
     waveindev* d = &wavein_tab[p - 1];
@@ -1671,7 +1671,7 @@ long ami_sgnwavein(long p)
     return d->sgn;
 }
 
-long ami_endwavein(long p)
+ami_long ami_endwavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return FALSE;
     waveindev* d = &wavein_tab[p - 1];
@@ -1679,7 +1679,7 @@ long ami_endwavein(long p)
     return d->big;
 }
 
-long ami_fltwavein(long p)
+ami_long ami_fltwavein(ami_long p)
 {
     if (p < 1 || p > wavein_num) return FALSE;
     waveindev* d = &wavein_tab[p - 1];
@@ -1687,7 +1687,7 @@ long ami_fltwavein(long p)
     return d->flt;
 }
 
-long ami_rdwave(long p, byte* buff, long len)
+ami_long ami_rdwave(ami_long p, byte* buff, ami_long len)
 {
     if (p < 1 || p > wavein_num) return 0;
     waveindev* d = &wavein_tab[p - 1];
@@ -1706,7 +1706,7 @@ long ami_rdwave(long p, byte* buff, long len)
    that fills the entire buffer is not zero terminated, a shorter result is
    zero terminated, and it is an error if the result cannot fit. */
 
-void ami_getparamsynthout(long p, string name, string value, long len)
+void ami_getparamsynthout(ami_long p, string name, string value, ami_long len)
 {
     if (p < 1 || p > synthout_num) { cpycrit(value, len, ""); return; }
     synthoutdev* d = &synthout_tab[p - 1];
@@ -1714,7 +1714,7 @@ void ami_getparamsynthout(long p, string name, string value, long len)
     cpycrit(value, len, "");
 }
 
-void ami_getparamsynthin(long p, string name, string value, long len)
+void ami_getparamsynthin(ami_long p, string name, string value, ami_long len)
 {
     if (p < 1 || p > synthin_num) { cpycrit(value, len, ""); return; }
     synthindev* d = &synthin_tab[p - 1];
@@ -1722,7 +1722,7 @@ void ami_getparamsynthin(long p, string name, string value, long len)
     cpycrit(value, len, "");
 }
 
-void ami_getparamwaveout(long p, string name, string value, long len)
+void ami_getparamwaveout(ami_long p, string name, string value, ami_long len)
 {
     if (p < 1 || p > waveout_num) { cpycrit(value, len, ""); return; }
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1730,7 +1730,7 @@ void ami_getparamwaveout(long p, string name, string value, long len)
     cpycrit(value, len, "");
 }
 
-void ami_getparamwavein(long p, string name, string value, long len)
+void ami_getparamwavein(ami_long p, string name, string value, ami_long len)
 {
     if (p < 1 || p > wavein_num) { cpycrit(value, len, ""); return; }
     waveindev* d = &wavein_tab[p - 1];
@@ -1738,7 +1738,7 @@ void ami_getparamwavein(long p, string name, string value, long len)
     cpycrit(value, len, "");
 }
 
-long ami_setparamsynthout(long p, string name, string value)
+ami_long ami_setparamsynthout(ami_long p, string name, string value)
 {
     if (p < 1 || p > synthout_num) return 1;
     synthoutdev* d = &synthout_tab[p - 1];
@@ -1746,7 +1746,7 @@ long ami_setparamsynthout(long p, string name, string value)
     return 1;
 }
 
-long ami_setparamsynthin(long p, string name, string value)
+ami_long ami_setparamsynthin(ami_long p, string name, string value)
 {
     if (p < 1 || p > synthin_num) return 1;
     synthindev* d = &synthin_tab[p - 1];
@@ -1754,7 +1754,7 @@ long ami_setparamsynthin(long p, string name, string value)
     return 1;
 }
 
-long ami_setparamwaveout(long p, string name, string value)
+ami_long ami_setparamwaveout(ami_long p, string name, string value)
 {
     if (p < 1 || p > waveout_num) return 1;
     waveoutdev* d = &waveout_tab[p - 1];
@@ -1762,7 +1762,7 @@ long ami_setparamwaveout(long p, string name, string value)
     return 1;
 }
 
-long ami_setparamwavein(long p, string name, string value)
+ami_long ami_setparamwavein(ami_long p, string name, string value)
 {
     if (p < 1 || p > wavein_num) return 1;
     waveindev* d = &wavein_tab[p - 1];
@@ -1776,12 +1776,12 @@ long ami_setparamwavein(long p, string name, string value)
 *                                                                              *
 *******************************************************************************/
 
-void _pa_synthoutplug(long addend, string name,
-                      void (*opnseq)(long p), void (*clsseq)(long p),
-                      void (*wrseq)(long p, ami_seqptr sp),
-                      long (*setparam)(long p, string name, string value),
-                      void (*getparam)(long p, string name, string value,
-                                       long len))
+void _pa_synthoutplug(ami_long addend, string name,
+                      void (*opnseq)(ami_long p), void (*clsseq)(ami_long p),
+                      void (*wrseq)(ami_long p, ami_seqptr sp),
+                      ami_long (*setparam)(ami_long p, string name, string value),
+                      void (*getparam)(ami_long p, string name, string value,
+                                       ami_long len))
 {
     if (addend) {
         if (synthout_num >= MAXMIDP) return;
@@ -1810,12 +1810,12 @@ void _pa_synthoutplug(long addend, string name,
     }
 }
 
-void _pa_synthinplug(long addend, string name,
-                     void (*opnseq)(long p), void (*clsseq)(long p),
-                     void (*rdseq)(long p, ami_seqptr sp),
-                     long (*setparam)(long p, string name, string value),
-                     void (*getparam)(long p, string name, string value,
-                                      long len))
+void _pa_synthinplug(ami_long addend, string name,
+                     void (*opnseq)(ami_long p), void (*clsseq)(ami_long p),
+                     void (*rdseq)(ami_long p, ami_seqptr sp),
+                     ami_long (*setparam)(ami_long p, string name, string value),
+                     void (*getparam)(ami_long p, string name, string value,
+                                      ami_long len))
 {
     if (addend) {
         if (synthin_num >= MAXMIDP) return;
@@ -1843,18 +1843,18 @@ void _pa_synthinplug(long addend, string name,
     }
 }
 
-void _pa_waveoutplug(long addend, string name,
-                     void (*open)(long p), void (*close)(long p),
-                     void (*chanwavout)(long p, long c),
-                     void (*ratewavout)(long p, long r),
-                     void (*lenwavout)(long p, long l),
-                     void (*sgnwavout)(long p, long s),
-                     void (*fltwavout)(long p, long f),
-                     void (*endwaveout)(long p, long e),
-                     void (*wrwav)(long p, byte* buff, long len),
-                     long (*setparam)(long p, string name, string value),
-                     void (*getparam)(long p, string name, string value,
-                                      long len))
+void _pa_waveoutplug(ami_long addend, string name,
+                     void (*open)(ami_long p), void (*close)(ami_long p),
+                     void (*chanwavout)(ami_long p, ami_long c),
+                     void (*ratewavout)(ami_long p, ami_long r),
+                     void (*lenwavout)(ami_long p, ami_long l),
+                     void (*sgnwavout)(ami_long p, ami_long s),
+                     void (*fltwavout)(ami_long p, ami_long f),
+                     void (*endwaveout)(ami_long p, ami_long e),
+                     void (*wrwav)(ami_long p, byte* buff, ami_long len),
+                     ami_long (*setparam)(ami_long p, string name, string value),
+                     void (*getparam)(ami_long p, string name, string value,
+                                      ami_long len))
 {
     if (addend) {
         if (waveout_num >= MAXWAVP) return;
@@ -1891,15 +1891,15 @@ void _pa_waveoutplug(long addend, string name,
     }
 }
 
-void _pa_waveinplug(long addend, string name,
-                    void (*open)(long p), void (*close)(long p),
-                    long (*chanwavin)(long p), long (*ratewavin)(long p),
-                    long (*lenwavin)(long p), long (*sgnwavin)(long p),
-                    long (*fltwavin)(long p), long (*endwavein)(long p),
-                    long (*rdwav)(long p, byte* buff, long len),
-                    long (*setparam)(long p, string name, string value),
-                    void (*getparam)(long p, string name, string value,
-                                     long len))
+void _pa_waveinplug(ami_long addend, string name,
+                    void (*open)(ami_long p), void (*close)(ami_long p),
+                    ami_long (*chanwavin)(ami_long p), ami_long (*ratewavin)(ami_long p),
+                    ami_long (*lenwavin)(ami_long p), ami_long (*sgnwavin)(ami_long p),
+                    ami_long (*fltwavin)(ami_long p), ami_long (*endwavein)(ami_long p),
+                    ami_long (*rdwav)(ami_long p, byte* buff, ami_long len),
+                    ami_long (*setparam)(ami_long p, string name, string value),
+                    void (*getparam)(ami_long p, string name, string value,
+                                     ami_long len))
 {
     if (addend) {
         if (wavein_num >= MAXWAVP) return;
