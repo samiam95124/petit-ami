@@ -3051,12 +3051,19 @@ int xwidth(winptr win, char c)
 
 {
 
-    /* ensure face is at logical pixel size for correct metric queries —
-       ft_draw_char may have left it at the physical (scaled) size */
+    int w;
+
+    /* the face is at whatever size was last drawn with, the chrome's title
+       included, so the logical size is set for the metric query, under the
+       lock that keeps another thread's drawing from changing it in between */
+    pthread_mutex_lock(&ftlock);
     FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
-    if (FT_Load_Char(win->ftface, (unsigned char)c, FT_LOAD_DEFAULT))
-        return 0;
-    return (int)(win->ftface->glyph->advance.x >> 6);
+    w = 0;
+    if (!FT_Load_Char(win->ftface, (unsigned char)c, FT_LOAD_DEFAULT))
+        w = (int)(win->ftface->glyph->advance.x >> 6);
+    pthread_mutex_unlock(&ftlock);
+
+    return (w);
 
 }
 
@@ -3407,6 +3414,27 @@ int grx_ft_text_width(FT_Face face, const char* s, int len)
 
     pthread_mutex_lock(&ftlock);
     w = ft_text_width_un(face, s, len);
+    pthread_mutex_unlock(&ftlock);
+
+    return (w);
+
+}
+
+/* The width of a string in the window's own font. The face is shared with
+   the chrome, which measures and draws the title at its own size, and a
+   frame redraw comes from events at moments the program does not choose;
+   so the size is set here, under the lock, every time, or a string
+   measured just after a title was drawn is measured at the title's size.
+   Metrics are read at the logical size, as xwidth reads them. */
+static int wintextwidth(winptr win, const char* s, int len)
+
+{
+
+    int w;
+
+    pthread_mutex_lock(&ftlock);
+    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
+    w = ft_text_width_un(win->ftface, s, len);
     pthread_mutex_unlock(&ftlock);
 
     return (w);
@@ -4735,6 +4763,25 @@ arrow on borders, diagonal arrow on corners.
 
 *******************************************************************************/
 
+/* Round a toplevel dimension up to a whole number of logical pixels. On a
+   scaled desktop the compositor sizes a toplevel in logical pixels, so a
+   surface an odd number of buffer pixels tall comes back one taller, and
+   the client area grows by the difference at whatever moment the answer
+   lands. Keeping the client, the frame and the menu band each aligned
+   keeps the sum aligned, and the compositor then has nothing to round.
+   Child windows sit inside their parent's surface and need none of it. */
+static int alignpx(winptr win, int v)
+
+{
+
+    int scale = pd_scale(grx_padisplay);
+
+    if (win->parwin || scale <= 1) return (v);
+
+    return ((v+scale-1)/scale*scale);
+
+}
+
 /* subclient offsets within the master: the Ami frame, plus the menu bar
    strip below the title when a menu is active */
 static int subclix(winptr win)
@@ -5462,8 +5509,8 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     /* set buffer size required for character spacing at default character grid
        size */
-    win->gmaxxg = maxxd*win->charspace;
-    win->gmaxyg = maxyd*win->linespace;
+    win->gmaxxg = alignpx(win, maxxd*win->charspace);
+    win->gmaxyg = alignpx(win, maxyd*win->linespace);
 
     /* set XWindow display origins sizes and sizes */
     win->xmwr.x = 0;
@@ -5478,7 +5525,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
-    win->menuspcy = dec->menuheight(win);
+    win->menuspcy = alignpx(win, dec->menuheight(win));
 
     /* set parent window, either the given or the root window */
     if (pwin) { /* there is a parent window */
@@ -5510,6 +5557,8 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
         win->minimized = FALSE;
         dec->frmgeom(win, BIT(ami_wmframe)|BIT(ami_wmsize)|BIT(ami_wmsysbar),
                      &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        win->pfw = alignpx(win, win->pfw);
+        win->pfh = alignpx(win, win->pfh);
 
         /* size master to include frame around client area */
         pd_winsize(win->xmwhan,
@@ -8892,7 +8941,7 @@ static void wrtstrn_ivf(FILE* f, char* s, long l)
     if (!win->visible) winvis(win); /* make sure we are displayed */
     if (sc->angle == LONG_MAX/4) { /* text is normal (90 degrees) */
 
-        tw = grx_ft_text_width(win->ftface, s, l); /* find text width in pixels */
+        tw = wintextwidth(win, s, l); /* find text width in pixels */
         if (win->bufmod) { /* buffer is active */
 
             /* draw string */
@@ -10609,7 +10658,7 @@ static long strsiz_ivf(FILE* f, const char* s)
     int    rv;
 
     win = txt2win(f); /* get window pointer from text file */
-    rv = grx_ft_text_width(win->ftface, s, strlen(s)); /* return value */
+    rv = wintextwidth(win, s, strlen(s)); /* return value */
 
     return (rv);
 
@@ -10637,7 +10686,7 @@ static long chrpos_ivf(FILE* f, const char* s, long p)
 
     if (p < 0 || p > strlen(s)) error(estrinx); /* out of range */
     win = txt2win(f); /* get window pointer from text file */
-    rv = grx_ft_text_width(win->ftface, s, p); /* return value */
+    rv = wintextwidth(win, s, p); /* return value */
 
     return (rv);
 
@@ -12840,6 +12889,8 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                             if (rsz_top) ny -= (win->pfh + 40 - nh);
                             nh = win->pfh + 40;
                         }
+                        nw = alignpx(win, nw);
+                        nh = alignpx(win, nh);
                         int shrunk = (nw < win->xmwr.w || nh < win->xmwr.h);
                         win->xmwr.x = nx;
                         win->xmwr.y = ny;
@@ -14804,6 +14855,16 @@ static void setsizg_ivf(FILE* f, long x, long y)
     xwc.height = y-win->pfh;
     if (win->menu) xwc.height -= win->menuspcy;
     if (xwc.height < 1) xwc.height = 1;
+    /* a toplevel client is a whole number of logical pixels, and the
+       master is then the sum of aligned parts */
+    xwc.width = alignpx(win, xwc.width);
+    xwc.height = alignpx(win, xwc.height);
+    if (win->childfrm) {
+
+        x = xwc.width+win->pfw;
+        y = xwc.height+win->pfh+(win->menu? win->menuspcy: 0);
+
+    }
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
     if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
@@ -15294,8 +15355,8 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_wi
         int pfw, pfh, cwox, cwoy;
 
         dec->frmgeom(win, ms, &pfw, &pfh, &cwox, &cwoy);
-        *wx = cx+pfw;
-        *wy = cy+pfh;
+        *wx = alignpx(win, cx)+alignpx(win, pfw);
+        *wy = alignpx(win, cy)+alignpx(win, pfh);
         /* the menu bar adds its band above the client */
         if (BIT(ami_wmmenu) & ms) *wy += win->menuspcy;
         return;
@@ -15396,6 +15457,8 @@ static void frame_ivf(FILE* f, long e)
         dec->frmgeom(win, e? BIT(ami_wmframe)|BIT(ami_wmsize)|
                             BIT(ami_wmsysbar): 0,
                      &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        win->pfw = alignpx(win, win->pfw);
+        win->pfh = alignpx(win, win->pfh);
         chg = opfw != win->pfw || opfh != win->pfh;
 
         if (chg) {
@@ -15579,6 +15642,8 @@ static void sysbar_ivf(FILE* f, long e)
         dec->frmgeom(win, BIT(ami_wmframe)|BIT(ami_wmsize)|
                           BIT(ami_wmsysbar)*!!e,
                      &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        win->pfw = alignpx(win, win->pfw);
+        win->pfh = alignpx(win, win->pfh);
         chg = opfw != win->pfw || opfh != win->pfh;
 
         if (chg) {

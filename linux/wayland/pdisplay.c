@@ -2996,6 +2996,11 @@ void pd_screen(pd_display* d, int* wpx, int* hpx, int* wmm, int* hmm)
     if (hmm) *hmm = d->outmmh;
 }
 
+int pd_scale(pd_display* d)
+{
+    return d->scale;
+}
+
 int pd_evtfd(pd_display* d)
 {
     return (d->epfd);
