@@ -353,13 +353,13 @@ static int widgets_created = FALSE;
 static void layout(void)
 {
 
-    ami_long w, h;        /* window size */
-    ami_long bw, bh;      /* button size */
-    ami_long pad;         /* padding between buttons */
-    ami_long x0, y0;      /* origin for button grid */
-    ami_long dh;          /* display height */
+    int w, h;        /* window size */
+    int bw, bh;      /* button size */
+    int pad;         /* padding between buttons */
+    int x0, y0;      /* origin for button grid */
+    int dh;          /* display height */
     int r, c;         /* row, col */
-    ami_long x1, y1, x2, y2;
+    int x1, y1, x2, y2;
     int i;
 
     w = ami_maxxg(stdout);
@@ -444,7 +444,7 @@ Handle button press
 
 *******************************************************************************/
 
-static void handle_button(ami_long id)
+static void handle_button(int id)
 {
 
     switch (id) {

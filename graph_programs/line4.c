@@ -36,7 +36,7 @@ Find random number between 0 and N.
 
 *******************************************************************************/
 
-static ami_long randn(ami_long limit)
+static int randn(int limit)
 
 {
 

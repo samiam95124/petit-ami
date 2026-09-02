@@ -19,7 +19,7 @@
 
 static ami_ulong addr;
 
-ami_long secure = FALSE;
+int secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -33,11 +33,11 @@ int main(int argc, char **argv)
 
 {
 
-    ami_long  argi = 1;
-    ami_long  argcl;
+    ami_long argi = 1;
+    ami_long argcl;
     FILE* fp;
     int   c;
-    ami_long  port;
+    int   port;
 
     printf("Connect TCP/IP program\n");
     printf("\n");

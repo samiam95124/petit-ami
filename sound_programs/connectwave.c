@@ -40,11 +40,11 @@ The result returned is the sample size in bytes.
 
 *******************************************************************************/
 
-ami_long splsiz(ami_long chan, ami_long bits)
+int splsiz(int chan, int bits)
 
 {
 
-    ami_long size;
+    int size;
 
     size = bits/8; /* find number of bytes basic */
     if (bits%8) size++; /* round up to nearest byte */
@@ -57,10 +57,10 @@ int main(int argc, char **argv)
 
 {
 
-    ami_long sport;        /* source port */
-    ami_long dport;        /* destination port */
-    ami_long ssize;        /* sample size in bytes */
-    ami_long sbuf;         /* number of samples per buffer */
+    int sport;        /* source port */
+    int dport;        /* destination port */
+    int ssize;        /* sample size in bytes */
+    int sbuf;         /* number of samples per buffer */
     byte buff[BUFLEN]; /* buffer for samples */
 
     if (argc != 1 && argc != 3) {

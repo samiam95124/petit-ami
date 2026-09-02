@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    ami_long port = 4433; /* note: can't use correct 110 port, it is denied */
+    int port = 4433; /* note: can't use correct 110 port, it is denied */
     ami_long argi = 1;
     ami_long argcl = argc;
     int end;
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
     while (1) { /* serve this port until cancelled */
 
-        printf("Fakemail server waits on port %lld for connections\n", AMI_LONG_CAST(port));
+        printf("Fakemail server waits on port %d for connections\n", port);
         fp = ami_waitnet(port, secure);
 
         printf("Inbound connection\n");

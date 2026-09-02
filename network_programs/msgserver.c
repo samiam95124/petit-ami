@@ -29,12 +29,12 @@ int main(int argc, char **argv)
 {
 
     char buff[BUFLEN];
-    ami_ulong addr;
-    ami_long fn;
-    ami_long len;
+    unsigned int addr;
+    int fn;
+    int len;
     ami_long argi = 1;
     ami_long argcl = argc;
-    ami_long port;
+    int port;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

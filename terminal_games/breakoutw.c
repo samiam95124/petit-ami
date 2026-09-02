@@ -87,7 +87,7 @@ float     bfy;                        /* ball exact position y; the cell is
                                          way a line draw does */
 int       baltim;                     /* ball start timer */
 ami_evtrec er;                         /* event record */
-ami_long  jchr;                       /* joystick units per character */
+int       jchr;                       /* joystick units per character */
 int       score;                      /* score */
 int       scrchg;                     /* score has changed */
 rectangle paddle;                     /* paddle rectangle */
@@ -101,7 +101,7 @@ int       fldbrk;                     /* bricks hit this field */
 int       padw;                       /* paddle width */
 int       hpadw;                      /* half paddle width */
 int       padstp;                     /* paddle step per key event */
-ami_long  joylst;                     /* last joystick x reported */
+int       joylst;                     /* last joystick x reported */
 int       joyini;                     /* joystick baseline taken */
 int       mcap;                       /* paddle is captured to the mouse */
 int       lstmx;                      /* last mouse position x */
@@ -279,25 +279,25 @@ typedef struct { char* title; char* text; } helprec;
 /* The wrapped text, one entry per line as it appears on the screen. The
    text is wrapped once, when the topic is picked or the window resized,
    and drawn from there, which is what makes it scrollable. */
-typedef struct { char* s; int bold; ami_long ind; } helpline;
+typedef struct { char* s; int bold; int ind; } helpline;
 
 static FILE*     helpwf;      /* the help window, NULL when closed */
 static char*     helpbuf;     /* the help file, read whole */
 static helprec*  helptopics;  /* the topics in it */
-static ami_long  helptopicct;
-static ami_long*     helpmatch;   /* the topics the search matched */
-static ami_long  helpmatches; /* how many of them */
-static ami_long  helpsel;     /* the topic shown, -1 for none */
-static ami_long  helpx0, helpy0; /* the topic list, in pixels */
-static ami_long  helpx1, helpy1;
+static int       helptopicct;
+static int*     helpmatch;   /* the topics the search matched */
+static int       helpmatches; /* how many of them */
+static int       helpsel;     /* the topic shown, -1 for none */
+static int       helpx0, helpy0; /* the topic list, in pixels */
+static int       helpx1, helpy1;
 static int       helplistup;  /* the list box has been made */
 static helpline* helplines;   /* the topic, wrapped to the pane */
-static ami_long  helplinect;
-static ami_long  helplinemax;
-static ami_long  helptop;     /* first wrapped line shown */
-static ami_long  helppage;    /* wrapped lines the pane holds */
+static int       helplinect;
+static int       helplinemax;
+static int       helptop;     /* first wrapped line shown */
+static int       helppage;    /* wrapped lines the pane holds */
 
-static void helpout(const char* s, int bold, ami_long ind); /* forward */
+static void helpout(const char* s, int bold, int ind); /* forward */
 
 /*******************************************************************************
 
@@ -336,7 +336,7 @@ static int helpread(void)
     char  dir[500];
     char* e;
     FILE* f = NULL;
-    ami_long  i, n;
+    int   i, n;
 
     /* the directory the program was run from, with its slash */
     dir[0] = 0;
@@ -390,7 +390,7 @@ static void helpsplit(void)
 
     char*  p;
     char** head; /* the # of each topic */
-    ami_long   n, i;
+    int    n, i;
 
     /* count the heads, then take them, walking by lines both times */
     n = 0;
@@ -403,7 +403,7 @@ static void helpsplit(void)
     }
     head = malloc((n+1)*sizeof(char*));
     helptopics = malloc((n+1)*sizeof(helprec));
-    helpmatch = malloc((n+1)*sizeof(ami_long));
+    helpmatch = malloc((n+1)*sizeof(int));
     if (!head || !helptopics || !helpmatch)
         { ami_alert("Mail", "Out of memory"); exit(1); }
     n = 0;
@@ -456,7 +456,7 @@ static void helpload(void)
                  "program; if the file is missing, only the help is.",
                  HELPFILE);
         helptopics = malloc(sizeof(helprec));
-        helpmatch = malloc(sizeof(ami_long));
+        helpmatch = malloc(sizeof(int));
         if (!helptopics || !helpmatch)
             { ami_alert("Mail", "Out of memory"); exit(1); }
         helptopics[0].title = "No help file";
@@ -478,13 +478,13 @@ The topic list
    is the subject of holds it many times, and one that merely mentions
    it in passing holds it once, and the reader can tell them apart
    without opening either. */
-static ami_long helpcount(const helprec* h, const char* what)
+static int helpcount(const helprec* h, const char* what)
 
 {
 
     const char* p;
-    ami_long    n = strlen(what);
-    ami_long    c = 0;
+    int         n = strlen(what);
+    int         c = 0;
 
     if (!n) return (0); /* an empty search matches everything, uncounted */
     for (p = h->title; *p; p++)
@@ -505,7 +505,7 @@ static void helpfill(const char* what)
 {
 
     ami_strptr sl = NULL, sp, lp = NULL;
-    ami_long   i, c;
+    int        i, c;
     char       lab[300];
 
     /* the strings are ours until the list box has them; it copies */
@@ -516,8 +516,8 @@ static void helpfill(const char* what)
         if (*what && !c) continue; /* not this one */
         /* the count goes beside the title, so that a topic the word is
            the subject of can be told from one that mentions it once */
-        if (*what) snprintf(lab, sizeof(lab), "%s (%lld)",
-                            helptopics[i].title, AMI_LONG_CAST(c));
+        if (*what) snprintf(lab, sizeof(lab), "%s (%d)",
+                            helptopics[i].title, c);
         else snprintf(lab, sizeof(lab), "%s", helptopics[i].title);
         sp = malloc(sizeof(ami_strrec));
         if (!sp) { ami_alert("Mail", "Out of memory"); exit(1); }
@@ -566,7 +566,7 @@ which is the only thing that can change the answer.
 *******************************************************************************/
 
 /* keep one finished line */
-static void helpout(const char* s, int bold, ami_long ind)
+static void helpout(const char* s, int bold, int ind)
 
 {
 
@@ -590,13 +590,13 @@ static void helpout(const char* s, int bold, ami_long ind)
    breaks already turned into spaces. The break goes at the last word
    that still fits, and fitting is measured with the font rather than
    counted in characters, since the font is not fixed pitch. */
-static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
+static void helpwrap(const char* s, int bold, int ind, int w)
 
 {
 
     char line[500];
     char try[500];
-    ami_long n;
+    int n;
 
     ami_bold(helpwf, bold);
     while (*s) {
@@ -608,14 +608,14 @@ static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
         while (*q) { /* as many whole words as fit */
 
             const char* e = q;
-            ami_long    m;
+            int         m;
 
             while (*e && *e != ' ') e++; /* the next word */
             m = e-s;
-            if (m >= (ami_long)sizeof(try)) break;
+            if (m >= (int)sizeof(try)) break;
             memcpy(try, s, m);
             try[m] = 0;
-            if (n && (ami_long)strlen(try) > w-ind) break;
+            if (n && (int)strlen(try) > w-ind) break;
             strcpy(line, try);
             n = m;
             q = e;
@@ -627,7 +627,7 @@ static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
 
             while (*q && *q != ' ') q++;
             n = q-s;
-            if (n >= (ami_long)sizeof(line)) n = sizeof(line)-1;
+            if (n >= (int)sizeof(line)) n = sizeof(line)-1;
             memcpy(line, s, n);
             line[n] = 0;
 
@@ -645,16 +645,16 @@ static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
    blank line ends a paragraph, ## is a heading within the topic, and -
    is a list item, which is wrapped with its later lines lined up under
    the first word rather than under the dash. */
-static void helplay1(ami_long w)
+static void helplay1(int w)
 
 {
 
     const char* p;
     char        para[4000];
-    ami_long    pl = 0;
+    int         pl = 0;
     int         bold = FALSE;
-    ami_long    ind = 0;
-    ami_long    i;
+    int         ind = 0;
+    int         i;
 
     for (i = 0; i < helplinect; i++) free(helplines[i].s);
     helplinect = 0;
@@ -667,7 +667,7 @@ static void helplay1(ami_long w)
     while (1) {
 
         const char* e = p;
-        ami_long    n;
+        int         n;
 
         while (*e && *e != '\n') e++;
         n = e-p;
@@ -690,21 +690,21 @@ static void helplay1(ami_long w)
             while (*t == ' ') t++;
             bold = TRUE;
             n -= t-p;
-            if (n > (ami_long)sizeof(para)-1) n = sizeof(para)-1;
+            if (n > (int)sizeof(para)-1) n = sizeof(para)-1;
             memcpy(para, t, n);
             pl = n;
 
         } else if (*p == '-' || *p == '*') { /* a list item */
 
-            ind = (ami_long)strlen("00");
-            if (n > (ami_long)sizeof(para)-1) n = sizeof(para)-1;
+            ind = (int)strlen("00");
+            if (n > (int)sizeof(para)-1) n = sizeof(para)-1;
             memcpy(para, p, n);
             pl = n;
 
         } else { /* ordinary text, joined to the line before it */
 
-            if (pl && pl < (ami_long)sizeof(para)-1) para[pl++] = ' ';
-            if (pl+n > (ami_long)sizeof(para)-1) n = sizeof(para)-1-pl;
+            if (pl && pl < (int)sizeof(para)-1) para[pl++] = ' ';
+            if (pl+n > (int)sizeof(para)-1) n = sizeof(para)-1-pl;
             memcpy(para+pl, p, n);
             pl += n;
 
@@ -720,16 +720,16 @@ static void helpdraw(void)
 
 {
 
-    ami_long chrh = 1;
-    ami_long x = helpx1+(ami_long)strlen("00");
-    ami_long y = helpy0;
-    ami_long i;
+    int chrh = 1;
+    int x = helpx1+(int)strlen("00");
+    int y = helpy0;
+    int i;
 
     /* the pane, cleared a row at a time down to and including the line
        the count is written on */
     {
 
-        ami_long r, k;
+        int r, k;
 
         for (r = helpy0; r <= helpy1; r++) {
 
@@ -762,8 +762,8 @@ static void helpdraw(void)
         char more[80];
 
         if (helptop+helppage >= helplinect) strcpy(more, "-- end --");
-        else sprintf(more, "-- %lld more line%s, wheel or page keys --",
-                     AMI_LONG_CAST(helplinect-helptop-helppage),
+        else sprintf(more, "-- %d more line%s, wheel or page keys --",
+                     helplinect-helptop-helppage,
                      helplinect-helptop-helppage == 1? "": "s");
         ami_fcolor(helpwf, ami_blue);
         ami_cursor(helpwf, x, helpy1);
@@ -779,18 +779,18 @@ static void helptext(void)
 
 {
 
-    helplay1(ami_maxx(helpwf)-(ami_long)strlen("00")-
-             (helpx1+(ami_long)strlen("00")));
+    helplay1(ami_maxx(helpwf)-(int)strlen("00")-
+             (helpx1+(int)strlen("00")));
     helpdraw();
 
 }
 
 /* scroll the topic by so many lines */
-static void helpscroll(ami_long by)
+static void helpscroll(int by)
 
 {
 
-    ami_long was = helptop;
+    int was = helptop;
 
     helptop += by;
     if (helptop > helplinect-helppage) helptop = helplinect-helppage;
@@ -804,9 +804,9 @@ static void helplay(void)
 
 {
 
-    ami_long chrh = 1;
-    ami_long chrw = (ami_long)strlen("0");
-    ami_long lw   = chrw*30;  /* the topic list */
+    int chrh = 1;
+    int chrw = (int)strlen("0");
+    int lw   = chrw*30;  /* the topic list */
     ami_long bw, bh, ew, eh;
 
     ami_buttonsiz(helpwf, "Close", &bw, &bh);
@@ -817,10 +817,10 @@ static void helplay(void)
     helpx1 = helpx0+lw;
     helpy1 = ami_maxy(helpwf)-bh-chrh*2;
     if (helpy1 < helpy0+chrh) helpy1 = helpy0+chrh;
-    ami_poswidget(helpwf, HELPFIND, helpx0+(ami_long)strlen("Search: "),
+    ami_poswidget(helpwf, HELPFIND, helpx0+(int)strlen("Search: "),
                    chrh);
     ami_sizwidget(helpwf, HELPFIND,
-                   lw-(ami_long)strlen("Search: "), eh);
+                   lw-(int)strlen("Search: "), eh);
     ami_poswidget(helpwf, HELPCLOSE, ami_maxx(helpwf)-bw-chrw*2,
                    ami_maxy(helpwf)-bh-chrh/2);
     ami_sizwidget(helpwf, HELPCLOSE, bw, bh);
@@ -847,7 +847,7 @@ static void helpclose(void)
 
 {
 
-    ami_long i;
+    int i;
 
     if (!helpwf) return;
     ami_killwidget(helpwf, HELPFIND);
@@ -964,7 +964,7 @@ static void aboutopen(void)
 
 {
 
-    ami_long i, w, mw;
+    int i, w, mw;
 
     if (aboutwf) { ami_front(aboutwf); return; }
     ami_openwin(&stdin, &aboutwf, NULL, ABOUTWIN);
@@ -1002,7 +1002,7 @@ static void aboutevent(ami_evtrec* er)
 
 {
 
-    ami_long i, w;
+    int i, w;
 
     switch (er->etype) {
 

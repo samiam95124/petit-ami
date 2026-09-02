@@ -15,20 +15,20 @@ Program to bounce animated balls around screen
 
 typedef struct balrec { /* ball data record */
 
-    ami_long x, y;   /* current position */
-    ami_long lx, ly; /* last position */
-    ami_long xd, yd; /* deltas */
+    int      x, y;   /* current position */
+    int      lx, ly; /* last position */
+    int      xd, yd; /* deltas */
     ami_color c;      /* ami_color */
    
 } balrec;
    
-ami_long   cd;              /* current display flip select */
+int    cd;              /* current display flip select */
 balrec baltbl[MAXBALL]; /* ball data table */
 int    i;               /* index for table */
-ami_long   nx, ny;          /* temp coordinates holders */
+int    nx, ny;          /* temp coordinates holders */
 int    rc;              /* repetition counter */
-ami_long   ballsize;        /* size of ball onscreen */
-ami_long   halfball;        /* half size of ball */
+int    ballsize;        /* size of ball onscreen */
+int    halfball;        /* half size of ball */
 
 int chkbrk(void)
 
@@ -46,7 +46,7 @@ int chkbrk(void)
 
 }
 
-void drawball(ami_color c, ami_long x, ami_long y)
+void drawball(ami_color c, int x, int y)
 
 {
 
@@ -57,7 +57,7 @@ void drawball(ami_color c, ami_long x, ami_long y)
    
 /* Find random number between 0 and N. */
 
-static ami_long randn(ami_long limit)
+static int randn(int limit)
 
 {
 

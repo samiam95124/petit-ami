@@ -49,7 +49,7 @@ int         bsx;          /* ball position save x */
 int         bsy;          /* ball position save y */
 int         baltim;       /* ball start timer */
 ami_evtrec   er;           /* event record */
-ami_long    jchr;         /* number of pixels to joystick movement */
+int         jchr;         /* number of pixels to joystick movement */
 int         score;        /* score */
 int         scrsiz;       /* score size */
 int         scrchg;       /* score has changed */

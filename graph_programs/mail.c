@@ -143,7 +143,7 @@
 #define CMPSB     6 /* the bar down the side of the body */
 
 static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
-                    ami_long id, char* face);
+                    int id, char* face);
 static void appendmenu(ami_menuptr* list, ami_menuptr m);
 static void kickworker(void);
 
@@ -182,11 +182,11 @@ static void kickworker(void);
 
 
 
-static ami_long    listshown;       /* the first one actually on the screen */
+static int     listshown;       /* the first one actually on the screen */
 
 /* the account */
 
-static ami_long   srvedit;  /* the one the form is showing */
+static int    srvedit;  /* the one the form is showing */
 /* Which account mail is sent from. One of them, and only one: a message
    goes out over one connection with one name on it, so the box that
    says which is a choice among the accounts, not a setting each of them
@@ -203,8 +203,8 @@ static FILE* foldwf;            /* the folder pane */
 static FILE* listwf;            /* the message list pane */
 static FILE* readwf;            /* the reader, NULL when closed */
 static FILE* srvwf;             /* the server form, NULL when closed */
-static ami_long  chrh;              /* the height of a line, in pixels */
-static ami_long  rowh;              /* the height of a message line */
+static int   chrh;              /* the height of a line, in pixels */
+static int   rowh;              /* the height of a message line */
 /* The size everything is drawn at. Control-+ and control-- move it a
    point at a time, and every window takes its size from it, so the whole
    program grows and shrinks together. The window is not touched: what is
@@ -213,29 +213,29 @@ static ami_long  rowh;              /* the height of a message line */
 #define MINPOINT  6.0  /* as small and as large as it will go */
 #define MAXPOINT  36.0
 static float pointsz = BASEPOINT;
-static ami_long  foldw;             /* the width of the folder pane */
-static ami_long  sbw;               /* scroll bar thickness */
-static ami_long  listrows;          /* message lines the list holds */
-static ami_long  foldy[MAXFOLDER];  /* where each folder was drawn, for clicks */
-static ami_long  listx, listy;      /* where the list pane sits on the window */
-static ami_long  fromx;             /* where the sender column ends */
-static ami_long  catx;              /* and where the category column ends */
-static ami_long  datex;             /* where the date column begins */
-static ami_long  mpx, mpy;          /* the mouse, in pixels of its own window */
+static int   foldw;             /* the width of the folder pane */
+static ami_long sbw;               /* scroll bar thickness */
+static int   listrows;          /* message lines the list holds */
+static int   foldy[MAXFOLDER];  /* where each folder was drawn, for clicks */
+static int   listx, listy;      /* where the list pane sits on the window */
+static int   fromx;             /* where the sender column ends */
+static int   catx;              /* and where the category column ends */
+static int   datex;             /* where the date column begins */
+static int   mpx, mpy;          /* the mouse, in pixels of its own window */
 
 /* the reader */
 static char* readtext;          /* the message being read, decoded */
-static ami_long  readtop;           /* the first line of it shown */
-static ami_long  readshown;         /* the first line actually on the screen */
+static int   readtop;           /* the first line of it shown */
+static int   readshown;         /* the first line actually on the screen */
 static char** readline;         /* it, wrapped to the window */
-static ami_long  readlines;
-static ami_long  readmax;
+static int   readlines;
+static int   readmax;
 
 /* the connection to the server */
 
 static void drawlist(void);     /* forward */
 static void drawfolders(void);
-static void showfolder(ami_long i);
+static void showfolder(int i);
 static void drawread(void);
 static void layout(void);
 static void drawfolders(void);
@@ -253,7 +253,7 @@ Odds and ends
    long, not as a byte: 245 out of LONG_MAX is not a light grey, it is
    black, and every "quiet grey" in this program was black until this
    was noticed. Written once, here, so it cannot be got wrong twice. */
-static ami_long rgb(ami_long c)
+static int rgb(int c)
 
 {
 
@@ -270,7 +270,7 @@ static ami_long rgb(ami_long c)
    for each is a program that cannot be left alone: come back after an
    hour away and there is an hour of boxes to dismiss. Failures nobody
    asked for go to the status line, where they can be read and ignored. */
-static ami_long quietfail;
+static int quietfail;
 
 
 /* Something the worker ran into. It cannot put a box on the screen --
@@ -278,7 +278,7 @@ static ami_long quietfail;
    the words here and the main thread shows them on its next tick. Only
    one is kept: a fetch that has gone wrong goes wrong the same way over
    and over, and the reader wants to be told once. */
-static ami_long fetchasked; /* somebody asked for this fetch and is waiting */
+static int fetchasked; /* somebody asked for this fetch and is waiting */
 
 void fail(const char* what)
 
@@ -309,9 +309,9 @@ touched, not even asked.
 *******************************************************************************/
 
 static FILE* popwf;      /* the menu, NULL when closed */
-static ami_long  popmsg;     /* the message it is for */
-static ami_long  poprow = -1; /* the entry under the mouse */
-static ami_long  poprowh;    /* the height of an entry */
+static int   popmsg;     /* the message it is for */
+static int   poprow = -1; /* the entry under the mouse */
+static int   poprowh;    /* the height of an entry */
 static char  poplab[3][MAXSTR]; /* the entries' faces */
 
 /* The part of an address that says who sent it, for gathering their
@@ -323,7 +323,7 @@ static char  poplab[3][MAXSTR]; /* the entries' faces */
    Not for the domains people have their own addresses at, though. Two
    friends at gmail.com are two people, and sweeping every message from
    gmail.com into one folder is not what anybody meant. */
-static void senderkey(const char* addr, char* key, ami_long kl)
+static void senderkey(const char* addr, char* key, int kl)
 
 {
 
@@ -335,7 +335,7 @@ static void senderkey(const char* addr, char* key, ami_long kl)
 
     };
     const char* at = strchr(addr, '@');
-    ami_long    i;
+    int         i;
 
     if (!at || !at[1]) { copystr(key, addr, kl); return; }
     for (i = 0; personal[i]; i++)
@@ -371,7 +371,7 @@ static void popdraw(void)
 
 {
 
-    ami_long i;
+    int i;
     ami_long w = ami_maxxg(popwf);
     ami_long h = ami_maxyg(popwf);
 
@@ -393,11 +393,11 @@ static void popdraw(void)
 }
 
 /* open the menu for a message, beside the mouse */
-static void popopen(ami_long i, ami_long x, ami_long y)
+static void popopen(int i, int x, int y)
 
 {
 
-    ami_long w, h;
+    int w, h;
     char nm[60];
 
     popclose();
@@ -407,7 +407,7 @@ static void popopen(ami_long i, ami_long x, ami_long y)
     {
 
         char key[100];
-        ami_long n;
+        int n;
 
         /* Say what it will gather, since the sender's name and what
            their mail comes from are not always the same word. */
@@ -415,13 +415,13 @@ static void popopen(ami_long i, ami_long x, ami_long y)
         n = 0;
         {
 
-            ami_long m;
+            int m;
 
             for (m = 0; m < msgct; m++) if (fromsender(&msgs[m], key)) n++;
 
         }
         snprintf(poplab[1], sizeof(poplab[1]),
-                 "Local folder for %s (%lld here)", key, AMI_LONG_CAST(n));
+                 "Local folder for %s (%d here)", key, n);
         /* And by the name they show, which is not the same thing: a
            domain gathers eight sorts of Facebook notice into one folder,
            and a name keeps a person who writes through LinkedIn out of
@@ -430,14 +430,14 @@ static void popopen(ami_long i, ami_long x, ami_long y)
         n = 0;
         {
 
-            ami_long m;
+            int m;
 
             for (m = 0; m < msgct; m++)
                 if (!strcmp(msgs[m].from, msgs[i].from)) n++;
 
         }
         snprintf(poplab[2], sizeof(poplab[2]),
-                 "Local folder for \"%s\" (%lld here)", nm, AMI_LONG_CAST(n));
+                 "Local folder for \"%s\" (%d here)", nm, n);
 
     }
     poprowh = chrh+10;
@@ -473,14 +473,14 @@ static void popopen(ami_long i, ami_long x, ami_long y)
 }
 
 /* what was picked: 0 is trash, 1 is a folder for the sender */
-static void popact(ami_long row)
+static void popact(int row)
 
 {
 
     char* set;
-    ami_long  dst;
-    ami_long  moved;
-    ami_long  i = popmsg;
+    int   dst;
+    int   moved;
+    int   i = popmsg;
     char  msg[MAXSTR];
     char  who[60];
 
@@ -496,7 +496,7 @@ static void popact(ami_long row)
 
     } else if (row == 1) { /* everything from that place */
 
-        ami_long m;
+        int m;
         char key[100];
 
         senderkey(msgs[i].addr, key, sizeof(key));
@@ -507,7 +507,7 @@ static void popact(ami_long row)
 
     } else { /* everything from that name */
 
-        ami_long m;
+        int m;
 
         for (m = 0; m < msgct; m++)
             if (!strcmp(msgs[m].from, msgs[i].from)) set[m] = TRUE;
@@ -535,8 +535,8 @@ static void popact(ami_long row)
     kickworker();
     drawlist();
     drawfolders();
-    snprintf(msg, sizeof(msg), "%lld message%s moved to %s -- locally; the "
-             "server is not touched", AMI_LONG_CAST(moved), moved == 1? "": "s", who);
+    snprintf(msg, sizeof(msg), "%d message%s moved to %s -- locally; the "
+             "server is not touched", moved, moved == 1? "": "s", who);
     status(msg);
 
 }
@@ -557,7 +557,7 @@ window it came from, so there is nothing to arrange.
    purpose: LONG_MAX does not survive a trip through a double -- it
    rounds up to 2^63 and comes back negative -- and the bar answers an
    out of range position with an error. */
-static ami_long fullscale(ami_long num, ami_long den)
+static int fullscale(int num, int den)
 
 {
 
@@ -575,14 +575,14 @@ static ami_long fullscale(ami_long num, ami_long den)
 static int fromdrag;
 
 /* and back, from a bar position to a line number */
-static ami_long scaleback(ami_long pos, ami_long travel)
+static int scaleback(int pos, int travel)
 
 {
 
     if (travel < 1 || pos <= 0) return (0);
     if (pos >= LONG_MAX) return (travel);
 
-    return ((ami_long)((double)travel*((double)pos/LONG_MAX)+0.5));
+    return ((int)((double)travel*((double)pos/LONG_MAX)+0.5));
 
 }
 
@@ -590,12 +590,12 @@ static ami_long scaleback(ami_long pos, ami_long travel)
    window itself -- the folder counts climb while a fetch runs, the list
    says what an empty folder is, and the forms speak for themselves. The
    calls remain as markers of where a quieter program once spoke. */
-static ami_long fitchars(FILE* f, char* s, ami_long w);
-static void clipstr(FILE* f, char* s, ami_long w);
-static void commas(ami_long n, char* s, ami_long sl);
-static void divider(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2);
-static ami_long progw; /* how wide the bar is */
-static ami_long progh; /* and how tall */
+static int fitchars(FILE* f, char* s, int w);
+static void clipstr(FILE* f, char* s, int w);
+static void commas(int n, char* s, int sl);
+static void divider(FILE* f, int x1, int y1, int x2, int y2);
+static int progw; /* how wide the bar is */
+static int progh; /* and how tall */
 
 /*******************************************************************************
 
@@ -619,15 +619,15 @@ what makes the two kinds of field live together.
 
 static FILE*  cmpwf;            /* the window, when it is open */
 static char** cmpline;          /* the body, a line at a time */
-static ami_long   cmpct;            /* how many lines */
-static ami_long   cmpmax;           /* room for how many */
-static ami_long   cmpcl, cmpcc;     /* the caret: which line, which column */
-static ami_long   cmptop;           /* the first line shown */
-static ami_long   cmprows;          /* how many fit */
-static ami_long   cmpy0;            /* where the body starts down the window */
-static ami_long   cmpsbw;           /* the bar beside it */
-static ami_long   cmpfocus;         /* the body has the keys */
-static ami_long   cmpmx, cmpmy;     /* where the mouse is in the window */
+static int    cmpct;            /* how many lines */
+static int    cmpmax;           /* room for how many */
+static int    cmpcl, cmpcc;     /* the caret: which line, which column */
+static int    cmptop;           /* the first line shown */
+static int    cmprows;          /* how many fit */
+static int    cmpy0;            /* where the body starts down the window */
+static ami_long cmpsbw;           /* the bar beside it */
+static int    cmpfocus;         /* the body has the keys */
+static int    cmpmx, cmpmy;     /* where the mouse is in the window */
 static char   cmpinreply[MAXSTR]; /* what this answers, if it answers */
 static char   cmprefs[MAXSTR*2];
 
@@ -644,7 +644,7 @@ static char   redrefs[MAXSTR*2];
 static char*  redtext;
 
 /* room for one more line */
-static void cmproom(ami_long n)
+static void cmproom(int n)
 
 {
 
@@ -660,7 +660,7 @@ static void cmpclear(void)
 
 {
 
-    ami_long i;
+    int i;
 
     for (i = 0; i < cmpct; i++) free(cmpline[i]);
     cmpct = 0;
@@ -671,11 +671,11 @@ static void cmpclear(void)
 }
 
 /* put a line in, at a place */
-static void cmpput(ami_long at, const char* text)
+static void cmpput(int at, const char* text)
 
 {
 
-    ami_long i;
+    int i;
 
     cmproom(cmpct+1);
     for (i = cmpct; i > at; i--) cmpline[i] = cmpline[i-1];
@@ -685,11 +685,11 @@ static void cmpput(ami_long at, const char* text)
 
 }
 
-static void cmptake(ami_long at)
+static void cmptake(int at)
 
 {
 
-    ami_long i;
+    int i;
 
     if (at < 0 || at >= cmpct) return;
     free(cmpline[at]);
@@ -703,8 +703,8 @@ static char* cmptext(void)
 
 {
 
-    ami_long  n = 1;
-    ami_long  i;
+    int   n = 1;
+    int   i;
     char* t;
 
     for (i = 0; i < cmpct; i++) n += strlen(cmpline[i])+1;
@@ -740,7 +740,7 @@ static void cmpclose(void)
 }
 
 /* how many lines of the body are on show */
-static ami_long cmpvis(void)
+static int cmpvis(void)
 
 {
 
@@ -766,8 +766,8 @@ static void cmpdraw(void)
 
 {
 
-    ami_long i;
-    ami_long y;
+    int i;
+    int y;
 
     if (!cmpwf) return;
     ami_fcolor(cmpwf, ami_white);
@@ -785,10 +785,10 @@ static void cmpdraw(void)
         if (i == cmpcl && cmpfocus) { /* the caret, where the typing goes */
 
             char  upto[CMPMAX];
-            ami_long  x;
+            int   x;
 
             copystr(upto, cmpline[i], sizeof(upto));
-            if (cmpcc < (ami_long)strlen(upto)) upto[cmpcc] = 0;
+            if (cmpcc < (int)strlen(upto)) upto[cmpcc] = 0;
             x = 8+ami_strsiz(cmpwf, upto);
             ami_fcolorc(cmpwf, rgb(200), rgb(40), rgb(40));
             ami_linewidth(cmpwf, 2);
@@ -811,10 +811,10 @@ static void cmplay(void)
     ami_long chrw = ami_strsiz(cmpwf, "0");
     ami_long labw = ami_strsiz(cmpwf, "Subject  ");
     ami_long ew, eh, bw, bh;
-    ami_long y;
+    int y;
     static const char* lab[] = { "To", "Cc", "Subject" };
-    static const ami_long  wid[] = { CMPTO, CMPCC, CMPSUB };
-    ami_long i;
+    static const int   wid[] = { CMPTO, CMPCC, CMPSUB };
+    int i;
 
     ami_editboxsizg(cmpwf, "0", &ew, &eh);
     ami_buttonsizg(cmpwf, "Cancel", &bw, &bh);
@@ -892,7 +892,7 @@ static void cmpopen(const char* to, const char* cc, const char* subject,
 
         const char* q = p;
         char        one[CMPMAX];
-        ami_long    n;
+        int         n;
 
         while (*q && *q != '\n') q++;
         n = q-p;
@@ -919,7 +919,7 @@ static void cmpins(char c)
 {
 
     char* l = cmpline[cmpcl];
-    ami_long  n = strlen(l);
+    int   n = strlen(l);
     char* d;
 
     if (n+2 > CMPMAX) return;
@@ -951,7 +951,7 @@ static void cmpsplit(void)
 }
 
 /* and joined to the one after it */
-static void cmpjoin(ami_long at)
+static void cmpjoin(int at)
 
 {
 
@@ -977,7 +977,7 @@ static void cmpkey(ami_evtrec* er)
 
 {
 
-    ami_long n = (ami_long)strlen(cmpline[cmpcl]);
+    int n = (int)strlen(cmpline[cmpcl]);
 
     switch (er->etype) {
 
@@ -985,7 +985,7 @@ static void cmpkey(ami_evtrec* er)
             if (er->echar >= ' ' && er->echar < 0x7f) cmpins(er->echar);
             break;
         case ami_etenter: cmpsplit(); break;
-        case ami_ettab: { ami_long i; for (i = 0; i < 4; i++) cmpins(' '); break; }
+        case ami_ettab: { int i; for (i = 0; i < 4; i++) cmpins(' '); break; }
         case ami_etdelcb: /* backspace: within the line, or the break above */
             if (cmpcc > 0) {
 
@@ -1042,7 +1042,7 @@ static void cmpkey(ami_evtrec* er)
 
     }
     /* the caret cannot stand past the end of the line it is on */
-    n = (ami_long)strlen(cmpline[cmpcl]);
+    n = (int)strlen(cmpline[cmpcl]);
     if (cmpcc > n) cmpcc = n;
     cmpdraw();
 
@@ -1103,7 +1103,7 @@ static void cmpevent(ami_evtrec* er)
                caret where it was clicked. */
             if (er->amoubn == 1 && cmpmy >= cmpy0) {
 
-                ami_long l = cmptop+(cmpmy-cmpy0-4)/chrh;
+                int l = cmptop+(cmpmy-cmpy0-4)/chrh;
 
                 cmpfocus = TRUE;
                 if (l < 0) l = 0;
@@ -1112,7 +1112,7 @@ static void cmpevent(ami_evtrec* er)
                 { /* the column the click landed nearest */
 
                     char upto[CMPMAX];
-                    ami_long i;
+                    int i;
 
                     copystr(upto, cmpline[cmpcl], sizeof(upto));
                     for (i = 0; upto[i]; i++) {
@@ -1162,12 +1162,12 @@ the name alone, which is a banner still.
 *******************************************************************************/
 
 static FILE* banwf;    /* the banner is a pane, like the others */
-static ami_long  banh;     /* how tall it is */
-static ami_long  picw;     /* the picture, at the size it was made */
-static ami_long  pich;
-static ami_long  havepic;
-static ami_long  picdw;    /* and at the size it is drawn now */
-static ami_long  picdh;
+static int   banh;     /* how tall it is */
+static int   picw;     /* the picture, at the size it was made */
+static int   pich;
+static int   havepic;
+static int   picdw;    /* and at the size it is drawn now */
+static int   picdh;
 
 /* How big the banner is at the size the display is drawn at
 
@@ -1185,7 +1185,7 @@ static void banmeasure(void)
 
 {
 
-    ami_long max = ami_maxyg(stdout)/3;
+    int max = ami_maxyg(stdout)/3;
 
     picdw = picw*pointsz/BASEPOINT;
     picdh = pich*pointsz/BASEPOINT;
@@ -1194,7 +1194,7 @@ static void banmeasure(void)
 
         if (havepic && picdh > 0) { /* the picture takes what is left */
 
-            ami_long fit = max-16;
+            int fit = max-16;
 
             if (fit < 1) fit = 1;
             picdw = picdw*fit/picdh;
@@ -1213,7 +1213,7 @@ static void drawbanner(void)
 
 {
 
-    ami_long y;
+    int y;
 
     if (!banwf) return;
     ami_bcolorc(banwf, rgb(255), rgb(255), rgb(255));
@@ -1267,9 +1267,9 @@ say so.
 *******************************************************************************/
 
 static char statsaid[MAXSTR]; /* what the line says now */
-static ami_long stath;            /* how tall the strip is */
-static ami_long statmax;          /* the size of the job, or none if not known */
-static ami_long statpos;          /* and how far into it */
+static int stath;            /* how tall the strip is */
+static int statmax;          /* the size of the job, or none if not known */
+static int statpos;          /* and how far into it */
 
 /* the strip's own drawing, text and all */
 /* The strip is a band at the foot of the main window, in the room the
@@ -1290,9 +1290,9 @@ static void drawstatus(void)
 
 {
 
-    ami_long y = ami_maxyg(stdout)-stath;         /* at the foot */
-    ami_long bx = ami_maxxg(stdout)-progw-8;
-    ami_long by = y+(stath-progh)/2;
+    int y = ami_maxyg(stdout)-stath;         /* at the foot */
+    int bx = ami_maxxg(stdout)-progw-8;
+    int by = y+(stath-progh)/2;
 
     /* the band, laid down as one line as thick as the strip: a filled
        rectangle does not paint in this window, a line does */
@@ -1318,7 +1318,7 @@ static void drawstatus(void)
     /* the bar: what is done, then what is left, then a line round both */
     if (statmax > 0) {
 
-        ami_long w = progw*statpos/statmax;
+        int w = progw*statpos/statmax;
 
         if (w > 0) {
 
@@ -1357,7 +1357,7 @@ void status(const char* s)
 /* How far along, from nothing to all of it. The widget takes the whole
    range of a long, so the fraction is worked out in that range rather
    than in percent, which would step the bar in hundredths. */
-void statprog(ami_long pos, ami_long max)
+void statprog(int pos, int max)
 
 {
 
@@ -1387,11 +1387,11 @@ void statprog(ami_long pos, ami_long max)
    hundred. */
 /* the width of an average character of the font in use, for guessing
    with; measured once, since the font does not change under us */
-static ami_long avgchrw(FILE* f)
+static int avgchrw(FILE* f)
 
 {
 
-    static ami_long w;
+    static int w;
 
     if (!w) w = ami_strsiz(f, "abcdefghijklmnopqrstuvwxyz")/26;
     if (w < 1) w = 1;
@@ -1400,13 +1400,13 @@ static ami_long avgchrw(FILE* f)
 
 }
 
-static ami_long fitchars(FILE* f, char* s, ami_long w)
+static int fitchars(FILE* f, char* s, int w)
 
 {
 
-    ami_long n = strlen(s);
-    ami_long lo = 0, hi;
-    ami_long cap;
+    int n = strlen(s);
+    int lo = 0, hi;
+    int cap;
     char c;
 
     /* No room at all, and nothing of it fits. A width arrives negative
@@ -1425,7 +1425,7 @@ static ami_long fitchars(FILE* f, char* s, ami_long w)
     if (ami_strsiz(f, s) <= w) return (n); /* it all fits */
     while (lo < hi) {
 
-        ami_long mid = (lo+hi+1)/2;
+        int mid = (lo+hi+1)/2;
 
         c = s[mid];
         s[mid] = 0;
@@ -1441,7 +1441,7 @@ static ami_long fitchars(FILE* f, char* s, ami_long w)
 /* The dividers between the parts of the display, all drawn alike: a
    quiet grey, so they mark the columns off without shouting over the
    text the way black rules would. */
-static void divider(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+static void divider(FILE* f, int x1, int y1, int x2, int y2)
 
 {
 
@@ -1455,14 +1455,14 @@ static void divider(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 /* A number written the way a mail reader writes it, in threes: eleven
    thousand messages reads as 11,421 and not as 11421. */
-static void commas(ami_long n, char* s, ami_long sl)
+static void commas(int n, char* s, int sl)
 
 {
 
     char b[40];
-    ami_long i, o = 0, l;
+    int i, o = 0, l;
 
-    snprintf(b, sizeof(b), "%lld", AMI_LONG_CAST(n));
+    snprintf(b, sizeof(b), "%d", n);
     l = strlen(b);
     for (i = 0; i < l && o < sl-2; i++) {
 
@@ -1475,13 +1475,13 @@ static void commas(ami_long n, char* s, ami_long sl)
 }
 
 /* cut a string to fit a width, with an ellipsis if it had to be cut */
-static void clipstr(FILE* f, char* s, ami_long w)
+static void clipstr(FILE* f, char* s, int w)
 
 {
 
-    ami_long n = fitchars(f, s, w);
+    int n = fitchars(f, s, w);
 
-    if (n >= (ami_long)strlen(s)) return; /* nothing to cut */
+    if (n >= (int)strlen(s)) return; /* nothing to cut */
     s[n] = 0;
     if (n > 3) strcpy(s+n-3, "...");
 
@@ -1491,11 +1491,11 @@ static void drawfolders(void)
 
 {
 
-    ami_long i;
-    ami_long y = 4;
+    int i;
+    int y = 4;
     ami_long cw;
-    ami_long sec;
-    ami_long w;
+    int sec;
+    int w;
     char cnt[40];
     char head[120];
 
@@ -1513,8 +1513,8 @@ static void drawfolders(void)
        is not the server's Trash */
     for (sec = 0; sec <= srvct; sec++) {
 
-        ami_long shown = 0;
-        ami_long srv = sec < srvct? sec: -1;
+        int shown = 0;
+        int srv = sec < srvct? sec: -1;
 
         if (sec) { /* a rule between the sections */
 
@@ -1599,15 +1599,15 @@ static void drawfolders(void)
    layout the web readers use and it is the right one: the eye runs down
    the senders, and the subject and the start of the text read as one
    sentence. */
-static void drawmsg(ami_long i, ami_long y)
+static void drawmsg(int i, int y)
 
 {
 
     msgrec* m = &msgs[i];
-    ami_long    w = ami_maxxg(listwf)-sbw;
-    ami_long    x;
+    ami_long w = ami_maxxg(listwf)-sbw;
+    int     x;
     char    s[MAXSTR+SNIPPET];
-    ami_long    subw;
+    int     subw;
 
     if (i == msgsel) {
 
@@ -1669,11 +1669,11 @@ static void drawmsg(ami_long i, ami_long y)
    costs a few text writes, so drawing the two beats drawing the lot: a
    redraw of the whole list is over a tenth of a second, which is what
    made stepping down a folder feel slow. */
-static void drawrow(ami_long i)
+static void drawrow(int i)
 
 {
 
-    ami_long y;
+    int y;
 
     if (!listwf || i < msgtop || i >= msgct) return;
     y = 4+(i-msgtop)*rowh;
@@ -1689,11 +1689,11 @@ static void drawrow(ami_long i)
 }
 
 /* move the mark from one message to another, without drawing the rest */
-static void selectmsg(ami_long i)
+static void selectmsg(int i)
 
 {
 
-    ami_long was = msgsel;
+    int was = msgsel;
 
     if (i == msgsel) return;
     msgsel = i;
@@ -1704,7 +1704,7 @@ static void selectmsg(ami_long i)
 
 /* How many rows the list shows. The last one is only drawn if it fits
    whole, which is what the drawing loop does. */
-static ami_long listvis(void)
+static int listvis(void)
 
 {
 
@@ -1730,13 +1730,13 @@ static void setlistbar(void);   /* forward */
    it. A resize brings two of these -- the strip down the right and the
    strip along the bottom -- and they are the whole of what needs
    painting, since the buffer keeps what was already there. */
-static void listrect(ami_long y1, ami_long y2)
+static void listrect(int y1, int y2)
 
 {
 
-    ami_long i;
-    ami_long first = msgtop+(y1-4)/rowh;
-    ami_long last  = msgtop+(y2-4)/rowh;
+    int i;
+    int first = msgtop+(y1-4)/rowh;
+    int last  = msgtop+(y2-4)/rowh;
 
     if (first < msgtop) first = msgtop;
     if (last >= msgct) last = msgct-1;
@@ -1756,8 +1756,8 @@ static void showlist(void)
 
 {
 
-    ami_long vis;
-    ami_long d;
+    int vis;
+    int d;
 
     if (!listwf || foldsel < 0 || !msgct) { drawlist(); return; }
     listclamp();
@@ -1775,7 +1775,7 @@ static void showlist(void)
         if (diag) {
 
             clock_gettime(CLOCK_MONOTONIC, &t1);
-            fprintf(stderr, "listscroll: %lld row%s %.1fms\n", AMI_LONG_CAST(d < 0? -d: d),
+            fprintf(stderr, "listscroll: %d row%s %.1fms\n", d < 0? -d: d,
                     d == 1 || d == -1? "": "s",
                     (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
 
@@ -1784,13 +1784,13 @@ static void showlist(void)
     }
     if (d > 0) { /* the new rows come in at the foot */
 
-        ami_long i;
+        int i;
 
         for (i = msgtop+vis-d; i < msgtop+vis; i++) drawrow(i);
 
     } else { /* and at the head */
 
-        ami_long i;
+        int i;
 
         for (i = msgtop; i < msgtop-d; i++) drawrow(i);
 
@@ -1803,7 +1803,7 @@ static void setlistbar(void)
 
 {
 
-    ami_long max = msgct-listrows;
+    int max = msgct-listrows;
 
     if (fromdrag) return;
     if (max < 1) max = 1;
@@ -1816,8 +1816,8 @@ static void drawlist(void)
 
 {
 
-    ami_long i;
-    ami_long y = 4;
+    int i;
+    int y = 4;
     struct timespec t0, t1;
 
     if (!listwf) return;
@@ -1878,7 +1878,7 @@ static void drawlist(void)
     if (diag) {
 
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        fprintf(stderr, "list: %lld rows %.0fms\n", AMI_LONG_CAST(i-msgtop),
+        fprintf(stderr, "list: %d rows %.0fms\n", i-msgtop,
                 (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
 
     }
@@ -1915,7 +1915,7 @@ static void wrapread(void)
 
     const char* p;
     ami_long    w = ami_maxxg(readwf)-16-sbw;
-    ami_long    i;
+    int         i;
 
     for (i = 0; i < readlines; i++) free(readline[i]);
     readlines = 0;
@@ -1925,11 +1925,11 @@ static void wrapread(void)
 
         const char* e = p;
         char        line[MAXLINE];
-        ami_long    n;
+        int         n;
 
         while (*e && *e != '\n') e++;
         n = e-p;
-        if (n >= (ami_long)sizeof(line)) n = sizeof(line)-1;
+        if (n >= (int)sizeof(line)) n = sizeof(line)-1;
         memcpy(line, p, n);
         line[n] = 0;
         while (n && (line[n-1] == '\r' || line[n-1] == ' ')) line[--n] = 0;
@@ -1951,13 +1951,13 @@ static void wrapread(void)
         do {
 
             char  part[MAXLINE];
-            ami_long  cut;
+            int   cut;
 
             copystr(part, line, sizeof(part));
             cut = fitchars(readwf, part, w);
-            if (cut < (ami_long)strlen(part)) {
+            if (cut < (int)strlen(part)) {
 
-                ami_long b = cut;
+                int b = cut;
 
                 /* back up to the last space, so words stay whole */
                 while (b && part[b-1] != ' ') b--;
@@ -1982,7 +1982,7 @@ static void wrapread(void)
 }
 
 /* how many lines of the message the window holds */
-static ami_long readpage(void)
+static int readpage(void)
 
 {
 
@@ -1997,7 +1997,7 @@ static void readclamp(void)
 
 {
 
-    ami_long page = readpage();
+    int page = readpage();
 
     if (readtop > readlines-page) readtop = readlines-page;
     if (readtop < 0) readtop = 0;
@@ -2009,8 +2009,8 @@ static void readbar(void)
 
 {
 
-    ami_long page = readpage();
-    ami_long max = readlines-page;
+    int page = readpage();
+    int max = readlines-page;
 
     if (fromdrag) return;
     if (max < 1) max = 1;
@@ -2020,11 +2020,11 @@ static void readbar(void)
 }
 
 /* draw the lines from a to b, having cleared the room they go in */
-static void readrows(ami_long a, ami_long b)
+static void readrows(int a, int b)
 
 {
 
-    ami_long i;
+    int i;
 
     if (a < readtop) a = readtop;
     if (b > readlines-1) b = readlines-1;
@@ -2066,8 +2066,8 @@ static void showread(void)
 
 {
 
-    ami_long page;
-    ami_long d;
+    int page;
+    int d;
 
     if (!readwf) return;
     readclamp();
@@ -2090,7 +2090,7 @@ static void showread(void)
         if (diag) {
 
             clock_gettime(CLOCK_MONOTONIC, &t1);
-            fprintf(stderr, "scroll: %lld line%s %.1fms\n", AMI_LONG_CAST(d < 0? -d: d),
+            fprintf(stderr, "scroll: %d line%s %.1fms\n", d < 0? -d: d,
                     d == 1 || d == -1? "": "s",
                     (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6);
 
@@ -2109,9 +2109,9 @@ static char* quoted(const char* who, const char* when, const char* text,
 
 {
 
-    ami_long  n = strlen(text)*2+MAXSTR*2+64;
+    int   n = strlen(text)*2+MAXSTR*2+64;
     char* d = getmem(n);
-    ami_long  o = 0;
+    int   o = 0;
     const char* p;
 
     if (mark) o += snprintf(d+o, n-o, "On %s, %s wrote:\n", when, who);
@@ -2138,7 +2138,7 @@ static char* quoted(const char* who, const char* when, const char* text,
 }
 
 /* Answer it, answer everybody on it, or pass it on. */
-static void answer(ami_long what)
+static void answer(int what)
 
 {
 
@@ -2184,7 +2184,7 @@ static void answer(ami_long what)
             char  mine[MAXSTR];
             char  one[MAXSTR];
             const char* p;
-            ami_long  o = 0;
+            int   o = 0;
 
             copystr(mine, sendsrv >= 0 && sendsrv < srvct?
                     servers[sendsrv].user: "", sizeof(mine));
@@ -2252,7 +2252,7 @@ static void answer(ami_long what)
 
 }
 
-static void openmsg(ami_long i)
+static void openmsg(int i)
 
 {
 
@@ -2260,8 +2260,8 @@ static void openmsg(ami_long i)
     char* text;
     char  from[MAXSTR], to[MAXSTR], subj[MAXSTR], date[MAXSTR];
     char  title[MAXSTR];
-    ami_long  wx, wy;
-    ami_long  n;
+    ami_long wx, wy;
+    int   n;
     struct timespec t0, t1, t2, t3, t4;
 
     if (diag) clock_gettime(CLOCK_MONOTONIC, &t0);
@@ -2331,7 +2331,7 @@ static void openmsg(ami_long i)
 
             ami_long sx, sy; /* the screen */
             ami_long mx, my; /* and what the main window takes of it */
-            ami_long rx;
+            int rx;
 
             ami_scnsizg(stdout, &sx, &sy);
             ami_getsizg(stdout, &mx, &my);
@@ -2356,12 +2356,12 @@ static void openmsg(ami_long i)
     if (diag) {
 
         clock_gettime(CLOCK_MONOTONIC, &t4);
-        fprintf(stderr, "open: %lld bytes, read %.0fms decode %.0fms "
-                        "wrap %.0fms (%lld lines) draw %.0fms\n", AMI_LONG_CAST(msgs[i].len),
+        fprintf(stderr, "open: %d bytes, read %.0fms decode %.0fms "
+                        "wrap %.0fms (%d lines) draw %.0fms\n", msgs[i].len,
                 (t1.tv_sec-t0.tv_sec)*1e3+(t1.tv_nsec-t0.tv_nsec)/1e6,
                 (t2.tv_sec-t1.tv_sec)*1e3+(t2.tv_nsec-t1.tv_nsec)/1e6,
                 (t3.tv_sec-t2.tv_sec)*1e3+(t3.tv_nsec-t2.tv_nsec)/1e6,
-                AMI_LONG_CAST(readlines),
+                readlines,
                 (t4.tv_sec-t3.tv_sec)*1e3+(t4.tv_nsec-t3.tv_nsec)/1e6);
 
     }
@@ -2372,7 +2372,7 @@ static void closeread(void)
 
 {
 
-    ami_long i;
+    int i;
 
     if (!readwf) return;
     fclose(readwf);
@@ -2403,7 +2403,7 @@ would want.
 /* the fields, in the order they appear */
 static const struct {
 
-    ami_long  id;
+    int   id;
     char* label;
     char* note;
 
@@ -2420,7 +2420,7 @@ static const struct {
     { SRVPOLL,  "Look every",     "seconds between looks at the servers" },
 
 };
-#define SRVFLDS ((ami_long)(sizeof(srvfld)/sizeof(srvfld[0])))
+#define SRVFLDS ((int)(sizeof(srvfld)/sizeof(srvfld[0])))
 
 static void srvlay(void)
 
@@ -2429,8 +2429,8 @@ static void srvlay(void)
     ami_long chrw = ami_strsiz(srvwf, "0");
     ami_long labw = ami_strsiz(srvwf, "Sending server  ");
     ami_long ew, eh, bw, bh;
-    ami_long y;
-    ami_long i;
+    int y;
+    int i;
 
     ami_editboxsizg(srvwf, "0", &ew, &eh);
     ami_buttonsizg(srvwf, "Cancel", &bw, &bh);
@@ -2482,8 +2482,8 @@ static void srvlay(void)
 
         char n[80];
 
-        snprintf(n, sizeof(n), "account %lld of %lld", AMI_LONG_CAST(srvedit+1),
-                 AMI_LONG_CAST(srvct > srvedit? srvct: srvedit+1));
+        snprintf(n, sizeof(n), "account %d of %d", srvedit+1,
+                 srvct > srvedit? srvct: srvedit+1);
         ami_fcolorc(srvwf, rgb(110), rgb(110), rgb(110));
         ami_cursorg(srvwf, chrw*2, y+bh+chrh/2);
         fprintf(srvwf, "%s", n);
@@ -2507,17 +2507,17 @@ static void srvload(void)
 
     }
     ami_putwidgettext(srvwf, SRVNAME, servers[srvedit].name);
-    sprintf(num, "%lld", AMI_LONG_CAST(pollsec));
+    sprintf(num, "%d", pollsec);
     ami_putwidgettext(srvwf, SRVPOLL, num);
     ami_putwidgettext(srvwf, SRVIMAP, servers[srvedit].imap);
-    sprintf(num, "%lld", AMI_LONG_CAST(servers[srvedit].imapport));
+    sprintf(num, "%d", servers[srvedit].imapport);
     ami_putwidgettext(srvwf, SRVIPORT, num);
     ami_putwidgettext(srvwf, SRVSMTP, servers[srvedit].smtp);
-    sprintf(num, "%lld", AMI_LONG_CAST(servers[srvedit].smtpport));
+    sprintf(num, "%d", servers[srvedit].smtpport);
     ami_putwidgettext(srvwf, SRVSPORT, num);
     ami_putwidgettext(srvwf, SRVUSER, servers[srvedit].user);
     ami_putwidgettext(srvwf, SRVPASS, servers[srvedit].pass);
-    sprintf(num, "%lld", AMI_LONG_CAST(servers[srvedit].limit));
+    sprintf(num, "%d", servers[srvedit].limit);
     ami_putwidgettext(srvwf, SRVLIMIT, num);
 
 }
@@ -2589,7 +2589,7 @@ static void srvopen(void)
 
     ami_long wx, wy;
     ami_long ew, eh, bw, bh;
-    ami_long i;
+    int i;
 
     if (srvwf) { ami_front(srvwf); return; }
     ami_openwin(&stdin, &srvwf, NULL, SRVWIN);
@@ -2611,7 +2611,7 @@ static void srvopen(void)
         ami_long chrw = ami_strsiz(srvwf, "0");
         ami_long labw = ami_strsiz(srvwf, "Sending server  ");
         ami_long need = chrw*2+labw+(bw+chrw*2)*4+bw+chrw*2;
-        ami_long want = chrw*96;
+        int want = chrw*96;
 
         if (need > want) want = need;
         ami_winclientg(srvwf, want, (eh+chrh/2)*SRVFLDS+bh*2+chrh*8, &wx, &wy,
@@ -2677,7 +2677,7 @@ static void srvevent(ami_evtrec* er)
 
             } else if (er->butid == SRVDEL) { /* take this one away */
 
-                ami_long i;
+                int i;
 
                 if (srvedit < srvct) {
 
@@ -2723,17 +2723,17 @@ static void layout(void)
 
 {
 
-    ami_long top = 1+banh; /* under the banner, which is under the menu */
-    ami_long h = ami_maxyg(stdout)-top-stath; /* the strip has the foot of it */
+    int top = 1+banh; /* under the banner, which is under the menu */
+    int h = ami_maxyg(stdout)-top-stath; /* the strip has the foot of it */
 
     /* The banner is as wide as the window and stays where it is put. */
     ami_setposg(banwf, 1, 1);
     ami_setsizg(banwf, ami_maxxg(stdout), banh);
     ami_sizbufg(banwf, ami_maxxg(stdout), banh);
 
-    if (diag) fprintf(stderr, "layout: buf %lldx%lld stath %lld progh %lld "
-                      "panes %lld tall\n", AMI_LONG_CAST(ami_maxxg(stdout)), AMI_LONG_CAST(ami_maxyg(stdout)),
-                      AMI_LONG_CAST(stath), AMI_LONG_CAST(progh), AMI_LONG_CAST(h));
+    if (diag) fprintf(stderr, "layout: buf %lldx%lld stath %d progh %d "
+                      "panes %d tall\n", AMI_LONG_CAST(ami_maxxg(stdout)), AMI_LONG_CAST(ami_maxyg(stdout)),
+                      stath, progh, h);
 
     /* the main window shows between and around the panes, so it is
        cleared here rather than left as whatever was under it */
@@ -2882,25 +2882,25 @@ typedef struct { char* title; char* text; } helprec;
 /* The wrapped text, one entry per line as it appears on the screen. The
    text is wrapped once, when the topic is picked or the window resized,
    and drawn from there, which is what makes it scrollable. */
-typedef struct { char* s; int bold; ami_long ind; } helpline;
+typedef struct { char* s; int bold; int ind; } helpline;
 
 static FILE*     helpwf;      /* the help window, NULL when closed */
 static char*     helpbuf;     /* the help file, read whole */
 static helprec*  helptopics;  /* the topics in it */
-static ami_long  helptopicct;
-static ami_long*     helpmatch;   /* the topics the search matched */
-static ami_long  helpmatches; /* how many of them */
-static ami_long  helpsel;     /* the topic shown, -1 for none */
-static ami_long  helpx0, helpy0; /* the topic list, in pixels */
-static ami_long  helpx1, helpy1;
+static int       helptopicct;
+static int*     helpmatch;   /* the topics the search matched */
+static int       helpmatches; /* how many of them */
+static int       helpsel;     /* the topic shown, -1 for none */
+static int       helpx0, helpy0; /* the topic list, in pixels */
+static int       helpx1, helpy1;
 static int       helplistup;  /* the list box has been made */
 static helpline* helplines;   /* the topic, wrapped to the pane */
-static ami_long  helplinect;
-static ami_long  helplinemax;
-static ami_long  helptop;     /* first wrapped line shown */
-static ami_long  helppage;    /* wrapped lines the pane holds */
+static int       helplinect;
+static int       helplinemax;
+static int       helptop;     /* first wrapped line shown */
+static int       helppage;    /* wrapped lines the pane holds */
 
-static void helpout(const char* s, int bold, ami_long ind); /* forward */
+static void helpout(const char* s, int bold, int ind); /* forward */
 
 /*******************************************************************************
 
@@ -2939,7 +2939,7 @@ static int helpread(void)
     char  dir[500];
     char* e;
     FILE* f = NULL;
-    ami_long  i, n;
+    int   i, n;
 
     /* the directory the program was run from, with its slash */
     dir[0] = 0;
@@ -2994,7 +2994,7 @@ static void helpsplit(void)
 
     char*  p;
     char** head; /* the # of each topic */
-    ami_long   n, i;
+    int    n, i;
 
     /* count the heads, then take them, walking by lines both times */
     n = 0;
@@ -3007,7 +3007,7 @@ static void helpsplit(void)
     }
     head = malloc((n+1)*sizeof(char*));
     helptopics = malloc((n+1)*sizeof(helprec));
-    helpmatch = malloc((n+1)*sizeof(ami_long));
+    helpmatch = malloc((n+1)*sizeof(int));
     if (!head || !helptopics || !helpmatch)
         { ami_alert("Mail", "Out of memory"); exit(1); }
     n = 0;
@@ -3060,7 +3060,7 @@ static void helpload(void)
                  "program; if the file is missing, only the help is.",
                  HELPFILE);
         helptopics = malloc(sizeof(helprec));
-        helpmatch = malloc(sizeof(ami_long));
+        helpmatch = malloc(sizeof(int));
         if (!helptopics || !helpmatch)
             { ami_alert("Mail", "Out of memory"); exit(1); }
         helptopics[0].title = "No help file";
@@ -3082,13 +3082,13 @@ The topic list
    is the subject of holds it many times, and one that merely mentions
    it in passing holds it once, and the reader can tell them apart
    without opening either. */
-static ami_long helpcount(const helprec* h, const char* what)
+static int helpcount(const helprec* h, const char* what)
 
 {
 
     const char* p;
-    ami_long    n = strlen(what);
-    ami_long    c = 0;
+    int         n = strlen(what);
+    int         c = 0;
 
     if (!n) return (0); /* an empty search matches everything, uncounted */
     for (p = h->title; *p; p++)
@@ -3109,7 +3109,7 @@ static void helpfill(const char* what)
 {
 
     ami_strptr sl = NULL, sp, lp = NULL;
-    ami_long   i, c;
+    int        i, c;
     char       lab[300];
 
     /* the strings are ours until the list box has them; it copies */
@@ -3120,8 +3120,8 @@ static void helpfill(const char* what)
         if (*what && !c) continue; /* not this one */
         /* the count goes beside the title, so that a topic the word is
            the subject of can be told from one that mentions it once */
-        if (*what) snprintf(lab, sizeof(lab), "%s (%lld)",
-                            helptopics[i].title, AMI_LONG_CAST(c));
+        if (*what) snprintf(lab, sizeof(lab), "%s (%d)",
+                            helptopics[i].title, c);
         else snprintf(lab, sizeof(lab), "%s", helptopics[i].title);
         sp = malloc(sizeof(ami_strrec));
         if (!sp) { ami_alert("Mail", "Out of memory"); exit(1); }
@@ -3170,7 +3170,7 @@ which is the only thing that can change the answer.
 *******************************************************************************/
 
 /* keep one finished line */
-static void helpout(const char* s, int bold, ami_long ind)
+static void helpout(const char* s, int bold, int ind)
 
 {
 
@@ -3194,13 +3194,13 @@ static void helpout(const char* s, int bold, ami_long ind)
    breaks already turned into spaces. The break goes at the last word
    that still fits, and fitting is measured with the font rather than
    counted in characters, since the font is not fixed pitch. */
-static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
+static void helpwrap(const char* s, int bold, int ind, int w)
 
 {
 
     char line[500];
     char try[500];
-    ami_long n;
+    int n;
 
     ami_bold(helpwf, bold);
     while (*s) {
@@ -3212,11 +3212,11 @@ static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
         while (*q) { /* as many whole words as fit */
 
             const char* e = q;
-            ami_long    m;
+            int         m;
 
             while (*e && *e != ' ') e++; /* the next word */
             m = e-s;
-            if (m >= (ami_long)sizeof(try)) break;
+            if (m >= (int)sizeof(try)) break;
             memcpy(try, s, m);
             try[m] = 0;
             if (n && ami_strsiz(helpwf, try) > w-ind) break;
@@ -3231,7 +3231,7 @@ static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
 
             while (*q && *q != ' ') q++;
             n = q-s;
-            if (n >= (ami_long)sizeof(line)) n = sizeof(line)-1;
+            if (n >= (int)sizeof(line)) n = sizeof(line)-1;
             memcpy(line, s, n);
             line[n] = 0;
 
@@ -3249,16 +3249,16 @@ static void helpwrap(const char* s, int bold, ami_long ind, ami_long w)
    blank line ends a paragraph, ## is a heading within the topic, and -
    is a list item, which is wrapped with its later lines lined up under
    the first word rather than under the dash. */
-static void helplay1(ami_long w)
+static void helplay1(int w)
 
 {
 
     const char* p;
     char        para[4000];
-    ami_long    pl = 0;
+    int         pl = 0;
     int         bold = FALSE;
-    ami_long    ind = 0;
-    ami_long    i;
+    int         ind = 0;
+    int         i;
 
     for (i = 0; i < helplinect; i++) free(helplines[i].s);
     helplinect = 0;
@@ -3271,7 +3271,7 @@ static void helplay1(ami_long w)
     while (1) {
 
         const char* e = p;
-        ami_long    n;
+        int         n;
 
         while (*e && *e != '\n') e++;
         n = e-p;
@@ -3294,21 +3294,21 @@ static void helplay1(ami_long w)
             while (*t == ' ') t++;
             bold = TRUE;
             n -= t-p;
-            if (n > (ami_long)sizeof(para)-1) n = sizeof(para)-1;
+            if (n > (int)sizeof(para)-1) n = sizeof(para)-1;
             memcpy(para, t, n);
             pl = n;
 
         } else if (*p == '-' || *p == '*') { /* a list item */
 
             ind = ami_strsiz(helpwf, "00");
-            if (n > (ami_long)sizeof(para)-1) n = sizeof(para)-1;
+            if (n > (int)sizeof(para)-1) n = sizeof(para)-1;
             memcpy(para, p, n);
             pl = n;
 
         } else { /* ordinary text, joined to the line before it */
 
-            if (pl && pl < (ami_long)sizeof(para)-1) para[pl++] = ' ';
-            if (pl+n > (ami_long)sizeof(para)-1) n = sizeof(para)-1-pl;
+            if (pl && pl < (int)sizeof(para)-1) para[pl++] = ' ';
+            if (pl+n > (int)sizeof(para)-1) n = sizeof(para)-1-pl;
             memcpy(para+pl, p, n);
             pl += n;
 
@@ -3326,8 +3326,8 @@ static void helpdraw(void)
 
     ami_long chrh = ami_chrsizy(helpwf);
     ami_long x = helpx1+ami_strsiz(helpwf, "00");
-    ami_long y = helpy0;
-    ami_long i;
+    int y = helpy0;
+    int i;
 
     /* down to and including the line the count is written on, which is
        under the pane: leave it out and each count is written over the
@@ -3358,8 +3358,8 @@ static void helpdraw(void)
         char more[80];
 
         if (helptop+helppage >= helplinect) strcpy(more, "-- end --");
-        else sprintf(more, "-- %lld more line%s, wheel or page keys --",
-                     AMI_LONG_CAST(helplinect-helptop-helppage),
+        else sprintf(more, "-- %d more line%s, wheel or page keys --",
+                     helplinect-helptop-helppage,
                      helplinect-helptop-helppage == 1? "": "s");
         ami_fcolor(helpwf, ami_blue);
         ami_cursorg(helpwf, x, helpy1);
@@ -3382,11 +3382,11 @@ static void helptext(void)
 }
 
 /* scroll the topic by so many lines */
-static void helpscroll(ami_long by)
+static void helpscroll(int by)
 
 {
 
-    ami_long was = helptop;
+    int was = helptop;
 
     helptop += by;
     if (helptop > helplinect-helppage) helptop = helplinect-helppage;
@@ -3402,7 +3402,7 @@ static void helplay(void)
 
     ami_long chrh = ami_chrsizy(helpwf);
     ami_long chrw = ami_strsiz(helpwf, "0");
-    ami_long lw   = chrw*30;  /* the topic list */
+    int lw   = chrw*30;  /* the topic list */
     ami_long bw, bh, ew, eh;
 
     ami_buttonsizg(helpwf, "Close", &bw, &bh);
@@ -3443,7 +3443,7 @@ static void helpclose(void)
 
 {
 
-    ami_long i;
+    int i;
 
     if (!helpwf) return;
     fclose(helpwf);
@@ -3544,7 +3544,7 @@ The menu
 *******************************************************************************/
 
 static void newmenu(ami_menuptr* mp, int onoff, int bar, int select,
-                    ami_long id, char* face)
+                    int id, char* face)
 
 {
 
@@ -3634,11 +3634,11 @@ static void fetchall(int relist)
     if (!foldct) relist = TRUE; /* unless nothing is known yet */
     if (!relist) { /* an account nothing is known of has to be asked */
 
-        ami_long k;
+        int k;
 
         for (k = 0; k < srvct && !relist; k++) {
 
-            ami_long m;
+            int m;
 
             if (!*servers[k].imap || !*servers[k].user) continue;
             if (serverquiet(k)) continue; /* not while it is not answering */
@@ -3682,7 +3682,7 @@ static void countlater(void)
 
 }
 
-static void showfolder(ami_long i);
+static void showfolder(int i);
 
 /* What the worker has done, drawn. This is the main thread's whole part
    in a fetch: it looks ten times a second, draws what has changed, and
@@ -3691,9 +3691,9 @@ static void fetchpick(void)
 
 {
 
-    ami_long folds = wrkfolds;
-    ami_long list  = wrklist;
-    ami_long done  = wrkdone && !wrkgo;
+    int folds = wrkfolds;
+    int list  = wrklist;
+    int done  = wrkdone && !wrkgo;
 
     wrkfolds = FALSE;
     wrklist = FALSE;
@@ -3785,7 +3785,7 @@ static void fetchpick(void)
 }
 
 /* show a folder */
-static void showfolder(ami_long i)
+static void showfolder(int i)
 
 {
 
@@ -3822,7 +3822,7 @@ Main
 
 /* The command line. The account is not here: a password on a command
    line is a password in everybody's process list. */
-static ami_long dofetch;   /* fetch on startup */
+static int dofetch;   /* fetch on startup */
 
 static ami_optrec opttbl[] = {
 
@@ -3841,7 +3841,7 @@ int main(int argc, char* argv[])
 
     ami_evtrec er;
     char       msg[MAXSTR];
-    ami_long   i;
+    int        i;
     ami_long   argi = 1;
     ami_long   argcl = argc;
     ami_long   wx, wy;
@@ -4073,7 +4073,7 @@ int main(int argc, char* argv[])
                 case ami_etmoumovg: mpx = er.moupxg; mpy = er.moupyg; break;
                 case ami_etmouba: {
 
-                    ami_long best = -1;
+                    int best = -1;
 
                     if (er.amoubn != 1) break;
                     /* Which folder the click landed on, found from where
@@ -4208,7 +4208,7 @@ int main(int argc, char* argv[])
                        have to be laid again. A change of height moves
                        nothing: the rows that come into view arrive as a
                        redraw of their own. */
-                    static ami_long prevw;
+                    static int prevw;
 
                     ami_sizbufg(listwf, er.rszxg, er.rszyg);
                     datex = er.rszxg-sbw-ami_strsiz(listwf, "Sep 30, 2025 ");
@@ -4286,7 +4286,7 @@ int main(int argc, char* argv[])
 
                     case MENUFOLD: { /* every server's list, again */
 
-                        ami_long k;
+                        int k;
 
                         if (!haveaccount()) { srvopen(); break; }
                         idxsetaside(); /* the indexes outlive the list */

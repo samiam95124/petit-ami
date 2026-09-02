@@ -2276,7 +2276,7 @@ int main(void)
         FILE *pf;
         pf = fopen("backgammon.pos", "r");
         if (pf) {
-            ami_long pw, ph, ppx, ppy;
+            int pw, ph, ppx, ppy;
             char line[256];
 
             /* skip header line */

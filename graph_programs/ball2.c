@@ -13,15 +13,15 @@ demonstrate smooth animation.
 
 #define BALLACCEL 5 /* ball acceleration */
 
-ami_long  x, y;
-ami_long  nx, ny;
-ami_long  lx, ly;
-ami_long  xd, yd;
+int       x, y;
+int       nx, ny;
+int       lx, ly;
+int       xd, yd;
 ami_evtrec er;
-ami_long  tc;
-ami_long  cd; /* current display flip select */
-ami_long  ballsize;
-ami_long  halfball;
+int       tc;
+int       cd; /* current display flip select */
+int       ballsize;
+int       halfball;
 
 int chkbrk(void)
 
@@ -39,7 +39,7 @@ int chkbrk(void)
 
 }
 
-void drawball(ami_color c, ami_long x, ami_long y)
+void drawball(ami_color c, int x, int y)
 
 {
 

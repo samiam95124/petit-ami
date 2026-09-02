@@ -37,7 +37,7 @@ ami_optrec opttbl[] = {
 
 };
 
-void waittime(ami_long t)
+void waittime(int t)
 
 {
 
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 {
 
     int i;
-    ami_long key;
+    int key;
     ami_long argi = 1;
     ami_long argcl = argc;
 
@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     for( i = 0; i < 1000; i++) {
 
         /* Generate a random key */
-        key = 60 + (ami_long)(12.0f * rand() / (float) RAND_MAX)-1;
+        key = 60 + (int)(12.0f * rand() / (float) RAND_MAX)-1;
         /* Play a note */
         ami_noteon(dport, 0, 1, key, LONG_MAX);
         /* Sleep for .1 second */

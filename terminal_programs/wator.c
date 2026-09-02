@@ -93,7 +93,7 @@ int randn(int limit)
 
 {
 
-    return (ami_long)limit*rand()/RAND_MAX;
+    return (int)limit*rand()/RAND_MAX;
 
 }
 

@@ -19,8 +19,8 @@ int main(int argc, char **argv)
     FILE* fp;
     ami_ulong addr;
     char cbuff[4096];
-    ami_long len;
-    ami_long port;
+    int len;
+    int port;
     int i;
 
     if (argc < 3) {

@@ -77,7 +77,7 @@ int main(int argc, char **argv)
     char buff[BUFLEN];
     ami_ulong addr;
     unsigned long long addrh, addrl;
-    ami_long port;
+    int port;
     ami_long argi = 1;
     ami_long argcl = argc;
     int end;

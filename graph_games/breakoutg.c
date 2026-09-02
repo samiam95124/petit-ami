@@ -63,7 +63,7 @@ float     bfy;                        /* ball exact position y; the rectangle
                                          way a line draw does */
 int       baltim;                     /* ball start timer */
 ami_evtrec er;                         /* event record */
-ami_long  jchr;                       /* number of pixels to joystick
+int       jchr;                       /* number of pixels to joystick
                                          movement */
 int       score;                      /* score */
 int       scrsiz;                     /* score size */
@@ -85,7 +85,7 @@ int       padw;                       /* paddle width */
 int       hpadw;                      /* half paddle width */
 int       padstp;                     /* paddle step per key event */
 int       curpag;                     /* current display page for the flip */
-ami_long  joylst;                     /* last joystick x reported */
+int       joylst;                     /* last joystick x reported */
 int       joyini;                     /* joystick baseline taken */
 int       mcap;                       /* paddle is captured to the mouse */
 int       lstmx;                      /* last mouse position x */
@@ -144,7 +144,7 @@ variables.
 
 *******************************************************************************/
 
-void log2rgb(ami_color c, ami_long* r, ami_long* g, ami_long* b)
+void log2rgb(ami_color c, int* r, int* g, int* b)
 
 {
 
@@ -190,7 +190,7 @@ Draws a filled rectangle with border, in the given color.
 
 ********************************************************************************/
 
-void dim(float dv, ami_long* r, ami_long* g, ami_long* b)
+void dim(float dv, int* r, int* g, int* b)
 
 {
 
@@ -205,9 +205,9 @@ void drwbrect(rectangle* r, ami_color c)
 {
 
     int i;
-    ami_long hr, hg, hb; /* rgb value of highlight */
-    ami_long mr, mg, mb; /* rbg value of midlight */
-    ami_long lr, lg, lb; /* rbg value of lowlight */
+    int hr, hg, hb; /* rgb value of highlight */
+    int mr, mg, mb; /* rbg value of midlight */
+    int lr, lg, lb; /* rbg value of lowlight */
 
     log2rgb(c, &hr, &hg, &hb); /* find actual ami_color */
     mr = hr; /* copy */

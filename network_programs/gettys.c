@@ -60,8 +60,8 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    ami_ulong addr;
-    ami_long port = 4433;
+    unsigned int addr;
+    int port = 4433;
     int s;
     ami_long argi = 1;
     ami_long argcl = argc;
