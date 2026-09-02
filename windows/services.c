@@ -127,11 +127,11 @@ static bufstr langstr;  /* buffer for language country string (locale) */
 
 static ami_envrec *envlst;   /* our environment list */
 
-static long language;    /* current language */
-static long country;     /* current country */
+static ami_long language;    /* current language */
+static ami_long country;     /* current country */
 
-void ami_brknam(char *fn, char *p, long pl, char *n, long nl, char *e, long el);
-void ami_maknam(char *fn, long fnl, char *p, char *n, char *e);
+void ami_brknam(char *fn, char *p, ami_long pl, char *n, ami_long nl, char *e, ami_long el);
+void ami_maknam(char *fn, ami_long fnl, char *p, char *n, char *e);
 
 static CRITICAL_SECTION    thdtbllck;            /* thread table lock */
 static HANDLE              threadtbl[MAXTHREAD]; /* thread id table */
@@ -180,7 +180,7 @@ static void winerr(void)
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                   (LPTSTR)&lpMsgBuf,
                   0, NULL);
-    fprintf(stderr, "\n*** Windows error: %s\n", lpMsgBuf);
+    fprintf(stderr, "\n*** Windows error: %s\n", (char*)lpMsgBuf);
 
     exit(1);
 
@@ -243,10 +243,10 @@ fixed size buffers with no space reserved for the terminator.
 
 ********************************************************************************/
 
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 {
 
-    long l;
+    ami_long l;
 
     l = strlen(s);
     if (l > dl) error("String too large for destination");
@@ -379,7 +379,7 @@ The result time is 32 bits on a 32 bit machine and 64 bits on a 64 bit machine.
 
 ********************************************************************************/
 
-long filetimetoseconds(FILETIME* ft)
+ami_long filetimetoseconds(FILETIME* ft)
 
 {
 
@@ -526,8 +526,8 @@ in which case the terminating zero is left off (critical buffer convention).
 
 void ami_times(
     /** result string */           char *s,
-    /** result string length */    long sl,
-    /** time to convert */         long t
+    /** result string length */    ami_long sl,
+    /** time to convert */         ami_long t
 )
 
 {
@@ -609,8 +609,8 @@ in which case the terminating zero is left off (critical buffer convention).
 
 void ami_dates(
     /** string to place date into */   char *s,
-    /** string to place date length */ long sl,
-    /** time record to write from */   long t
+    /** string to place date length */ ami_long sl,
+    /** time record to write from */   ami_long t
 )
 
 {
@@ -709,7 +709,7 @@ Writes the time to a given file, from a time record.
 
 void ami_writetime(
         /** file to write to */ FILE *f,
-        /** time record to write from */ long t
+        /** time record to write from */ ami_long t
 )
 
 {
@@ -733,7 +733,7 @@ used by windows.
 
 void ami_writedate(
         /* file to write to */ FILE *f,
-        /* time record to write from */ long t
+        /* time record to write from */ ami_long t
 )
 
 {
@@ -753,12 +753,12 @@ Finds the current time as an S2000 integer.
 
 ********************************************************************************/
 
-long ami_time(void)
+ami_long ami_time(void)
 
 {
 
     SYSTEMTIME  st; /* windows system format time */
-    long        t;  /* S2000 time */
+    ami_long    t;  /* S2000 time */
     int         r;  /* result buffer */
     FILETIME    ft; /* 64 bit file time */
 
@@ -780,7 +780,7 @@ timezones.
 
 ********************************************************************************/
 
-long ami_local(long t)
+ami_long ami_local(ami_long t)
 {
 
     return t+ami_timezone()+ami_daysave()*HOURSEC;
@@ -808,7 +808,7 @@ has more than enough precision to count from 0 AD to present.
 
 ********************************************************************************/
 
-long ami_clock(void)
+ami_long ami_clock(void)
 
 {
 
@@ -826,11 +826,11 @@ time that can be measured is 24 hours.
 
 ********************************************************************************/
 
-long ami_elapsed(long r)
+ami_long ami_elapsed(ami_long r)
 {
 
     /* reference time */
-    long t;
+    ami_long t;
 
     t = ami_clock();   /* get the current time */
     if (t >= r) t -= r; /* time has not wrapped */
@@ -852,13 +852,13 @@ is null or all blanks
 
 ********************************************************************************/
 
-long ami_validfile(
+ami_long ami_validfile(
     /* string to validate */ char *s
 )
 
 {
 
-    long r;   /* good/bad result */
+    ami_long r;   /* good/bad result */
 
     r = 1;   /* set result good by default */
     while (*s && *s == ' ') s++; /* check all blanks */
@@ -879,13 +879,13 @@ filename that is null or all blanks
 
 ********************************************************************************/
 
-long ami_validpath(
+ami_long ami_validpath(
     /* string to validate */ char *s
 )
 
 {
 
-    long r;   /* good/bad result */
+    ami_long r;   /* good/bad result */
 
     r = 1;   /* set result good by default */
     while (*s && *s == ' ') s++; /* check all blanks */
@@ -905,13 +905,13 @@ on that directory.
 
 ********************************************************************************/
 
-long ami_wild(
+ami_long ami_wild(
     /* filename */ char *s
 )
 
 {
 
-    long r;   /* result flag */
+    ami_long r;   /* result flag */
     int i;   /* index for string */
     int ln;   /* length of string */
 
@@ -973,7 +973,7 @@ off (critical buffer convention).
 void ami_getenv(
     /** string name */        char* esn,
     /** string data */        char* esd,
-    /** string data length */ long esdl
+    /** string data length */ ami_long esdl
 )
 {
 
@@ -1198,7 +1198,7 @@ The pathing is broken, we need to add this manually.
 static void execwin(char* cmd,   /* command to execute */
              char* el,    /* environment list */
              int   wait,  /* wait for completion */
-             long* ec)    /* return error */
+             ami_long* ec)    /* return error */
 
 {
 
@@ -1270,7 +1270,7 @@ void ami_exec(
 
 {
 
-    long e;             /* result code */
+    ami_long e;             /* result code */
 
     execwin(cmd, 0, 0, &e); /* execute with no environment */
 
@@ -1286,7 +1286,7 @@ Executes a program by name. Waits for the program to complete.
 
 void ami_execw(
     /* program name to execute */ char *cmd,
-    /* return error */            long *err
+    /* return error */            ami_long *err
 )
 
 {
@@ -1358,7 +1358,7 @@ void ami_exece(
 {
 
     char* evstbl; /* windows environment table */
-    long e;
+    ami_long e;
 
     trnenv(el, &evstbl); /* translate environment */
     execwin(cmd, evstbl, 0, &e); /* execute */
@@ -1379,7 +1379,7 @@ program environment.
 void ami_execew(
         /* program name to execute */ char*      cmd,
         /* environment */             ami_envrec* el,
-        /* return error */            long*      err
+        /* return error */            ami_long*      err
 )
 
 {
@@ -1404,7 +1404,7 @@ convention).
 
 void ami_getcur(
         /** buffer to get path */ char *pn,
-        /** length of buffer */   long l
+        /** length of buffer */   ami_long l
 )
 
 {
@@ -1470,16 +1470,16 @@ is left off (critical buffer convention).
 
 void ami_brknam(
         /* file specification */ char *fn,
-        /* path */               char *p, long pl,
-        /* name */               char *n, long nl,
-        /* extention */          char *e, long el
+        /* path */               char *p, ami_long pl,
+        /* name */               char *n, ami_long nl,
+        /* extention */          char *e, ami_long el
 )
 
 {
 
     char *s1, *s2, *t2;
     bufstr lp, ln, le; /* local component holding buffers */
-    long l;
+    ami_long l;
 
     /* clear all strings */
     lp[0] = 0;
@@ -1556,7 +1556,7 @@ terminating zero is left off (critical buffer convention).
 
 void ami_maknam(
     /** file specification to build */ char *fn,
-    /** file specification length */   long fnl,
+    /** file specification length */   ami_long fnl,
     /** path */                        char *p,
     /** filename */                    char *n,
     /** extension */                   char *e
@@ -1611,14 +1611,14 @@ the terminating zero is left off.
 
 void ami_fulnam(
     /** filename */        char *fn,
-    /** filename length */ long fnl
+    /** filename length */ ami_long fnl
 )
 {
 
     /* file specification */
     bufstr p, n, e, ps;   /* filespec components */
     bufstr fs;            /* copy of input file specification */
-    long l;               /* length of input */
+    ami_long l;               /* length of input */
 
     /* copy input to local, since it may fill the entire buffer without a
        terminating zero (critical buffer convention) */
@@ -1655,7 +1655,7 @@ in which case the terminating zero is left off (critical buffer convention).
 
 void ami_getpgm(
     /** program path */        char* p,
-    /** program path length */ long  pl
+    /** program path length */ ami_long  pl
 )
 {
 
@@ -1764,7 +1764,7 @@ left off (critical buffer convention).
 
 void ami_getusr(
     /** pathname */        char *fn,
-    /** pathname length */ long fnl
+    /** pathname length */ ami_long fnl
 )
 
 {
@@ -2141,7 +2141,7 @@ host location.
 
 *******************************************************************************/
 
-long ami_latitude(void)
+ami_long ami_latitude(void)
 
 {
 
@@ -2168,7 +2168,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-long ami_longitude(void)
+ami_long ami_longitude(void)
 
 {
 
@@ -2203,7 +2203,7 @@ A mobile host is constantly reading its location (usually from a GPS).
 
 *******************************************************************************/
 
-long ami_altitude(void)
+ami_long ami_altitude(void)
 
 {
 
@@ -2221,7 +2221,7 @@ determined by latitude/longitude.
 
 *******************************************************************************/
 
-long ami_country(void)
+ami_long ami_country(void)
 
 {
 
@@ -2512,8 +2512,8 @@ countryety countrytab[] = {
 
 void ami_countrys(
     /** string buffer */           char* s,
-    /** length of buffer */        long len,
-    /** ISO 3166-1 country code */ long c)
+    /** length of buffer */        ami_long len,
+    /** ISO 3166-1 country code */ ami_long c)
 
 {
 
@@ -2535,7 +2535,7 @@ negative for zones west of the prime meridian, and positive for zones east.
 
 *******************************************************************************/
 
-long ami_timezone(void)
+ami_long ami_timezone(void)
 
 {
 
@@ -2566,7 +2566,7 @@ Note that local() already takes daylight savings into account.
 
 *******************************************************************************/
 
-long ami_daysave(void)
+ami_long ami_daysave(void)
 
 
 {
@@ -2590,7 +2590,7 @@ Returns true if 24 hour time is in use in the current host location.
 
 *******************************************************************************/
 
-long ami_time24hour(void)
+ami_long ami_time24hour(void)
 
 {
 
@@ -2610,7 +2610,7 @@ necessarily be added at the end, and thus out of order.
 
 *******************************************************************************/
 
-long ami_language(void)
+ami_long ami_language(void)
 
 {
 
@@ -2836,7 +2836,7 @@ static langety langtab[] = {
 
 };
 
-void ami_languages(char* s, long len, long l)
+void ami_languages(char* s, ami_long len, ami_long l)
 
 {
 
@@ -2903,7 +2903,7 @@ Note that times() compensates for this.
 
 *******************************************************************************/
 
-long ami_timeorder(void)
+ami_long ami_timeorder(void)
 
 {
 
@@ -2935,7 +2935,7 @@ Note that dates() compensates for this.
 
 *******************************************************************************/
 
-long ami_dateorder(void)
+ami_long ami_dateorder(void)
 
 {
 
@@ -3019,7 +3019,7 @@ static DWORD WINAPI dummystart(LPVOID function)
 
 }
 
-long ami_newthread(void (*threadmain)(void))
+ami_long ami_newthread(void (*threadmain)(void))
 
 {
 
@@ -3059,7 +3059,7 @@ Creates a new concurrency lock and returns the logical id for it.
 
 *******************************************************************************/
 
-long ami_initlock(void)
+ami_long ami_initlock(void)
 
 {
 
@@ -3097,7 +3097,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-void ami_deinitlock(long ln)
+void ami_deinitlock(ami_long ln)
 
 {
 
@@ -3123,7 +3123,7 @@ come first served.
 
 *******************************************************************************/
 
-void ami_lock(long ln)
+void ami_lock(ami_long ln)
 
 {
 
@@ -3147,7 +3147,7 @@ lock and that is in a runnable state is set to run.
 
 *******************************************************************************/
 
-void ami_unlock(long ln)
+void ami_unlock(ami_long ln)
 
 {
 
@@ -3170,7 +3170,7 @@ Creates a new concurrency signal and returns the logical id for it.
 
 *******************************************************************************/
 
-long ami_initsig(void)
+ami_long ami_initsig(void)
 
 {
 
@@ -3208,7 +3208,7 @@ Releases a concurrency lock by logical id.
 
 *******************************************************************************/
 
-void ami_deinitsig(long sn)
+void ami_deinitsig(ami_long sn)
 
 {
 
@@ -3234,7 +3234,7 @@ signal or just one is set to run by a signal.
 
 *******************************************************************************/
 
-void ami_sendsig(long sn)
+void ami_sendsig(ami_long sn)
 
 {
 
@@ -3263,7 +3263,7 @@ still active, and not just assume it.
 
 *******************************************************************************/
 
-void ami_sendsigone(long sn)
+void ami_sendsigone(ami_long sn)
 
 {
 
@@ -3292,7 +3292,7 @@ run, and thus the wait and signal operations are synchronized together.
 
 *******************************************************************************/
 
-void ami_waitsig(long ln, long sn)
+void ami_waitsig(ami_long ln, ami_long sn)
 
 {
 

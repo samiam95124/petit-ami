@@ -1,0 +1,99 @@
+txtterminal test, page 1: text and positioning
+the page is 80 x 25 characters
+
+plain stream text: the quick brown fox jumps over the lazy dog 0123456789
+
+
+
+                             centered on line eight
+
+left                                                                       right
+
+                             positioned at column thirty
+
+                                                           first
+                                                           second
+                                                           third
+
+tab stops:
+1       2       3       4       5       6
+one     two     three   four    five    six
+
+
+
+
+bottom line
+txtterminal test, page 2: movement and overwrite
+
+
+         +----------------------------+
+         |                            |
+         |                            |
+         |   framed by cursor moves   |
+         |                            |
+         |                            |
+         |                            |
+         +----------------------------+
+
+
+         this ---- gets overwritten
+
+         corrected
+
+
+         *         a staircase by down() calls
+          *
+           *
+            *
+             *
+txtterminal test, page 3: the page resized to 100 x 50
+
+
+                                                                                past column eighty
+
+                                centered on the hundred column page
+
+this page was not ejected by the program; the close of the print file ejects it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+line fifty, the new bottom
+

@@ -40,12 +40,12 @@ int main(int argc, char* argv[])
 {
 
     char           s[250], r[250]; /* find and replace strings */
-    long           cr, cg, cb;     /* color */
+    ami_long       cr, cg, cb;     /* color */
     ami_qfnopts    optf;           /* find options */
     ami_qfropts    optfr;          /* find/replace options */
-    long           fc, fs;         /* font code and size */
-    long           fr, fg, fb;     /* foreground color */
-    long           br, bg, bb;     /* background color */
+    ami_long       fc, fs;         /* font code and size */
+    ami_long       fr, fg, fb;     /* foreground color */
+    ami_long       br, bg, bb;     /* background color */
     ami_qfteffects fe;             /* font effects */
     char*          which;          /* which dialog to open */
 

@@ -147,21 +147,21 @@ typedef enum {
 
 static struct { /* benchmark stats records */
 
-    long iter; /* number of iterations performed */
-    long time; /* time in 100us for test */
+    ami_long iter; /* number of iterations performed */
+    ami_long time; /* time in 100us for test */
 
 } benchtab[bnbuffer+1];
 static bench bi;
 
-static long x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
-static long winx, winy; /* last known window size, from resize events */
+static ami_long x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
+static ami_long winx, winy; /* last known window size, from resize events */
 static int c;
 static int top, bottom, lside, rside; /* borders */
 static enum { dup, ddown, dleft, dright } direction; /* writing direction */
-static long count, t1, t2, delay, minlen;   /* maximum direction, x or y */
+static ami_long count, t1, t2, delay, minlen;   /* maximum direction, x or y */
 static ami_evtrec er;   /* event record */
 static int i, j, b, tc, cnt;
-static long clk;
+static ami_long clk;
 static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
 static int eventflag1, eventflag2;
@@ -172,22 +172,22 @@ static ami_pevthan oeh1;
 static ami_pevthan oeh2;
 static char line[250];
 
-static long          tn;       /* thread number */
-static volatile long ln;       /* lock number */
+static ami_long      tn;       /* thread number */
+static volatile ami_long ln;       /* lock number */
 static volatile int  thdstp;   /* thread stop flag */
-static long          sn;       /* thread stop signal */
-static long          etn;      /* event thread number */
-static long          esn;      /* event thread stop signal */
+static ami_long      sn;       /* thread stop signal */
+static ami_long      etn;      /* event thread number */
+static ami_long      esn;      /* event thread stop signal */
 static volatile int  ethdstp;  /* event thread stop flag */
-static long          timeout1; /* first timer fires */
-static long          timeout2; /* second timer fires */
+static ami_long      timeout1; /* first timer fires */
+static ami_long      timeout2; /* second timer fires */
 
 /* draw box */
 
-static void box(long sx, long sy, long ex, long ey, char c)
+static void box(ami_long sx, ami_long sy, ami_long ex, ami_long ey, char c)
 {
 
-    long x, y;
+    ami_long x, y;
 
     /* top */
     ami_cursor(stdout, sx, sy);
@@ -231,7 +231,7 @@ static void frmmark(void)
 {
 
     char buf[40];
-    long cx, cy;
+    ami_long cx, cy;
 
     framenum++;
     if (tsthi && framenum > tsthi) longjmp(terminate_buf, 1);
@@ -239,7 +239,7 @@ static void frmmark(void)
     sprintf(buf, "frame %d", framenum);
     cx = ami_curx(stdout);
     cy = ami_cury(stdout);
-    ami_cursor(stdout, ami_maxx(stdout)/2-(long)strlen(buf)/2, 1);
+    ami_cursor(stdout, ami_maxx(stdout)/2-(ami_long)strlen(buf)/2, 1);
     printf("%s", buf);
     ami_cursor(stdout, cx, cy);
     screen_capture();
@@ -274,7 +274,7 @@ Takes a file and a 32 bit packed RGB color, and sets the foreground color.
 *******************************************************************************/
 
 static void fcolorp(
-    /** 32 bit packed color */ unsigned long c
+    /** 32 bit packed color */ ami_ulong c
 )
 
 {
@@ -293,7 +293,7 @@ table.
 *******************************************************************************/
 
 static void bcolorp(
-    /** 32 bit packed color */ unsigned long c
+    /** 32 bit packed color */ ami_ulong c
 )
 
 {
@@ -306,8 +306,8 @@ static void timetest(void)
 {
 
     int i;
-    long t, et, max, min;
-    long total;
+    ami_long t, et, max, min;
+    ami_long total;
     ami_evtrec er;
 
     if (framenum+1 < tstlo) return; /* the timed runs skip outside the range */
@@ -328,15 +328,15 @@ static void timetest(void)
     }
     printf("\n");
     printf("\n");
-    printf("Average time was: %ld00 Microseconds\n", total / 100);
-    printf("Minimum time was: %ld00 Microseconds\n", min);
-    printf("Maximum time was: %ld00 Microseconds\n", max);
-    printf("This timer supports frame rates up to %ld", 10000 / (total / 100));
+    printf("Average time was: %lld00 Microseconds\n", AMI_LONG_CAST(total / 100));
+    printf("Minimum time was: %lld00 Microseconds\n", AMI_LONG_CAST(min));
+    printf("Maximum time was: %lld00 Microseconds\n", AMI_LONG_CAST(max));
+    printf("This timer supports frame rates up to %lld", AMI_LONG_CAST(10000 / (total / 100)));
     printf(" frames per second\n");
     t = ami_clock();
     ami_timer(stdout, 1, 10000, 0);
     do { ami_event(stdin, &er); } while (er.etype != ami_ettim);
-    printf("1 second time, was: %ld00 Microseconds\n", ami_elapsed(t));
+    printf("1 second time, was: %lld00 Microseconds\n", AMI_LONG_CAST(ami_elapsed(t)));
     printf("\n");
     printf("30 seconds of 1 second ticks:\n");
     printf("\n");
@@ -356,9 +356,9 @@ static void frametest(void)
 {
 
     int i;
-    long t;
-    long et, max, min;
-    long total;
+    ami_long t;
+    ami_long et, max, min;
+    ami_long total;
     ami_evtrec er;
 
     if (framenum+1 < tstlo) return; /* the timed runs skip outside the range */
@@ -380,19 +380,19 @@ static void frametest(void)
     ami_frametimer(stdout, FALSE);
     printf("\n");
     printf("\n");
-    printf("Average time was: %ld00 Microseconds\n", total / 10);
-    printf("Minimum time was: %ld00 Microseconds\n", min);
-    printf("Maximum time was: %ld00 Microseconds\n", max);
+    printf("Average time was: %lld00 Microseconds\n", AMI_LONG_CAST(total / 10));
+    printf("Minimum time was: %lld00 Microseconds\n", AMI_LONG_CAST(min));
+    printf("Maximum time was: %lld00 Microseconds\n", AMI_LONG_CAST(max));
 
 }
 
 /* plot joystick on screen */
 
-static void plotjoy(long line, long joy)
+static void plotjoy(ami_long line, ami_long joy)
 
 {
 
-    long i, x;
+    ami_long i, x;
     double r;
 
     ami_cursor(stdout, 1, line);
@@ -412,7 +412,7 @@ static void plotjoy(long line, long joy)
     } else { /* plot right */
 
         r = joy;
-        x = (long)floor(r * (ami_maxx(stdout) / 2) / LONG_MAX + ami_maxx(stdout) / 2 + 0.5);
+        x = (ami_long)floor(r * (ami_maxx(stdout) / 2) / LONG_MAX + ami_maxx(stdout) / 2 + 0.5);
         i = ami_maxx(stdout) / 2;
         ami_cursor(stdout, i, line);
         while (i <= x) {
@@ -428,7 +428,7 @@ static void plotjoy(long line, long joy)
 
 /* print centered string */
 
-static void prtcen(long y, char *s)
+static void prtcen(ami_long y, char *s)
 
 {
 
@@ -507,7 +507,7 @@ void thread(void)
 {
 
     int i;
-    long x, y;
+    ami_long x, y;
     int stop;
 
     stop = FALSE; /* set no stop */
@@ -593,24 +593,24 @@ int main(int argc, char *argv[])
     /* *********************** Display screen parameters ********************* */
 
     printf("\f");   /* clear screen */
-    printf("Screen size: x -> %ld y -> %ld\n\n", ami_maxx(stdout), ami_maxy(stdout));
-    printf("Number of joysticks: %ld\n", ami_joystick(stdout));
+    printf("Screen size: x -> %lld y -> %lld\n\n", AMI_LONG_CAST(ami_maxx(stdout)), AMI_LONG_CAST(ami_maxy(stdout)));
+    printf("Number of joysticks: %lld\n", AMI_LONG_CAST(ami_joystick(stdout)));
     for (i = 1; i <= ami_joystick(stdout); i++) {
 
         printf("\n");
-        printf("Number of axes on joystick: %d is: %ld\n", i,
-            ami_joyaxis(stdout, i));
-        printf("Number of buttons on joystick: %d is: %ld\n", i,
-            ami_joybutton(stdout, i));
+        printf("Number of axes on joystick: %d is: %lld\n", i,
+            AMI_LONG_CAST(ami_joyaxis(stdout, i)));
+        printf("Number of buttons on joystick: %d is: %lld\n", i,
+            AMI_LONG_CAST(ami_joybutton(stdout, i)));
 
     }
     printf("\n");
-    printf("Number of mice: %ld\n", ami_mouse(stdout));
+    printf("Number of mice: %lld\n", AMI_LONG_CAST(ami_mouse(stdout)));
     for (i = 1; i <= ami_mouse(stdout); i++) {
 
         printf("\n");
-        printf("Number of buttons on mouse: %d is: %ld\n", i,
-            ami_mousebutton(stdout, i));
+        printf("Number of buttons on mouse: %d is: %lld\n", i,
+            AMI_LONG_CAST(ami_mousebutton(stdout, i)));
 
     }
     prtcen(ami_maxy(stdout), "Press return to continue");
@@ -1266,7 +1266,7 @@ int main(int argc, char *argv[])
     for (y = 1; y <= ami_maxy(stdout); y++) {
 
         for (i = 1; i <= y-1; i++) printf("\t");
-        printf(">Tab %3ld\n", y-1);
+        printf(">Tab %3lld\n", AMI_LONG_CAST(y-1));
 
     }
     prtcen(ami_maxy(stdout), "Tabbing test");
@@ -1322,7 +1322,7 @@ int main(int argc, char *argv[])
     printf("The line numbers will count screen lines.\n");
     printf("The display should not scroll.\n");
     printf("\n");
-    for (y = 6; y < ami_maxy(stdout)+200; y++) printf("Line %ld\n", y);
+    for (y = 6; y < ami_maxy(stdout)+200; y++) printf("Line %lld\n", AMI_LONG_CAST(y));
     waitnext();
 
     /* ************************** Buffer switching test ************************ */
@@ -1527,10 +1527,10 @@ int main(int argc, char *argv[])
             if (er.etype == ami_etjoymov) {  /* joystick movement */
 
                 ami_cursor(stdout, 1, 3);
-                printf("joystick: %3ld x: %11ld y: %11ld z: %11ld\n",
-                       er.mjoyn, er.joypx, er.joypy, er.joypz);
-                printf("              4: %11ld 5: %11ld 6: %11ld\n",
-                       er.joyp4, er.joyp5, er.joyp6);
+                printf("joystick: %3lld x: %11lld y: %11lld z: %11lld\n",
+                       AMI_LONG_CAST(er.mjoyn), AMI_LONG_CAST(er.joypx), AMI_LONG_CAST(er.joypy), AMI_LONG_CAST(er.joypz));
+                printf("              4: %11lld 5: %11lld 6: %11lld\n",
+                       AMI_LONG_CAST(er.joyp4), AMI_LONG_CAST(er.joyp5), AMI_LONG_CAST(er.joyp6));
                 plotjoy(5, er.joypx);
                 plotjoy(6, er.joypy);
                 plotjoy(7, er.joypz);
@@ -1543,26 +1543,26 @@ int main(int argc, char *argv[])
                 if (er.ajoyn == 1) {  /* joystick 1 */
 
                     ami_cursor(stdout, 1, 18);
-                    printf("joystick: %ld button assert:   %2ld",
-                           er.ajoyn, er.ajoybn);
+                    printf("joystick: %lld button assert:   %2lld",
+                           AMI_LONG_CAST(er.ajoyn), AMI_LONG_CAST(er.ajoybn));
 
                 } else if (er.ajoyn == 2) {  /* joystick 2 */
 
                     ami_cursor(stdout, 1, 19);
-                    printf("joystick: %ld button assert:   %2ld",
-                           er.ajoyn, er.ajoybn);
+                    printf("joystick: %lld button assert:   %2lld",
+                           AMI_LONG_CAST(er.ajoyn), AMI_LONG_CAST(er.ajoybn));
 
                 } else if (er.ajoyn == 3) {  /* joystick 3 */
 
                     ami_cursor(stdout, 1, 20);
-                    printf("joystick: %ld button assert:   %2ld",
-                           er.ajoyn, er.ajoybn);
+                    printf("joystick: %lld button assert:   %2lld",
+                           AMI_LONG_CAST(er.ajoyn), AMI_LONG_CAST(er.ajoybn));
 
                 } else if (er.ajoyn == 4) {  /* joystick 4 */
 
                     ami_cursor(stdout, 1, 21);
-                    printf("joystick: %ld button assert:   %2ld",
-                           er.ajoyn, er.ajoybn);
+                    printf("joystick: %lld button assert:   %2lld",
+                           AMI_LONG_CAST(er.ajoyn), AMI_LONG_CAST(er.ajoybn));
 
                 }
 
@@ -1571,26 +1571,26 @@ int main(int argc, char *argv[])
                 if (er.djoyn == 1) {  /* joystick 1 */
 
                     ami_cursor(stdout, 1, 18);
-                    printf("joystick: %ld button deassert: %2ld",
-                           er.djoyn, er.djoybn);
+                    printf("joystick: %lld button deassert: %2lld",
+                           AMI_LONG_CAST(er.djoyn), AMI_LONG_CAST(er.djoybn));
 
                 } else if (er.djoyn == 2) {  /* joystick 2 */
 
                     ami_cursor(stdout, 1, 19);
-                    printf("joystick: %ld button deassert: %2ld",
-                           er.djoyn, er.djoybn);
+                    printf("joystick: %lld button deassert: %2lld",
+                           AMI_LONG_CAST(er.djoyn), AMI_LONG_CAST(er.djoybn));
 
                 } else if (er.djoyn == 3) {  /* joystick 3 */
 
                     ami_cursor(stdout, 1, 20);
-                    printf("joystick: %ld button deassert: %2ld",
-                           er.djoyn, er.djoybn);
+                    printf("joystick: %lld button deassert: %2lld",
+                           AMI_LONG_CAST(er.djoyn), AMI_LONG_CAST(er.djoybn));
 
                 } else if (er.djoyn == 4) {  /* joystick 4 */
 
                     ami_cursor(stdout, 1, 21);
-                    printf("joystick: %ld button deassert: %2ld",
-                           er.djoyn, er.djoybn);
+                    printf("joystick: %lld button deassert: %2lld",
+                           AMI_LONG_CAST(er.djoyn), AMI_LONG_CAST(er.djoybn));
 
                 }
 
@@ -1624,7 +1624,7 @@ int main(int argc, char *argv[])
                 ami_cursor(stdout, er.moupx, er.moupy);
                 x = ami_curx(stdout);
                 y = ami_cury(stdout);
-                printf("<- Mouse %ld\n", er.mmoun);
+                printf("<- Mouse %lld\n", AMI_LONG_CAST(er.mmoun));
                 prtcen(2, "Move the mouse, and hit buttons");
                 prtcen(ami_maxy(stdout), "Mouse test");
 
@@ -1635,8 +1635,8 @@ int main(int argc, char *argv[])
             if (er.etype == ami_etmouba) {  /* mouse button assert */
 
                 ami_cursor(stdout, 1, ami_maxy(stdout)-2);
-                printf("Mouse button assert, mouse: %ld button: %ld\n",
-                       er.amoun, er.amoubn);
+                printf("Mouse button assert, mouse: %lld button: %lld\n",
+                       AMI_LONG_CAST(er.amoun), AMI_LONG_CAST(er.amoubn));
                 prtcen(2, "Move the mouse, and hit buttons");
                 prtcen(ami_maxy(stdout), "Mouse test");
 
@@ -1644,8 +1644,8 @@ int main(int argc, char *argv[])
             if (er.etype == ami_etmoubd) {  /* mouse button assert */
 
                 ami_cursor(stdout, 1, ami_maxy(stdout) - 2);
-                printf("Mouse button deassert, mouse: %ld button: %ld\n",
-                       er.dmoun, er.dmoubn);
+                printf("Mouse button deassert, mouse: %lld button: %lld\n",
+                       AMI_LONG_CAST(er.dmoun), AMI_LONG_CAST(er.dmoubn));
                 prtcen(2, "Move the mouse, and hit buttons");
                 prtcen(ami_maxy(stdout), "Mouse test");
 

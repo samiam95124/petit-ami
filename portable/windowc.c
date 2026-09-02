@@ -174,7 +174,7 @@ typedef enum {
 } scnatt;
 
 /* rectangle */
-typedef struct { long x1, y1, x2, y2; } rectangle;
+typedef struct { ami_long x1, y1, x2, y2; } rectangle;
 
 /* drag type */
 
@@ -324,15 +324,15 @@ typedef struct metrec {
     metptr chnhd;              /* head of "one of" chain */
     int    ena;                /* enabled/disabled */
     int    bar;                /* has bar under */
-    long   id;                 /* user id of item */
-    long   fx1, fy1, fx2, fy2; /* subclient position of window */
+    ami_long   id;                 /* user id of item */
+    ami_long   fx1, fy1, fx2, fy2; /* subclient position of window */
     int    prime;              /* is a prime (onscreen) entry */
     int    pressed;            /* in the pressed state */
     FILE*  wf;                 /* output file for the menu window */
     char*  title;              /* title text */
     FILE*  parent;             /* parent window */
     FILE*  evtfil;             /* file to post menu events to */
-    long   wid;                /* menu window id */
+    ami_long   wid;                /* menu window id */
 
 } metrec;
 
@@ -359,7 +359,7 @@ typedef struct menena* menenaptr;
 typedef struct menena {
 
     struct menena* next;
-    long id;   /* menu item id */
+    ami_long id;   /* menu item id */
     int  ena;  /* enabled */
 
 } menena;
@@ -369,7 +369,7 @@ typedef struct winrec {
     int      root;              /* window is the root */
     int      parlfn;            /* logical parent */
     winptr   parwin;            /* link to parent (or NULL for parentless) */
-    long     wid;               /* this window logical id */
+    ami_long wid;               /* this window logical id */
     winptr   childwin;          /* list of child windows */
     winptr   childlst;          /* list pointer if this is a child */
     winptr   winlst;            /* master list of all windows */
@@ -381,27 +381,27 @@ typedef struct winrec {
     int      redrawpend;        /* a redraw announcement is queued */
     int      maxed;             /* window is maximized */
     int      mined;             /* window is minimized */
-    long     normx, normy;      /* geometry restored to by normalize */
-    long     normw, normh;
+    ami_long normx, normy;      /* geometry restored to by normalize */
+    ami_long normw, normh;
     int      curdsp;            /* index for current display screen */
     int      curupd;            /* index for current update screen */
-    long     orgx;              /* window origin in root x */
-    long     orgy;              /* window origin in root y */
-    long     coffx;             /* client offset x */
-    long     coffy;             /* client offset y */
+    ami_long orgx;              /* window origin in root x */
+    ami_long orgy;              /* window origin in root y */
+    ami_long coffx;             /* client offset x */
+    ami_long coffy;             /* client offset y */
     /* note: maxx/y tracks the buffer size in buffered mode, but tracks the
        client size with buffering off */
-    long     maxx;              /* maximum x size */
-    long     maxy;              /* maximum y size */
-    long     bufx;              /* buffer size x characters */
-    long     bufy;              /* buffer size y characters */
-    long     cmaxx;             /* onscreen client size x */
-    long     cmaxy;             /* onscreen client size x */
-    long     pmaxx;             /* parent maximum x */
-    long     pmaxy;             /* parent maximum y */
-    long     mpx, mpy;          /* mouse current position */
-    long     curx;              /* current cursor location x */
-    long     cury;              /* current cursor location y */
+    ami_long maxx;              /* maximum x size */
+    ami_long maxy;              /* maximum y size */
+    ami_long bufx;              /* buffer size x characters */
+    ami_long bufy;              /* buffer size y characters */
+    ami_long cmaxx;             /* onscreen client size x */
+    ami_long cmaxy;             /* onscreen client size x */
+    ami_long pmaxx;             /* parent maximum x */
+    ami_long pmaxy;             /* parent maximum y */
+    ami_long mpx, mpy;          /* mouse current position */
+    ami_long curx;              /* current cursor location x */
+    ami_long cury;              /* current cursor location y */
     int      attr;              /* set of active attributes */
     ami_color fcolor;            /* foreground color */
     ami_color bcolor;            /* background color */
@@ -423,7 +423,7 @@ typedef struct winrec {
     int      hover;             /* window being hovered */
     int      zorder;            /* Z ordering of window, 0 = bottom, N = top */
     unsigned char* fmask;       /* forward mask in bits per character */
-    long     fmasklen;          /* length of the bitmask */
+    ami_long fmasklen;          /* length of the bitmask */
     int      widget;            /* window is a widget face */
     wigptr   wig;               /* widget data if so */
     wigptr   wiglst;            /* list of widgets owned by this window */
@@ -452,25 +452,25 @@ typedef enum {
 typedef struct wigrec {
 
     wigptr next;    /* next widget in the owner's list */
-    long   id;      /* widget logical id, unique per owner */
+    ami_long   id;      /* widget logical id, unique per owner */
     wigtyp typ;     /* type of widget */
     winptr parent;  /* owning window */
     FILE*  wf;      /* widget subwindow file */
     winptr win;     /* widget subwindow record */
     char*  face;    /* label, or edit box content */
     char** list;    /* list box strings */
-    long   listn;   /* number of list strings */
-    long   top;     /* list box scroll offset, 0 based */
+    ami_long   listn;   /* number of list strings */
+    ami_long   top;     /* list box scroll offset, 0 based */
     ami_color* lcol; /* per entry face colors, or NULL: entries showing
                         their own color (internal, the dialogs' use) */
-    long   fatt;    /* extra face attributes (internal, the dialogs' use) */
+    ami_long   fatt;    /* extra face attributes (internal, the dialogs' use) */
     int    enb;     /* enabled */
     int    sel;     /* selected state */
-    long   val;     /* value: numsel, progress, scroll and slider position */
-    long   low, high; /* numsel range */
-    long   sclsiz;  /* scroll bar thumb size, full scale */
-    long   marks;   /* slider tick mark count */
-    long   curs;    /* edit box cursor index, 0 based */
+    ami_long   val;     /* value: numsel, progress, scroll and slider position */
+    ami_long   low, high; /* numsel range */
+    ami_long   sclsiz;  /* scroll bar thumb size, full scale */
+    ami_long   marks;   /* slider tick mark count */
+    ami_long   curs;    /* edit box cursor index, 0 based */
     ami_tabori tor; /* tab bar orientation */
     wigptr owner;   /* for popups, the widget or bar that opened it */
     ami_menuptr mitems; /* for menu popups, the item list shown */
@@ -561,8 +561,8 @@ static int    filwin[MAXFIL];     /* file to window equivalence table */
 static int      attr;         /* set of active attributes */
 static ami_color fcolor;       /* foreground color */
 static ami_color bcolor;       /* background color */
-static long     curx;         /* cursor x */
-static long     cury;         /* cursor y */
+static ami_long curx;         /* cursor x */
+static ami_long cury;         /* cursor y */
 static int      curon;        /* current on/off visible state of cursor */
 static winptr   winfre;       /* free windows structure list */
 static winptr   winlst;       /* master list of all windows */
@@ -610,10 +610,10 @@ static void mclogf(const char* fmt, ...)
 }
 static int      opnwig;       /* opening a widget face window */
 static int      ztop;         /* current maximum/front Z order */
-static long     mousex;       /* mouse tracking x */
-static long     mousey;       /* mouse tracking y */
+static ami_long mousex;       /* mouse tracking x */
+static ami_long mousey;       /* mouse tracking y */
 static winptr   timtbl[AMI_MAXTIM]; /* timer translation table */
-static long     timids[AMI_MAXTIM]; /* timer logical ids */
+static ami_long timids[AMI_MAXTIM]; /* timer logical ids */
 static int      fautohold;    /* automatic hold on exit flag */
 static int      fend;         /* end of program ordered flag */
 static drgtyp   drag;         /* drag type in progress */
@@ -639,22 +639,22 @@ typedef enum {
 static winptr  hovfwin;  /* window holding the hover highlight, or NULL */
 static frmpart hovfpart; /* the highlighted frame part */
 static wigptr  hovwig;   /* widget holding the hover highlight, or NULL */
-static long    hovwprt;  /* the highlighted widget part, coded per type */
+static ami_long    hovwprt;  /* the highlighted widget part, coded per type */
 static int     frmhrev;  /* the frame draws reversed (hover highlight) */
 static winptr  hovflt;   /* frame cells draw only where this window is top */
-static winptr fndtop(long x, long y); /* forward */
+static winptr fndtop(ami_long x, ami_long y); /* forward */
 static winptr   drgwin;       /* drag window */
 static wigptr   drgwig;       /* drag widget (slider or scroll thumb) */
 #define MAXPOP 8              /* maximum popup nesting (menu cascade) */
 static wigptr   popstk[MAXPOP]; /* open popup stack, bottom first */
 static int      popcnt;       /* number of open popups */
-static long     drgx;         /* drag pin x */
-static long     drgy;         /* drag pin y */
+static ami_long drgx;         /* drag pin x */
+static ami_long drgy;         /* drag pin y */
 static ami_pevthan evthan[ami_etmenus+1]; /* array of event handler routines */
 static ami_pevthan evtshan;        /* single master event handler routine */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
-static long       dimx, dimy;     /* terminal/root dimensions */
+static ami_long   dimx, dimy;     /* terminal/root dimensions */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -672,7 +672,7 @@ parent; its origin is the screen origin.
 
 *******************************************************************************/
 
-static long absx(winptr win)
+static ami_long absx(winptr win)
 
 {
 
@@ -682,7 +682,7 @@ static long absx(winptr win)
 
 }
 
-static long absy(winptr win)
+static ami_long absy(winptr win)
 
 {
 
@@ -816,30 +816,30 @@ static void prtevt(
 
 {
 
-    fprintf(stderr, "PA Event: Window: %ld ", er->winid);
+    fprintf(stderr, "PA Event: Window: %lld ", AMI_LONG_CAST(er->winid));
     prtevtt(er->etype);
     switch (er->etype) {
 
         case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-        case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
-        case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
-                                  er->mmoun, er->moupx, er->moupy); break;
-        case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
-                                 er->amoun, er->amoubn); break;
-        case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
-                                 er->dmoun, er->dmoubn); break;
-        case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
-                                 er->ajoyn, er->ajoybn); break;
-        case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
-                                 er->djoyn, er->djoybn); break;
-        case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
-                                  "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
-                                  er->joypx, er->joypy, er->joypz,
-                                  er->joyp4, er->joyp5, er->joyp6); break;
-        case ami_etresize: fprintf(stderr, ": x: %ld y: %ld", er->rszx, er->rszy);
+        case ami_ettim: fprintf(stderr, ": timer: %lld", AMI_LONG_CAST(er->timnum)); break;
+        case ami_etmoumov: fprintf(stderr, ": mouse: %lld x: %4lld y: %4lld",
+                                  AMI_LONG_CAST(er->mmoun), AMI_LONG_CAST(er->moupx), AMI_LONG_CAST(er->moupy)); break;
+        case ami_etmouba: fprintf(stderr, ": mouse: %lld button: %lld",
+                                 AMI_LONG_CAST(er->amoun), AMI_LONG_CAST(er->amoubn)); break;
+        case ami_etmoubd: fprintf(stderr, ": mouse: %lld button: %lld",
+                                 AMI_LONG_CAST(er->dmoun), AMI_LONG_CAST(er->dmoubn)); break;
+        case ami_etjoyba: fprintf(stderr, ": joystick: %lld button: %lld",
+                                 AMI_LONG_CAST(er->ajoyn), AMI_LONG_CAST(er->ajoybn)); break;
+        case ami_etjoybd: fprintf(stderr, ": joystick: %lld button: %lld",
+                                 AMI_LONG_CAST(er->djoyn), AMI_LONG_CAST(er->djoybn)); break;
+        case ami_etjoymov: fprintf(stderr, ": joystick: %lld x: %4lld y: %4lld z: %4lld "
+                                  "a4: %4lld a5: %4lld a6: %4lld", AMI_LONG_CAST(er->mjoyn),
+                                  AMI_LONG_CAST(er->joypx), AMI_LONG_CAST(er->joypy), AMI_LONG_CAST(er->joypz),
+                                  AMI_LONG_CAST(er->joyp4), AMI_LONG_CAST(er->joyp5), AMI_LONG_CAST(er->joyp6)); break;
+        case ami_etresize: fprintf(stderr, ": x: %lld y: %lld", AMI_LONG_CAST(er->rszx), AMI_LONG_CAST(er->rszy));
                           break;
-        case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
-        case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
+        case ami_etfun: fprintf(stderr, ": key: %lld", AMI_LONG_CAST(er->fkey)); break;
+        case ami_etmenus: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->menuid)); break;
 
         default: ;
 
@@ -860,14 +860,14 @@ void prtscnbuf(winptr win, int bufno)
 {
 
     scnptr sc;
-    long y;
-    long x;
+    ami_long y;
+    ami_long x;
 
-    fprintf(stderr, "Buffer for wid: %ld\n", win->wid);
+    fprintf(stderr, "Buffer for wid: %lld\n", AMI_LONG_CAST(win->wid));
     sc = win->screens[bufno-1]; /* index screen */
     for (y = 1; y <= win->maxy; y++) {
 
-        fprintf(stderr, "%02ld: \"", y);
+        fprintf(stderr, "%02lld: \"", AMI_LONG_CAST(y));
         for (x = 1; x <= win->maxx; x++)
             fputc(SCNBUF(sc, x, y).ch, stderr);
         fprintf(stderr, "\"\n"); fflush(stderr);
@@ -1018,7 +1018,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(long wid)
+static winptr lwn2win(ami_long wid)
 
 {
 
@@ -1065,7 +1065,7 @@ coordinates.
 *******************************************************************************/
 
 /* set rectangle to values */
-static void setrect(rectangle* r, long x1, long y1, long x2, long y2)
+static void setrect(rectangle* r, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -1340,8 +1340,8 @@ static void dequepaevt(ami_evtrec* e)
     }
     memcpy(e, &p->evt, sizeof(ami_evtrec)); /* copy out to caller */
     putpaevt(p); /* release queue entry to free */
-    mclogf("deliver type %d wid %ld\n",
-                         (int)e->etype, e->winid);
+    mclogf("deliver type %d wid %lld\n",
+                         (int)e->etype, AMI_LONG_CAST(e->winid));
     if (e->etype == ami_etredraw) { /* the announcement is now delivered */
 
         winptr wp = winlst;
@@ -1361,7 +1361,7 @@ Sets the root cursor if it has changed.
 
 *******************************************************************************/
 
-static void setcursor(long x, long y)
+static void setcursor(ami_long x, ami_long y)
 
 {
 
@@ -1409,7 +1409,7 @@ static void setcurvis(int e)
 #define RGBB(c) ((c)&0xff)
 
 /* full scale color component to 8 bits, and back */
-static long colc8(long v)
+static ami_long colc8(ami_long v)
 
 {
 
@@ -1420,7 +1420,7 @@ static long colc8(long v)
 
 }
 
-static long col8full(long v)
+static ami_long col8full(ami_long v)
 
 {
 
@@ -1493,7 +1493,7 @@ color the cache cannot represent.
 *******************************************************************************/
 
 /* primary or encoded color code to full color components */
-static void colnumrgb(ami_color c, long* r, long* g, long* b)
+static void colnumrgb(ami_color c, ami_long* r, ami_long* g, ami_long* b)
 
 {
 
@@ -1522,7 +1522,7 @@ static void setfcolora(ami_color fc, ami_color bc, int at)
 
 {
 
-    long fr, fg, fb, br, bg, bb;
+    ami_long fr, fg, fb, br, bg, bb;
 
     if (BIT(sagrey) & at) {
 
@@ -1550,7 +1550,7 @@ nearest primary color to the given RGB color.
 
 ******************************************************************************/
 
-static ami_color colrgbnum(long r, long g, long b)
+static ami_color colrgbnum(ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -1699,7 +1699,7 @@ so.
 
 *******************************************************************************/
 
-static int inrect(long x, long y, rectangle* r)
+static int inrect(ami_long x, ami_long y, rectangle* r)
 
 {
 
@@ -1743,7 +1743,7 @@ Clips to the given rectangle. Note the cursor position is still advanced.
 
 *******************************************************************************/
 
-static void wrtstrclp(char* s, long l, rectangle* cr)
+static void wrtstrclp(char* s, ami_long l, rectangle* cr)
 
 {
 
@@ -1862,7 +1862,7 @@ static void alcfmask(winptr win)
 
 {
 
-    long i, t;
+    ami_long i, t;
 
     t = win->bufy*win->bufx; /* find total characters in buffer */
     i = t/8; /* find bytes for forward mask */
@@ -1936,9 +1936,9 @@ static void calcfmask(winptr win)
     winptr    wp;         /* window structure pointer */
     rectangle r1, r2, r3; /* window rectangles */
     rectangle ra, rw;     /* ancestor clips */
-    long      x, y;
-    long      cx, cy;
-    long      l;
+    ami_long  x, y;
+    ami_long  cx, cy;
+    ami_long  l;
 
     if (!win->fmask) return; /* window not fully constructed yet */
     memset(win->fmask, 0xff, win->fmasklen); /* set the bitmap */
@@ -2013,8 +2013,8 @@ static void calcfmask(winptr win)
 
     /* diagnostic: print forward mask */
 #ifdef PRTFMASK
-    fprintf(stderr, "Forward mask: wid: %ld size x: %ld y: %ld\n",
-                    win->wid, win->maxx, win->maxy);
+    fprintf(stderr, "Forward mask: wid: %lld size x: %lld y: %lld\n",
+                    AMI_LONG_CAST(win->wid), AMI_LONG_CAST(win->maxx), AMI_LONG_CAST(win->maxy));
     fflush(stderr);
     fprintf(stderr, "     ");
     for (x = 1; x <= win->maxx; x++) fprintf(stderr, "%c", (char)(x%10+'0'));
@@ -2022,7 +2022,7 @@ static void calcfmask(winptr win)
     fflush(stderr);
     for (y = 1; y <= win->maxy; y++) {
 
-        fprintf(stderr, "%03ld: ", y);
+        fprintf(stderr, "%03lld: ", AMI_LONG_CAST(y));
         for (x = 1; x <= win->maxx; x++) {
 
             l = (y-1)*win->bufx+(x-1); /* find character location */
@@ -2086,14 +2086,14 @@ the allocation.
 
 *******************************************************************************/
 
-static void resizewinbuf(winptr win, long nx, long ny)
+static void resizewinbuf(winptr win, ami_long nx, ami_long ny)
 
 {
 
     scnrec* ns; /* new screen */
     scnrec* os; /* old screen */
     scnrec* scp;
-    long    x, y;
+    ami_long    x, y;
     int     si;
 
     if (nx < 1) nx = 1; /* observe minimum size */
@@ -2146,7 +2146,7 @@ its largest extent over terminal size changes.
 
 *******************************************************************************/
 
-static void growwinbuf(winptr win, long nx, long ny)
+static void growwinbuf(winptr win, ami_long nx, ami_long ny)
 
 {
 
@@ -2208,7 +2208,7 @@ static void drwfrm(winptr win, rectangle* cr)
 
 {
 
-    long x, y, l;
+    ami_long x, y, l;
 
     if (win->frame) { /* draw window frame */
 
@@ -2429,13 +2429,13 @@ static void restoreclp(winptr win,   /* window to restore */
 
     scnrec* scp;   /* pointer to screen location */
     scnrec* sc;
-    long x, y;
-    long bx, by;   /* buffer location */
-    long l;        /* mask index */
+    ami_long x, y;
+    ami_long bx, by;   /* buffer location */
+    ami_long l;        /* mask index */
     rectangle r1, r2;
     rectangle rca, rcc; /* ancestor clip */
     char runbuf[MAXLIN]; /* run of characters to emit as a string */
-    long runx;           /* screen x the run starts at */
+    ami_long runx;           /* screen x the run starts at */
     ami_color runfc, runbc; /* the run's colors */
     int  runat;          /* the run's attributes */
 
@@ -2455,7 +2455,7 @@ static void restoreclp(winptr win,   /* window to restore */
            manager paints the frame above and the client background here,
            and the program repaints its content on the redraw and resize
            events the manager sends for the operations that disturb it. */
-        long mx, my;
+        ami_long mx, my;
 
         setfcolor(win->fcolor);
         setbcolor(win->sbcolor[win->curdsp-1]);
@@ -2463,9 +2463,9 @@ static void restoreclp(winptr win,   /* window to restore */
         for (my = 1; my <= win->cmaxy; my++)
             for (mx = 1; mx <= win->cmaxx; mx++) {
 
-            long sx = absx(win)+win->coffx+mx-1;
-            long sy = absy(win)+win->coffy+my-1;
-            long ml = (my-1)*win->bufx+(mx-1);
+            ami_long sx = absx(win)+win->coffx+mx-1;
+            ami_long sy = absy(win)+win->coffy+my-1;
+            ami_long ml = (my-1)*win->bufx+(mx-1);
 
             if (!inrect(sx, sy, cr)) continue; /* outside the clip */
             /* an occluded cell belongs to the window above */
@@ -2506,7 +2506,7 @@ static void restoreclp(winptr win,   /* window to restore */
                singly was the bulk of the manager's output cost. */
             for (y = r2.y1; y <= r2.y2; y++) {
 
-                long rl = 0; /* length of the run being gathered */
+                ami_long rl = 0; /* length of the run being gathered */
 
                 for (x = r2.x1; x <= r2.x2+1; x++) {
 
@@ -2579,7 +2579,7 @@ static void restoreclp(winptr win,   /* window to restore */
            margins on a redraw that the paint gave it. */
         if (win->maxx < win->cmaxx || win->maxy < win->cmaxy) {
 
-            long mx, my;
+            ami_long mx, my;
 
             setfcolor(win->fcolor);
             setbcolor(win->sbcolor[win->curdsp-1]);
@@ -2590,9 +2590,9 @@ static void restoreclp(winptr win,   /* window to restore */
                 mx = my <= win->maxy? win->maxx+1: 1;
                 for (; mx <= win->cmaxx; mx++) {
 
-                    long sx = absx(win)+win->coffx+mx-1;
-                    long sy = absy(win)+win->coffy+my-1;
-                    long ml = (my-1)*win->bufx+(mx-1);
+                    ami_long sx = absx(win)+win->coffx+mx-1;
+                    ami_long sy = absy(win)+win->coffy+my-1;
+                    ami_long ml = (my-1)*win->bufx+(mx-1);
 
                     if (!inrect(sx, sy, cr)) continue; /* outside the clip */
                     /* an occluded cell belongs to the window above */
@@ -2661,7 +2661,7 @@ the max 2 min list given.
 
 static void annredraw(winptr win); /* forward */
 
-static void redraw(winptr win, long x1, long y1, long x2, long y2)
+static void redraw(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
@@ -2754,7 +2754,7 @@ static void itab(FILE* f)
 {
 
     winptr win; /* windows record pointer */
-    long i;
+    ami_long i;
     scnptr sc;
 
     win = txt2win(f); /* get window from file */
@@ -2786,13 +2786,13 @@ window. Thus it is a more complete send of the event.
 *******************************************************************************/
 
 static void wigevt(wigptr wg, ami_evtrec* er); /* forward */
-static long wighit(wigptr wg, long lx, long ly); /* forward */
+static ami_long wighit(wigptr wg, ami_long lx, ami_long ly); /* forward */
 static void wigdrag(void); /* forward */
 static void clspops(int downto); /* forward */
 static void wigdrw(wigptr wg); /* forward */
 static void mbarsiz(winptr win); /* forward */
 static void fronttree(winptr win); /* forward */
-static void intsetpos(winptr win, long x, long y); /* forward */
+static void intsetpos(winptr win, ami_long x, ami_long y); /* forward */
 
 static void intsendevent(winptr win, ami_evtrec* er)
 
@@ -2835,7 +2835,7 @@ static void annredraw(winptr win)
     if (!win->bufmod && win->visible && !win->widget && !win->redrawpend) {
 
         win->redrawpend = TRUE; /* one announcement serves until delivered */
-        mclogf("queue redraw wid %ld\n", win->wid);
+        mclogf("queue redraw wid %lld\n", AMI_LONG_CAST(win->wid));
         er.etype = ami_etredraw;
         intsendevent(win, &er);
 
@@ -2861,8 +2861,8 @@ static void annresize(winptr win)
 
     if (win->visible && !win->widget) {
 
-        mclogf("queue resize wid %ld %ldx%ld\n",
-                             win->wid, win->cmaxx, win->cmaxy);
+        mclogf("queue resize wid %lld %lldx%lld\n",
+                             AMI_LONG_CAST(win->wid), AMI_LONG_CAST(win->cmaxx), AMI_LONG_CAST(win->cmaxy));
         er.etype = ami_etresize;
         er.rszx = win->cmaxx;
         er.rszy = win->cmaxy;
@@ -2931,7 +2931,7 @@ step with what is actually drawn.
 
 *******************************************************************************/
 
-static long decorx(winptr win)
+static ami_long decorx(winptr win)
 
 {
 
@@ -2939,7 +2939,7 @@ static long decorx(winptr win)
 
 }
 
-static long decory(winptr win)
+static ami_long decory(winptr win)
 
 {
 
@@ -2968,11 +2968,11 @@ include frame or system bar.
 
 *******************************************************************************/
 
-static int inclient(winptr win, long x, long y)
+static int inclient(winptr win, ami_long x, ami_long y)
 
 {
 
-    long ox, oy;
+    ami_long ox, oy;
 
     ox = decorx(win);
     oy = decory(win);
@@ -2993,7 +2993,7 @@ but does not contain the mouse in it's client area, the hover mode is cancelled.
 
 *******************************************************************************/
 
-static void remhover(long x, long y)
+static void remhover(ami_long x, ami_long y)
 
 {
 
@@ -3026,7 +3026,7 @@ point. If there is no containing window, NULL is returned.
 
 *******************************************************************************/
 
-static winptr fndtop(long x, long y)
+static winptr fndtop(ami_long x, ami_long y)
 
 {
 
@@ -3069,12 +3069,12 @@ exactly what a click would do.
 
 *******************************************************************************/
 
-static frmpart frmhit(winptr win, long x, long y)
+static frmpart frmhit(winptr win, ami_long x, ami_long y)
 
 {
 
-    long lx = x-absx(win);
-    long ly = y-absy(win);
+    ami_long lx = x-absx(win);
+    ami_long ly = y-absy(win);
 
     if (!win->frame) return (fp_none);
     if (win->sysbar && ly == win->size) { /* the system bar row */
@@ -3125,8 +3125,8 @@ static void drwfrmpart(winptr win, frmpart p, int rev)
 {
 
     rectangle r;
-    long      x1 = absx(win);
-    long      y1 = absy(win);
+    ami_long  x1 = absx(win);
+    ami_long  y1 = absy(win);
 
     if (p == fp_none) return;
     switch (p) {
@@ -3288,7 +3288,7 @@ static void prtmin2maxlst(void)
     wp = zmin2max; /* index top of list */
     while (wp) {
 
-        fprintf(stderr, "Window; %ld zorder: %d\n", wp->wid, wp->zorder);
+        fprintf(stderr, "Window; %lld zorder: %d\n", AMI_LONG_CAST(wp->wid), wp->zorder);
         wp = wp->zmin2max; /* next */
 
     }
@@ -3315,7 +3315,7 @@ static void prtmax2minlst(void)
     wp = zmax2min; /* index top of list */
     while (wp) {
 
-        fprintf(stderr, "Window; %ld zorder: %d\n", wp->wid, wp->zorder);
+        fprintf(stderr, "Window; %lld zorder: %d\n", AMI_LONG_CAST(wp->wid), wp->zorder);
         wp = wp->zmax2min; /* next */
 
     }
@@ -3522,7 +3522,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn, long wid, int subclient, int root)
+static void opnwin(int fn, int pfn, ami_long wid, int subclient, int root)
 
 {
 
@@ -3673,7 +3673,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   long wid, int subclient, int root)
+                   ami_long wid, int subclient, int root)
 
 {
 
@@ -3731,7 +3731,7 @@ static int fndfil(FILE* fp)
 
 }
 
-static void intopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void intopenwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
@@ -3838,7 +3838,7 @@ static void closewin(int ofn)
     winptr    pwin; /* parent window */
     winptr    rw;   /* root window */
     winptr    zp;   /* z order renumber pointer */
-    long      z;    /* z order count */
+    ami_long  z;    /* z order count */
     winptr*   lp;   /* list pointer for unlinking */
     wigptr    wg;   /* widget pointer */
     rectangle cr;   /* the area the window occupied */
@@ -3867,7 +3867,7 @@ static void closewin(int ofn)
         if (wg->lcol) free(wg->lcol);
         if (wg->list) {
 
-            long i;
+            ami_long i;
             for (i = 0; i < wg->listn; i++) free(wg->list[i]);
             free(wg->list);
 
@@ -3943,7 +3943,7 @@ static void dumpbuffer(winptr win)
     int    x, y;
 
     sc = win->screens[win->curupd-1]; /* index current screen */
-    fprintf(stderr, "Window: %ld buffer\n", win->wid); fflush(stderr);
+    fprintf(stderr, "Window: %lld buffer\n", AMI_LONG_CAST(win->wid)); fflush(stderr);
     for (y = 1; y <= win->maxy; y++) { /* lines */
 
         fprintf(stderr, "\"");
@@ -3978,11 +3978,11 @@ to the window.
 
 *******************************************************************************/
 
-static void intscroll(winptr win, long x, long y)
+static void intscroll(winptr win, ami_long x, ami_long y)
 
 {
 
-    long      xi, yi; /* screen counters */
+    ami_long  xi, yi; /* screen counters */
     scnptr    sc;     /* pointer to current screen */
     scnptr    sp;     /* pointer to screen record */
     rectangle cr;     /* client rectangle */
@@ -4128,11 +4128,11 @@ Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
-static void intsetsiz(winptr win, long x, long y)
+static void intsetsiz(winptr win, ami_long x, ami_long y)
 
 {
 
-    long ox, oy; /* previous size of window */
+    ami_long ox, oy; /* previous size of window */
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
     if (win->frame && win->size) {
@@ -4145,8 +4145,8 @@ static void intsetsiz(winptr win, long x, long y)
     ox = win->pmaxx; /* save previous size of window */
     oy = win->pmaxy;
     if (x == ox && y == oy) return; /* size is unchanged */
-    mclogf("setsiz wid %ld %ldx%ld -> %ldx%ld\n",
-                         win->wid, ox, oy, x, y);
+    mclogf("setsiz wid %lld %lldx%lld -> %lldx%lld\n",
+                         AMI_LONG_CAST(win->wid), AMI_LONG_CAST(ox), AMI_LONG_CAST(oy), AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     win->pmaxx = x; /* set size */
     win->pmaxy = y;
     win->cmaxx = win->pmaxx; /* copy to client dimensions */
@@ -4261,7 +4261,7 @@ static void intmin(winptr win)
 
     winptr par = win->parwin;
     winptr c;
-    long   h, w, tx, ty;
+    ami_long   h, w, tx, ty;
     int    moved;
 
     if (!par) return; /* the root does not minimize */
@@ -4275,7 +4275,7 @@ static void intmin(winptr win)
        three high. */
     h = (win->frame && win->size)*2+(win->frame && win->sysbar);
     if (h < 2) h = 2; /* observe the minimum */
-    w = win->title? (long)strlen(win->title): 0;
+    w = win->title? (ami_long)strlen(win->title): 0;
     if (w < 8) w = 8; /* the title, or eight characters */
     w += 10; /* borders, buttons, and the title's margin */
     if (w > par->cmaxx) w = par->cmaxx; /* no wider than the parent */
@@ -4360,14 +4360,14 @@ static void treerect(winptr win, rectangle* r)
 
 }
 
-static void intsetpos(winptr win, long x, long y)
+static void intsetpos(winptr win, ami_long x, ami_long y)
 
 {
 
     rectangle r1, r2, r3, rt, rl, rr, rb;
 
-    mclogf("setpos wid %ld %ld,%ld -> %ld,%ld\n",
-                         win->wid, win->orgx, win->orgy, x, y);
+    mclogf("setpos wid %lld %lld,%lld -> %lld,%lld\n",
+                         AMI_LONG_CAST(win->wid), AMI_LONG_CAST(win->orgx), AMI_LONG_CAST(win->orgy), AMI_LONG_CAST(x), AMI_LONG_CAST(y));
     treerect(win, &r1); /* previous place of the window and its subtree */
     win->orgx = x; /* set position in parent */
     win->orgy = y;
@@ -4432,7 +4432,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(FILE* f, long x, long y)
+static void icursor(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -4454,7 +4454,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-static long imaxx(FILE* f)
+static ami_long imaxx(FILE* f)
 
 {
 
@@ -4475,7 +4475,7 @@ display. Because ANSI has no information return capability, this is preset.
 
 *******************************************************************************/
 
-static long imaxy(FILE* f)
+static ami_long imaxy(FILE* f)
 
 {
 
@@ -4663,7 +4663,7 @@ Graphical mode does not implement blink mode.
 
 *******************************************************************************/
 
-static void iblink(FILE* f, long e)
+static void iblink(FILE* f, ami_long e)
 
 {
 
@@ -4684,7 +4684,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-static void ireverse(FILE* f, long e)
+static void ireverse(FILE* f, ami_long e)
 
 {
 
@@ -4705,7 +4705,7 @@ and foreground writing colors.
 
 *******************************************************************************/
 
-static void iunderline(FILE* f, long e)
+static void iunderline(FILE* f, ami_long e)
 
 {
 
@@ -4728,7 +4728,7 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 *******************************************************************************/
 
-static void isuperscript(FILE* f, long e)
+static void isuperscript(FILE* f, ami_long e)
 
 {
 
@@ -4751,7 +4751,7 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 *******************************************************************************/
 
-static void isubscript(FILE* f, long e)
+static void isubscript(FILE* f, ami_long e)
 
 {
 
@@ -4772,7 +4772,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void iitalic(FILE* f, long e)
+static void iitalic(FILE* f, ami_long e)
 
 {
 
@@ -4793,7 +4793,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void ibold(FILE* f, long e)
+static void ibold(FILE* f, ami_long e)
 
 {
 
@@ -4816,7 +4816,7 @@ just placed.
 
 *******************************************************************************/
 
-static void istrikeout(FILE* f, long e)
+static void istrikeout(FILE* f, ami_long e)
 
 {
 
@@ -4837,7 +4837,7 @@ Note that the attributes can only be set singly.
 
 *******************************************************************************/
 
-static void istandout(FILE* f, long e)
+static void istandout(FILE* f, ami_long e)
 
 {
 
@@ -4876,12 +4876,12 @@ Sets the foreground color from individual r, g, and b values.
 
 *******************************************************************************/
 
-static void ifcolorc(FILE* f, long r, long g, long b)
+static void ifcolorc(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
     winptr win = txt2win(f); /* get window from file */
-    long r8 = colc8(r), g8 = colc8(g), b8 = colc8(b);
+    ami_long r8 = colc8(r), g8 = colc8(g), b8 = colc8(b);
 
     /* an exact primary stays a primary code; the rest carry exactly */
     if ((r8 == 0 || r8 == 255) && (g8 == 0 || g8 == 255) &&
@@ -4918,12 +4918,12 @@ Sets the background color from individual r, g, and b values.
 
 *******************************************************************************/
 
-static void ibcolorc(FILE* f, long r, long g, long b)
+static void ibcolorc(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
     winptr win = txt2win(f); /* get window from file */
-    long r8 = colc8(r), g8 = colc8(g), b8 = colc8(b);
+    ami_long r8 = colc8(r), g8 = colc8(g), b8 = colc8(b);
 
     /* an exact primary stays a primary code; the rest carry exactly */
     if ((r8 == 0 || r8 == 255) && (g8 == 0 || g8 == 255) &&
@@ -4958,7 +4958,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(FILE* f, long e)
+static void iauto(FILE* f, ami_long e)
 
 {
 
@@ -4977,7 +4977,7 @@ Enable or disable cursor visibility.
 
 *******************************************************************************/
 
-static void icurvis(FILE* f, long e)
+static void icurvis(FILE* f, ami_long e)
 
 {
 
@@ -5006,7 +5006,7 @@ to the window.
 
 *******************************************************************************/
 
-static void iscroll(FILE* f, long x, long y)
+static void iscroll(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -5026,7 +5026,7 @@ Returns the current location of the cursor in x.
 
 *******************************************************************************/
 
-static long icurx(FILE* f)
+static ami_long icurx(FILE* f)
 
 {
 
@@ -5046,7 +5046,7 @@ Returns the current location of the cursor in y.
 
 *******************************************************************************/
 
-static long icury(FILE* f)
+static ami_long icury(FILE* f)
 
 {
 
@@ -5066,7 +5066,7 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 *******************************************************************************/
 
-static long icurbnd(FILE* f)
+static ami_long icurbnd(FILE* f)
 
 {
 
@@ -5092,7 +5092,7 @@ forces a screen refresh, which can be important when working on terminals.
 
 *******************************************************************************/
 
-static void iselect(FILE* f, long u, long d)
+static void iselect(FILE* f, ami_long u, ami_long d)
 
 {
 
@@ -5329,7 +5329,7 @@ static void intevent(FILE* f)
 
     ami_evtrec ev, er;    /* local event record */
     winptr    win;   /* windows record pointer */
-    long      x, y;
+    ami_long  x, y;
 
     win = NULL; /* set no window active */
     (*event_vect)(stdin, &ev); /* get root event */
@@ -5679,7 +5679,7 @@ static void intevent(FILE* f)
                 winptr  hw = fndtop(mousex, mousey);
                 frmpart hp = fp_none;
                 wigptr  ww = NULL;
-                long    wp = 0;
+                ami_long    wp = 0;
 
                 if (hw && hw->widget) { /* the live widget part reverses */
 
@@ -5990,8 +5990,8 @@ static void readline(int fd)
     ami_evtrec er;   /* event record */
     winptr    win;  /* window pointer */
     int       ins;  /* insert/overwrite mode */
-    long      xoff; /* x starting line offset */
-    long      l;    /* buffer length */
+    ami_long  xoff; /* x starting line offset */
+    ami_long  l;    /* buffer length */
     int       ofn;  /* logical output file */
     int       lcmp; /* line complete */
     int       i;
@@ -6252,7 +6252,7 @@ the associated input file.
 
 *******************************************************************************/
 
-static void itimer(FILE* f, long i, long t, long r)
+static void itimer(FILE* f, ami_long i, ami_long t, ami_long r)
 
 {
 
@@ -6284,7 +6284,7 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 *******************************************************************************/
 
-static void ikilltimer(FILE* f, long i)
+static void ikilltimer(FILE* f, ami_long i)
 
 {
 
@@ -6310,7 +6310,7 @@ Returns the number of mice implemented. This is a pure passthrough function.
 
 *******************************************************************************/
 
-static long imouse(FILE* f)
+static ami_long imouse(FILE* f)
 
 {
 
@@ -6327,7 +6327,7 @@ function.
 
 *******************************************************************************/
 
-static long imousebutton(FILE* f, long m)
+static ami_long imousebutton(FILE* f, ami_long m)
 
 {
 
@@ -6343,7 +6343,7 @@ Return number of joysticks attached. This is a pure passthrough function.
 
 *******************************************************************************/
 
-static long ijoystick(FILE* f)
+static ami_long ijoystick(FILE* f)
 
 {
 
@@ -6360,7 +6360,7 @@ function.
 
 *******************************************************************************/
 
-static long ijoybutton(FILE* f, long j)
+static ami_long ijoybutton(FILE* f, ami_long j)
 
 {
 
@@ -6379,7 +6379,7 @@ passthrough function.
 
 *******************************************************************************/
 
-static long ijoyaxis(FILE* f, long j)
+static ami_long ijoyaxis(FILE* f, ami_long j)
 
 {
 
@@ -6395,7 +6395,7 @@ Sets a tab at the indicated column number.
 
 *******************************************************************************/
 
-static void isettab(FILE* f, long t)
+static void isettab(FILE* f, ami_long t)
 
 {
 
@@ -6415,7 +6415,7 @@ Resets the tab at the indicated collumn number.
 
 *******************************************************************************/
 
-static void irestab(FILE* f, long t)
+static void irestab(FILE* f, ami_long t)
 
 {
 
@@ -6457,7 +6457,7 @@ passthrough function.
 
 *******************************************************************************/
 
-static long ifunkey(FILE* f)
+static ami_long ifunkey(FILE* f)
 
 {
 
@@ -6476,7 +6476,7 @@ of the blanking interval.
 
 *******************************************************************************/
 
-static void iframetimer(FILE* f, long e)
+static void iframetimer(FILE* f, ami_long e)
 
 {
 
@@ -6525,7 +6525,7 @@ holding manager unaware programs.
 
 *******************************************************************************/
 
-static void iautohold(long e)
+static void iautohold(ami_long e)
 
 {
 
@@ -6554,13 +6554,13 @@ character attributes.
 
 *******************************************************************************/
 
-static void iwrtstrn(FILE* f, char* s, long n)
+static void iwrtstrn(FILE* f, char* s, ami_long n)
 
 {
 
     winptr win; /* window record pointer */
     scnptr scp; /* screen buffer */
-    long   l;   /* character location */
+    ami_long   l;   /* character location */
 
     win = txt2win(f); /* get window from file */
     if (win->autof) error("Cannot direct write string with auto on");
@@ -6649,7 +6649,7 @@ Sets the title of the current window.
 
 *******************************************************************************/
 
-static void ititlen(FILE* f, char* ts, long n)
+static void ititlen(FILE* f, char* ts, ami_long n)
 
 {
 
@@ -6707,7 +6707,7 @@ window.
 
 *******************************************************************************/
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
@@ -6725,7 +6725,7 @@ freed.
 
 *******************************************************************************/
 
-static void ibuffer(FILE* f, long e)
+static void ibuffer(FILE* f, ami_long e)
 
 {
 
@@ -6767,7 +6767,7 @@ Sets or resets the size of the buffer surface, in character counts.
 
 *******************************************************************************/
 
-static void isizbuf(FILE* f, long x, long y)
+static void isizbuf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -6819,7 +6819,7 @@ Gets the onscreen parent window size, in character terms.
 
 *******************************************************************************/
 
-static void igetsiz(FILE* f, long* x, long* y)
+static void igetsiz(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -6839,7 +6839,7 @@ Sets the onscreen window size, in character terms.
 
 *******************************************************************************/
 
-static void isetsiz(FILE* f, long x, long y)
+static void isetsiz(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -6860,7 +6860,7 @@ relative measurement.
 
 *******************************************************************************/
 
-static void isetpos(FILE* f, long x, long y)
+static void isetpos(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -6879,7 +6879,7 @@ because it can only be used as a relative measurement.
 
 *******************************************************************************/
 
-static void iscnsiz(FILE* f, long* x, long* y)
+static void iscnsiz(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -6905,7 +6905,7 @@ screens that are joined at one or more sides.
 
 *******************************************************************************/
 
-static void iscncen(FILE* f, long* x, long* y)
+static void iscncen(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -6952,11 +6952,11 @@ static void mbarsiz(winptr win)
 
 }
 
-static void iwinclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+static void iwinclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 
 {
 
-    long frame, size, sysbar;
+    ami_long frame, size, sysbar;
 
     /* the inverse of the client geometry in recompcli()/decorx()/decory(),
        from the given mode set rather than a window's current state */
@@ -7009,7 +7009,7 @@ static void placetree(winptr win, winptr anchor)
     winptr  chend = NULL;
     winptr  wp;
     winptr* lp;
-    long    z;
+    ami_long    z;
 
     lp = &zmin2max;
     while (*lp) {
@@ -7148,7 +7148,7 @@ static void recompcli(winptr win)
 
 }
 
-static void iframe(FILE* f, long e)
+static void iframe(FILE* f, ami_long e)
 
 {
 
@@ -7180,7 +7180,7 @@ managers.
 
 *******************************************************************************/
 
-static void isizable(FILE* f, long e)
+static void isizable(FILE* f, ami_long e)
 
 {
 
@@ -7211,7 +7211,7 @@ used to create component windows.
 
 *******************************************************************************/
 
-static void isysbar(FILE* f, long e)
+static void isysbar(FILE* f, ami_long e)
 
 {
 
@@ -7299,11 +7299,11 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 *******************************************************************************/
 
-static long igetwinid(void)
+static ami_long igetwinid(void)
 
 {
 
-    long wid; /* window id */
+    ami_long wid; /* window id */
 
     wid = -1; /* start at -1 */
     /* find any open entry */
@@ -7359,7 +7359,7 @@ static void plcchr(FILE* f, char c)
 
     winptr  win;   /* windows record pointer */
     scnrec* scp;   /* pointer to screen location */
-    long    l;
+    ami_long    l;
 
     win = txt2win(f); /* get window from file */
     if (!win->visible) winvis(win); /* make sure we are displayed */
@@ -7377,8 +7377,8 @@ static void plcchr(FILE* f, char c)
     } else if (c == '\b') ileft(f); /* back space, move left */
     else if (c == '\f') {
 
-        mclogf("clear wid %ld %ldx%ld\n",
-                             win->wid, win->maxx, win->maxy);
+        mclogf("clear wid %lld %lldx%lld\n",
+                             AMI_LONG_CAST(win->wid), AMI_LONG_CAST(win->maxx), AMI_LONG_CAST(win->maxy));
         clrscn(f); /* clear screen */
 
     }
@@ -7720,11 +7720,11 @@ implemented.
 
 *******************************************************************************/
 
-static long wigmul(long range, long val); /* forward */
-static long wigscl(long num, long den); /* forward */
+static ami_long wigmul(ami_long range, ami_long val); /* forward */
+static ami_long wigscl(ami_long num, ami_long den); /* forward */
 
 /* find widget by id in a window */
-static wigptr fndwig(winptr win, long id)
+static wigptr fndwig(winptr win, ami_long id)
 
 {
 
@@ -7738,13 +7738,13 @@ static wigptr fndwig(winptr win, long id)
 }
 
 /* write a string into a widget face, with reverse video select */
-static void wigtxt(wigptr wg, long x, long y, const char* s, int rev)
+static void wigtxt(wigptr wg, ami_long x, ami_long y, const char* s, int rev)
 
 {
 
     winptr win = wg->win;
-    long   n = win->cmaxx-x+1; /* room to the edge: never run past it */
-    long   sat = win->attr; /* restored whole: a face can carry its own
+    ami_long   n = win->cmaxx-x+1; /* room to the edge: never run past it */
+    ami_long   sat = win->attr; /* restored whole: a face can carry its own
                                attributes, and clearing just the reverse
                                bit was dropping them */
 
@@ -7761,8 +7761,8 @@ static void wigclr(wigptr wg)
 
 {
 
-    long x, y;
-    long sat = wg->win->attr;
+    ami_long x, y;
+    ami_long sat = wg->win->attr;
 
     wg->win->attr &= ~wg->fatt;
     for (y = 1; y <= wg->win->cmaxy; y++) {
@@ -7776,13 +7776,13 @@ static void wigclr(wigptr wg)
 }
 
 /* draw a centered label into a row, clipped to width */
-static void wiglab(wigptr wg, long y, const char* s, int rev)
+static void wiglab(wigptr wg, ami_long y, const char* s, int rev)
 
 {
 
-    long w = wg->win->cmaxx;
-    long l = strlen(s);
-    long x;
+    ami_long w = wg->win->cmaxx;
+    ami_long l = strlen(s);
+    ami_long x;
 
     if (l > w) l = w; /* clip */
     x = (w-l)/2+1; /* center */
@@ -7829,7 +7829,7 @@ static void clspops(int downto)
         if (wg->lcol) free(wg->lcol);
         if (wg->list) {
 
-            long i;
+            ami_long i;
             for (i = 0; i < wg->listn; i++) free(wg->list[i]);
             free(wg->list);
 
@@ -7842,18 +7842,18 @@ static void clspops(int downto)
 
 /* Open a popup list at a root position. The strings are copied. Returns the
    popup widget, which is pushed on the popup stack. */
-static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
+static wigptr opnpop(winptr par, ami_long rx, ami_long ry, char** strs, ami_long n,
                      wigptr owner, ami_menuptr mitems, ami_color* lcol)
 
 {
 
     wigptr wg;
     FILE*  wf;
-    long   i, w = 1;
+    ami_long   i, w = 1;
 
     if (popcnt >= MAXPOP) clspops(MAXPOP-1); /* bound the cascade */
     for (i = 0; i < n; i++) /* widest entry sets the width */
-        if ((long)strlen(strs[i]) > w) w = strlen(strs[i]);
+        if ((ami_long)strlen(strs[i]) > w) w = strlen(strs[i]);
     w += 2; /* frame columns */
     wg = malloc(sizeof(wigrec));
     if (!wg) error("Out of memory");
@@ -7926,12 +7926,12 @@ static wigptr opnpop(winptr par, long rx, long ry, char** strs, long n,
 
 /* count and collect a menu level into a string array. Returns the count.
    Submenus are marked with a trailing arrow, checked items with a mark. */
-static long mencol(winptr win, ami_menuptr m, char*** strs)
+static ami_long mencol(winptr win, ami_menuptr m, char*** strs)
 
 {
 
     ami_menuptr p;
-    long n = 0, i = 0;
+    ami_long n = 0, i = 0;
     char buf[MAXLIN];
     menenaptr me;
 
@@ -7962,7 +7962,7 @@ static long mencol(winptr win, ami_menuptr m, char*** strs)
 }
 
 /* find the nth entry of a menu level */
-static ami_menuptr mennth(ami_menuptr m, long n)
+static ami_menuptr mennth(ami_menuptr m, ami_long n)
 
 {
 
@@ -7973,7 +7973,7 @@ static ami_menuptr mennth(ami_menuptr m, long n)
 }
 
 /* is a menu item enabled */
-static int menenb(winptr win, long id)
+static int menenb(winptr win, ami_long id)
 
 {
 
@@ -7991,8 +7991,8 @@ static void drwmbar(wigptr wg)
 {
 
     ami_menuptr p;
-    long x = 1;
-    long hp = wg == hovwig? hovwprt: 0; /* hovered title start column */
+    ami_long x = 1;
+    ami_long hp = wg == hovwig? hovwprt: 0; /* hovered title start column */
 
     wigclr(wg);
     for (p = wg->mitems; p; p = p->next) {
@@ -8012,16 +8012,16 @@ static void drwmbar(wigptr wg)
 
 /* find which top level menu title a bar column lies in; returns the item or
    NULL, and sets the column the title starts at */
-static ami_menuptr mbarhit(wigptr wg, long lx, long* startx)
+static ami_menuptr mbarhit(wigptr wg, ami_long lx, ami_long* startx)
 
 {
 
     ami_menuptr p;
-    long x = 1;
+    ami_long x = 1;
 
     for (p = wg->mitems; p; p = p->next) {
 
-        long w = strlen(p->face)+2;
+        ami_long w = strlen(p->face)+2;
         if (lx >= x && lx < x+w) { *startx = x; return (p); }
         x += w;
 
@@ -8037,9 +8037,9 @@ static void wigdrw(wigptr wg)
 {
 
     winptr win = wg->win;
-    long   w = win->cmaxx;
-    long   h = win->cmaxy;
-    long   x, y, i, n, ts, tp;
+    ami_long   w = win->cmaxx;
+    ami_long   h = win->cmaxy;
+    ami_long   x, y, i, n, ts, tp;
     char   buf[MAXLIN];
 
     /* The cursor is off while the face draws, so it does not flash along
@@ -8048,7 +8048,7 @@ static void wigdrw(wigptr wg)
     setcurvis(FALSE);
     int    rev;
     /* the live part under the mouse shows reversed, as frame parts do */
-    long   hp = wg == hovwig? hovwprt: 0;
+    ami_long   hp = wg == hovwig? hovwprt: 0;
 
     /* a disabled widget shows its whole face grey, as a disabled menu
        item does; a face carrying its own attributes shows them */
@@ -8173,7 +8173,7 @@ static void wigdrw(wigptr wg)
             wigclr(wg);
             wigtxt(wg, 1, 1, "-", hp == 1);
             wigtxt(wg, w, 1, "+", hp == 2);
-            snprintf(buf, sizeof(buf), "%*ld", (int)(w-2), wg->val);
+            snprintf(buf, sizeof(buf), "%*lld", (int)(w-2), AMI_LONG_CAST(wg->val));
             wigtxt(wg, 2, 1, buf, win->focus);
             break;
 
@@ -8362,12 +8362,12 @@ static void wigdrw(wigptr wg)
    what a click there does: parts that are dead to clicks (a group box, a
    progress bar, the value cell of a number select) return zero, so the
    highlight marks exactly what is live. */
-static long wighit(wigptr wg, long lx, long ly)
+static ami_long wighit(wigptr wg, ami_long lx, ami_long ly)
 
 {
 
     winptr win = wg->win;
-    long   n, ts, tp;
+    ami_long   n, ts, tp;
 
     switch (wg->typ) {
 
@@ -8417,13 +8417,13 @@ static long wighit(wigptr wg, long lx, long ly)
 
         case wttabbar: { /* the tab under the pointer */
 
-            long i, p = 1;
+            ami_long i, p = 1;
 
             if (wg->tor == ami_totop || wg->tor == ami_tobottom) {
 
                 for (i = 0; i < wg->listn; i++) {
 
-                    long tw = strlen(wg->list[i]);
+                    ami_long tw = strlen(wg->list[i]);
                     if (lx >= p && lx < p+tw) return (i+1);
                     p += tw+1; /* name and separator */
 
@@ -8433,7 +8433,7 @@ static long wighit(wigptr wg, long lx, long ly)
 
                 for (i = 0; i < wg->listn; i++) {
 
-                    long th = strlen(wg->list[i]);
+                    ami_long th = strlen(wg->list[i]);
                     if (ly >= p && ly < p+th) return (i+1);
                     p += th+1;
 
@@ -8447,7 +8447,7 @@ static long wighit(wigptr wg, long lx, long ly)
         case wtmenubar: { /* the title under the pointer, by start column,
                              which is how the bar codes its selection */
 
-            long sx;
+            ami_long sx;
             ami_menuptr mp = mbarhit(wg, lx, &sx);
 
             return (mp && menenb(wg->parent, mp->id)? sx: 0);
@@ -8473,7 +8473,7 @@ static long wighit(wigptr wg, long lx, long ly)
 }
 
 /* send a widget event to the owner */
-static void wigsig(wigptr wg, ami_evtcod e, long v)
+static void wigsig(wigptr wg, ami_evtcod e, ami_long v)
 
 {
 
@@ -8507,19 +8507,19 @@ static void wigsig(wigptr wg, ami_evtcod e, long v)
 /* cells from a full scale value: round(range*val/LONG_MAX), end exact.
    The previous fixed point form quantized to 1024 steps and floored, so a
    full scale value always came out one cell short of the end. */
-static long wigmul(long range, long val)
+static ami_long wigmul(ami_long range, ami_long val)
 
 {
 
     if (val <= 0 || range <= 0) return (0);
     if (val >= LONG_MAX) return (range);
 
-    return ((long)((double)range*val/(double)LONG_MAX+0.5));
+    return ((ami_long)((double)range*val/(double)LONG_MAX+0.5));
 
 }
 
 /* full scale value from a fraction, guarding the ends */
-static long wigscl(long num, long den)
+static ami_long wigscl(ami_long num, ami_long den)
 
 {
 
@@ -8541,7 +8541,7 @@ static void wigdrag(void)
 
     wigptr wg = drgwig;
     winptr win;
-    long   n, ts, p, nv;
+    ami_long   n, ts, p, nv;
 
     if (!wg) return;
     win = wg->win;
@@ -8606,7 +8606,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 {
 
     winptr win = wg->win;
-    long   lx, ly, n;
+    ami_long   lx, ly, n;
 
     switch (er->etype) {
 
@@ -8633,8 +8633,8 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                         n = win->cmaxy-2;
                         if (n > 0) {
 
-                            long ts = wigmul(n, wg->sclsiz);
-                            long tp;
+                            ami_long ts = wigmul(n, wg->sclsiz);
+                            ami_long tp;
                             if (ts < 1) ts = 1;
                             tp = wigmul(n-ts, wg->val);
                             if (ly-2 >= tp && ly-2 < tp+ts)
@@ -8654,8 +8654,8 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                         n = win->cmaxx-2;
                         if (n > 0) {
 
-                            long ts = wigmul(n, wg->sclsiz);
-                            long tp;
+                            ami_long ts = wigmul(n, wg->sclsiz);
+                            ami_long tp;
                             if (ts < 1) ts = 1;
                             tp = wigmul(n-ts, wg->val);
                             if (lx-2 >= tp && lx-2 < tp+ts)
@@ -8734,13 +8734,13 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                     break;
                 case wttabbar: { /* find the tab under the click */
 
-                    long i, p = 1, hit = 0;
+                    ami_long i, p = 1, hit = 0;
 
                     if (wg->tor == ami_totop || wg->tor == ami_tobottom) {
 
                         for (i = 0; i < wg->listn && !hit; i++) {
 
-                            long tw = strlen(wg->list[i]);
+                            ami_long tw = strlen(wg->list[i]);
                             if (lx >= p && lx < p+tw) hit = i+1;
                             p += tw+1; /* name and separator */
 
@@ -8750,7 +8750,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
                         for (i = 0; i < wg->listn && !hit; i++) {
 
-                            long th = strlen(wg->list[i]);
+                            ami_long th = strlen(wg->list[i]);
                             if (ly >= p && ly < p+th) hit = i+1;
                             p += th+1;
 
@@ -8769,7 +8769,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                 }
                 case wtmenubar: { /* open a pulldown */
 
-                    long sx;
+                    ami_long sx;
                     ami_menuptr mp = mbarhit(wg, lx, &sx);
 
                     clspops(0);
@@ -8779,8 +8779,8 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                         if (mp->branch) { /* open the pulldown under it */
 
                             char** strs;
-                            long n = mencol(wg->parent, mp->branch, &strs);
-                            long i;
+                            ami_long n = mencol(wg->parent, mp->branch, &strs);
+                            ami_long i;
 
                             wg->sel = sx; /* show the open title */
                             opnpop(wg->parent, absx(win)+sx-1, absy(win)+1,
@@ -8805,7 +8805,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                 }
                 case wtpopup: { /* selection in a popup list */
 
-                    long row = ly;
+                    ami_long row = ly;
                     wigptr ow = wg->owner;
 
                     if (row < 1 || row > wg->listn) break;
@@ -8821,8 +8821,8 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                         if (item->branch) { /* cascade a submenu */
 
                             char** strs;
-                            long n = mencol(wg->parent, item->branch, &strs);
-                            long i;
+                            ami_long n = mencol(wg->parent, item->branch, &strs);
+                            ami_long i;
 
                             clspops(depth+1); /* drop deeper levels */
                             wg->sel = row;
@@ -8900,8 +8900,8 @@ static void wigevt(wigptr wg, ami_evtrec* er)
                 /* digits shift into the value; a digit that would run
                    past the range starts a new number, so a full value
                    types over without clearing first */
-                long d = er->echar-'0';
-                long nv = wg->val*10+(wg->val < 0? -d: d);
+                ami_long d = er->echar-'0';
+                ami_long nv = wg->val*10+(wg->val < 0? -d: d);
 
                 if (nv > wg->high || (wg->val < 0 && nv < wg->low))
                     nv = wg->val < 0? -d: d;
@@ -8986,7 +8986,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 
         case ami_etright:
             if ((wg->typ == wteditbox || wg->typ == wtdropeditbox) &&
-                wg->curs < (long)strlen(wg->face))
+                wg->curs < (ami_long)strlen(wg->face))
                 { wg->curs++; wigdrw(wg); }
             break;
 
@@ -9038,7 +9038,7 @@ static void wigevt(wigptr wg, ami_evtrec* er)
 }
 
 /* create a widget: subwindow plus tracking record */
-static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
+static wigptr wigcre(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id,
                      wigtyp typ)
 
 {
@@ -9108,8 +9108,8 @@ static wigptr wigcre(FILE* f, long x1, long y1, long x2, long y2, long id,
     if (typ == wtgroup || typ == wtbackground || typ == wtprogbar) {
 
         wigptr p;    /* list walk */
-        long   cnt;  /* widgets on the owner */
-        long   i, j;
+        ami_long   cnt;  /* widgets on the owner */
+        ami_long   i, j;
 
         cnt = 0;
         for (p = par->wiglst; p; p = p->next) cnt++;
@@ -9146,12 +9146,12 @@ Widget API
 
 *******************************************************************************/
 
-long ami_getwigid(FILE* f)
+ami_long ami_getwigid(FILE* f)
 
 {
 
     winptr win = txt2win(f);
-    long   id = -1;
+    ami_long   id = -1;
 
     while (fndwig(win, id)) id--; /* find a free negative id */
 
@@ -9159,7 +9159,7 @@ long ami_getwigid(FILE* f)
 
 }
 
-void ami_killwidget(FILE* f, long id)
+void ami_killwidget(FILE* f, ami_long id)
 
 {
 
@@ -9178,7 +9178,7 @@ void ami_killwidget(FILE* f, long id)
     if (wg->lcol) free(wg->lcol);
     if (wg->list) {
 
-        long i;
+        ami_long i;
         for (i = 0; i < wg->listn; i++) free(wg->list[i]);
         free(wg->list);
 
@@ -9187,7 +9187,7 @@ void ami_killwidget(FILE* f, long id)
 
 }
 
-void ami_selectwidget(FILE* f, long id, long e)
+void ami_selectwidget(FILE* f, ami_long id, ami_long e)
 
 {
 
@@ -9199,7 +9199,7 @@ void ami_selectwidget(FILE* f, long id, long e)
 
 }
 
-void ami_enablewidget(FILE* f, long id, long e)
+void ami_enablewidget(FILE* f, ami_long id, ami_long e)
 
 {
 
@@ -9213,12 +9213,12 @@ void ami_enablewidget(FILE* f, long id, long e)
 
 }
 
-void ami_getwidgettext(FILE* f, long id, char* s, long sl)
+void ami_getwidgettext(FILE* f, ami_long id, char* s, ami_long sl)
 
 {
 
     wigptr wg = fndwig(txt2win(f), id);
-    long   l;
+    ami_long   l;
 
     if (!wg) error("No widget by given id");
     l = wg->face? strlen(wg->face): 0;
@@ -9230,7 +9230,7 @@ void ami_getwidgettext(FILE* f, long id, char* s, long sl)
 
 }
 
-void ami_putwidgettext(FILE* f, long id, char* s)
+void ami_putwidgettext(FILE* f, ami_long id, char* s)
 
 {
 
@@ -9243,7 +9243,7 @@ void ami_putwidgettext(FILE* f, long id, char* s)
 
 }
 
-void ami_sizwidget(FILE* f, long id, long x, long y)
+void ami_sizwidget(FILE* f, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -9255,7 +9255,7 @@ void ami_sizwidget(FILE* f, long id, long x, long y)
 
 }
 
-void ami_poswidget(FILE* f, long id, long x, long y)
+void ami_poswidget(FILE* f, ami_long id, ami_long x, ami_long y)
 
 {
 
@@ -9267,7 +9267,7 @@ void ami_poswidget(FILE* f, long id, long x, long y)
 
 }
 
-void ami_backwidget(FILE* f, long id)
+void ami_backwidget(FILE* f, ami_long id)
 
 {
 
@@ -9278,7 +9278,7 @@ void ami_backwidget(FILE* f, long id)
 
 }
 
-void ami_frontwidget(FILE* f, long id)
+void ami_frontwidget(FILE* f, ami_long id)
 
 {
 
@@ -9289,7 +9289,7 @@ void ami_frontwidget(FILE* f, long id)
 
 }
 
-void ami_focuswidget(FILE* f, long id)
+void ami_focuswidget(FILE* f, ami_long id)
 
 {
 
@@ -9306,7 +9306,7 @@ void ami_focuswidget(FILE* f, long id)
 
 }
 
-void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_buttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -9315,7 +9315,7 @@ void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_button(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -9326,7 +9326,7 @@ void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 }
 
-void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -9335,7 +9335,7 @@ void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_checkbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -9346,7 +9346,7 @@ void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 }
 
-void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -9355,8 +9355,8 @@ void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s,
-                     long id)
+void ami_radiobutton(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s,
+                     ami_long id)
 
 {
 
@@ -9367,12 +9367,12 @@ void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s,
 
 }
 
-void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
-                  long* ox, long* oy)
+void ami_groupsiz(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                  ami_long* ox, ami_long* oy)
 
 {
 
-    long tw = strlen(s)+4; /* title needs the top run */
+    ami_long tw = strlen(s)+4; /* title needs the top run */
 
     *w = cw+2; /* client plus frame */
     if (*w < tw) *w = tw;
@@ -9382,7 +9382,7 @@ void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h,
 
 }
 
-void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_group(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 
 {
 
@@ -9393,7 +9393,7 @@ void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
 
 }
 
-void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_background(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -9404,7 +9404,7 @@ void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_scrollvertsiz(FILE* f, long* w, long* h)
+void ami_scrollvertsiz(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -9413,7 +9413,7 @@ void ami_scrollvertsiz(FILE* f, long* w, long* h)
 
 }
 
-void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -9424,7 +9424,7 @@ void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_scrollhorizsiz(FILE* f, long* w, long* h)
+void ami_scrollhorizsiz(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -9433,7 +9433,7 @@ void ami_scrollhorizsiz(FILE* f, long* w, long* h)
 
 }
 
-void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -9444,7 +9444,7 @@ void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_scrollpos(FILE* f, long id, long r)
+void ami_scrollpos(FILE* f, ami_long id, ami_long r)
 
 {
 
@@ -9457,7 +9457,7 @@ void ami_scrollpos(FILE* f, long id, long r)
 
 }
 
-void ami_scrollsiz(FILE* f, long id, long r)
+void ami_scrollsiz(FILE* f, ami_long id, ami_long r)
 
 {
 
@@ -9470,23 +9470,23 @@ void ami_scrollsiz(FILE* f, long id, long r)
 
 }
 
-void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
+void ami_numselboxsiz(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
 
 {
 
     char buf[40];
-    long wl, wu;
+    ami_long wl, wu;
 
-    snprintf(buf, sizeof(buf), "%ld", l); wl = strlen(buf);
-    snprintf(buf, sizeof(buf), "%ld", u); wu = strlen(buf);
+    snprintf(buf, sizeof(buf), "%lld", AMI_LONG_CAST(l)); wl = strlen(buf);
+    snprintf(buf, sizeof(buf), "%lld", AMI_LONG_CAST(u)); wu = strlen(buf);
     if (wl > wu) wu = wl;
     *w = wu+2; /* digits plus the spin cells */
     *h = 1;
 
 }
 
-void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
-                   long id)
+void ami_numselbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                   ami_long id)
 
 {
 
@@ -9502,7 +9502,7 @@ void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
 
 }
 
-void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_editboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 
 {
 
@@ -9511,7 +9511,7 @@ void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
 
 }
 
-void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -9524,7 +9524,7 @@ void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_progbarsiz(FILE* f, long* w, long* h)
+void ami_progbarsiz(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -9533,7 +9533,7 @@ void ami_progbarsiz(FILE* f, long* w, long* h)
 
 }
 
-void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 
 {
 
@@ -9544,7 +9544,7 @@ void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
 
 }
 
-void ami_progbarpos(FILE* f, long id, long pos)
+void ami_progbarpos(FILE* f, ami_long id, ami_long pos)
 
 {
 
@@ -9557,11 +9557,11 @@ void ami_progbarpos(FILE* f, long id, long pos)
 
 }
 
-void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
 
 {
 
-    long mw = 0, n = 0, l;
+    ami_long mw = 0, n = 0, l;
 
     while (sp) {
 
@@ -9576,14 +9576,14 @@ void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
 
 }
 
-void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                 long id)
+void ami_listbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                 ami_long id)
 
 {
 
     wigptr wg = wigcre(f, x1, y1, x2, y2, id, wtlistbox);
     ami_strptr p;
-    long n = 0, i;
+    ami_long n = 0, i;
 
     for (p = sp; p; p = p->next) n++; /* count strings */
     wg->list = malloc(sizeof(char*)*(n? n: 1));
@@ -9604,7 +9604,7 @@ void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
 
 }
 
-void ami_slidehorizsiz(FILE* f, long* w, long* h)
+void ami_slidehorizsiz(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -9613,8 +9613,8 @@ void ami_slidehorizsiz(FILE* f, long* w, long* h)
 
 }
 
-void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark,
-                    long id)
+void ami_slidehoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                    ami_long id)
 
 {
 
@@ -9626,7 +9626,7 @@ void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark,
 
 }
 
-void ami_slidevertsiz(FILE* f, long* w, long* h)
+void ami_slidevertsiz(FILE* f, ami_long* w, ami_long* h)
 
 {
 
@@ -9635,8 +9635,8 @@ void ami_slidevertsiz(FILE* f, long* w, long* h)
 
 }
 
-void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark,
-                   long id)
+void ami_slidevert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark,
+                   ami_long id)
 
 {
 
@@ -9660,7 +9660,7 @@ static void wiglst(wigptr wg, ami_strptr sp)
 {
 
     ami_strptr p;
-    long n = 0, i = 0;
+    ami_long n = 0, i = 0;
 
     for (p = sp; p; p = p->next) n++;
     wg->list = malloc(sizeof(char*)*(n? n: 1));
@@ -9678,15 +9678,15 @@ static void wiglst(wigptr wg, ami_strptr sp)
 }
 
 /* widest string in a list */
-static long lstwid(ami_strptr sp)
+static ami_long lstwid(ami_strptr sp)
 
 {
 
-    long w = 0;
+    ami_long w = 0;
 
     while (sp) {
 
-        if ((long)strlen(sp->str) > w) w = strlen(sp->str);
+        if ((ami_long)strlen(sp->str) > w) w = strlen(sp->str);
         sp = sp->next;
 
     }
@@ -9696,11 +9696,11 @@ static long lstwid(ami_strptr sp)
 }
 
 /* count of strings in a list */
-static long lstcnt(ami_strptr sp)
+static ami_long lstcnt(ami_strptr sp)
 
 {
 
-    long n = 0;
+    ami_long n = 0;
 
     while (sp) { n++; sp = sp->next; }
 
@@ -9708,8 +9708,8 @@ static long lstcnt(ami_strptr sp)
 
 }
 
-void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
-                    long* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow,
+                    ami_long* oh)
 
 {
 
@@ -9720,8 +9720,8 @@ void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
 
 }
 
-void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                 long id)
+void ami_dropbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                 ami_long id)
 
 {
 
@@ -9734,8 +9734,8 @@ void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
 
 }
 
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
-                        long* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow,
+                        ami_long* oh)
 
 {
 
@@ -9746,8 +9746,8 @@ void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow,
 
 }
 
-void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
-                     ami_strptr sp, long id)
+void ami_dropeditbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                     ami_strptr sp, ami_long id)
 
 {
 
@@ -9767,8 +9767,8 @@ void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2,
 
 }
 
-void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-                   long* ox, long* oy)
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                   ami_long* ox, ami_long* oy)
 
 {
 
@@ -9790,8 +9790,8 @@ void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, lon
 
 }
 
-void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw,
-                      long* ch, long* ox, long* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw,
+                      ami_long* ch, ami_long* ox, ami_long* oy)
 
 {
 
@@ -9813,8 +9813,8 @@ void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw,
 
 }
 
-void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                ami_tabori tor, long id)
+void ami_tabbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                ami_tabori tor, ami_long id)
 
 {
 
@@ -9836,7 +9836,7 @@ void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
 
 }
 
-void ami_tabsel(FILE* f, long id, long tn)
+void ami_tabsel(FILE* f, ami_long id, ami_long tn)
 
 {
 
@@ -9916,7 +9916,7 @@ static void imenu(FILE* f, ami_menuptr m)
 
     winptr win = txt2win(f);
     wigptr wg;
-    long   id;
+    ami_long   id;
 
     if (win->mbar) { /* remove the previous bar */
 
@@ -9964,7 +9964,7 @@ static void imenu(FILE* f, ami_menuptr m)
 
 }
 
-static void imenuena(FILE* f, long id, long onoff)
+static void imenuena(FILE* f, ami_long id, ami_long onoff)
 
 {
 
@@ -9987,7 +9987,7 @@ static void imenuena(FILE* f, long id, long onoff)
 }
 
 /* find a menu item by id anywhere in a menu tree */
-static ami_menuptr fndmen(ami_menuptr m, long id)
+static ami_menuptr fndmen(ami_menuptr m, ami_long id)
 
 {
 
@@ -10006,7 +10006,7 @@ static ami_menuptr fndmen(ami_menuptr m, long id)
 
 /* find the sibling list containing the item with the given id, searching
    the branches */
-static ami_menuptr fndmenlist(ami_menuptr root, long id)
+static ami_menuptr fndmenlist(ami_menuptr root, ami_long id)
 
 {
 
@@ -10020,7 +10020,7 @@ static ami_menuptr fndmenlist(ami_menuptr root, long id)
 
 }
 
-static void imenusel(FILE* f, long id, long select)
+static void imenusel(FILE* f, ami_long id, ami_long select)
 
 {
 
@@ -10061,7 +10061,7 @@ static void istdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
 
 {
 
-    static const struct { long sel; long id; char* face; } std[] = {
+    static const struct { ami_long sel; ami_long id; char* face; } std[] = {
 
         { AMI_SMNEW,        AMI_SMNEW,        "New" },
         { AMI_SMOPEN,       AMI_SMOPEN,       "Open" },
@@ -10090,22 +10090,22 @@ static void istdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
 
     };
     /* which standard items belong to which top level list */
-    static const long filist[] = { AMI_SMNEW, AMI_SMOPEN, AMI_SMCLOSE,
+    static const ami_long filist[] = { AMI_SMNEW, AMI_SMOPEN, AMI_SMCLOSE,
         AMI_SMSAVE, AMI_SMSAVEAS, AMI_SMPAGESET, AMI_SMPRINT, AMI_SMEXIT, 0 };
-    static const long edlist[] = { AMI_SMUNDO, AMI_SMCUT, AMI_SMPASTE,
+    static const ami_long edlist[] = { AMI_SMUNDO, AMI_SMCUT, AMI_SMPASTE,
         AMI_SMDELETE, AMI_SMFIND, AMI_SMFINDNEXT, AMI_SMREPLACE, AMI_SMGOTO,
         AMI_SMSELECTALL, 0 };
-    static const long wilist[] = { AMI_SMNEWWINDOW, AMI_SMTILEHORIZ,
+    static const ami_long wilist[] = { AMI_SMNEWWINDOW, AMI_SMTILEHORIZ,
         AMI_SMTILEVERT, AMI_SMCASCADE, AMI_SMCLOSEALL, 0 };
-    static const long helist[] = { AMI_SMHELPTOPIC, AMI_SMABOUT, 0 };
-    static const struct { const long* lst; char* face; } tops[] = {
+    static const ami_long helist[] = { AMI_SMHELPTOPIC, AMI_SMABOUT, 0 };
+    static const struct { const ami_long* lst; char* face; } tops[] = {
 
         { filist, "File" }, { edlist, "Edit" }, { NULL, NULL },
         { wilist, "Window" }, { helist, "Help" },
 
     };
     ami_menuptr root = NULL, rtl = NULL;
-    long ti, i;
+    ami_long ti, i;
 
     /* Build the standard lists, in the documented order:
        file edit <program> window help */
@@ -10128,8 +10128,8 @@ static void istdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
         }
         for (i = 0; tops[ti].lst[i]; i++) {
 
-            long sel = tops[ti].lst[i];
-            long si;
+            ami_long sel = tops[ti].lst[i];
+            ami_long si;
 
             if (!(sms & (1L<<sel))) continue; /* not selected */
             for (si = 0; si < AMI_SMMAX; si++) if (std[si].sel == sel) break;
@@ -10187,7 +10187,7 @@ so a quit request is not swallowed by the dialog.
 
 /* Run a dialog window until its done flag is set. Returns the id of the
    widget that ended it, or 0 for an outside terminate. */
-static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
+static ami_long dlgloop(FILE* wf, winptr dwin, ami_long okid, ami_long cancelid,
                     void (*lay)(FILE* wf, winptr dwin, void* ctx),
                     void (*evt)(FILE* wf, winptr dwin, ami_evtrec* er,
                                 void* ctx),
@@ -10196,7 +10196,7 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
 {
 
     ami_evtrec er;
-    long       res = 0;
+    ami_long   res = 0;
     int        done = FALSE;
     int        realterm = FALSE;
 
@@ -10259,7 +10259,7 @@ static long dlgloop(FILE* wf, winptr dwin, long okid, long cancelid,
    the window record through the pointer. The given size is in the terms
    the dialogs were laid out in, sysbar only: the sizing border grows the
    window around it, keeping the client those layouts expect. */
-static FILE* dlgcre(char* title, long w, long h, winptr* dwin)
+static FILE* dlgcre(char* title, ami_long w, ami_long h, winptr* dwin)
 
 {
 
@@ -10295,7 +10295,7 @@ static void alertlay(FILE* wf, winptr dwin, void* ctx)
 {
 
     char* message = (char*)ctx;
-    long  bw, bh, bx;
+    ami_long  bw, bh, bx;
 
     fprintf(wf, "\f");
     ami_cursor(wf, 2, 2);
@@ -10313,9 +10313,9 @@ void ami_alert(char* title, char* message)
 
     FILE*  wf;
     winptr dwin;
-    long   w, h, bw, bh;
-    long   ml = strlen(message);
-    long   tl = strlen(title);
+    ami_long   w, h, bw, bh;
+    ami_long   ml = strlen(message);
+    ami_long   tl = strlen(title);
 
     w = (ml > tl? ml: tl)+6;
     if (w < 20) w = 20;
@@ -10335,12 +10335,12 @@ void ami_alert(char* title, char* message)
    preset list picks the primaries, the R, G and B sliders enter any
    color directly, the luminosity slider runs the color from black to
    white holding its hue, and the swatch shows the result exactly. */
-typedef struct { long r, g, b; } qcolst;
+typedef struct { ami_long r, g, b; } qcolst;
 
 /* the presets, matching the primary color codes */
 static char* const qcolnam[] = { "black", "white", "red", "green", "blue",
                                  "cyan", "yellow", "magenta" };
-static const long qcolpre[8][3] = {
+static const ami_long qcolpre[8][3] = {
 
     { 0, 0, 0 }, { 255, 255, 255 }, { 255, 0, 0 }, { 0, 255, 0 },
     { 0, 0, 255 }, { 0, 255, 255 }, { 255, 255, 0 }, { 255, 0, 255 },
@@ -10349,7 +10349,7 @@ static const long qcolpre[8][3] = {
 
 /* rgb (0..255) to hsl (h 0..6, s and l 0..1) and back, for the
    luminosity slider: lightness moves, the hue holds */
-static void rgbhsl(long r, long g, long b, double* h, double* s, double* l)
+static void rgbhsl(ami_long r, ami_long g, ami_long b, double* h, double* s, double* l)
 
 {
 
@@ -10389,30 +10389,30 @@ static double qcolhue(double p, double q, double t)
 
 }
 
-static void hslrgb(double h, double s, double l, long* r, long* g, long* b)
+static void hslrgb(double h, double s, double l, ami_long* r, ami_long* g, ami_long* b)
 
 {
 
-    if (s <= 0) *r = *g = *b = (long)(l*255+0.5);
+    if (s <= 0) *r = *g = *b = (ami_long)(l*255+0.5);
     else {
 
         double q = l < 0.5? l*(1+s): l+s-l*s;
         double p = 2*l-q;
 
-        *r = (long)(qcolhue(p, q, h+2)*255+0.5);
-        *g = (long)(qcolhue(p, q, h)*255+0.5);
-        *b = (long)(qcolhue(p, q, h-2)*255+0.5);
+        *r = (ami_long)(qcolhue(p, q, h+2)*255+0.5);
+        *g = (ami_long)(qcolhue(p, q, h)*255+0.5);
+        *b = (ami_long)(qcolhue(p, q, h-2)*255+0.5);
 
     }
 
 }
 
 /* the luminosity of the held color, 0..255 */
-static long qcollum(qcolst* st)
+static ami_long qcollum(qcolst* st)
 
 {
 
-    long mx = st->r, mn = st->r;
+    ami_long mx = st->r, mn = st->r;
 
     if (st->g > mx) mx = st->g;
     if (st->b > mx) mx = st->b;
@@ -10424,7 +10424,7 @@ static long qcollum(qcolst* st)
 }
 
 /* place a slider on an 8 bit value */
-static void qcolsld(winptr dwin, long id, long v8)
+static void qcolsld(winptr dwin, ami_long id, ami_long v8)
 
 {
 
@@ -10446,7 +10446,7 @@ static void qcolsel(winptr dwin, qcolst* st)
 {
 
     wigptr wg = fndwig(dwin, 1);
-    long   i, sel = 0;
+    ami_long   i, sel = 0;
 
     for (i = 0; i < 8; i++)
         if (st->r == qcolpre[i][0] && st->g == qcolpre[i][1] &&
@@ -10466,7 +10466,7 @@ static void qcolshow(FILE* wf, winptr dwin, qcolst* st)
 
 {
 
-    long x, y;
+    ami_long x, y;
 
     ami_bcolorc(wf, col8full(st->r), col8full(st->g), col8full(st->b));
     for (y = 3; y <= 10; y++) {
@@ -10476,9 +10476,9 @@ static void qcolshow(FILE* wf, winptr dwin, qcolst* st)
 
     }
     ami_bcolor(wf, ami_white);
-    ami_cursor(wf, 47, 12); fprintf(wf, "%3ld", st->r);
-    ami_cursor(wf, 47, 14); fprintf(wf, "%3ld", st->g);
-    ami_cursor(wf, 47, 16); fprintf(wf, "%3ld", st->b);
+    ami_cursor(wf, 47, 12); fprintf(wf, "%3lld", AMI_LONG_CAST(st->r));
+    ami_cursor(wf, 47, 14); fprintf(wf, "%3lld", AMI_LONG_CAST(st->g));
+    ami_cursor(wf, 47, 16); fprintf(wf, "%3lld", AMI_LONG_CAST(st->b));
 
 }
 
@@ -10488,7 +10488,7 @@ static void qrycollay(FILE* wf, winptr dwin, void* ctx)
 {
 
     qcolst* st = (qcolst*)ctx;
-    long    i, n = dwin->cmaxx;
+    ami_long    i, n = dwin->cmaxx;
 
     fprintf(wf, "\f");
     /* the section header, marked off and centered */
@@ -10549,7 +10549,7 @@ static void qrycolevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
 
     } else if (er->etype == ami_etsldpos) {
 
-        long v8 = wigmul(255, er->sldpos);
+        ami_long v8 = wigmul(255, er->sldpos);
 
         if (er->sldpid >= 4 && er->sldpid <= 6) {
 
@@ -10576,15 +10576,15 @@ static void qrycolevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
 
 }
 
-void ami_querycolor(long* r, long* g, long* b)
+void ami_querycolor(ami_long* r, ami_long* g, ami_long* b)
 
 {
 
     FILE*  wf;
     winptr dwin;
-    long   res;
+    ami_long   res;
     ami_strrec sr[8];
-    long   i, bw, bh;
+    ami_long   i, bw, bh;
     qcolst st;
 
     for (i = 0; i < 8; i++) {
@@ -10638,12 +10638,12 @@ typedef struct {
 } qfilst;
 
 /* replace a list box's contents */
-static void lstput(winptr dwin, long id, char** strs, long n)
+static void lstput(winptr dwin, ami_long id, char** strs, ami_long n)
 
 {
 
     wigptr wg = fndwig(dwin, id);
-    long   i;
+    ami_long   i;
 
     if (!wg) return;
     if (wg->list) {
@@ -10671,13 +10671,13 @@ static void lstput(winptr dwin, long id, char** strs, long n)
 
 /* set a pane's scroll bar from its list: the thumb is the visible share,
    at the scrolled position */
-static void qfilbar(winptr dwin, long lid, long bid)
+static void qfilbar(winptr dwin, ami_long lid, ami_long bid)
 
 {
 
     wigptr lw = fndwig(dwin, lid);
     wigptr bw = fndwig(dwin, bid);
-    long   vis, max;
+    ami_long   vis, max;
 
     if (!lw || !bw) return;
     vis = lw->win->cmaxy;
@@ -10690,12 +10690,12 @@ static void qfilbar(winptr dwin, long lid, long bid)
 }
 
 /* scroll a pane by its scroll bar's report */
-static void qfilscl(winptr dwin, long lid, long bid, ami_evtcod e, long pos)
+static void qfilscl(winptr dwin, ami_long lid, ami_long bid, ami_evtcod e, ami_long pos)
 
 {
 
     wigptr lw = fndwig(dwin, lid);
-    long   vis, max;
+    ami_long   vis, max;
 
     if (!lw) return;
     vis = lw->win->cmaxy;
@@ -10723,9 +10723,9 @@ static void qfilpath(FILE* wf, winptr dwin, qfilst* st)
 
 {
 
-    long max = dwin->cmaxx-8;
-    long l = strlen(st->dir);
-    long i;
+    ami_long max = dwin->cmaxx-8;
+    ami_long l = strlen(st->dir);
+    ami_long i;
 
     ami_cursor(wf, 2, 1);
     fprintf(wf, "Path: ");
@@ -10757,10 +10757,10 @@ static void qfilread(FILE* wf, winptr dwin, qfilst* st)
     struct dirent* de;
     struct stat    sb;
     char**         nm[2] = { NULL, NULL }; /* directories, then files */
-    long           nc[2] = { 0, 0 };
-    long           na[2] = { 0, 0 };
+    ami_long       nc[2] = { 0, 0 };
+    ami_long       na[2] = { 0, 0 };
     char           pth[QFPTH+300];
-    long           i, w;
+    ami_long       i, w;
 
     dp = opendir(st->dir);
     if (dp) {
@@ -10814,9 +10814,9 @@ static void qfilnav(FILE* wf, winptr dwin, qfilst* st, const char* name)
 
     } else {
 
-        long l = strlen(st->dir);
+        ami_long l = strlen(st->dir);
 
-        if (l+1+(long)strlen(name)+1 > QFPTH) return; /* cannot hold it */
+        if (l+1+(ami_long)strlen(name)+1 > QFPTH) return; /* cannot hold it */
         snprintf(st->dir+l, QFPTH-l, "%s%s",
                  l && st->dir[l-1] == '/'? "": "/", name);
 
@@ -10852,7 +10852,7 @@ static void qryfileevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
 
     qfilst* st = (qfilst*)ctx;
     wigptr  wg;
-    long    bid = 0, pos = 0;
+    ami_long    bid = 0, pos = 0;
 
     if (er->winid != dwin->wid) return; /* dialogs nest: not ours */
     switch (er->etype) {
@@ -10887,13 +10887,13 @@ static void qryfileevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
 }
 
 /* shared file name query for open and save */
-static void qryfile(char* title, char* s, long sl)
+static void qryfile(char* title, char* s, ami_long sl)
 
 {
 
     FILE*  wf;
     winptr dwin;
-    long   res, bw, bh;
+    ami_long   res, bw, bh;
     wigptr wg;
     qfilst st;
 
@@ -10921,7 +10921,7 @@ static void qryfile(char* title, char* s, long sl)
 
             char  pth[QFPTH+MAXLIN];
             char* rp = wg->face;
-            long  l;
+            ami_long  l;
 
             /* A name picked where the dialog opened, or typed absolute,
                goes back as it stands; browsing elsewhere hands back the
@@ -10945,9 +10945,9 @@ static void qryfile(char* title, char* s, long sl)
 
 }
 
-void ami_queryopen(char* s, long sl) { qryfile("Open file", s, sl); }
+void ami_queryopen(char* s, ami_long sl) { qryfile("Open file", s, sl); }
 
-void ami_querysave(char* s, long sl) { qryfile("Save file", s, sl); }
+void ami_querysave(char* s, ami_long sl) { qryfile("Save file", s, sl); }
 
 /* flow the find query: the search field takes the width, the option
    boxes hold their rows, the buttons keep the bottom row */
@@ -10955,7 +10955,7 @@ static void qryfndlay(FILE* wf, winptr dwin, void* ctx)
 
 {
 
-    long ew;
+    ami_long ew;
 
     fprintf(wf, "\f");
     ami_cursor(wf, 2, 2);
@@ -10969,15 +10969,15 @@ static void qryfndlay(FILE* wf, winptr dwin, void* ctx)
 
 }
 
-void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
+void ami_queryfind(char* s, ami_long sl, ami_qfnopts* opt)
 
 {
 
     FILE*  wf;
     winptr dwin;
-    long   res, bw, bh;
+    ami_long   res, bw, bh;
     wigptr wg;
-    long   w = dimx-10;
+    ami_long   w = dimx-10;
 
     if (w > 50) w = 50;
     if (w < 30) w = 30;
@@ -11001,7 +11001,7 @@ void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
         wg = fndwig(dwin, 1);
         if (wg && wg->face) {
 
-            long l = strlen(wg->face);
+            ami_long l = strlen(wg->face);
             if (l > sl) error("String too large for destination");
             memcpy(s, wg->face, l);
             if (l < sl) s[l] = 0;
@@ -11023,7 +11023,7 @@ static void qryfrplay(FILE* wf, winptr dwin, void* ctx)
 
 {
 
-    long ew;
+    ami_long ew;
 
     fprintf(wf, "\f");
     ami_cursor(wf, 2, 2);
@@ -11041,15 +11041,15 @@ static void qryfrplay(FILE* wf, winptr dwin, void* ctx)
 
 }
 
-void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
+void ami_queryfindrep(char* s, ami_long sl, char* r, ami_long rl, ami_qfropts* opt)
 
 {
 
     FILE*  wf;
     winptr dwin;
-    long   res, bw, bh;
+    ami_long   res, bw, bh;
     wigptr wg;
-    long   w = dimx-10;
+    ami_long   w = dimx-10;
 
     if (w > 50) w = 50;
     if (w < 30) w = 30;
@@ -11075,7 +11075,7 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
         wg = fndwig(dwin, 1);
         if (wg && wg->face) {
 
-            long l = strlen(wg->face);
+            ami_long l = strlen(wg->face);
             if (l > sl) error("String too large for destination");
             memcpy(s, wg->face, l);
             if (l < sl) s[l] = 0;
@@ -11084,7 +11084,7 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
         wg = fndwig(dwin, 7);
         if (wg && wg->face) {
 
-            long l = strlen(wg->face);
+            ami_long l = strlen(wg->face);
             if (l > rl) error("String too large for destination");
             memcpy(r, wg->face, l);
             if (l < rl) r[l] = 0;
@@ -11105,10 +11105,10 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
    colors, the effect names show in their effects, and the rgb buttons
    open the full color query for a 24 bit pick, shown in the swatch by
    each color's row. */
-typedef struct { long fr, fg, fb, br, bg, bb; } qfntst;
+typedef struct { ami_long fr, fg, fb, br, bg, bb; } qfntst;
 
 /* the drop entries take the preset colors, so each name shows in it */
-static void qfntcol(winptr dwin, long id)
+static void qfntcol(winptr dwin, ami_long id)
 
 {
 
@@ -11119,7 +11119,7 @@ static void qfntcol(winptr dwin, long id)
 
     };
     wigptr wg = fndwig(dwin, id);
-    long   i;
+    ami_long   i;
 
     if (!wg) return;
     if (wg->lcol) free(wg->lcol);
@@ -11131,7 +11131,7 @@ static void qfntcol(winptr dwin, long id)
 }
 
 /* the effect faces show their own effects */
-static void qfnteff(winptr dwin, long id, long att)
+static void qfnteff(winptr dwin, ami_long id, ami_long att)
 
 {
 
@@ -11145,12 +11145,12 @@ static void qfnteff(winptr dwin, long id, long att)
 
 /* keep a color drop box marking the held color: selected while it is a
    preset, unmarked while it is a 24 bit pick */
-static void qfntsel(winptr dwin, long id, long r, long g, long b)
+static void qfntsel(winptr dwin, ami_long id, ami_long r, ami_long g, ami_long b)
 
 {
 
     wigptr wg = fndwig(dwin, id);
-    long   i, sel = 0;
+    ami_long   i, sel = 0;
 
     for (i = 0; i < 8; i++)
         if (r == qcolpre[i][0] && g == qcolpre[i][1] && b == qcolpre[i][2])
@@ -11206,7 +11206,7 @@ static void qryfntevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
 {
 
     qfntst* st = (qfntst*)ctx;
-    long    r, g, b;
+    ami_long    r, g, b;
 
     if (er->winid != dwin->wid) return; /* dialogs nest: not ours */
     if (er->etype == ami_etdrpbox) {
@@ -11262,14 +11262,14 @@ static void qryfntevt(FILE* wf, winptr dwin, ami_evtrec* er, void* ctx)
 
 }
 
-void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
-                   long* br, long* bg, long* bb, ami_qfteffects* effect)
+void ami_queryfont(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb,
+                   ami_long* br, ami_long* bg, ami_long* bb, ami_qfteffects* effect)
 
 {
 
     FILE*  wf;
     winptr dwin;
-    long   res, bw, bh;
+    ami_long   res, bw, bh;
     wigptr wg;
     /* A character terminal has one font at one size, so the font and size
        are reported back unchanged; what can be chosen are the colors and
@@ -11277,7 +11277,7 @@ void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
     static char* const cnam[] = { "black", "white", "red", "green", "blue",
                                   "cyan", "yellow", "magenta" };
     ami_strrec fr_[8], br_[8];
-    long i;
+    ami_long i;
     qfntst st;
 
     for (i = 0; i < 8; i++) {

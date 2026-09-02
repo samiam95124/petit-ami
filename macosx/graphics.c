@@ -79,8 +79,8 @@ typedef struct fontrec {
 
 /* Screen context (PA supports multiple virtual screens per window) */
 typedef struct scncon {
-    long        curx,  cury;   /* text cursor (1-based char) */
-    long        curxg, curyg;  /* graphics cursor (1-based pixel) */
+    ami_long    curx,  cury;   /* text cursor (1-based char) */
+    ami_long    curxg, curyg;  /* graphics cursor (1-based pixel) */
     int         curv;          /* cursor visible */
     pa_rgba     fc, bc;        /* foreground / background color */
     drawmode    fmod, bmod;    /* draw modes */
@@ -93,8 +93,8 @@ typedef struct scncon {
     int         hollow, raised;
     int         reverse;
     int         autof;         /* auto scroll/wrap mode */
-    long        textpath;      /* text angle (PA units: LONG_MAX=360°) */
-    long        offx, offy;    /* viewport offset (pixels) */
+    ami_long    textpath;      /* text angle (PA units: LONG_MAX=360°) */
+    ami_long    offx, offy;    /* viewport offset (pixels) */
     float       scalex, scaley;/* viewport scale */
 } scncon, *scnptr;
 
@@ -107,11 +107,11 @@ typedef struct winrec {
     int         parwid;         /* parent window id */
 
     /* dimensions */
-    long        maxxg, maxyg;  /* graphical size in pixels */
-    long        maxx,  maxy;   /* text size in chars */
-    long        charspace;     /* pixels per char column */
-    long        linespace;     /* pixels per char row */
-    long        dpmx, dpmy;    /* dots per meter x/y */
+    ami_long    maxxg, maxyg;  /* graphical size in pixels */
+    ami_long    maxx,  maxy;   /* text size in chars */
+    ami_long    charspace;     /* pixels per char column */
+    ami_long    linespace;     /* pixels per char row */
+    ami_long    dpmx, dpmy;    /* dots per meter x/y */
 
     /* screens */
     scncon      screens[MAXCON];
@@ -233,9 +233,9 @@ static void set_fill_only(CGContextRef ctx, pa_rgba c)
    convention: a result that fills the entire buffer is left without a
    terminating zero, a shorter result is zero terminated, and it is an error
    if the result cannot fit in the buffer. */
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 {
-    long l = strlen(s);
+    ami_long l = strlen(s);
     if (l > dl) {
         fprintf(stderr, "\nError: Graphics: String too large for buffer\n");
         exit(1);
@@ -462,7 +462,7 @@ static CGFloat measure_string(fontptr fp, const char* s, int len)
  * Handles text effects: bold, italic (via font), underline, strikeout,
  * superscript, subscript, reverse, hollow, raised, light. */
 static void draw_string(CGContextRef ctx, fontptr fp, scnptr sc,
-                        long x, long y, const char* s, int len)
+                        ami_long x, ami_long y, const char* s, int len)
 {
     if (!ctx || !fp || !fp->ctfont || !s || len <= 0) return;
 
@@ -988,7 +988,7 @@ static void scroll_up(winptr win)
     /* fill the freed rows at the bottom with the background color using CG */
     scnptr sc = curscn(win);
     CGContextSetRGBFillColor(ctx, sc->bc.r, sc->bc.g, sc->bc.b, 1.0);
-    long clearY = (win->maxy - 1) * win->linespace; /* top of last text row, 0-based */
+    ami_long clearY = (win->maxy - 1) * win->linespace; /* top of last text row, 0-based */
     CGContextFillRect(ctx, CGRectMake(0, PY(clearY + 1), win->maxxg, win->linespace));
     /* restore foreground */
     CGContextSetRGBFillColor(ctx, sc->fc.r, sc->fc.g, sc->fc.b, 1.0);
@@ -1014,8 +1014,8 @@ static int draw_char_at(winptr win, char c)
         cw = win->charspace;
     }
 
-    long px = sc->curxg - 1; /* 1-based to 0-based */
-    long py = sc->curyg - 1;
+    ami_long px = sc->curxg - 1; /* 1-based to 0-based */
+    ami_long py = sc->curyg - 1;
 
     /* fill cell background */
     if (sc->bmod != mdinvis) {
@@ -1077,7 +1077,7 @@ static void plcchr(winptr win, char c)
         sc->curyg = 1;
     } else if (c == '\t') {
         /* advance to next 8-column tab stop */
-        long next = ((sc->curx - 1) / 8 + 1) * 8 + 1;
+        ami_long next = ((sc->curx - 1) / 8 + 1) * 8 + 1;
         if (next > win->maxx) next = win->maxx;
         sc->curx  = next;
         sc->curxg = (sc->curx - 1) * win->charspace + 1;
@@ -1307,12 +1307,12 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
         er->mjoyn = raw->joymove.jn + 1;
         /* the cocoa bridge delivers axes at int full scale; the API is long
            full scale (factor is 1 where long is 32 bits) */
-        er->joypx = (long)raw->joymove.ax[0]*(LONG_MAX/INT_MAX);
-        er->joypy = (long)raw->joymove.ax[1]*(LONG_MAX/INT_MAX);
-        er->joypz = (long)raw->joymove.ax[2]*(LONG_MAX/INT_MAX);
-        er->joyp4 = (long)raw->joymove.ax[3]*(LONG_MAX/INT_MAX);
-        er->joyp5 = (long)raw->joymove.ax[4]*(LONG_MAX/INT_MAX);
-        er->joyp6 = (long)raw->joymove.ax[5]*(LONG_MAX/INT_MAX);
+        er->joypx = (ami_long)raw->joymove.ax[0]*(LONG_MAX/INT_MAX);
+        er->joypy = (ami_long)raw->joymove.ax[1]*(LONG_MAX/INT_MAX);
+        er->joypz = (ami_long)raw->joymove.ax[2]*(LONG_MAX/INT_MAX);
+        er->joyp4 = (ami_long)raw->joymove.ax[3]*(LONG_MAX/INT_MAX);
+        er->joyp5 = (ami_long)raw->joymove.ax[4]*(LONG_MAX/INT_MAX);
+        er->joyp6 = (ami_long)raw->joymove.ax[5]*(LONG_MAX/INT_MAX);
         break;
 
     case PA_EVT_JOY_DOWN:
@@ -1422,7 +1422,7 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
 *                                                                              *
 *******************************************************************************/
 
-void ami_cursor(FILE* f, long x, long y)
+void ami_cursor(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     scnptr sc  = curscn(win);
@@ -1432,13 +1432,13 @@ void ami_cursor(FILE* f, long x, long y)
     sc->curyg  = (y-1) * win->linespace + 1;
 }
 
-long ami_maxx(FILE* f)
+ami_long ami_maxx(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->maxx : 80;
 }
 
-long ami_maxy(FILE* f)
+ami_long ami_maxy(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->maxy : 25;
@@ -1479,55 +1479,55 @@ void ami_right(FILE* f)
     if (sc->curx < win->maxx) ami_cursor(f, sc->curx + 1, sc->cury);
 }
 
-void ami_blink(FILE* f, long e)      { /* stub — CoreText doesn't blink */ }
+void ami_blink(FILE* f, ami_long e)      { /* stub — CoreText doesn't blink */ }
 
-void ami_reverse(FILE* f, long e)
+void ami_reverse(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->reverse = e;
 }
 
-void ami_superscript(FILE* f, long e)
+void ami_superscript(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->superscript = e;
     curscn(win)->subscript = 0; /* mutually exclusive */
 }
 
-void ami_subscript(FILE* f, long e)
+void ami_subscript(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->subscript = e;
     curscn(win)->superscript = 0; /* mutually exclusive */
 }
 
-void ami_underline(FILE* f, long e)
+void ami_underline(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->underline = e;
 }
 
-void ami_italic(FILE* f, long e)
+void ami_italic(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->italic = e;
     rebuild_font(win);
 }
 
-void ami_bold(FILE* f, long e)
+void ami_bold(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->bold = e;
     rebuild_font(win);
 }
 
-void ami_strikeout(FILE* f, long e)
+void ami_strikeout(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->strikeout = e;
 }
 
-void ami_standout(FILE* f, long e)
+void ami_standout(FILE* f, ami_long e)
 {
     /* implement as reverse video */
     ami_reverse(f, e);
@@ -1547,14 +1547,14 @@ void ami_bcolor(FILE* f, ami_color c)
     if (win->han) pa_cocoa_set_background(win->han, bc.r, bc.g, bc.b);
 }
 
-void ami_auto(FILE* f, long e)
+void ami_auto(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->autof = e;
     win->gauto = e; /* window-level: a later screen select inherits this */
 }
 
-void ami_curvis(FILE* f, long e)
+void ami_curvis(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->curv = e;
@@ -1562,25 +1562,25 @@ void ami_curvis(FILE* f, long e)
     pa_cocoa_flush(win->han);
 }
 
-void ami_scroll(FILE* f, long x, long y)
+void ami_scroll(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     ami_scrollg(f, x * win->charspace, y * win->linespace);
 }
 
-long ami_curx(FILE* f)
+ami_long ami_curx(FILE* f)
 {
     winptr win = f2win(f);
     return win ? curscn(win)->curx : 1;
 }
 
-long ami_cury(FILE* f)
+ami_long ami_cury(FILE* f)
 {
     winptr win = f2win(f);
     return win ? curscn(win)->cury : 1;
 }
 
-long ami_curbnd(FILE* f)
+ami_long ami_curbnd(FILE* f)
 {
     winptr win = f2win(f); if (!win) return FALSE;
     scnptr sc  = curscn(win);
@@ -1588,7 +1588,7 @@ long ami_curbnd(FILE* f)
            sc->cury >= 1 && sc->cury <= win->maxy;
 }
 
-void ami_select(FILE* f, long u, long d)
+void ami_select(FILE* f, ami_long u, ami_long d)
 {
     winptr win = f2win(f); if (!win) return;
     if (u < 1 || u > MAXCON || d < 1 || d > MAXCON) return;
@@ -1602,11 +1602,11 @@ void ami_select(FILE* f, long u, long d)
     pa_cocoa_select_screens(win->han, u - 1, d - 1);
 }
 
-void ami_settab(FILE* f, long t)  { /* stub */ }
-void ami_restab(FILE* f, long t)  { /* stub */ }
+void ami_settab(FILE* f, ami_long t)  { /* stub */ }
+void ami_restab(FILE* f, ami_long t)  { /* stub */ }
 void ami_clrtab(FILE* f)         { /* stub */ }
 
-void ami_viewoffg(FILE* f, long x, long y)
+void ami_viewoffg(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     scnptr sc = curscn(win);
@@ -1647,9 +1647,9 @@ float ami_points(FILE* f)
     return win ? win->gfpoint : 11.0f;
 }
 
-long  ami_funkey(FILE* f)         { return 12; /* F1-F12 */ }
+ami_long  ami_funkey(FILE* f)         { return 12; /* F1-F12 */ }
 
-void ami_frametimer(FILE* f, long e)
+void ami_frametimer(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     if (e) {
@@ -1664,7 +1664,7 @@ void ami_frametimer(FILE* f, long e)
         }
     }
 }
-void ami_autohold(long e)            { fautohold = e; }
+void ami_autohold(ami_long e)            { fautohold = e; }
 
 void ami_wrtstr(FILE* f, char* s)
 {
@@ -1673,13 +1673,13 @@ void ami_wrtstr(FILE* f, char* s)
     fwrite(s, 1, strlen(s), f);
 }
 
-void ami_wrtstrn(FILE* f, char* s, long n)
+void ami_wrtstrn(FILE* f, char* s, ami_long n)
 {
     if (!s || n <= 0) return;
     fwrite(s, 1, n, f);
 }
 
-void ami_sizbufg(FILE* f, long x, long y)
+void ami_sizbufg(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     if (x < 1 || y < 1) return;
@@ -1695,7 +1695,7 @@ void ami_sizbufg(FILE* f, long x, long y)
     curscn(win)->lwidth = 1.0;
 }
 
-void ami_sizbuf(FILE* f, long x, long y)
+void ami_sizbuf(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     ami_sizbufg(f, x * win->charspace, y * win->linespace);
@@ -1726,31 +1726,31 @@ void ami_sendevent(FILE* f, ami_evtrec* er) { /* stub */ }
 *                                                                              *
 *******************************************************************************/
 
-long ami_maxxg(FILE* f)
+ami_long ami_maxxg(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->maxxg : maxxd;
 }
 
-long ami_maxyg(FILE* f)
+ami_long ami_maxyg(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->maxyg : maxyd;
 }
 
-long ami_curxg(FILE* f)
+ami_long ami_curxg(FILE* f)
 {
     winptr win = f2win(f);
     return win ? curscn(win)->curxg : 1;
 }
 
-long ami_curyg(FILE* f)
+ami_long ami_curyg(FILE* f)
 {
     winptr win = f2win(f);
     return win ? curscn(win)->curyg : 1;
 }
 
-void ami_cursorg(FILE* f, long x, long y)
+void ami_cursorg(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     scnptr sc  = curscn(win);
@@ -1760,7 +1760,7 @@ void ami_cursorg(FILE* f, long x, long y)
     sc->cury   = (y - 1) / win->linespace + 1;
 }
 
-void ami_line(FILE* f, long x1, long y1, long x2, long y2)
+void ami_line(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1772,7 +1772,7 @@ void ami_line(FILE* f, long x1, long y1, long x2, long y2)
     pa_cocoa_flush(win->han);
 }
 
-void ami_linewidth(FILE* f, long w)
+void ami_linewidth(FILE* f, ami_long w)
 {
     winptr win = f2win(f); if (!win) return;
     scnptr sc  = curscn(win);
@@ -1781,7 +1781,7 @@ void ami_linewidth(FILE* f, long w)
     if (ctx) CGContextSetLineWidth(ctx, sc->lwidth);
 }
 
-void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
+void ami_rect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1791,7 +1791,7 @@ void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
     pa_cocoa_flush(win->han);
 }
 
-void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
+void ami_frect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1849,7 +1849,7 @@ static CGPathRef create_rrect_path(CGFloat x, CGFloat y,
     return path;
 }
 
-void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+void ami_rrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1861,7 +1861,7 @@ void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
     pa_cocoa_flush(win->han);
 }
 
-void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+void ami_frrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1875,7 +1875,7 @@ void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
     pa_cocoa_flush(win->han);
 }
 
-void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
+void ami_ellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1885,7 +1885,7 @@ void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
     pa_cocoa_flush(win->han);
 }
 
-void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
+void ami_fellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1903,7 +1903,7 @@ void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
  * So CG = PA_radians - π/2. */
 #define PA2CG(a) (ANG2RAD(a) - M_PI_2)
 
-void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_arc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1924,7 +1924,7 @@ void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     pa_cocoa_flush(win->han);
 }
 
-void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_farc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1949,7 +1949,7 @@ void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     pa_cocoa_flush(win->han);
 }
 
-void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_fchord(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1973,7 +1973,7 @@ void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
     pa_cocoa_flush(win->han);
 }
 
-void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
+void ami_ftriangle(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -1989,7 +1989,7 @@ void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3
     pa_cocoa_flush(win->han);
 }
 
-void ami_setpixel(FILE* f, long x, long y)
+void ami_setpixel(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = get_ctx(win);
@@ -2029,19 +2029,19 @@ void ami_band(FILE* f) { winptr win = f2win(f); if (win) curscn(win)->bmod = mda
 void ami_for(FILE* f)  { winptr win = f2win(f); if (win) curscn(win)->fmod = mdor;  }
 void ami_bor(FILE* f)  { winptr win = f2win(f); if (win) curscn(win)->bmod = mdor;  }
 
-long ami_chrsizx(FILE* f)
+ami_long ami_chrsizx(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->charspace : 8;
 }
 
-long ami_chrsizy(FILE* f)
+ami_long ami_chrsizy(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->linespace : 16;
 }
 
-long ami_fonts(FILE* f) { return fntcnt; }
+ami_long ami_fonts(FILE* f) { return fntcnt; }
 
 /* Update charspace/linespace/maxx/maxy from the current font */
 static void update_metrics(winptr win)
@@ -2067,7 +2067,7 @@ static void update_metrics(winptr win)
     if (win->maxy < 1) win->maxy = 1;
 }
 
-void ami_font(FILE* f, long fc)
+void ami_font(FILE* f, ami_long fc)
 {
     winptr win = f2win(f); if (!win) return;
     fontptr fp = fntlst;
@@ -2087,7 +2087,7 @@ void ami_font(FILE* f, long fc)
     }
 }
 
-void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
+void ami_fontnam(FILE* f, ami_long fc, char* fns, ami_long fnsl)
 {
     fontptr fp = fntlst;
     int i = 1;
@@ -2096,7 +2096,7 @@ void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
     cpycrit(fns, fnsl, fp && fp->name ? fp->name : "");
 }
 
-void ami_fontsiz(FILE* f, long s)
+void ami_fontsiz(FILE* f, ami_long s)
 {
     winptr win = f2win(f); if (!win) return;
     win->fontsz = (CGFloat)(s > 0 ? s : DEF_FONT_H);
@@ -2112,50 +2112,50 @@ void ami_fontsiz(FILE* f, long s)
     }
 }
 
-void ami_chrspcy(FILE* f, long s)  { /* stub */ }
-void ami_chrspcx(FILE* f, long s)  { /* stub */ }
+void ami_chrspcy(FILE* f, ami_long s)  { /* stub */ }
+void ami_chrspcx(FILE* f, ami_long s)  { /* stub */ }
 
-long ami_dpmx(FILE* f)
+ami_long ami_dpmx(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->dpmx : 3780;
 }
 
-long ami_dpmy(FILE* f)
+ami_long ami_dpmy(FILE* f)
 {
     winptr win = f2win(f);
     return win ? win->dpmy : 3780;
 }
 
-long ami_strsiz(FILE* f, const char* s)
+ami_long ami_strsiz(FILE* f, const char* s)
 {
     winptr win = f2win(f); if (!win || !s) return 0;
     scnptr sc  = curscn(win);
-    return (long)measure_string(sc->font ? sc->font : win->cfont,
+    return (ami_long)measure_string(sc->font ? sc->font : win->cfont,
                                 s, (int)strlen(s));
 }
 
-long ami_chrpos(FILE* f, const char* s, long p)
+ami_long ami_chrpos(FILE* f, const char* s, ami_long p)
 {
     winptr win = f2win(f); if (!win || !s || p <= 0) return 0;
     scnptr sc  = curscn(win);
     int len = (int)strlen(s);
     if (p > len) p = len;
-    return (long)measure_string(sc->font ? sc->font : win->cfont, s, (int)p);
+    return (ami_long)measure_string(sc->font ? sc->font : win->cfont, s, (int)p);
 }
 
 #define MINJST 1 /* minimum pixels for space in justification */
 
 /* Compute justification spacing parameters.
  * Returns: spc = pixels per space, ss = total space budget remaining. */
-static void just_params(winptr win, const char* s, long n,
-                        long* out_spc, long* out_ss)
+static void just_params(winptr win, const char* s, ami_long n,
+                        ami_long* out_spc, ami_long* out_ss)
 {
     fontptr fp = curscn(win)->font ? curscn(win)->font : win->cfont;
     int l = (int)strlen(s);
-    long sz = 0; /* critical size: chars + min space */
-    long ns = 0; /* number of spaces */
-    long cs = 0; /* total character width (no spaces) */
+    ami_long sz = 0; /* critical size: chars + min space */
+    ami_long ns = 0; /* number of spaces */
+    ami_long cs = 0; /* total character width (no spaces) */
     for (int i = 0; i < l; i++) {
         if (s[i] == ' ') { sz += MINJST; ns++; }
         else {
@@ -2164,21 +2164,21 @@ static void just_params(winptr win, const char* s, long n,
             cs += cw;
         }
     }
-    long spc = MINJST;
-    long ss = ns * MINJST;
+    ami_long spc = MINJST;
+    ami_long ss = ns * MINJST;
     if (ns > 0 && n > sz) { spc = (n - cs) / ns; ss = n - cs; }
     *out_spc = spc;
     *out_ss  = ss;
 }
 
-void ami_writejust(FILE* f, const char* s, long n)
+void ami_writejust(FILE* f, const char* s, ami_long n)
 {
     winptr win = f2win(f); if (!win || !s) return;
     scnptr sc  = curscn(win);
     fontptr fp = sc->font ? sc->font : win->cfont;
     int l = (int)strlen(s);
 
-    long spc, ss;
+    ami_long spc, ss;
     just_params(win, s, n, &spc, &ss);
 
     CGContextRef ctx = pa_cocoa_get_context(win->han);
@@ -2187,7 +2187,7 @@ void ami_writejust(FILE* f, const char* s, long n)
     for (int i = 0; i < l; i++) {
         if (s[i] == ' ') {
             /* advance by justified space width */
-            long cbs = (spc > ss) ? ss : spc;
+            ami_long cbs = (spc > ss) ? ss : spc;
             /* draw background for space */
             if (sc->bmod != mdinvis) {
                 CGContextSetBlendMode(ctx, mode2blend(sc->bmod));
@@ -2208,18 +2208,18 @@ void ami_writejust(FILE* f, const char* s, long n)
     pa_cocoa_flush(win->han);
 }
 
-long ami_justpos(FILE* f, const char* s, long p, long n)
+ami_long ami_justpos(FILE* f, const char* s, ami_long p, ami_long n)
 {
     winptr win = f2win(f); if (!win || !s) return 0;
     fontptr fp = curscn(win)->font ? curscn(win)->font : win->cfont;
     int l = (int)strlen(s);
     if (p < 0 || p >= l) return 0;
 
-    long spc, ss;
+    ami_long spc, ss;
     just_params(win, s, n, &spc, &ss);
 
-    long cp = 0;  /* accumulated pixel position */
-    long crp = 0; /* result position */
+    ami_long cp = 0;  /* accumulated pixel position */
+    ami_long crp = 0; /* result position */
     for (int i = 0; i < l; i++) {
         if (i == p) crp = cp;
         if (s[i] == ' ') {
@@ -2232,7 +2232,7 @@ long ami_justpos(FILE* f, const char* s, long p, long n)
     return crp;
 }
 
-void ami_condensed(FILE* f, long e)
+void ami_condensed(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->condensed = e;
@@ -2240,7 +2240,7 @@ void ami_condensed(FILE* f, long e)
     rebuild_font(win);
 }
 
-void ami_extended(FILE* f, long e)
+void ami_extended(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->extended = e;
@@ -2248,59 +2248,59 @@ void ami_extended(FILE* f, long e)
     rebuild_font(win);
 }
 
-void ami_xlight(FILE* f, long e)
+void ami_xlight(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->xlight = e;
     /* xlight uses a lighter weight — approximated by alpha */
 }
 
-void ami_light(FILE* f, long e)
+void ami_light(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->light = e;
 }
 
-void ami_xbold(FILE* f, long e)
+void ami_xbold(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->xbold = e;
     rebuild_font(win);
 }
 
-void ami_hollow(FILE* f, long e)
+void ami_hollow(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->hollow = e;
 }
 
-void ami_raised(FILE* f, long e)
+void ami_raised(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->raised = e;
 }
-void ami_settabg(FILE* f, long t)    { /* stub */ }
-void ami_restabg(FILE* f, long t)    { /* stub */ }
+void ami_settabg(FILE* f, ami_long t)    { /* stub */ }
+void ami_restabg(FILE* f, ami_long t)    { /* stub */ }
 
-long ami_baseline(FILE* f)
+ami_long ami_baseline(FILE* f)
 {
     winptr win = f2win(f); if (!win) return 0;
     scnptr sc  = curscn(win);
     fontptr fp = sc->font ? sc->font : win->cfont;
     if (!fp || !fp->ctfont) return 0;
-    return (long)CTFontGetAscent(fp->ctfont);
+    return (ami_long)CTFontGetAscent(fp->ctfont);
 }
 
-void ami_fcolorg(FILE* f, long r, long g, long b)
+void ami_fcolorg(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     winptr win = f2win(f); if (!win) return;
     pa_rgba c = { r/(double)LONG_MAX, g/(double)LONG_MAX, b/(double)LONG_MAX, 1.0 };
     curscn(win)->fc = c;
 }
 
-void ami_fcolorc(FILE* f, long r, long g, long b) { ami_fcolorg(f, r, g, b); }
+void ami_fcolorc(FILE* f, ami_long r, ami_long g, ami_long b) { ami_fcolorg(f, r, g, b); }
 
-void ami_bcolorg(FILE* f, long r, long g, long b)
+void ami_bcolorg(FILE* f, ami_long r, ami_long g, ami_long b)
 {
     winptr win = f2win(f); if (!win) return;
     pa_rgba c = { r/(double)LONG_MAX, g/(double)LONG_MAX, b/(double)LONG_MAX, 1.0 };
@@ -2308,7 +2308,7 @@ void ami_bcolorg(FILE* f, long r, long g, long b)
     if (win->han) pa_cocoa_set_background(win->han, c.r, c.g, c.b);
 }
 
-void ami_bcolorc(FILE* f, long r, long g, long b) { ami_bcolorg(f, r, g, b); }
+void ami_bcolorc(FILE* f, ami_long r, ami_long g, ami_long b) { ami_bcolorg(f, r, g, b); }
 
 /* Picture storage */
 static CGImageRef pictbl[MAXPIC]; /* loaded pictures, 1-based index */
@@ -2322,7 +2322,7 @@ static void setext(char* fn, const char* ext)
     strcat(fn, ext);
 }
 
-void ami_loadpict(FILE* f, long p, char* fn)
+void ami_loadpict(FILE* f, ami_long p, char* fn)
 {
     winptr win = f2win(f); if (!win) return;
     if (p < 1 || p > MAXPIC) return;
@@ -2340,7 +2340,7 @@ void ami_loadpict(FILE* f, long p, char* fn)
     FILE* pf = fopen(fnh, "rb");
     if (!pf) return;
     fseek(pf, 0, SEEK_END);
-    long sz = ftell(pf);
+    ami_long sz = ftell(pf);
     fseek(pf, 0, SEEK_SET);
     uint8_t* buf = malloc(sz);
     if (!buf) { fclose(pf); return; }
@@ -2360,19 +2360,19 @@ void ami_loadpict(FILE* f, long p, char* fn)
     CFRelease(src);
 }
 
-long ami_pictsizx(FILE* f, long p)
+ami_long ami_pictsizx(FILE* f, ami_long p)
 {
     if (p < 1 || p > MAXPIC || !pictbl[p-1]) return 0;
-    return (long)CGImageGetWidth(pictbl[p-1]);
+    return (ami_long)CGImageGetWidth(pictbl[p-1]);
 }
 
-long ami_pictsizy(FILE* f, long p)
+ami_long ami_pictsizy(FILE* f, ami_long p)
 {
     if (p < 1 || p > MAXPIC || !pictbl[p-1]) return 0;
-    return (long)CGImageGetHeight(pictbl[p-1]);
+    return (ami_long)CGImageGetHeight(pictbl[p-1]);
 }
 
-void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
+void ami_picture(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
     if (p < 1 || p > MAXPIC || !pictbl[p-1]) return;
@@ -2394,19 +2394,19 @@ void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
     pa_cocoa_flush(win->han);
 }
 
-void ami_delpict(FILE* f, long p)
+void ami_delpict(FILE* f, ami_long p)
 {
     if (p < 1 || p > MAXPIC) return;
     if (pictbl[p-1]) { CGImageRelease(pictbl[p-1]); pictbl[p-1] = NULL; }
 }
-void ami_scrollg(FILE* f, long x, long y)
+void ami_scrollg(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     CGContextRef ctx = pa_cocoa_get_context(win->han);
     if (!ctx) return;
     scnptr sc = curscn(win);
-    long w = win->maxxg;
-    long h = win->maxyg;
+    ami_long w = win->maxxg;
+    ami_long h = win->maxyg;
 
     if (x == 0 && y == 0) return;
 
@@ -2487,7 +2487,7 @@ void ami_scrollg(FILE* f, long x, long y)
 
     pa_cocoa_flush(win->han);
 }
-void ami_path(FILE* f, long a)
+void ami_path(FILE* f, ami_long a)
 {
     winptr win = f2win(f); if (!win) return;
     curscn(win)->textpath = a;
@@ -2499,7 +2499,7 @@ void ami_path(FILE* f, long a)
 *                                                                              *
 *******************************************************************************/
 
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 {
     if (!inited) pa_graphics_init();
 
@@ -2548,7 +2548,7 @@ void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
     *outfile = outf;
 }
 
-void ami_buffer(FILE* f, long e)
+void ami_buffer(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     win->bufmod = e;
@@ -2578,7 +2578,7 @@ static void curextra(winptr win, int* dw, int* dh)
 
 /* window sizes are OUTER dimensions, frame included, per PA semantics */
 
-void ami_getsizg(FILE* f, long* x, long* y)
+void ami_getsizg(FILE* f, ami_long* x, ami_long* y)
 {
     winptr win = f2win(f);
     /* the actual on-screen window size, not the buffer size: the drawing
@@ -2590,7 +2590,7 @@ void ami_getsizg(FILE* f, long* x, long* y)
     } else { *x = maxxd; *y = maxyd; }
 }
 
-void ami_getsiz(FILE* f, long* x, long* y)
+void ami_getsiz(FILE* f, ami_long* x, ami_long* y)
 {
     winptr win = f2win(f);
     if (!win) { *x = 80; *y = 25; return; }
@@ -2602,7 +2602,7 @@ void ami_getsiz(FILE* f, long* x, long* y)
                *y = (*y - 1) / STDCHRY + 1; }
 }
 
-void ami_setsizg(FILE* f, long x, long y)
+void ami_setsizg(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     int dw, dh;
@@ -2625,7 +2625,7 @@ void ami_setsizg(FILE* f, long x, long y)
     }
 }
 
-void ami_setsiz(FILE* f, long x, long y)
+void ami_setsiz(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     winptr par = parwin(win);
@@ -2633,7 +2633,7 @@ void ami_setsiz(FILE* f, long x, long y)
     else     ami_setsizg(f, x * STDCHRX, y * STDCHRY);
 }
 
-void ami_setposg(FILE* f, long x, long y)
+void ami_setposg(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     /* pa_cocoa_move_window positions a child relative to the parent's
@@ -2641,7 +2641,7 @@ void ami_setposg(FILE* f, long x, long y)
     pa_cocoa_move_window(win->han, x - 1, y - 1);
 }
 
-void ami_setpos(FILE* f, long x, long y)
+void ami_setpos(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
     winptr par = parwin(win);
@@ -2653,7 +2653,7 @@ void ami_setpos(FILE* f, long x, long y)
                             (y - 1) * STDCHRY + 1);
 }
 
-void ami_scnsiz(FILE* f, long* x, long* y)
+void ami_scnsiz(FILE* f, ami_long* x, ami_long* y)
 {
     winptr win = f2win(f);
     int sw = pa_cocoa_screen_w();
@@ -2662,13 +2662,13 @@ void ami_scnsiz(FILE* f, long* x, long* y)
     *y = win ? sh / win->linespace : 25;
 }
 
-void ami_scnsizg(FILE* f, long* x, long* y)
+void ami_scnsizg(FILE* f, ami_long* x, ami_long* y)
 {
     *x = pa_cocoa_screen_w();
     *y = pa_cocoa_screen_h();
 }
 
-void ami_scncen(FILE* f, long* x, long* y)
+void ami_scncen(FILE* f, ami_long* x, ami_long* y)
 {
     winptr win = f2win(f);
     int sw = pa_cocoa_screen_w();
@@ -2677,13 +2677,13 @@ void ami_scncen(FILE* f, long* x, long* y)
     *y = win ? sh / win->linespace / 2 : 12;
 }
 
-void ami_scnceng(FILE* f, long* x, long* y)
+void ami_scnceng(FILE* f, ami_long* x, ami_long* y)
 {
     *x = pa_cocoa_screen_w() / 2;
     *y = pa_cocoa_screen_h() / 2;
 }
 
-void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+void ami_winclientg(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 {
     winptr win = f2win(f);
     if (!win) { *wx = cx; *wy = cy; return; }
@@ -2697,7 +2697,7 @@ void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset
     *wy = cy + dh;
 }
 
-void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 {
     winptr win = f2win(f);
     if (!win) { *wx = cx; *wy = cy; return; }
@@ -2723,21 +2723,21 @@ void ami_back(FILE* f)
     pa_cocoa_back(win->han);
 }
 
-void ami_frame(FILE* f, long e)
+void ami_frame(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     win->frame = e;
     pa_cocoa_set_frame(win->han, e);
 }
 
-void ami_sizable(FILE* f, long e)
+void ami_sizable(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     win->sizable = e;
     pa_cocoa_set_sizable(win->han, e);
 }
 
-void ami_sysbar(FILE* f, long e)
+void ami_sysbar(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     win->sysbar = e;
@@ -2749,13 +2749,13 @@ void ami_menu(FILE* f, ami_menuptr m)
     pa_cocoa_menu(win->han, (void*)m);
 }
 
-void ami_menuena(FILE* f, long id, long onoff)
+void ami_menuena(FILE* f, ami_long id, ami_long onoff)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_menu_enable(win->han, id, onoff);
 }
 
-void ami_menusel(FILE* f, long id, long select)
+void ami_menusel(FILE* f, ami_long id, ami_long select)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_menu_check(win->han, id, select);
@@ -2854,9 +2854,9 @@ void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
     }
 }
 
-long ami_getwinid(void)
+ami_long ami_getwinid(void)
 {
-    static long next = 1;
+    static ami_long next = 1;
     return next++;
 }
 
@@ -2888,23 +2888,23 @@ void ami_event(FILE* f, ami_evtrec* er)
     if (er->etype == ami_etterm) fend = TRUE;
 }
 
-void ami_timer(FILE* f, long i, long t, long r)
+void ami_timer(FILE* f, ami_long i, ami_long t, ami_long r)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_set_timer(win->han, i-1, t, r); /* PA timers 1-based */
 }
 
-void ami_killtimer(FILE* f, long i)
+void ami_killtimer(FILE* f, ami_long i)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_kill_timer(win->han, i-1);
 }
 
-long ami_mouse(FILE* f)        { return 1; }  /* one mouse */
-long ami_mousebutton(FILE* f, long m) { return 3; }  /* three buttons */
-long ami_joystick(FILE* f)         { return pa_cocoa_joy_count(); }
-long ami_joybutton(FILE* f, long j) { return pa_cocoa_joy_buttons(j); }
-long ami_joyaxis(FILE* f, long j)   { return pa_cocoa_joy_axes(j); }
+ami_long ami_mouse(FILE* f)        { return 1; }  /* one mouse */
+ami_long ami_mousebutton(FILE* f, ami_long m) { return 3; }  /* three buttons */
+ami_long ami_joystick(FILE* f)         { return pa_cocoa_joy_count(); }
+ami_long ami_joybutton(FILE* f, ami_long j) { return pa_cocoa_joy_buttons(j); }
+ami_long ami_joyaxis(FILE* f, ami_long j)   { return pa_cocoa_joy_axes(j); }
 
 /*******************************************************************************
 *                                                                              *
@@ -2912,31 +2912,31 @@ long ami_joyaxis(FILE* f, long j)   { return pa_cocoa_joy_axes(j); }
 *                                                                              *
 *******************************************************************************/
 
-long ami_getwigid(FILE* f)
+ami_long ami_getwigid(FILE* f)
 {
-    static long next = 1;
+    static ami_long next = 1;
     return next++;
 }
 
-void ami_killwidget(FILE* f, long id)
+void ami_killwidget(FILE* f, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_kill_widget(win->han, id);
 }
 
-void ami_selectwidget(FILE* f, long id, long e)
+void ami_selectwidget(FILE* f, ami_long id, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_widget_select(win->han, id, e);
 }
 
-void ami_enablewidget(FILE* f, long id, long e)
+void ami_enablewidget(FILE* f, ami_long id, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_widget_enable(win->han, id, e);
 }
 
-void ami_getwidgettext(FILE* f, long id, char* s, long sl)
+void ami_getwidgettext(FILE* f, ami_long id, char* s, ami_long sl)
 {
     winptr win = f2win(f); if (!win) return;
     /* fetch to a terminated local, then apply the critical buffer
@@ -2950,26 +2950,26 @@ void ami_getwidgettext(FILE* f, long id, char* s, long sl)
     free(buf);
 }
 
-void ami_putwidgettext(FILE* f, long id, char* s)
+void ami_putwidgettext(FILE* f, ami_long id, char* s)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_widget_text(win->han, id, s);
 }
 
-void ami_sizwidget(FILE* f, long id, long x, long y)   { /* stub */ }
-void ami_sizwidgetg(FILE* f, long id, long x, long y)  { /* stub */ }
-void ami_poswidget(FILE* f, long id, long x, long y)   { /* stub */ }
-void ami_poswidgetg(FILE* f, long id, long x, long y)  { /* stub */ }
-void ami_backwidget(FILE* f, long id)                { /* stub */ }
-void ami_frontwidget(FILE* f, long id)               { /* stub */ }
-void ami_focuswidget(FILE* f, long id)               { /* stub */ }
+void ami_sizwidget(FILE* f, ami_long id, ami_long x, ami_long y)   { /* stub */ }
+void ami_sizwidgetg(FILE* f, ami_long id, ami_long x, ami_long y)  { /* stub */ }
+void ami_poswidget(FILE* f, ami_long id, ami_long x, ami_long y)   { /* stub */ }
+void ami_poswidgetg(FILE* f, ami_long id, ami_long x, ami_long y)  { /* stub */ }
+void ami_backwidget(FILE* f, ami_long id)                { /* stub */ }
+void ami_frontwidget(FILE* f, ami_long id)               { /* stub */ }
+void ami_focuswidget(FILE* f, ami_long id)               { /* stub */ }
 
 /* The plain widget calls take CHARACTER coordinates/sizes; the -g calls
    take pixels. Character rects convert to pixel rects covering the full
    character cells (Windows semantics), and pixel sizes convert to
    character sizes rounding up. */
 
-static void chr2grrect(winptr win, long* x1, long* y1, long* x2, long* y2)
+static void chr2grrect(winptr win, ami_long* x1, ami_long* y1, ami_long* x2, ami_long* y2)
 {
     *x1 = (*x1 - 1) * win->charspace + 1;
     *y1 = (*y1 - 1) * win->linespace + 1;
@@ -2977,91 +2977,91 @@ static void chr2grrect(winptr win, long* x1, long* y1, long* x2, long* y2)
     *y2 = (*y2) * win->linespace;
 }
 
-static void gr2chrsiz(winptr win, long* w, long* h)
+static void gr2chrsiz(winptr win, ami_long* w, ami_long* h)
 {
     *w = (*w - 1) / win->charspace + 1;
     *h = (*h - 1) / win->linespace + 1;
 }
 
-void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
+void ami_buttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     *w = ami_strsiz(f, s) + 20;
     *h = ami_chrsizy(f) + 8;
 }
 
-void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_buttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_buttonsizg(f, s, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_buttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_button(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_button(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_buttong(f, x1, y1, x2, y2, s, id);
 }
 
-void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     *w = ami_strsiz(f, s) + 24;
     *h = ami_chrsizy(f) + 4;
 }
 
-void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_checkboxsizg(f, s, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_checkboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_checkbox(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_checkbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_checkboxg(f, x1, y1, x2, y2, s, id);
 }
 
-void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     *w = ami_strsiz(f, s) + 24;
     *h = ami_chrsizy(f) + 4;
 }
 
-void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_radiobuttonsizg(f, s, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_radiobuttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_radiobutton(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_radiobutton(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_radiobuttong(f, x1, y1, x2, y2, s, id);
 }
 
-void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_groupsizg(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
 {
     /* the group must be at least wide enough for its title as NSBox
        renders it, and tall enough for the title plus the client area */
@@ -3074,7 +3074,7 @@ void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* o
     *oy = th;
 }
 
-void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_groupsiz(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; *ox = *oy = 0; return; }
     ami_groupsizg(f, s, cw * win->charspace, ch * win->linespace, w, h, ox, oy);
@@ -3082,168 +3082,168 @@ void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox
     gr2chrsiz(win, ox, oy);
 }
 
-void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_groupg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win || !s) return;
     pa_cocoa_group(win->han, x1, y1, x2-x1+1, y2-y1+1, s, id);
 }
 
-void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_group(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_groupg(f, x1, y1, x2, y2, s, id);
 }
 
-void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_backgroundg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_background(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_background(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_backgroundg(f, x1, y1, x2, y2, id);
 }
 
-void ami_scrollvertsizg(FILE* f, long* w, long* h)  { *w = 16; *h = 100; }
+void ami_scrollvertsizg(FILE* f, ami_long* w, ami_long* h)  { *w = 16; *h = 100; }
 
-void ami_scrollvertsiz(FILE* f, long* w, long* h)
+void ami_scrollvertsiz(FILE* f, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_scrollvertsizg(f, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_scrollvert(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_scrollvertg(f, x1, y1, x2, y2, id);
 }
 
-void ami_scrollhorizsizg(FILE* f, long* w, long* h)  { *w = 100; *h = 16; }
+void ami_scrollhorizsizg(FILE* f, ami_long* w, ami_long* h)  { *w = 100; *h = 16; }
 
-void ami_scrollhorizsiz(FILE* f, long* w, long* h)
+void ami_scrollhorizsiz(FILE* f, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_scrollhorizsizg(f, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_scrollhoriz(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_scrollhorizg(f, x1, y1, x2, y2, id);
 }
 
-void ami_scrollpos(FILE* f, long id, long r)
+void ami_scrollpos(FILE* f, ami_long id, ami_long r)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_scrollbar_pos(win->han, id, r);
 }
 
-void ami_scrollsiz(FILE* f, long id, long r)
+void ami_scrollsiz(FILE* f, ami_long id, ami_long r)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_scrollbar_siz(win->han, id, r);
 }
 
-void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h) { *w = 80; *h = 24; }
+void ami_numselboxsizg(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h) { *w = 80; *h = 24; }
 
-void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
+void ami_numselboxsiz(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_numselboxsizg(f, l, u, w, h);
     gr2chrsiz(win, w, h);
 }
-void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
+void ami_numselboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_numselbox(win->han, x1, y1, x2-x1+1, y2-y1+1, l, u, id);
 }
 
-void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
+void ami_numselbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_numselboxg(f, x1, y1, x2, y2, l, u, id);
 }
 
-void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
+void ami_editboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
 { *w = ami_strsiz(f, s) + 20; *h = ami_chrsizy(f) + 8; }
 
-void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_editboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_editboxsizg(f, s, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_editbox(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_editboxg(f, x1, y1, x2, y2, id);
 }
 
-void ami_progbarsizg(FILE* f, long* w, long* h) { *w = 200; *h = 20; }
+void ami_progbarsizg(FILE* f, ami_long* w, ami_long* h) { *w = 200; *h = 20; }
 
-void ami_progbarsiz(FILE* f, long* w, long* h)
+void ami_progbarsiz(FILE* f, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_progbarsizg(f, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_progressbar(win->han, x1, y1, x2-x1+1, y2-y1+1, id);
 }
 
-void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_progbarg(f, x1, y1, x2, y2, id);
 }
 
-void ami_progbarpos(FILE* f, long id, long pos)
+void ami_progbarpos(FILE* f, ami_long id, ami_long pos)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_progressbar_pos(win->han, id, pos);
 }
 
-void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
 {
     /* wide enough for the longest entry plus scroller and border, tall
        enough for all entries at the native ~18px row height */
-    long mw = 0;
+    ami_long mw = 0;
     int  n  = 0;
     for (ami_strptr p = sp; p; p = p->next) {
-        long sw = ami_strsiz(f, p->str);
+        ami_long sw = ami_strsiz(f, p->str);
         if (sw > mw) mw = sw;
         n++;
     }
@@ -3251,14 +3251,14 @@ void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
     *h = n * 18 + 6;
 }
 
-void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_listboxsizg(f, sp, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_listboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     int n = 0;
@@ -3272,17 +3272,17 @@ void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, lo
     free(strs);
 }
 
-void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_listbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_listboxg(f, x1, y1, x2, y2, sp, id);
 }
 
-void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 { *cw = 150; *ch = 24; *ow = 150; *oh = 100; }
 
-void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 {
     winptr win = f2win(f); if (!win) { *cw = *ch = *ow = *oh = 1; return; }
     ami_dropboxsizg(f, sp, cw, ch, ow, oh);
@@ -3290,7 +3290,7 @@ void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* 
     gr2chrsiz(win, ow, oh);
 }
 
-void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     int n = 0;
@@ -3304,17 +3304,17 @@ void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, lo
     free(strs);
 }
 
-void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_dropboxg(f, x1, y1, x2, y2, sp, id);
 }
 
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 { ami_dropboxsizg(f, sp, cw, ch, ow, oh); }
 
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
 {
     winptr win = f2win(f); if (!win) { *cw = *ch = *ow = *oh = 1; return; }
     ami_dropeditboxsizg(f, sp, cw, ch, ow, oh);
@@ -3322,7 +3322,7 @@ void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, lo
     gr2chrsiz(win, ow, oh);
 }
 
-void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropeditboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     int n = 0;
@@ -3336,51 +3336,51 @@ void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp
     free(strs);
 }
 
-void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropeditbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_dropeditboxg(f, x1, y1, x2, y2, sp, id);
 }
 
-void ami_slidehorizsizg(FILE* f, long* w, long* h) { *w = 150; *h = 20; }
+void ami_slidehorizsizg(FILE* f, ami_long* w, ami_long* h) { *w = 150; *h = 20; }
 
-void ami_slidehorizsiz(FILE* f, long* w, long* h)
+void ami_slidehorizsiz(FILE* f, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_slidehorizsizg(f, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidehorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_slider_horiz(win->han, x1, y1, x2-x1+1, y2-y1+1, mark, id);
 }
 
-void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidehoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
     ami_slidehorizg(f, x1, y1, x2, y2, mark, id);
 }
 
-void ami_slidevertsizg(FILE* f, long* w, long* h) { *w = 20; *h = 150; }
+void ami_slidevertsizg(FILE* f, ami_long* w, ami_long* h) { *w = 20; *h = 150; }
 
-void ami_slidevertsiz(FILE* f, long* w, long* h)
+void ami_slidevertsiz(FILE* f, ami_long* w, ami_long* h)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; return; }
     ami_slidevertsizg(f, w, h);
     gr2chrsiz(win, w, h);
 }
 
-void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidevertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_slider_vert(win->han, x1, y1, x2-x1+1, y2-y1+1, mark, id);
 }
 
-void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidevert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     chr2grrect(win, &x1, &y1, &x2, &y2);
@@ -3392,7 +3392,7 @@ void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long 
 
 /* size of a tab panel for the given client size: the bar adds its height
    on the oriented side; (ox,oy) is the client offset within the panel */
-void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
 {
     switch (tor) {
     case ami_totop:
@@ -3406,7 +3406,7 @@ void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, lo
     }
 }
 
-void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
 {
     winptr win = f2win(f); if (!win) { *w = *h = 1; *ox = *oy = 0; return; }
     ami_tabbarsizg(f, sp, tor, cw * win->charspace, ch * win->linespace,
@@ -3417,7 +3417,7 @@ void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, lon
     *oy = (*oy + win->linespace - 1) / win->linespace;
 }
 
-void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch, ami_long* ox, ami_long* oy)
 {
     switch (tor) {
     case ami_totop:
@@ -3433,7 +3433,7 @@ void ami_tabbarclientg(FILE* f, ami_tabori tor, long w, long h, long* cw, long* 
     if (*ch < 1) *ch = 1;
 }
 
-void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch, long* ox, long* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch, ami_long* ox, ami_long* oy)
 {
     winptr win = f2win(f); if (!win) { *cw = *ch = 1; *ox = *oy = 0; return; }
     ami_tabbarclientg(f, tor, w * win->charspace, h * win->linespace,
@@ -3443,8 +3443,8 @@ void ami_tabbarclient(FILE* f, ami_tabori tor, long w, long h, long* cw, long* c
     *oy = (*oy + win->linespace - 1) / win->linespace;
 }
 
-static void tabbar_common(winptr win, long x1, long y1, long x2, long y2,
-                          ami_strptr sp, ami_tabori tor, long barh, long id)
+static void tabbar_common(winptr win, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+                          ami_strptr sp, ami_tabori tor, ami_long barh, ami_long id)
 {
     int n = 0;
     for (ami_strptr p = sp; p; p = p->next) n++;
@@ -3458,18 +3458,18 @@ static void tabbar_common(winptr win, long x1, long y1, long x2, long y2,
     free(strs);
 }
 
-void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
+void ami_tabbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     tabbar_common(win, x1, y1, x2, y2, sp, tor, TABBAR_H, id);
 }
 
-void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
+void ami_tabbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor, ami_long id)
 {
     winptr win = f2win(f); if (!win) return;
     /* character metrics rounded the bar up to whole cells; use that same
        thickness so the client area lands exactly on character cells */
-    long barh;
+    ami_long barh;
     if (tor == ami_totop || tor == ami_tobottom)
         barh = (TABBAR_H + win->linespace - 1) / win->linespace
                * win->linespace;
@@ -3480,7 +3480,7 @@ void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_
     tabbar_common(win, x1, y1, x2, y2, sp, tor, barh, id);
 }
 
-void ami_tabsel(FILE* f, long id, long tn)
+void ami_tabsel(FILE* f, ami_long id, ami_long tn)
 {
     winptr win = f2win(f); if (!win) return;
     pa_cocoa_tabbar_sel(win->han, id, tn);
@@ -3501,12 +3501,12 @@ void ami_alert(char* title, char* message)
     pa_cocoa_alert(title, message);
 }
 
-void ami_querycolor(long* r, long* g, long* b)
+void ami_querycolor(ami_long* r, ami_long* g, ami_long* b)
 {
     pa_cocoa_query_color(r, g, b);
 }
 
-void ami_queryopen(char* s, long sl)
+void ami_queryopen(char* s, ami_long sl)
 {
     /* the bridge fills a terminated local; the critical copy happens at the
        caller's buffer */
@@ -3518,7 +3518,7 @@ void ami_queryopen(char* s, long sl)
     free(buf);
 }
 
-void ami_querysave(char* s, long sl)
+void ami_querysave(char* s, ami_long sl)
 {
     char* buf = malloc(sl+2);
     if (!buf) return;
@@ -3528,10 +3528,10 @@ void ami_querysave(char* s, long sl)
     free(buf);
 }
 
-void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
+void ami_queryfind(char* s, ami_long sl, ami_qfnopts* opt)
 {
     char* buf = malloc(sl+2);
-    long l = 0;
+    ami_long l = 0;
     if (!buf) return;
     /* the input seed may fill the caller's buffer without a terminator */
     while (l < sl && s[l]) l++;
@@ -3541,11 +3541,11 @@ void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
     free(buf);
 }
 
-void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
+void ami_queryfindrep(char* s, ami_long sl, char* r, ami_long rl, ami_qfropts* opt)
 {
     char* fbuf = malloc(sl+2);
     char* rbuf = malloc(rl+2);
-    long l;
+    ami_long l;
     if (!fbuf || !rbuf) { free(fbuf); free(rbuf); return; }
     /* the input seeds may fill the caller's buffers without terminators */
     l = 0; while (l < sl && s[l]) l++;
@@ -3558,8 +3558,8 @@ void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
     free(fbuf); free(rbuf);
 }
 
-void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg,
-                   long* fb, long* br, long* bg, long* bb,
+void ami_queryfont(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg,
+                   ami_long* fb, ami_long* br, ami_long* bg, ami_long* bb,
                    ami_qfteffects* effect)
 {
     char family[128] = "";

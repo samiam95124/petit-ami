@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
 {
 
     FILE* win[CHILDS];
-    long  cycles, c;
+    ami_long  cycles, c;
     int   i, x, y;
     int   basex, basey;
     char  ts[160];
@@ -127,8 +127,8 @@ int main(int argc, char* argv[])
        something else */
     basex = ami_maxx(stdout);
     basey = ami_maxy(stdout);
-    snprintf(ts, sizeof(ts), "window_race_test: %ld cycles, %d children each,"
-             " parent %d by %d", cycles, CHILDS, basex, basey);
+    snprintf(ts, sizeof(ts), "window_race_test: %lld cycles, %d children each,"
+             " parent %d by %d", AMI_LONG_CAST(cycles), CHILDS, basex, basey);
     note(ts);
 
     for (c = 1; c <= cycles; c++) {
@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
             ami_openwin(&stdin, &win[i], stdout, i+2);
             if (!win[i]) { fail((int)c, "child window did not open"); break; }
             ami_curvis(win[i], OFF);
-            snprintf(ts, sizeof(ts), "child %d of cycle %ld", i+1, c);
+            snprintf(ts, sizeof(ts), "child %d of cycle %lld", i+1, AMI_LONG_CAST(c));
             ami_title(win[i], ts);
             ami_setpos(win[i], 1+i*21, 5);
             ami_sizbuf(win[i], 20, 8);
@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
             ami_bcolor(win[i], i == 0? ami_cyan:
                                i == 1? ami_yellow: ami_magenta);
             putc('\f', win[i]);
-            fprintf(win[i], "cycle %ld\nchild %d\n", c, i+1);
+            fprintf(win[i], "cycle %lld\nchild %d\n", AMI_LONG_CAST(c), i+1);
             fflush(win[i]);
 
         }
@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
            font that the two threads share */
         for (i = 0; i < CHILDS; i++) if (win[i]) {
 
-            snprintf(ts, sizeof(ts), "retitled %d/%ld", i+1, c);
+            snprintf(ts, sizeof(ts), "retitled %d/%lld", i+1, AMI_LONG_CAST(c));
             ami_title(win[i], ts);
 
         }
@@ -190,8 +190,8 @@ int main(int argc, char* argv[])
         }
         if (c % 10 == 0 || c == cycles) {
 
-            snprintf(ts, sizeof(ts), "window_race_test: %ld of %ld cycles",
-                     c, cycles);
+            snprintf(ts, sizeof(ts), "window_race_test: %lld of %lld cycles",
+                     AMI_LONG_CAST(c), AMI_LONG_CAST(cycles));
             note(ts);
 
         }

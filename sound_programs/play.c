@@ -24,7 +24,7 @@ https://www.qbasic.net/en/reference/qb11/Statement/PLAY-006.htm
 
 #define SECOND 10000
 
-long dport = AMI_SYNTH_OUT; /* set default synth out */
+ami_long dport = AMI_SYNTH_OUT; /* set default synth out */
 
 ami_optrec opttbl[] = {
 
@@ -236,8 +236,8 @@ int main(int argc, char **argv)
 {
 
     int song;
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
     char buff[20];
 
     /* parse user options */
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
     octave = AMI_OCTAVE_5; /* start in middle octave */
     deftim = ntime; /* set whole notes default */
 
-    printf("Synthesisers: %ld\n", ami_synthout());
+    printf("Synthesisers: %lld\n", AMI_LONG_CAST(ami_synthout()));
     ami_opensynthout(dport); /* open main synthesiser */
 
     ami_instchange(dport, 0, 1, AMI_INST_ACOUSTIC_GRAND);

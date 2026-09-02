@@ -191,8 +191,8 @@ void grx_decreg(const decvec* v) { dec = v; }
 /* forward declarations: the notify waits (defined with the event
    machinery) */
 static void notexevt(pd_evt* e);
-static int  waitxevt(int type, pd_win* wh, unsigned long since, pd_evt* out);
-static void waitxmap(pd_win* wh, unsigned long since);
+static int  waitxevt(int type, pd_win* wh, ami_ulong since, pd_evt* out);
+static void waitxmap(pd_win* wh, ami_ulong since);
 
 /* The font is drawn under a lock.
    
@@ -703,12 +703,12 @@ typedef struct joyrec {
     int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
-    long ax;    /* joystick x axis save */
-    long ay;    /* joystick y axis save */
-    long az;    /* joystick z axis save */
-    long a4;    /* joystick axis 4 save */
-    long a5;    /* joystick axis 5 save */
-    long a6;    /* joystick axis 6 save */
+    ami_long ax;    /* joystick x axis save */
+    ami_long ay;    /* joystick y axis save */
+    ami_long az;    /* joystick z axis save */
+    ami_long a4;    /* joystick axis 4 save */
+    ami_long a5;    /* joystick axis 5 save */
+    ami_long a6;    /* joystick axis 6 save */
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
@@ -728,11 +728,11 @@ typedef struct systrk {
    in XLIB, but is still operative.  */
 typedef struct
 {
-    unsigned long       flags;
-    unsigned long       functions;
-    unsigned long       decorations;
-    long                inputmode;
-    unsigned long       status;
+    ami_ulong           flags;
+    ami_ulong           functions;
+    ami_ulong           decorations;
+    ami_long            inputmode;
+    ami_ulong           status;
 
 } mwmhints;
 
@@ -1005,7 +1005,7 @@ static ami_queryfont_t       queryfont_vect;
 /* X Windows globals */
 
 static int fend;      /* end of program ordered flag */
-static long fautohold; /* automatic hold on exit flag */
+static ami_long fautohold; /* automatic hold on exit flag */
 static pthread_mutex_t xwlock; /* XWindow call lock */
 
 /* X windows display characteristics.
@@ -1023,7 +1023,7 @@ static filptr     opnfil[MAXFIL]; /* open files table */
 static int        xltwin[MAXFIL*2+1]; /* window equivalence table, includes
                                          negatives and 0 */
 static metptr     xltmnu[MAXFIL*2+1]; /* menu entry equivalence table */
-static long       filwin[MAXFIL]; /* file to window equivalence table */
+static ami_long   filwin[MAXFIL]; /* file to window equivalence table */
 static int        esck;           /* previous key was escape */
 static fontptr    fntlst;         /* list of fonts */
 static int        fntcnt;         /* number of fonts */
@@ -1072,23 +1072,23 @@ static int        frmoffx[frmcfgsys+1];     /* frame offset to client x */
 static int        frmoffy[frmcfgsys+1];     /* frame offset to client y */
 
 /* memory statistics/diagnostics */
-static unsigned long memusd;    /* total memory in use for malloc */
-static unsigned long memrty;    /* retries executed on malloc */
-static unsigned long maxrty;    /* maximum retry count */
-static unsigned long fontcnt;   /* font entry counter */
-static unsigned long fonttot;   /* font entry total */
-static unsigned long filcnt;    /* file entry counter */
-static unsigned long filtot;    /* file entry total */
-static unsigned long piccnt;    /* picture entry counter */
-static unsigned long pictot;    /* picture entry total */
-static unsigned long scncnt;    /* screen struct counter */
-static unsigned long scntot;    /* screen struct total */
-static unsigned long wincnt;    /* windows structure counter */
-static unsigned long wintot;    /* windows structure total */
-static unsigned long imgcnt;    /* image frame counter */
-static unsigned long imgtot;    /* image frame total */
-static unsigned long metcnt;    /* menu entries counter */
-static unsigned long mettot;    /* menu entries total */
+static ami_ulong memusd;    /* total memory in use for malloc */
+static ami_ulong memrty;    /* retries executed on malloc */
+static ami_ulong maxrty;    /* maximum retry count */
+static ami_ulong fontcnt;   /* font entry counter */
+static ami_ulong fonttot;   /* font entry total */
+static ami_ulong filcnt;    /* file entry counter */
+static ami_ulong filtot;    /* file entry total */
+static ami_ulong piccnt;    /* picture entry counter */
+static ami_ulong pictot;    /* picture entry total */
+static ami_ulong scncnt;    /* screen struct counter */
+static ami_ulong scntot;    /* screen struct total */
+static ami_ulong wincnt;    /* windows structure counter */
+static ami_ulong wintot;    /* windows structure total */
+static ami_ulong imgcnt;    /* image frame counter */
+static ami_ulong imgtot;    /* image frame total */
+static ami_ulong metcnt;    /* menu entries counter */
+static ami_ulong mettot;    /* menu entries total */
 
 /* config settable runtime options */
 static int maxxd;     /* default window dimensions */
@@ -1101,8 +1101,8 @@ static int dmpevt;    /* enable dump Petit-Ami messages */
 static int prtftm;    /* print font metrics (diagnostic) */
 static int conpnt;    /* size of console font in points */
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
-                     long subclient);
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid,
+                     ami_long subclient);
 
 /** ****************************************************************************
 
@@ -1553,11 +1553,11 @@ result is zero terminated.
 
 *******************************************************************************/
 
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 
 {
 
-    long l; /* length of source string */
+    ami_long l; /* length of source string */
 
     l = strlen(s); /* find length of source */
     if (l > dl) error(eftntl); /* string too large for buffer */
@@ -1600,23 +1600,23 @@ static void *imalloc(size_t size)
     if (!ptr) {
 
 #ifdef PRTMEM
-        fprintf(stderr, "Malloc fail, memory used: %lu retries: %lu\n", memusd,
-                        memrty);
-        fprintf(stderr, "Maximum retry: %lu\n", maxrty);
-        fprintf(stderr, "Font entry counter:    %lu\n", fontcnt);
-        fprintf(stderr, "Font entry total:      %lu\n", fonttot);
-        fprintf(stderr, "File entry counter:    %lu\n", filcnt);
-        fprintf(stderr, "File entry total:      %lu\n", filtot);
-        fprintf(stderr, "Picture entry counter: %lu\n", piccnt);
-        fprintf(stderr, "Picture entry total:   %lu\n", pictot);
-        fprintf(stderr, "Screen entry counter:  %lu\n", scncnt);
-        fprintf(stderr, "Screen entry total:    %lu\n", scntot);
-        fprintf(stderr, "Window entry counter:  %lu\n", wincnt);
-        fprintf(stderr, "Window entry total:    %lu\n", wintot);
-        fprintf(stderr, "Image frame counter:   %lu\n", imgcnt);
-        fprintf(stderr, "Image frame total:     %lu\n", imgtot);
-        fprintf(stderr, "Menu entries counter:  %lu\n", metcnt);
-        fprintf(stderr, "Menu entries total:    %lu\n", mettot);
+        fprintf(stderr, "Malloc fail, memory used: %llu retries: %llu\n", AMI_ULONG_CAST(memusd),
+                        AMI_ULONG_CAST(memrty));
+        fprintf(stderr, "Maximum retry: %llu\n", AMI_ULONG_CAST(maxrty));
+        fprintf(stderr, "Font entry counter:    %llu\n", AMI_ULONG_CAST(fontcnt));
+        fprintf(stderr, "Font entry total:      %llu\n", AMI_ULONG_CAST(fonttot));
+        fprintf(stderr, "File entry counter:    %llu\n", AMI_ULONG_CAST(filcnt));
+        fprintf(stderr, "File entry total:      %llu\n", AMI_ULONG_CAST(filtot));
+        fprintf(stderr, "Picture entry counter: %llu\n", AMI_ULONG_CAST(piccnt));
+        fprintf(stderr, "Picture entry total:   %llu\n", AMI_ULONG_CAST(pictot));
+        fprintf(stderr, "Screen entry counter:  %llu\n", AMI_ULONG_CAST(scncnt));
+        fprintf(stderr, "Screen entry total:    %llu\n", AMI_ULONG_CAST(scntot));
+        fprintf(stderr, "Window entry counter:  %llu\n", AMI_ULONG_CAST(wincnt));
+        fprintf(stderr, "Window entry total:    %llu\n", AMI_ULONG_CAST(wintot));
+        fprintf(stderr, "Image frame counter:   %llu\n", AMI_ULONG_CAST(imgcnt));
+        fprintf(stderr, "Image frame total:     %llu\n", AMI_ULONG_CAST(imgtot));
+        fprintf(stderr, "Menu entries counter:  %llu\n", AMI_ULONG_CAST(metcnt));
+        fprintf(stderr, "Menu entries total:    %llu\n", AMI_ULONG_CAST(mettot));
 #endif
         error(enomem);
 
@@ -1749,56 +1749,56 @@ void prtevt(ami_evtptr er)
 
     if (dmpevt) {
 
-        fprintf(stderr, "PA Event: %5d Window: %ld ", evtcnt++, er->winid);
+        fprintf(stderr, "PA Event: %5d Window: %lld ", evtcnt++, AMI_LONG_CAST(er->winid));
         prtevtt(er->etype);
         switch (er->etype) {
 
             case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-            case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
-            case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
-                                      er->mmoun, er->moupx, er->moupy); break;
-            case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
-                                     er->amoun, er->amoubn); break;
-            case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
-                                     er->dmoun, er->dmoubn); break;
-            case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
-                                     er->ajoyn, er->ajoybn); break;
-            case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
-                                     er->djoyn, er->djoybn); break;
-            case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
-                                      "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
-                                      er->joypx, er->joypy, er->joypz,
-                                      er->joyp4, er->joyp5, er->joyp6); break;
-            case ami_etresize: fprintf(stderr, ": x: %ld y: %ld xg: %ld yg: %ld",
-                                      er->rszx, er->rszy,
-                                      er->rszxg, er->rszyg); break;
-            case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
-            case ami_etmoumovg: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
-                                       er->mmoung, er->moupxg, er->moupyg); break;
-            case ami_etredraw: fprintf(stderr, ": sx: %4ld sy: %4ld ex: %4ld ey: %4ld",
-                                      er->rsx, er->rsy, er->rex, er->rey); break;
-            case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
-            case ami_etbutton: fprintf(stderr, ": id: %ld", er->butid); break;
-            case ami_etchkbox: fprintf(stderr, ": id: %ld", er->ckbxid); break;
-            case ami_etradbut: fprintf(stderr, ": id: %ld", er->radbid); break;
-            case ami_etsclull: fprintf(stderr, ": id: %ld", er->sclulid); break;
-            case ami_etscldrl: fprintf(stderr, ": id: %ld", er->scldrid); break;
-            case ami_etsclulp: fprintf(stderr, ": id: %ld", er->sclupid); break;
-            case ami_etscldrp: fprintf(stderr, ": id: %ld", er->scldpid); break;
-            case ami_etsclpos: fprintf(stderr, ": id: %ld position: %ld",
-                                      er->sclpid, er->sclpos); break;
-            case ami_etedtbox: fprintf(stderr, ": id: %ld", er->edtbid); break;
-            case ami_etnumbox: fprintf(stderr, ": id: %ld number: %ld",
-                                      er->numbid, er->numbsl); break;
-            case ami_etlstbox: fprintf(stderr, ": id: %ld select: %ld",
-                                      er->lstbid, er->lstbsl); break;
-            case ami_etdrpbox: fprintf(stderr, ": id: %ld select: %ld",
-                                      er->drpbid, er->drpbsl); break;
-            case ami_etdrebox: fprintf(stderr, ": id: %ld", er->drebid); break;
-            case ami_etsldpos: fprintf(stderr, ": id: %ld postion: %ld",
-                                      er->sldpid, er->sldpos); break;
-            case ami_ettabbar: fprintf(stderr, ": id: %ld select: %ld",
-                                      er->tabid, er->tabsel); break;
+            case ami_ettim: fprintf(stderr, ": timer: %lld", AMI_LONG_CAST(er->timnum)); break;
+            case ami_etmoumov: fprintf(stderr, ": mouse: %lld x: %4lld y: %4lld",
+                                      AMI_LONG_CAST(er->mmoun), AMI_LONG_CAST(er->moupx), AMI_LONG_CAST(er->moupy)); break;
+            case ami_etmouba: fprintf(stderr, ": mouse: %lld button: %lld",
+                                     AMI_LONG_CAST(er->amoun), AMI_LONG_CAST(er->amoubn)); break;
+            case ami_etmoubd: fprintf(stderr, ": mouse: %lld button: %lld",
+                                     AMI_LONG_CAST(er->dmoun), AMI_LONG_CAST(er->dmoubn)); break;
+            case ami_etjoyba: fprintf(stderr, ": joystick: %lld button: %lld",
+                                     AMI_LONG_CAST(er->ajoyn), AMI_LONG_CAST(er->ajoybn)); break;
+            case ami_etjoybd: fprintf(stderr, ": joystick: %lld button: %lld",
+                                     AMI_LONG_CAST(er->djoyn), AMI_LONG_CAST(er->djoybn)); break;
+            case ami_etjoymov: fprintf(stderr, ": joystick: %lld x: %4lld y: %4lld z: %4lld "
+                                      "a4: %4lld a5: %4lld a6: %4lld", AMI_LONG_CAST(er->mjoyn),
+                                      AMI_LONG_CAST(er->joypx), AMI_LONG_CAST(er->joypy), AMI_LONG_CAST(er->joypz),
+                                      AMI_LONG_CAST(er->joyp4), AMI_LONG_CAST(er->joyp5), AMI_LONG_CAST(er->joyp6)); break;
+            case ami_etresize: fprintf(stderr, ": x: %lld y: %lld xg: %lld yg: %lld",
+                                      AMI_LONG_CAST(er->rszx), AMI_LONG_CAST(er->rszy),
+                                      AMI_LONG_CAST(er->rszxg), AMI_LONG_CAST(er->rszyg)); break;
+            case ami_etfun: fprintf(stderr, ": key: %lld", AMI_LONG_CAST(er->fkey)); break;
+            case ami_etmoumovg: fprintf(stderr, ": mouse: %lld x: %4lld y: %4lld",
+                                       AMI_LONG_CAST(er->mmoung), AMI_LONG_CAST(er->moupxg), AMI_LONG_CAST(er->moupyg)); break;
+            case ami_etredraw: fprintf(stderr, ": sx: %4lld sy: %4lld ex: %4lld ey: %4lld",
+                                      AMI_LONG_CAST(er->rsx), AMI_LONG_CAST(er->rsy), AMI_LONG_CAST(er->rex), AMI_LONG_CAST(er->rey)); break;
+            case ami_etmenus: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->menuid)); break;
+            case ami_etbutton: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->butid)); break;
+            case ami_etchkbox: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->ckbxid)); break;
+            case ami_etradbut: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->radbid)); break;
+            case ami_etsclull: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->sclulid)); break;
+            case ami_etscldrl: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->scldrid)); break;
+            case ami_etsclulp: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->sclupid)); break;
+            case ami_etscldrp: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->scldpid)); break;
+            case ami_etsclpos: fprintf(stderr, ": id: %lld position: %lld",
+                                      AMI_LONG_CAST(er->sclpid), AMI_LONG_CAST(er->sclpos)); break;
+            case ami_etedtbox: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->edtbid)); break;
+            case ami_etnumbox: fprintf(stderr, ": id: %lld number: %lld",
+                                      AMI_LONG_CAST(er->numbid), AMI_LONG_CAST(er->numbsl)); break;
+            case ami_etlstbox: fprintf(stderr, ": id: %lld select: %lld",
+                                      AMI_LONG_CAST(er->lstbid), AMI_LONG_CAST(er->lstbsl)); break;
+            case ami_etdrpbox: fprintf(stderr, ": id: %lld select: %lld",
+                                      AMI_LONG_CAST(er->drpbid), AMI_LONG_CAST(er->drpbsl)); break;
+            case ami_etdrebox: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->drebid)); break;
+            case ami_etsldpos: fprintf(stderr, ": id: %lld postion: %lld",
+                                      AMI_LONG_CAST(er->sldpid), AMI_LONG_CAST(er->sldpos)); break;
+            case ami_ettabbar: fprintf(stderr, ": id: %lld select: %lld",
+                                      AMI_LONG_CAST(er->tabid), AMI_LONG_CAST(er->tabsel)); break;
             default: ;
 
         }
@@ -1847,7 +1847,7 @@ void prtxevt(pd_evt* e)
 
 {
 
-    fprintf(stderr, "Event: %5lu Window: %p ", e->token,
+    fprintf(stderr, "Event: %5llu Window: %p ", AMI_ULONG_CAST(e->token),
             (void*)e->win);
     prtxevtt(e->etype);
     switch (e->etype) {
@@ -1855,8 +1855,8 @@ void prtxevt(pd_evt* e)
         case pd_etredraw: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
                              e->rx, e->ry,
                              e->rw, e->rh); break;
-        case pd_etresize: fprintf(stderr, ": w: %d h: %d token: %lu",
-                             e->w, e->h, e->token); break;
+        case pd_etresize: fprintf(stderr, ": w: %d h: %d token: %llu",
+                             e->w, e->h, AMI_ULONG_CAST(e->token)); break;
         case pd_etmouse: fprintf(stderr, ": x: %d y: %d",
                                    e->x, e->y); break;
 
@@ -2014,7 +2014,7 @@ flag. Note that decoration properties can only be set/reset one at a time.
 
 *******************************************************************************/
 
-void enbxfrm(pd_win* xwh, long e)
+void enbxfrm(pd_win* xwh, ami_long e)
 
 {
 
@@ -2038,7 +2038,7 @@ managers.
 
 *******************************************************************************/
 
-void enbxsiz(pd_win* xwh, long e)
+void enbxsiz(pd_win* xwh, ami_long e)
 
 {
 
@@ -2068,7 +2068,7 @@ flag. Note that decoration properties can only be set/reset one at a time.
 
 *******************************************************************************/
 
-void enbxsys(pd_win* xwh, long e)
+void enbxsys(pd_win* xwh, ami_long e)
 
 {
 
@@ -2207,7 +2207,7 @@ bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static int rgb2xwin(long r, long g, long b)
+static int rgb2xwin(ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -3649,7 +3649,7 @@ done.
 
 *******************************************************************************/
 
-static void delpic(winptr win, long p)
+static void delpic(winptr win, ami_long p)
 
 {
 
@@ -3728,7 +3728,7 @@ Finds the windows context record from the logical window number, with checking.
 
 *******************************************************************************/
 
-static winptr lwn2win(long wid)
+static winptr lwn2win(ami_long wid)
 
 {
 
@@ -3870,7 +3870,7 @@ drawing direction. Converts PA angles to XWindow angles.
 
 #define DEGREE (LONG_MAX/360)
 
-int rat2a64(long a)
+int rat2a64(ami_long a)
 
 {
 
@@ -4299,7 +4299,7 @@ static void notexevt(pd_evt* e)
    X serial, can satisfy the wait: with other threads reading and noting
    events continuously, the ring holds history, and a stale configure
    would hand a resize the size the window used to be. */
-static int sawxevt(int type, pd_win* w, unsigned long since, pd_evt* out)
+static int sawxevt(int type, pd_win* w, ami_ulong since, pd_evt* out)
 
 {
 
@@ -4333,7 +4333,7 @@ static int sawxevt(int type, pd_win* w, unsigned long since, pd_evt* out)
    geometry, signaled by the zero return, rather than hanging it. */
 #define WAITXMS 2000 /* the bound, in polls of a millisecond */
 
-static int waitxevt(int type, pd_win* wh, unsigned long since, pd_evt* out)
+static int waitxevt(int type, pd_win* wh, ami_ulong since, pd_evt* out)
 
 {
 
@@ -4358,7 +4358,7 @@ static int waitxevt(int type, pd_win* wh, unsigned long since, pd_evt* out)
 
 }
 
-static void waitxmap(pd_win* wh, unsigned long since)
+static void waitxmap(pd_win* wh, ami_ulong since)
 
 {
 
@@ -4535,7 +4535,7 @@ Remove all matching window PA events from input queue
 
 *******************************************************************************/
 
-static void remquepawin(long winid)
+static void remquepawin(ami_long winid)
 
 {
 
@@ -5190,7 +5190,7 @@ static void winvis(winptr win)
 
 {
 
-    unsigned long snc; /* serial of the provoking request */
+    ami_ulong snc; /* serial of the provoking request */
 
 #ifndef NOWDELAY
    if (!win->visible) { /* not already visible */
@@ -5362,7 +5362,7 @@ cleared, and a single buffer assigned to the window.
 
 *******************************************************************************/
 
-static void opnwin(int fn, int pfn, long wid, int subclient)
+static void opnwin(int fn, int pfn, ami_long wid, int subclient)
 
 {
 
@@ -5725,7 +5725,7 @@ static void closewin(int ofn)
 {
 
     int       ifn;  /* input file id */
-    long      wid;  /* window id */
+    ami_long  wid;  /* window id */
     winptr    win;  /* window data structure */
     winptr    pwin; /* parent window */
     ami_evtrec er;   /* PA event record */
@@ -5769,7 +5769,7 @@ Creates, opens and initializes an input and output pair of files.
 *******************************************************************************/
 
 static void openio(FILE* infile, FILE* outfile, int ifn, int ofn, int pfn,
-                   long wid, int subclient)
+                   ami_long wid, int subclient)
 
 {
 
@@ -5858,7 +5858,7 @@ If the entry exists more than once, it generates an error.
 *******************************************************************************/
 
 /* search subtree for meny entry */
-static metptr fndmenu_tree(metptr mp, long id)
+static metptr fndmenu_tree(metptr mp, ami_long id)
 
 {
 
@@ -5888,7 +5888,7 @@ static metptr fndmenu_tree(metptr mp, long id)
 
 }
 
-static metptr fndmenu(winptr win, long id)
+static metptr fndmenu(winptr win, ami_long id)
 
 {
 
@@ -6275,7 +6275,7 @@ to the window.
 
 *******************************************************************************/
 
-static void iscrollg(winptr win, long x, long y)
+static void iscrollg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -6388,7 +6388,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(winptr win, long x, long y)
+static void icursor(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -6412,7 +6412,7 @@ Moves the cursor to the specified x and y location in pixels.
 
 *******************************************************************************/
 
-static void icursorg(winptr win, long x, long y)
+static void icursorg(winptr win, ami_long x, ami_long y)
 
 {
 
@@ -6651,7 +6651,7 @@ static void itab(winptr win)
 {
 
     int i;
-    long x;
+    ami_long x;
     scnptr sc;
 
     sc = win->screens[win->curupd-1];
@@ -6680,7 +6680,7 @@ Sets a tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void isettabg(winptr win, long t)
+static void isettabg(winptr win, ami_long t)
 
 {
 
@@ -6714,7 +6714,7 @@ Resets the tab at the indicated pixel number.
 
 *******************************************************************************/
 
-static void irestabg(winptr win, long t)
+static void irestabg(winptr win, ami_long t)
 
 {
 
@@ -6762,7 +6762,7 @@ anywhere.
 
 *******************************************************************************/
 
-static void iauto(winptr win, long e)
+static void iauto(winptr win, ami_long e)
 
 {
 
@@ -6892,7 +6892,7 @@ The angle for the vector is using PA 12'oclock LONG_MAX ratioed angles clockwise
 
 *******************************************************************************/
 
-static void addvect(long* x, long* y, float a, long l)
+static void addvect(ami_long* x, ami_long* y, float a, ami_long l)
 
 {
 
@@ -6912,13 +6912,13 @@ Draws a rectangle rotated by an angle.
 /* convert PA LONG_MAX ratio angle to RADIAN measure */
 #define RADIAN(a) ((double)2*M_PI/LONG_MAX*a)
 
-static void drwrecta(pd_canvas* d, scnptr sc, long a, int x, int y, int w, int h)
+static void drwrecta(pd_canvas* d, scnptr sc, ami_long a, int x, int y, int w, int h)
 
 {
 
-    long x1, x2, x3, x4;
-    long y1, y2, y3, y4;
-    long c;
+    ami_long x1, x2, x3, x4;
+    ami_long y1, y2, y3, y4;
+    ami_long c;
     double ac;
 
     x1 = x2 = x3 = x4= x;
@@ -6943,13 +6943,13 @@ Draws a filled rectangle rotated by an angle.
 
 *******************************************************************************/
 
-static void drwfrecta(pd_canvas* d, scnptr sc, long a, int x, int y, int w, int h)
+static void drwfrecta(pd_canvas* d, scnptr sc, ami_long a, int x, int y, int w, int h)
 
 {
 
-    long x1, x2, x3, x4;
-    long y1, y2, y3, y4;
-    long c;
+    ami_long x1, x2, x3, x4;
+    ami_long y1, y2, y3, y4;
+    ami_long c;
     double ac;
     int xp[8];
 
@@ -6992,9 +6992,9 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
 {
 
     char cb[2];      /* character buffer */
-    long xb, yb;     /* rotated baseline */
-    long xull, yull, xulr, yulr; /* underline 1 */
-    long xsol, ysol, xsor, ysor; /* underline 1 */
+    ami_long xb, yb;     /* rotated baseline */
+    ami_long xull, yull, xulr, yulr; /* underline 1 */
+    ami_long xsol, ysol, xsor, ysor; /* underline 1 */
 
     /* transform starting position and sizes for viewport scaling */
     int px  = L2PX(win, sc->curxg-1);
@@ -7748,9 +7748,9 @@ to the window.
 
 void _pa_scrollg_ovr(ami_scrollg_t nfp, ami_scrollg_t* ofp)
     { *ofp = scrollg_vect; scrollg_vect = nfp; }
-void ami_scrollg(FILE* f, long x, long y) { (*scrollg_vect)(f, x, y); }
+void ami_scrollg(FILE* f, ami_long x, ami_long y) { (*scrollg_vect)(f, x, y); }
 
-static void scrollg_ivf(FILE* f, long x, long y)
+static void scrollg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -7763,9 +7763,9 @@ static void scrollg_ivf(FILE* f, long x, long y)
 
 void _pa_scroll_ovr(ami_scroll_t nfp, ami_scroll_t* ofp)
     { *ofp = scroll_vect; scroll_vect = nfp; }
-void ami_scroll(FILE* f, long x, long y) { (*scroll_vect)(f, x, y); }
+void ami_scroll(FILE* f, ami_long x, ami_long y) { (*scroll_vect)(f, x, y); }
 
-static void scroll_ivf(FILE* f, long x, long y)
+static void scroll_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -7787,9 +7787,9 @@ Moves the cursor to the specified x and y location.
 
 void _pa_cursor_ovr(ami_cursor_t nfp, ami_cursor_t* ofp)
     { *ofp = cursor_vect; cursor_vect = nfp; }
-void ami_cursor(FILE* f, long x, long y) { (*cursor_vect)(f, x, y); }
+void ami_cursor(FILE* f, ami_long x, ami_long y) { (*cursor_vect)(f, x, y); }
 
-static void cursor_ivf(FILE* f, long x, long y)
+static void cursor_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -7810,9 +7810,9 @@ Moves the cursor to the specified x and y location in pixels.
 
 void _pa_cursorg_ovr(ami_cursorg_t nfp, ami_cursorg_t* ofp)
     { *ofp = cursorg_vect; cursorg_vect = nfp; }
-void ami_cursorg(FILE* f, long x, long y) { (*cursorg_vect)(f, x, y); }
+void ami_cursorg(FILE* f, ami_long x, ami_long y) { (*cursorg_vect)(f, x, y); }
 
-static void cursorg_ivf(FILE* f, long x, long y)
+static void cursorg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -7834,9 +7834,9 @@ to the font baseline. The baseline is the line all characters rest on.
 
 void _pa_baseline_ovr(ami_baseline_t nfp, ami_baseline_t* ofp)
     { *ofp = baseline_vect; baseline_vect = nfp; }
-long ami_baseline(FILE* f) { return ((*baseline_vect)(f)); }
+ami_long ami_baseline(FILE* f) { return ((*baseline_vect)(f)); }
 
-static long baseline_ivf(FILE* f)
+static ami_long baseline_ivf(FILE* f)
 
 {
 
@@ -7861,9 +7861,9 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxx_ovr(ami_maxx_t nfp, ami_maxx_t* ofp)
     { *ofp = maxx_vect; maxx_vect = nfp; }
-long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
+ami_long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
 
-static long maxx_ivf(FILE* f)
+static ami_long maxx_ivf(FILE* f)
 
 {
 
@@ -7886,9 +7886,9 @@ display. Because ANSI has no information return capability, this is preset.
 
 void _pa_maxy_ovr(ami_maxy_t nfp, ami_maxy_t* ofp)
     { *ofp = maxy_vect; maxy_vect = nfp; }
-long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
+ami_long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
 
-static long maxy_ivf(FILE* f)
+static ami_long maxy_ivf(FILE* f)
 
 {
 
@@ -7911,9 +7911,9 @@ pixels.
 
 void _pa_maxxg_ovr(ami_maxxg_t nfp, ami_maxxg_t* ofp)
     { *ofp = maxxg_vect; maxxg_vect = nfp; }
-long ami_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
+ami_long ami_maxxg(FILE* f) { return ((*maxxg_vect)(f)); }
 
-static long maxxg_ivf(FILE* f)
+static ami_long maxxg_ivf(FILE* f)
 
 {
 
@@ -7936,9 +7936,9 @@ pixels.
 
 void _pa_maxyg_ovr(ami_maxyg_t nfp, ami_maxyg_t* ofp)
     { *ofp = maxyg_vect; maxyg_vect = nfp; }
-long ami_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
+ami_long ami_maxyg(FILE* f) { return ((*maxyg_vect)(f)); }
 
-static long maxyg_ivf(FILE* f)
+static ami_long maxyg_ivf(FILE* f)
 
 {
 
@@ -8081,9 +8081,9 @@ Graphical mode does not implement blink mode.
 
 void _pa_blink_ovr(ami_blink_t nfp, ami_blink_t* ofp)
     { *ofp = blink_vect; blink_vect = nfp; }
-void ami_blink(FILE* f, long e) { (*blink_vect)(f, e); }
+void ami_blink(FILE* f, ami_long e) { (*blink_vect)(f, e); }
 
-static void blink_ivf(FILE* f, long e)
+static void blink_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8102,9 +8102,9 @@ and foreground writing colors.
 
 void _pa_reverse_ovr(ami_reverse_t nfp, ami_reverse_t* ofp)
     { *ofp = reverse_vect; reverse_vect = nfp; }
-void ami_reverse(FILE* f, long e) { (*reverse_vect)(f, e); }
+void ami_reverse(FILE* f, ami_long e) { (*reverse_vect)(f, e); }
 
-static void reverse_ivf(FILE* f, long e)
+static void reverse_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8142,9 +8142,9 @@ Note that the attributes can only be set singly.
 
 void _pa_underline_ovr(ami_underline_t nfp, ami_underline_t* ofp)
     { *ofp = underline_vect; underline_vect = nfp; }
-void ami_underline(FILE* f, long e) { (*underline_vect)(f, e); }
+void ami_underline(FILE* f, ami_long e) { (*underline_vect)(f, e); }
 
-static void underline_ivf(FILE* f, long e)
+static void underline_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8180,9 +8180,9 @@ Note that subscript is implemented by a reduced size and elevated font.
 
 void _pa_superscript_ovr(ami_superscript_t nfp, ami_superscript_t* ofp)
     { *ofp = superscript_vect; superscript_vect = nfp; }
-void ami_superscript(FILE* f, long e) { (*superscript_vect)(f, e); }
+void ami_superscript(FILE* f, ami_long e) { (*superscript_vect)(f, e); }
 
-static void superscript_ivf(FILE* f, long e)
+static void superscript_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8218,9 +8218,9 @@ Note that subscript is implemented by a reduced size and lowered font.
 
 void _pa_subscript_ovr(ami_subscript_t nfp, ami_subscript_t* ofp)
     { *ofp = subscript_vect; subscript_vect = nfp; }
-void ami_subscript(FILE* f, long e) { (*subscript_vect)(f, e); }
+void ami_subscript(FILE* f, ami_long e) { (*subscript_vect)(f, e); }
 
-static void subscript_ivf(FILE* f, long e)
+static void subscript_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8254,9 +8254,9 @@ Note that the attributes can only be set singly.
 
 void _pa_italic_ovr(ami_italic_t nfp, ami_italic_t* ofp)
     { *ofp = italic_vect; italic_vect = nfp; }
-void ami_italic(FILE* f, long e) { (*italic_vect)(f, e); }
+void ami_italic(FILE* f, ami_long e) { (*italic_vect)(f, e); }
 
-static void italic_ivf(FILE* f, long e)
+static void italic_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8295,9 +8295,9 @@ Note that the attributes can only be set singly.
 
 void _pa_bold_ovr(ami_bold_t nfp, ami_bold_t* ofp)
     { *ofp = bold_vect; bold_vect = nfp; }
-void ami_bold(FILE* f, long e) { (*bold_vect)(f, e); }
+void ami_bold(FILE* f, ami_long e) { (*bold_vect)(f, e); }
 
-static void bold_ivf(FILE* f, long e)
+static void bold_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8338,9 +8338,9 @@ just placed.
 
 void _pa_strikeout_ovr(ami_strikeout_t nfp, ami_strikeout_t* ofp)
     { *ofp = strikeout_vect; strikeout_vect = nfp; }
-void ami_strikeout(FILE* f, long e) { (*strikeout_vect)(f, e); }
+void ami_strikeout(FILE* f, ami_long e) { (*strikeout_vect)(f, e); }
 
-static void strikeout_ivf(FILE* f, long e)
+static void strikeout_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8374,9 +8374,9 @@ Note that the attributes can only be set singly.
 
 void _pa_standout_ovr(ami_standout_t nfp, ami_standout_t* ofp)
     { *ofp = standout_vect; standout_vect = nfp; }
-void ami_standout(FILE* f, long e) { (*standout_vect)(f, e); }
+void ami_standout(FILE* f, ami_long e) { (*standout_vect)(f, e); }
 
-static void standout_ivf(FILE* f, long e)
+static void standout_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8423,9 +8423,9 @@ Sets the foreground color from individual r, g, b values.
 
 void _pa_fcolorc_ovr(ami_fcolorc_t nfp, ami_fcolorc_t* ofp)
     { *ofp = fcolorc_vect; fcolorc_vect = nfp; }
-void ami_fcolorc(FILE* f, long r, long g, long b) { (*fcolorc_vect)(f, r, g, b); }
+void ami_fcolorc(FILE* f, ami_long r, ami_long g, ami_long b) { (*fcolorc_vect)(f, r, g, b); }
 
-static void fcolorc_ivf(FILE* f, long r, long g, long b)
+static void fcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -8457,9 +8457,9 @@ fcolorg for backward compatiblity to the days before overloads.
 
 void _pa_fcolorg_ovr(ami_fcolorg_t nfp, ami_fcolorg_t* ofp)
     { *ofp = fcolorg_vect; fcolorg_vect = nfp; }
-void ami_fcolorg(FILE* f, long r, long g, long b) { (*fcolorg_vect)(f, r, g, b); }
+void ami_fcolorg(FILE* f, ami_long r, ami_long g, ami_long b) { (*fcolorg_vect)(f, r, g, b); }
 
-static void fcolorg_ivf(FILE* f, long r, long g, long b)
+static void fcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -8515,9 +8515,9 @@ Sets the background color from individual r, g, b values.
 
 void _pa_bcolorc_ovr(ami_bcolorc_t nfp, ami_bcolorc_t* ofp)
     { *ofp = bcolorc_vect; bcolorc_vect = nfp; }
-void ami_bcolorc(FILE* f, long r, long g, long b) { (*bcolorc_vect)(f, r, g, b); }
+void ami_bcolorc(FILE* f, ami_long r, ami_long g, ami_long b) { (*bcolorc_vect)(f, r, g, b); }
 
-static void bcolorc_ivf(FILE* f, long r, long g, long b)
+static void bcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -8546,9 +8546,9 @@ up, we will be ready.
 
 void _pa_bcolorg_ovr(ami_bcolorg_t nfp, ami_bcolorg_t* ofp)
     { *ofp = bcolorg_vect; bcolorg_vect = nfp; }
-void ami_bcolorg(FILE* f, long r, long g, long b) { (*bcolorg_vect)(f, r, g, b); }
+void ami_bcolorg(FILE* f, ami_long r, ami_long g, ami_long b) { (*bcolorg_vect)(f, r, g, b); }
 
-static void bcolorg_ivf(FILE* f, long r, long g, long b)
+static void bcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -8575,9 +8575,9 @@ Checks if the cursor lies in the current bounds, and returns TRUE if so.
 
 void _pa_curbnd_ovr(ami_curbnd_t nfp, ami_curbnd_t* ofp)
     { *ofp = curbnd_vect; curbnd_vect = nfp; }
-long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
+ami_long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
 
-static long curbnd_ivf(FILE* f)
+static ami_long curbnd_ivf(FILE* f)
 
 {
 
@@ -8616,9 +8616,9 @@ anywhere.
 
 void _pa_auto_ovr(ami_auto_t nfp, ami_auto_t* ofp)
     { *ofp = auto_vect; auto_vect = nfp; }
-void ami_auto(FILE* f, long e) { (*auto_vect)(f, e); }
+void ami_auto(FILE* f, ami_long e) { (*auto_vect)(f, e); }
 
-static void auto_ivf(FILE* f, long e)
+static void auto_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8639,9 +8639,9 @@ Enable or disable cursor visibility.
 
 void _pa_curvis_ovr(ami_curvis_t nfp, ami_curvis_t* ofp)
     { *ofp = curvis_vect; curvis_vect = nfp; }
-void ami_curvis(FILE* f, long e) { (*curvis_vect)(f, e); }
+void ami_curvis(FILE* f, ami_long e) { (*curvis_vect)(f, e); }
 
-static void curvis_ivf(FILE* f, long e)
+static void curvis_ivf(FILE* f, ami_long e)
 
 {
 
@@ -8664,9 +8664,9 @@ Returns the current location of the cursor in x.
 
 void _pa_curx_ovr(ami_curx_t nfp, ami_curx_t* ofp)
     { *ofp = curx_vect; curx_vect = nfp; }
-long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
+ami_long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
 
-static long curx_ivf(FILE* f)
+static ami_long curx_ivf(FILE* f)
 
 {
 
@@ -8688,9 +8688,9 @@ Returns the current location of the cursor in y.
 
 void _pa_cury_ovr(ami_cury_t nfp, ami_cury_t* ofp)
     { *ofp = cury_vect; cury_vect = nfp; }
-long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
+ami_long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
 
-static long cury_ivf(FILE* f)
+static ami_long cury_ivf(FILE* f)
 
 {
 
@@ -8712,9 +8712,9 @@ Returns the current location of the cursor in x, in pixels.
 
 void _pa_curxg_ovr(ami_curxg_t nfp, ami_curxg_t* ofp)
     { *ofp = curxg_vect; curxg_vect = nfp; }
-long ami_curxg(FILE* f) { return ((*curxg_vect)(f)); }
+ami_long ami_curxg(FILE* f) { return ((*curxg_vect)(f)); }
 
-static long curxg_ivf(FILE* f)
+static ami_long curxg_ivf(FILE* f)
 
 {
 
@@ -8736,9 +8736,9 @@ Returns the current location of the cursor in y, in pixels.
 
 void _pa_curyg_ovr(ami_curyg_t nfp, ami_curyg_t* ofp)
     { *ofp = curyg_vect; curyg_vect = nfp; }
-long ami_curyg(FILE* f) { return ((*curyg_vect)(f)); }
+ami_long ami_curyg(FILE* f) { return ((*curyg_vect)(f)); }
 
-static long curyg_ivf(FILE* f)
+static ami_long curyg_ivf(FILE* f)
 
 {
 
@@ -8766,9 +8766,9 @@ forces a screen refresh, which can be important when working on terminals.
 
 void _pa_select_ovr(ami_select_t nfp, ami_select_t* ofp)
     { *ofp = select_vect; select_vect = nfp; }
-void ami_select(FILE* f, long u, long d) { (*select_vect)(f, u, d); }
+void ami_select(FILE* f, ami_long u, ami_long d) { (*select_vect)(f, u, d); }
 
-static void select_ivf(FILE* f, long u, long d)
+static void select_ivf(FILE* f, ami_long u, ami_long d)
 
 {
 
@@ -8924,9 +8924,9 @@ advantage.
 
 void _pa_wrtstrn_ovr(ami_wrtstrn_t nfp, ami_wrtstrn_t* ofp)
     { *ofp = wrtstrn_vect; wrtstrn_vect = nfp; }
-void ami_wrtstrn(FILE* f, char* s, long l) { (*wrtstrn_vect)(f, s, l); }
+void ami_wrtstrn(FILE* f, char* s, ami_long l) { (*wrtstrn_vect)(f, s, l); }
 
-static void wrtstrn_ivf(FILE* f, char* s, long l)
+static void wrtstrn_ivf(FILE* f, char* s, ami_long l)
 
 {
 
@@ -9040,16 +9040,16 @@ Draws a single line in the foreground color.
 
 void _pa_line_ovr(ami_line_t nfp, ami_line_t* ofp)
     { *ofp = line_vect; line_vect = nfp; }
-void ami_line(FILE* f, long x1, long y1, long x2, long y2)
+void ami_line(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { (*line_vect)(f, x1, y1, x2, y2); }
 
-static void line_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void line_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9100,16 +9100,16 @@ Draws a rectangle in foreground color.
 
 void _pa_rect_ovr(ami_rect_t nfp, ami_rect_t* ofp)
     { *ofp = rect_vect; rect_vect = nfp; }
-void ami_rect(FILE* f, long x1, long y1, long x2, long y2)
+void ami_rect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { (*rect_vect)(f, x1, y1, x2, y2); }
 
-static void rect_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void rect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9160,16 +9160,16 @@ Draws a filled rectangle in foreground color.
 
 void _pa_frect_ovr(ami_frect_t nfp, ami_frect_t* ofp)
     { *ofp = frect_vect; frect_vect = nfp; }
-void ami_frect(FILE* f, long x1, long y1, long x2, long y2)
+void ami_frect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { (*frect_vect)(f, x1, y1, x2, y2); }
 
-static void frect_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void frect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9222,16 +9222,16 @@ In XWindow, this has to be constructed, since there is no equivalent function.
 
 void _pa_rrect_ovr(ami_rrect_t nfp, ami_rrect_t* ofp)
     { *ofp = rrect_vect; rrect_vect = nfp; }
-void ami_rrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+void ami_rrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
     { (*rrect_vect)(f, x1, y1, x2, y2, xs, ys); }
 
-static void rrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+static void rrect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9320,16 +9320,16 @@ x or y sizes.
 
 void _pa_frrect_ovr(ami_frrect_t nfp, ami_frrect_t* ofp)
     { *ofp = frrect_vect; frrect_vect = nfp; }
-void ami_frrect(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+void ami_frrect(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
     { (*frrect_vect)(f, x1, y1, x2, y2, xs, ys); }
 
-static void frrect_ivf(FILE* f, long x1, long y1, long x2, long y2, long xs, long ys)
+static void frrect_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long xs, ami_long ys)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
     int wm;     /* width of middle rectangle */
     int hm;     /* height of middle rectangle */
     int wtb;    /* width of top/bottom rectangle */
@@ -9509,16 +9509,16 @@ Draws an ellipse with the current foreground color and line width.
 
 void _pa_ellipse_ovr(ami_ellipse_t nfp, ami_ellipse_t* ofp)
     { *ofp = ellipse_vect; ellipse_vect = nfp; }
-void ami_ellipse(FILE* f, long x1, long y1, long x2, long y2)
+void ami_ellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { (*ellipse_vect)(f, x1, y1, x2, y2); }
 
-static void ellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void ellipse_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9571,16 +9571,16 @@ Draws a filled ellipse with the current foreground color.
 
 void _pa_fellipse_ovr(ami_fellipse_t nfp, ami_fellipse_t* ofp)
     { *ofp = fellipse_vect; fellipse_vect = nfp; }
-void ami_fellipse(FILE* f, long x1, long y1, long x2, long y2)
+void ami_fellipse(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { (*fellipse_vect)(f, x1, y1, x2, y2); }
 
-static void fellipse_ivf(FILE* f, long x1, long y1, long x2, long y2)
+static void fellipse_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
 
     win = txt2win(f); /* get window from file */
     sc = win->screens[win->curupd-1];
@@ -9653,16 +9653,16 @@ Negative angles are allowed.
 
 void _pa_arc_ovr(ami_arc_t nfp, ami_arc_t* ofp)
     { *ofp = arc_vect; arc_vect = nfp; }
-void ami_arc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_arc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
     { (*arc_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void arc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void arc_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -9730,16 +9730,16 @@ this.
 
 void _pa_farc_ovr(ami_farc_t nfp, ami_farc_t* ofp)
     { *ofp = farc_vect; farc_vect = nfp; }
-void ami_farc(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_farc(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
     { (*farc_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void farc_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void farc_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -9804,16 +9804,16 @@ as for the arc function above.
 
 void _pa_fchord_ovr(ami_fchord_t nfp, ami_fchord_t* ofp)
     { *ofp = fchord_vect; fchord_vect = nfp; }
-void ami_fchord(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+void ami_fchord(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
     { (*fchord_vect)(f, x1, y1, x2, y2, sa, ea); }
 
-static void fchord_ivf(FILE* f, long x1, long y1, long x2, long y2, long sa, long ea)
+static void fchord_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long sa, ami_long ea)
 
 {
 
     winptr win; /* window record pointer */
     scnptr sc;  /* screen buffer */
-    long tx, ty; /* temps */
+    ami_long tx, ty; /* temps */
     int a1, a2; /* XWindow angles */
 
     win = txt2win(f); /* get window from file */
@@ -9873,10 +9873,10 @@ Draws a filled triangle in the current foreground color.
 
 void _pa_ftriangle_ovr(ami_ftriangle_t nfp, ami_ftriangle_t* ofp)
     { *ofp = ftriangle_vect; ftriangle_vect = nfp; }
-void ami_ftriangle(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
+void ami_ftriangle(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
     { (*ftriangle_vect)(f, x1, y1, x2, y2, x3, y3); }
 
-static void ftriangle_ivf(FILE* f, long x1, long y1, long x2, long y2, long x3, long y3)
+static void ftriangle_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long x3, ami_long y3)
 
 {
 
@@ -9923,9 +9923,9 @@ Sets a single logical pixel to the foreground color.
 
 void _pa_setpixel_ovr(ami_setpixel_t nfp, ami_setpixel_t* ofp)
     { *ofp = setpixel_vect; setpixel_vect = nfp; }
-void ami_setpixel(FILE* f, long x, long y) { (*setpixel_vect)(f, x, y); }
+void ami_setpixel(FILE* f, ami_long x, ami_long y) { (*setpixel_vect)(f, x, y); }
 
-static void setpixel_ivf(FILE* f, long x, long y)
+static void setpixel_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -10247,9 +10247,9 @@ static void applylineattrs(scnptr sc)
 
 void _pa_linewidth_ovr(ami_linewidth_t nfp, ami_linewidth_t* ofp)
     { *ofp = linewidth_vect; linewidth_vect = nfp; }
-void ami_linewidth(FILE* f, long w) { (*linewidth_vect)(f, w); }
+void ami_linewidth(FILE* f, ami_long w) { (*linewidth_vect)(f, w); }
 
-static void linewidth_ivf(FILE* f, long w)
+static void linewidth_ivf(FILE* f, ami_long w)
 
 {
 
@@ -10304,9 +10304,9 @@ character in the character set.
 
 void _pa_chrsizx_ovr(ami_chrsizx_t nfp, ami_chrsizx_t* ofp)
     { *ofp = chrsizx_vect; chrsizx_vect = nfp; }
-long ami_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
+ami_long ami_chrsizx(FILE* f) { return ((*chrsizx_vect)(f)); }
 
-static long chrsizx_ivf(FILE* f)
+static ami_long chrsizx_ivf(FILE* f)
 
 {
 
@@ -10330,9 +10330,9 @@ Returns the character height.
 
 void _pa_chrsizy_ovr(ami_chrsizy_t nfp, ami_chrsizy_t* ofp)
     { *ofp = chrsizy_vect; chrsizy_vect = nfp; }
-long ami_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
+ami_long ami_chrsizy(FILE* f) { return ((*chrsizy_vect)(f)); }
 
-static long chrsizy_ivf(FILE* f)
+static ami_long chrsizy_ivf(FILE* f)
 
 {
 
@@ -10356,9 +10356,9 @@ Finds the total number of installed fonts.
 
 void _pa_fonts_ovr(ami_fonts_t nfp, ami_fonts_t* ofp)
     { *ofp = fonts_vect; fonts_vect = nfp; }
-long ami_fonts(FILE* f) { return ((*fonts_vect)(f)); }
+ami_long ami_fonts(FILE* f) { return ((*fonts_vect)(f)); }
 
-static long fonts_ivf(FILE* f)
+static ami_long fonts_ivf(FILE* f)
 
 {
 
@@ -10376,9 +10376,9 @@ Changes the current font to the indicated logical font number.
 
 void _pa_font_ovr(ami_font_t nfp, ami_font_t* ofp)
     { *ofp = font_vect; font_vect = nfp; }
-void ami_font(FILE* f, long fc) { (*font_vect)(f, fc); }
+void ami_font(FILE* f, ami_long fc) { (*font_vect)(f, fc); }
 
-static void font_ivf(FILE* f, long fc)
+static void font_ivf(FILE* f, ami_long fc)
 
 {
 
@@ -10421,10 +10421,10 @@ off, and it is an error if the name cannot fit in the buffer.
 
 void _pa_fontnam_ovr(ami_fontnam_t nfp, ami_fontnam_t* ofp)
     { *ofp = fontnam_vect; fontnam_vect = nfp; }
-void ami_fontnam(FILE* f, long fc, char* fns, long fnsl)
+void ami_fontnam(FILE* f, ami_long fc, char* fns, ami_long fnsl)
     { (*fontnam_vect)(f, fc, fns, fnsl); }
 
-static void fontnam_ivf(FILE* f, long fc, char* fns, long fnsl)
+static void fontnam_ivf(FILE* f, ami_long fc, char* fns, ami_long fnsl)
 
 {
 
@@ -10454,9 +10454,9 @@ and line spacing are changed, as well as the baseline.
 
 void _pa_fontsiz_ovr(ami_fontsiz_t nfp, ami_fontsiz_t* ofp)
     { *ofp = fontsiz_vect; fontsiz_vect = nfp; }
-void ami_fontsiz(FILE* f, long s) { (*fontsiz_vect)(f, s); }
+void ami_fontsiz(FILE* f, ami_long s) { (*fontsiz_vect)(f, s); }
 
-static void fontsiz_ivf(FILE* f, long s)
+static void fontsiz_ivf(FILE* f, ami_long s)
 
 {
 
@@ -10552,9 +10552,9 @@ as "leading".
 
 void _pa_chrspcy_ovr(ami_chrspcy_t nfp, ami_chrspcy_t* ofp)
     { *ofp = chrspcy_vect; chrspcy_vect = nfp; }
-void ami_chrspcy(FILE* f, long s) { (*chrspcy_vect)(f, s); }
+void ami_chrspcy(FILE* f, ami_long s) { (*chrspcy_vect)(f, s); }
 
-static void chrspcy_ivf(FILE* f, long s)
+static void chrspcy_ivf(FILE* f, ami_long s)
 
 {
 
@@ -10576,9 +10576,9 @@ as "spacing".
 
 void _pa_chrspcx_ovr(ami_chrspcx_t nfp, ami_chrspcx_t* ofp)
     { *ofp = chrspcx_vect; chrspcx_vect = nfp; }
-void ami_chrspcx(FILE* f, long s) { (*chrspcx_vect)(f, s); }
+void ami_chrspcx(FILE* f, ami_long s) { (*chrspcx_vect)(f, s); }
 
-static void chrspcx_ivf(FILE* f, long s)
+static void chrspcx_ivf(FILE* f, ami_long s)
 
 {
 
@@ -10599,9 +10599,9 @@ Returns the number of dots per meter resolution in x.
 
 void _pa_dpmx_ovr(ami_dpmx_t nfp, ami_dpmx_t* ofp)
     { *ofp = dpmx_vect; dpmx_vect = nfp; }
-long ami_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
+ami_long ami_dpmx(FILE* f) { return ((*dpmx_vect)(f)); }
 
-static long dpmx_ivf(FILE* f)
+static ami_long dpmx_ivf(FILE* f)
 
 {
 
@@ -10623,9 +10623,9 @@ Returns the number of dots per meter resolution in y.
 
 void _pa_dpmy_ovr(ami_dpmy_t nfp, ami_dpmy_t* ofp)
     { *ofp = dpmy_vect; dpmy_vect = nfp; }
-long ami_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
+ami_long ami_dpmy(FILE* f) { return ((*dpmy_vect)(f)); }
 
-static long dpmy_ivf(FILE* f)
+static ami_long dpmy_ivf(FILE* f)
 
 {
 
@@ -10648,9 +10648,9 @@ character spacing and kerning.
 
 void _pa_strsiz_ovr(ami_strsiz_t nfp, ami_strsiz_t* ofp)
     { *ofp = strsiz_vect; strsiz_vect = nfp; }
-long ami_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
+ami_long ami_strsiz(FILE* f, const char* s) { return ((*strsiz_vect)(f, s)); }
 
-static long strsiz_ivf(FILE* f, const char* s)
+static ami_long strsiz_ivf(FILE* f, const char* s)
 
 {
 
@@ -10674,10 +10674,10 @@ Finds the pixel offset to the given character in the string.
 
 void _pa_chrpos_ovr(ami_chrpos_t nfp, ami_chrpos_t* ofp)
     { *ofp = chrpos_vect; chrpos_vect = nfp; }
-long ami_chrpos(FILE* f, const char* s, long p) 
+ami_long ami_chrpos(FILE* f, const char* s, ami_long p) 
     { return ((*chrpos_vect)(f, s, p)); }
 
-static long chrpos_ivf(FILE* f, const char* s, long p)
+static ami_long chrpos_ivf(FILE* f, const char* s, ami_long p)
 
 {
 
@@ -10706,9 +10706,9 @@ distributes the space amoung the spaces present in the string.
 
 void _pa_writejust_ovr(ami_writejust_t nfp, ami_writejust_t* ofp)
     { *ofp = writejust_vect; writejust_vect = nfp; }
-void ami_writejust(FILE* f, const char* s, long n) { (*writejust_vect)(f, s, n); }
+void ami_writejust(FILE* f, const char* s, ami_long n) { (*writejust_vect)(f, s, n); }
 
-static void writejust_ivf(FILE* f, const char* s, long n)
+static void writejust_ivf(FILE* f, const char* s, ami_long n)
 
 {
 
@@ -10830,10 +10830,10 @@ spaces, with the fractional part lost.
 
 void _pa_justpos_ovr(ami_justpos_t nfp, ami_justpos_t* ofp)
     { *ofp = justpos_vect; justpos_vect = nfp; }
-long ami_justpos(FILE* f, const char* s, long p, long n)
+ami_long ami_justpos(FILE* f, const char* s, ami_long p, ami_long n)
     { return ((*justpos_vect)(f, s, p, n)); }
 
-static long justpos_ivf(FILE* f, const char* s, long p, long n)
+static ami_long justpos_ivf(FILE* f, const char* s, ami_long p, ami_long n)
 
 {
 
@@ -10909,9 +10909,9 @@ Not implemented yet.
 
 void _pa_condensed_ovr(ami_condensed_t nfp, ami_condensed_t* ofp)
     { *ofp = condensed_vect; condensed_vect = nfp; }
-void ami_condensed(FILE* f, long e) { (*condensed_vect)(f, e); }
+void ami_condensed(FILE* f, ami_long e) { (*condensed_vect)(f, e); }
 
-static void condensed_ivf(FILE* f, long e)
+static void condensed_ivf(FILE* f, ami_long e)
 
 {
 
@@ -10954,9 +10954,9 @@ Not implemented yet.
 
 void _pa_extended_ovr(ami_extended_t nfp, ami_extended_t* ofp)
     { *ofp = extended_vect; extended_vect = nfp; }
-void ami_extended(FILE* f, long e) { (*extended_vect)(f, e); }
+void ami_extended(FILE* f, ami_long e) { (*extended_vect)(f, e); }
 
-static void extended_ivf(FILE* f, long e)
+static void extended_ivf(FILE* f, ami_long e)
 
 {
 
@@ -10999,9 +10999,9 @@ Not implemented yet.
 
 void _pa_xlight_ovr(ami_xlight_t nfp, ami_xlight_t* ofp)
     { *ofp = xlight_vect; xlight_vect = nfp; }
-void ami_xlight(FILE* f, long e) { (*xlight_vect)(f, e); }
+void ami_xlight(FILE* f, ami_long e) { (*xlight_vect)(f, e); }
 
-static void xlight_ivf(FILE* f, long e)
+static void xlight_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11044,9 +11044,9 @@ Not implemented yet.
 
 void _pa_light_ovr(ami_light_t nfp, ami_light_t* ofp)
     { *ofp = light_vect; light_vect = nfp; }
-void ami_light(FILE* f, long e) { (*light_vect)(f, e); }
+void ami_light(FILE* f, ami_long e) { (*light_vect)(f, e); }
 
-static void light_ivf(FILE* f, long e)
+static void light_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11089,9 +11089,9 @@ Not implemented yet.
 
 void _pa_xbold_ovr(ami_xbold_t nfp, ami_xbold_t* ofp)
     { *ofp = xbold_vect; xbold_vect = nfp; }
-void ami_xbold(FILE* f, long e) { (*xbold_vect)(f, e); }
+void ami_xbold(FILE* f, ami_long e) { (*xbold_vect)(f, e); }
 
-static void xbold_ivf(FILE* f, long e)
+static void xbold_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11134,9 +11134,9 @@ Not implemented yet.
 
 void _pa_hollow_ovr(ami_hollow_t nfp, ami_hollow_t* ofp)
     { *ofp = hollow_vect; hollow_vect = nfp; }
-void ami_hollow(FILE* f, long e) { (*hollow_vect)(f, e); }
+void ami_hollow(FILE* f, ami_long e) { (*hollow_vect)(f, e); }
 
-static void hollow_ivf(FILE* f, long e)
+static void hollow_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11179,9 +11179,9 @@ Not implemented yet.
 
 void _pa_raised_ovr(ami_raised_t nfp, ami_raised_t* ofp)
     { *ofp = raised_vect; raised_vect = nfp; }
-void ami_raised(FILE* f, long e) { (*raised_vect)(f, e); }
+void ami_raised(FILE* f, ami_long e) { (*raised_vect)(f, e); }
 
-static void raised_ivf(FILE* f, long e)
+static void raised_ivf(FILE* f, ami_long e)
 
 {
 
@@ -11219,9 +11219,9 @@ Deletes a loaded picture.
 
 void _pa_delpict_ovr(ami_delpict_t nfp, ami_delpict_t* ofp)
     { *ofp = delpict_vect; delpict_vect = nfp; }
-void ami_delpict(FILE* f, long p) { (*delpict_vect)(f, p); }
+void ami_delpict(FILE* f, ami_long p) { (*delpict_vect)(f, p); }
 
-static void delpict_ivf(FILE* f, long p)
+static void delpict_ivf(FILE* f, ami_long p)
 
 {
 
@@ -11249,13 +11249,13 @@ displayed screen, the window shows the result at once.
 
 void _pa_blockcopyg_ovr(ami_blockcopyg_t nfp, ami_blockcopyg_t* ofp)
     { *ofp = blockcopyg_vect; blockcopyg_vect = nfp; }
-void ami_blockcopyg(FILE* f, long s, long d, long sx1, long sy1, long sx2,
-                    long sy2, long dx1, long dy1, long dx2, long dy2)
+void ami_blockcopyg(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1, ami_long sx2,
+                    ami_long sy2, ami_long dx1, ami_long dy1, ami_long dx2, ami_long dy2)
     { (*blockcopyg_vect)(f, s, d, sx1, sy1, sx2, sy2, dx1, dy1, dx2, dy2); }
 
-static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
-                           long sx2, long sy2, long dx1, long dy1,
-                           long dx2, long dy2)
+static void blockcopyg_ivf(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_long sy1,
+                           ami_long sx2, ami_long sy2, ami_long dx1, ami_long dy1,
+                           ami_long dx2, ami_long dy2)
 
 {
 
@@ -11263,7 +11263,7 @@ static void blockcopyg_ivf(FILE* f, long s, long d, long sx1, long sy1,
     scnptr ss;  /* source screen */
     scnptr ds;  /* destination screen */
     scnptr cs;  /* current update screen, holder of the write mode */
-    long   t;   /* swap temp */
+    ami_long   t;   /* swap temp */
     int    psx, psy, psw, psh; /* source box, physical */
     int    pdx, pdy, pdw, pdh; /* destination box, physical */
     int    fnc; /* X function for the write mode */
@@ -11431,9 +11431,9 @@ static unsigned int read16(FILE* f)
 
 void _pa_loadpict_ovr(ami_loadpict_t nfp, ami_loadpict_t* ofp)
     { *ofp = loadpict_vect; loadpict_vect = nfp; }
-void ami_loadpict(FILE* f, long p, char* fn) { (*loadpict_vect)(f, p, fn); }
+void ami_loadpict(FILE* f, ami_long p, char* fn) { (*loadpict_vect)(f, p, fn); }
 
-static void loadpict_ivf(FILE* f, long p, char* fn)
+static void loadpict_ivf(FILE* f, ami_long p, char* fn)
 
 {
 
@@ -11539,9 +11539,9 @@ Returns the size in x of the logical picture.
 
 void _pa_pictsizx_ovr(ami_pictsizx_t nfp, ami_pictsizx_t* ofp)
     { *ofp = pictsizx_vect; pictsizx_vect = nfp; }
-long ami_pictsizx(FILE* f, long p) { return ((*pictsizx_vect)(f, p)); }
+ami_long ami_pictsizx(FILE* f, ami_long p) { return ((*pictsizx_vect)(f, p)); }
 
-static long pictsizx_ivf(FILE* f, long p)
+static ami_long pictsizx_ivf(FILE* f, ami_long p)
 
 {
 
@@ -11565,9 +11565,9 @@ Returns the size in y of the logical picture.
 
 void _pa_pictsizy_ovr(ami_pictsizy_t nfp, ami_pictsizy_t* ofp)
     { *ofp = pictsizy_vect; pictsizy_vect = nfp; }
-long ami_pictsizy(FILE* f, long p) { return ((*pictsizy_vect)(f, p)); }
+ami_long ami_pictsizy(FILE* f, ami_long p) { return ((*pictsizy_vect)(f, p)); }
 
-static long pictsizy_ivf(FILE* f, long p)
+static ami_long pictsizy_ivf(FILE* f, ami_long p)
 
 {
 
@@ -11594,16 +11594,16 @@ Images will be kept in a rotating cache to prevent repeating reloads.
 
 void _pa_picture_ovr(ami_picture_t nfp, ami_picture_t* ofp)
     { *ofp = picture_vect; picture_vect = nfp; }
-void ami_picture(FILE* f, long p, long x1, long y1, long x2, long y2)
+void ami_picture(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
     { (*picture_vect)(f, p, x1, y1, x2, y2); }
 
-static void picture_ivf(FILE* f, long p, long x1, long y1, long x2, long y2)
+static void picture_ivf(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 
 {
 
     winptr  win; /* window record pointer */
     scnptr  sc;  /* screen buffer */
-    long    tx, ty; /* temps */
+    ami_long    tx, ty; /* temps */
     int     pw, ph; /* picture width and height */
     picptr  pp, fp; /* picture entry pointers */
 
@@ -11688,9 +11688,9 @@ Sets the offset of the viewport in logical space, in pixels, anywhere from
 
 void _pa_viewoffg_ovr(ami_viewoffg_t nfp, ami_viewoffg_t* ofp)
     { *ofp = viewoffg_vect; viewoffg_vect = nfp; }
-void ami_viewoffg(FILE* f, long x, long y) { (*viewoffg_vect)(f, x, y); }
+void ami_viewoffg(FILE* f, ami_long x, ami_long y) { (*viewoffg_vect)(f, x, y); }
 
-static void viewoffg_ivf(FILE* f, long x, long y)
+static void viewoffg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -11755,9 +11755,9 @@ scaled drawing.
 
 void _pa_scalex_ovr(ami_scalex_t nfp, ami_scalex_t* ofp)
     { *ofp = scalex_vect; scalex_vect = nfp; }
-long ami_scalex(FILE* f, long x) { return ((*scalex_vect)(f, x)); }
+ami_long ami_scalex(FILE* f, ami_long x) { return ((*scalex_vect)(f, x)); }
 
-static long scalex_ivf(FILE* f, long x)
+static ami_long scalex_ivf(FILE* f, ami_long x)
 
 {
 
@@ -11771,9 +11771,9 @@ static long scalex_ivf(FILE* f, long x)
 
 void _pa_scaley_ovr(ami_scaley_t nfp, ami_scaley_t* ofp)
     { *ofp = scaley_vect; scaley_vect = nfp; }
-long ami_scaley(FILE* f, long y) { return ((*scaley_vect)(f, y)); }
+ami_long ami_scaley(FILE* f, ami_long y) { return ((*scaley_vect)(f, y)); }
 
-static long scaley_ivf(FILE* f, long y)
+static ami_long scaley_ivf(FILE* f, ami_long y)
 
 {
 
@@ -12128,7 +12128,7 @@ static void prtfocus(int level, winptr win)
 
     while (win) {
 
-        dbg_printf(dlinfo, "%*cWindow: %ld focus: %d\n", level, ' ', win->wid, win->focus);
+        dbg_printf(dlinfo, "%*cWindow: %lld focus: %d\n", level, ' ', AMI_LONG_CAST(win->wid), win->focus);
         /* find focus in children of this window */
         prtfocus(level+4, win->childwin);
         win = win->childlst; /* link next child */
@@ -12244,7 +12244,7 @@ static void winstat(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
 
 /* monotonic milliseconds, for pacing the frame beat */
 
-static long framems(void)
+static ami_long framems(void)
 
 {
 
@@ -12268,7 +12268,7 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
     pd_evt         xe;
     winptr         mwin;
     winptr         fwin; /* focus window */
-    unsigned long  snc; /* serial of the provoking request */
+    ami_ulong      snc; /* serial of the provoking request */
 
     sc = win->screens[win->curdsp-1]; /* index screen */
 
@@ -13434,12 +13434,12 @@ the associated input file.
 
 void _pa_timer_ovr(ami_timer_t nfp, ami_timer_t* ofp)
     { *ofp = timer_vect; timer_vect = nfp; }
-void ami_timer(FILE* f, long i, long t, long r) { (*timer_vect)(f, i, t, r); }
+void ami_timer(FILE* f, ami_long i, ami_long t, ami_long r) { (*timer_vect)(f, i, t, r); }
 
 static void timer_ivf(FILE* f, /* file to send event to */
-                      long   i, /* timer handle */
-                      long  t, /* number of tenth-milliseconds to run */
-                      long   r) /* timer is to rerun after completion */
+                      ami_long   i, /* timer handle */
+                      ami_long  t, /* number of tenth-milliseconds to run */
+                      ami_long   r) /* timer is to rerun after completion */
 
 {
 
@@ -13468,10 +13468,10 @@ Kills a given timer, by it's id number. Only repeating timers should be killed.
 
 void _pa_killtimer_ovr(ami_killtimer_t nfp, ami_killtimer_t* ofp)
     { *ofp = killtimer_vect; killtimer_vect = nfp; }
-void ami_killtimer(FILE* f, long   i ) { (*killtimer_vect)(f, i ); }
+void ami_killtimer(FILE* f, ami_long   i ) { (*killtimer_vect)(f, i ); }
 
 static void killtimer_ivf(FILE* f, /* file to kill timer on */
-                          long   i  /* handle of timer */
+                          ami_long   i  /* handle of timer */
                          )
 
 {
@@ -13498,9 +13498,9 @@ of the blanking interval.
 
 void _pa_frametimer_ovr(ami_frametimer_t nfp, ami_frametimer_t* ofp)
     { *ofp = frametimer_vect; frametimer_vect = nfp; }
-void ami_frametimer(FILE* f, long e) { (*frametimer_vect)(f, e); }
+void ami_frametimer(FILE* f, ami_long e) { (*frametimer_vect)(f, e); }
 
-static void frametimer_ivf(FILE* f, long e)
+static void frametimer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -13551,9 +13551,9 @@ holding gralib unaware programs.
 
 void _pa_autohold_ovr(ami_autohold_t nfp, ami_autohold_t* ofp)
     { *ofp = autohold_vect; autohold_vect = nfp; }
-void ami_autohold(long e) { (*autohold_vect)(e); }
+void ami_autohold(ami_long e) { (*autohold_vect)(e); }
 
-static void autohold_ivf(long e)
+static void autohold_ivf(ami_long e)
 
 {
 
@@ -13571,9 +13571,9 @@ Returns the number of mice implemented. XWindow supports only one mouse.
 
 void _pa_mouse_ovr(ami_mouse_t nfp, ami_mouse_t* ofp)
     { *ofp = mouse_vect; mouse_vect = nfp; }
-long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
+ami_long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
 
-static long mouse_ivf(FILE* f)
+static ami_long mouse_ivf(FILE* f)
 
 {
 
@@ -13592,9 +13592,9 @@ version. XWindow supports from 1 to 5 buttons.
 
 void _pa_mousebutton_ovr(ami_mousebutton_t nfp, ami_mousebutton_t* ofp)
     { *ofp = mousebutton_vect; mousebutton_vect = nfp; }
-long ami_mousebutton(FILE* f, long m) { return ((*mousebutton_vect)(f, m)); }
+ami_long ami_mousebutton(FILE* f, ami_long m) { return ((*mousebutton_vect)(f, m)); }
 
-static long mousebutton_ivf(FILE* f, long m)
+static ami_long mousebutton_ivf(FILE* f, ami_long m)
 
 {
 
@@ -13612,9 +13612,9 @@ Return number of joysticks attached.
 
 void _pa_joystick_ovr(ami_joystick_t nfp, ami_joystick_t* ofp)
     { *ofp = joystick_vect; joystick_vect = nfp; }
-long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
+ami_long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
 
-static long joystick_ivf(FILE* f)
+static ami_long joystick_ivf(FILE* f)
 
 {
 
@@ -13632,9 +13632,9 @@ Returns the number of buttons on a given joystick.
 
 void _pa_joybutton_ovr(ami_joybutton_t nfp, ami_joybutton_t* ofp)
     { *ofp = joybutton_vect; joybutton_vect = nfp; }
-long ami_joybutton(FILE* f, long j) { return ((*joybutton_vect)(f, j)); }
+ami_long ami_joybutton(FILE* f, ami_long j) { return ((*joybutton_vect)(f, j)); }
 
-static long joybutton_ivf(FILE* f, long j)
+static ami_long joybutton_ivf(FILE* f, ami_long j)
 
 {
 
@@ -13657,9 +13657,9 @@ joystick can be considered a slider without positional meaning.
 
 void _pa_joyaxis_ovr(ami_joyaxis_t nfp, ami_joyaxis_t* ofp)
     { *ofp = joyaxis_vect; joyaxis_vect = nfp; }
-long ami_joyaxis(FILE* f, long j) { return ((*joyaxis_vect)(f, j)); }
+ami_long ami_joyaxis(FILE* f, ami_long j) { return ((*joyaxis_vect)(f, j)); }
 
-static long joyaxis_ivf(FILE* f, long j)
+static ami_long joyaxis_ivf(FILE* f, ami_long j)
 
 {
 
@@ -13685,9 +13685,9 @@ Sets a tab at the indicated pixel number.
 
 void _pa_settabg_ovr(ami_settabg_t nfp, ami_settabg_t* ofp)
     { *ofp = settabg_vect; settabg_vect = nfp; }
-void ami_settabg(FILE* f, long t) { (*settabg_vect)(f, t); }
+void ami_settabg(FILE* f, ami_long t) { (*settabg_vect)(f, t); }
 
-static void settabg_ivf(FILE* f, long t)
+static void settabg_ivf(FILE* f, ami_long t)
 
 {
 
@@ -13708,9 +13708,9 @@ Sets a tab at the indicated collumn number.
 
 void _pa_settab_ovr(ami_settab_t nfp, ami_settab_t* ofp)
     { *ofp = settab_vect; settab_vect = nfp; }
-void ami_settab(FILE* f, long t) { (*settab_vect)(f, t); }
+void ami_settab(FILE* f, ami_long t) { (*settab_vect)(f, t); }
 
-static void settab_ivf(FILE* f, long t)
+static void settab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -13731,9 +13731,9 @@ Resets the tab at the indicated pixel number.
 
 void _pa_restabg_ovr(ami_restabg_t nfp, ami_restabg_t* ofp)
     { *ofp = restabg_vect; restabg_vect = nfp; }
-void ami_restabg(FILE* f, long t) { (*restabg_vect)(f, t); }
+void ami_restabg(FILE* f, ami_long t) { (*restabg_vect)(f, t); }
 
-static void restabg_ivf(FILE* f, long t)
+static void restabg_ivf(FILE* f, ami_long t)
 
 {
 
@@ -13754,9 +13754,9 @@ Resets the tab at the indicated collumn number.
 
 void _pa_restab_ovr(ami_restab_t nfp, ami_restab_t* ofp)
     { *ofp = restab_vect; restab_vect = nfp; }
-void ami_restab(FILE* f, long t) { (*restab_vect)(f, t); }
+void ami_restab(FILE* f, ami_long t) { (*restab_vect)(f, t); }
 
-static void restab_ivf(FILE* f, long t)
+static void restab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -13804,9 +13804,9 @@ function keys as well.
 
 void _pa_funkey_ovr(ami_funkey_t nfp, ami_funkey_t* ofp)
     { *ofp = funkey_vect; funkey_vect = nfp; }
-long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
+ami_long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
 
-static long funkey_ivf(FILE* f)
+static ami_long funkey_ivf(FILE* f)
 
 {
 
@@ -13871,13 +13871,13 @@ is allocated, it is reserved until it is used and removed by killwidget().
 
 void _pa_getwinid_ovr(ami_getwinid_t nfp, ami_getwinid_t* ofp)
     { *ofp = getwinid_vect; getwinid_vect = nfp; }
-long ami_getwinid(void) { return ((*getwinid_vect)()); }
+ami_long ami_getwinid(void) { return ((*getwinid_vect)()); }
 
-static long getwinid_ivf(void)
+static ami_long getwinid_ivf(void)
 
 {
 
-    long wid; /* window id */
+    ami_long wid; /* window id */
 
     wid = -1; /* start at -1 */
     /* find any open entry */
@@ -13916,8 +13916,8 @@ static int fndfil(FILE* fp)
 
 }
 
-static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
-                     long subclient)
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid,
+                     ami_long subclient)
 
 {
 
@@ -13966,10 +13966,10 @@ static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
 
 void _pa_openwin_ovr(ami_openwin_t nfp, ami_openwin_t* ofp)
     { *ofp = openwin_vect; openwin_vect = nfp; }
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
 
-static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
 
 {
 
@@ -13988,17 +13988,17 @@ Sets or resets the size of the buffer surface, in pixel units.
 
 void _pa_sizbufg_ovr(ami_sizbufg_t nfp, ami_sizbufg_t* ofp)
     { *ofp = sizbufg_vect; sizbufg_vect = nfp; }
-void ami_sizbufg(FILE* f, long x, long y) { (*sizbufg_vect)(f, x, y); }
+void ami_sizbufg(FILE* f, ami_long x, ami_long y) { (*sizbufg_vect)(f, x, y); }
 
-static void sizbufg_ivf(FILE* f, long x, long y)
+static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
     int            si;     /* index for current display screen */
     winptr         win;    /* pointer to windows context */
     pd_canvas*         oldbuf; /* saved old buffer pixmap */
-    long           oldw, oldh; /* old buffer dimensions */
-    long           copyw, copyh; /* intersection to copy */
+    ami_long       oldw, oldh; /* old buffer dimensions */
+    ami_long       copyw, copyh; /* intersection to copy */
     scnptr         sc;     /* screen pointer */
     ami_evtrec     er;     /* event record for redraws */
 
@@ -14097,9 +14097,9 @@ Sets or resets the size of the buffer surface, in character counts.
 
 void _pa_sizbuf_ovr(ami_sizbuf_t nfp, ami_sizbuf_t* ofp)
     { *ofp = sizbuf_vect; sizbuf_vect = nfp; }
-void ami_sizbuf(FILE* f, long x, long y) { (*sizbuf_vect)(f, x, y); }
+void ami_sizbuf(FILE* f, ami_long x, ami_long y) { (*sizbuf_vect)(f, x, y); }
 
-static void sizbuf_ivf(FILE* f, long x, long y)
+static void sizbuf_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -14122,9 +14122,9 @@ freed.
 
 void _pa_buffer_ovr(ami_buffer_t nfp, ami_buffer_t* ofp)
     { *ofp = buffer_vect; buffer_vect = nfp; }
-void ami_buffer(FILE* f, long e) { (*buffer_vect)(f, e); }
+void ami_buffer(FILE* f, ami_long e) { (*buffer_vect)(f, e); }
 
-static void buffer_ivf(FILE* f, long e)
+static void buffer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -14132,7 +14132,7 @@ static void buffer_ivf(FILE* f, long e)
     struct { int width, height; } xwc; /* requested size values */
     pd_evt            xe;  /* platform event */
     int               si;  /* index for screens */
-    unsigned long     snc; /* serial of the provoking request */
+    ami_ulong         snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
     if (e) { /* perform buffer on actions */
@@ -14380,9 +14380,9 @@ static void menu_resize(FILE* f, winptr win, int menuon)
 {
 
     pd_evt e;   /* XWindow event */
-    long wx, wy; /* window sizes */
+    ami_long wx, wy; /* window sizes */
     int yes;    /* y extra size */
-    unsigned long snc; /* serial of the provoking request */
+    ami_ulong snc; /* serial of the provoking request */
 
     yes = 0; /* set no menu extra size */
     if (menuon) yes = win->menuspcy; /* set menu extra y size */
@@ -14466,9 +14466,9 @@ and will no longer send messages.
 
 void _pa_menuena_ovr(ami_menuena_t nfp, ami_menuena_t* ofp)
     { *ofp = menuena_vect; menuena_vect = nfp; }
-void ami_menuena(FILE* f, long id, long onoff) { (*menuena_vect)(f, id, onoff); }
+void ami_menuena(FILE* f, ami_long id, ami_long onoff) { (*menuena_vect)(f, id, onoff); }
 
-static void menuena_ivf(FILE* f, long id, long onoff)
+static void menuena_ivf(FILE* f, ami_long id, ami_long onoff)
 
 {
 
@@ -14542,9 +14542,9 @@ static void clrlst(metptr mp)
 
 void _pa_menusel_ovr(ami_menusel_t nfp, ami_menusel_t* ofp)
     { *ofp = menusel_vect; menusel_vect = nfp; }
-void ami_menusel(FILE* f, long id, long select) { (*menusel_vect)(f, id, select); }
+void ami_menusel(FILE* f, ami_long id, ami_long select) { (*menusel_vect)(f, id, select); }
 
-static void menusel_ivf(FILE* f, long id, long select)
+static void menusel_ivf(FILE* f, ami_long id, ami_long select)
 
 {
 
@@ -14759,9 +14759,9 @@ Gets the onscreen window size.
 
 void _pa_getsizg_ovr(ami_getsizg_t nfp, ami_getsizg_t* ofp)
     { *ofp = getsizg_vect; getsizg_vect = nfp; }
-void ami_getsizg(FILE* f, long* x, long* y) { (*getsizg_vect)(f, x, y); }
+void ami_getsizg(FILE* f, ami_long* x, ami_long* y) { (*getsizg_vect)(f, x, y); }
 
-static void getsizg_ivf(FILE* f, long* x, long* y)
+static void getsizg_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -14794,15 +14794,15 @@ relative measurement.
 
 void _pa_getsiz_ovr(ami_getsiz_t nfp, ami_getsiz_t* ofp)
     { *ofp = getsiz_vect; getsiz_vect = nfp; }
-void ami_getsiz(FILE* f, long* x, long* y) { (*getsiz_vect)(f, x, y); }
+void ami_getsiz(FILE* f, ami_long* x, ami_long* y) { (*getsiz_vect)(f, x, y); }
 
-static void getsiz_ivf(FILE* f, long* x, long* y)
+static void getsiz_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
     winptr win; /* pointer to windows context */
     winptr par; /* pointer to parent windows context */
-    long   gx, gy;
+    ami_long   gx, gy;
 
     win = txt2win(f); /* get window context */
     ami_getsizg(f, &gx, &gy); /* get graphics size */
@@ -14836,16 +14836,16 @@ and height of 1 as the minimum size window.
 
 void _pa_setsizg_ovr(ami_setsizg_t nfp, ami_setsizg_t* ofp)
     { *ofp = setsizg_vect; setsizg_vect = nfp; }
-void ami_setsizg(FILE* f, long x, long y) { (*setsizg_vect)(f, x, y); }
+void ami_setsizg(FILE* f, ami_long x, ami_long y) { (*setsizg_vect)(f, x, y); }
 
-static void setsizg_ivf(FILE* f, long x, long y)
+static void setsizg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
     winptr win; /* pointer to windows context */
     struct { int width, height; } xwc; /* requested size values */
     pd_evt e; /* platform event */
-    unsigned long snc; /* serial of the provoking request */
+    ami_ulong snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
     /* if child, apply parent's viewport scale to the requested size */
@@ -14964,9 +14964,9 @@ relative measurement.
 
 void _pa_setsiz_ovr(ami_setsiz_t nfp, ami_setsiz_t* ofp)
     { *ofp = setsiz_vect; setsiz_vect = nfp; }
-void ami_setsiz(FILE* f, long x, long y) { (*setsiz_vect)(f, x, y); }
+void ami_setsiz(FILE* f, ami_long x, ami_long y) { (*setsiz_vect)(f, x, y); }
 
-static void setsiz_ivf(FILE* f, long x, long y)
+static void setsiz_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -15002,15 +15002,15 @@ Sets the onscreen window to the given position in its parent.
 
 void _pa_setposg_ovr(ami_setposg_t nfp, ami_setposg_t* ofp)
     { *ofp = setposg_vect; setposg_vect = nfp; }
-void ami_setposg(FILE* f, long x, long y) { (*setposg_vect)(f, x, y); }
+void ami_setposg(FILE* f, ami_long x, ami_long y) { (*setposg_vect)(f, x, y); }
 
-static void setposg_ivf(FILE* f, long x, long y)
+static void setposg_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
     winptr win;         /* pointer to windows context */
     pd_evt         e;   /* XWindow event */
-    unsigned long  snc; /* serial of the provoking request */
+    ami_ulong      snc; /* serial of the provoking request */
 
     win = txt2win(f); /* get window context */
 
@@ -15186,9 +15186,9 @@ relative measurement.
 
 void _pa_setpos_ovr(ami_setpos_t nfp, ami_setpos_t* ofp)
     { *ofp = setpos_vect; setpos_vect = nfp; }
-void ami_setpos(FILE* f, long x, long y) { (*setpos_vect)(f, x, y); }
+void ami_setpos(FILE* f, ami_long x, ami_long y) { (*setpos_vect)(f, x, y); }
 
-static void setpos_ivf(FILE* f, long x, long y)
+static void setpos_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -15223,9 +15223,9 @@ Gets the total screen size.
 
 void _pa_scnsizg_ovr(ami_scnsizg_t nfp, ami_scnsizg_t* ofp)
     { *ofp = scnsizg_vect; scnsizg_vect = nfp; }
-void ami_scnsizg(FILE* f, long* x, long* y) { (*scnsizg_vect)(f, x, y); }
+void ami_scnsizg(FILE* f, ami_long* x, ami_long* y) { (*scnsizg_vect)(f, x, y); }
 
-static void scnsizg_ivf(FILE* f, long* x, long* y)
+static void scnsizg_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -15253,9 +15253,9 @@ because it can only be used as a relative measurement.
 
 void _pa_scnsiz_ovr(ami_scnsiz_t nfp, ami_scnsiz_t* ofp)
     { *ofp = scnsiz_vect; scnsiz_vect = nfp; }
-void ami_scnsiz(FILE* f, long* x, long* y) { (*scnsiz_vect)(f, x, y); }
+void ami_scnsiz(FILE* f, ami_long* x, ami_long* y) { (*scnsiz_vect)(f, x, y); }
 
-static void scnsiz_ivf(FILE* f, long* x, long* y)
+static void scnsiz_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -15281,9 +15281,9 @@ screens that are joined at one or more sides.
 
 void _pa_scnceng_ovr(ami_scnceng_t nfp, ami_scnceng_t* ofp)
     { *ofp = scnceng_vect; scnceng_vect = nfp; }
-void ami_scnceng(FILE* f, long* x, long* y) { (*scnceng_vect)(f, x, y); }
+void ami_scnceng(FILE* f, ami_long* x, ami_long* y) { (*scnceng_vect)(f, x, y); }
 
-static void scnceng_ivf(FILE* f, long* x, long* y)
+static void scnceng_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -15309,9 +15309,9 @@ screens that are joined at one or more sides.
 
 void _pa_scncen_ovr(ami_scncen_t nfp, ami_scncen_t* ofp)
     { *ofp = scncen_vect; scncen_vect = nfp; }
-void ami_scncen(FILE* f, long* x, long* y) { (*scncen_vect)(f, x, y); }
+void ami_scncen(FILE* f, ami_long* x, ami_long* y) { (*scncen_vect)(f, x, y); }
 
-static void scncen_ivf(FILE* f, long* x, long* y)
+static void scncen_ivf(FILE* f, ami_long* x, ami_long* y)
 
 {
 
@@ -15338,10 +15338,10 @@ Do we also need a menu style type ?
 
 void _pa_winclientg_ovr(ami_winclientg_t nfp, ami_winclientg_t* ofp)
     { *ofp = winclientg_vect; winclientg_vect = nfp; }
-void ami_winclientg(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+void ami_winclientg(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
     { (*winclientg_vect)(f, cx, cy, wx, wy, ms); }
 
-static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+static void winclientg_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 
 {
 
@@ -15389,10 +15389,10 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_wi
 
 void _pa_winclient_ovr(ami_winclient_t nfp, ami_winclient_t* ofp)
     { *ofp = winclient_vect; winclient_vect = nfp; }
-void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
 
-static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+static void winclient_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
 
 {
 
@@ -15429,9 +15429,9 @@ Turns the window frame on and off.
 
 void _pa_frame_ovr(ami_frame_t nfp, ami_frame_t* ofp)
     { *ofp = frame_vect; frame_vect = nfp; }
-void ami_frame(FILE* f, long e) { (*frame_vect)(f, e); }
+void ami_frame(FILE* f, ami_long e) { (*frame_vect)(f, e); }
 
-static void frame_ivf(FILE* f, long e)
+static void frame_ivf(FILE* f, ami_long e)
 
 {
 
@@ -15535,9 +15535,9 @@ managers.
 
 void _pa_sizable_ovr(ami_sizable_t nfp, ami_sizable_t* ofp)
     { *ofp = sizable_vect; sizable_vect = nfp; }
-void ami_sizable(FILE* f, long e) { (*sizable_vect)(f, e); }
+void ami_sizable(FILE* f, ami_long e) { (*sizable_vect)(f, e); }
 
-static void sizable_ivf(FILE* f, long e)
+static void sizable_ivf(FILE* f, ami_long e)
 
 {
 
@@ -15612,9 +15612,9 @@ used to create component windows.
 
 void _pa_sysbar_ovr(ami_sysbar_t nfp, ami_sysbar_t* ofp)
     { *ofp = sysbar_vect; sysbar_vect = nfp; }
-void ami_sysbar(FILE* f, long e) { (*sysbar_vect)(f, e); }
+void ami_sysbar(FILE* f, ami_long e) { (*sysbar_vect)(f, e); }
 
-static void sysbar_ivf(FILE* f, long e)
+static void sysbar_ivf(FILE* f, ami_long e)
 
 {
 
@@ -15746,9 +15746,9 @@ increments.
 
 void _pa_path_ovr(ami_path_t nfp, ami_path_t* ofp)
     { *ofp = path_vect; path_vect = nfp; }
-void ami_path(FILE* f, long a) { (*path_vect)(f, a); }
+void ami_path(FILE* f, ami_long a) { (*path_vect)(f, a); }
 
-static void path_ivf(FILE* f, long a)
+static void path_ivf(FILE* f, ami_long a)
 
 {
 
@@ -15774,640 +15774,640 @@ The widget package for XWindows will be supplied by an add-on package.
 
 void _pa_getwigid_ovr(ami_getwigid_t nfp, ami_getwigid_t* ofp)
     { *ofp = getwigid_vect; getwigid_vect = nfp; }
-long ami_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
+ami_long ami_getwigid(FILE* f) { return ((*getwigid_vect)(f)); }
 
-static long getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
+static ami_long getwigid_ivf(FILE* f) { error(egetwigid_unimp); return (0); }
 
 void _pa_killwidget_ovr(ami_killwidget_t nfp, ami_killwidget_t* ofp)
     { *ofp = killwidget_vect; killwidget_vect = nfp; }
-void ami_killwidget(FILE* f, long id) { (*killwidget_vect)(f, id); }
+void ami_killwidget(FILE* f, ami_long id) { (*killwidget_vect)(f, id); }
 
-static void killwidget_ivf(FILE* f, long id) { error(ekillwidget_unimp); }
+static void killwidget_ivf(FILE* f, ami_long id) { error(ekillwidget_unimp); }
 
 void _pa_selectwidget_ovr(ami_selectwidget_t nfp, ami_selectwidget_t* ofp)
     { *ofp = selectwidget_vect; selectwidget_vect = nfp; }
-void ami_selectwidget(FILE* f, long id, long e)
+void ami_selectwidget(FILE* f, ami_long id, ami_long e)
     { (*selectwidget_vect)(f, id, e); }
 
-static void selectwidget_ivf(FILE* f, long id, long e)
+static void selectwidget_ivf(FILE* f, ami_long id, ami_long e)
     { error(eselectwidget_unimp); }
 
 void _pa_enablewidget_ovr(ami_enablewidget_t nfp, ami_enablewidget_t* ofp)
     { *ofp = enablewidget_vect; enablewidget_vect = nfp; }
-void ami_enablewidget(FILE* f, long id, long e)
+void ami_enablewidget(FILE* f, ami_long id, ami_long e)
     { (*enablewidget_vect)(f, id, e); }
 
-static void enablewidget_ivf(FILE* f, long id, long e)
+static void enablewidget_ivf(FILE* f, ami_long id, ami_long e)
     { error(eenablewidget_unimp); }
 
 void _pa_getwidgettext_ovr(ami_getwidgettext_t nfp, ami_getwidgettext_t* ofp)
     { *ofp = getwidgettext_vect; getwidgettext_vect = nfp; }
-void ami_getwidgettext(FILE* f, long id, char* s, long sl)
+void ami_getwidgettext(FILE* f, ami_long id, char* s, ami_long sl)
     { (*getwidgettext_vect)(f, id, s, sl); }
 
-static void getwidgettext_ivf(FILE* f, long id, char* s, long sl)
+static void getwidgettext_ivf(FILE* f, ami_long id, char* s, ami_long sl)
     { error(egetwidgettext_unimp); }
 
 void _pa_putwidgettext_ovr(ami_putwidgettext_t nfp, ami_putwidgettext_t* ofp)
     { *ofp = putwidgettext_vect; putwidgettext_vect = nfp; }
-void ami_putwidgettext(FILE* f, long id, char* s)
+void ami_putwidgettext(FILE* f, ami_long id, char* s)
     { (*putwidgettext_vect)(f, id, s); }
 
-static void putwidgettext_ivf(FILE* f, long id, char* s)
+static void putwidgettext_ivf(FILE* f, ami_long id, char* s)
     { error(eputwidgettext_unimp); }
 
 void _pa_sizwidget_ovr(ami_sizwidget_t nfp, ami_sizwidget_t* ofp)
     { *ofp = sizwidget_vect; sizwidget_vect = nfp; }
-void ami_sizwidget(FILE* f, long id, long x, long y)
+void ami_sizwidget(FILE* f, ami_long id, ami_long x, ami_long y)
     { (*sizwidget_vect)(f, id, x, y); }
 
-static void sizwidget_ivf(FILE* f, long id, long x, long y)
+static void sizwidget_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
     { error(esizwidget_unimp); }
 
 void _pa_sizwidgetg_ovr(ami_sizwidgetg_t nfp, ami_sizwidgetg_t* ofp)
     { *ofp = sizwidgetg_vect; sizwidgetg_vect = nfp; }
-void ami_sizwidgetg(FILE* f, long id, long x, long y)
+void ami_sizwidgetg(FILE* f, ami_long id, ami_long x, ami_long y)
     { (*sizwidgetg_vect)(f, id, x, y); }
 
-static void sizwidgetg_ivf(FILE* f, long id, long x, long y)
+static void sizwidgetg_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
     { error(esizwidgetg_unimp); }
 
 void _pa_poswidget_ovr(ami_poswidget_t nfp, ami_poswidget_t* ofp)
     { *ofp = poswidget_vect; poswidget_vect = nfp; }
-void ami_poswidget(FILE* f, long id, long x, long y)
+void ami_poswidget(FILE* f, ami_long id, ami_long x, ami_long y)
     { (*poswidget_vect)(f, id, x, y); }
 
-static void poswidget_ivf(FILE* f, long id, long x, long y)
+static void poswidget_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
     { error(eposwidget_unimp); }
 
 void _pa_poswidgetg_ovr(ami_poswidgetg_t nfp, ami_poswidgetg_t* ofp)
     { *ofp = poswidgetg_vect; poswidgetg_vect = nfp; }
-void ami_poswidgetg(FILE* f, long id, long x, long y)
+void ami_poswidgetg(FILE* f, ami_long id, ami_long x, ami_long y)
     { (*poswidgetg_vect)(f, id, x, y); }
 
-static void poswidgetg_ivf(FILE* f, long id, long x, long y)
+static void poswidgetg_ivf(FILE* f, ami_long id, ami_long x, ami_long y)
     { error(eposwidgetg_unimp); }
 
 void _pa_backwidget_ovr(ami_backwidget_t nfp, ami_backwidget_t* ofp)
     { *ofp = backwidget_vect; backwidget_vect = nfp; }
-void ami_backwidget(FILE* f, long id) { (*backwidget_vect)(f, id); }
+void ami_backwidget(FILE* f, ami_long id) { (*backwidget_vect)(f, id); }
 
-static void backwidget_ivf(FILE* f, long id) { error(ebackwidget_unimp); }
+static void backwidget_ivf(FILE* f, ami_long id) { error(ebackwidget_unimp); }
 
 void _pa_frontwidget_ovr(ami_frontwidget_t nfp, ami_frontwidget_t* ofp)
     { *ofp = frontwidget_vect; frontwidget_vect = nfp; }
-void ami_frontwidget(FILE* f, long id) { (*frontwidget_vect)(f, id); }
+void ami_frontwidget(FILE* f, ami_long id) { (*frontwidget_vect)(f, id); }
 
-static void frontwidget_ivf(FILE* f, long id) { error(efrontwidget_unimp); }
+static void frontwidget_ivf(FILE* f, ami_long id) { error(efrontwidget_unimp); }
 
 void _pa_focuswidget_ovr(ami_focuswidget_t nfp, ami_focuswidget_t* ofp)
     { *ofp = focuswidget_vect; focuswidget_vect = nfp; }
-void ami_focuswidget(FILE* f, long id) { (*focuswidget_vect)(f, id); }
+void ami_focuswidget(FILE* f, ami_long id) { (*focuswidget_vect)(f, id); }
 
-static void focuswidget_ivf(FILE* f, long id) { error(efocuswidget_unimp); }
+static void focuswidget_ivf(FILE* f, ami_long id) { error(efocuswidget_unimp); }
 
 void _pa_buttonsiz_ovr(ami_buttonsiz_t nfp, ami_buttonsiz_t* ofp)
     { *ofp = buttonsiz_vect; buttonsiz_vect = nfp; }
-void ami_buttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_buttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*buttonsiz_vect)(f, s, w, h); }
 
-static void buttonsiz_ivf(FILE* f, char* s, long* w, long* h)
+static void buttonsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(ebuttonsiz_unimp); }
 
 void _pa_buttonsizg_ovr(ami_buttonsizg_t nfp, ami_buttonsizg_t* ofp)
     { *ofp = buttonsizg_vect; buttonsizg_vect = nfp; }
-void ami_buttonsizg(FILE* f, char* s, long* w, long* h)
+void ami_buttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*buttonsizg_vect)(f, s, w, h); }
 
-static void buttonsizg_ivf(FILE* f, char* s, long* w, long* h)
+static void buttonsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(ebuttonsizg_unimp); }
 
 void _pa_button_ovr(ami_button_t nfp, ami_button_t* ofp)
     { *ofp = button_vect; button_vect = nfp; }
-void ami_button(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_button(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*button_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void button_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void button_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(ebutton_unimp); }
 
 void _pa_buttong_ovr(ami_buttong_t nfp, ami_buttong_t* ofp)
     { *ofp = buttong_vect; buttong_vect = nfp; }
-void ami_buttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_buttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*buttong_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void buttong_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void buttong_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(ebuttong_unimp); }
 
 void _pa_checkboxsiz_ovr(ami_checkboxsiz_t nfp, ami_checkboxsiz_t* ofp)
     { *ofp = checkboxsiz_vect; checkboxsiz_vect = nfp; }
-void ami_checkboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*checkboxsiz_vect)(f, s, w, h); }
 
-static void checkboxsiz_ivf(FILE* f, char* s, long* w, long* h)
+static void checkboxsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(echeckboxsiz_unimp); }
 
 void _pa_checkboxsizg_ovr(ami_checkboxsizg_t nfp, ami_checkboxsizg_t* ofp)
     { *ofp = checkboxsizg_vect; checkboxsizg_vect = nfp; }
-void ami_checkboxsizg(FILE* f, char* s, long* w, long* h)
+void ami_checkboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*checkboxsizg_vect)(f, s, w, h); }
 
-static void checkboxsizg_ivf(FILE* f, char* s, long* w, long* h)
+static void checkboxsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(echeckboxsizg_unimp); }
 
 void _pa_checkbox_ovr(ami_checkbox_t nfp, ami_checkbox_t* ofp)
     { *ofp = checkbox_vect; checkbox_vect = nfp; }
-void ami_checkbox(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_checkbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*checkbox_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void checkbox_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void checkbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(echeckbox_unimp); }
 
 void _pa_checkboxg_ovr(ami_checkboxg_t nfp, ami_checkboxg_t* ofp)
     { *ofp = checkboxg_vect; checkboxg_vect = nfp; }
-void ami_checkboxg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_checkboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*checkboxg_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void checkboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void checkboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(echeckboxg_unimp); }
 
 void _pa_radiobuttonsiz_ovr(ami_radiobuttonsiz_t nfp, ami_radiobuttonsiz_t* ofp)
     { *ofp = radiobuttonsiz_vect; radiobuttonsiz_vect = nfp; }
-void ami_radiobuttonsiz(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*radiobuttonsiz_vect)(f, s, w, h); }
 
-static void radiobuttonsiz_ivf(FILE* f, char* s, long* w, long* h)
+static void radiobuttonsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(eradiobuttonsiz_unimp); }
 
 void _pa_radiobuttonsizg_ovr(ami_radiobuttonsizg_t nfp, ami_radiobuttonsizg_t* ofp)
     { *ofp = radiobuttonsizg_vect; radiobuttonsizg_vect = nfp; }
-void ami_radiobuttonsizg(FILE* f, char* s, long* w, long* h)
+void ami_radiobuttonsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*radiobuttonsizg_vect)(f, s, w, h); }
 
-static void radiobuttonsizg_ivf(FILE* f, char* s, long* w, long* h)
+static void radiobuttonsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(eradiobuttonsizg_unimp); }
 
 void _pa_radiobutton_ovr(ami_radiobutton_t nfp, ami_radiobutton_t* ofp)
     { *ofp = radiobutton_vect; radiobutton_vect = nfp; }
-void ami_radiobutton(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_radiobutton(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*radiobutton_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void radiobutton_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void radiobutton_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(eradiobutton_unimp); }
 
 void _pa_radiobuttong_ovr(ami_radiobuttong_t nfp, ami_radiobuttong_t* ofp)
     { *ofp = radiobuttong_vect; radiobuttong_vect = nfp; }
-void ami_radiobuttong(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_radiobuttong(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*radiobuttong_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void radiobuttong_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void radiobuttong_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(eradiobuttong_unimp); }
 
 void _pa_groupsizg_ovr(ami_groupsizg_t nfp, ami_groupsizg_t* ofp)
     { *ofp = groupsizg_vect; groupsizg_vect = nfp; }
-void ami_groupsizg(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_groupsizg(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
     { (*groupsizg_vect)(f, s, cw, ch, w, h, ox, oy); }
 
-static void groupsizg_ivf(FILE* f, char* s, long cw, long ch, long* w, long* h,
-                          long* ox, long* oy)
+static void groupsizg_ivf(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                          ami_long* ox, ami_long* oy)
     { error(egroupsizg_unimp); }
 
 void _pa_groupsiz_ovr(ami_groupsiz_t nfp, ami_groupsiz_t* ofp)
     { *ofp = groupsiz_vect; groupsiz_vect = nfp; }
-void ami_groupsiz(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_groupsiz(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
     { (*groupsiz_vect)(f, s, cw, ch, w, h, ox, oy); }
 
-static void groupsiz_ivf(FILE* f, char* s, long cw, long ch, long* w, long* h, long* ox,
-                 long* oy) { error(egroupsiz_unimp); }
+static void groupsiz_ivf(FILE* f, char* s, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox,
+                 ami_long* oy) { error(egroupsiz_unimp); }
 
 void _pa_group_ovr(ami_group_t nfp, ami_group_t* ofp)
     { *ofp = group_vect; group_vect = nfp; }
-void ami_group(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_group(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*group_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void group_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void group_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(egroup_unimp); }
 
 void _pa_groupg_ovr(ami_groupg_t nfp, ami_groupg_t* ofp)
     { *ofp = groupg_vect; groupg_vect = nfp; }
-void ami_groupg(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+void ami_groupg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { (*groupg_vect)(f, x1, y1, x2, y2, s, id); }
 
-static void groupg_ivf(FILE* f, long x1, long y1, long x2, long y2, char* s, long id)
+static void groupg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, char* s, ami_long id)
     { error(egroupg_unimp); }
 
 void _pa_background_ovr(ami_background_t nfp, ami_background_t* ofp)
     { *ofp = background_vect; background_vect = nfp; }
-void ami_background(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_background(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*background_vect)(f, x1, y1, x2, y2, id); }
 
-static void background_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void background_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(ebackground_unimp); }
 
 void _pa_backgroundg_ovr(ami_backgroundg_t nfp, ami_backgroundg_t* ofp)
     { *ofp = backgroundg_vect; backgroundg_vect = nfp; }
-void ami_backgroundg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_backgroundg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*backgroundg_vect)(f, x1, y1, x2, y2, id); }
 
-static void backgroundg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void backgroundg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(ebackgroundg_unimp); }
 
 void _pa_scrollvertsizg_ovr(ami_scrollvertsizg_t nfp, ami_scrollvertsizg_t* ofp)
     { *ofp = scrollvertsizg_vect; scrollvertsizg_vect = nfp; }
-void ami_scrollvertsizg(FILE* f, long* w, long* h)
+void ami_scrollvertsizg(FILE* f, ami_long* w, ami_long* h)
     { (*scrollvertsizg_vect)(f, w, h); }
 
-static void scrollvertsizg_ivf(FILE* f, long* w, long* h)
+static void scrollvertsizg_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(escrollvertsizg_unimp); }
 
 void _pa_scrollvertsiz_ovr(ami_scrollvertsiz_t nfp, ami_scrollvertsiz_t* ofp)
     { *ofp = scrollvertsiz_vect; scrollvertsiz_vect = nfp; }
-void ami_scrollvertsiz(FILE* f, long* w, long* h)
+void ami_scrollvertsiz(FILE* f, ami_long* w, ami_long* h)
     { (*scrollvertsiz_vect)(f, w, h); }
 
-static void scrollvertsiz_ivf(FILE* f, long* w, long* h)
+static void scrollvertsiz_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(escrollvertsiz_unimp); }
 
 void _pa_scrollvert_ovr(ami_scrollvert_t nfp, ami_scrollvert_t* ofp)
     { *ofp = scrollvert_vect; scrollvert_vect = nfp; }
-void ami_scrollvert(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*scrollvert_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollvert_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollvert_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(escrollvert_unimp); }
 
 void _pa_scrollvertg_ovr(ami_scrollvertg_t nfp, ami_scrollvertg_t* ofp)
     { *ofp = scrollvertg_vect; scrollvertg_vect = nfp; }
-void ami_scrollvertg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollvertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*scrollvertg_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollvertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollvertg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(escrollvertg_unimp); }
 
 void _pa_scrollhorizsizg_ovr(ami_scrollhorizsizg_t nfp, ami_scrollhorizsizg_t* ofp)
     { *ofp = scrollhorizsizg_vect; scrollhorizsizg_vect = nfp; }
-void ami_scrollhorizsizg(FILE* f, long* w, long* h)
+void ami_scrollhorizsizg(FILE* f, ami_long* w, ami_long* h)
     { (*scrollhorizsizg_vect)(f, w, h); }
 
-static void scrollhorizsizg_ivf(FILE* f, long* w, long* h)
+static void scrollhorizsizg_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(escrollhorizsizg_unimp); }
 
 void _pa_scrollhorizsiz_ovr(ami_scrollhorizsiz_t nfp, ami_scrollhorizsiz_t* ofp)
     { *ofp = scrollhorizsiz_vect; scrollhorizsiz_vect = nfp; }
-void ami_scrollhorizsiz(FILE* f, long* w, long* h)
+void ami_scrollhorizsiz(FILE* f, ami_long* w, ami_long* h)
     { (*scrollhorizsiz_vect)(f, w, h); }
 
-static void scrollhorizsiz_ivf(FILE* f, long* w, long* h)
+static void scrollhorizsiz_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(escrollhorizsiz_unimp); }
 
 void _pa_scrollhoriz_ovr(ami_scrollhoriz_t nfp, ami_scrollhoriz_t* ofp)
     { *ofp = scrollhoriz_vect; scrollhoriz_vect = nfp; }
-void ami_scrollhoriz(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*scrollhoriz_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollhoriz_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollhoriz_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(escrollhoriz_unimp); }
 
 void _pa_scrollhorizg_ovr(ami_scrollhorizg_t nfp, ami_scrollhorizg_t* ofp)
     { *ofp = scrollhorizg_vect; scrollhorizg_vect = nfp; }
-void ami_scrollhorizg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_scrollhorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*scrollhorizg_vect)(f, x1, y1, x2, y2, id); }
 
-static void scrollhorizg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void scrollhorizg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(escrollhorizg_unimp); }
 
 void _pa_scrollpos_ovr(ami_scrollpos_t nfp, ami_scrollpos_t* ofp)
     { *ofp = scrollpos_vect; scrollpos_vect = nfp; }
-void ami_scrollpos(FILE* f, long id, long r)
+void ami_scrollpos(FILE* f, ami_long id, ami_long r)
     { (*scrollpos_vect)(f, id, r); }
 
-static void scrollpos_ivf(FILE* f, long id, long r) { error(escrollpos_unimp); }
+static void scrollpos_ivf(FILE* f, ami_long id, ami_long r) { error(escrollpos_unimp); }
 
 void _pa_scrollsiz_ovr(ami_scrollsiz_t nfp, ami_scrollsiz_t* ofp)
     { *ofp = scrollsiz_vect; scrollsiz_vect = nfp; }
-void ami_scrollsiz(FILE* f, long id, long r)
+void ami_scrollsiz(FILE* f, ami_long id, ami_long r)
     { (*scrollsiz_vect)(f, id, r); }
 
-static void scrollsiz_ivf(FILE* f, long id, long r) { error(escrollsiz_unimp); }
+static void scrollsiz_ivf(FILE* f, ami_long id, ami_long r) { error(escrollsiz_unimp); }
 
 void _pa_numselboxsizg_ovr(ami_numselboxsizg_t nfp, ami_numselboxsizg_t* ofp)
     { *ofp = numselboxsizg_vect; numselboxsizg_vect = nfp; }
-void ami_numselboxsizg(FILE* f, long l, long u, long* w, long* h)
+void ami_numselboxsizg(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
     { (*numselboxsizg_vect)(f, l, u, w, h); }
 
-static void numselboxsizg_ivf(FILE* f, long l, long u, long* w, long* h)
+static void numselboxsizg_ivf(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
     { error(enumselboxsizg_unimp); }
 
 void _pa_numselboxsiz_ovr(ami_numselboxsiz_t nfp, ami_numselboxsiz_t* ofp)
     { *ofp = numselboxsiz_vect; numselboxsiz_vect = nfp; }
-void ami_numselboxsiz(FILE* f, long l, long u, long* w, long* h)
+void ami_numselboxsiz(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
     { (*numselboxsiz_vect)(f, l, u, w, h); }
 
-static void numselboxsiz_ivf(FILE* f, long l, long u, long* w, long* h)
+static void numselboxsiz_ivf(FILE* f, ami_long l, ami_long u, ami_long* w, ami_long* h)
     { error(enumselboxsiz_unimp); }
 
 void _pa_numselbox_ovr(ami_numselbox_t nfp, ami_numselbox_t* ofp)
     { *ofp = numselbox_vect; numselbox_vect = nfp; }
-void ami_numselbox(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
+void ami_numselbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
     { (*numselbox_vect)(f, x1, y1, x2, y2, l, u, id); }
 
-static void numselbox_ivf(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
-                  long id) { error(enumselbox_unimp); }
+static void numselbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                  ami_long id) { error(enumselbox_unimp); }
 
 void _pa_numselboxg_ovr(ami_numselboxg_t nfp, ami_numselboxg_t* ofp)
     { *ofp = numselboxg_vect; numselboxg_vect = nfp; }
-void ami_numselboxg(FILE* f, long x1, long y1, long x2, long y2, long l, long u, long id)
+void ami_numselboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u, ami_long id)
     { (*numselboxg_vect)(f, x1, y1, x2, y2, l, u, id); }
 
-static void numselboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, long l, long u,
-                   long id) { error(enumselboxg_unimp); }
+static void numselboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long l, ami_long u,
+                   ami_long id) { error(enumselboxg_unimp); }
 
 void _pa_editboxsizg_ovr(ami_editboxsizg_t nfp, ami_editboxsizg_t* ofp)
     { *ofp = editboxsizg_vect; editboxsizg_vect = nfp; }
-void ami_editboxsizg(FILE* f, char* s, long* w, long* h)
+void ami_editboxsizg(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*editboxsizg_vect)(f, s, w, h); }
 
-static void editboxsizg_ivf(FILE* f, char* s, long* w, long* h)
+static void editboxsizg_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(eeditboxsizg_unimp); }
 
 void _pa_editboxsiz_ovr(ami_editboxsiz_t nfp, ami_editboxsiz_t* ofp)
     { *ofp = editboxsiz_vect; editboxsiz_vect = nfp; }
-void ami_editboxsiz(FILE* f, char* s, long* w, long* h)
+void ami_editboxsiz(FILE* f, char* s, ami_long* w, ami_long* h)
     { (*editboxsiz_vect)(f, s, w, h); }
 
-static void editboxsiz_ivf(FILE* f, char* s, long* w, long* h)
+static void editboxsiz_ivf(FILE* f, char* s, ami_long* w, ami_long* h)
     { error(eeditboxsiz_unimp); }
 
 void _pa_editbox_ovr(ami_editbox_t nfp, ami_editbox_t* ofp)
     { *ofp = editbox_vect; editbox_vect = nfp; }
-void ami_editbox(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*editbox_vect)(f, x1, y1, x2, y2, id); }
 
-static void editbox_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void editbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(eeditbox_unimp); }
 
 void _pa_editboxg_ovr(ami_editboxg_t nfp, ami_editboxg_t* ofp)
     { *ofp = editboxg_vect; editboxg_vect = nfp; }
-void ami_editboxg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_editboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*editboxg_vect)(f, x1, y1, x2, y2, id); }
 
-static void editboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void editboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(eeditboxg_unimp); }
 
 void _pa_progbarsizg_ovr(ami_progbarsizg_t nfp, ami_progbarsizg_t* ofp)
     { *ofp = progbarsizg_vect; progbarsizg_vect = nfp; }
-void ami_progbarsizg(FILE* f, long* w, long* h) { (*progbarsizg_vect)(f, w, h); }
+void ami_progbarsizg(FILE* f, ami_long* w, ami_long* h) { (*progbarsizg_vect)(f, w, h); }
 
-static void progbarsizg_ivf(FILE* f, long* w, long* h)
+static void progbarsizg_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(eprogbarsizg_unimp); }
 
 void _pa_progbarsiz_ovr(ami_progbarsiz_t nfp, ami_progbarsiz_t* ofp)
     { *ofp = progbarsiz_vect; progbarsiz_vect = nfp; }
-void ami_progbarsiz(FILE* f, long* w, long* h) { (*progbarsiz_vect)(f, w, h); }
+void ami_progbarsiz(FILE* f, ami_long* w, ami_long* h) { (*progbarsiz_vect)(f, w, h); }
 
-static void progbarsiz_ivf(FILE* f, long* w, long* h)
+static void progbarsiz_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(eprogbarsiz_unimp); }
 
 void _pa_progbar_ovr(ami_progbar_t nfp, ami_progbar_t* ofp)
     { *ofp = progbar_vect; progbar_vect = nfp; }
-void ami_progbar(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*progbar_vect)(f, x1, y1, x2, y2, id); }
 
-static void progbar_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void progbar_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(eprogbar_unimp); }
 
 void _pa_progbarg_ovr(ami_progbarg_t nfp, ami_progbarg_t* ofp)
     { *ofp = progbarg_vect; progbarg_vect = nfp; }
-void ami_progbarg(FILE* f, long x1, long y1, long x2, long y2, long id)
+void ami_progbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { (*progbarg_vect)(f, x1, y1, x2, y2, id); }
 
-static void progbarg_ivf(FILE* f, long x1, long y1, long x2, long y2, long id)
+static void progbarg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id)
     { error(eprogbarg_unimp); }
 
 void _pa_progbarpos_ovr(ami_progbarpos_t nfp, ami_progbarpos_t* ofp)
     { *ofp = progbarpos_vect; progbarpos_vect = nfp; }
-void ami_progbarpos(FILE* f, long id, long pos) { (*progbarpos_vect)(f, id, pos); }
+void ami_progbarpos(FILE* f, ami_long id, ami_long pos) { (*progbarpos_vect)(f, id, pos); }
 
-static void progbarpos_ivf(FILE* f, long id, long pos)
+static void progbarpos_ivf(FILE* f, ami_long id, ami_long pos)
     { error(eprogbarpos_unimp); }
 
 void _pa_listboxsizg_ovr(ami_listboxsizg_t nfp, ami_listboxsizg_t* ofp)
     { *ofp = listboxsizg_vect; listboxsizg_vect = nfp; }
-void ami_listboxsizg(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsizg(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
     { (*listboxsizg_vect)(f, sp, w, h); }
 
-static void listboxsizg_ivf(FILE* f, ami_strptr sp, long* w, long* h)
+static void listboxsizg_ivf(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
     { error(elistboxsizg_unimp); }
 
 void _pa_listboxsiz_ovr(ami_listboxsiz_t nfp, ami_listboxsiz_t* ofp)
     { *ofp = listboxsiz_vect; listboxsiz_vect = nfp; }
-void ami_listboxsiz(FILE* f, ami_strptr sp, long* w, long* h)
+void ami_listboxsiz(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
     { (*listboxsiz_vect)(f, sp, w, h); }
 
-static void listboxsiz_ivf(FILE* f, ami_strptr sp, long* w, long* h)
+static void listboxsiz_ivf(FILE* f, ami_strptr sp, ami_long* w, ami_long* h)
     { error(elistboxsiz_unimp); }
 
 void _pa_listbox_ovr(ami_listbox_t nfp, ami_listbox_t* ofp)
     { *ofp = listbox_vect; listbox_vect = nfp; }
-void ami_listbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_listbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { (*listbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void listbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void listbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { error(elistbox_unimp); }
 
 void _pa_listboxg_ovr(ami_listboxg_t nfp, ami_listboxg_t* ofp)
     { *ofp = listboxg_vect; listboxg_vect = nfp; }
-void ami_listboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_listboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { (*listboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void listboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void listboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { error(elistboxg_unimp); }
 
 void _pa_dropboxsizg_ovr(ami_dropboxsizg_t nfp, ami_dropboxsizg_t* ofp)
     { *ofp = dropboxsizg_vect; dropboxsizg_vect = nfp; }
-void ami_dropboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { (*dropboxsizg_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropboxsizg_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropboxsizg_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { error(edropboxsizg_unimp); }
 
 void _pa_dropboxsiz_ovr(ami_dropboxsiz_t nfp, ami_dropboxsiz_t* ofp)
     { *ofp = dropboxsiz_vect; dropboxsiz_vect = nfp; }
-void ami_dropboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { (*dropboxsiz_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropboxsiz_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropboxsiz_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { error(edropboxsiz_unimp); }
 
 void _pa_dropbox_ovr(ami_dropbox_t nfp, ami_dropbox_t* ofp)
     { *ofp = dropbox_vect; dropbox_vect = nfp; }
-void ami_dropbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { (*dropbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { error(edropbox_unimp); }
 
 void _pa_dropboxg_ovr(ami_dropboxg_t nfp, ami_dropboxg_t* ofp)
     { *ofp = dropboxg_vect; dropboxg_vect = nfp; }
-void ami_dropboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { (*dropboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { error(edropboxg_unimp); }
 
 void _pa_dropeditboxsizg_ovr(ami_dropeditboxsizg_t nfp, ami_dropeditboxsizg_t* ofp)
     { *ofp = dropeditboxsizg_vect; dropeditboxsizg_vect = nfp; }
-void ami_dropeditboxsizg(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropeditboxsizg(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { (*dropeditboxsizg_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropeditboxsizg_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { error(edropeditboxsizg_unimp); }
 
 void _pa_dropeditboxsiz_ovr(ami_dropeditboxsiz_t nfp, ami_dropeditboxsiz_t* ofp)
     { *ofp = dropeditboxsiz_vect; dropeditboxsiz_vect = nfp; }
-void ami_dropeditboxsiz(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+void ami_dropeditboxsiz(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { (*dropeditboxsiz_vect)(f, sp, cw, ch, ow, oh); }
 
-static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, long* cw, long* ch, long* ow, long* oh)
+static void dropeditboxsiz_ivf(FILE* f, ami_strptr sp, ami_long* cw, ami_long* ch, ami_long* ow, ami_long* oh)
     { error(edropeditboxsiz_unimp); }
 
 void _pa_dropeditbox_ovr(ami_dropeditbox_t nfp, ami_dropeditbox_t* ofp)
     { *ofp = dropeditbox_vect; dropeditbox_vect = nfp; }
-void ami_dropeditbox(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropeditbox(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { (*dropeditbox_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropeditbox_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+static void dropeditbox_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { error(edropeditbox_unimp); }
 
 void _pa_dropeditboxg_ovr(ami_dropeditboxg_t nfp, ami_dropeditboxg_t* ofp)
     { *ofp = dropeditboxg_vect; dropeditboxg_vect = nfp; }
-void ami_dropeditboxg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, long id)
+void ami_dropeditboxg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_long id)
     { (*dropeditboxg_vect)(f, x1, y1, x2, y2, sp, id); }
 
-static void dropeditboxg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                             long id)
+static void dropeditboxg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                             ami_long id)
     { error(edropeditboxg_unimp); }
 
 void _pa_slidehorizsizg_ovr(ami_slidehorizsizg_t nfp, ami_slidehorizsizg_t* ofp)
     { *ofp = slidehorizsizg_vect; slidehorizsizg_vect = nfp; }
-void ami_slidehorizsizg(FILE* f, long* w, long* h) { (*slidehorizsizg_vect)(f, w, h); }
+void ami_slidehorizsizg(FILE* f, ami_long* w, ami_long* h) { (*slidehorizsizg_vect)(f, w, h); }
 
-static void slidehorizsizg_ivf(FILE* f, long* w, long* h)
+static void slidehorizsizg_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(eslidehorizsizg_unimp); }
 
 void _pa_slidehorizsiz_ovr(ami_slidehorizsiz_t nfp, ami_slidehorizsiz_t* ofp)
     { *ofp = slidehorizsiz_vect; slidehorizsiz_vect = nfp; }
-void ami_slidehorizsiz(FILE* f, long* w, long* h)
+void ami_slidehorizsiz(FILE* f, ami_long* w, ami_long* h)
     { (*slidehorizsiz_vect)(f, w, h); }
 
-static void slidehorizsiz_ivf(FILE* f, long* w, long* h)
+static void slidehorizsiz_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(eslidehorizsiz_unimp); }
 
 void _pa_slidehoriz_ovr(ami_slidehoriz_t nfp, ami_slidehoriz_t* ofp)
     { *ofp = slidehoriz_vect; slidehoriz_vect = nfp; }
-void ami_slidehoriz(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidehoriz(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { (*slidehoriz_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidehoriz_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidehoriz_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { error(eslidehoriz_unimp); }
 
 void _pa_slidehorizg_ovr(ami_slidehorizg_t nfp, ami_slidehorizg_t* ofp)
     { *ofp = slidehorizg_vect; slidehorizg_vect = nfp; }
-void ami_slidehorizg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidehorizg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { (*slidehorizg_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidehorizg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidehorizg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { error(eslidehorizg_unimp); }
 
 void _pa_slidevertsizg_ovr(ami_slidevertsizg_t nfp, ami_slidevertsizg_t* ofp)
     { *ofp = slidevertsizg_vect; slidevertsizg_vect = nfp; }
-void ami_slidevertsizg(FILE* f, long* w, long* h)
+void ami_slidevertsizg(FILE* f, ami_long* w, ami_long* h)
     { (*slidevertsizg_vect)(f, w, h); }
 
-static void slidevertsizg_ivf(FILE* f, long* w, long* h)
+static void slidevertsizg_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(eslidevertsizg_unimp); }
 
 void _pa_slidevertsiz_ovr(ami_slidevertsiz_t nfp, ami_slidevertsiz_t* ofp)
     { *ofp = slidevertsiz_vect; slidevertsiz_vect = nfp; }
-void ami_slidevertsiz(FILE* f, long* w, long* h) { (*slidevertsiz_vect)(f, w, h); }
+void ami_slidevertsiz(FILE* f, ami_long* w, ami_long* h) { (*slidevertsiz_vect)(f, w, h); }
 
-static void slidevertsiz_ivf(FILE* f, long* w, long* h)
+static void slidevertsiz_ivf(FILE* f, ami_long* w, ami_long* h)
     { error(eslidevertsiz_unimp); }
 
 void _pa_slidevert_ovr(ami_slidevert_t nfp, ami_slidevert_t* ofp)
     { *ofp = slidevert_vect; slidevert_vect = nfp; }
-void ami_slidevert(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidevert(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { (*slidevert_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidevert_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidevert_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { error(eslidevert_unimp); }
 
 void _pa_slidevertg_ovr(ami_slidevertg_t nfp, ami_slidevertg_t* ofp)
     { *ofp = slidevertg_vect; slidevertg_vect = nfp; }
-void ami_slidevertg(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+void ami_slidevertg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { (*slidevertg_vect)(f, x1, y1, x2, y2, mark, id); }
 
-static void slidevertg_ivf(FILE* f, long x1, long y1, long x2, long y2, long mark, long id)
+static void slidevertg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long mark, ami_long id)
     { error(eslidevertg_unimp); }
 
 void _pa_tabbarsizg_ovr(ami_tabbarsizg_t nfp, ami_tabbarsizg_t* ofp)
     { *ofp = tabbarsizg_vect; tabbarsizg_vect = nfp; }
-void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarsizg(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
     { (*tabbarsizg_vect)(f, sp, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsizg_ivf(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h,
-                           long* ox, long* oy)
+static void tabbarsizg_ivf(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h,
+                           ami_long* ox, ami_long* oy)
     { error(etabbarsizg_unimp); }
 
 void _pa_tabbarsiz_ovr(ami_tabbarsiz_t nfp, ami_tabbarsiz_t* ofp)
     { *ofp = tabbarsiz_vect; tabbarsiz_vect = nfp; }
-void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarsiz(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
     { (*tabbarsiz_vect)(f, sp, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarsiz_ivf(FILE* f, ami_strptr sp, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox,
-                  long* oy)
+static void tabbarsiz_ivf(FILE* f, ami_strptr sp, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox,
+                  ami_long* oy)
     { error(etabbarsiz_unimp); }
 
 void _pa_tabbarclientg_ovr(ami_tabbarclientg_t nfp, ami_tabbarclientg_t* ofp)
     { *ofp = tabbarclientg_vect; tabbarclientg_vect = nfp; }
-void ami_tabbarclientg(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarclientg(FILE* f, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
     { (*tabbarclientg_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarclientg_ivf(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
-                              long* ox, long* oy)
+static void tabbarclientg_ivf(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch,
+                              ami_long* ox, ami_long* oy)
     { error(etabbarclientg_unimp); }
 
 void _pa_tabbarclient_ovr(ami_tabbarclient_t nfp, ami_tabbarclient_t* ofp)
     { *ofp = tabbarclient_vect; tabbarclient_vect = nfp; }
-void ami_tabbarclient(FILE* f, ami_tabori tor, long cw, long ch, long* w, long* h, long* ox, long* oy)
+void ami_tabbarclient(FILE* f, ami_tabori tor, ami_long cw, ami_long ch, ami_long* w, ami_long* h, ami_long* ox, ami_long* oy)
     { (*tabbarclient_vect)(f, tor, cw, ch, w, h, ox, oy); }
 
-static void tabbarclient_ivf(FILE* f, ami_tabori tor, long w, long h, long* cw, long* ch,
-                     long* ox, long* oy)
+static void tabbarclient_ivf(FILE* f, ami_tabori tor, ami_long w, ami_long h, ami_long* cw, ami_long* ch,
+                     ami_long* ox, ami_long* oy)
     { error(etabbarclient_unimp); }
 
 void _pa_tabbar_ovr(ami_tabbar_t nfp, ami_tabbar_t* ofp)
     { *ofp = tabbar_vect; tabbar_vect = nfp; }
-void ami_tabbar(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
+void ami_tabbar(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor, ami_long id)
     { (*tabbar_vect)(f, x1, y1, x2, y2, sp, tor, id); }
 
-static void tabbar_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-               ami_tabori tor, long id)
+static void tabbar_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+               ami_tabori tor, ami_long id)
     { error(etabbar_unimp); }
 
 void _pa_tabbarg_ovr(ami_tabbarg_t nfp, ami_tabbarg_t* ofp)
     { *ofp = tabbarg_vect; tabbarg_vect = nfp; }
-void ami_tabbarg(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp, ami_tabori tor, long id)
+void ami_tabbarg(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp, ami_tabori tor, ami_long id)
     { (*tabbarg_vect)(f, x1, y1, x2, y2, sp, tor, id); }
 
-static void tabbarg_ivf(FILE* f, long x1, long y1, long x2, long y2, ami_strptr sp,
-                ami_tabori tor, long id)
+static void tabbarg_ivf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_strptr sp,
+                ami_tabori tor, ami_long id)
     { error(etabbarg_unimp); }
 
 void _pa_tabsel_ovr(ami_tabsel_t nfp, ami_tabsel_t* ofp)
     { *ofp = tabsel_vect; tabsel_vect = nfp; }
-void ami_tabsel(FILE* f, long id, long tn) { (*tabsel_vect)(f, id, tn); }
+void ami_tabsel(FILE* f, ami_long id, ami_long tn) { (*tabsel_vect)(f, id, tn); }
 
-static void tabsel_ivf(FILE* f, long id, long tn)
+static void tabsel_ivf(FILE* f, ami_long id, ami_long tn)
     { error(etabsel_unimp); }
 
 void _pa_alert_ovr(ami_alert_t nfp, ami_alert_t* ofp)
@@ -16418,46 +16418,46 @@ static void alert_ivf(char* title, char* message) { error(ealert_unimp); }
 
 void _pa_querycolor_ovr(ami_querycolor_t nfp, ami_querycolor_t* ofp)
     { *ofp = querycolor_vect; querycolor_vect = nfp; }
-void ami_querycolor(long* r, long* g, long* b) { (*querycolor_vect)(r, g, b); }
+void ami_querycolor(ami_long* r, ami_long* g, ami_long* b) { (*querycolor_vect)(r, g, b); }
 
-static void querycolor_ivf(long* r, long* g, long* b) { error(equerycolor_unimp); }
+static void querycolor_ivf(ami_long* r, ami_long* g, ami_long* b) { error(equerycolor_unimp); }
 
 void _pa_queryopen_ovr(ami_queryopen_t nfp, ami_queryopen_t* ofp)
     { *ofp = queryopen_vect; queryopen_vect = nfp; }
-void ami_queryopen(char* s, long sl) { (*queryopen_vect)(s, sl); }
+void ami_queryopen(char* s, ami_long sl) { (*queryopen_vect)(s, sl); }
 
-static void queryopen_ivf(char* s, long sl) { error(equeryopen_unimp); }
+static void queryopen_ivf(char* s, ami_long sl) { error(equeryopen_unimp); }
 
 void _pa_querysave_ovr(ami_querysave_t nfp, ami_querysave_t* ofp)
     { *ofp = querysave_vect; querysave_vect = nfp; }
-void ami_querysave(char* s, long sl) { (*querysave_vect)(s, sl); }
+void ami_querysave(char* s, ami_long sl) { (*querysave_vect)(s, sl); }
 
-static void querysave_ivf(char* s, long sl) { error(equerysave_unimp); }
+static void querysave_ivf(char* s, ami_long sl) { error(equerysave_unimp); }
 
 void _pa_queryfind_ovr(ami_queryfind_t nfp, ami_queryfind_t* ofp)
     { *ofp = queryfind_vect; queryfind_vect = nfp; }
-void ami_queryfind(char* s, long sl, ami_qfnopts* opt)
+void ami_queryfind(char* s, ami_long sl, ami_qfnopts* opt)
     { (*queryfind_vect)(s, sl, opt); }
 
-static void queryfind_ivf(char* s, long sl, ami_qfnopts* opt)
+static void queryfind_ivf(char* s, ami_long sl, ami_qfnopts* opt)
     { error(equeryfind_unimp); }
 
 void _pa_queryfindrep_ovr(ami_queryfindrep_t nfp, ami_queryfindrep_t* ofp)
     { *ofp = queryfindrep_vect; queryfindrep_vect = nfp; }
-void ami_queryfindrep(char* s, long sl, char* r, long rl, ami_qfropts* opt)
+void ami_queryfindrep(char* s, ami_long sl, char* r, ami_long rl, ami_qfropts* opt)
     { (*queryfindrep_vect)(s, sl, r, rl, opt); }
 
-static void queryfindrep_ivf(char* s, long sl, char* r, long rl, ami_qfropts* opt)
+static void queryfindrep_ivf(char* s, ami_long sl, char* r, ami_long rl, ami_qfropts* opt)
     { error(equeryfindrep_unimp); }
 
 void _pa_queryfont_ovr(ami_queryfont_t nfp, ami_queryfont_t* ofp)
     { *ofp = queryfont_vect; queryfont_vect = nfp; }
-void ami_queryfont(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
-                  long* br, long* bg, long* bb, ami_qfteffects* effect)
+void ami_queryfont(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb,
+                  ami_long* br, ami_long* bg, ami_long* bb, ami_qfteffects* effect)
     { (*queryfont_vect)(f, fc, s, fr, fg, fb, br, bg, bb, effect); }
 
-static void queryfont_ivf(FILE* f, long* fc, long* s, long* fr, long* fg, long* fb,
-                          long* br, long* bg, long* bb, ami_qfteffects* effect)
+static void queryfont_ivf(FILE* f, ami_long* fc, ami_long* s, ami_long* fr, ami_long* fg, ami_long* fb,
+                          ami_long* br, ami_long* bg, ami_long* bb, ami_qfteffects* effect)
     { error(equeryfont_unimp); }
 
 /** ****************************************************************************
@@ -17208,21 +17208,21 @@ static void ami_deinit_graphics()
     pthread_mutex_destroy(&xwlock);
 
 #ifdef PRTMEM
-    fprintf(stderr, "Total memory used: %lu Total retries on malloc(): %lu\n",
-            memusd, memrty);
-    fprintf(stderr, "Maximum retry: %lu\n", maxrty);
-    fprintf(stderr, "Font entry counter:    %lu\n", fontcnt);
-    fprintf(stderr, "Font entry total:      %lu\n", fonttot);
-    fprintf(stderr, "File entry counter:    %lu\n", filcnt);
-    fprintf(stderr, "File entry total:      %lu\n", filtot);
-    fprintf(stderr, "Picture entry counter: %lu\n", piccnt);
-    fprintf(stderr, "Picture entry total:   %lu\n", pictot);
-    fprintf(stderr, "Screen entry counter:  %lu\n", scncnt);
-    fprintf(stderr, "Screen entry total:    %lu\n", scntot);
-    fprintf(stderr, "Window entry counter:  %lu\n", wincnt);
-    fprintf(stderr, "Window entry total:    %lu\n", wintot);
-    fprintf(stderr, "Image frame counter:   %lu\n", imgcnt);
-    fprintf(stderr, "Image frame total:     %lu\n", imgtot);
+    fprintf(stderr, "Total memory used: %llu Total retries on malloc(): %llu\n",
+            AMI_ULONG_CAST(memusd), AMI_ULONG_CAST(memrty));
+    fprintf(stderr, "Maximum retry: %llu\n", AMI_ULONG_CAST(maxrty));
+    fprintf(stderr, "Font entry counter:    %llu\n", AMI_ULONG_CAST(fontcnt));
+    fprintf(stderr, "Font entry total:      %llu\n", AMI_ULONG_CAST(fonttot));
+    fprintf(stderr, "File entry counter:    %llu\n", AMI_ULONG_CAST(filcnt));
+    fprintf(stderr, "File entry total:      %llu\n", AMI_ULONG_CAST(filtot));
+    fprintf(stderr, "Picture entry counter: %llu\n", AMI_ULONG_CAST(piccnt));
+    fprintf(stderr, "Picture entry total:   %llu\n", AMI_ULONG_CAST(pictot));
+    fprintf(stderr, "Screen entry counter:  %llu\n", AMI_ULONG_CAST(scncnt));
+    fprintf(stderr, "Screen entry total:    %llu\n", AMI_ULONG_CAST(scntot));
+    fprintf(stderr, "Window entry counter:  %llu\n", AMI_ULONG_CAST(wincnt));
+    fprintf(stderr, "Window entry total:    %llu\n", AMI_ULONG_CAST(wintot));
+    fprintf(stderr, "Image frame counter:   %llu\n", AMI_ULONG_CAST(imgcnt));
+    fprintf(stderr, "Image frame total:     %llu\n", AMI_ULONG_CAST(imgtot));
 
 #endif
 

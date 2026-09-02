@@ -202,17 +202,17 @@ static int imginfo(unsigned char* d, unsigned long len)
         /* PNG: IHDR width/height, big endian */
         w = d[16]<<24 | d[17]<<16 | d[18]<<8 | d[19];
         h = d[20]<<24 | d[21]<<16 | d[22]<<8 | d[23];
-        printf("PNG image, %lux%lu pixels, %lu bytes\n", w, h, len);
+        printf("PNG image, %llux%llu pixels, %llu bytes\n", AMI_ULONG_CAST(w), AMI_ULONG_CAST(h), AMI_ULONG_CAST(len));
 
     } else if (len >= 26 && d[0] == 'B' && d[1] == 'M') {
 
         /* BMP: info header width/height, little endian */
         w = d[18] | d[19]<<8 | d[20]<<16 | (unsigned long)d[21]<<24;
         h = d[22] | d[23]<<8 | d[24]<<16 | (unsigned long)d[25]<<24;
-        printf("BMP image, %lux%lu pixels, %lu bytes\n", w, h, len);
+        printf("BMP image, %llux%llu pixels, %llu bytes\n", AMI_ULONG_CAST(w), AMI_ULONG_CAST(h), AMI_ULONG_CAST(len));
 
     } else if (len >= 10 && !memcmp(d, "\xff\xd8\xff", 3))
-        printf("JPEG image, %lu bytes\n", len);
+        printf("JPEG image, %llu bytes\n", AMI_ULONG_CAST(len));
     else return (0);
 
     return (1);
@@ -272,7 +272,7 @@ int main(int argc, char* argv[])
         return (1);
 
     }
-    printf("owned by window %lx\n", (unsigned long)owner);
+    printf("owned by window %llx\n", AMI_ULONG_CAST((unsigned long)owner));
 
     /* the offered formats */
     data = fetch(targets, &len);
@@ -331,11 +331,11 @@ int main(int argc, char* argv[])
     if (imginfo(data, len)) ;
     else if (istext && !memchr(data, 0, len)) {
 
-        printf("%lu characters\n", len);
+        printf("%llu characters\n", AMI_ULONG_CAST(len));
         fwrite(data, 1, len, stdout);
         if (len && data[len-1] != '\n') printf("\n");
 
-    } else printf("%lu bytes of data\n", len);
+    } else printf("%llu bytes of data\n", AMI_ULONG_CAST(len));
     if (outfil) {
 
         of = fopen(outfil, "wb");

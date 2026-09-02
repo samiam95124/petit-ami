@@ -109,8 +109,8 @@ a time, so one set suffices), and synchronizes with it by lock and signal.
 
 *******************************************************************************/
 
-static long lockid;   /* handshake lock */
-static long sigid;    /* handshake signal */
+static ami_long lockid;   /* handshake lock */
+static ami_long sigid;    /* handshake signal */
 
 static int srvport;   /* port for the server to serve */
 static int srvsecure; /* serve secured */
@@ -211,8 +211,8 @@ static void msgserver(void)
 
 {
 
-    long fn;
-    long len;
+    ami_long fn;
+    ami_long len;
     char buff[BUFLEN];
 
     fn = ami_waitmsg(srvport, srvsecure);
@@ -276,13 +276,13 @@ static void msgmaxserver(void)
 
 {
 
-    long fn;
-    long len;
+    ami_long fn;
+    ami_long len;
     char reply[BUFLEN];
 
     fn = ami_waitmsg(srvport, srvsecure);
     len = ami_rdmsg(fn, maxrecv, sizeof(maxrecv));
-    sprintf(reply, "%ld", len);
+    sprintf(reply, "%lld", AMI_LONG_CAST(len));
     ami_wrmsg(fn, reply, strlen(reply));
     ami_clsmsg(fn);
     serverdone();
@@ -324,18 +324,18 @@ static void taddrnet(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
 
     addr = 0;
     ami_addrnet("localhost", &addr);
     result("addrnet localhost (hosts file)", addr == 0x7f000001ul);
-    printf("    localhost -> %lu.%lu.%lu.%lu\n", addr>>24 & 0xff,
-           addr>>16 & 0xff, addr>>8 & 0xff, addr & 0xff);
+    printf("    localhost -> %llu.%llu.%llu.%llu\n", AMI_ULONG_CAST(addr>>24 & 0xff),
+           AMI_ULONG_CAST(addr>>16 & 0xff), AMI_ULONG_CAST(addr>>8 & 0xff), AMI_ULONG_CAST(addr & 0xff));
     addr = 0;
     ami_addrnet("127.0.0.1", &addr);
     result("addrnet numeric literal", addr == 0x7f000001ul);
-    printf("    \"127.0.0.1\" -> %lu.%lu.%lu.%lu\n", addr>>24 & 0xff,
-           addr>>16 & 0xff, addr>>8 & 0xff, addr & 0xff);
+    printf("    \"127.0.0.1\" -> %llu.%llu.%llu.%llu\n", AMI_ULONG_CAST(addr>>24 & 0xff),
+           AMI_ULONG_CAST(addr>>16 & 0xff), AMI_ULONG_CAST(addr>>8 & 0xff), AMI_ULONG_CAST(addr & 0xff));
 
 }
 
@@ -362,15 +362,15 @@ static void taddrdns(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     unsigned long long addrh, addrl;
 
     addr = 0;
     ami_addrnet("google.com", &addr);
     result("addrnet live DNS (google.com)",
            addr != 0 && addr != 0x7f000001ul);
-    printf("    google.com A    -> %lu.%lu.%lu.%lu\n", addr>>24 & 0xff,
-           addr>>16 & 0xff, addr>>8 & 0xff, addr & 0xff);
+    printf("    google.com A    -> %llu.%llu.%llu.%llu\n", AMI_ULONG_CAST(addr>>24 & 0xff),
+           AMI_ULONG_CAST(addr>>16 & 0xff), AMI_ULONG_CAST(addr>>8 & 0xff), AMI_ULONG_CAST(addr & 0xff));
     addrh = 0;
     addrl = 0;
     ami_addrnetv6("google.com", &addrh, &addrl);
@@ -386,7 +386,7 @@ static void ttcp(const char* name, int port, int secure)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     FILE* f;
     char  buff[BUFLEN];
     int   pass;
@@ -417,7 +417,7 @@ static void ttcpv6(const char* name, int port, int secure)
     FILE* f;
     char  buff[BUFLEN];
     char  cert[10000];
-    long  r;
+    ami_long  r;
     ami_certptr list;
     ami_certptr cp;
     int   pass;
@@ -437,7 +437,7 @@ static void ttcpv6(const char* name, int port, int secure)
         memset(cert, 0, sizeof(cert));
         r = ami_certnet(f, 1, cert, sizeof(cert));
         result("certnet raw certificate (IPv6)", strlen(cert) > 0);
-        printf("    TLS server certificate PEM over IPv6: %ld bytes\n", r);
+        printf("    TLS server certificate PEM over IPv6: %lld bytes\n", AMI_LONG_CAST(r));
         list = NULL;
         ami_certlistnet(f, 1, &list);
         cp = fndnode(list, "Issuer");
@@ -462,13 +462,13 @@ static void tmsg(const char* name, int port, int secure)
 
 {
 
-    unsigned long addr;
-    long fn;
-    long len;
+    ami_ulong addr;
+    ami_long fn;
+    ami_long len;
     char buff[BUFLEN];
     int  pass;
     char cert[10000];
-    long r;
+    ami_long r;
     ami_certptr list;
     ami_certptr cp;
 
@@ -487,7 +487,7 @@ static void tmsg(const char* name, int port, int secure)
         memset(cert, 0, sizeof(cert));
         r = ami_certmsg(fn, 1, cert, sizeof(cert));
         result("certmsg raw certificate (DTLS)", strlen(cert) > 0);
-        printf("    DTLS server certificate PEM: %ld bytes\n", r);
+        printf("    DTLS server certificate PEM: %lld bytes\n", AMI_LONG_CAST(r));
         list = NULL;
         ami_certlistmsg(fn, 1, &list);
         cp = fndnode(list, "Signature Value");
@@ -527,8 +527,8 @@ static void tmsg(const char* name, int port, int secure)
     ami_clsmsg(fn);
     finish();
     result(name, pass);
-    printf("    sent 13 byte message, received %ld byte reply over %s\n",
-           len, secure ? "DTLS" : "UDP in the clear");
+    printf("    sent 13 byte message, received %lld byte reply over %s\n",
+           AMI_LONG_CAST(len), secure ? "DTLS" : "UDP in the clear");
 
 }
 
@@ -538,8 +538,8 @@ static void tmsgv6(const char* name, int port, int secure)
 {
 
     unsigned long long addrh, addrl;
-    long fn;
-    long len;
+    ami_long fn;
+    ami_long len;
     char buff[BUFLEN];
     int  pass;
 
@@ -554,8 +554,8 @@ static void tmsgv6(const char* name, int port, int secure)
     ami_clsmsg(fn);
     finish();
     result(name, pass);
-    printf("    sent 13 byte message, received %ld byte reply over %s\n",
-           len, secure ? "DTLS on IPv6" : "UDP in the clear on IPv6");
+    printf("    sent 13 byte message, received %lld byte reply over %s\n",
+           AMI_LONG_CAST(len), secure ? "DTLS on IPv6" : "UDP in the clear on IPv6");
 
 }
 
@@ -564,19 +564,19 @@ static void tmsglim(void)
 
 {
 
-    unsigned long addr;
-    long max;
-    long rely;
+    ami_ulong addr;
+    ami_long max;
+    ami_long rely;
 
     ami_addrnet("localhost", &addr);
     max = ami_maxmsg(addr, FALSE);
     result("maxmsg sane", max > 0);
-    printf("    maximum message for loopback: %ld bytes\n", max);
+    printf("    maximum message for loopback: %lld bytes\n", AMI_LONG_CAST(max));
     /* the secure limit answers to the DTLS record: one record per datagram,
        at most 16K of payload however large the route's packets run */
     max = ami_maxmsg(addr, TRUE);
     result("maxmsg secure honors the DTLS record", max > 0 && max <= 16384);
-    printf("    maximum secure message for loopback: %ld bytes\n", max);
+    printf("    maximum secure message for loopback: %lld bytes\n", AMI_LONG_CAST(max));
     rely = ami_relymsg(addr);
     result("relymsg loopback is reliable", rely == 1);
     printf("    loopback delivery reliable: %s\n", rely ? "yes" : "no");
@@ -593,11 +593,11 @@ static void tmsgmax(const char* name, int port, int v6)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     unsigned long long addrh, addrl;
-    long max;
-    long fn;
-    long len;
+    ami_long max;
+    ami_long fn;
+    ami_long len;
     char reply[BUFLEN];
     int  pass;
 
@@ -617,7 +617,7 @@ static void tmsgmax(const char* name, int port, int v6)
         fn = ami_openmsg(addr, port, FALSE);
 
     }
-    if (max > (long)sizeof(maxsend)) max = sizeof(maxsend);
+    if (max > (ami_long)sizeof(maxsend)) max = sizeof(maxsend);
     ami_wrmsg(fn, maxsend, max);
     len = ami_rdmsg(fn, reply, BUFLEN-1);
     if (len >= 0) {
@@ -629,8 +629,8 @@ static void tmsgmax(const char* name, int port, int v6)
     ami_clsmsg(fn);
     finish();
     result(name, pass);
-    printf("    sent %ld bytes (the maxmsg%s limit), server received %s\n",
-           max, v6 ? "v6" : "", len >= 0 ? reply : "<none>");
+    printf("    sent %lld bytes (the maxmsg%s limit), server received %s\n",
+           AMI_LONG_CAST(max), v6 ? "v6" : "", len >= 0 ? reply : "<none>");
 
 }
 
@@ -640,18 +640,18 @@ static void tmsglimv6(void)
 {
 
     unsigned long long addrh, addrl;
-    long max;
-    long rely;
+    ami_long max;
+    ami_long rely;
 
     ami_addrnetv6("::1", &addrh, &addrl);
     max = ami_maxmsgv6(addrh, addrl, FALSE);
     result("maxmsgv6 sane", max > 0);
-    printf("    maximum message for v6 loopback: %ld bytes\n", max);
+    printf("    maximum message for v6 loopback: %lld bytes\n", AMI_LONG_CAST(max));
     /* the secure limit answers to the DTLS record: one record per datagram,
        at most 16K of payload however large the route's packets run */
     max = ami_maxmsgv6(addrh, addrl, TRUE);
     result("maxmsgv6 secure honors the DTLS record", max > 0 && max <= 16384);
-    printf("    maximum secure message for v6 loopback: %ld bytes\n", max);
+    printf("    maximum secure message for v6 loopback: %lld bytes\n", AMI_LONG_CAST(max));
     rely = ami_relymsgv6(addrh, addrl);
     result("relymsgv6 loopback is reliable", rely == 1);
     printf("    v6 loopback delivery reliable: %s\n", rely ? "yes" : "no");
@@ -665,9 +665,9 @@ static void trdtrunc(void)
 
 {
 
-    unsigned long addr;
-    long fn;
-    long len;
+    ami_ulong addr;
+    ami_long fn;
+    ami_long len;
     char five[5];
     int  pass;
 
@@ -682,8 +682,8 @@ static void trdtrunc(void)
     ami_clsmsg(fn);
     finish();
     result("rdmsg short buffer truncates", pass);
-    printf("    13 byte message into a 5 byte buffer: %ld bytes, "
-           "\"%.5s\"\n", len, five);
+    printf("    13 byte message into a 5 byte buffer: %lld bytes, "
+           "\"%.5s\"\n", AMI_LONG_CAST(len), five);
 
 }
 
@@ -695,7 +695,7 @@ static void tsimul(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     FILE* f1;
     FILE* f2;
     char  b1[BUFLEN];
@@ -744,7 +744,7 @@ static void tretry(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     FILE* f;
     char  buff[BUFLEN];
     int   pass;
@@ -771,11 +771,11 @@ static void tcert(void)
 
 {
 
-    unsigned long addr;
+    ami_ulong addr;
     FILE* f;
     char  cert[10000];
     char  buff[BUFLEN];
-    long  r;
+    ami_long  r;
     ami_certptr list;
     ami_certptr cp;
     int   found;
@@ -788,7 +788,7 @@ static void tcert(void)
     memset(cert, 0, sizeof(cert));
     r = ami_certnet(f, 1, cert, sizeof(cert));
     result("certnet raw certificate", strlen(cert) > 0);
-    printf("    TLS server certificate PEM: %ld bytes\n", r);
+    printf("    TLS server certificate PEM: %lld bytes\n", AMI_LONG_CAST(r));
 
     /* decoded certificate list: the root is "Certificate" with a data fork,
        and the certificate level signature value is present and non-empty */
@@ -825,8 +825,8 @@ static void tcert(void)
     {
 
         char  exact[10000];
-        long  l = r; /* the certificate length, from the fetch above */
-        long  r2;
+        ami_long  l = r; /* the certificate length, from the fetch above */
+        ami_long  r2;
 
         memset(exact, 0x7f, sizeof(exact));
         r2 = ami_certnet(f, 1, exact, l);
@@ -837,8 +837,8 @@ static void tcert(void)
         r2 = ami_certnet(f, 1, exact, l+1);
         result("certnet one byte spare is terminated",
                r2 == l && exact[l] == 0);
-        printf("    certificate is %ld bytes: at %ld unterminated, "
-               "at %ld terminated\n", l, l, l+1);
+        printf("    certificate is %lld bytes: at %lld unterminated, "
+               "at %lld terminated\n", AMI_LONG_CAST(l), AMI_LONG_CAST(l), AMI_LONG_CAST(l+1));
 
     }
 

@@ -35,8 +35,8 @@ static void layout(float pt)
 
 {
 
-    long y;
-    long i;
+    ami_long y;
+    ami_long i;
 
     ami_setpoints(stdout, pt);
     fprintf(stdout, "\f");

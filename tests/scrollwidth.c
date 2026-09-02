@@ -45,8 +45,8 @@ int main(void)
 
     ami_evtrec er;
     FILE*      win;
-    long       sbw, sbh;
-    long       x, y;
+    ami_long   sbw, sbh;
+    ami_long   x, y;
 
     ami_openwin(&stdin, &win, NULL, 2);
     ami_title(win, "Scroll bar width");

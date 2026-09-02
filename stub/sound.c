@@ -79,7 +79,7 @@ Returns the total number of output midi ports.
 
 *******************************************************************************/
 
-long ami_synthout(void)
+ami_long ami_synthout(void)
 
 {
 
@@ -97,7 +97,7 @@ Returns the total number of input midi ports.
 
 *******************************************************************************/
 
-long ami_synthin(void)
+ami_long ami_synthin(void)
 
 {
 
@@ -118,7 +118,7 @@ midi chained devices outside the computer.
 
 *******************************************************************************/
 
-void ami_opensynthout(long p)
+void ami_opensynthout(ami_long p)
 
 {
 
@@ -134,7 +134,7 @@ Closes a previously opened midi output port.
 
 *******************************************************************************/
 
-void ami_closesynthout(long p)
+void ami_closesynthout(ami_long p)
 
 {
 
@@ -205,7 +205,7 @@ sequencer started.
 
 *******************************************************************************/
 
-long ami_curtimeout(void)
+ami_long ami_curtimeout(void)
 
 {
 
@@ -259,7 +259,7 @@ sequencer started.
 
 *******************************************************************************/
 
-long ami_curtimein(void)
+ami_long ami_curtimein(void)
 
 {
 
@@ -281,7 +281,7 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void ami_noteon(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteon(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
 
 {
 
@@ -301,7 +301,7 @@ The velocity is set as 0 to maxint.
 
 *******************************************************************************/
 
-void ami_noteoff(long p, long t, ami_channel c, ami_note n, long v)
+void ami_noteoff(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
 
 {
 
@@ -318,7 +318,7 @@ by Midi GM encoding, 1 to 128. Takes a time for sequencing.
 
 *******************************************************************************/
 
-void ami_instchange(long p, long t, ami_channel c, ami_instrument i)
+void ami_instchange(ami_long p, ami_long t, ami_channel c, ami_instrument i)
 
 {
 
@@ -335,7 +335,7 @@ full on.
 
 *******************************************************************************/
 
-void ami_attack(long p, long t, ami_channel c, long at)
+void ami_attack(ami_long p, ami_long t, ami_channel c, ami_long at)
 
 {
 
@@ -352,7 +352,7 @@ full off.
 
 *******************************************************************************/
 
-void ami_release(long p, long t, ami_channel c, long rt)
+void ami_release(ami_long p, ami_long t, ami_channel c, ami_long rt)
 
 {
 
@@ -368,7 +368,7 @@ Sets the legato mode on/off.
 
 *******************************************************************************/
 
-void ami_legato(long p, long t, ami_channel c, long b)
+void ami_legato(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -384,7 +384,7 @@ Sets the portamento mode on/off.
 
 *******************************************************************************/
 
-void ami_portamento(long p, long t, ami_channel c, long b)
+void ami_portamento(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -400,7 +400,7 @@ Sets synthesizer volume, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_volsynthchan(long p, long t, ami_channel c, long v)
+void ami_volsynthchan(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -417,7 +417,7 @@ maxint is all right.
 
 *******************************************************************************/
 
-void ami_balance(long p, long t, ami_channel c, long b)
+void ami_balance(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -433,7 +433,7 @@ Sets portamento time, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_porttime(long p, long t, ami_channel c, long v)
+void ami_porttime(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -449,7 +449,7 @@ Sets modulaton value, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_vibrato(long p, long t, ami_channel c, long v)
+void ami_vibrato(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -466,7 +466,7 @@ maxint is hard right.
 
 *******************************************************************************/
 
-void ami_pan(long p, long t, ami_channel c, long b)
+void ami_pan(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -482,7 +482,7 @@ Sets the sound timbre, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_timbre(long p, long t, ami_channel c, long tb)
+void ami_timbre(ami_long p, ami_long t, ami_channel c, ami_long tb)
 
 {
 
@@ -498,7 +498,7 @@ Sets the sound brightness, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_brightness(long p, long t, ami_channel c, long b)
+void ami_brightness(ami_long p, ami_long t, ami_channel c, ami_long b)
 
 {
 
@@ -514,7 +514,7 @@ Sets the sound reverb, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_reverb(long p, long t, ami_channel c, long r)
+void ami_reverb(ami_long p, ami_long t, ami_channel c, ami_long r)
 
 {
 
@@ -530,7 +530,7 @@ Sets the sound tremulo, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_tremulo(long p, long t, ami_channel c, long tr)
+void ami_tremulo(ami_long p, ami_long t, ami_channel c, ami_long tr)
 
 {
 
@@ -546,7 +546,7 @@ Sets the sound chorus, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_chorus(long p, long t, ami_channel c, long cr)
+void ami_chorus(ami_long p, ami_long t, ami_channel c, ami_long cr)
 
 {
 
@@ -562,7 +562,7 @@ Sets the sound celeste, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_celeste(long p, long t, ami_channel c, long ce)
+void ami_celeste(ami_long p, ami_long t, ami_channel c, ami_long ce)
 
 {
 
@@ -578,7 +578,7 @@ Sets the sound phaser, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_phaser(long p, long t, ami_channel c, long ph)
+void ami_phaser(ami_long p, ami_long t, ami_channel c, ami_long ph)
 
 {
 
@@ -598,7 +598,7 @@ could be reached with a slide, for example.
 
 *******************************************************************************/
 
-void ami_pitchrange(long p, long t, ami_channel c, long v)
+void ami_pitchrange(ami_long p, ami_long t, ami_channel c, ami_long v)
 
 {
 
@@ -616,7 +616,7 @@ with 0 being "allways select single note mode".
 
 *******************************************************************************/
 
-void ami_mono(long p, long t, ami_channel c, long ch)
+void ami_mono(ami_long p, ami_long t, ami_channel c, ami_long ch)
 
 {
 
@@ -632,7 +632,7 @@ Reenables polyphonic mode after a monophonic operation.
 
 *******************************************************************************/
 
-void ami_poly(long p, long t, ami_channel c)
+void ami_poly(ami_long p, ami_long t, ami_channel c)
 
 {
 
@@ -648,7 +648,7 @@ Controls aftertouch, 0 to maxint, on a note.
 
 *******************************************************************************/
 
-void ami_aftertouch(long p, long t, ami_channel c, ami_note n, long at)
+void ami_aftertouch(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long at)
 
 {
 
@@ -664,7 +664,7 @@ Controls channel pressure, 0 to maxint.
 
 *******************************************************************************/
 
-void ami_pressure(long p, long t, ami_channel c, long pr)
+void ami_pressure(ami_long p, ami_long t, ami_channel c, ami_long pr)
 
 {
 
@@ -683,7 +683,7 @@ C#.
 
 *******************************************************************************/
 
-void ami_pitch(long p, long t, ami_channel c, long pt)
+void ami_pitch(ami_long p, ami_long t, ami_channel c, ami_long pt)
 
 {
 
@@ -704,7 +704,7 @@ is no more than 10 synth files at a time.
 
 *******************************************************************************/
 
-void ami_loadsynth(long s, string fn)
+void ami_loadsynth(ami_long s, string fn)
 
 {
 
@@ -724,7 +724,7 @@ result in this routine blocking until it is complete.
 
 *******************************************************************************/
 
-void ami_delsynth(long s)
+void ami_delsynth(ami_long s)
 
 {
 
@@ -751,7 +751,7 @@ it is open, then reopening it afterwards.
 
 *******************************************************************************/
 
-void ami_playsynth(long p, long t, long s)
+void ami_playsynth(ami_long p, ami_long t, ami_long s)
 
 {
 
@@ -782,7 +782,7 @@ sequencer(s), including background tasks.
 
 *******************************************************************************/
 
-void ami_waitsynth(long p)
+void ami_waitsynth(ami_long p)
 
 {
 
@@ -798,7 +798,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-long ami_waveout(void)
+ami_long ami_waveout(void)
 
 {
 
@@ -816,7 +816,7 @@ Returns the number of wave output devices available.
 
 *******************************************************************************/
 
-long ami_wavein(void)
+ami_long ami_wavein(void)
 
 {
 
@@ -835,7 +835,7 @@ output device. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_openwaveout(long p)
+void ami_openwaveout(ami_long p)
 
 {
 
@@ -851,7 +851,7 @@ Closes a wave output device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewaveout(long p)
+void ami_closewaveout(ami_long p)
 
 {
 
@@ -875,7 +875,7 @@ the test system, the latency to play is acceptable.
 
 *******************************************************************************/
 
-void ami_loadwave(long w, string fn)
+void ami_loadwave(ami_long w, string fn)
 
 {
 
@@ -892,7 +892,7 @@ redefined.
 
 *******************************************************************************/
 
-void ami_delwave(long w)
+void ami_delwave(ami_long w)
 
 {
 
@@ -911,7 +911,7 @@ The file is specified by file name, and the file type is system dependent.
 
 *******************************************************************************/
 
-void ami_playwave(long p, long t, long w)
+void ami_playwave(ami_long p, ami_long t, ami_long w)
 
 {
 
@@ -929,7 +929,7 @@ Not implemented at present.
 
 *******************************************************************************/
 
-void ami_volwave(long p, long t, long v)
+void ami_volwave(ami_long p, ami_long t, ami_long v)
 
 {
 
@@ -954,7 +954,7 @@ wait until they all stop.
 
 *******************************************************************************/
 
-void ami_waitwave(long p)
+void ami_waitwave(ami_long p)
 
 {
 
@@ -974,7 +974,7 @@ for the next sample.
 
 *******************************************************************************/
 
-void ami_chanwaveout(long p, long c)
+void ami_chanwaveout(ami_long p, ami_long c)
 
 {
 
@@ -994,7 +994,7 @@ required.
 
 *******************************************************************************/
 
-void ami_ratewaveout(long p, long r)
+void ami_ratewaveout(ami_long p, ami_long r)
 
 {
 
@@ -1014,7 +1014,7 @@ cound would mainly indicate precision only.
 
 *******************************************************************************/
 
-void ami_lenwaveout(long p, long l)
+void ami_lenwaveout(ami_long p, ami_long l)
 
 {
 
@@ -1031,7 +1031,7 @@ point formats are inherently signed.
 
 *******************************************************************************/
 
-void ami_sgnwaveout(long p, long s)
+void ami_sgnwaveout(ami_long p, ami_long s)
 
 {
 
@@ -1047,7 +1047,7 @@ Sets the floating point/integer format for output sound samples.
 
 *******************************************************************************/
 
-void ami_fltwaveout(long p, long f)
+void ami_fltwaveout(ami_long p, ami_long f)
 
 {
 
@@ -1065,7 +1065,7 @@ case it is an error to set a format that is different.
 
 *******************************************************************************/
 
-void ami_endwaveout(long p, long e)
+void ami_endwaveout(ami_long p, ami_long e)
 
 {
 
@@ -1093,7 +1093,7 @@ recommended to be 1ms or less (64 samples at a 44100 sample rate).
 
 *******************************************************************************/
 
-void ami_wrwave(long p, byte* buff, long len)
+void ami_wrwave(ami_long p, byte* buff, ami_long len)
 
 {
 
@@ -1111,7 +1111,7 @@ but we assert them here on open.
 
 *******************************************************************************/
 
-void ami_openwavein(long p)
+void ami_openwavein(ami_long p)
 
 {
 
@@ -1127,7 +1127,7 @@ Closes a wave input device by number. This is presently a no-op for linux.
 
 *******************************************************************************/
 
-void ami_closewavein(long p)
+void ami_closewavein(ami_long p)
 
 {
 
@@ -1147,7 +1147,7 @@ sample.
 
 *******************************************************************************/
 
-long ami_chanwavein(long p)
+ami_long ami_chanwavein(ami_long p)
 
 {
 
@@ -1167,7 +1167,7 @@ and it must be open. Input samples are timed at the rate.
 
 *******************************************************************************/
 
-long ami_ratewavein(long p)
+ami_long ami_ratewavein(ami_long p)
 
 {
 
@@ -1196,7 +1196,7 @@ round up bit lengths as shown above.
 
 *******************************************************************************/
 
-long ami_lenwavein(long p)
+ami_long ami_lenwavein(ami_long p)
 
 {
 
@@ -1215,7 +1215,7 @@ signed sampling is always true if the samples are floating point.
 
 *******************************************************************************/
 
-long ami_sgnwavein(long p)
+ami_long ami_sgnwavein(ami_long p)
 
 {
 
@@ -1233,7 +1233,7 @@ Returns true if the given wave input device has big endian sampling.
 
 *******************************************************************************/
 
-long ami_endwavein(long p)
+ami_long ami_endwavein(ami_long p)
 
 {
 
@@ -1251,7 +1251,7 @@ Returns true if the given wave input device has floating point sampling.
 
 *******************************************************************************/
 
-long ami_fltwavein(long p)
+ami_long ami_fltwavein(ami_long p)
 
 {
 
@@ -1289,7 +1289,7 @@ ami_rdwave() will return the actual number of bytes read, which will contain
 
 *******************************************************************************/
 
-long ami_rdwave(long p, byte* buff, long len)
+ami_long ami_rdwave(ami_long p, byte* buff, ami_long len)
 
 {
 
@@ -1310,7 +1310,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_synthoutname(long p, string name, long len)
+void ami_synthoutname(ami_long p, string name, ami_long len)
 
 {
 
@@ -1329,7 +1329,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_synthinname(long p, string name, long len)
+void ami_synthinname(ami_long p, string name, ami_long len)
 
 {
 
@@ -1348,7 +1348,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_waveoutname(long p, string name, long len)
+void ami_waveoutname(ami_long p, string name, ami_long len)
 
 {
 
@@ -1367,7 +1367,7 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-void ami_waveinname(long p, string name, long len)
+void ami_waveinname(ami_long p, string name, ami_long len)
 
 {
 
@@ -1383,7 +1383,7 @@ The given synthesizer port is opened and ready for reading.
 
 *******************************************************************************/
 
-void ami_opensynthin(long p)
+void ami_opensynthin(ami_long p)
 
 {
 
@@ -1399,7 +1399,7 @@ Closes the given synthsizer port for reading.
 
 *******************************************************************************/
 
-void ami_closesynthin(long p)
+void ami_closesynthin(ami_long p)
 
 {
 
@@ -1423,7 +1423,7 @@ a parameter.
 
 *******************************************************************************/
 
-void ami_wrsynth(long p, ami_seqptr sp)
+void ami_wrsynth(ami_long p, ami_seqptr sp)
 
 {
 
@@ -1452,7 +1452,7 @@ a full MIDI decoder.
 
 *******************************************************************************/
 
-void ami_rdsynth(long p, ami_seqptr sp)
+void ami_rdsynth(ami_long p, ami_seqptr sp)
 
 {
 
@@ -1475,7 +1475,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthout(long p, string name, string value, long len)
+void ami_getparamsynthout(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -1498,7 +1498,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamsynthin(long p, string name, string value, long len)
+void ami_getparamsynthin(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -1521,7 +1521,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwaveout(long p, string name, string value, long len)
+void ami_getparamwaveout(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -1544,7 +1544,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-void ami_getparamwavein(long p, string name, string value, long len)
+void ami_getparamwavein(ami_long p, string name, string value, ami_long len)
 
 {
 
@@ -1565,7 +1565,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamsynthout(long p, string name, string value)
+ami_long ami_setparamsynthout(ami_long p, string name, string value)
 
 {
 
@@ -1588,7 +1588,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamsynthin(long p, string name, string value)
+ami_long ami_setparamsynthin(ami_long p, string name, string value)
 
 {
 
@@ -1611,7 +1611,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamwaveout(long p, string name, string value)
+ami_long ami_setparamwaveout(ami_long p, string name, string value)
 
 {
 
@@ -1634,7 +1634,7 @@ parameters implemented on a particular device are dependent on that device.
 
 *******************************************************************************/
 
-long ami_setparamwavein(long p, string name, string value)
+ami_long ami_setparamwavein(ami_long p, string name, string value)
 
 {
 

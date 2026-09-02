@@ -55,21 +55,21 @@ static char          s[100];
 static char          ss[100], rs[100];
 static int           prog;
 static ami_strptr     sp, lp;
-static long          x, y, lm, xs, ys, bx, by, ix,iy;
-static long          r, g, b;
+static ami_long      x, y, lm, xs, ys, bx, by, ix,iy;
+static ami_long      r, g, b;
 static ami_qfnopts    optf;
 static ami_qfropts    optfr;
-static long          fc;
-static long          fs;
-static long          fr, fg, fb;
-static long          br, bg, bb;
+static ami_long      fc;
+static ami_long      fs;
+static ami_long      fr, fg, fb;
+static ami_long      br, bg, bb;
 static ami_qfteffects fe;
-static long          cx, cy;
-static long          ox, oy;
-static long          cox, coy;
-static long          csx, csy;
+static ami_long      cx, cy;
+static ami_long      ox, oy;
+static ami_long      cox, coy;
+static ami_long      csx, csy;
 
-static long          i;
+static ami_long      i;
 static int           cnt;
 static char          fns[100];
 
@@ -275,7 +275,7 @@ int main(int argc, char* argv[])
             if (er.butid == 1) printf("Hello to you, too\n");
             else if (er.butid == 2) printf("Bark bark\n");
             else if (er.butid == 3) printf("Sniff sniff\n");
-            else printf("!!! No button with id: %ld !!!\n", er.butid);
+            else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         };
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -294,7 +294,7 @@ int main(int argc, char* argv[])
             if (er.butid == 1) printf("Hello to you, too\n");
             else if (er.butid == 2) printf("Bark bark\n");
             else if (er.butid == 3) printf("Sniff sniff\n");
-            else printf("!!! No button with id: %ld !!!\n", er.butid);
+            else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         };
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -331,7 +331,7 @@ int main(int argc, char* argv[])
             if (er.butid == 1) printf("Hello to you, too\n");
             else if (er.butid == 2) printf("Bark bark\n");
             else if (er.butid == 3) printf("Sniff sniff\n");
-            else printf("!!! No button with id: %ld\n !!!", er.butid);
+            else printf("!!! No button with id: %lld\n !!!", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -350,7 +350,7 @@ int main(int argc, char* argv[])
             if (er.butid == 1) printf("Hello to you, too\n");
             else if (er.butid == 2) printf("Bark bark\n");
             else if (er.butid == 3) printf("Sniff sniff\n");
-            else printf("!!! No button with id: %ld !!!\n", er.butid);
+            else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -403,7 +403,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -437,7 +437,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -493,7 +493,7 @@ int main(int argc, char* argv[])
                 chk3 = ! chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         };
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -527,7 +527,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -580,7 +580,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!", er.butid);
+            } else printf("!!! No button with id: %lld !!!", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -614,7 +614,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -670,7 +670,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -704,7 +704,7 @@ int main(int argc, char* argv[])
                 chk3 = !chk3;
                 ami_selectwidget(stdout, 3, chk3);
 
-            } else printf("!!! No button with id: %ld !!!\n", er.butid);
+            } else printf("!!! No button with id: %lld !!!\n", AMI_LONG_CAST(er.butid));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -763,14 +763,14 @@ int main(int argc, char* argv[])
     ami_groupg(stdout, lm, i, lm+x, i+y, "Hello there", 1);
     waitnext();
     ami_killwidget(stdout, 1);
-    printf("This is a group box with a %ld,%ld client area\n", xs, ys);
+    printf("This is a group box with a %lld,%lld client area\n", AMI_LONG_CAST(xs), AMI_LONG_CAST(ys));
     printf("Hit return to continue\n");
     printf("\n");
     ami_groupsizg(stdout, "Hello there", xs, ys, &x, &y, &ox, &oy);
     ami_groupg(stdout, lm, i, lm+x, i+y, "Hello there", 1);
     waitnext();
     ami_killwidget(stdout, 1);
-    printf("This is a group box with a %ld,%ld layered button\n", xs, ys);
+    printf("This is a group box with a %lld,%lld layered button\n", AMI_LONG_CAST(xs), AMI_LONG_CAST(ys));
     printf("Hit return to continue");
     printf("\n");
     ami_groupsizg(stdout, "Hello there", xs, ys, &x, &y, &ox, &oy);
@@ -845,17 +845,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -887,17 +887,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -925,17 +925,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -963,17 +963,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1004,17 +1004,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/pa_left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/pa_left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1050,17 +1050,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/pa_left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/pa_left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1091,17 +1091,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1133,17 +1133,17 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsclull)
-            printf("Scrollbar: %ld up/left line\n", er.sclulid);
+            printf("Scrollbar: %lld up/left line\n", AMI_LONG_CAST(er.sclulid));
         if (er.etype == ami_etscldrl)
-            printf("Scrollbar: %ld down/right line\n", er.scldrid);
+            printf("Scrollbar: %lld down/right line\n", AMI_LONG_CAST(er.scldrid));
         if (er.etype == ami_etsclulp)
-            printf("Scrollbar: %ld up/left page\n", er.sclupid);
+            printf("Scrollbar: %lld up/left page\n", AMI_LONG_CAST(er.sclupid));
         if (er.etype == ami_etscldrp)
-            printf("Scrollbar: %ld down/right page\n", er.scldpid);
+            printf("Scrollbar: %lld down/right page\n", AMI_LONG_CAST(er.scldpid));
         if (er.etype == ami_etsclpos) {
 
             ami_scrollpos(stdout, er.sclpid, er.sclpos); /* set new position for scrollbar */
-            printf("Scrollbar: %ld position set: %ld\n", er.sclpid, er.sclpos);
+            printf("Scrollbar: %lld position set: %lld\n", AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos));
 
         }
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -1168,7 +1168,7 @@ int main(int argc, char* argv[])
     do {
 
         nextevt(&er);
-        if (er.etype == ami_etnumbox) printf("You selected: %ld\n", er.numbsl);
+        if (er.etype == ami_etnumbox) printf("You selected: %lld\n", AMI_LONG_CAST(er.numbsl));
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
@@ -1186,7 +1186,7 @@ int main(int argc, char* argv[])
     do {
 
         nextevt(&er);
-        if (er.etype == ami_etnumbox) printf("You selected: %ld\n", er.numbsl);
+        if (er.etype == ami_etnumbox) printf("You selected: %lld\n", AMI_LONG_CAST(er.numbsl));
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
@@ -1580,7 +1580,7 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsldpos)
-            printf("Slider id: %ld position: %ld\n", er.sldpid, er.sldpos);
+            printf("Slider id: %lld position: %lld\n", AMI_LONG_CAST(er.sldpid), AMI_LONG_CAST(er.sldpos));
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
@@ -1619,7 +1619,7 @@ int main(int argc, char* argv[])
 
         nextevt(&er);
         if (er.etype == ami_etsldpos)
-            printf("Slider id: %ld position: %ld\n", er.sldpid, er.sldpos);
+            printf("Slider id: %lld position: %lld\n", AMI_LONG_CAST(er.sldpid), AMI_LONG_CAST(er.sldpos));
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
 
     } while (er.etype != ami_etenter);
@@ -2116,7 +2116,7 @@ int main(int argc, char* argv[])
     ami_querycolor(&r, &g, &b);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Colors are: red: %ld green: %ld blue: %ld\n", r, g, b);
+    printf("Colors are: red: %lld green: %lld blue: %lld\n", AMI_LONG_CAST(r), AMI_LONG_CAST(g), AMI_LONG_CAST(b));
     waitnext();
 
     /* ************************* Open file query test ************************ */
@@ -2238,10 +2238,10 @@ int main(int argc, char* argv[])
     ami_fontnam(stdout, fc, s, 100);
     printf("\n");
     printf("Dialog should have completed now\n");
-    printf("Font code: %ld(%s)\n", fc, s);
-    printf("Font size: %ld\n", fs);
-    printf("Foreground pa_color: Red: %ld Green: %ld Blue: %ld\n", fr, fg, fb);
-    printf("Background pa_color: Red: %ld Green: %ld Blue: %ld\n", br, bg, bb);
+    printf("Font code: %lld(%s)\n", AMI_LONG_CAST(fc), s);
+    printf("Font size: %lld\n", AMI_LONG_CAST(fs));
+    printf("Foreground pa_color: Red: %lld Green: %lld Blue: %lld\n", AMI_LONG_CAST(fr), AMI_LONG_CAST(fg), AMI_LONG_CAST(fb));
+    printf("Background pa_color: Red: %lld Green: %lld Blue: %lld\n", AMI_LONG_CAST(br), AMI_LONG_CAST(bg), AMI_LONG_CAST(bb));
     if (BIT(ami_qfteblink)&fe) printf("Blink\n");
     if (BIT(ami_qftereverse)&fe) printf("Reverse\n");
     if (BIT(ami_qfteunderline)&fe) printf("Underline\n");

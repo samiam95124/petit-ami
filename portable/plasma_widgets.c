@@ -325,13 +325,13 @@ typedef enum  {
 typedef struct ccolor* ccolorp;
 typedef struct ccolor {
 
-    /** Button background normal */           unsigned long bbn;
-    /** Button background pressed */          unsigned long bbp;
-    /** Button outline normal */              unsigned long bon;
-    /** Button outline focus */               unsigned long bof;
-    /** Button text normal */                 unsigned long btn;
-    /** Button text disabled */               unsigned long btd;
-    /** Surface behind the rounded corners */ unsigned long bsr;
+    /** Button background normal */           ami_ulong bbn;
+    /** Button background pressed */          ami_ulong bbp;
+    /** Button outline normal */              ami_ulong bon;
+    /** Button outline focus */               ami_ulong bof;
+    /** Button text normal */                 ami_ulong btn;
+    /** Button text disabled */               ami_ulong btd;
+    /** Surface behind the rounded corners */ ami_ulong bsr;
 
 } ccolor;
 
@@ -342,48 +342,48 @@ typedef struct wigrec {
 
     WB_WIGHEAD(wigptr) /* the widget base head, first */
     /** type of widget */                     wigtyp    typ;
-    /** creation order stamp */               long      seq;
-    /** in the pressed state */               long      pressed;
-    /** last pressed state */                 long      lpressed;
-    /** the current on/off state */           long      select;
+    /** creation order stamp */               ami_long  seq;
+    /** in the pressed state */               ami_long  pressed;
+    /** last pressed state */                 ami_long  lpressed;
+    /** the current on/off state */           ami_long  select;
     /** face text */                          char*     face;
-    /** scrollbar size in LONG_MAX ratio */   long      sclsiz;
-    /** scrollbar position in LONG_MAX ratio */ long    sclpos;
-    /** mouse tracking in widget */           long      mpx, mpy;
-    /** last mouse position */                long      lmpx, lmpy;
-    /** text cursor */                        long      curs;
-    /** text left side index */               long      tleft;
-    /** insert/overwrite mode */              long      ins;
-    /** allow only numeric entry */           long      num;
-    /** low bound of number */                long      lbnd;
-    /** upper bound of number */              long      ubnd;
+    /** scrollbar size in LONG_MAX ratio */   ami_long  sclsiz;
+    /** scrollbar position in LONG_MAX ratio */ ami_long    sclpos;
+    /** mouse tracking in widget */           ami_long  mpx, mpy;
+    /** last mouse position */                ami_long  lmpx, lmpy;
+    /** text cursor */                        ami_long  curs;
+    /** text left side index */               ami_long  tleft;
+    /** insert/overwrite mode */              ami_long  ins;
+    /** allow only numeric entry */           ami_long  num;
+    /** low bound of number */                ami_long  lbnd;
+    /** upper bound of number */              ami_long  ubnd;
     /** child/subclassed widget */            wigptr    cw;
     /** child/subclassed widget 2 */          wigptr    cw2;
     /** parent widget */                      wigptr    pw;
     /** parent file (used to send subclass
        messages) */                           FILE*     pf;
-    /** up button pressed */                  long      uppress;
-    /** down buton pressed */                 long      downpress;
-    /** progress bar position */              long      ppos;
+    /** up button pressed */                  ami_long  uppress;
+    /** down buton pressed */                 ami_long  downpress;
+    /** progress bar position */              ami_long  ppos;
     /** string list */                        ami_strptr strlst;
-    /** string selected, 0 if none */         long      ss;
-    /** string hovered, 0 if none */          long      sh;
-    /** list selection held, 0 if none */     long      lsel;
-    /** list box: first entry shown, 1 based */ long    top;
+    /** string selected, 0 if none */         ami_long  ss;
+    /** string hovered, 0 if none */          ami_long  sh;
+    /** list selection held, 0 if none */     ami_long  lsel;
+    /** list box: first entry shown, 1 based */ ami_long    top;
     /** List box column stops, in pixels from the left of the box. An
        entry is split at tabs and each field placed at its stop; a
        negative stop right aligns the field to it, as a column of sizes
        reads. None means the entry is one string, as it always was. */
-                                              long      tabs[4];
-    /** how many stops */                     long      ntabs;
-    /** child window id */                    long      cid;
-    /** mouse grabs scrollbar/slider */       long      grab;
-    /** tick marks on slider */               long      ticks;
+                                              ami_long  tabs[4];
+    /** how many stops */                     ami_long  ntabs;
+    /** child window id */                    ami_long  cid;
+    /** mouse grabs scrollbar/slider */       ami_long  grab;
+    /** tick marks on slider */               ami_long  ticks;
     /** Tab orientation */                    ami_tabori tor;
-    /** Character based */                    long      charb;
+    /** Character based */                    ami_long  charb;
 
     /** Configurable button fields */         ccolorp   cbc;
-    /** use check/text */                     long      check;
+    /** use check/text */                     ami_long  check;
 
 } wigrec;
 
@@ -491,7 +491,7 @@ static wbpkg         pkg;                /* this package's widget base
                                             instance */
 static FILE*         win0;               /* "window zero" dummy window */
 /* table of colors or other theme values */
-static unsigned long themetable[th_endmarker];
+static ami_ulong themetable[th_endmarker];
 
 
 /** ****************************************************************************
@@ -526,7 +526,7 @@ set used before it asked.
 
 #define PLASMA_DEFAULT_FONT "Noto Sans"
 
-static long wigfont;     /* the font the faces are drawn in */
+static ami_long wigfont;     /* the font the faces are drawn in */
 
 /* the family the desktop asks for, TRUE if the file said */
 static int deskfontname(char* fam, int faml)
@@ -602,7 +602,7 @@ static void findfont(void)
 {
 
     char fam[128], want[128], nm[256];
-    long i, n;
+    ami_long i, n;
 
     wigfont = AMI_FONT_SIGN;
     snprintf(want, sizeof(want), "%s", PLASMA_DEFAULT_FONT);
@@ -671,13 +671,13 @@ zero terminated.
 
 static void cpycrit(
     /** Destination buffer */           char*       d,
-    /** Length of destination buffer */ long        dl,
+    /** Length of destination buffer */ ami_long    dl,
     /** Source string */                const char* s
 )
 
 {
 
-    long l; /* length of source string */
+    ami_long l; /* length of source string */
 
     l = strlen(s); /* find length of source */
     if (l > dl) error("String too large for result buffer");
@@ -699,9 +699,9 @@ byte of the buffer for the terminator and guarantees termination.
 
 static void getwidgettextz(
     /** Window file */             FILE* f,
-    /** Logical widget id */       long  id,
+    /** Logical widget id */       ami_long  id,
     /** Output buffer for text */  char* s,
-    /** Size of output buffer */   long  sl
+    /** Size of output buffer */   ami_long  sl
 )
 
 {
@@ -825,56 +825,56 @@ static void prtevt(
 
 {
 
-    fprintf(stderr, "PA Event: Window: %ld ", er->winid);
+    fprintf(stderr, "PA Event: Window: %lld ", AMI_LONG_CAST(er->winid));
     prtevtt(er->etype);
     switch (er->etype) {
 
         case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-        case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
-        case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
-                                  er->mmoun, er->moupx, er->moupy); break;
-        case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
-                                 er->amoun, er->amoubn); break;
-        case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
-                                 er->dmoun, er->dmoubn); break;
-        case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
-                                 er->ajoyn, er->ajoybn); break;
-        case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
-                                 er->djoyn, er->djoybn); break;
-        case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
-                                  "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
-                                  er->joypx, er->joypy, er->joypz,
-                                  er->joyp4, er->joyp5, er->joyp6); break;
-        case ami_etresize: fprintf(stderr, ": x: %ld y: %ld xg: %ld yg: %ld",
-                                  er->rszx, er->rszy,
-                                  er->rszxg, er->rszyg); break;
-        case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
-        case ami_etmoumovg: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
-                                   er->mmoung, er->moupxg, er->moupyg); break;
-        case ami_etredraw: fprintf(stderr, ": sx: %4ld sy: %4ld ex: %4ld ey: %4ld",
-                                  er->rsx, er->rsy, er->rex, er->rey); break;
-        case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
-        case ami_etbutton: fprintf(stderr, ": id: %ld", er->butid); break;
-        case ami_etchkbox: fprintf(stderr, ": id: %ld", er->ckbxid); break;
-        case ami_etradbut: fprintf(stderr, ": id: %ld", er->radbid); break;
-        case ami_etsclull: fprintf(stderr, ": id: %ld", er->sclulid); break;
-        case ami_etscldrl: fprintf(stderr, ": id: %ld", er->scldrid); break;
-        case ami_etsclulp: fprintf(stderr, ": id: %ld", er->sclupid); break;
-        case ami_etscldrp: fprintf(stderr, ": id: %ld", er->scldpid); break;
-        case ami_etsclpos: fprintf(stderr, ": id: %ld position: %ld",
-                                  er->sclpid, er->sclpos); break;
-        case ami_etedtbox: fprintf(stderr, ": id: %ld", er->edtbid); break;
-        case ami_etnumbox: fprintf(stderr, ": id: %ld number: %ld",
-                                  er->numbid, er->numbsl); break;
-        case ami_etlstbox: fprintf(stderr, ": id: %ld select: %ld",
-                                  er->lstbid, er->lstbsl); break;
-        case ami_etdrpbox: fprintf(stderr, ": id: %ld select: %ld",
-                                  er->drpbid, er->drpbsl); break;
-        case ami_etdrebox: fprintf(stderr, ": id: %ld", er->drebid); break;
-        case ami_etsldpos: fprintf(stderr, ": id: %ld postion: %ld",
-                                  er->sldpid, er->sldpos); break;
-        case ami_ettabbar: fprintf(stderr, ": id: %ld select: %ld",
-                                  er->tabid, er->tabsel); break;
+        case ami_ettim: fprintf(stderr, ": timer: %lld", AMI_LONG_CAST(er->timnum)); break;
+        case ami_etmoumov: fprintf(stderr, ": mouse: %lld x: %4lld y: %4lld",
+                                  AMI_LONG_CAST(er->mmoun), AMI_LONG_CAST(er->moupx), AMI_LONG_CAST(er->moupy)); break;
+        case ami_etmouba: fprintf(stderr, ": mouse: %lld button: %lld",
+                                 AMI_LONG_CAST(er->amoun), AMI_LONG_CAST(er->amoubn)); break;
+        case ami_etmoubd: fprintf(stderr, ": mouse: %lld button: %lld",
+                                 AMI_LONG_CAST(er->dmoun), AMI_LONG_CAST(er->dmoubn)); break;
+        case ami_etjoyba: fprintf(stderr, ": joystick: %lld button: %lld",
+                                 AMI_LONG_CAST(er->ajoyn), AMI_LONG_CAST(er->ajoybn)); break;
+        case ami_etjoybd: fprintf(stderr, ": joystick: %lld button: %lld",
+                                 AMI_LONG_CAST(er->djoyn), AMI_LONG_CAST(er->djoybn)); break;
+        case ami_etjoymov: fprintf(stderr, ": joystick: %lld x: %4lld y: %4lld z: %4lld "
+                                  "a4: %4lld a5: %4lld a6: %4lld", AMI_LONG_CAST(er->mjoyn),
+                                  AMI_LONG_CAST(er->joypx), AMI_LONG_CAST(er->joypy), AMI_LONG_CAST(er->joypz),
+                                  AMI_LONG_CAST(er->joyp4), AMI_LONG_CAST(er->joyp5), AMI_LONG_CAST(er->joyp6)); break;
+        case ami_etresize: fprintf(stderr, ": x: %lld y: %lld xg: %lld yg: %lld",
+                                  AMI_LONG_CAST(er->rszx), AMI_LONG_CAST(er->rszy),
+                                  AMI_LONG_CAST(er->rszxg), AMI_LONG_CAST(er->rszyg)); break;
+        case ami_etfun: fprintf(stderr, ": key: %lld", AMI_LONG_CAST(er->fkey)); break;
+        case ami_etmoumovg: fprintf(stderr, ": mouse: %lld x: %4lld y: %4lld",
+                                   AMI_LONG_CAST(er->mmoung), AMI_LONG_CAST(er->moupxg), AMI_LONG_CAST(er->moupyg)); break;
+        case ami_etredraw: fprintf(stderr, ": sx: %4lld sy: %4lld ex: %4lld ey: %4lld",
+                                  AMI_LONG_CAST(er->rsx), AMI_LONG_CAST(er->rsy), AMI_LONG_CAST(er->rex), AMI_LONG_CAST(er->rey)); break;
+        case ami_etmenus: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->menuid)); break;
+        case ami_etbutton: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->butid)); break;
+        case ami_etchkbox: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->ckbxid)); break;
+        case ami_etradbut: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->radbid)); break;
+        case ami_etsclull: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->sclulid)); break;
+        case ami_etscldrl: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->scldrid)); break;
+        case ami_etsclulp: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->sclupid)); break;
+        case ami_etscldrp: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->scldpid)); break;
+        case ami_etsclpos: fprintf(stderr, ": id: %lld position: %lld",
+                                  AMI_LONG_CAST(er->sclpid), AMI_LONG_CAST(er->sclpos)); break;
+        case ami_etedtbox: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->edtbid)); break;
+        case ami_etnumbox: fprintf(stderr, ": id: %lld number: %lld",
+                                  AMI_LONG_CAST(er->numbid), AMI_LONG_CAST(er->numbsl)); break;
+        case ami_etlstbox: fprintf(stderr, ": id: %lld select: %lld",
+                                  AMI_LONG_CAST(er->lstbid), AMI_LONG_CAST(er->lstbsl)); break;
+        case ami_etdrpbox: fprintf(stderr, ": id: %lld select: %lld",
+                                  AMI_LONG_CAST(er->drpbid), AMI_LONG_CAST(er->drpbsl)); break;
+        case ami_etdrebox: fprintf(stderr, ": id: %lld", AMI_LONG_CAST(er->drebid)); break;
+        case ami_etsldpos: fprintf(stderr, ": id: %lld postion: %lld",
+                                  AMI_LONG_CAST(er->sldpid), AMI_LONG_CAST(er->sldpos)); break;
+        case ami_ettabbar: fprintf(stderr, ": id: %lld select: %lld",
+                                  AMI_LONG_CAST(er->tabid), AMI_LONG_CAST(er->tabsel)); break;
         default: ;
 
     }
@@ -1075,7 +1075,7 @@ widget. Validates the file and the widget number.
 
 static wigptr fndwig(
     /** Window file pointer */ FILE* f,
-    /** Logical wiget id */    long id
+    /** Logical wiget id */    ami_long id
 )
 
 {
@@ -1123,7 +1123,7 @@ Takes a file and a 32 bit packed RGB color, and sets the foreground color.
 
 static void fcolorp(
     /** Window file pointer */ FILE*         f,
-    /** 32 bit packed color */ unsigned long c
+    /** 32 bit packed color */ ami_ulong c
 )
 
 {
@@ -1143,7 +1143,7 @@ table.
 
 static void bcolorp(
     /** Window file pointer */ FILE*         f,
-    /** 32 bit packed color */ unsigned long c
+    /** 32 bit packed color */ ami_ulong c
 )
 
 {
@@ -1201,14 +1201,14 @@ consider the sign.
 
 *******************************************************************************/
 
-static long digits(
-    /** Value to measure */ long v
+static ami_long digits(
+    /** Value to measure */ ami_long v
 )
 
 {
 
-    long p; /* power */
-    long c; /* count */
+    ami_long p; /* power */
+    ami_long c; /* count */
 
     p = 1; /* set first power */
     c = 1; /* set initial count (at least one digit) */
@@ -1258,11 +1258,11 @@ will be passed back to the user.
 
 *******************************************************************************/
 
-static long wigseq = 0; /* widget creation sequence */
+static ami_long wigseq = 0; /* widget creation sequence */
 
 /* a component is a widget made to be layered under others: it presents a
    surface, not a control */
-static long component(wigtyp typ)
+static ami_long component(wigtyp typ)
 
 {
 
@@ -1272,9 +1272,9 @@ static long component(wigtyp typ)
 
 static void widget(
     /** Parent window file */              FILE* f,
-    /** Containing rectangle for widget */ long x1, long y1, long x2, long y2,
+    /** Containing rectangle for widget */ ami_long x1, ami_long y1, ami_long x2, ami_long y2,
     /** Face string (if exists) */         char* s,
-    /** logical id for widget */           long id,
+    /** logical id for widget */           ami_long id,
     /** type code for widget */            wigtyp typ,
     /** Widget I/O pointer */              wigptr* wpr
 )
@@ -1284,7 +1284,7 @@ static void widget(
     wigptr wp;
     wigptr sp; /* sibling walk */
     wigptr np; /* next control to raise */
-    long   last; /* last sequence raised */
+    ami_long   last; /* last sequence raised */
     int    i;
 
     wp = *wpr; /* get any predefined widget entry */
@@ -1344,10 +1344,10 @@ static void cbutton_draw(
 
 {
 
-    long sq; /* size of checkbox square */
-    long sqm; /* center x of checkbox square */
-    long md; /* checkbox center line */
-    long cb; /* bounding box of check figure */
+    ami_long sq; /* size of checkbox square */
+    ami_long sqm; /* center x of checkbox square */
+    ami_long md; /* checkbox center line */
+    ami_long cb; /* bounding box of check figure */
 
     /* the surround first: the square behind the rounded corners shows the
        surface the button sits on, not the window's blank canvas */
@@ -1567,11 +1567,11 @@ static void checkbox_draw(
 
 {
 
-    long sq; /* size of checkbox square */
-    long sqm; /* center x of checkbox square */
-    long sqo; /* checkbox offset left */
-    long md; /* checkbox center line */
-    long cb; /* bounding box of check figure */
+    ami_long sq; /* size of checkbox square */
+    ami_long sqm; /* center x of checkbox square */
+    ami_long sqo; /* checkbox offset left */
+    ami_long md; /* checkbox center line */
+    ami_long cb; /* bounding box of check figure */
 
     /* color the background */
     ami_fcolor(wg->wf, ami_backcolor);
@@ -1683,10 +1683,10 @@ static void radiobutton_draw(
 
 {
 
-    long cr; /* size of radiobutton circle */
-    long crm; /* center x of radiobutton circle */
-    long cro; /* radiobutton offset left */
-    long md; /* radiobutton center line */
+    ami_long cr; /* size of radiobutton circle */
+    ami_long crm; /* center x of radiobutton circle */
+    ami_long cro; /* radiobutton offset left */
+    ami_long md; /* radiobutton center line */
 
     /* color the background */
     ami_fcolor(wg->wf, ami_backcolor);
@@ -1785,15 +1785,15 @@ static void scrollvert_draw(
 
 {
 
-    long      sclsizp; /* size of slider in pixels */
-    long      sclposp; /* offset of slider in pixels */
-    long      remsizp; /* remaining space after slider in pixels */
-    long      totsizp; /* total size of slider space after padding */
-    long      botposp; /* bottom position of slider */
-    long      inbar;   /* mouse is in scroll bar */
-    long      sclpos;  /* new scrollbar position */
+    ami_long  sclsizp; /* size of slider in pixels */
+    ami_long  sclposp; /* offset of slider in pixels */
+    ami_long  remsizp; /* remaining space after slider in pixels */
+    ami_long  totsizp; /* total size of slider space after padding */
+    ami_long  botposp; /* bottom position of slider */
+    ami_long  inbar;   /* mouse is in scroll bar */
+    ami_long  sclpos;  /* new scrollbar position */
     ami_evtrec er;      /* outbound button event */
-    long      y;
+    ami_long  y;
 
     /* find net total slider space */
     totsizp = ami_maxyg(wg->wf)-ENDSPACE-ENDSPACE;
@@ -1860,12 +1860,12 @@ static void scrollvert_event(
 
 {
 
-    long      sclpos;  /* new scrollbar position */
-    long      sclsizp; /* size of slider in pixels */
-    long      remsizp; /* remaining space after slider in pixels */
-    long      totsizp; /* total size of slider space after padding */
+    ami_long  sclpos;  /* new scrollbar position */
+    ami_long  sclsizp; /* size of slider in pixels */
+    ami_long  remsizp; /* remaining space after slider in pixels */
+    ami_long  totsizp; /* total size of slider space after padding */
     ami_evtrec er;      /* outbound button event */
-    long      y;
+    ami_long  y;
 
     if (ev->etype == ami_etredraw) scrollvert_draw(wg); /* redraw the window */
     else if (ev->etype == ami_etmouba && ev->amoubn == 1) {
@@ -1931,15 +1931,15 @@ static void scrollhoriz_draw(
 
 {
 
-    long      sclsizp; /* size of slider in pixels */
-    long      sclposp; /* offset of slider in pixels */
-    long      remsizp; /* remaining space after slider in pixels */
-    long      totsizp; /* total size of slider space after padding */
-    long      botposp; /* bottom position of slider */
-    long      inbar;   /* mouse is in scroll bar */
-    long      sclpos;  /* new scrollbar position */
+    ami_long  sclsizp; /* size of slider in pixels */
+    ami_long  sclposp; /* offset of slider in pixels */
+    ami_long  remsizp; /* remaining space after slider in pixels */
+    ami_long  totsizp; /* total size of slider space after padding */
+    ami_long  botposp; /* bottom position of slider */
+    ami_long  inbar;   /* mouse is in scroll bar */
+    ami_long  sclpos;  /* new scrollbar position */
     ami_evtrec er;      /* outbound event */
-    long      x;
+    ami_long  x;
 
     /* find net total slider space */
     totsizp = ami_maxxg(wg->wf)-ENDSPACE-ENDSPACE;
@@ -2003,12 +2003,12 @@ static void scrollhoriz_event(
 
 {
 
-    long      sclpos;  /* new scrollbar position */
-    long      sclsizp; /* size of slider in pixels */
-    long      remsizp; /* remaining space after slider in pixels */
-    long      totsizp; /* total size of slider space after padding */
+    ami_long  sclpos;  /* new scrollbar position */
+    ami_long  sclsizp; /* size of slider in pixels */
+    ami_long  remsizp; /* remaining space after slider in pixels */
+    ami_long  totsizp; /* total size of slider space after padding */
     ami_evtrec er;      /* outbound button event */
-    long      x;
+    ami_long  x;
 
     if (ev->etype == ami_etredraw) scrollhoriz_draw(wg); /* redraw the window */
     else if (ev->etype == ami_etmouba && ev->amoubn == 1) {
@@ -2164,11 +2164,11 @@ static void editbox_draw(
 
 {
 
-    long  cl;
-    long  x;
+    ami_long  cl;
+    ami_long  x;
     char* s;
-    long  err;
-    long  v;
+    ami_long  err;
+    ami_long  v;
 
     /* see if the numeric contents are in range */
     err = FALSE; /* set no error */
@@ -2281,11 +2281,11 @@ static void editbox_event(
 {
 
     char*     s;    /* temp string */
-    long      l;    /* length */
-    long      span; /* span between characters */
-    long      off;  /* offset from last character */
+    ami_long  l;    /* length */
+    ami_long  span; /* span between characters */
+    ami_long  off;  /* offset from last character */
     ami_evtrec er;   /* outbound button event */
-    long      i;
+    ami_long  i;
 
     switch (ev->etype) {
 
@@ -2483,8 +2483,8 @@ static void numselbox_draw(
 
     if (!wg->cw) return; /* not yet wired: the completing redraw paints */
 
-    long udspc; /* up/down control space */
-    long figsiz; /* size of up/down figures */
+    ami_long udspc; /* up/down control space */
+    ami_long figsiz; /* size of up/down figures */
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
     /* color the background */
@@ -2507,11 +2507,11 @@ static void numselbox_draw(
     }
     {
 
-        long aw = ami_chrsizy(win0)*0.45; /* the chevrons' span */
-        long ah = ami_chrsizy(win0)*0.20; /* and their depth */
-        long cx = ami_maxxg(wg->wf)-udspc*0.5;
-        long uy = ami_maxyg(wg->wf)*0.30;  /* the up one */
-        long dy = ami_maxyg(wg->wf)*0.70;  /* and the down one */
+        ami_long aw = ami_chrsizy(win0)*0.45; /* the chevrons' span */
+        ami_long ah = ami_chrsizy(win0)*0.20; /* and their depth */
+        ami_long cx = ami_maxxg(wg->wf)-udspc*0.5;
+        ami_long uy = ami_maxyg(wg->wf)*0.30;  /* the up one */
+        ami_long dy = ami_maxyg(wg->wf)*0.70;  /* and the down one */
 
         figsiz = 0; /* the figures are the chevrons now */
         fcolort(wg->wf, th_numselud);
@@ -2555,10 +2555,10 @@ static void numselbox_event(
 
     if (!wg->cw) return; /* not yet wired: the completing redraw paints */
 
-    long udspc;    /* up/down control space */
+    ami_long udspc;    /* up/down control space */
     char buff[40]; /* buffer for number entered (holds full long) */
     ami_evtrec er;  /* outbound button event */
-    long v;
+    ami_long v;
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
     switch (ev->etype) {
@@ -2605,7 +2605,7 @@ static void numselbox_event(
                         getwidgettextz(wg->wf, wg->cw->id, buff, sizeof(buff));
                         v = atol(buff);
                         if (wg->cw->lbnd < v && v <= wg->cw->ubnd) v--;
-                        sprintf(buff, "%ld", v);
+                        sprintf(buff, "%lld", AMI_LONG_CAST(v));
                         ami_putwidgettext(wg->wf, wg->cw->id, buff);
                         if (wg->cw->curs > strlen(wg->cw->face))
                             wg->cw->curs = strlen(wg->cw->face);
@@ -2619,7 +2619,7 @@ static void numselbox_event(
                         getwidgettextz(wg->wf, wg->cw->id, buff, sizeof(buff));
                         v = atol(buff);
                         if (wg->cw->lbnd <= v && v < wg->cw->ubnd) v++;
-                        sprintf(buff, "%ld", v);
+                        sprintf(buff, "%lld", AMI_LONG_CAST(v));
                         ami_putwidgettext(wg->wf, wg->cw->id, buff);
                         if (wg->cw->curs > strlen(wg->cw->face))
                             wg->cw->curs = strlen(wg->cw->face);
@@ -2663,7 +2663,7 @@ static void progbar_draw(
 
 {
 
-    long pbpp; /* prog bar pixel position right side */
+    ami_long pbpp; /* prog bar pixel position right side */
 
     /* draw inactive background */
     fcolort(wg->wf, th_proginacen);
@@ -2717,23 +2717,23 @@ Handles drawing list boxes.
    that lets the motion handler repaint just the line that gains or loses the
    hover highlight instead of redrawing (and re-rendering) the whole list. */
 /* the entries a list box has room for */
-static long listbox_vis(wigptr wg)
+static ami_long listbox_vis(wigptr wg)
 
 {
 
-    long n = (ami_maxyg(wg->wf)-ami_chrsizy(wg->wf)*0.5)/ami_chrsizy(wg->wf);
+    ami_long n = (ami_maxyg(wg->wf)-ami_chrsizy(wg->wf)*0.5)/ami_chrsizy(wg->wf);
 
     return (n < 1? 1: n);
 
 }
 
 /* the entries it holds */
-static long listbox_cnt(wigptr wg)
+static ami_long listbox_cnt(wigptr wg)
 
 {
 
     ami_strptr sp = wg->strlst;
-    long n = 0;
+    ami_long n = 0;
 
     while (sp) { n++; sp = sp->next; }
 
@@ -2747,14 +2747,14 @@ static void listbox_clamp(wigptr wg)
 
 {
 
-    long last = listbox_cnt(wg)-listbox_vis(wg)+1;
+    ami_long last = listbox_cnt(wg)-listbox_vis(wg)+1;
 
     if (wg->top > last) wg->top = last;
     if (wg->top < 1) wg->top = 1;
 
 }
 
-static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
+static void listbox_line(wigptr wg, ami_strptr sp, ami_long idx, ami_long y)
 
 {
 
@@ -2770,16 +2770,16 @@ static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
     if (wg->ntabs) { /* in columns, each field at its stop */
 
         const char* p = sp->str;
-        long i = 0;
+        ami_long i = 0;
 
         while (p && i <= wg->ntabs) {
 
             const char* e = strchr(p, '\t');
             char  fld[256];
-            long  l = e? (long)(e-p): (long)strlen(p);
-            long  x;
+            ami_long  l = e? (ami_long)(e-p): (ami_long)strlen(p);
+            ami_long  x;
 
-            if (l > (long)sizeof(fld)-1) l = sizeof(fld)-1;
+            if (l > (ami_long)sizeof(fld)-1) l = sizeof(fld)-1;
             memcpy(fld, p, l);
             fld[l] = 0;
             if (!i) x = ami_chrsizy(wg->wf)*0.5; /* the name leads */
@@ -2806,13 +2806,13 @@ static void listbox_line(wigptr wg, ami_strptr sp, long idx, long y)
 /* Repaint just the line at 1-based index idx (used to move the hover highlight
    without a full-list redraw). Out-of-range indices (including 0 = none) are a
    no-op. */
-static void listbox_line_idx(wigptr wg, long idx)
+static void listbox_line_idx(wigptr wg, ami_long idx)
 
 {
 
     ami_strptr sp;
-    long      y;
-    long      sc;
+    ami_long  y;
+    ami_long  sc;
 
     if (idx < wg->top) return; /* above the view, nothing to paint */
     sp = wg->strlst; /* index top of stringlist */
@@ -2839,8 +2839,8 @@ static void listbox_draw(
 {
 
     ami_strptr sp;
-    long      y;
-    long      sc;
+    ami_long  y;
+    ami_long  sc;
 
     /* draw background */
     ami_fcolor(wg->wf, ami_white);
@@ -2882,8 +2882,8 @@ static void listbox_event(
 {
 
     ami_evtrec er; /* outbound button event */
-    long      y;
-    long      sc;
+    ami_long  y;
+    ami_long  sc;
     ami_strptr sp;
 
     if (ev->etype == ami_etredraw) listbox_draw(wg); /* redraw the window */
@@ -2893,7 +2893,7 @@ static void listbox_event(
         /* The wheel moves the view. A list longer than its box could not
            be reached at all before: it drew from its first entry and
            there it stayed. */
-        long was = wg->top;
+        ami_long was = wg->top;
 
         wg->top += ev->amoubn == 4? -3: 3; /* the usual three lines */
         listbox_clamp(wg);
@@ -2901,7 +2901,7 @@ static void listbox_event(
 
     } else if (ev->etype == ami_etscru || ev->etype == ami_etscrd) {
 
-        long was = wg->top; /* the scroll keys, a line at a time */
+        ami_long was = wg->top; /* the scroll keys, a line at a time */
 
         wg->top += ev->etype == ami_etscru? -1: 1;
         listbox_clamp(wg);
@@ -2909,7 +2909,7 @@ static void listbox_event(
 
     } else if (ev->etype == ami_etpagu || ev->etype == ami_etpagd) {
 
-        long was = wg->top; /* and by the boxful */
+        ami_long was = wg->top; /* and by the boxful */
 
         wg->top += (ev->etype == ami_etpagu? -1: 1)*listbox_vis(wg);
         listbox_clamp(wg);
@@ -2923,7 +2923,7 @@ static void listbox_event(
 
             /* the clicked entry holds the selection shading, as a GTK
                list row does */
-            long oldsel = wg->lsel;
+            ami_long oldsel = wg->lsel;
 
             wg->lsel = wg->ss;
             if (oldsel != wg->lsel) {
@@ -2947,7 +2947,7 @@ static void listbox_event(
 
     } else if (ev->etype == ami_etmoumovg) {
 
-        long oldss = wg->ss; /* remember previously hovered string */
+        ami_long oldss = wg->ss; /* remember previously hovered string */
 
         /* track position */
         wg->mpx = ev->moupxg; /* set present position */
@@ -3021,14 +3021,14 @@ static void dropbox_draw(
 
 {
 
-    long      ddspc;  /* up/down control space */
-    long      figsiz; /* size of up/down figures */
+    ami_long  ddspc;  /* up/down control space */
+    ami_long  figsiz; /* size of up/down figures */
     ami_strptr sp;
-    long      sc;
-    long      aw;
-    long      ah;
-    long      cx;
-    long      cy;
+    ami_long  sc;
+    ami_long  aw;
+    ami_long  ah;
+    ami_long  cx;
+    ami_long  cy;
 
     ddspc = ami_chrsizy(win0)*1.9; /* square space for dropdown control */
     aw = ami_chrsizy(win0)*0.5;  /* the chevron's span */
@@ -3087,12 +3087,12 @@ static void dropbox_event(
 
 {
 
-    long udspc;    /* up/down control space */
-    long lbw, lbh; /* listbox sizing */
-    long w, h;     /* net width and height */
+    ami_long udspc;    /* up/down control space */
+    ami_long lbw, lbh; /* listbox sizing */
+    ami_long w, h;     /* net width and height */
     ami_evtrec er; /* outbound event */
     FILE* par;    /* ultimate parent */
-    long  px,py;  /* position of widget in ultimate parent */
+    ami_long  px,py;  /* position of widget in ultimate parent */
     wigptr wp;
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
@@ -3223,8 +3223,8 @@ static void dropeditbox_event(
 
     ami_evtrec er; /* outbound event */
     ami_strptr sp;
-    long      sc;
-    long      l;
+    ami_long  sc;
+    ami_long  l;
 
     if (ev->etype == ami_etredraw) dropeditbox_draw(wg); /* redraw the window */
     else if (ev->etype == WMC_LGTFOC) { /* light focus */
@@ -3282,18 +3282,18 @@ static void slidehoriz_draw(
 
 
 
-    long sldsizp;    /* size of slider in pixels */
-    long sldposp;    /* position of slider in pixels */
-    long mid;        /* y midpoint */
-    long thk;        /* slider y thickness */
-    long margin;     /* margin at slider edges */
-    long trksizp;    /* track size in pixels */
-    long insld;      /* mouse is in slider */
-    long sldpos;     /* slider position */
+    ami_long sldsizp;    /* size of slider in pixels */
+    ami_long sldposp;    /* position of slider in pixels */
+    ami_long mid;        /* y midpoint */
+    ami_long thk;        /* slider y thickness */
+    ami_long margin;     /* margin at slider edges */
+    ami_long trksizp;    /* track size in pixels */
+    ami_long insld;      /* mouse is in slider */
+    ami_long sldpos;     /* slider position */
     ami_evtrec er;   /* outbound event */
     double tiksizp; /* space between ticks in pixels */
-    long tickno;     /* ticks counter */
-    long x;
+    ami_long tickno;     /* ticks counter */
+    ami_long x;
 
     mid = ami_maxyg(wg->wf)*0.5; /* find y midpoint */
     thk = ami_chrsizy(wg->wf)*0.14; /* find slider track thickness */
@@ -3453,18 +3453,18 @@ static void slidevert_draw(
 
 
 
-    long sldsizp;  /* size of slider in pixels */
-    long sldposp;  /* position of slider in pixels */
-    long mid;      /* y midpoint */
-    long thk;      /* slider y thickness */
-    long margin;   /* margin at slider edges */
-    long trksizp;  /* track size in pixels */
-    long insld;    /* mouse is in slider */
-    long sldpos;   /* slider position */
+    ami_long sldsizp;  /* size of slider in pixels */
+    ami_long sldposp;  /* position of slider in pixels */
+    ami_long mid;      /* y midpoint */
+    ami_long thk;      /* slider y thickness */
+    ami_long margin;   /* margin at slider edges */
+    ami_long trksizp;  /* track size in pixels */
+    ami_long insld;    /* mouse is in slider */
+    ami_long sldpos;   /* slider position */
     ami_evtrec er; /* outbound event */
     double tiksizp; /* space between ticks in pixels */
-    long tickno;     /* ticks counter */
-    long y;
+    ami_long tickno;     /* ticks counter */
+    ami_long y;
 
     mid = ami_maxxg(wg->wf)*0.5; /* find x midpoint */
     thk = ami_chrsizy(wg->wf)*0.14; /* find slider track thickness */
@@ -3624,9 +3624,9 @@ static void tabbar_draw(
 {
 
     ami_strptr sp; /* string list pointer */
-    long      sc;
-    long      xm, y, x1, x2;
-    long      th; /* tabbar height/width (by orientation) */
+    ami_long  sc;
+    ami_long  xm, y, x1, x2;
+    ami_long  th; /* tabbar height/width (by orientation) */
 
     /* find tabbar height/width */
     if (wg->charb) th = ami_chrsizy(wg->parent)*TABHGT; /* character */
@@ -3678,8 +3678,8 @@ static void tabbar_draw(
                    over for the width of the tab, so the two read as one
                    surface. Breeze marks the choice that way and puts no
                    bar under it. A hovered tab is only washed. */
-                long tx1 = ami_curxg(wg->wf)-ami_chrsizy(wg->wf)*0.5;
-                long tx2 = ami_curxg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
+                ami_long tx1 = ami_curxg(wg->wf)-ami_chrsizy(wg->wf)*0.5;
+                ami_long tx2 = ami_curxg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
                            ami_chrsizy(wg->wf)*0.5;
 
                 if (sc == 1) tx1 = 2; /* the first tab stands at the edge */
@@ -3810,8 +3810,8 @@ static void tabbar_draw(
                 ami_linewidth(wg->wf, 6);
                 /* as at the top and the bottom: the chosen tab is a panel
                    of the client's colour, open to the client beside it */
-                long ty1 = ami_curyg(wg->wf)-ami_chrsizy(wg->wf)*0.5;
-                long ty2 = ami_curyg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
+                ami_long ty1 = ami_curyg(wg->wf)-ami_chrsizy(wg->wf)*0.5;
+                ami_long ty2 = ami_curyg(wg->wf)+ami_strsiz(wg->wf, sp->str)+
                            ami_chrsizy(wg->wf)*0.5;
 
                 if (sc == 1) ty1 = 2; /* the first tab stands at the edge */
@@ -3906,10 +3906,10 @@ static void tabbar_event(
 {
 
     ami_evtrec er; /* outbound button event */
-    long      th; /* tabbar height/width (by orientation) */
-    long      x, y;
-    long      sc;
-    long      sh;
+    ami_long  th; /* tabbar height/width (by orientation) */
+    ami_long  x, y;
+    ami_long  sc;
+    ami_long  sh;
     ami_strptr sp;
 
     th = ami_chrsizy(wg->wf)*TABHGT; /* find tabbar height/width graphical */
@@ -4133,7 +4133,7 @@ and removed by killwidget().
 
 *******************************************************************************/
 
-static long igetwigid(
+static ami_long igetwigid(
     /** Window file */ FILE* f
 )
 
@@ -4189,7 +4189,7 @@ Removes the widget by id from the window.
 
 static void ikillwidget(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long id
+    /** Logical widget id */ ami_long id
 )
 
 {
@@ -4212,14 +4212,14 @@ simply record the state.
 
 static void iselectwidget(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long id,
-    /** On/off for select */ long e
+    /** Logical widget id */ ami_long id,
+    /** On/off for select */ ami_long e
 )
 
 {
 
     wigptr    wp;  /* widget entry pointer */
-    long      chg; /* widget state changes */
+    ami_long  chg; /* widget state changes */
 
     wp = fndwig(f, id); /* index the widget */
     chg = wp->select != !!e; /* check select state changes */
@@ -4239,14 +4239,14 @@ Enables or disables a widget.
 
 static void ienablewidget(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long  id,
-    /** On/off for enable */ long  e
+    /** Logical widget id */ ami_long  id,
+    /** On/off for enable */ ami_long  e
 )
 
 {
 
     wigptr    wp;  /* widget entry pointer */
-    long      chg; /* widget state changes */
+    ami_long  chg; /* widget state changes */
 
     e = !!e; /* clean the enable value */
     wp = fndwig(f, id); /* index the widget */
@@ -4277,9 +4277,9 @@ cannot fit in the buffer.
 
 static void igetwidgettext(
     /** Window file */                   FILE* f,
-    /** Logical widget id */             long  id,
+    /** Logical widget id */             ami_long  id,
     /** Output pointer to widget text */ char* s,
-    /** Length of string buffer */       long  sl
+    /** Length of string buffer */       ami_long  sl
 )
 
 {
@@ -4308,7 +4308,7 @@ Places text into an edit box.
 
 static void iputwidgettext(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long  id,
+    /** Logical widget id */ ami_long  id,
     /** Text to place */     char* s
 )
 
@@ -4348,9 +4348,9 @@ Changes the size of a graphical widget.
 
 static void isizwidgetg(
     /** Window file */         FILE* f,
-    /** Logical widget id */   long  id,
-    /** New size for widget */ long  x,
-                               long  y
+    /** Logical widget id */   ami_long  id,
+    /** New size for widget */ ami_long  x,
+                               ami_long  y
 )
 
 {
@@ -4372,9 +4372,9 @@ Changes the size of a text widget.
 
 static void isizwidget(
     /** Window file */         FILE* f,
-    /** Logical widget id */   long  id,
-    /** New size for widget */ long  x,
-                               long  y
+    /** Logical widget id */   ami_long  id,
+    /** New size for widget */ ami_long  x,
+                               ami_long  y
 )
 
 {
@@ -4399,9 +4399,9 @@ Changes the parent position of a graphical widget.
 
 static void iposwidgetg(
     /** Window file */             FILE* f,
-    /** Logical widget id */       long  id,
-    /** New position for widget */ long  x,
-                                   long  y
+    /** Logical widget id */       ami_long  id,
+    /** New position for widget */ ami_long  x,
+                                   ami_long  y
 )
 
 {
@@ -4423,9 +4423,9 @@ Changes the parent position of a text widget.
 
 static void iposwidget(
     /** Window file */             FILE* f,
-    /** Logical widget id */       long  id,
-    /** New position for widget */ long  x,
-                                   long  y
+    /** Logical widget id */       ami_long  id,
+    /** New position for widget */ ami_long  x,
+                                   ami_long  y
 )
 
 {
@@ -4486,7 +4486,7 @@ static void sinkcomponents(
 
     wbfilptr fp; /* the window's widget table */
     wigptr   q;  /* widget walked */
-    long     i;
+    ami_long i;
 
     fp = pkg.opnfil[fileno(f)];
     if (!fp) return;
@@ -4501,7 +4501,7 @@ static void sinkcomponents(
 
 static void ibackwidget(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long  id
+    /** Logical widget id */ ami_long  id
 )
 
 {
@@ -4525,7 +4525,7 @@ Place widget to back of Z order
 
 static void ifrontwidget(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long  id
+    /** Logical widget id */ ami_long  id
 )
 
 {
@@ -4549,7 +4549,7 @@ Place input focus on a given widget
 
 static void ifocuswidget(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long  id
+    /** Logical widget id */ ami_long  id
 )
 
 {
@@ -4575,8 +4575,8 @@ Note the spacing is copied from gnome defaults.
 static void ibuttonsizg(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
-    /** Minimum width return */  long*  w,
-    /** Minimum height return */ long*  h
+    /** Minimum width return */  ami_long*  w,
+    /** Minimum height return */ ami_long*  h
 )
 
 {
@@ -4600,8 +4600,8 @@ Note the spacing is copied from gnome defaults.
 static void ibuttonsiz(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
-    /** Minimum width return */  long*  w,
-    /** Minimum height return */ long*  h
+    /** Minimum width return */  ami_long*  w,
+    /** Minimum height return */ ami_long*  h
 )
 
 {
@@ -4624,12 +4624,12 @@ window.
 
 static void ibuttong(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -4655,12 +4655,12 @@ window.
 
 static void ibutton(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -4686,8 +4686,8 @@ minimum size of a checkbox is calculated and returned.
 static void icheckboxsizg(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -4710,8 +4710,8 @@ size of a checkbox is calculated and returned.
 static void icheckboxsiz(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
-    /** Return width */  long*  w,
-    /** return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** return height */ ami_long*  h
 )
 
 {
@@ -4734,12 +4734,12 @@ given window.
 
 static void icheckboxg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** Logical widget id */   long  id)
+    /** Logical widget id */   ami_long  id)
 
 {
 
@@ -4763,12 +4763,12 @@ window.
 
 static void icheckbox(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -4794,8 +4794,8 @@ minimum size of a radio button is calculated and returned.
 static void iradiobuttonsizg(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h)
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h)
 
 {
 
@@ -4817,8 +4817,8 @@ minimum size of a radio button is calculated and returned.
 static void iradiobuttonsiz(
     /** Window file */   FILE* f,
     /** Face string */   char* s,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -4841,12 +4841,12 @@ given window.
 
 static void iradiobuttong(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -4871,12 +4871,12 @@ given window.
 
 static void iradiobutton(
     /** Window file */ FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -4902,12 +4902,12 @@ size of a group is calculated and returned.
 static void igroupsizg(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
-    /** Client width */          long  cw,
-    /** Client height */         long  ch,
-    /** Returns width */         long*  w,
-    /** Returns height */        long*  h,
-    /** Returns client origin */ long*  ox,
-                                 long*  oy
+    /** Client width */          ami_long  cw,
+    /** Client height */         ami_long  ch,
+    /** Returns width */         ami_long*  w,
+    /** Returns height */        ami_long*  h,
+    /** Returns client origin */ ami_long*  ox,
+                                 ami_long*  oy
 )
 
 {
@@ -4933,12 +4933,12 @@ size of a group is calculated and returned.
 static void igroupsiz(
     /** Window file */           FILE* f,
     /** Face string */           char* s,
-    /** Client width */          long cw,
-    /** Client height */         long ch,
-    /** Returns width */         long* w,
-    /** Returns height */        long* h,
-    /** Returns client origin */ long* ox,
-                                 long* oy
+    /** Client width */          ami_long cw,
+    /** Client height */         ami_long ch,
+    /** Returns width */         ami_long* w,
+    /** Returns height */        ami_long* h,
+    /** Returns client origin */ ami_long* ox,
+                                 ami_long* oy
 )
 
 {
@@ -4966,12 +4966,12 @@ gererates no messages. It is used as a background for other widgets.
 
 static void igroupg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -4996,12 +4996,12 @@ gererates no messages. It is used as a background for other widgets.
 
 static void igroup(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Face string */         char* s,
-    /** logical widget id */   long  id)
+    /** logical widget id */   ami_long  id)
 
 {
 
@@ -5025,11 +5025,11 @@ that generates no messages. It is used as a background for other widgets.
 
 static void ibackgroundg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5054,11 +5054,11 @@ generates no messages. It is used as a background for other widgets.
 
 static void ibackground(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5083,8 +5083,8 @@ vertical scrollbar is calculated and returned.
 
 static void iscrollvertsizg(
     /** Window file */    FILE* f,
-    /** Returns width */  long*  w,
-    /** Returns height */ long*  h
+    /** Returns width */  ami_long*  w,
+    /** Returns height */ ami_long*  h
 )
 
 {
@@ -5105,8 +5105,8 @@ vertical scrollbar is calculated and returned.
 
 static void iscrollvertsiz(
     /** Window file */    FILE* f,
-    /** Returns width */  long*  w,
-    /** Returns height */ long*  h
+    /** Returns width */  ami_long*  w,
+    /** Returns height */ ami_long*  h
 )
 
 {
@@ -5128,11 +5128,11 @@ Creates a graphical vertical scrollbar.
 
 static void iscrollvertg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5156,11 +5156,11 @@ Creates a text vertical scrollbar.
 
 static void iscrollvert(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5185,8 +5185,8 @@ a horizontal scrollbar is calculated and returned.
 
 static void iscrollhorizsizg(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -5207,8 +5207,8 @@ horizontal scrollbar is calculated and returned.
 
 static void iscrollhorizsiz(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -5230,11 +5230,11 @@ Creates a graphical horizontal scrollbar.
 
 static void iscrollhorizg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5258,11 +5258,11 @@ Creates a text horizontal scrollbar.
 
 static void iscrollhoriz(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5286,8 +5286,8 @@ Sets the current position of a scrollbar slider.
 
 static void iscrollpos(
     /** Window file */             FILE* f,
-    /** Logical widget id */       long id,
-    /** Ratioed slider position */ long r
+    /** Logical widget id */       ami_long id,
+    /** Ratioed slider position */ ami_long r
 )
 
 {
@@ -5314,8 +5314,8 @@ Sets the current size of a scrollbar slider.
 
 static void iscrollsiz(
     /** Window file */       FILE* f,
-    /** Logical widget id */ long  id,
-    /** Ratioed size */      long  r
+    /** Logical widget id */ ami_long  id,
+    /** Ratioed size */      ami_long  r
 )
 
 {
@@ -5343,17 +5343,17 @@ number select box is calculated and returned.
 
 static void inumselboxsizg(
     /** Window file */    FILE* f,
-    /** Lower bound */    long  l,
-    /** Upper bound */    long  u,
-    /** Returns width */  long*  w,
-    /** Returns height */ long*  h
+    /** Lower bound */    ami_long  l,
+    /** Upper bound */    ami_long  u,
+    /** Returns width */  ami_long*  w,
+    /** Returns height */ ami_long*  h
 )
 
 {
 
-    long mv; /* maximum value */
-    long dc; /* digit count */
-    long udspc; /* up/down control space */
+    ami_long mv; /* maximum value */
+    ami_long dc; /* digit count */
+    ami_long udspc; /* up/down control space */
 
     /* first determine the number of digit places, including the sign */
     mv = u; /* set upper value */
@@ -5381,10 +5381,10 @@ number select box is calculated and returned.
 
 static void inumselboxsiz(
     /** Window file */    FILE* f,
-    /** Lower bound */    long  l,
-    /** Upper bound */    long  u,
-    /** Returns width */  long*  w,
-    /** Returns height */ long*  h
+    /** Lower bound */    ami_long  l,
+    /** Upper bound */    ami_long  u,
+    /** Returns width */  ami_long*  w,
+    /** Returns height */ ami_long*  h
 )
 
 {
@@ -5406,20 +5406,20 @@ Creates an up/down control for a graphical numeric selection.
 
 static void inumselboxg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** Lower bound */         long  l,
-    /** Upper bound */         long  u,
-    /** Logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** Lower bound */         ami_long  l,
+    /** Upper bound */         ami_long  u,
+    /** Logical widget id */   ami_long  id
 )
 
 {
 
     wigptr wp; /* widget entry pointer */
     wigptr wps; /* widget subclass entry pointer */
-    long udspc; /* up/down control space */
+    ami_long udspc; /* up/down control space */
     char numbuf[25]; /* the number the box starts at */
 
     udspc = ami_chrsizy(win0)*1.9; /* square space for up/down control */
@@ -5432,7 +5432,7 @@ static void inumselboxg(
     wps->num = TRUE; /* set numeric only */
     wps->lbnd = l; /* set lower bound */
     wps->ubnd = u; /* set upper bound */
-    sprintf(numbuf, "%ld", l); /* the box opens showing its lower bound */
+    sprintf(numbuf, "%lld", AMI_LONG_CAST(l)); /* the box opens showing its lower bound */
     /* subclass an edit control,leaving space for up/down controls */
     widget(wp->wf, 1+4, 1+4, ami_maxxg(wp->wf)-udspc*2-4, ami_maxyg(wp->wf)-4,
            numbuf, 1, wteditbox, &wps);
@@ -5454,13 +5454,13 @@ Creates an up/down control for a text numeric selection.
 
 static void inumselbox(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** Lower bound */         long  l,
-    /** Upper bound */         long  u,
-    /** Logical widget id */   long  id)
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** Lower bound */         ami_long  l,
+    /** Upper bound */         ami_long  u,
+    /** Logical widget id */   ami_long  id)
 
 {
 
@@ -5485,8 +5485,8 @@ minimum size of an edit box is calculated and returned.
 static void ieditboxsizg(
     /** Window file */        FILE* f,
     /** Sample face string */ char* s,
-    /** Returns width */      long*  w,
-    /** Returns height */     long*  h
+    /** Returns width */      ami_long*  w,
+    /** Returns height */     ami_long*  h
 )
 
 {
@@ -5508,8 +5508,8 @@ minimum size of an edit box is calculated and returned.
 static void ieditboxsiz(
     /** Window file */        FILE* f,
     /** Sample face string */ char* s,
-    /** Returns width */      long*  w,
-    /** Returns height */     long*  h
+    /** Returns width */      ami_long*  w,
+    /** Returns height */     ami_long*  h
 )
 
 {
@@ -5531,11 +5531,11 @@ Creates single line graphical edit box
 
 static void ieditboxg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5560,11 +5560,11 @@ Creates single line text edit box
 
 static void ieditbox(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5590,8 +5590,8 @@ measure, but the width is really up to the caller.
 
 static void iprogbarsizg(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -5613,8 +5613,8 @@ measure, but the width is really up to the caller.
 
 static void iprogbarsiz(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -5636,11 +5636,11 @@ Creates a progress bar.
 
 static void iprogbarg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5664,11 +5664,11 @@ Creates a progress bar.
 
 static void iprogbar(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5692,8 +5692,8 @@ Sets the position of a progress bar, from 0 to maxint.
 
 static void iprogbarpos(
     /** Window file */       FILE* f,
-    /** logical widget id */ long id,
-    /** Ratioed position */  long pos)
+    /** logical widget id */ ami_long id,
+    /** Ratioed position */  ami_long pos)
 
 {
 
@@ -5726,15 +5726,15 @@ specified rectangle, one way or another.
 static void ilistboxsizg(
     /** Window file */         FILE*     f,
     /** string list pointer */ ami_strptr sp,
-    /** Return width */        long*      w,
-    /** Return height */       long*      h
+    /** Return width */        ami_long*      w,
+    /** Return height */       ami_long*      h
 )
 
 {
 
-    long      lc;   /* line counter */
-    long      maxp; /* maximum pixel length */
-    long      pl;   /* pixel length */
+    ami_long  lc;   /* line counter */
+    ami_long  maxp; /* maximum pixel length */
+    ami_long  pl;   /* pixel length */
     ami_strptr sp1;
 
     lc = 0; /* set no lines */
@@ -5776,8 +5776,8 @@ specified rectangle, one way or another.
 static void ilistboxsiz(
     /** Window file */         FILE*     f,
     /** string list pointer */ ami_strptr sp,
-    /** Return width */        long*      w,
-    /** Return height */       long*      h
+    /** Return width */        ami_long*      w,
+    /** Return height */       ami_long*      h
 )
 
 {
@@ -5799,12 +5799,12 @@ Creates a graphical list box. Fills it with the string list provided.
 
 static void ilistboxg(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** String list pointer */ ami_strptr sp,
-    /** Logical widget id */   long      id
+    /** Logical widget id */   ami_long  id
 )
 
 {
@@ -5834,12 +5834,12 @@ Creates a text list box. Fills it with the string list provided.
 
 static void ilistbox(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** String list pointer */ ami_strptr sp,
-    /** logical widget id */   long      id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -5870,15 +5870,15 @@ selections can be scrolled.
 static void idropboxsizg(
     /** Window file */         FILE*     f,
     /** String list pointer */ ami_strptr sp,
-    /** Closed width */        long*      cw,
-    /** Closed height */       long*      ch,
-    /** Open width */          long*      ow,
-    /** Open height */         long*      oh
+    /** Closed width */        ami_long*      cw,
+    /** Closed height */       ami_long*      ch,
+    /** Open width */          ami_long*      ow,
+    /** Open height */         ami_long*      oh
 )
 
 {
 
-    long lbw, lbh;
+    ami_long lbw, lbh;
 
     /* find listbox sizing first */
     ami_listboxsizg(f, sp, &lbw, &lbh);
@@ -5910,10 +5910,10 @@ selections can be scrolled.
 static void idropboxsiz(
     /** Window file */         FILE*     f,
     /** String list pointer */ ami_strptr sp,
-    /** Closed width */        long*      cw,
-    /** Closed height */       long*      ch,
-    /** Open width */          long*      ow,
-    /** Open height */         long*      oh
+    /** Closed width */        ami_long*      cw,
+    /** Closed height */       ami_long*      ch,
+    /** Open width */          ami_long*      ow,
+    /** Open height */         ami_long*      oh
 )
 
 {
@@ -5937,19 +5937,19 @@ Creates a graphical dropdown box. Fills it with the string list provided.
 
 static void idropboxg(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** String list pointer */ ami_strptr sp,
-    /** Logical widget id */   long      id
+    /** Logical widget id */   ami_long  id
 )
 
 {
 
     wigptr    wp; /* widget entry pointer */
     ami_strptr nl; /* new string list */
-    long      ch; /* closed height */
+    ami_long  ch; /* closed height */
 
     /* make a copy of the list */
     cpystrlst(&nl, sp);
@@ -5978,12 +5978,12 @@ Creates a text dropdown box. Fills it with the string list provided.
 
 static void idropbox(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** String list pointer */ ami_strptr sp,
-    /** Logical widget id */   long      id
+    /** Logical widget id */   ami_long  id
 )
 
 {
@@ -6014,10 +6014,10 @@ selections can be scrolled.
 static void idropeditboxsizg(
     /** Window file */          FILE*     f,
     /** string list pointer */  ami_strptr sp,
-    /** Return closed width */  long*      cw,
-    /** Return closed height */ long*      ch,
-    /** Return open width */    long*      ow,
-    /** Return open height */   long*      oh
+    /** Return closed width */  ami_long*      cw,
+    /** Return closed height */ ami_long*      ch,
+    /** Return open width */    ami_long*      ow,
+    /** Return open height */   ami_long*      oh
 )
 
 {
@@ -6044,10 +6044,10 @@ selections can be scrolled.
 static void idropeditboxsiz(
     /** Window file */          FILE*     f,
     /** string list pointer */  ami_strptr sp,
-    /** Return closed width */  long*      cw,
-    /** Return closed height */ long*      ch,
-    /** Return open width */    long*      ow,
-    /** Return open height */   long*      oh
+    /** Return closed width */  ami_long*      cw,
+    /** Return closed height */ ami_long*      ch,
+    /** Return open width */    ami_long*      ow,
+    /** Return open height */   ami_long*      oh
 )
 
 {
@@ -6074,12 +6074,12 @@ box.
 
 static void idropeditboxg(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** String list pointer */ ami_strptr sp,
-    /** Logical widget id */   long      id
+    /** Logical widget id */   ami_long  id
 )
 
 {
@@ -6087,8 +6087,8 @@ static void idropeditboxg(
     wigptr    wp;     /* widget entry pointer */
     wigptr    wps;    /* widget subclass entry pointer */
     ami_strptr nl;     /* new string list */
-    long      cw, ch; /* closed dimensions */
-    long      ow, oh; /* open dimensions */
+    ami_long  cw, ch; /* closed dimensions */
+    ami_long  ow, oh; /* open dimensions */
 
     /* find (refind) the dimensions of the subclass box */
     ami_dropboxsizg(f, sp, &cw, &ch, &ow, &oh);
@@ -6138,12 +6138,12 @@ box.
 
 static void idropeditbox(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** String list pointer */ ami_strptr sp,
-    /** Logical widget id */   long      id
+    /** Logical widget id */   ami_long  id
 )
 
 {
@@ -6168,8 +6168,8 @@ horizontal slider is calculated and returned.
 
 static void islidehorizsizg(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -6190,8 +6190,8 @@ horizontal slider is calculated and returned.
 
 static void islidehorizsiz(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -6214,12 +6214,12 @@ Creates a graphical horizontal slider.
 
 static void islidehorizg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** Tick mark interval */  long  mark,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** Tick mark interval */  ami_long  mark,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -6244,12 +6244,12 @@ Creates a text horizontal slider.
 
 static void islidehoriz(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** Tick mark interval */  long  mark,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** Tick mark interval */  ami_long  mark,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -6274,8 +6274,8 @@ vertical slider is calculated and returned.
 
 static void islidevertsizg(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -6296,8 +6296,8 @@ vertical slider is calculated and returned.
 
 static void islidevertsiz(
     /** Window file */   FILE* f,
-    /** Return width */  long*  w,
-    /** Return height */ long*  h
+    /** Return width */  ami_long*  w,
+    /** Return height */ ami_long*  h
 )
 
 {
@@ -6321,12 +6321,12 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 static void islidevertg(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** Tick mark interval */  long  mark,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** Tick mark interval */  ami_long  mark,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -6353,12 +6353,12 @@ Bugs: The tick marks should be in pixel terms, not logical terms.
 
 static void islidevert(
     /** Window file */         FILE* f,
-    /** Placement rectangle */ long  x1,
-                               long  y1,
-                               long  x2,
-                               long  y2,
-    /** Tick mark interval */  long  mark,
-    /** logical widget id */   long  id
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
+    /** Tick mark interval */  ami_long  mark,
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -6385,18 +6385,18 @@ static void itabbarsizg(
     /** Window file */            FILE*     f,
     /** Tab strings */            ami_strptr sp,
     /** Tab orientation */        ami_tabori tor,
-    /** Client width */           long      cw,
-    /** Client height */          long      ch,
-    /** Return width */           long*      w,
-    /** Return height */          long*      h,
-    /** Return client offset x */ long*      ox,
-    /** Return client offset x */ long*      oy
+    /** Client width */           ami_long  cw,
+    /** Client height */          ami_long  ch,
+    /** Return width */           ami_long*      w,
+    /** Return height */          ami_long*      h,
+    /** Return client offset x */ ami_long*      ox,
+    /** Return client offset x */ ami_long*      oy
 )
 
 {
 
-    long need;   /* the tab strip's own minimum along its length */
-    long chy;
+    ami_long need;   /* the tab strip's own minimum along its length */
+    ami_long chy;
 
     /* The strip must hold the tabs. They are laid out from a margin of one
        character height, each tab as wide as its string, with a character
@@ -6439,17 +6439,17 @@ static void itabbarsiz(
     /** Window file */            FILE*     f,
     /** Tab strings */            ami_strptr sp,
     /** Tab orientation */        ami_tabori tor,
-    /** Client width */           long      cw,
-    /** Client height */          long      ch,
-    /** Return width */           long*      w,
-    /** Return height */          long*      h,
-    /** Return client offset x */ long*      ox,
-    /** Return client offset x */ long*      oy
+    /** Client width */           ami_long  cw,
+    /** Client height */          ami_long  ch,
+    /** Return width */           ami_long*      w,
+    /** Return height */          ami_long*      h,
+    /** Return client offset x */ ami_long*      ox,
+    /** Return client offset x */ ami_long*      oy
 )
 
 {
 
-    long gw, gh, gox, goy;
+    ami_long gw, gh, gox, goy;
 
     /* convert client sizes to graphical */
     cw = cw*ami_chrsizx(f);
@@ -6478,12 +6478,12 @@ area is flexible.
 static void itabbarclientg(
     /** Window file */            FILE*     f,
     /** Tab orientation */        ami_tabori tor,
-    /** Return client width */    long      w,
-    /** Return client height */   long      h,
-    /** Width */                  long*      cw,
-    /** Height */                 long*      ch,
-    /** Return client offset x */ long*      ox,
-    /** Return client offset x */ long*      oy
+    /** Return client width */    ami_long  w,
+    /** Return client height */   ami_long  h,
+    /** Width */                  ami_long*      cw,
+    /** Height */                 ami_long*      ch,
+    /** Return client offset x */ ami_long*      ox,
+    /** Return client offset x */ ami_long*      oy
 )
 
 {
@@ -6516,17 +6516,17 @@ flexible.
 static void itabbarclient(
     /** Window file */            FILE*     f,
     /** Tab orientation */        ami_tabori tor,
-    /** Return client width */    long      w,
-    /** Return client height */   long      h,
-    /** Width */                  long*      cw,
-    /** Height */                 long*      ch,
-    /** Return client offset x */ long*      ox,
-    /** Return client offset x */ long*      oy
+    /** Return client width */    ami_long  w,
+    /** Return client height */   ami_long  h,
+    /** Width */                  ami_long*      cw,
+    /** Height */                 ami_long*      ch,
+    /** Return client offset x */ ami_long*      ox,
+    /** Return client offset x */ ami_long*      oy
 )
 
 {
 
-    long gw, gh, gox, goy;
+    ami_long gw, gh, gox, goy;
 
     /* convert sizes to graphical */
     w = w*ami_chrsizx(f);
@@ -6552,13 +6552,13 @@ Creates a graphical tab bar with the given orientation.
 
 static void itabbarg(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Tab string list */     ami_strptr sp,
     /** Tab orientation */     ami_tabori tor,
-    /** logical widget id */   long      id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -6590,13 +6590,13 @@ Creates a text tab bar with the given orientation.
 
 static void itabbar(
     /** Window file */         FILE*     f,
-    /** Placement rectangle */ long      x1,
-                               long      y1,
-                               long      x2,
-                               long      y2,
+    /** Placement rectangle */ ami_long  x1,
+                               ami_long  y1,
+                               ami_long  x2,
+                               ami_long  y2,
     /** Tab string list */     ami_strptr sp,
     /** Tab orientation */     ami_tabori tor,
-    /** logical widget id */   long      id
+    /** logical widget id */   ami_long  id
 )
 
 {
@@ -6642,16 +6642,16 @@ of the tab.
 
 static void itabsel(
     /** Window file */         FILE* f,
-    /** logical widget id */   long  id,
-    /** Logical tab number */  long  tn
+    /** logical widget id */   ami_long  id,
+    /** Logical tab number */  ami_long  tn
 )
 
 {
 
     wigptr    wp;  /* widget entry pointer */
-    long      chg; /* widget state changes */
+    ami_long  chg; /* widget state changes */
     ami_strptr sp;
-    long      ss;
+    ami_long  ss;
 
     wp = fndwig(f, id); /* index the widget */
     /* check this widget is tab bar */
@@ -6720,18 +6720,18 @@ static void ialert(
 
     FILE*      in;       /* window to create */
     FILE*      out;
-    long       wid;      /* window number */
-    long       mxs;      /* maximum text size */
+    ami_long   wid;      /* window number */
+    ami_long   mxs;      /* maximum text size */
     ami_evtrec  er;       /* event record */
-    long       ts;       /* title pixel size */
-    long       ms;       /* message pixel size */
-    long       icsize;   /* size of circle i in pixels */
-    long       isize;    /* size of i character in pixels */
-    long       tstart;   /* start of text to right of i circle */
-    long       fs;       /* font size save */
-    long       mpx, mpy; /* mouse position */
+    ami_long   ts;       /* title pixel size */
+    ami_long   ms;       /* message pixel size */
+    ami_long   icsize;   /* size of circle i in pixels */
+    ami_long   isize;    /* size of i character in pixels */
+    ami_long   tstart;   /* start of text to right of i circle */
+    ami_long   fs;       /* font size save */
+    ami_long   mpx, mpy; /* mouse position */
     themeindex tc;       /* text color */
-    long       focus;    /* in focus */
+    ami_long   focus;    /* in focus */
     int        realterm; /* a terminate arrived from outside */
 
     realterm = FALSE; /* set no outside terminate */
@@ -6889,9 +6889,9 @@ Presents the choose color dialog, then returns the resulting color.
 *******************************************************************************/
 
 static void iquerycolor(
-    /** Input/Output for red ratioed color */   long* r,
-    /** Input/Output for green ratioed color */ long* g,
-    /** Input/Output for blue ratioed color */  long* b
+    /** Input/Output for red ratioed color */   ami_long* r,
+    /** Input/Output for green ratioed color */ ami_long* g,
+    /** Input/Output for blue ratioed color */  ami_long* b
 )
 
 {
@@ -6901,37 +6901,37 @@ static void iquerycolor(
 
     FILE*         in = NULL;  /* window to create */
     FILE*         out;
-    long          wid;      /* window number */
+    ami_long      wid;      /* window number */
     ami_evtrec     er;       /* event record */
     char*         title = "Select a color"; /* title string */
     char*         cancel = "Cancel"; /* cancel string */
     char*         selects = "Select"; /* select string */
-    long          titbot;   /* bottom of title bar */
+    ami_long      titbot;   /* bottom of title bar */
     const double  mg = 0.15; /* button to side margin fraction */
-    long          mgt;      /* margin for system bar */
+    ami_long      mgt;      /* margin for system bar */
     wigptr        wp;       /* widget entry pointer */
     const double  gtop = 0.65; /* color grid top */
-    long          gtopp;
+    ami_long      gtopp;
     const double  gside = 0.5; /* color grid side */
-    long          gsidep;
+    ami_long      gsidep;
     const double  ggapv = 0.1; /* color gap between buttons vertical */
-    long          ggapvp;
+    ami_long      ggapvp;
     const double  ggaph = 0.1; /* color gap between buttons horizontal */
-    long          ggaphp;
+    ami_long      ggaphp;
     const double  ggap = 0.5; /* color to b&w grid gap */
-    long          ggapp;
-    long          cbx, cby; /* color button size */
-    long          rw, cl;   /* row and collumn */
+    ami_long      ggapp;
+    ami_long      cbx, cby; /* color button size */
+    ami_long      rw, cl;   /* row and collumn */
     themeindex    th; /* theme index */
-    long          wn; /* widget number */
-    long          cusy; /* location of "custom" message */
-    long          rs, gs, bs; /* colors selected */
-    unsigned long rgb; /* packed color selected */
-    long          cursel; /* currently selected color widget */
-    long          mpy; /* mouse position */
-    long          sx, sy; /* screen center */
-    long          wpx, wpy; /* window position in parent */
-    long          x, y;
+    ami_long      wn; /* widget number */
+    ami_long      cusy; /* location of "custom" message */
+    ami_long      rs, gs, bs; /* colors selected */
+    ami_ulong rgb; /* packed color selected */
+    ami_long      cursel; /* currently selected color widget */
+    ami_long      mpy; /* mouse position */
+    ami_long      sx, sy; /* screen center */
+    ami_long      wpx, wpy; /* window position in parent */
+    ami_long      x, y;
 
     /* colors for cancel button */
     ccolor cancel_cbc = {
@@ -6973,7 +6973,7 @@ static void iquerycolor(
     };
 
     /* black/white map for color button checkboxes, on is white */
-    long bwmap[36] = {
+    ami_long bwmap[36] = {
 
         TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,
         TRUE,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE,TRUE,FALSE,
@@ -7261,7 +7261,7 @@ static ami_strptr build_qfl_places(void)
 {
 
     ami_strptr head = NULL, tail = NULL, e;
-    long i;
+    ami_long i;
 
     for (i = 0; qfl_places[i]; i += 2) {
 
@@ -7279,7 +7279,7 @@ static ami_strptr build_qfl_places(void)
 }
 
 /* the path a place stands for */
-static void qfl_placepath(long n, char* d, long dl)
+static void qfl_placepath(ami_long n, char* d, ami_long dl)
 
 {
 
@@ -7298,15 +7298,15 @@ static void qfl_placepath(long n, char* d, long dl)
    so the columns line up under their headings. */
 #define QFL_NAMEW 32 /* the name column, in characters */
 
-static void qfl_entry(char* d, long dl, const char* name, int isdir,
-                      long long size, long modify)
+static void qfl_entry(char* d, ami_long dl, const char* name, int isdir,
+                      long long size, ami_long modify)
 
 {
 
     char   szs[32];
     char   dts[32];
     char   tms[32];
-    long   i;
+    ami_long   i;
 
     /* the name, and a directory marked as one */
     for (i = 0; i < QFL_NAMEW && name[i]; i++) d[i] = name[i];
@@ -7331,9 +7331,9 @@ static void qfl_entry(char* d, long dl, const char* name, int isdir,
        another century. */
     if (modify) {
 
-        long lt = ami_local(modify);
-        long now = ami_local(ami_time());
-        long day = 24L*60*60; /* a day: these times count in seconds */
+        ami_long lt = ami_local(modify);
+        ami_long now = ami_local(ami_time());
+        ami_long day = 24L*60*60; /* a day: these times count in seconds */
         char yr[32]; /* the formatter writes a whole date, not four
                         characters: a short buffer is an error to it */
 
@@ -7356,11 +7356,11 @@ static void qfl_entry(char* d, long dl, const char* name, int isdir,
 /* The name out of a list entry, which carries its columns: the name
    fills the first field, padded, and a directory ends with a slash.
    Returns whether the entry is a directory. */
-static int qfl_name(const char* e, char* d, long dl)
+static int qfl_name(const char* e, char* d, ami_long dl)
 
 {
 
-    long i = 0, isdir;
+    ami_long i = 0, isdir;
 
     while (e[i] && e[i] != '\t' && i < dl-1) { d[i] = e[i]; i++; }
     d[i] = 0;
@@ -7390,7 +7390,7 @@ static ami_strptr build_qfl_list(const char* dir) {
     ami_strptr  tail = NULL;
     char        pat[4096];
     char        line[256];
-    long        dl;
+    ami_long    dl;
 
     /* always include ".." for navigation */
     head = malloc(sizeof(ami_strrec));
@@ -7401,14 +7401,14 @@ static ami_strptr build_qfl_list(const char* dir) {
 
     /* ami_list() treats its argument as dir + wildcard-filename. To list
        everything in `dir` we must append "/ *" (no space). */
-    dl = (long)strlen(dir);
-    if (dl >= (long)sizeof(pat) - 3) dl = sizeof(pat) - 3;
+    dl = (ami_long)strlen(dir);
+    if (dl >= (ami_long)sizeof(pat) - 3) dl = sizeof(pat) - 3;
     memcpy(pat, dir, dl); pat[dl] = 0;
     if (dl == 0 || pat[dl-1] != '/') strcat(pat, "/");
     strcat(pat, "*");
     ami_list(pat, &files);
     for (ami_filrec *fp = files; fp; fp = fp->next) {
-        long is_dir;
+        ami_long is_dir;
         ami_strptr e, lp;
         if (!fp->name) continue;
         /* the hidden entries stay hidden, as a file dialog shows them
@@ -7458,9 +7458,9 @@ static void free_qfl_list(ami_strptr sp) {
  * Join a directory and a filename into dst of size dstsz. If dir already ends
  * with '/', no extra separator is added.
  */
-static void join_path(char* dst, long dstsz, const char* dir, const char* fn) {
-    long dl = (long)strlen(dir);
-    long need_sep = (dl > 0 && dir[dl-1] != '/');
+static void join_path(char* dst, ami_long dstsz, const char* dir, const char* fn) {
+    ami_long dl = (ami_long)strlen(dir);
+    ami_long need_sep = (dl > 0 && dir[dl-1] != '/');
     if (dstsz <= 0) return;
     if (!need_sep) {
         snprintf_or_copy: ;
@@ -7469,7 +7469,7 @@ static void join_path(char* dst, long dstsz, const char* dir, const char* fn) {
         dst[dl] = 0;
         strncat(dst, fn, (size_t)(dstsz - 1 - dl));
     } else {
-        long fl;
+        ami_long fl;
         if (dl >= dstsz) dl = dstsz - 1;
         memcpy(dst, dir, dl);
         dst[dl] = 0;
@@ -7484,9 +7484,9 @@ static void join_path(char* dst, long dstsz, const char* dir, const char* fn) {
  * Input: dir ends (ideally) with '/'. Output: dst gets the normalized path.
  * Very simple: if dir ends in "../" (or ".."), strip the last component.
  */
-static void normalize_dir(char* dst, long dstsz, const char* dir) {
-    long dl = (long)strlen(dir);
-    long i;
+static void normalize_dir(char* dst, ami_long dstsz, const char* dir) {
+    ami_long dl = (ami_long)strlen(dir);
+    ami_long i;
     if (dstsz <= 0) return;
     /* copy in */
     if (dl >= dstsz) dl = dstsz - 1;
@@ -7521,26 +7521,26 @@ static void normalize_dir(char* dst, long dstsz, const char* dir) {
  * Common implementation for iqueryopen / iquerysave. `title` chooses the
  * label shown in the title bar ("Open" vs "Save As").
  */
-static void qfl_dialog(char* s, long sl, const char* title) {
+static void qfl_dialog(char* s, ami_long sl, const char* title) {
 
     FILE*      in = NULL;
     FILE*      out;
-    long       wid;
+    ami_long   wid;
     ami_evtrec er;
     int        realterm; /* a terminate arrived from outside */
     wigptr     wp;
-    long       chrsz;
-    long       titbot;
-    long       mpy;
-    long       sx, sy, x, y, wpx, wpy;
-    long       cancelled;
+    ami_long   chrsz;
+    ami_long   titbot;
+    ami_long   mpy;
+    ami_long   sx, sy, x, y, wpx, wpy;
+    ami_long   cancelled;
     char       curdir[4096];
     char       curfile[512];
     ami_strptr listsp;
     ami_strptr plcsp;
-    long       chrw; /* character width, for the horizontal */
+    ami_long   chrw; /* character width, for the horizontal */
     char       tmpbuf[4096];
-    long       i;
+    ami_long   i;
 
     ccolor cancel_cbc = {
         themetable[th_cancelbackfocus], themetable[th_cancelbackfocus],
@@ -7559,15 +7559,15 @@ static void qfl_dialog(char* s, long sl, const char* title) {
     curdir[0] = 0; curfile[0] = 0;
     if (s && s[0]) {
         /* find last slash */
-        long slash = -1;
-        long l = (long)strlen(s);
+        ami_long slash = -1;
+        ami_long l = (ami_long)strlen(s);
         for (i = l - 1; i >= 0; i--) if (s[i] == '/') { slash = i; break; }
         if (slash < 0) {
             strncpy(curfile, s, sizeof(curfile)-1); curfile[sizeof(curfile)-1]=0;
         } else {
-            long dl = slash;
+            ami_long dl = slash;
             if (dl == 0) { curdir[0] = '/'; curdir[1] = 0; }
-            else { if (dl >= (long)sizeof(curdir)) dl = sizeof(curdir)-1;
+            else { if (dl >= (ami_long)sizeof(curdir)) dl = sizeof(curdir)-1;
                    memcpy(curdir, s, dl); curdir[dl] = 0; }
             strncpy(curfile, s+slash+1, sizeof(curfile)-1);
             curfile[sizeof(curfile)-1] = 0;
@@ -7704,11 +7704,11 @@ static void qfl_dialog(char* s, long sl, const char* title) {
                 } else if (er.lstbid == QFL_ID_LIST) {
                     /* find the selected string */
                     ami_strptr sp = listsp;
-                    long n = er.lstbsl;
+                    ami_long n = er.lstbsl;
                     for (i = 1; i < n && sp; i++) sp = sp->next;
                     if (sp && sp->str) {
                         char name[512];
-                        long is_dir = qfl_name(sp->str, name, sizeof(name));
+                        ami_long is_dir = qfl_name(sp->str, name, sizeof(name));
                         if (is_dir) {
                             /* navigate into this directory */
                             join_path(tmpbuf, sizeof(tmpbuf), curdir, name);
@@ -7804,7 +7804,7 @@ static void qfl_dialog(char* s, long sl, const char* title) {
 
 static void iqueryopen(
     /** Input/output for filename string */ char* s,
-    /** Length of filename string buffer */ long sl
+    /** Length of filename string buffer */ ami_long sl
 )
 
 {
@@ -7835,7 +7835,7 @@ in the buffer.
 
 static void iquerysave(
     /** Input/output for filename string */ char* s,
-    /** Length of filename string buffer */ long sl
+    /** Length of filename string buffer */ ami_long sl
 )
 
 {
@@ -7885,7 +7885,7 @@ table this issue until later.
 
 static void iqueryfind(
     /** Input/output for search string */   char* s,
-    /** Length of search string buffer */ long sl,
+    /** Length of search string buffer */ ami_long sl,
     /** Set of find/replace options */      ami_qfnopts* opt
 )
 
@@ -7896,16 +7896,16 @@ static void iqueryfind(
 
     FILE*      in = NULL; /* window to create */
     FILE*      out;
-    long       wid;       /* window number */
+    ami_long   wid;       /* window number */
     ami_evtrec er;        /* event record */
     char*      title = "Find";
     wigptr     wp;
-    long       chrsz;     /* character height in pixels */
-    long       titbot;    /* bottom of title bar */
-    long       mpy;  /* mouse position */
-    long       sx, sy, x, y, wpx, wpy;
-    long       case_on, up_on, re_on; /* checkbox states */
-    long       cancelled;
+    ami_long   chrsz;     /* character height in pixels */
+    ami_long   titbot;    /* bottom of title bar */
+    ami_long   mpy;  /* mouse position */
+    ami_long   sx, sy, x, y, wpx, wpy;
+    ami_long   case_on, up_on, re_on; /* checkbox states */
+    ami_long   cancelled;
 
     /* colors for Cancel button */
     ccolor cancel_cbc = {
@@ -8136,9 +8136,9 @@ Bug: See comment, queryfind.
 
 static void iqueryfindrep(
     /** Input/output for search string */  char* s,
-    /** Length of search string buffer */  long sl,
+    /** Length of search string buffer */  ami_long sl,
     /** Input/output for replace string */ char* r,
-    /** Length of replace string buffer */ long rl,
+    /** Length of replace string buffer */ ami_long rl,
     /** Set of find/replace options */     ami_qfropts* opt
 )
 
@@ -8149,16 +8149,16 @@ static void iqueryfindrep(
 
     FILE*      in = NULL;
     FILE*      out;
-    long       wid;
+    ami_long   wid;
     ami_evtrec er;
     char*      title = "Replace";
     wigptr     wp;
-    long       chrsz;
-    long       titbot;
-    long       mpy;
-    long       sx, sy, x, y, wpx, wpy;
-    long       case_on, up_on, re_on;
-    long       cancelled, did_find, did_replall;
+    ami_long   chrsz;
+    ami_long   titbot;
+    ami_long   mpy;
+    ami_long   sx, sy, x, y, wpx, wpy;
+    ami_long   case_on, up_on, re_on;
+    ami_long   cancelled, did_find, did_replall;
 
     ccolor cancel_cbc = {
         themetable[th_cancelbackfocus], themetable[th_cancelbackfocus],
@@ -8384,14 +8384,14 @@ user as the defaults.
 
 static void iqueryfont(
     /** Window file */                   FILE*          f,
-    /** Input/output font code */        long*           fc,
-    /** Input/output point size */       long*           s,
-    /** Input/output foreground red */   long*           fr,
-    /** Input/output foreground green */ long*           fg,
-    /** Input/output foreground blue */  long*           fb,
-    /** Input/output background red */   long*           br,
-    /** Input/output background green */ long*           bg,
-    /** Input/output background blue */  long*           bb,
+    /** Input/output font code */        ami_long*           fc,
+    /** Input/output point size */       ami_long*           s,
+    /** Input/output foreground red */   ami_long*           fr,
+    /** Input/output foreground green */ ami_long*           fg,
+    /** Input/output foreground blue */  ami_long*           fb,
+    /** Input/output background red */   ami_long*           br,
+    /** Input/output background green */ ami_long*           bg,
+    /** Input/output background blue */  ami_long*           bb,
     /** Input/output font effects */     ami_qfteffects* effect
 )
 
@@ -8402,25 +8402,25 @@ static void iqueryfont(
 
     FILE*       in = NULL;
     FILE*       out;
-    long        wid;
+    ami_long    wid;
     ami_evtrec  er;
     char*       title = "Font";
     wigptr      wp;
-    long        chrsz;
-    long        titbot;
-    long        mpy;
-    long        sx, sy, x, y, wpx, wpy;
-    long        cancelled;
-    long        strike_on, under_on, bold_on, italic_on;
-    long        nfonts, i;
+    ami_long    chrsz;
+    ami_long    titbot;
+    ami_long    mpy;
+    ami_long    sx, sy, x, y, wpx, wpy;
+    ami_long    cancelled;
+    ami_long    strike_on, under_on, bold_on, italic_on;
+    ami_long    nfonts, i;
     ami_strptr  fontlist = NULL;
     ami_strptr  fontlist_tail = NULL;
     char        namebuf[256];
     char        fambuf[256];
-    long*       fontmap = NULL; /* the font each row stands for */
-    long        nrows = 0;      /* rows in the list */
-    long        cur_size;
-    long        cur_font;
+    ami_long*       fontmap = NULL; /* the font each row stands for */
+    ami_long    nrows = 0;      /* rows in the list */
+    ami_long    cur_size;
+    ami_long    cur_font;
     ami_qfteffects eff_in;
 
     ccolor cancel_cbc = {
@@ -8480,7 +8480,7 @@ static void iqueryfont(
        family means anything to the user. Two foundries' cut of one family
        is one entry, the first, and fontmap carries the font number each row
        stands for, a row no longer being a font number. */
-    fontmap = malloc(sizeof(long)*(nfonts+1));
+    fontmap = malloc(sizeof(ami_long)*(nfonts+1));
     for (i = 1; i <= nfonts; i++) {
         ami_strptr e;
         ami_strptr q;
@@ -8522,7 +8522,7 @@ static void iqueryfont(
                 chrsz*30, titbot+chrsz*2.6, "", 4, wteditbox, &wp);
     {
         char sbuf[16];
-        long n = cur_size, k = 0, j;
+        ami_long n = cur_size, k = 0, j;
         char tmp[16];
         if (n < 0) { sbuf[k++] = '-'; n = -n; }
         do { tmp[k++] = '0' + (n % 10); n /= 10; } while (n > 0);
@@ -8605,7 +8605,7 @@ static void iqueryfont(
                               chrsz*41, titbot+chrsz*14.0);
                 /* render sample string with current font/style */
                 {
-                    long save_font = cur_font;
+                    ami_long save_font = cur_font;
                     ami_font(out, cur_font);
                     ami_fontsiz(out, cur_size);
                     if (bold_on)   ami_bold(out, TRUE);
@@ -8643,7 +8643,7 @@ static void iqueryfont(
                 if (er.edtbid == 4) {
                     /* user pressed enter in size box: parse number */
                     char sbuf[32];
-                    long n, neg, j;
+                    ami_long n, neg, j;
                     getwidgettextz(out, 4, sbuf, sizeof(sbuf));
                     n = 0; neg = 0; j = 0;
                     if (sbuf[0] == '-') { neg = 1; j = 1; }
@@ -8717,7 +8717,7 @@ static void iqueryfont(
         /* re-read the size from the edit box (user may not have pressed enter) */
         {
             char sbuf[32];
-            long n, neg, j;
+            ami_long n, neg, j;
             getwidgettextz(out, 4, sbuf, sizeof(sbuf));
             n = 0; neg = 0; j = 0;
             if (sbuf[0] == '-') { neg = 1; j = 1; }
@@ -8821,12 +8821,12 @@ points that are not colors.
 
 static int themval(
     /** string to parse */ const char* s,
-    /** value returned */  unsigned long* v
+    /** value returned */  ami_ulong* v
 )
 
 {
 
-    long r, g, b;
+    ami_long r, g, b;
     char* ep;
 
     while (*s == ' ') s++; /* skip leading spaces */
@@ -8896,7 +8896,7 @@ static void loadtheme(void)
     ami_valptr tp;    /* theme block */
     ami_valptr vp;    /* value entry */
     themeindex ti;    /* theme index */
-    unsigned long v;  /* parsed value */
+    ami_ulong v;  /* parsed value */
 
     root = NULL;
     ami_config(&root); /* get the config tree */

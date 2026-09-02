@@ -47,7 +47,7 @@
 #define WSLIDEH   12
 
 static FILE* win;          /* where the widgets live: the main window */
-static long  evcnt;        /* number of reports made */
+static ami_long  evcnt;        /* number of reports made */
 
 /* Report a widget notification in the root window. Reports flow like
    terminal output: when they reach the bottom of the terminal the root
@@ -57,7 +57,7 @@ static void report(const char* msg)
 
 {
 
-    printf("%4ld: %s\n", ++evcnt, msg);
+    printf("%4lld: %s\n", AMI_LONG_CAST(++evcnt), msg);
 
 }
 
@@ -130,14 +130,14 @@ int main(void)
                 break;
 
             case ami_etbutton:
-                snprintf(buff, sizeof(buff), "button %ld pressed", er.butid);
+                snprintf(buff, sizeof(buff), "button %lld pressed", AMI_LONG_CAST(er.butid));
                 report(buff);
                 break;
 
             case ami_etchkbox:
                 /* the program owns the state: toggle it */
                 ami_selectwidget(win, er.ckbxid, evcnt%2 == 0);
-                snprintf(buff, sizeof(buff), "checkbox %ld clicked", er.ckbxid);
+                snprintf(buff, sizeof(buff), "checkbox %lld clicked", AMI_LONG_CAST(er.ckbxid));
                 report(buff);
                 break;
 
@@ -145,64 +145,64 @@ int main(void)
                 /* select the clicked one, clear the other */
                 ami_selectwidget(win, WRADIO1, er.radbid == WRADIO1);
                 ami_selectwidget(win, WRADIO2, er.radbid == WRADIO2);
-                snprintf(buff, sizeof(buff), "radio button %ld selected",
-                         er.radbid);
+                snprintf(buff, sizeof(buff), "radio button %lld selected",
+                         AMI_LONG_CAST(er.radbid));
                 report(buff);
                 break;
 
             case ami_etsclull:
-                snprintf(buff, sizeof(buff), "scroll %ld up/left line",
-                         er.sclulid);
+                snprintf(buff, sizeof(buff), "scroll %lld up/left line",
+                         AMI_LONG_CAST(er.sclulid));
                 report(buff);
                 break;
 
             case ami_etscldrl:
-                snprintf(buff, sizeof(buff), "scroll %ld down/right line",
-                         er.scldrid);
+                snprintf(buff, sizeof(buff), "scroll %lld down/right line",
+                         AMI_LONG_CAST(er.scldrid));
                 report(buff);
                 break;
 
             case ami_etsclulp:
-                snprintf(buff, sizeof(buff), "scroll %ld up/left page",
-                         er.sclupid);
+                snprintf(buff, sizeof(buff), "scroll %lld up/left page",
+                         AMI_LONG_CAST(er.sclupid));
                 report(buff);
                 break;
 
             case ami_etscldrp:
-                snprintf(buff, sizeof(buff), "scroll %ld down/right page",
-                         er.scldpid);
+                snprintf(buff, sizeof(buff), "scroll %lld down/right page",
+                         AMI_LONG_CAST(er.scldpid));
                 report(buff);
                 break;
 
             case ami_etsclpos:
-                snprintf(buff, sizeof(buff), "scroll %ld position %ld%%",
-                         er.sclpid, er.sclpos/(LONG_MAX/100+1));
+                snprintf(buff, sizeof(buff), "scroll %lld position %lld%%",
+                         AMI_LONG_CAST(er.sclpid), AMI_LONG_CAST(er.sclpos/(LONG_MAX/100+1)));
                 report(buff);
                 ami_progbarpos(win, WPROG, er.sclpos);
                 break;
 
             case ami_etedtbox:
                 ami_getwidgettext(win, er.edtbid, text, sizeof(text));
-                snprintf(buff, sizeof(buff), "edit box %ld: \"%s\"",
-                         er.edtbid, text);
+                snprintf(buff, sizeof(buff), "edit box %lld: \"%s\"",
+                         AMI_LONG_CAST(er.edtbid), text);
                 report(buff);
                 break;
 
             case ami_etnumbox:
-                snprintf(buff, sizeof(buff), "number box %ld value %ld",
-                         er.numbid, er.numbsl);
+                snprintf(buff, sizeof(buff), "number box %lld value %lld",
+                         AMI_LONG_CAST(er.numbid), AMI_LONG_CAST(er.numbsl));
                 report(buff);
                 break;
 
             case ami_etlstbox:
-                snprintf(buff, sizeof(buff), "list box %ld entry %ld",
-                         er.lstbid, er.lstbsl);
+                snprintf(buff, sizeof(buff), "list box %lld entry %lld",
+                         AMI_LONG_CAST(er.lstbid), AMI_LONG_CAST(er.lstbsl));
                 report(buff);
                 break;
 
             case ami_etsldpos:
-                snprintf(buff, sizeof(buff), "slider %ld position %ld%%",
-                         er.sldpid, er.sldpos/(LONG_MAX/100+1));
+                snprintf(buff, sizeof(buff), "slider %lld position %lld%%",
+                         AMI_LONG_CAST(er.sldpid), AMI_LONG_CAST(er.sldpos/(LONG_MAX/100+1)));
                 report(buff);
                 ami_progbarpos(win, WPROG, er.sldpos);
                 break;

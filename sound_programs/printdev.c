@@ -16,10 +16,10 @@ Prints the available device tables.
 
 #define BUFLEN 200
 
-long is = FALSE; /* print input synth ports */
-long os = FALSE;
-long iw = FALSE;
-long ow = FALSE;
+ami_long is = FALSE; /* print input synth ports */
+ami_long os = FALSE;
+ami_long iw = FALSE;
+ami_long ow = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -38,8 +38,8 @@ int main(int argc, char **argv)
     int i;
     char buff[BUFLEN];
     int max;
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);
@@ -96,10 +96,10 @@ int main(int argc, char **argv)
         for (i = 1; i <= ami_wavein(); i++) {
 
             ami_waveinname(i, buff, BUFLEN);
-            printf("%2d: %-*.*s channels: %ld rate: %5ld len: %2ld sign: %ld "
-                   "big endian: %ld float: %ld\n", i, max, max, buff,
-                   ami_chanwavein(i), ami_ratewavein(i), ami_lenwavein(i),
-                   ami_sgnwavein(i), ami_endwavein(i), ami_fltwavein(i));
+            printf("%2d: %-*.*s channels: %lld rate: %5lld len: %2lld sign: %lld "
+                   "big endian: %lld float: %lld\n", i, max, max, buff,
+                   AMI_LONG_CAST(ami_chanwavein(i)), AMI_LONG_CAST(ami_ratewavein(i)), AMI_LONG_CAST(ami_lenwavein(i)),
+                   AMI_LONG_CAST(ami_sgnwavein(i)), AMI_LONG_CAST(ami_endwavein(i)), AMI_LONG_CAST(ami_fltwavein(i)));
 
         }
         printf("\n");

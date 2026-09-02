@@ -96,6 +96,13 @@ static uint8_t *capture_window_rgb(HWND hwnd, int *w, int *h)
     *h = rc.bottom - rc.top;
     if (*w <= 0 || *h <= 0) return NULL;
 
+    /* The window paints on its own thread, and a widget may not have drawn
+       its latest state when the test asks for the screen: have the window
+       and every child repaint whole, now, so the capture sees the state and
+       not the painting in progress. */
+    RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW |
+                                   RDW_ALLCHILDREN);
+    GdiFlush();
     HDC hdcWin = GetDC(hwnd);
     if (!hdcWin) return NULL;
 

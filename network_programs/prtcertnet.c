@@ -17,10 +17,10 @@ int main(int argc, char **argv)
 {
 
     FILE* fp;
-    unsigned long addr;
+    ami_ulong addr;
     char cbuff[4096];
-    long len;
-    long port;
+    ami_long len;
+    ami_long port;
     int i;
 
     if (argc < 3) {

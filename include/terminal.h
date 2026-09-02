@@ -102,67 +102,67 @@ typedef enum {
 
 typedef struct {
 
-    /* identifier of window for event */ long winid;
+    /* identifier of window for event */ ami_long winid;
     /* event type */                     ami_evtcod etype;
-    /* event was handled */              long handled;
+    /* event was handled */              ami_long handled;
     union {
 
         /* these events require parameter data */
 
         /** etchar: ANSI character returned */  char echar;
-        /** ettim: timer handle that matured */ long timnum;
+        /** ettim: timer handle that matured */ ami_long timnum;
         /** etmoumov: */
         struct {
 
-            /** mouse number */   long mmoun;
-            /** mouse movement */ long moupx, moupy;
+            /** mouse number */   ami_long mmoun;
+            /** mouse movement */ ami_long moupx, moupy;
 
         };
         /** etmouba */
         struct {
 
-            /** mouse handle */  long amoun;
-            /** button number */ long amoubn;
+            /** mouse handle */  ami_long amoun;
+            /** button number */ ami_long amoubn;
 
         };
         /** etmoubd */
         struct {
 
-            /** mouse handle */  long dmoun;
-            /** button number */ long dmoubn;
+            /** mouse handle */  ami_long dmoun;
+            /** button number */ ami_long dmoubn;
 
         };
         /** etjoyba */
         struct {
 
-            /** joystick number */ long ajoyn;
-            /** button number */   long ajoybn;
+            /** joystick number */ ami_long ajoyn;
+            /** button number */   ami_long ajoybn;
 
         };
         /** etjoybd */
         struct {
 
-            /** joystick number */ long djoyn;
-            /** button number */   long djoybn;
+            /** joystick number */ ami_long djoyn;
+            /** button number */   ami_long djoybn;
 
         };
         /** etjoymov */
         struct {
 
-            /** joystick number */      long mjoyn;
-            /** joystick coordinates */ long joypx, joypy, joypz;
-                                        long joyp4, joyp5, joyp6;
+            /** joystick number */      ami_long mjoyn;
+            /** joystick coordinates */ ami_long joypx, joypy, joypz;
+                                        ami_long joyp4, joyp5, joyp6;
 
         };
-        /** function key */ long fkey;
+        /** function key */ ami_long fkey;
         /** etresize */
         struct {
 
-            long rszx, rszy;
+            ami_long rszx, rszy;
 
         };
         /* ami_etmenus */
-        long menuid; /* menu item selected */
+        ami_long menuid; /* menu item selected */
 
      };
 
@@ -225,15 +225,15 @@ typedef struct ami_menurec {
 
         ami_menuptr next;   /* next menu item in list */
         ami_menuptr branch; /* menu branch */
-        long        onoff;  /* on/off highlight */
-        long        oneof;  /* "one of" highlight */
-        long        bar;    /* place bar under */
-        long        id;     /* id of menu item */
+        ami_long    onoff;  /* on/off highlight */
+        ami_long    oneof;  /* "one of" highlight */
+        ami_long    bar;    /* place bar under */
+        ami_long    id;     /* id of menu item */
         char*      face;   /* text to place on button */
 
 } ami_menurec;
 /* standard menu selector */
-typedef long ami_stdmenusel;
+typedef ami_long ami_stdmenusel;
 /* windows mode sets */
 typedef enum {
 
@@ -243,59 +243,59 @@ typedef enum {
     ami_wmmenu   /* menu on/off */
 
 } ami_winmod;
-typedef long ami_winmodset;
+typedef ami_long ami_winmodset;
 
 /* 
  * Routines at this level 
  */
-void ami_cursor(FILE* f, long x, long y);
-long  ami_maxx(FILE* f);
-long  ami_maxy(FILE* f);
+void ami_cursor(FILE* f, ami_long x, ami_long y);
+ami_long  ami_maxx(FILE* f);
+ami_long  ami_maxy(FILE* f);
 void ami_home(FILE* f);
 void ami_del(FILE* f);
 void ami_up(FILE* f);
 void ami_down(FILE* f);
 void ami_left(FILE* f);
 void ami_right(FILE* f);
-void ami_blink(FILE* f, long e);
-void ami_reverse(FILE* f, long e);
-void ami_underline(FILE* f, long e);
-void ami_superscript(FILE* f, long e);
-void ami_subscript(FILE* f, long e);
-void ami_italic(FILE* f, long e);
-void ami_bold(FILE* f, long e);
-void ami_strikeout(FILE* f, long e);
-void ami_standout(FILE* f, long e);
+void ami_blink(FILE* f, ami_long e);
+void ami_reverse(FILE* f, ami_long e);
+void ami_underline(FILE* f, ami_long e);
+void ami_superscript(FILE* f, ami_long e);
+void ami_subscript(FILE* f, ami_long e);
+void ami_italic(FILE* f, ami_long e);
+void ami_bold(FILE* f, ami_long e);
+void ami_strikeout(FILE* f, ami_long e);
+void ami_standout(FILE* f, ami_long e);
 void ami_fcolor(FILE* f, ami_color c);
 void ami_bcolor(FILE* f, ami_color c);
-void ami_auto(FILE* f, long e);
-void ami_curvis(FILE* f, long e);
-void ami_scroll(FILE* f, long x, long y);
-long  ami_curx(FILE* f);
-long  ami_cury(FILE* f);
-long  ami_curbnd(FILE* f);
-void ami_select(FILE *f, long u, long d);
+void ami_auto(FILE* f, ami_long e);
+void ami_curvis(FILE* f, ami_long e);
+void ami_scroll(FILE* f, ami_long x, ami_long y);
+ami_long  ami_curx(FILE* f);
+ami_long  ami_cury(FILE* f);
+ami_long  ami_curbnd(FILE* f);
+void ami_select(FILE *f, ami_long u, ami_long d);
 void ami_event(FILE* f, ami_evtrec* er);
-void ami_timer(FILE* f, long i, long t, long r);
-void ami_killtimer(FILE* f, long i);
-long  ami_mouse(FILE *f);
-long  ami_mousebutton(FILE* f, long m);
-long  ami_joystick(FILE* f);
-long  ami_joybutton(FILE* f, long j);
-long  ami_joyaxis(FILE* f, long j);
-void ami_settab(FILE* f, long t);
-void ami_restab(FILE* f, long t);
+void ami_timer(FILE* f, ami_long i, ami_long t, ami_long r);
+void ami_killtimer(FILE* f, ami_long i);
+ami_long  ami_mouse(FILE *f);
+ami_long  ami_mousebutton(FILE* f, ami_long m);
+ami_long  ami_joystick(FILE* f);
+ami_long  ami_joybutton(FILE* f, ami_long j);
+ami_long  ami_joyaxis(FILE* f, ami_long j);
+void ami_settab(FILE* f, ami_long t);
+void ami_restab(FILE* f, ami_long t);
 void ami_clrtab(FILE* f);
-long  ami_funkey(FILE* f);
-void ami_frametimer(FILE* f, long e);
-void ami_autohold(long e);
+ami_long  ami_funkey(FILE* f);
+void ami_frametimer(FILE* f, ami_long e);
+void ami_autohold(ami_long e);
 void ami_wrtstr(FILE* f, char *s);
-void ami_wrtstrn(FILE* f, char* s, long n);
-void ami_sizbuf(FILE* f, long x, long y);
+void ami_wrtstrn(FILE* f, char* s, ami_long n);
+void ami_sizbuf(FILE* f, ami_long x, ami_long y);
 void ami_title(FILE* f, char* ts);
-void ami_titlen(FILE* f, char* ts, long n);
-void ami_fcolorc(FILE* f, long r, long g, long b);
-void ami_bcolorc(FILE* f, long r, long g, long b);
+void ami_titlen(FILE* f, char* ts, ami_long n);
+void ami_fcolorc(FILE* f, ami_long r, ami_long g, ami_long b);
+void ami_bcolorc(FILE* f, ami_long r, ami_long g, ami_long b);
 void ami_eventover(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh);
 void ami_eventsover(ami_pevthan eh, ami_pevthan* oeh);
 void ami_sendevent(FILE* f, ami_evtrec* er);
@@ -303,82 +303,82 @@ void ami_sendevent(FILE* f, ami_evtrec* er);
 /* print files */
 
 void ami_openprint(FILE** f, char* n);
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid);
-void ami_buffer(FILE* f, long e);
-void ami_getsiz(FILE* f, long* x, long* y);
-void ami_setsiz(FILE* f, long x, long y);
-void ami_setpos(FILE* f, long x, long y);
-void ami_scnsiz(FILE* f, long* x, long* y);
-void ami_scncen(FILE* f, long* x, long* y);
-void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms);
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid);
+void ami_buffer(FILE* f, ami_long e);
+void ami_getsiz(FILE* f, ami_long* x, ami_long* y);
+void ami_setsiz(FILE* f, ami_long x, ami_long y);
+void ami_setpos(FILE* f, ami_long x, ami_long y);
+void ami_scnsiz(FILE* f, ami_long* x, ami_long* y);
+void ami_scncen(FILE* f, ami_long* x, ami_long* y);
+void ami_winclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms);
 void ami_front(FILE* f);
 void ami_back(FILE* f);
-void ami_frame(FILE* f, long e);
-void ami_sizable(FILE* f, long e);
-void ami_sysbar(FILE* f, long e);
+void ami_frame(FILE* f, ami_long e);
+void ami_sizable(FILE* f, ami_long e);
+void ami_sysbar(FILE* f, ami_long e);
 void ami_menu(FILE* f, ami_menuptr m);
-void ami_menuena(FILE* f, long id, long onoff);
-void ami_menusel(FILE* f, long id, long select);
+void ami_menuena(FILE* f, ami_long id, ami_long onoff);
+void ami_menusel(FILE* f, ami_long id, ami_long select);
 void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
 void ami_focus(FILE* f);
-long ami_getwinid(void);
+ami_long ami_getwinid(void);
 void ami_errorover(ami_errhan nfp, ami_errhan* ofp);
 
 /*
  * Event function override types
  */
-typedef long (*ami_evchar_t)(char c);
-typedef long (*ami_evup_t)(void);
-typedef long (*ami_evdown_t)(void);
-typedef long (*ami_evleft_t)(void);
-typedef long (*ami_evright_t)(void);
-typedef long (*ami_evleftw_t)(void);
-typedef long (*ami_evrightw_t)(void);
-typedef long (*ami_evhome_t)(void);
-typedef long (*ami_evhomes_t)(void);
-typedef long (*ami_evhomel_t)(void);
-typedef long (*ami_evend_t)(void);
-typedef long (*ami_evends_t)(void);
-typedef long (*ami_evendl_t)(void);
-typedef long (*ami_evscrl_t)(void);
-typedef long (*ami_evscrr_t)(void);
-typedef long (*ami_evscru_t)(void);
-typedef long (*ami_evscrd_t)(void);
-typedef long (*ami_evpagd_t)(void);
-typedef long (*ami_evpagu_t)(void);
-typedef long (*ami_evtab_t)(void);
-typedef long (*ami_eventer_t)(void);
-typedef long (*ami_evinsert_t)(void);
-typedef long (*ami_evinsertl_t)(void);
-typedef long (*ami_evinsertt_t)(void);
-typedef long (*ami_evdel_t)(void);
-typedef long (*ami_evdell_t)(void);
-typedef long (*ami_evdelcf_t)(void);
-typedef long (*ami_evdelcb_t)(void);
-typedef long (*ami_evcopy_t)(void);
-typedef long (*ami_evcopyl_t)(void);
-typedef long (*ami_evcan_t)(void);
-typedef long (*ami_evstop_t)(void);
-typedef long (*ami_evcont_t)(void);
-typedef long (*ami_evprint_t)(void);
-typedef long (*ami_evprintb_t)(void);
-typedef long (*ami_evprints_t)(void);
-typedef long (*ami_evfun_t)(long k);
-typedef long (*ami_evmenu_t)(void);
-typedef long (*ami_evmouba_t)(long m, long b);
-typedef long (*ami_evmoubd_t)(long m, long b);
-typedef long (*ami_evmoumov_t)(long m, long x, long y);
-typedef long (*ami_evtim_t)(long t);
-typedef long (*ami_evjoyba_t)(long j, long b);
-typedef long (*ami_evjoybd_t)(long j, long b);
-typedef long (*ami_evjoymov_t)(long j, long x, long y, long z);
-typedef long (*ami_evresize_t)(long rszx, long rszy);
-typedef long (*ami_evfocus_t)(void);
-typedef long (*ami_evnofocus_t)(void);
-typedef long (*ami_evhover_t)(void);
-typedef long (*ami_evnohover_t)(void);
-typedef long (*ami_evterm_t)(void);
-typedef long (*ami_evframe_t)(void);
+typedef ami_long (*ami_evchar_t)(char c);
+typedef ami_long (*ami_evup_t)(void);
+typedef ami_long (*ami_evdown_t)(void);
+typedef ami_long (*ami_evleft_t)(void);
+typedef ami_long (*ami_evright_t)(void);
+typedef ami_long (*ami_evleftw_t)(void);
+typedef ami_long (*ami_evrightw_t)(void);
+typedef ami_long (*ami_evhome_t)(void);
+typedef ami_long (*ami_evhomes_t)(void);
+typedef ami_long (*ami_evhomel_t)(void);
+typedef ami_long (*ami_evend_t)(void);
+typedef ami_long (*ami_evends_t)(void);
+typedef ami_long (*ami_evendl_t)(void);
+typedef ami_long (*ami_evscrl_t)(void);
+typedef ami_long (*ami_evscrr_t)(void);
+typedef ami_long (*ami_evscru_t)(void);
+typedef ami_long (*ami_evscrd_t)(void);
+typedef ami_long (*ami_evpagd_t)(void);
+typedef ami_long (*ami_evpagu_t)(void);
+typedef ami_long (*ami_evtab_t)(void);
+typedef ami_long (*ami_eventer_t)(void);
+typedef ami_long (*ami_evinsert_t)(void);
+typedef ami_long (*ami_evinsertl_t)(void);
+typedef ami_long (*ami_evinsertt_t)(void);
+typedef ami_long (*ami_evdel_t)(void);
+typedef ami_long (*ami_evdell_t)(void);
+typedef ami_long (*ami_evdelcf_t)(void);
+typedef ami_long (*ami_evdelcb_t)(void);
+typedef ami_long (*ami_evcopy_t)(void);
+typedef ami_long (*ami_evcopyl_t)(void);
+typedef ami_long (*ami_evcan_t)(void);
+typedef ami_long (*ami_evstop_t)(void);
+typedef ami_long (*ami_evcont_t)(void);
+typedef ami_long (*ami_evprint_t)(void);
+typedef ami_long (*ami_evprintb_t)(void);
+typedef ami_long (*ami_evprints_t)(void);
+typedef ami_long (*ami_evfun_t)(ami_long k);
+typedef ami_long (*ami_evmenu_t)(void);
+typedef ami_long (*ami_evmouba_t)(ami_long m, ami_long b);
+typedef ami_long (*ami_evmoubd_t)(ami_long m, ami_long b);
+typedef ami_long (*ami_evmoumov_t)(ami_long m, ami_long x, ami_long y);
+typedef ami_long (*ami_evtim_t)(ami_long t);
+typedef ami_long (*ami_evjoyba_t)(ami_long j, ami_long b);
+typedef ami_long (*ami_evjoybd_t)(ami_long j, ami_long b);
+typedef ami_long (*ami_evjoymov_t)(ami_long j, ami_long x, ami_long y, ami_long z);
+typedef ami_long (*ami_evresize_t)(ami_long rszx, ami_long rszy);
+typedef ami_long (*ami_evfocus_t)(void);
+typedef ami_long (*ami_evnofocus_t)(void);
+typedef ami_long (*ami_evhover_t)(void);
+typedef ami_long (*ami_evnohover_t)(void);
+typedef ami_long (*ami_evterm_t)(void);
+typedef ami_long (*ami_evframe_t)(void);
 
 /*
  * Event function overrides
@@ -437,7 +437,7 @@ void ami_termover(ami_evterm_t eh, ami_evterm_t* oeh);
 void ami_frameover(ami_evframe_t eh, ami_evframe_t* oeh);
 
 /** linux system error function pointer */
-typedef void (*_pa_linuxerrhan)(long e);
+typedef void (*_pa_linuxerrhan)(ami_long e);
 
 /** linux system error function override */
 void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp);
@@ -446,76 +446,76 @@ void _pa_linuxerrorover(_pa_linuxerrhan nfp, _pa_linuxerrhan* ofp);
  * Override vector types
  *
  */
-typedef void (*_pa_cursor_t)(FILE* f, long x, long y);
-typedef long (*_pa_maxx_t)(FILE* f);
-typedef long (*_pa_maxy_t)(FILE* f);
+typedef void (*_pa_cursor_t)(FILE* f, ami_long x, ami_long y);
+typedef ami_long (*_pa_maxx_t)(FILE* f);
+typedef ami_long (*_pa_maxy_t)(FILE* f);
 typedef void (*_pa_home_t)(FILE* f);
 typedef void (*_pa_del_t)(FILE* f);
 typedef void (*_pa_up_t)(FILE* f);
 typedef void (*_pa_down_t)(FILE* f);
 typedef void (*_pa_left_t)(FILE* f);
 typedef void (*_pa_right_t)(FILE* f);
-typedef void (*_pa_blink_t)(FILE* f, long e);
-typedef void (*_pa_reverse_t)(FILE* f, long e);
-typedef void (*_pa_underline_t)(FILE* f, long e);
-typedef void (*_pa_superscript_t)(FILE* f, long e);
-typedef void (*_pa_subscript_t)(FILE* f, long e);
-typedef void (*_pa_italic_t)(FILE* f, long e);
-typedef void (*_pa_bold_t)(FILE* f, long e);
-typedef void (*_pa_strikeout_t)(FILE* f, long e);
-typedef void (*_pa_standout_t)(FILE* f, long e);
+typedef void (*_pa_blink_t)(FILE* f, ami_long e);
+typedef void (*_pa_reverse_t)(FILE* f, ami_long e);
+typedef void (*_pa_underline_t)(FILE* f, ami_long e);
+typedef void (*_pa_superscript_t)(FILE* f, ami_long e);
+typedef void (*_pa_subscript_t)(FILE* f, ami_long e);
+typedef void (*_pa_italic_t)(FILE* f, ami_long e);
+typedef void (*_pa_bold_t)(FILE* f, ami_long e);
+typedef void (*_pa_strikeout_t)(FILE* f, ami_long e);
+typedef void (*_pa_standout_t)(FILE* f, ami_long e);
 typedef void (*_pa_fcolor_t)(FILE* f, ami_color c);
 typedef void (*_pa_bcolor_t)(FILE* f, ami_color c);
-typedef long (*_pa_curbnd_t)(FILE* f);
-typedef void (*_pa_auto_t)(FILE* f, long e);
-typedef void (*_pa_curvis_t)(FILE* f, long e);
-typedef void (*_pa_scroll_t)(FILE* f, long x, long y);
-typedef long (*_pa_curx_t)(FILE* f);
-typedef long (*_pa_cury_t)(FILE* f);
-typedef void (*_pa_select_t)(FILE* f, long u, long d);
+typedef ami_long (*_pa_curbnd_t)(FILE* f);
+typedef void (*_pa_auto_t)(FILE* f, ami_long e);
+typedef void (*_pa_curvis_t)(FILE* f, ami_long e);
+typedef void (*_pa_scroll_t)(FILE* f, ami_long x, ami_long y);
+typedef ami_long (*_pa_curx_t)(FILE* f);
+typedef ami_long (*_pa_cury_t)(FILE* f);
+typedef void (*_pa_select_t)(FILE* f, ami_long u, ami_long d);
 typedef void (*_pa_event_t)(FILE* f, ami_evtrec* er);
-typedef void (*_pa_timer_t)(FILE* f, long i, long t, long r);
-typedef void (*_pa_killtimer_t)(FILE* f, long i);
-typedef long (*_pa_mouse_t)(FILE* f);
-typedef long (*_pa_mousebutton_t)(FILE* f, long m);
-typedef long (*_pa_joystick_t)(FILE* f);
-typedef long (*_pa_joybutton_t)(FILE* f, long j);
-typedef long (*_pa_joyaxis_t)(FILE* f, long j);
-typedef void (*_pa_settab_t)(FILE* f, long t);
-typedef void (*_pa_restab_t)(FILE* f, long t);
+typedef void (*_pa_timer_t)(FILE* f, ami_long i, ami_long t, ami_long r);
+typedef void (*_pa_killtimer_t)(FILE* f, ami_long i);
+typedef ami_long (*_pa_mouse_t)(FILE* f);
+typedef ami_long (*_pa_mousebutton_t)(FILE* f, ami_long m);
+typedef ami_long (*_pa_joystick_t)(FILE* f);
+typedef ami_long (*_pa_joybutton_t)(FILE* f, ami_long j);
+typedef ami_long (*_pa_joyaxis_t)(FILE* f, ami_long j);
+typedef void (*_pa_settab_t)(FILE* f, ami_long t);
+typedef void (*_pa_restab_t)(FILE* f, ami_long t);
 typedef void (*_pa_clrtab_t)(FILE* f);
-typedef long (*_pa_funkey_t)(FILE* f);
-typedef void (*_pa_frametimer_t)(FILE* f, long e);
-typedef void (*_pa_autohold_t)(long e);
+typedef ami_long (*_pa_funkey_t)(FILE* f);
+typedef void (*_pa_frametimer_t)(FILE* f, ami_long e);
+typedef void (*_pa_autohold_t)(ami_long e);
 typedef void (*_pa_wrtstr_t)(FILE* f, char* s);
-typedef void (*_pa_wrtstrn_t)(FILE* f, char* s, long n);
-typedef void (*_pa_sizbuf_t)(FILE* f, long x, long y);
+typedef void (*_pa_wrtstrn_t)(FILE* f, char* s, ami_long n);
+typedef void (*_pa_sizbuf_t)(FILE* f, ami_long x, ami_long y);
 typedef void (*_pa_title_t)(FILE* f, char* ts);
-typedef void (*_pa_titlen_t)(FILE* f, char* ts, long l);
-typedef void (*_pa_fcolorc_t)(FILE* f, long r, long g, long b);
-typedef void (*_pa_bcolorc_t)(FILE* f, long r, long g, long b);
+typedef void (*_pa_titlen_t)(FILE* f, char* ts, ami_long l);
+typedef void (*_pa_fcolorc_t)(FILE* f, ami_long r, ami_long g, ami_long b);
+typedef void (*_pa_bcolorc_t)(FILE* f, ami_long r, ami_long g, ami_long b);
 typedef void (*_pa_eventover_t)(ami_evtcod e, ami_pevthan eh,  ami_pevthan* oeh);
 typedef void (*_pa_eventsover_t)(ami_pevthan eh,  ami_pevthan* oeh);
 typedef void (*_pa_sendevent_t)(FILE* f, ami_evtrec* er);
-typedef void (*_pa_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, long wid);
-typedef void (*_pa_buffer_t)(FILE* f, long e);
-typedef void (*_pa_getsiz_t)(FILE* f, long* x, long* y);
-typedef void (*_pa_setsiz_t)(FILE* f, long x, long y);
-typedef void (*_pa_setpos_t)(FILE* f, long x, long y);
-typedef void (*_pa_scnsiz_t)(FILE* f, long* x, long* y);
-typedef void (*_pa_scncen_t)(FILE* f, long* x, long* y);
-typedef void (*_pa_winclient_t)(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms);
+typedef void (*_pa_openwin_t)(FILE** infile, FILE** outfile, FILE* parent, ami_long wid);
+typedef void (*_pa_buffer_t)(FILE* f, ami_long e);
+typedef void (*_pa_getsiz_t)(FILE* f, ami_long* x, ami_long* y);
+typedef void (*_pa_setsiz_t)(FILE* f, ami_long x, ami_long y);
+typedef void (*_pa_setpos_t)(FILE* f, ami_long x, ami_long y);
+typedef void (*_pa_scnsiz_t)(FILE* f, ami_long* x, ami_long* y);
+typedef void (*_pa_scncen_t)(FILE* f, ami_long* x, ami_long* y);
+typedef void (*_pa_winclient_t)(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms);
 typedef void (*_pa_front_t)(FILE* f);
 typedef void (*_pa_back_t)(FILE* f);
-typedef void (*_pa_frame_t)(FILE* f, long e);
-typedef void (*_pa_sizable_t)(FILE* f, long e);
-typedef void (*_pa_sysbar_t)(FILE* f, long e);
+typedef void (*_pa_frame_t)(FILE* f, ami_long e);
+typedef void (*_pa_sizable_t)(FILE* f, ami_long e);
+typedef void (*_pa_sysbar_t)(FILE* f, ami_long e);
 typedef void (*_pa_menu_t)(FILE* f, ami_menuptr m);
-typedef void (*_pa_menuena_t)(FILE* f, long id, long onoff);
-typedef void (*_pa_menusel_t)(FILE* f, long id, long select);
+typedef void (*_pa_menuena_t)(FILE* f, ami_long id, ami_long onoff);
+typedef void (*_pa_menusel_t)(FILE* f, ami_long id, ami_long select);
 typedef void (*_pa_stdmenu_t)(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm);
 typedef void (*_pa_focus_t)(FILE* f);
-typedef long (*_pa_getwinid_t)(void);
+typedef ami_long (*_pa_getwinid_t)(void);
 
 /*
  * Overrider routines

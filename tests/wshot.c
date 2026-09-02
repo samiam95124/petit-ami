@@ -63,8 +63,8 @@ void screen_capture_name(const char* fn);
 #define STIM   9    /* timer the settle runs on */
 
 static ami_evtrec er;
-static long framex, framey; /* where the client sits within the window */
-static long shotno;         /* figures taken so far */
+static ami_long framex, framey; /* where the client sits within the window */
+static ami_long shotno;         /* figures taken so far */
 
 /* Widgets are windows of their own and paint from events, so a picture taken
    the moment after a widget is placed catches it half drawn. Pump events for
@@ -90,7 +90,7 @@ static void shot(
     settle();
     screen_capture();
     shotno++;
-    fprintf(stderr, "%3ld  %s\n", shotno, what);
+    fprintf(stderr, "%3lld  %s\n", AMI_LONG_CAST(shotno), what);
 
 }
 
@@ -99,13 +99,13 @@ static void shot(
    through winclientg() to find the window that holds it. */
 
 static void page(
-    /** Client size wanted */ long cw,
-                              long ch
+    /** Client size wanted */ ami_long cw,
+                              ami_long ch
 )
 
 {
 
-    long ww, wh; /* window size that holds it */
+    ami_long ww, wh; /* window size that holds it */
 
     ami_winclientg(stdout, cw+MARGIN*2, ch+MARGIN*2, &ww, &wh,
                    BIT(ami_wmframe)|BIT(ami_wmsize)|BIT(ami_wmsysbar));
@@ -120,12 +120,12 @@ static void page(
 }
 
 static void killall(
-    /** Highest widget id in use */ long n
+    /** Highest widget id in use */ ami_long n
 )
 
 {
 
-    long i;
+    ami_long i;
 
     for (i = 1; i <= n; i++) ami_killwidget(stdout, i);
 
@@ -164,8 +164,8 @@ static ami_strptr mklist(
    is added to the figure's own. Nothing happens if no fifo is named. */
 
 static void click(
-    /** Where, in figure coordinates */ long x,
-                                        long y
+    /** Where, in figure coordinates */ ami_long x,
+                                        ami_long y
 )
 
 {
@@ -177,7 +177,7 @@ static void click(
     if (!fn) return;
     f = fopen(fn, "w");
     if (!f) return;
-    fprintf(f, "btn 1 %ld %ld\n", x+framex, y+framey);
+    fprintf(f, "btn 1 %lld %lld\n", AMI_LONG_CAST(x+framex), AMI_LONG_CAST(y+framey));
     fclose(f);
 
 }
@@ -186,13 +186,13 @@ int main(int argc, char* argv[])
 
 {
 
-    long       w, h;         /* widget size */
-    long       cw, ch;       /* closed size of a drop box */
-    long       ow, oh;       /* open size of a drop box */
-    long       sw, sh;       /* scroll bar thickness */
-    long       vw, vh;       /* vertical slider size */
-    long       bar;          /* how long a bar or slider is drawn */
-    long       i;
+    ami_long   w, h;         /* widget size */
+    ami_long   cw, ch;       /* closed size of a drop box */
+    ami_long   ow, oh;       /* open size of a drop box */
+    ami_long   sw, sh;       /* scroll bar thickness */
+    ami_long   vw, vh;       /* vertical slider size */
+    ami_long   bar;          /* how long a bar or slider is drawn */
+    ami_long   i;
     ami_strptr lp;           /* string list */
 
     /* the window is made before main() is reached, and is held open at the
@@ -305,7 +305,7 @@ int main(int argc, char* argv[])
     {
 
         /* the flat pair sit level with the middle of the upright pair */
-        long ty = MARGIN+(bar-h*2-GAP)/2;
+        ami_long ty = MARGIN+(bar-h*2-GAP)/2;
 
         ami_slidehorizg(stdout, MARGIN, ty, MARGIN+bar, ty+h, 10, 1);
         ami_slidehorizg(stdout, MARGIN, ty+h+GAP, MARGIN+bar, ty+h*2+GAP, 0, 2);
@@ -322,11 +322,11 @@ int main(int argc, char* argv[])
     {
 
         ami_strptr hp, vp;    /* tabs for the flat and upright bars */
-        long cwid, chgt;      /* client area asked of each bar */
-        long tw[4], th[4];    /* what each bar came back as */
-        long tox[4], toy[4];  /* and where its client sits within it */
-        long mid, colx;       /* where the middle column and row fall */
-        long pw, ph;          /* the figure's size */
+        ami_long cwid, chgt;      /* client area asked of each bar */
+        ami_long tw[4], th[4];    /* what each bar came back as */
+        ami_long tox[4], toy[4];  /* and where its client sits within it */
+        ami_long mid, colx;       /* where the middle column and row fall */
+        ami_long pw, ph;          /* the figure's size */
         static const ami_tabori ori[4] =
             { ami_totop, ami_toright, ami_tobottom, ami_toleft };
 
@@ -357,9 +357,9 @@ int main(int argc, char* argv[])
         /* ---- and the same four laid over one client area */
         {
 
-            long ox[4], oy[4];             /* each bar's origin from the client */
-            long minx, miny, maxx, maxy;   /* what the four of them span */
-            long cx, cy;                   /* where the shared client falls */
+            ami_long ox[4], oy[4];             /* each bar's origin from the client */
+            ami_long minx, miny, maxx, maxy;   /* what the four of them span */
+            ami_long cx, cy;                   /* where the shared client falls */
 
             /* A bar is never smaller than its own tabs need, so the four of
                them want different clients from the same request. The largest

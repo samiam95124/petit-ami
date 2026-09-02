@@ -42,7 +42,7 @@ int       bsx;    /* ball position save x */
 int       bsy;    /* ball position save y */
 int       baltim; /* ball start timer */
 ami_evtrec er;     /* event record */
-long      jchr;   /* number of characters to joystick movement */
+ami_long  jchr;   /* number of characters to joystick movement */
 int       score;  /* score */
 int       nottim; /* bounce note timer */
 int       failtimer; /* fail note timer */

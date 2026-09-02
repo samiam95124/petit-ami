@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 
     ami_evtrec er;   /* record for returned events */
     int autostate;  /* state of automatic wrap and scroll */
-    long buf;       /* current terminal buffer */
+    ami_long buf;       /* current terminal buffer */
     int fbold;      /* bold active flag */
     int fundl;      /* underline active flag */
     int fstko;      /* strikeout active flag */

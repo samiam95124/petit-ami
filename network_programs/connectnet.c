@@ -17,9 +17,9 @@
 #include <network.h>
 #include <option.h>
 
-static unsigned long addr;
+static ami_ulong addr;
 
-long secure = FALSE;
+ami_long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -33,11 +33,11 @@ int main(int argc, char **argv)
 
 {
 
-    long  argi = 1;
-    long  argcl;
+    ami_long  argi = 1;
+    ami_long  argcl;
     FILE* fp;
     int   c;
-    long  port;
+    ami_long  port;
 
     printf("Connect TCP/IP program\n");
     printf("\n");

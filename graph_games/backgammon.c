@@ -2276,15 +2276,15 @@ int main(void)
         FILE *pf;
         pf = fopen("backgammon.pos", "r");
         if (pf) {
-            long pw, ph, ppx, ppy;
+            ami_long pw, ph, ppx, ppy;
             char line[256];
 
             /* skip header line */
             if (fgets(line, sizeof(line), pf) &&
                 fgets(line, sizeof(line), pf) && /* blank line */
                 fgets(line, sizeof(line), pf)) {
-                if (sscanf(line, "width: %ld height: %ld position x: %ld position y: %ld",
-                           &pw, &ph, &ppx, &ppy) >= 2) {
+                if (sscanf(line, "width: %lld height: %lld position x: %lld position y: %lld",
+                           (long long*)(&pw), (long long*)(&ph), (long long*)(&ppx), (long long*)(&ppy)) >= 2) {
                     if (pw > 100 && ph > 100) {
                         ami_setsizg(stdout, pw, ph);
                     }
@@ -2501,14 +2501,14 @@ int main(void)
     /* save window position/size */
     {
         FILE *pf;
-        long wx, wy;
+        ami_long wx, wy;
 
         ami_getsizg(stdout, &wx, &wy);
         pf = fopen("backgammon.pos", "w");
         if (pf) {
             fprintf(pf, "Backgammon position\n\n");
-            fprintf(pf, "width: %ld height: %ld position x: 0 position y: 0\n",
-                    wx, wy);
+            fprintf(pf, "width: %lld height: %lld position x: 0 position y: 0\n",
+                    AMI_LONG_CAST(wx), AMI_LONG_CAST(wy));
             fclose(pf);
         }
     }

@@ -80,13 +80,13 @@ typedef struct metrec {
     metptr head;               /* head of menu pointer */
     int    menubar;            /* is the menu bar */
     int    frm;                /* is a frame */
-    long   onoff;              /* the item is on-off highlighted */
-    long   select;             /* the current on/off state of the highlight */
+    ami_long   onoff;              /* the item is on-off highlighted */
+    ami_long   select;             /* the current on/off state of the highlight */
     metptr oneof;              /* "one of" chain pointer */
     metptr chnhd;              /* head of "one of" chain */
-    long   ena;                /* enabled/disabled */
-    long   bar;                /* has bar under */
-    long   id;                 /* user id of item */
+    ami_long   ena;                /* enabled/disabled */
+    ami_long   bar;                /* has bar under */
+    ami_long   id;                 /* user id of item */
     int    fx1, fy1, fx2, fy2; /* subclient position of window */
     int    prime;              /* is a prime (onscreen) entry */
     int    pressed;            /* in the pressed state */
@@ -94,7 +94,7 @@ typedef struct metrec {
     char*  title;              /* title text */
     FILE*  parent;             /* parent window */
     FILE*  evtfil;             /* file to post menu events to */
-    long   wid;                /* menu window id */
+    ami_long   wid;                /* menu window id */
 
 } metrec;
 
@@ -102,37 +102,37 @@ typedef struct scncon* scnptr;
 typedef struct scncon { /* screen context */
 
     /* fields used by graph module */
-    long    lwidth;      /* width of lines */
+    ami_long    lwidth;      /* width of lines */
     ami_lstyle lstyle;   /* style of lines */
     /* note that the pixel and character dimensions and positions are kept
       in parallel for both characters and pixels */
-    long    maxx;        /* maximum characters in x */
-    long    maxy;        /* maximum characters in y */
-    long    maxxg;       /* maximum pixels in x */
-    long    maxyg;       /* maximum pixels in y */
-    long    curx;        /* current cursor location x */
-    long    cury;        /* current cursor location y */
-    long    curxg;       /* current cursor location in pixels x */
-    long    curyg;       /* current cursor location in pixels y */
-    long    angle;       /* character drawing angle */
-    long    fcrgb;       /* current writing foreground color in rgb */
-    long    bcrgb;       /* current writing background color in rgb */
+    ami_long    maxx;        /* maximum characters in x */
+    ami_long    maxy;        /* maximum characters in y */
+    ami_long    maxxg;       /* maximum pixels in x */
+    ami_long    maxyg;       /* maximum pixels in y */
+    ami_long    curx;        /* current cursor location x */
+    ami_long    cury;        /* current cursor location y */
+    ami_long    curxg;       /* current cursor location in pixels x */
+    ami_long    curyg;       /* current cursor location in pixels y */
+    ami_long    angle;       /* character drawing angle */
+    ami_long    fcrgb;       /* current writing foreground color in rgb */
+    ami_long    bcrgb;       /* current writing background color in rgb */
     mode    fmod;        /* foreground mix mode */
     mode    bmod;        /* background mix mode */
     fontptr cfont;       /* active font entry */
-    long    cspc;        /* character spacing */
-    long    lspc;        /* line spacing */
+    ami_long    cspc;        /* character spacing */
+    ami_long    lspc;        /* line spacing */
     int     attr;        /* set of active attributes */
-    long    autof;       /* current status of scroll and wrap */
-    long    tab[MAXTAB]; /* tabbing array */
-    long    curv;        /* cursor visible */
+    ami_long    autof;       /* current status of scroll and wrap */
+    ami_long    tab[MAXTAB]; /* tabbing array */
+    ami_long    curv;        /* cursor visible */
     /* note that view offsets and scaling are experimental features */
-    long    offx;        /* viewport offset x */
-    long    offy;        /* viewport offset y */
-    long    wextx;       /* window extent x */
-    long    wexty;       /* window extent y */
-    long    vextx;       /* viewpor extent x */
-    long    vexty;       /* viewport extent y */
+    ami_long    offx;        /* viewport offset x */
+    ami_long    offy;        /* viewport offset y */
+    ami_long    wextx;       /* window extent x */
+    ami_long    wexty;       /* window extent y */
+    ami_long    vextx;       /* viewpor extent x */
+    ami_long    vexty;       /* viewport extent y */
 
     /* fields used by graphics subsystem */
     pd_draw*    xcxt;    /* graphics context */
@@ -166,7 +166,7 @@ typedef struct winrec {
     /* fields used by graph module */
     int          parlfn;            /* logical parent */
     winptr       parwin;            /* link to parent (or NULL for parentless) */
-    long         wid;               /* this window logical id */
+    ami_long     wid;               /* this window logical id */
     winptr       childwin;          /* list of child windows */
     winptr       childlst;          /* list pointer if this is a child */
     scnptr       screens[MAXCON];   /* screen contexts array */
@@ -174,19 +174,19 @@ typedef struct winrec {
     int          curupd;            /* index for current update screen */
     /* global sets. these are the global set parameters that apply to any new
       created screen buffer */
-    long         gmaxx;             /* maximum x size */
-    long         gmaxy;             /* maximum y size */
-    long         gmaxxg;            /* size of client area in x */
-    long         gmaxyg;            /* size of client area in y */
-    long         bufx;              /* buffer size x characters */
-    long         bufy;              /* buffer size y characters */
-    long         bufxg;             /* buffer size x pixels */
-    long         bufyg;             /* buffer size y pixels */
+    ami_long     gmaxx;             /* maximum x size */
+    ami_long     gmaxy;             /* maximum y size */
+    ami_long     gmaxxg;            /* size of client area in x */
+    ami_long     gmaxyg;            /* size of client area in y */
+    ami_long     bufx;              /* buffer size x characters */
+    ami_long     bufy;              /* buffer size y characters */
+    ami_long     bufxg;             /* buffer size x pixels */
+    ami_long     bufyg;             /* buffer size y pixels */
     int          gattr;             /* current attributes */
-    long         gauto;             /* state of auto */
-    long         gfcrgb;            /* foreground color in rgb */
-    long         gbcrgb;            /* background color in rgb */
-    long         gcurv;             /* state of cursor visible */
+    ami_long     gauto;             /* state of auto */
+    ami_long     gfcrgb;            /* foreground color in rgb */
+    ami_long     gbcrgb;            /* background color in rgb */
+    ami_long     gcurv;             /* state of cursor visible */
     fontptr      gcfont;            /* current font select */
     int          gfhigh;            /* physical em-square pixel size y (FreeType) */
     int          gfhighx;           /* physical em-square pixel size x (asymmetric) */
@@ -199,14 +199,14 @@ typedef struct winrec {
     int          misoffy;           /* missing font offset y */
     mode         gfmod;             /* foreground mix mode */
     mode         gbmod;             /* background mix mode */
-    long         goffx;             /* viewport offset x (physical pixels) */
-    long         goffy;             /* viewport offset y (physical pixels) */
+    ami_long     goffx;             /* viewport offset x (physical pixels) */
+    ami_long     goffy;             /* viewport offset y (physical pixels) */
     float        vsx;               /* viewport scale x (default 1.0) */
     float        vsy;               /* viewport scale y (default 1.0) */
-    long         gwextx;            /* window extent x */
-    long         gwexty;            /* window extent y */
-    long         gvextx;            /* viewpor extent x */
-    long         gvexty;            /* viewport extent y */
+    ami_long     gwextx;            /* window extent x */
+    ami_long     gwexty;            /* window extent y */
+    ami_long     gvextx;            /* viewpor extent x */
+    ami_long     gvexty;            /* viewport extent y */
     int          termfnt;           /* terminal font number */
     int          bookfnt;           /* book font number */
     int          signfnt;           /* sign font number */
@@ -216,8 +216,8 @@ typedef struct winrec {
     int          mb3;               /* button 3 asserted (delivered level) */
     int          mb4;               /* button 4 asserted (delivered level) */
     int          mb5;               /* button 5 asserted (delivered level) */
-    long         mpx, mpy;          /* mouse current position */
-    long         mpxg, mpyg;        /* mouse current position graphical */
+    ami_long     mpx, mpy;          /* mouse current position */
+    ami_long     mpxg, mpyg;        /* mouse current position graphical */
     /* Pending button presses/releases are counted, not levelled, so a press
        and its release that both arrive before either can be delivered (e.g.
        behind pending motion) are not collapsed -- every edge is preserved and
@@ -232,12 +232,12 @@ typedef struct winrec {
     int          rmb3;              /* pending releases button 3 */
     int          rmb4;              /* pending releases button 4 */
     int          rmb5;              /* pending releases button 5 */
-    long         nmpx, nmpy;        /* new mouse current position */
-    long         nmpxg, nmpyg;      /* new mouse current position graphical */
+    ami_long     nmpx, nmpy;        /* new mouse current position */
+    ami_long     nmpxg, nmpyg;      /* new mouse current position graphical */
     int          linespace;         /* line spacing in pixels */
     int          charspace;         /* character spacing in pixels */
-    long         chrspcx;           /* extra space between characters */
-    long         chrspcy;           /* extra space between lines */
+    ami_long     chrspcx;           /* extra space between characters */
+    ami_long     chrspcy;           /* extra space between lines */
     int          curspace;          /* size of cursor, in pixels */
     int          baseoff;           /* font baseline offset from top */
     int          menuspcy;          /* amount of space for menu in y (if exists) */
@@ -246,12 +246,12 @@ typedef struct winrec {
     int          fcurdwn;           /* cursor on screen flag */
     int          joy1cap;           /* joystick 1 is captured */
     int          joy2cap;           /* joystick 2 is captured */
-    long         joy1xs;            /* last joystick position 1x */
-    long         joy1ys;            /* last joystick position 1y */
-    long         joy1zs;            /* last joystick position 1z */
-    long         joy2xs;            /* last joystick position 2x */
-    long         joy2ys;            /* last joystick position 2y */
-    long         joy2zs;            /* last joystick position 2z */
+    ami_long     joy1xs;            /* last joystick position 1x */
+    ami_long     joy1ys;            /* last joystick position 1y */
+    ami_long     joy1zs;            /* last joystick position 1z */
+    ami_long     joy2xs;            /* last joystick position 2x */
+    ami_long     joy2ys;            /* last joystick position 2y */
+    ami_long     joy2zs;            /* last joystick position 2z */
     int          shsize;            /* display screen size x in millimeters */
     int          svsize;            /* display screen size y in millimeters */
     int          shres;             /* display screen pixels in x */
@@ -263,7 +263,7 @@ typedef struct winrec {
     int          frmrun;            /* framing timer is running */
     int          timers[AMI_MAXTIM]; /* timer id array */
     int          frmsev;            /* frame timer system event */
-    long         framecbms;         /* last callback-driven frame event, ms */
+    ami_long     framecbms;         /* last callback-driven frame event, ms */
     int          focus;             /* screen in focus */
     picptr       pictbl[MAXPIC];    /* loadable pictures table */
     int          bufmod;            /* buffered screen mode */
@@ -304,8 +304,8 @@ typedef struct winrec {
     int          minimized;         /* TRUE if child frame is minimized */
     int          minslot;           /* slot index when minimized (for x pos) */
     xrect        savxmwr;           /* xmwr before minimize, for restore */
-    long         savgmaxxg;         /* gmaxxg before minimize */
-    long         savgmaxyg;         /* gmaxyg before minimize */
+    ami_long     savgmaxxg;         /* gmaxxg before minimize */
+    ami_long     savgmaxyg;         /* gmaxyg before minimize */
 
 } winrec;
 

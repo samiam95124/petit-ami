@@ -27,7 +27,7 @@ char* mailmsg[] = {
 
 };
 
-long secure = FALSE;
+ami_long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -42,9 +42,9 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    long port = 4433; /* note: can't use correct 110 port, it is denied */
-    long argi = 1;
-    long argcl = argc;
+    ami_long port = 4433; /* note: can't use correct 110 port, it is denied */
+    ami_long argi = 1;
+    ami_long argcl = argc;
     int end;
     int i;
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
     while (1) { /* serve this port until cancelled */
 
-        printf("Fakemail server waits on port %ld for connections\n", port);
+        printf("Fakemail server waits on port %lld for connections\n", AMI_LONG_CAST(port));
         fp = ami_waitnet(port, secure);
 
         printf("Inbound connection\n");

@@ -190,7 +190,7 @@ int randn(int limit)
 
 {
 
-    return (long)limit*rand()/RAND_MAX;
+    return (ami_long)limit*rand()/RAND_MAX;
 
 }
 

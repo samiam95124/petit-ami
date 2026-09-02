@@ -34,7 +34,10 @@
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
-#include <sys/socket.h>
+#include <setjmp.h>
+#ifndef _WIN32
+#include <execinfo.h>
+#endif
 
 #include <graphics.h>
 #include <network.h>
@@ -42,17 +45,15 @@
 #include <widget_base.h>
 #include <sound.h>
 #include <services.h>
-#include <setjmp.h>
-#include <execinfo.h>
 
 #define MAXHND 512   /* window handles */
 #define MAXSTR 4096  /* string unmarshal bound */
 
 /* channels */
-static long cmdfn = -1;  /* command channel */
-static long evtfn = -1;  /* event channel */
-static long srvport;     /* command port */
-static long msgmax;      /* channel message size bound */
+static ami_long cmdfn = -1;  /* command channel */
+static ami_long evtfn = -1;  /* event channel */
+static ami_long srvport;     /* command port */
+static ami_long msgmax;      /* channel message size bound */
 static int  gtrace;      /* diagnostic trace: --trace or GRAPH_TRACE;
                             every message prints to the error channel.
                             Slow, and worth it. */
@@ -67,17 +68,17 @@ static int  gsecure = 1; /* secure channels: --plain turns them off; DTLS on the
 
 /* message assembly */
 static unsigned char* sbuf; /* reply buffer */
-static long           soff;
+static ami_long       soff;
 static unsigned char* rbuf; /* receive buffer: points at the message
                                being executed, which may sit inside a
                                batched datagram */
 static unsigned char* rbase; /* the buffer datagrams land in */
-static long           roff;
-static long           rlen;
+static ami_long       roff;
+static ami_long       rlen;
 
 /* the event channel is written by the pump thread and, for errors, the
    main thread; the lock keeps the messages whole */
-static long            evsend;     /* services lock: one sender at a time */
+static ami_long        evsend;     /* services lock: one sender at a time */
 static int             evsendheld; /* the send holds it; a fault must free it */
 
 /* The display library is multithreadable and carries its own locks: the
@@ -93,7 +94,7 @@ static int  hellopend;   /* a mid-session hello opened the next session */
    from the display, the close button or a control-c typed in the
    window, on an idle server as cancellation. It stops only for the
    process exit, which must not tear the library down around it. */
-static long      pump;     /* the pump, by services thread id */
+static ami_long  pump;     /* the pump, by services thread id */
 static int       pumpstop; /* exiting: leave the library and return */
 
 /* The pump stands down while a modal dialog runs. A dialog pumps its
@@ -139,12 +140,12 @@ static int       sigasked; /* a terminate asked this session to end */
 
 /* window handle map */
 static FILE* h2f[MAXHND];  /* handle to window file */
-static long  h2lw[MAXHND]; /* handle to logical window id */
+static ami_long  h2lw[MAXHND]; /* handle to logical window id */
 
 /* the main window as the server presented it, restored between
    sessions: a session's title and size are the session's */
 static char srvname[64];
-static long origw, origh;
+static ami_long origw, origh;
 
 /*******************************************************************************
 
@@ -177,9 +178,9 @@ static int     cleaning;  /* winding down; a second fault is fatal */
 /* The display thread's work mailbox; see ondisplay() below. The lock and
    the signal are services' own, so the handoff is the same on any system
    services runs on: waitsig releases the lock, waits, and takes it back. */
-static long            joblock;    /* services concurrency lock */
-static long            jobdone;    /* services signal: the job is finished */
-static long            pumpgone;   /* and this one: the pump has stopped */
+static ami_long        joblock;    /* services concurrency lock */
+static ami_long        jobdone;    /* services signal: the job is finished */
+static ami_long        pumpgone;   /* and this one: the pump has stopped */
 static void          (*jobfn)(void*); /* the call to make, NULL for none */
 static void*           jobarg;
 static int             jobsts;     /* the job took a session error */
@@ -219,14 +220,14 @@ Message assembly
 
 static gr_msghdr* shdr(void) { return ((gr_msghdr*)sbuf); }
 static gr_msghdr* rhdr(void) { return ((gr_msghdr*)rbuf); }
-static void dgram(long dlen);
+static void dgram(ami_long dlen);
 
 /* unmarshal from the received message */
-static long gi(void)
+static ami_long gi(void)
 
 {
 
-    long v;
+    ami_long v;
 
     if (roff+8 > rlen) sesserr("Message truncated");
     memcpy(&v, rbuf+roff, 8);
@@ -265,12 +266,12 @@ static int g4(void)
 }
 
 /* a counted string into a bounded buffer, terminated */
-static void gstr(char* dst, long dl)
+static void gstr(char* dst, ami_long dl)
 
 {
 
-    long n = g4();
-    long c = n;
+    ami_long n = g4();
+    ami_long c = n;
 
     if (roff+n > rlen) sesserr("Message truncated");
     if (c > dl-1) c = dl-1;
@@ -285,7 +286,7 @@ static char* gsdup(void)
 
 {
 
-    long  n = g4();
+    ami_long  n = g4();
     char* s;
 
     if (roff+n > rlen) sesserr("Message truncated");
@@ -309,7 +310,7 @@ static ami_menuptr gmenu(void)
     ami_menuptr lp = NULL;
     ami_menuptr e;
     int         n, i;
-    long        flags;
+    ami_long    flags;
 
     n = g4();
     for (i = 0; i < n; i++) {
@@ -371,7 +372,7 @@ static void rbegin(void)
 
 }
 
-static void ri(long v)
+static void ri(ami_long v)
 
 {
 
@@ -403,7 +404,7 @@ static void r4(int v)
 
 /* a string by the critical buffer rule: the length is the occupancy, which
    may be the full buffer with no terminator */
-static void rstrn(const char* s, long n)
+static void rstrn(const char* s, ami_long n)
 
 {
 
@@ -414,7 +415,7 @@ static void rstrn(const char* s, long n)
 
 }
 
-static void rstr(const char* s, long bl)
+static void rstr(const char* s, ami_long bl)
 
 {
 
@@ -448,8 +449,8 @@ static void rsend(void)
 
     shdr()->len = (int)soff;
     if (gtrace)
-        fprintf(stderr, "gs> %-16s w%-3ld s%-5d len%ld\n",
-                gr_msgname(shdr()->mid), shdr()->wid, shdr()->seq, soff);
+        fprintf(stderr, "gs> %-16s w%-3lld s%-5d len%lld\n",
+                gr_msgname(shdr()->mid), AMI_LONG_CAST(shdr()->wid), shdr()->seq, AMI_LONG_CAST(soff));
     ami_wrmsg(cmdfn, sbuf, soff);
 
 }
@@ -460,7 +461,7 @@ Window handles
 
 *******************************************************************************/
 
-static FILE* wf(long h)
+static FILE* wf(ami_long h)
 
 {
 
@@ -471,11 +472,11 @@ static FILE* wf(long h)
 }
 
 /* handle from the logical window id of an event */
-static long lw2h(long lw)
+static ami_long lw2h(ami_long lw)
 
 {
 
-    long h;
+    ami_long h;
 
     for (h = 1; h < MAXHND; h++)
         if (h2f[h] && h2lw[h] == lw) return (h);
@@ -509,24 +510,24 @@ static const char* basenm(const char* fn)
 /* The picture extension rule of the display library: .bmp is set or
    overwritten. The names cross the wire as given, and both ends apply
    the rule where they touch a file. */
-static void setfext(char* dst, long dl, const char* fn, const char* ext)
+static void setfext(char* dst, ami_long dl, const char* fn, const char* ext)
 
 {
 
     const char* dot = strrchr(fn, '.');
     const char* sl = strrchr(fn, '/');
-    long        n;
+    ami_long    n;
 
     if (dot && (!sl || dot > sl)) n = dot-fn; /* strip the extension */
     else n = strlen(fn);
-    if (n > dl-(long)strlen(ext)-1) n = dl-strlen(ext)-1;
+    if (n > dl-(ami_long)strlen(ext)-1) n = dl-strlen(ext)-1;
     memcpy(dst, fn, n);
     strcpy(dst+n, ext);
 
 }
 
 /* find or fetch a named file; returns the name to use */
-static const char* fndfile(const char* fn, char* cb, long cbl,
+static const char* fndfile(const char* fn, char* cb, ami_long cbl,
                            const char* ext)
 
 {
@@ -641,7 +642,7 @@ static thinslot* thinfor(gr_msgevt* we)
 
 {
 
-    long d;
+    ami_long d;
 
     switch (we->etype) {
 
@@ -689,8 +690,8 @@ static void evsend1(gr_msgevt* we)
     gr_msghdr*    h = (gr_msghdr*)ebuf;
 
     if (gtrace)
-        fprintf(stderr, "gs>e %-15s w%ld\n",
-                gr_evtname((long)we->etype), we->winid);
+        fprintf(stderr, "gs>e %-15s w%lld\n",
+                gr_evtname((ami_long)we->etype), AMI_LONG_CAST(we->winid));
     h->len = sizeof(ebuf);
     h->mid = GR_MEVENT;
     h->seq = 0;
@@ -738,7 +739,7 @@ static void neterr(const char* es)
            in its channel read, is woken by shutting the command socket
            under it, and its failing read drops the session. */
         clientup = 0;
-        shutdown((int)cmdfn, SHUT_RDWR);
+        ami_shutmsg(cmdfn);
         if (pumpjmpset) longjmp(pumpjmp, 1);
 
     } else sesserr("Network channel failed");
@@ -874,7 +875,7 @@ static void job_winddown(void* a)
 
 {
 
-    long h;
+    ami_long h;
 
     (void)a;
     /* Reset for the next client: the session's windows close, and
@@ -887,7 +888,13 @@ static void job_winddown(void* a)
         h2f[h] = 0;
 
     }
+#ifndef _WIN32
     wb_purge(stdout); /* the session's widgets go with it */
+#else
+    /* the Windows display has its widgets in the library, not in
+       widget_base, and no purge: a session's widgets on the main window
+       stay until the next session draws over them */
+#endif
     {
 
         /* and its sound footprint: ports, timers and stores */
@@ -924,7 +931,7 @@ static void job_winddown(void* a)
     ami_auto(stdout, 1);
     ami_curvis(stdout, 1);
     printf("Session ended. Remote display server awaiting connection "
-           "on port %ld.\n", srvport);
+           "on port %lld.\n", AMI_LONG_CAST(srvport));
     printf("Control-c in this window, or its close button, shuts the "
            "server down.\n");
     fflush(stdout);
@@ -961,10 +968,10 @@ static void evpump(void)
         runjob();
         ami_event(stdin, &er);
         if (pumpstop) break; /* the process is exiting */
-        if ((long)er.etype == GR_EVWAKE) continue; /* ours: a job, or the stop */
+        if ((ami_long)er.etype == GR_EVWAKE) continue; /* ours: a job, or the stop */
         if (gtrace && !clientup)
-            fprintf(stderr, "gs.e %-15s w%ld (idle)\n",
-                    gr_evtname((long)er.etype), er.winid);
+            fprintf(stderr, "gs.e %-15s w%lld (idle)\n",
+                    gr_evtname((ami_long)er.etype), AMI_LONG_CAST(er.winid));
         if (er.etype == ami_etterm) {
 
             /* A terminate: the close button, control-c in this window,
@@ -985,7 +992,7 @@ static void evpump(void)
         (void)h;
         memset(we, 0, sizeof(gr_msgevt));
         we->winid = lw2h(er.winid);
-        we->etype = (long)er.etype;
+        we->etype = (ami_long)er.etype;
         we->handled = 0;
         memcpy(we->p, &er.echar, EVUNION);
         {
@@ -1071,15 +1078,15 @@ static void dispatch(void)
 {
 
     FILE* f = NULL;
-    long  a, b, c, d, e, g, i, j;
-    long  o1, o2, o3, o4;
+    ami_long  a, b, c, d, e, g, i, j;
+    ami_long  o1, o2, o3, o4;
     double fa, fb;
     char  s1[MAXSTR];
     char  s2[MAXSTR];
 
     if (gtrace)
-        fprintf(stderr, "gs< %-16s w%-3ld s%-5d len%ld\n",
-                gr_msgname(rhdr()->mid), rhdr()->wid, rhdr()->seq, rlen);
+        fprintf(stderr, "gs< %-16s w%-3lld s%-5d len%lld\n",
+                gr_msgname(rhdr()->mid), AMI_LONG_CAST(rhdr()->wid), rhdr()->seq, AMI_LONG_CAST(rlen));
     if (rhdr()->wid) f = wf(rhdr()->wid);
     switch (rhdr()->mid) {
 
@@ -1321,7 +1328,7 @@ static void dispatch(void)
 
             FILE* inf = stdin;
             FILE* outf = NULL;
-            long par, h;
+            ami_long par, h;
 
             par = gi(); h = gi(); a = gi();
             if (h < 1 || h >= MAXHND || h2f[h])
@@ -1774,7 +1781,7 @@ static void dispatch(void)
         case GR_MWRSYNTH: {
 
             ami_seqmsg sm;
-            long       u[3];
+            ami_long   u[3];
 
             a = gi();
             memset(&sm, 0, sizeof(sm));
@@ -1790,14 +1797,14 @@ static void dispatch(void)
         case GR_MRDSYNTH: {
 
             ami_seqmsg sm;
-            long       u[3];
+            ami_long   u[3];
 
             a = gi();
             memset(&sm, 0, sizeof(sm));
             ami_rdsynth(a, &sm); /* blocks until the device delivers */
             memcpy(u, &sm.ntc, sizeof(u));
             rbegin();
-            ri(sm.port); ri(sm.time); ri((long)sm.st);
+            ri(sm.port); ri(sm.time); ri((ami_long)sm.st);
             ri(u[0]); ri(u[1]); ri(u[2]);
             rsend();
             break;
@@ -1857,8 +1864,8 @@ static void dispatch(void)
         case GR_MRDWAVE: {
 
             static byte* wvbuf;
-            static long  wvblen;
-            long         got, fsiz, fit;
+            static ami_long  wvblen;
+            ami_long     got, fsiz, fit;
 
             /* Lengths are in samples, one frame of every channel. The
                answer clamps to what one message carries, at the frame
@@ -1949,7 +1956,7 @@ static void dispatch(void)
             ami_qfnopts opt;
             gstr(s1, MAXSTR); opt = (ami_qfnopts)gi();
             ami_queryfind(s1, MAXSTR, &opt);
-            rbegin(); rstr(s1, MAXSTR); ri((long)opt); rsend(); break;
+            rbegin(); rstr(s1, MAXSTR); ri((ami_long)opt); rsend(); break;
 
         }
         case GR_MQUERYFINDREP: {
@@ -1957,20 +1964,20 @@ static void dispatch(void)
             ami_qfropts opt;
             gstr(s1, MAXSTR); gstr(s2, MAXSTR); opt = (ami_qfropts)gi();
             ami_queryfindrep(s1, MAXSTR, s2, MAXSTR, &opt);
-            rbegin(); rstr(s1, MAXSTR); rstr(s2, MAXSTR); ri((long)opt);
+            rbegin(); rstr(s1, MAXSTR); rstr(s2, MAXSTR); ri((ami_long)opt);
             rsend(); break;
 
         }
         case GR_MQUERYFONT: {
 
-            long fc, s, fr, fg, fb, br, bg, bb;
+            ami_long fc, s, fr, fg, fb, br, bg, bb;
             ami_qfteffects eff;
 
             fc = gi(); s = gi(); fr = gi(); fg = gi(); fb = gi();
             br = gi(); bg = gi(); bb = gi(); eff = (ami_qfteffects)gi();
             ami_queryfont(f, &fc, &s, &fr, &fg, &fb, &br, &bg, &bb, &eff);
             rbegin(); ri(fc); ri(s); ri(fr); ri(fg); ri(fb);
-            ri(br); ri(bg); ri(bb); ri((long)eff); rsend(); break;
+            ri(br); ri(bg); ri(bb); ri((ami_long)eff); rsend(); break;
 
         }
 
@@ -1984,16 +1991,16 @@ static void dispatch(void)
    datagram carries one or more messages back to back, the header
    lengths delimiting them. rbuf walks the batch; a session error inside
    longjmps out, and the fault path restores rbuf to rbase. */
-static void dgram(long dlen)
+static void dgram(ami_long dlen)
 
 {
 
-    long off = 0;
-    long ml;
+    ami_long off = 0;
+    ami_long ml;
 
     while (off < dlen) {
 
-        if (dlen-off < (long)sizeof(gr_msghdr)) {
+        if (dlen-off < (ami_long)sizeof(gr_msghdr)) {
 
             rbuf = rbase;
             sesserr("Short message from client");
@@ -2001,7 +2008,7 @@ static void dgram(long dlen)
         }
         rbuf = rbase+off;
         ml = rhdr()->len;
-        if (ml < (long)sizeof(gr_msghdr) || off+ml > dlen) {
+        if (ml < (ami_long)sizeof(gr_msghdr) || off+ml > dlen) {
 
             rbuf = rbase;
             sesserr("Message framing error");
@@ -2025,12 +2032,17 @@ static void crashbt(int sig)
 
 {
 
+#ifndef _WIN32
     void* frames[32];
     int   n;
 
     fprintf(stderr, "*** graph_server: fatal signal %d, backtrace:\n", sig);
     n = backtrace(frames, 32);
     backtrace_symbols_fd(frames, n, 2);
+#else
+    /* Windows has no backtrace call: the signal number is the story */
+    fprintf(stderr, "*** graph_server: fatal signal %d\n", sig);
+#endif
     _exit(128+sig);
 
 }
@@ -2050,11 +2062,13 @@ int main(int argc, char* argv[])
 {
 
     signal(SIGSEGV, crashbt);
+#ifdef SIGBUS
     signal(SIGBUS, crashbt);
+#endif
     signal(SIGFPE, crashbt);
 
     const char* sp;
-    unsigned long la;
+    ami_ulong la;
 
     {
 
@@ -2098,8 +2112,7 @@ int main(int argc, char* argv[])
        with short receive timeouts, meant for transient exchanges where a
        lost datagram should fail the read; these channels are persistent,
        a server without a client yet and a quiet command channel both
-       being normal, so the timeouts clear. The logical id of a message
-       channel is its descriptor. */
+       being normal, so the timeouts clear. */
     /* The pump owns the display, and it is up before anything waits: the
        wait for a client is a long one, and through it the pump is what
        repaints the window and hears a terminate -- the close button, or
@@ -2108,24 +2121,13 @@ int main(int argc, char* argv[])
     if (pump < 1) error("Cannot start event pump");
     cmdfn = ami_waitmsg(srvport, gsecure);
     evtfn = ami_waitmsg(srvport+1, gsecure);
-    {
-
-        /* deep receive buffers: a full flow window must fit with room,
-           and events should never drop for a slow moment */
-        int rb = 2*1024*1024;
-
-        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVBUF, &rb, sizeof(rb));
-        setsockopt((int)evtfn, SOL_SOCKET, SO_RCVBUF, &rb, sizeof(rb));
-
-    }
-    {
-
-        struct timeval tv = { 0, 0 };
-
-        setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        setsockopt((int)evtfn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-    }
+    /* deep receive buffers: a full flow window must fit with room,
+       and events should never drop for a slow moment */
+    ami_bufmsg(cmdfn, 2*1024*1024);
+    ami_bufmsg(evtfn, 2*1024*1024);
+    /* the channels are kept: no bound on their reads */
+    ami_tmomsg(cmdfn, 0);
+    ami_tmomsg(evtfn, 0);
 
     /* the main window is handle 1 */
     h2f[1] = stdout;
@@ -2142,9 +2144,9 @@ int main(int argc, char* argv[])
     }
 
     /* the idle window says what it is; a blank window reads as a hang */
-    printf("Remote display server awaiting %sconnection on port %ld.\n",
+    printf("Remote display server awaiting %sconnection on port %lld.\n",
            gsecure? "secure ": "",
-           srvport);
+           AMI_LONG_CAST(srvport));
     printf("Control-c in this window, or its close button, shuts the "
            "server down.\n");
     fflush(stdout);
@@ -2156,7 +2158,7 @@ int main(int argc, char* argv[])
        server, is the way out. */
     for (;;) {
 
-        long h;
+        ami_long h;
         int  faulted;
 
         faulted = setjmp(sesjmp);
@@ -2173,7 +2175,7 @@ int main(int argc, char* argv[])
         if (!hellopend) {
 
             rlen = ami_rdmsg(cmdfn, rbase, msgmax);
-            if (rlen < (long)sizeof(gr_msghdr))
+            if (rlen < (ami_long)sizeof(gr_msghdr))
                 sesserr("Short message from client");
             if (((gr_msghdr*)rbase)->mid != GR_MHELLO)
                 sesserr(gsecure? "Protocol failure: no hello":
@@ -2187,23 +2189,15 @@ int main(int argc, char* argv[])
         /* The event channel hello names the peer for events. The wait is
            bounded: a client that died between hellos must not wedge the
            server, and its successor's hello waits on the command
-           channel. The logical id of a message channel is its
-           descriptor. */
+           channel. */
         {
 
-            struct timeval tv = { 10, 0 };
-            fd_set        fs;
-            int           r;
-
-            /* the bound by select, the read by the message call, which
-               is what records the peer the events go back to */
-            FD_ZERO(&fs);
-            FD_SET((int)evtfn, &fs);
-            r = select((int)evtfn+1, &fs, NULL, NULL, &tv);
-            if (r <= 0)
+            /* the bound by the ready test, the read by the message call,
+               which is what records the peer the events go back to */
+            if (!ami_rdymsg(evtfn, 10*1000000L))
                 sesserr("Protocol failure: no event channel hello");
             rlen = ami_rdmsg(evtfn, rbase, msgmax);
-            if (rlen < (long)sizeof(gr_msghdr) ||
+            if (rlen < (ami_long)sizeof(gr_msghdr) ||
                 ((gr_msghdr*)rbuf)->mid != GR_MEVOPEN)
                 sesserr("Protocol failure: no event channel hello");
 
@@ -2217,26 +2211,18 @@ int main(int argc, char* argv[])
         /* The command loop. A burst of commands executes under one hold
            of the display lock: after the blocking read, the socket
            drains without blocking, so drawing throughput is bounded by
-           the wire and not by the heartbeat. The logical id of a message
-           channel is its descriptor. */
+           the wire and not by the heartbeat. */
         while (!byeseen) {
-
-            struct timeval tv;
-            fd_set         fs;
 
             rlen = ami_rdmsg(cmdfn, rbase, msgmax);
             for (;;) {
 
                 ondisplay(job_dgram, NULL);
                 if (byeseen) break;
-                /* the drain probes by select and reads by the message
-                   call, which under the secure channel is also what
-                   decrypts: a raw recv on DTLS sees only ciphertext */
-                FD_ZERO(&fs);
-                FD_SET((int)cmdfn, &fs);
-                tv.tv_sec = 0;
-                tv.tv_usec = 0;
-                if (select((int)cmdfn+1, &fs, NULL, NULL, &tv) <= 0)
+                /* the drain probes by the ready test and reads by the
+                   message call, which under the secure channel is also
+                   what decrypts: a raw recv on DTLS sees only ciphertext */
+                if (!ami_rdymsg(cmdfn, 0))
                     break; /* the burst is drained */
                 rlen = ami_rdmsg(cmdfn, rbase, msgmax);
 
@@ -2265,16 +2251,8 @@ winddown:
             inclose = 0;
             cmdfn = ami_waitmsg(srvport, gsecure);
             evtfn = ami_waitmsg(srvport+1, gsecure);
-            {
-
-                struct timeval tv = { 0, 0 };
-
-                setsockopt((int)cmdfn, SOL_SOCKET, SO_RCVTIMEO, &tv,
-                           sizeof(tv));
-                setsockopt((int)evtfn, SOL_SOCKET, SO_RCVTIMEO, &tv,
-                           sizeof(tv));
-
-            }
+            ami_tmomsg(cmdfn, 0);
+            ami_tmomsg(evtfn, 0);
 
         } else if (faulted) {
 
@@ -2282,22 +2260,15 @@ winddown:
                the next hello read is not stale traffic */
             {
 
-                struct timeval tv;
-                fd_set         fs;
-                long           dfd;
-                int            di;
+                ami_long dfd;
+                int  di;
 
                 for (di = 0; di < 2; di++) {
 
                     dfd = di? evtfn: cmdfn;
                     for (;;) {
 
-                        FD_ZERO(&fs);
-                        FD_SET((int)dfd, &fs);
-                        tv.tv_sec = 0;
-                        tv.tv_usec = 0;
-                        if (select((int)dfd+1, &fs, NULL, NULL, &tv) <= 0)
-                            break;
+                        if (!ami_rdymsg(dfd, 0)) break;
                         ami_rdmsg(dfd, rbase, msgmax);
 
                     }

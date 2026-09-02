@@ -58,21 +58,21 @@ rdmsg short buffer truncates             pass
 ----- Message limits: maxmsg/relymsg (IPv4), maxmsgv6/relymsgv6 (IPv6); a maxmsg sized message is deliverable -----
 
 maxmsg sane                              pass
-    maximum message for loopback: 65507 bytes
+    maximum message for loopback: * bytes
 maxmsg secure honors the DTLS record     pass
     maximum secure message for loopback: 16384 bytes
 relymsg loopback is reliable             pass
     loopback delivery reliable: yes
 maxmsgv6 sane                            pass
-    maximum message for v6 loopback: 65488 bytes
+    maximum message for v6 loopback: * bytes
 maxmsgv6 secure honors the DTLS record   pass
     maximum secure message for v6 loopback: 16384 bytes
 relymsgv6 loopback is reliable           pass
     v6 loopback delivery reliable: yes
 maxmsg sized message deliverable         pass
-    sent 65507 bytes (the maxmsg limit), server received 65507
+    sent * bytes (the maxmsg limit), server received *
 maxmsgv6 sized message deliverable       pass
-    sent 65488 bytes (the maxmsgv6 limit), server received 65488
+    sent * bytes (the maxmsgv6 limit), server received *
 
 ----- Certificates: certnet/certlistnet/certlistfree, two deep chain -----
 

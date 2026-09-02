@@ -67,8 +67,8 @@ int main(int argc, char** argv)
     frame_buffer(&base);
     fb = base;
 
-    fprintf(stderr, "framebuffer: %ld x %ld, %ld bytes per pixel, "
-                    "r@%ld g@%ld b@%ld\n", cols, rows, ps, roff, goff, boff);
+    fprintf(stderr, "framebuffer: %lld x %lld, %lld bytes per pixel, "
+                    "r@%lld g@%lld b@%lld\n", AMI_LONG_CAST(cols), AMI_LONG_CAST(rows), AMI_LONG_CAST(ps), AMI_LONG_CAST(roff), AMI_LONG_CAST(goff), AMI_LONG_CAST(boff));
 
     /* three colour bands, so the component order is plainly right: a red band,
        a green band, a blue band, top to bottom */

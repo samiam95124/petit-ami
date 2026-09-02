@@ -24,7 +24,7 @@
 #define NUMMSG 1000 /* maximum messages to store */
 
 static FILE* mail;
-static unsigned long addr;
+static ami_ulong addr;
 static char buff[BUFLEN];
 static char server[BUFLEN];
 static char user[BUFLEN];
@@ -32,10 +32,10 @@ static char pass[BUFLEN];
 static int  msgnum;
 static int  msgsiz;
 static int  msgarr[NUMMSG];
-static long port = 110; /* unsecured port */
-static long sport = 995; /* secured port */
+static ami_long port = 110; /* unsecured port */
+static ami_long sport = 995; /* secured port */
 
-long secure = FALSE;
+ami_long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -70,8 +70,8 @@ int main(int argc, char **argv)
 {
 
     int i, top;
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
     int pt;
 
     printf("Mail server access test program\n");

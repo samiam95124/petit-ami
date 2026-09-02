@@ -14,7 +14,7 @@
 *                                                                              *
 * gives the document as a file for examination with any .pdf reader.           *
 *                                                                              *
-* The picture page places tests/scott.bmp; run from the top of the source      *
+* The picture page places tests/mypic.bmp; run from the top of the source      *
 * tree.                                                                        *
 *                                                                              *
 * The page is US letter at 600 DPI, 5100 by 6600, 85 by 66 characters in the   *
@@ -27,7 +27,7 @@
 #include <graphics.h>
 
 /* a labeled figure: the label goes under the figure box */
-static void figlab(FILE* p, long x, long y, const char* s)
+static void figlab(FILE* p, ami_long x, ami_long y, const char* s)
 
 {
 
@@ -45,8 +45,8 @@ int main(int argc, char* argv[])
 {
 
     FILE* p;
-    long  x, y;
-    long  pw, ph;
+    ami_long  x, y;
+    ami_long  pw, ph;
     int   i;
 
     ami_openprint(&p, argc > 1? argv[1]: "lp0:");
@@ -55,8 +55,8 @@ int main(int argc, char* argv[])
     /* ============================ page 1: text ============================ */
 
     fprintf(p, "pdfgraph test, page 1: text and attributes\n");
-    fprintf(p, "page: %ld x %ld characters, %ld x %ld pixels at 600 DPI\n\n",
-            ami_maxx(p), ami_maxy(p), ami_maxxg(p), ami_maxyg(p));
+    fprintf(p, "page: %lld x %lld characters, %lld x %lld pixels at 600 DPI\n\n",
+            AMI_LONG_CAST(ami_maxx(p)), AMI_LONG_CAST(ami_maxy(p)), AMI_LONG_CAST(ami_maxxg(p)), AMI_LONG_CAST(ami_maxyg(p)));
 
     fprintf(p, "plain terminal text: the quick brown fox jumps over the "
                "lazy dog 0123456789\n");
@@ -207,11 +207,11 @@ int main(int argc, char* argv[])
     y = 500;
     for (i = 0; i < 6; i++) {
 
-        static const long pts[6] = { 8, 12, 18, 24, 36, 48 };
+        static const ami_long pts[6] = { 8, 12, 18, 24, 36, 48 };
 
         ami_fontsiz(p, pts[i]*600/72); /* points to pixels */
         ami_cursorg(p, 300, y);
-        fprintf(p, "%ld point sign text", pts[i]);
+        fprintf(p, "%lld point sign text", AMI_LONG_CAST(pts[i]));
         y += pts[i]*600/72+100;
 
     }
@@ -241,10 +241,10 @@ int main(int argc, char* argv[])
     /* ========================== page 4: a picture ========================= */
 
     fprintf(p, "pdfgraph test, page 4: pixel output\n\n");
-    ami_loadpict(p, 1, "tests/scott");
+    ami_loadpict(p, 1, "tests/mypic");
     pw = ami_pictsizx(p, 1);
     ph = ami_pictsizy(p, 1);
-    fprintf(p, "the picture is %ld x %ld pixels\n", pw, ph);
+    fprintf(p, "the picture is %lld x %lld pixels\n", AMI_LONG_CAST(pw), AMI_LONG_CAST(ph));
     /* placed at its own size: pixels one to one with the page grid */
     ami_picture(p, 1, 300, 500, 300+pw-1, 500+ph-1);
     figlab(p, 300, 550+ph, "at pixel size");

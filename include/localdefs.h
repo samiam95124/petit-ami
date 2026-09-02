@@ -22,6 +22,25 @@ extern "C" {
 #define BITMSK(b) (~BIT(b)) /* mask out bit number */
 
 typedef char* string;  /* general string type */
+
+/* Ami's long is the machine word: 32 bits on a 32 bit machine, 64 on a 64 bit
+   one. 64 bit Windows keeps long at 32 (LLP64), so the API and everything
+   built on it spell the type ami_long, which is long long there and long
+   everywhere else. It prints under %lld through AMI_LONG_CAST, below. long long
+   stays long long: it is 64 bits on every host. */
+#ifdef _WIN64
+typedef long long          ami_long;
+typedef unsigned long long ami_ulong;
+#else
+typedef long               ami_long;
+typedef unsigned long      ami_ulong;
+#endif
+
+/* Printing an ami_long: the value goes under %lld (%llu, %llx) through this
+   cast, which is the 64 bit type on every host, so the format checker is
+   satisfied everywhere and the width is the same everywhere. */
+#define AMI_LONG_CAST  (long long)
+#define AMI_ULONG_CAST (unsigned long long)
 typedef unsigned char byte; /* byte */
 
 #ifdef __cplusplus

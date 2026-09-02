@@ -72,13 +72,13 @@ typedef enum {
 
 } wigid;
 
-static long made[wilast];  /* which ids are on the page now */
-static long progpos;       /* where the progress bar has got to */
-static long scrollv, scrollh; /* where the program thinks the bars are */
-static long lastw, lasth;  /* the size the page was laid out for */
+static ami_long made[wilast];  /* which ids are on the page now */
+static ami_long progpos;       /* where the progress bar has got to */
+static ami_long scrollv, scrollh; /* where the program thinks the bars are */
+static ami_long lastw, lasth;  /* the size the page was laid out for */
 
 /* a column being filled downwards */
-typedef struct { long x, y, w; } column;
+typedef struct { ami_long x, y, w; } column;
 
 /*******************************************************************************
 
@@ -95,7 +95,7 @@ static void status(const char* fmt, ...)
 
     va_list ap;
     char    b[256];
-    long    i, n;
+    ami_long    i, n;
 
     va_start(ap, fmt);
     vsnprintf(b, sizeof(b), fmt, ap);
@@ -110,7 +110,7 @@ static void status(const char* fmt, ...)
 }
 
 /* a label above a widget, in graphical position */
-static void label(long x, long y, const char* s)
+static void label(ami_long x, ami_long y, const char* s)
 
 {
 
@@ -171,15 +171,15 @@ and what makes the page come out right in any font.
 
 *******************************************************************************/
 
-static long colnat[COLS];  /* the natural width of each column */
-static long colx[COLS];    /* its left edge, once the widths are known */
-static long needw, needh;  /* the page the widgets add up to */
-static long measuring;     /* the pass that creates nothing */
-static long curcol, cury;  /* the column being filled, and how far down it */
-static long colbot;        /* the lowest any column reached */
+static ami_long colnat[COLS];  /* the natural width of each column */
+static ami_long colx[COLS];    /* its left edge, once the widths are known */
+static ami_long needw, needh;  /* the page the widgets add up to */
+static ami_long measuring;     /* the pass that creates nothing */
+static ami_long curcol, cury;  /* the column being filled, and how far down it */
+static ami_long colbot;        /* the lowest any column reached */
 
 /* start filling column n */
-static void colbegin(long n)
+static void colbegin(ami_long n)
 
 {
 
@@ -190,7 +190,7 @@ static void colbegin(long n)
 
 /* the width to give a widget that fills its column. While measuring the
    column has no width yet, and the widget's own minimum is what counts. */
-static long colwid(void)
+static ami_long colwid(void)
 
 {
 
@@ -199,7 +199,7 @@ static long colwid(void)
 }
 
 /* take a slot w by h in the current column, and say where it went */
-static void slot(long w, long h, long* x, long* y)
+static void slot(ami_long w, ami_long h, ami_long* x, ami_long* y)
 
 {
 
@@ -216,7 +216,7 @@ static void slotlabel(const char* s)
 
 {
 
-    long x, y;
+    ami_long x, y;
 
     slot(ami_strsiz(stdout, (char*)s), ami_chrsizy(stdout)*5/4-GAP, &x, &y);
     if (!measuring) label(x, y, s);
@@ -237,10 +237,10 @@ static void place(void)
 
 {
 
-    long       w, h, cw, ch, ox, oy, ow, oh, x, y, i;
-    long       rowy, roww, rowh;
+    ami_long   w, h, cw, ch, ox, oy, ow, oh, x, y, i;
+    ami_long   rowy, roww, rowh;
     ami_strptr lp;
-    static struct { long id; char* face; } dlg[] = {
+    static struct { ami_long id; char* face; } dlg[] = {
 
         { widalert,   (char*)"Alert"   },
         { widcolor,   (char*)"Color"   },
@@ -251,7 +251,7 @@ static void place(void)
         { widfont,    (char*)"Font"    }
 
     };
-    #define NDLG ((long)(sizeof(dlg)/sizeof(dlg[0])))
+    #define NDLG ((ami_long)(sizeof(dlg)/sizeof(dlg[0])))
 
     for (i = 0; i < wilast; i++) made[i] = FALSE;
     colbot = 0;
@@ -402,8 +402,8 @@ static void place(void)
     /* the vertical pair stand side by side, as tall as they are given */
     {
 
-        long vh = ami_chrsizy(stdout)*8; /* how tall to make them */
-        long sw, sh;
+        ami_long vh = ami_chrsizy(stdout)*8; /* how tall to make them */
+        ami_long sw, sh;
 
         ami_scrollvertsizg(stdout, &sw, &sh);
         ami_slidevertsizg(stdout, &w, &h);
@@ -487,7 +487,7 @@ static void layout(void)
 
 {
 
-    long i;
+    ami_long i;
 
     for (i = 0; i < COLS; i++) { colnat[i] = 0; colx[i] = 0; }
     measuring = TRUE;
@@ -500,7 +500,7 @@ static void layout(void)
        size bars and the system bar this window has. */
     {
 
-        long ww, wh;
+        ami_long ww, wh;
 
         ami_winclientg(stdout, needw, needh, &ww, &wh,
                        BIT(ami_wmframe)|BIT(ami_wmsize)|BIT(ami_wmsysbar));
@@ -518,7 +518,7 @@ static void unplace(void)
 
 {
 
-    long i;
+    ami_long i;
 
     for (i = 1; i < wilast; i++) if (made[i]) {
 
@@ -539,12 +539,12 @@ was.
 
 *******************************************************************************/
 
-static void dodialog(long id)
+static void dodialog(ami_long id)
 
 {
 
     char           s[200], r[200];
-    long           cr, cg, cb, br, bg, bb, fc, fs;
+    ami_long       cr, cg, cb, br, bg, bb, fc, fs;
     ami_qfnopts    fnopt;
     ami_qfropts    fropt;
     ami_qfteffects eff;
@@ -559,7 +559,7 @@ static void dodialog(long id)
         case widcolor:
             cr = INT_MAX/2; cg = 0; cb = INT_MAX/2;
             ami_querycolor(&cr, &cg, &cb);
-            status("color: red %ld green %ld blue %ld", cr, cg, cb);
+            status("color: red %lld green %lld blue %lld", AMI_LONG_CAST(cr), AMI_LONG_CAST(cg), AMI_LONG_CAST(cb));
             break;
 
         case widopen:
@@ -578,7 +578,7 @@ static void dodialog(long id)
             strcpy(s, "find me");
             fnopt = 0;
             ami_queryfind(s, sizeof(s), &fnopt);
-            status("find: %s, options %ld", *s? s: "(cancelled)", (long)fnopt);
+            status("find: %s, options %lld", *s? s: "(cancelled)", AMI_LONG_CAST((ami_long)fnopt));
             break;
 
         case widfindrep:
@@ -586,8 +586,8 @@ static void dodialog(long id)
             strcpy(r, "replace with me");
             fropt = 0;
             ami_queryfindrep(s, sizeof(s), r, sizeof(r), &fropt);
-            status("replace: %s -> %s, options %ld", *s? s: "(cancelled)", r,
-                   (long)fropt);
+            status("replace: %s -> %s, options %lld", *s? s: "(cancelled)", r,
+                   AMI_LONG_CAST((ami_long)fropt));
             break;
 
         case widfont:
@@ -595,7 +595,7 @@ static void dodialog(long id)
             cr = 0; cg = 0; cb = 0; br = INT_MAX; bg = INT_MAX; bb = INT_MAX;
             eff = 0;
             ami_queryfont(stdout, &fc, &fs, &cr, &cg, &cb, &br, &bg, &bb, &eff);
-            status("font: code %ld size %ld effects %ld", fc, fs, (long)eff);
+            status("font: code %lld size %lld effects %lld", AMI_LONG_CAST(fc), AMI_LONG_CAST(fs), AMI_LONG_CAST((ami_long)eff));
             break;
 
     }
@@ -629,13 +629,13 @@ int main(void)
             /* ------------------------------------------------- controls */
             case ami_etbutton:
                 if (er.butid >= widalert) dodialog(er.butid);
-                else status("button %ld pressed", er.butid);
+                else status("button %lld pressed", AMI_LONG_CAST(er.butid));
                 break;
 
             case ami_etchkbox:
                 /* the program keeps the state: the widget only reports the
                    click. Flip it and say so. */
-                { static long ck = FALSE;
+                { static ami_long ck = FALSE;
                   ck = !ck;
                   ami_selectwidget(stdout, wicheck, ck);
                   status("checkbox %s", ck? "checked": "unchecked"); }
@@ -645,8 +645,8 @@ int main(void)
                 /* a radio pair is made mutually exclusive by the program */
                 ami_selectwidget(stdout, wiradio1, er.radbid == wiradio1);
                 ami_selectwidget(stdout, wiradio2, er.radbid == wiradio2);
-                status("radio button %ld chosen",
-                       er.radbid == wiradio1? 1L: 2L);
+                status("radio button %lld chosen",
+                       AMI_LONG_CAST(er.radbid == wiradio1? 1L: 2L));
                 break;
 
             case ami_etedtbox:
@@ -656,15 +656,15 @@ int main(void)
                 break;
 
             case ami_etnumbox:
-                status("number select box: %ld", er.numbsl);
+                status("number select box: %lld", AMI_LONG_CAST(er.numbsl));
                 break;
 
             case ami_etlstbox:
-                status("list box: item %ld", er.lstbsl);
+                status("list box: item %lld", AMI_LONG_CAST(er.lstbsl));
                 break;
 
             case ami_etdrpbox:
-                status("drop box: item %ld", er.drpbsl);
+                status("drop box: item %lld", AMI_LONG_CAST(er.drpbsl));
                 break;
 
             case ami_etdrebox:
@@ -674,7 +674,7 @@ int main(void)
                 break;
 
             case ami_ettabbar:
-                status("tab bar: tab %ld", er.tabsel);
+                status("tab bar: tab %lld", AMI_LONG_CAST(er.tabsel));
                 break;
 
             /* --------------------------------------- scroll bars: we move them */
@@ -682,40 +682,40 @@ int main(void)
                 if (er.sclpid == wiscrollv) scrollv = er.sclpos;
                 else scrollh = er.sclpos;
                 ami_scrollpos(stdout, er.sclpid, er.sclpos);
-                status("scroll bar %s dragged to %ld%%",
+                status("scroll bar %s dragged to %lld%%",
                        er.sclpid == wiscrollv? "vertical": "horizontal",
-                       er.sclpos/(LONG_MAX/100));
+                       AMI_LONG_CAST(er.sclpos/(LONG_MAX/100)));
                 break;
 
             case ami_etsclull: case ami_etsclulp:
-                { long id = er.etype == ami_etsclull? er.sclulid: er.sclupid;
-                  long* p = id == wiscrollv? &scrollv: &scrollh;
-                  long step = er.etype == ami_etsclull? LONG_MAX/50:
+                { ami_long id = er.etype == ami_etsclull? er.sclulid: er.sclupid;
+                  ami_long* p = id == wiscrollv? &scrollv: &scrollh;
+                  ami_long step = er.etype == ami_etsclull? LONG_MAX/50:
                                                         LONG_MAX/8;
                   *p = *p > step? *p-step: 0;
                   ami_scrollpos(stdout, id, *p);
-                  status("scroll %s up/left, now %ld%%",
+                  status("scroll %s up/left, now %lld%%",
                          er.etype == ami_etsclull? "line": "page",
-                         *p/(LONG_MAX/100)); }
+                         AMI_LONG_CAST(*p/(LONG_MAX/100))); }
                 break;
 
             case ami_etscldrl: case ami_etscldrp:
-                { long id = er.etype == ami_etscldrl? er.scldrid: er.scldpid;
-                  long* p = id == wiscrollv? &scrollv: &scrollh;
-                  long step = er.etype == ami_etscldrl? LONG_MAX/50:
+                { ami_long id = er.etype == ami_etscldrl? er.scldrid: er.scldpid;
+                  ami_long* p = id == wiscrollv? &scrollv: &scrollh;
+                  ami_long step = er.etype == ami_etscldrl? LONG_MAX/50:
                                                         LONG_MAX/8;
                   *p = *p < LONG_MAX-step? *p+step: LONG_MAX;
                   ami_scrollpos(stdout, id, *p);
-                  status("scroll %s down/right, now %ld%%",
+                  status("scroll %s down/right, now %lld%%",
                          er.etype == ami_etscldrl? "line": "page",
-                         *p/(LONG_MAX/100)); }
+                         AMI_LONG_CAST(*p/(LONG_MAX/100))); }
                 break;
 
             /* ------------------------- sliders: they have moved themselves */
             case ami_etsldpos:
-                status("slider %s at %ld%%",
+                status("slider %s at %lld%%",
                        er.sldpid == wislidev? "vertical": "horizontal",
-                       er.sldpos/(LONG_MAX/100));
+                       AMI_LONG_CAST(er.sldpos/(LONG_MAX/100)));
                 break;
 
             /* ------------------------------ the progress bar walks itself */

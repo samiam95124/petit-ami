@@ -152,8 +152,8 @@ static void makfil(
 
 {
 
-    long fn;
-    long i;
+    ami_long fn;
+    ami_long i;
 
     if (!f) error(pk, "Invalid window file");
     fn = fileno(f);
@@ -249,12 +249,12 @@ Given a window file and a widget id, returns the widget. Validates both.
 void* wb_fndwig(
     /** Package */             wbpkg* pk,
     /** Window file pointer */ FILE*  f,
-    /** Logical widget id */   long   id
+    /** Logical widget id */   ami_long   id
 )
 
 {
 
-    long fn;
+    ami_long fn;
 
     void* wp;
 
@@ -295,14 +295,14 @@ sets its controlling fields, and passes it in. NULL allocates fresh.
 void wb_widget(
     /** Package */                         wbpkg* pk,
     /** Parent window file */              FILE* f,
-    /** Containing rectangle for widget */ long x1, long y1, long x2, long y2,
-    /** logical id for widget */           long id,
+    /** Containing rectangle for widget */ ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+    /** logical id for widget */           ami_long id,
     /** Widget I/O pointer, void** */      void* wpr
 )
 
 {
 
-    long     fn;
+    ami_long fn;
     wbwigptr wp;
     wbwigptr* wprp = (wbwigptr*)wpr;
 
@@ -372,8 +372,8 @@ static void teardown(
 
 static void intkillwidget(
     /** Package */           wbpkgptr pk,
-    /** file id */           long     fn,
-    /** Logical widget id */ long     id
+    /** file id */           ami_long fn,
+    /** Logical widget id */ ami_long id
 )
 
 {
@@ -424,7 +424,7 @@ static void intkillwidget(
 void wb_killwidget(
     /** Package */           wbpkg* pk,
     /** Window file */       FILE*  f,
-    /** Logical widget id */ long   id
+    /** Logical widget id */ ami_long   id
 )
 
 {
@@ -447,15 +447,15 @@ id, once allocated, is reserved until used and killed.
 
 *******************************************************************************/
 
-long wb_getwigid(
+ami_long wb_getwigid(
     /** Package */     wbpkg* pk,
     /** Window file */ FILE*  f
 )
 
 {
 
-    long fn;
-    long wid;
+    ami_long fn;
+    ami_long wid;
 
     wb_lock();
     makfil(pk, f);
@@ -487,8 +487,8 @@ void wb_purge(
 {
 
     wbpkgptr pk;
-    long     fd;
-    long     i;
+    ami_long fd;
+    ami_long i;
 
     fd = fileno(f);
     if (fd < 0 || fd >= MAXFIL) return;
@@ -581,7 +581,7 @@ static int ivclose(
 {
 
     wbpkgptr pk;
-    long     i;
+    ami_long i;
 
     if (fd >= 0 && fd < MAXFIL) {
 
@@ -635,7 +635,7 @@ package's widgets are recognized from that point on.
 
 void wb_init(
     /** Package */                    wbpkg*        pk,
-    /** widget record size */         long          recsiz,
+    /** widget record size */         ami_long      recsiz,
     /** event handler for widgets */  wb_dispatch_t dispatch,
     /** record field initializer */   wb_wiginit_t  wiginit,
     /** pre-teardown callback */      wb_wigkill_t  wigkill,
@@ -645,10 +645,10 @@ void wb_init(
 
 {
 
-    long     fn;
+    ami_long fn;
     wbpkgptr* lp;
 
-    if (recsiz < (long)sizeof(wbwig)) error(pk, "Record too small for head");
+    if (recsiz < (ami_long)sizeof(wbwig)) error(pk, "Record too small for head");
     if (!dispatch) error(pk, "Package must dispatch events");
     pk->recsiz = recsiz;
     pk->dispatch = dispatch;
@@ -696,8 +696,8 @@ void wb_deinit(
 
 {
 
-    long        fn;
-    long        i;
+    ami_long    fn;
+    ami_long    i;
     wbpkgptr*   lp;
     ami_pevthan cppevt;
     pclose_t    cppclose;

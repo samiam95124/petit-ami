@@ -132,8 +132,8 @@ typedef struct wigrec* wigptr;
 typedef struct wigrec {
 
     WB_WIGHEAD(struct wigrec*) /* the base head, first */
-    /** the kick is running */              long playing;
-    /** current animation frame, 1 based */ long frame;
+    /** the kick is running */              ami_long playing;
+    /** current animation frame, 1 based */ ami_long frame;
 
 } wigrec;
 
@@ -157,7 +157,7 @@ static void kickbutton_draw(
 
 {
 
-    long fr = wg->frame;
+    ami_long fr = wg->frame;
 
     if (fr < 1 || fr > FRAMES) fr = 1;
     ami_picture(wg->wf, fr, 1, 1, ami_maxxg(wg->wf), ami_maxyg(wg->wf));
@@ -316,15 +316,15 @@ picture table), and the kick sound loads once for the program.
 
 void kickbutton(
     /** Parent window file */   FILE* f,
-    /** Containing rectangle */ long x1, long y1, long x2, long y2,
-    /** logical id for widget */ long id
+    /** Containing rectangle */ ami_long x1, ami_long y1, ami_long x2, ami_long y2,
+    /** logical id for widget */ ami_long id
 )
 
 {
 
     wigptr wp = NULL;
     char   fn[100];
-    long   i;
+    ami_long   i;
 
     wb_widget(&pkg, f, x1, y1, x2, y2, id, &wp);
     /* the still and the animation frames, pictures 1..FRAMES on the
@@ -359,7 +359,7 @@ widget, and need not.
 
 void kickbuttonkill(
     /** Parent window file */    FILE* f,
-    /** logical id for widget */ long  id
+    /** logical id for widget */ ami_long  id
 )
 
 {
@@ -378,8 +378,8 @@ A disabled button shows no state colors and does not kick.
 
 void kickbuttonenable(
     /** Parent window file */    FILE* f,
-    /** logical id for widget */ long  id,
-    /** enable/disable */        long  e
+    /** logical id for widget */ ami_long  id,
+    /** enable/disable */        ami_long  e
 )
 
 {

@@ -48,16 +48,16 @@ including the html page statistics.
 #define BUFLEN 250
 
 /* do/do not secure connection */
-long secure = FALSE;
+ami_long secure = FALSE;
 
 /* use IPv6 or IPv4 */
-long ipv6 = FALSE;
+ami_long ipv6 = FALSE;
 
 /* do not check html end of file */
-long ncend = FALSE;
+ami_long ncend = FALSE;
 
 /* only print html content */
-long htmlonly = FALSE;
+ami_long htmlonly = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -75,11 +75,11 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    unsigned long addr;
+    ami_ulong addr;
     unsigned long long addrh, addrl;
-    long port;
-    long argi = 1;
-    long argcl = argc;
+    ami_long port;
+    ami_long argi = 1;
+    ami_long argcl = argc;
     int end;
     int inhtml;
 

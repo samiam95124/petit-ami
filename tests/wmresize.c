@@ -34,7 +34,7 @@
 #define PANE 2 /* the child pane */
 
 /* paint the pane so its edges can be seen */
-static void paint(FILE* f, long w, long h)
+static void paint(FILE* f, ami_long w, ami_long h)
 
 {
 
@@ -43,7 +43,7 @@ static void paint(FILE* f, long w, long h)
     ami_frect(f, 0, 0, w-1, h-1);
     ami_fcolor(f, ami_black);
     ami_cursorg(f, 10, 10);
-    fprintf(f, "pane painted for %ld by %ld\n", w, h);
+    fprintf(f, "pane painted for %lld by %lld\n", AMI_LONG_CAST(w), AMI_LONG_CAST(h));
 
 }
 
@@ -53,10 +53,10 @@ int main(int argc, char* argv[])
 
     FILE*      pane;
     ami_evtrec er;
-    long       wx, wy;
-    long       w, h;
-    long       i;
-    long       n = 0;
+    ami_long   wx, wy;
+    ami_long   w, h;
+    ami_long   i;
+    ami_long   n = 0;
     int        follow = FALSE;
     int        nobuf = FALSE;
 
@@ -95,9 +95,9 @@ int main(int argc, char* argv[])
 
         ami_event(stdin, &er);
         /* everything, so that nothing can be said to have been filtered */
-        fprintf(stderr, "%4ld: event %2d  window %ld  size %ldx%ld  "
-                "main says %ldx%ld\n", ++n, (int)er.etype, er.winid,
-                er.rszxg, er.rszyg, ami_maxxg(stdout), ami_maxyg(stdout));
+        fprintf(stderr, "%4lld: event %2d  window %lld  size %lldx%lld  "
+                "main says %lldx%lld\n", AMI_LONG_CAST(++n), (int)er.etype, AMI_LONG_CAST(er.winid),
+                AMI_LONG_CAST(er.rszxg), AMI_LONG_CAST(er.rszyg), AMI_LONG_CAST(ami_maxxg(stdout)), AMI_LONG_CAST(ami_maxyg(stdout)));
         /* Only the main window's own resizes: the pane is resized here
            too, and its resize comes back as an event like any other. A
            program that acts on those resizes the pane again on the

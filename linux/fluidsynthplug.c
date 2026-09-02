@@ -63,11 +63,11 @@ an error if the result cannot fit.
 
 *******************************************************************************/
 
-static void cpycrit(char* d, long dl, const char* s)
+static void cpycrit(char* d, ami_long dl, const char* s)
 
 {
 
-    long l;
+    ami_long l;
 
     l = strlen(s); /* find length of source */
     if (l > dl) error("String too large for destination");
@@ -89,7 +89,7 @@ one MIDI out device at init time.
 
 *******************************************************************************/
 
-static void openfluid(long p)
+static void openfluid(ami_long p)
 
 {
 
@@ -120,7 +120,7 @@ Closes a Liquidsynth MIDI output device for use.
 
 *******************************************************************************/
 
-static void closefluid(long p)
+static void closefluid(ami_long p)
 
 {
 
@@ -159,7 +159,7 @@ any overflow.
 
 *******************************************************************************/
 
-static void writefluid(long p, ami_seqptr sp)
+static void writefluid(ami_long p, ami_seqptr sp)
 
 {
 
@@ -246,7 +246,7 @@ Always returns error.
 
 *******************************************************************************/
 
-long setparamfluid(long p, string name, string value)
+ami_long setparamfluid(ami_long p, string name, string value)
 
 {
 
@@ -265,7 +265,7 @@ shorter result is zero terminated, and it is an error if the result cannot fit.
 
 *******************************************************************************/
 
-void getparamfluid(long p, string name, string value, long len)
+void getparamfluid(ami_long p, string name, string value, ami_long len)
 
 {
 

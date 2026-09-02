@@ -15,6 +15,7 @@ ami_ vector to override, and needs none.
 
 #ifndef __WIDGET_DEMO_H__
 #define __WIDGET_DEMO_H__
+#include <localdefs.h>
 
 #include <stdio.h>
 #include <graphics.h>
@@ -28,10 +29,10 @@ ami_ vector to override, and needs none.
 #define ETKICKED (ami_etuser+0) /* he kicked the ball */
 
 /* create a kick button over the rectangle, graphical coordinates */
-void kickbutton(FILE* f, long x1, long y1, long x2, long y2, long id);
+void kickbutton(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2, ami_long id);
 /* remove a kick button by id */
-void kickbuttonkill(FILE* f, long id);
+void kickbuttonkill(FILE* f, ami_long id);
 /* enable/disable a kick button */
-void kickbuttonenable(FILE* f, long id, long e);
+void kickbuttonenable(FILE* f, ami_long id, ami_long e);
 
 #endif /* __WIDGET_DEMO_H__ */

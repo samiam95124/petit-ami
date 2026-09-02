@@ -252,7 +252,7 @@ static void init_framebuffer(void)
 
         fbcols = 3840;
         fbrows = 2160;
-        if (g) sscanf(g, "%ldx%ld", &fbcols, &fbrows);
+        if (g) sscanf(g, "%lldx%lld", (long long*)(&fbcols), (long long*)(&fbrows));
         fbpixsiz = 4;
         fbstride = fbcols*fbpixsiz;
         memset(&vinfo, 0, sizeof(vinfo));
@@ -295,7 +295,7 @@ static void init_framebuffer(void)
         const char* sz = getenv("FBSIZE");
         long w, h;
 
-        if (sz && sscanf(sz, "%ldx%ld", &w, &h) == 2 &&
+        if (sz && sscanf(sz, "%lldx%lld", (long long*)(&w), (long long*)(&h)) == 2 &&
             w >= 64 && h >= 64 && w <= fbcols && h <= fbrows) {
 
             lcols = w;

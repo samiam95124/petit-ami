@@ -105,7 +105,7 @@ class gameterm: public term
     char   image[MAXSCN][MAXSCN]; /* screen image */
 
     /* methods */
-    long evterm(void);
+    ami_long evterm(void);
     void event(void);
     void writeimage(int x, int y, char c);
     char readimage(int x, int y);
@@ -139,7 +139,7 @@ screen back to 1, then exits the program with no error.
 
 *******************************************************************************/
 
-long gameterm::evterm(void)
+ami_long gameterm::evterm(void)
 
 {
 
@@ -260,12 +260,12 @@ class game: public gameterm
     ~game();                       /* destuctor */
 
     /* event callbacks */
-    long evleft(void);             /* left arrow */
-    long evright(void);            /* right arrow */
-    long evup(void);               /* up arrow */
-    long evdown(void);             /* down arrow */
-    long evjoymov(long j, long x, long y, long z); /* joystick move */
-    long evtim(long t);            /* timer fires */
+    ami_long evleft(void);             /* left arrow */
+    ami_long evright(void);            /* right arrow */
+    ami_long evup(void);               /* up arrow */
+    ami_long evdown(void);             /* down arrow */
+    ami_long evjoymov(ami_long j, ami_long x, ami_long y, ami_long z); /* joystick move */
+    ami_long evtim(ami_long t);            /* timer fires */
 
     /* additional methods */
     void clrscn(void);             /* clear and format game screen */
@@ -287,10 +287,10 @@ Called on arrow keys, moves the snake in the direction indicated.
 
 *******************************************************************************/
 
-long game::evleft(void) { movesnake(etleft); return (1); }
-long game::evright(void) { movesnake(etright); return (1); }
-long game::evup(void) { movesnake(etup); return (1); }
-long game::evdown(void) { movesnake(etdown); return (1); }
+ami_long game::evleft(void) { movesnake(etleft); return (1); }
+ami_long game::evright(void) { movesnake(etright); return (1); }
+ami_long game::evup(void) { movesnake(etup); return (1); }
+ami_long game::evdown(void) { movesnake(etdown); return (1); }
 
 /*******************************************************************************
 
@@ -301,7 +301,7 @@ goes in the joystick indicated direction.
 
 *******************************************************************************/
 
-long game::evjoymov(long j, long x, long y, long z)
+ami_long game::evjoymov(ami_long j, ami_long x, ami_long y, ami_long z)
 
 {
 
@@ -323,7 +323,7 @@ Called on timer events. We handle only timer 1 here, the automatic move timer.
 
 *******************************************************************************/
 
-long game::evtim(long t)
+ami_long game::evtim(ami_long t)
 
 {
 
@@ -408,7 +408,7 @@ int game::randn(int limit)
 
 {
 
-    return (long)limit*rand()/RAND_MAX;
+    return (ami_long)limit*rand()/RAND_MAX;
 
 }
 

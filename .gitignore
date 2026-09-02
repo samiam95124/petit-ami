@@ -1,4 +1,5 @@
 # regression run products (bin/regress); the golden .cmp files are tracked
 tests/*.lst
 tests/*.dif
+tests/*.out
 linux/wlproto/*.o

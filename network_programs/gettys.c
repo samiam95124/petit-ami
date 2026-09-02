@@ -45,7 +45,7 @@ string gettys[] = {
 
 };
 
-long secure = FALSE;
+ami_long secure = FALSE;
 
 ami_optrec opttbl[] = {
 
@@ -60,11 +60,11 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    unsigned long addr;
-    long port = 4433;
+    ami_ulong addr;
+    ami_long port = 4433;
     int s;
-    long argi = 1;
-    long argcl = argc;
+    ami_long argi = 1;
+    ami_long argcl = argc;
 
     /* parse user options */
     ami_options(&argi, &argcl, argv, opttbl, TRUE);

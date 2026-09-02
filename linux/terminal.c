@@ -295,12 +295,12 @@ typedef struct joyrec {
     int sid;    /* system event id */
     int axis;   /* number of joystick axes */
     int button; /* number of joystick buttons */
-    long ax;    /* joystick x axis save */
-    long ay;    /* joystick y axis save */
-    long az;    /* joystick z axis save */
-    long a4;    /* joystick axis 4 save */
-    long a5;    /* joystick axis 5 save */
-    long a6;    /* joystick axis 6 save */
+    ami_long ax;    /* joystick x axis save */
+    ami_long ay;    /* joystick y axis save */
+    ami_long az;    /* joystick z axis save */
+    ami_long a4;    /* joystick axis 4 save */
+    ami_long a5;    /* joystick axis 5 save */
+    ami_long a6;    /* joystick axis 6 save */
     int no;     /* logical number of joystick, 1-n */
 
 } joyrec;
@@ -686,10 +686,10 @@ static int      dimx;        /* actual width of screen */
 static int      dimy;        /* actual height of screen */
 static int      bufx, bufy;  /* buffer size */
 static int      curon;       /* current on/off state of cursor */
-static long     curx;        /* cursor position on screen */
-static long     cury;
-static long     ncurx;       /* new cursor position on screen */
-static long     ncury;
+static ami_long curx;        /* cursor position on screen */
+static ami_long cury;
+static ami_long ncurx;       /* new cursor position on screen */
+static ami_long ncury;
 static int      curval;      /* physical cursor position valid */
 static int      curvis;      /* current status of cursor visible */
 static ami_color forec;       /* current writing foreground color primaries */
@@ -713,9 +713,9 @@ static int    errflg;      /* error occurred */
    written before init are not printed empty (init recomputes it for the
    actual long width). */
 #if LONG_MAX > 2147483647L
-static long   maxpow10 = 1000000000000000000L;
+static ami_long   maxpow10 = 1000000000000000000L;
 #else
-static long   maxpow10 = 1000000000L;
+static ami_long   maxpow10 = 1000000000L;
 #endif
 static int    numjoy;         /* number of joysticks found */
 
@@ -878,7 +878,7 @@ static void ttlogs(const char* s)
 
 }
 
-static void linuxerror_ivf(long ec)
+static void linuxerror_ivf(ami_long ec)
 
 {
 
@@ -886,7 +886,7 @@ static void linuxerror_ivf(long ec)
 
         char b[64];
 
-        snprintf(b, sizeof(b), "\n[linuxerror ec=%ld %s]\n", ec, strerror(ec));
+        snprintf(b, sizeof(b), "\n[linuxerror ec=%lld %s]\n", AMI_LONG_CAST(ec), strerror(ec));
         ttlogs(b);
 
     }
@@ -993,22 +993,22 @@ static void prtevt(
     switch (er->etype) {
 
         case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
-        case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
-        case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
-                                  er->mmoun, er->moupx, er->moupy); break;
-        case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
-                                 er->amoun, er->amoubn); break;
-        case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
-                                 er->dmoun, er->dmoubn); break;
-        case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
-                                 er->ajoyn, er->ajoybn); break;
-        case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
-                                 er->djoyn, er->djoybn); break;
-        case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
-                                  "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
-                                  er->joypx, er->joypy, er->joypz,
-                                  er->joyp4, er->joyp5, er->joyp6); break;
-        case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
+        case ami_ettim: fprintf(stderr, ": timer: %lld", AMI_LONG_CAST(er->timnum)); break;
+        case ami_etmoumov: fprintf(stderr, ": mouse: %lld x: %4lld y: %4lld",
+                                  AMI_LONG_CAST(er->mmoun), AMI_LONG_CAST(er->moupx), AMI_LONG_CAST(er->moupy)); break;
+        case ami_etmouba: fprintf(stderr, ": mouse: %lld button: %lld",
+                                 AMI_LONG_CAST(er->amoun), AMI_LONG_CAST(er->amoubn)); break;
+        case ami_etmoubd: fprintf(stderr, ": mouse: %lld button: %lld",
+                                 AMI_LONG_CAST(er->dmoun), AMI_LONG_CAST(er->dmoubn)); break;
+        case ami_etjoyba: fprintf(stderr, ": joystick: %lld button: %lld",
+                                 AMI_LONG_CAST(er->ajoyn), AMI_LONG_CAST(er->ajoybn)); break;
+        case ami_etjoybd: fprintf(stderr, ": joystick: %lld button: %lld",
+                                 AMI_LONG_CAST(er->djoyn), AMI_LONG_CAST(er->djoybn)); break;
+        case ami_etjoymov: fprintf(stderr, ": joystick: %lld x: %4lld y: %4lld z: %4lld "
+                                  "a4: %4lld a5: %4lld a6: %4lld", AMI_LONG_CAST(er->mjoyn),
+                                  AMI_LONG_CAST(er->joypx), AMI_LONG_CAST(er->joypy), AMI_LONG_CAST(er->joypz),
+                                  AMI_LONG_CAST(er->joyp4), AMI_LONG_CAST(er->joyp5), AMI_LONG_CAST(er->joyp6)); break;
+        case ami_etfun: fprintf(stderr, ": key: %lld", AMI_LONG_CAST(er->fkey)); break;
         default: ;
 
     }
@@ -1130,7 +1130,7 @@ static void seqstr(const char* s)
 }
 
 /* place an integer, in decimal, in the sequence under construction */
-static void seqint(long i)
+static void seqint(ami_long i)
 
 {
 
@@ -1217,7 +1217,7 @@ warnings.
 
 *******************************************************************************/
 
-static void putnstrc(char *s, long n)
+static void putnstrc(char *s, ami_long n)
 
 
 {
@@ -1236,11 +1236,11 @@ Writes a simple unsigned integer to the output file.
 
 *******************************************************************************/
 
-static void wrtint(long i)
+static void wrtint(ami_long i)
 
 {
 
-    /* power holder */       long p;
+    /* power holder */       ami_long p;
     /* digit holder */       char digit;
     /* leading digit flag */ int  leading;
 
@@ -1601,7 +1601,7 @@ nearest primary color to the given RGB color.
 
 ******************************************************************************/
 
-static ami_color colrgbnum(long r, long g, long b)
+static ami_color colrgbnum(ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -1634,7 +1634,7 @@ bit word with blue, green and red bytes.
 
 *******************************************************************************/
 
-static int rgb2rgbp(long r, long g, long b)
+static int rgb2rgbp(ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -1818,7 +1818,7 @@ static void trm_bcolor(ami_color c)
 }
 
 /** position cursor */
-static void trm_cursor(long x, long y)
+static void trm_cursor(ami_long x, ami_long y)
 
 {
 
@@ -1838,7 +1838,7 @@ static int curdef = 0; /* a cursor state is recorded but not yet emitted */
    such as scrolling and restoring, must use this rather than trm_cursor:
    leaving the tracker stale lets a later positioning take a relative move
    from a position the cursor is no longer at. */
-static void trm_cursorset(long x, long y)
+static void trm_cursorset(ami_long x, ami_long y)
 
 {
 
@@ -1862,7 +1862,7 @@ static void trm_title(char* title)
 }
 
 /** set title with length */
-static void trm_titlen(char* title, long l)
+static void trm_titlen(char* title, ami_long l)
 
 {
 
@@ -2909,7 +2909,7 @@ void prtbuf(scnptr sc)
 
 }
 
-static void iscroll(scnptr sc, long x, long y)
+static void iscroll(scnptr sc, ami_long x, ami_long y)
 
 {
 
@@ -3147,7 +3147,7 @@ Moves the cursor to the specified x and y location.
 
 *******************************************************************************/
 
-static void icursor(scnptr sc, long x, long y)
+static void icursor(scnptr sc, ami_long x, ami_long y)
 
 {
 
@@ -3291,7 +3291,7 @@ static void plcchr(scnptr sc, unsigned char c)
 {
 
     scnrec* p;
-    long i;
+    ami_long i;
 
     /* handle special character cases first */
     if (c == '\r') /* carriage return, position to extreme left */
@@ -3422,7 +3422,7 @@ static void readline(void)
     ami_evtrec er;   /* event record */
     scnptr    sc;   /* pointer to current screen */
     int       ins;  /* insert/overwrite mode */
-    long      xoff; /* x starting line offset */
+    ami_long  xoff; /* x starting line offset */
     int       l;    /* buffer length */
     int       i;
 
@@ -3933,8 +3933,8 @@ This is the external interface to cursor.
 *******************************************************************************/
 
 APIOVER(cursor)
-void ami_cursor(FILE* f, long x, long y) { (*cursor_vect)(f, x, y); }
-static void cursor_ivf(FILE *f, long x, long y)
+void ami_cursor(FILE* f, ami_long x, ami_long y) { (*cursor_vect)(f, x, y); }
+static void cursor_ivf(FILE *f, ami_long x, ami_long y)
 
 {
 
@@ -3954,12 +3954,12 @@ This is the external interface to curbnd.
 *******************************************************************************/
 
 APIOVER(curbnd)
-long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
-static long curbnd_ivf(FILE *f)
+ami_long ami_curbnd(FILE* f) { return ((*curbnd_vect)(f)); }
+static ami_long curbnd_ivf(FILE *f)
 
 {
 
-    long fl;
+    ami_long fl;
 
     dbg_printf(dlapi, "API\n");
     pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -3980,8 +3980,8 @@ display. Because ANSI has no information return capability, this is preset.
 *******************************************************************************/
 
 APIOVER(maxx)
-long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
-static long maxx_ivf(FILE *f)
+ami_long ami_maxx(FILE* f) { return ((*maxx_vect)(f)); }
+static ami_long maxx_ivf(FILE *f)
 
 {
 
@@ -4000,8 +4000,8 @@ display. Because ANSI has no information return capability, this is preset.
 *******************************************************************************/
 
 APIOVER(maxy)
-long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
-static long maxy_ivf(FILE *f)
+ami_long ami_maxy(FILE* f) { return ((*maxy_vect)(f)); }
+static ami_long maxy_ivf(FILE *f)
 
 {
 
@@ -4153,7 +4153,7 @@ xterm.
 
 *******************************************************************************/
 
-static void attronoff(FILE *f, long e, scnatt nattr)
+static void attronoff(FILE *f, ami_long e, scnatt nattr)
 
 {
 
@@ -4209,8 +4209,8 @@ we are supposed to also work over a com interface.
 *******************************************************************************/
 
 APIOVER(blink)
-void ami_blink(FILE* f, long e) { (*blink_vect)(f, e); }
-static void blink_ivf(FILE *f, long e)
+void ami_blink(FILE* f, ami_long e) { (*blink_vect)(f, e); }
+static void blink_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4228,8 +4228,8 @@ Turns on/off the reverse attribute.
 *******************************************************************************/
 
 APIOVER(reverse)
-void ami_reverse(FILE* f, long e) { (*reverse_vect)(f, e); }
-static void reverse_ivf(FILE *f, long e)
+void ami_reverse(FILE* f, ami_long e) { (*reverse_vect)(f, e); }
+static void reverse_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4247,8 +4247,8 @@ Turns on/off the underline attribute.
 *******************************************************************************/
 
 APIOVER(underline)
-void ami_underline(FILE* f, long e) { (*underline_vect)(f, e); }
-static void underline_ivf(FILE *f, long e)
+void ami_underline(FILE* f, ami_long e) { (*underline_vect)(f, e); }
+static void underline_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4266,8 +4266,8 @@ Turns on/off the superscript attribute.
 *******************************************************************************/
 
 APIOVER(superscript)
-void ami_superscript(FILE* f, long e) { (*superscript_vect)(f, e); }
-static void superscript_ivf(FILE *f, long e)
+void ami_superscript(FILE* f, ami_long e) { (*superscript_vect)(f, e); }
+static void superscript_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4285,8 +4285,8 @@ Turns on/off the subscript attribute.
 *******************************************************************************/
 
 APIOVER(subscript)
-void ami_subscript(FILE* f, long e) { (*subscript_vect)(f, e); }
-static void subscript_ivf(FILE *f, long e)
+void ami_subscript(FILE* f, ami_long e) { (*subscript_vect)(f, e); }
+static void subscript_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4304,8 +4304,8 @@ Turns on/off the italic attribute.
 *******************************************************************************/
 
 APIOVER(italic)
-void ami_italic(FILE* f, long e) { (*italic_vect)(f, e); }
-static void italic_ivf(FILE *f, long e)
+void ami_italic(FILE* f, ami_long e) { (*italic_vect)(f, e); }
+static void italic_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4323,8 +4323,8 @@ Turns on/off the bold attribute.
 *******************************************************************************/
 
 APIOVER(bold)
-void ami_bold(FILE* f, long e) { (*bold_vect)(f, e); }
-static void bold_ivf(FILE *f, long e)
+void ami_bold(FILE* f, ami_long e) { (*bold_vect)(f, e); }
+static void bold_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4344,8 +4344,8 @@ not simply leaves the text unmarked, as with any other attribute it lacks.
 *******************************************************************************/
 
 APIOVER(strikeout)
-void ami_strikeout(FILE* f, long e) { (*strikeout_vect)(f, e); }
-static void strikeout_ivf(FILE *f, long e)
+void ami_strikeout(FILE* f, ami_long e) { (*strikeout_vect)(f, e); }
+static void strikeout_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4364,8 +4364,8 @@ Note that the attributes can only be set singly.
 *******************************************************************************/
 
 APIOVER(standout)
-void ami_standout(FILE* f, long e) { (*standout_vect)(f, e); }
-static void standout_ivf(FILE *f, long e)
+void ami_standout(FILE* f, ami_long e) { (*standout_vect)(f, e); }
+static void standout_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4430,8 +4430,8 @@ off the screen at the top or bottom will scroll up or down, respectively.
 *******************************************************************************/
 
 APIOVER(auto)
-void ami_auto(FILE* f, long e) { (*auto_vect)(f, e); }
-static void auto_ivf(FILE *f, long e)
+void ami_auto(FILE* f, ami_long e) { (*auto_vect)(f, e); }
+static void auto_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4451,8 +4451,8 @@ Enable or disable cursor visibility.
 *******************************************************************************/
 
 APIOVER(curvis)
-void ami_curvis(FILE* f, long e) { (*curvis_vect)(f, e); }
-static void curvis_ivf(FILE *f, long e)
+void ami_curvis(FILE* f, ami_long e) { (*curvis_vect)(f, e); }
+static void curvis_ivf(FILE *f, ami_long e)
 
 {
 
@@ -4474,8 +4474,8 @@ int.
 *******************************************************************************/
 
 APIOVER(scroll)
-void ami_scroll(FILE* f, long x, long y) { (*scroll_vect)(f, x, y); }
-static void scroll_ivf(FILE *f, long x, long y)
+void ami_scroll(FILE* f, ami_long x, ami_long y) { (*scroll_vect)(f, x, y); }
+static void scroll_ivf(FILE *f, ami_long x, ami_long y)
 
 {
 
@@ -4495,8 +4495,8 @@ Returns the current location of the cursor in x.
 *******************************************************************************/
 
 APIOVER(curx)
-long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
-static long curx_ivf(FILE *f)
+ami_long ami_curx(FILE* f) { return ((*curx_vect)(f)); }
+static ami_long curx_ivf(FILE *f)
 
 {
 
@@ -4514,8 +4514,8 @@ Returns the current location of the cursor in y.
 *******************************************************************************/
 
 APIOVER(cury)
-long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
-static long cury_ivf(FILE *f)
+ami_long ami_cury(FILE* f) { return ((*cury_vect)(f)); }
+static ami_long cury_ivf(FILE *f)
 
 {
 
@@ -4542,8 +4542,8 @@ Note that split update and display screens are not implemented at present.
 *******************************************************************************/
 
 APIOVER(select)
-void ami_select(FILE* f, long u, long d) { (*select_vect)(f, u, d); }
-static void select_ivf(FILE *f, long u, long d)
+void ami_select(FILE* f, ami_long u, ami_long d) { (*select_vect)(f, u, d); }
+static void select_ivf(FILE *f, ami_long u, ami_long d)
 
 {
 
@@ -4592,17 +4592,17 @@ They are ganged by parameter signature.
 
 *******************************************************************************/
 
-static long genfnc(void) { return FALSE; }
-static long charfnc(char c) { return FALSE; }
-static long funfnc(long k) { return FALSE; }
-static long moubafnc(long m, long b) { return FALSE; }
-static long moubdfnc(long m, long b) { return FALSE; }
-static long moumovfnc(long m, long x, long y) { return FALSE; }
-static long timfnc(long t) { return FALSE; }
-static long joybafnc(long j, long b) { return FALSE; }
-static long joybdfnc(long j, long b) { return FALSE; }
-static long joymovfnc(long j, long x, long y, long z) { return FALSE; }
-static long resizefnc(long rszx, long rszy) { return FALSE; }
+static ami_long genfnc(void) { return FALSE; }
+static ami_long charfnc(char c) { return FALSE; }
+static ami_long funfnc(ami_long k) { return FALSE; }
+static ami_long moubafnc(ami_long m, ami_long b) { return FALSE; }
+static ami_long moubdfnc(ami_long m, ami_long b) { return FALSE; }
+static ami_long moumovfnc(ami_long m, ami_long x, ami_long y) { return FALSE; }
+static ami_long timfnc(ami_long t) { return FALSE; }
+static ami_long joybafnc(ami_long j, ami_long b) { return FALSE; }
+static ami_long joybdfnc(ami_long j, ami_long b) { return FALSE; }
+static ami_long joymovfnc(ami_long j, ami_long x, ami_long y, ami_long z) { return FALSE; }
+static ami_long resizefnc(ami_long rszx, ami_long rszy) { return FALSE; }
 
 /** ****************************************************************************
 
@@ -4916,11 +4916,11 @@ Set timer
 *******************************************************************************/
 
 APIOVER(timer)
-void ami_timer(FILE* f, long i, long t, long r) { (*timer_vect)(f, i, t, r); }
+void ami_timer(FILE* f, ami_long i, ami_long t, ami_long r) { (*timer_vect)(f, i, t, r); }
 static void timer_ivf(/* file to send event to */              FILE* f,
-                      /* timer handle */                       long  i,
-                      /* number of 100us counts */             long  t,
-                      /* timer is to rerun after completion */ long  r)
+                      /* timer handle */                       ami_long  i,
+                      /* number of 100us counts */             ami_long  t,
+                      /* timer is to rerun after completion */ ami_long  r)
 
 {
 
@@ -4943,9 +4943,9 @@ in reserve.
 *******************************************************************************/
 
 APIOVER(killtimer)
-void ami_killtimer(FILE* f, long  i ) { (*killtimer_vect)(f, i ); }
+void ami_killtimer(FILE* f, ami_long  i ) { (*killtimer_vect)(f, i ); }
 static void killtimer_ivf(/* file to kill timer on */ FILE *f,
-                  /* handle of timer */       long i)
+                  /* handle of timer */       ami_long i)
 
 {
 
@@ -4974,8 +4974,8 @@ if none is available, never changing it's state.
 *******************************************************************************/
 
 APIOVER(mouse)
-long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
-static long mouse_ivf(FILE *f)
+ami_long ami_mouse(FILE* f) { return ((*mouse_vect)(f)); }
+static ami_long mouse_ivf(FILE *f)
 
 {
 
@@ -4994,8 +4994,8 @@ to assume 3 buttons.
 *******************************************************************************/
 
 APIOVER(mousebutton)
-long ami_mousebutton(FILE* f, long m) { return ((*mousebutton_vect)(f, m)); }
-static long mousebutton_ivf(FILE *f, long m)
+ami_long ami_mousebutton(FILE* f, ami_long m) { return ((*mousebutton_vect)(f, m)); }
+static ami_long mousebutton_ivf(FILE *f, ami_long m)
 
 {
 
@@ -5013,8 +5013,8 @@ Return number of joysticks attached.
 *******************************************************************************/
 
 APIOVER(joystick)
-long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
-static long joystick_ivf(FILE *f)
+ami_long ami_joystick(FILE* f) { return ((*joystick_vect)(f)); }
+static ami_long joystick_ivf(FILE *f)
 
 {
 
@@ -5033,8 +5033,8 @@ Note that Windows 95 has no joystick capability.
 *******************************************************************************/
 
 APIOVER(joybutton)
-long ami_joybutton(FILE* f, long j) { return ((*joybutton_vect)(f, j)); }
-static long joybutton_ivf(FILE *f, long j)
+ami_long ami_joybutton(FILE* f, ami_long j) { return ((*joybutton_vect)(f, j)); }
+static ami_long joybutton_ivf(FILE *f, ami_long j)
 
 {
 
@@ -5073,8 +5073,8 @@ Note that Windows 95 has no joystick capability.
 *******************************************************************************/
 
 APIOVER(joyaxis)
-long ami_joyaxis(FILE* f, long j) { return ((*joyaxis_vect)(f, j)); }
-static long joyaxis_ivf(FILE *f, long j)
+ami_long ami_joyaxis(FILE* f, ami_long j) { return ((*joyaxis_vect)(f, j)); }
+static ami_long joyaxis_ivf(FILE *f, ami_long j)
 
 {
 
@@ -5113,8 +5113,8 @@ tab stop that is set. If there is no next tab stop, nothing will happen.
 *******************************************************************************/
 
 APIOVER(settab)
-void ami_settab(FILE* f, long t) { (*settab_vect)(f, t); }
-static void settab_ivf(FILE* f, long t)
+void ami_settab(FILE* f, ami_long t) { (*settab_vect)(f, t); }
+static void settab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -5140,8 +5140,8 @@ Resets a tab. The tab number t is 1 to n, and indicates the column for the tab.
 *******************************************************************************/
 
 APIOVER(restab)
-void ami_restab(FILE* f, long t) { (*restab_vect)(f, t); }
-static void restab_ivf(FILE* f, long t)
+void ami_restab(FILE* f, ami_long t) { (*restab_vect)(f, t); }
+static void restab_ivf(FILE* f, ami_long t)
 
 {
 
@@ -5194,8 +5194,8 @@ but more can be allocated if needed.
 *******************************************************************************/
 
 APIOVER(funkey)
-long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
-static long funkey_ivf(FILE* f)
+ami_long ami_funkey(FILE* f) { return ((*funkey_vect)(f)); }
+static ami_long funkey_ivf(FILE* f)
 
 {
 
@@ -5213,8 +5213,8 @@ Enables or disables the framing timer.
 *******************************************************************************/
 
 APIOVER(frametimer)
-void ami_frametimer(FILE* f, long e) { (*frametimer_vect)(f, e); }
-static void frametimer_ivf(FILE* f, long e)
+void ami_frametimer(FILE* f, ami_long e) { (*frametimer_vect)(f, e); }
+static void frametimer_ivf(FILE* f, ami_long e)
 
 {
 
@@ -5251,8 +5251,8 @@ holding terminal unaware programs.
 *******************************************************************************/
 
 APIOVER(autohold)
-void ami_autohold(long e) { (*autohold_vect)(e); }
-static void autohold_ivf(long e)
+void ami_autohold(ami_long e) { (*autohold_vect)(e); }
+static void autohold_ivf(ami_long e)
 
 {
 
@@ -5271,7 +5271,7 @@ Writes a string direct to the terminal, bypassing character handling.
 
 APIOVER(wrtstr)
 void ami_wrtstr(FILE* f, char* s) { (*wrtstr_vect)(f, s); }
-static void wrtstrn_ivf(FILE* f, char *s, long n); /* forward */
+static void wrtstrn_ivf(FILE* f, char *s, ami_long n); /* forward */
 
 static void wrtstr_ivf(FILE* f, char *s)
 
@@ -5293,17 +5293,17 @@ handling.
 *******************************************************************************/
 
 APIOVER(wrtstrn)
-void ami_wrtstrn(FILE* f, char* s, long n) { (*wrtstrn_vect)(f, s, n); }
-static void wrtstrn_ivf(FILE* f, char *s, long n)
+void ami_wrtstrn(FILE* f, char* s, ami_long n) { (*wrtstrn_vect)(f, s, n); }
+static void wrtstrn_ivf(FILE* f, char *s, ami_long n)
 
 {
 
     ssize_t rc;      /* return code */
-    long    off = 0; /* offset into the string */
+    ami_long    off = 0; /* offset into the string */
 
     scnptr  sc;
     scnrec* p;
-    long    i;
+    ami_long    i;
 
     dbg_printf(dlapi, "API\n");
     /* The call is disallowed with auto on: a run is a straight lay of
@@ -5373,8 +5373,8 @@ Sets or resets the size of the buffer surface.
 *******************************************************************************/
 
 APIOVER(sizbuf)
-void ami_sizbuf(FILE* f, long x, long y) { (*sizbuf_vect)(f, x, y); }
-static void sizbuf_ivf(FILE* f, long x, long y)
+void ami_sizbuf(FILE* f, ami_long x, ami_long y) { (*sizbuf_vect)(f, x, y); }
+static void sizbuf_ivf(FILE* f, ami_long x, ami_long y)
 
 {
 
@@ -5428,8 +5428,8 @@ Sets the title of the current window.
 *******************************************************************************/
 
 APIOVER(titlen)
-void ami_titlen(FILE* f, char* ts, long l) { (*titlen_vect)(f, ts, l); }
-static void titlen_ivf(FILE* f, char* ts, long l)
+void ami_titlen(FILE* f, char* ts, ami_long l) { (*titlen_vect)(f, ts, l); }
+static void titlen_ivf(FILE* f, char* ts, ami_long l)
     
 { 
 
@@ -5473,8 +5473,8 @@ Sets the foreground color from individual r, g, b values.
 *******************************************************************************/
 
 APIOVER(fcolorc)
-void ami_fcolorc(FILE* f, long r, long g, long b) { (*fcolorc_vect)(f, r, g, b); }
-static void fcolorc_ivf(FILE* f, long r, long g, long b)
+void ami_fcolorc(FILE* f, ami_long r, ami_long g, ami_long b) { (*fcolorc_vect)(f, r, g, b); }
+static void fcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -5501,8 +5501,8 @@ Sets the background color from individual r, g, b values.
 *******************************************************************************/
 
 APIOVER(bcolorc)
-void ami_bcolorc(FILE* f, long r, long g, long b) { (*bcolorc_vect)(f, r, g, b); }
-static void bcolorc_ivf(FILE* f, long r, long g, long b)
+void ami_bcolorc(FILE* f, ami_long r, ami_long g, ami_long b) { (*bcolorc_vect)(f, r, g, b); }
+static void bcolorc_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
 
 {
 
@@ -5586,39 +5586,39 @@ void ami_sendevent(FILE* f, ami_evtrec* er) { (*sendevent_vect)(f, er); }
 static void sendevent_ivf(FILE* f, ami_evtrec* er) { error(ami_dispesendevent_unimp); }
 
 APIOVER(openwin)
-void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, long wid)
+void ami_openwin(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
     { (*openwin_vect)(infile, outfile, parent, wid); }
-static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, long wid)
+static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, ami_long wid)
     { error(ami_dispeopenwin_unimp); }
 
 APIOVER(buffer)
-void ami_buffer(FILE* f, long e) { (*buffer_vect)(f, e); }
-static void buffer_ivf(FILE* f, long e) { error(ami_dispebuffer_unimp); }
+void ami_buffer(FILE* f, ami_long e) { (*buffer_vect)(f, e); }
+static void buffer_ivf(FILE* f, ami_long e) { error(ami_dispebuffer_unimp); }
 
 APIOVER(getsiz)
-void ami_getsiz(FILE* f, long* x, long* y) { (*getsiz_vect)(f, x, y); }
-static void getsiz_ivf(FILE* f, long* x, long* y) { error(ami_dispegetsiz_unimp); }
+void ami_getsiz(FILE* f, ami_long* x, ami_long* y) { (*getsiz_vect)(f, x, y); }
+static void getsiz_ivf(FILE* f, ami_long* x, ami_long* y) { error(ami_dispegetsiz_unimp); }
 
 APIOVER(setsiz)
-void ami_setsiz(FILE* f, long x, long y) { (*setsiz_vect)(f, x, y); }
-static void setsiz_ivf(FILE* f, long x, long y) { error(ami_dispesetsiz_unimp); }
+void ami_setsiz(FILE* f, ami_long x, ami_long y) { (*setsiz_vect)(f, x, y); }
+static void setsiz_ivf(FILE* f, ami_long x, ami_long y) { error(ami_dispesetsiz_unimp); }
 
 APIOVER(setpos)
-void ami_setpos(FILE* f, long x, long y) { (*setpos_vect)(f, x, y); }
-static void setpos_ivf(FILE* f, long x, long y) { error(ami_dispesetpos_unimp); }
+void ami_setpos(FILE* f, ami_long x, ami_long y) { (*setpos_vect)(f, x, y); }
+static void setpos_ivf(FILE* f, ami_long x, ami_long y) { error(ami_dispesetpos_unimp); }
 
 APIOVER(scnsiz)
-void ami_scnsiz(FILE* f, long* x, long* y) { (*scnsiz_vect)(f, x, y); }
-static void scnsiz_ivf(FILE* f, long* x, long* y) { error(ami_dispescnsiz_unimp); }
+void ami_scnsiz(FILE* f, ami_long* x, ami_long* y) { (*scnsiz_vect)(f, x, y); }
+static void scnsiz_ivf(FILE* f, ami_long* x, ami_long* y) { error(ami_dispescnsiz_unimp); }
 
 APIOVER(scncen)
-void ami_scncen(FILE* f, long* x, long* y) { (*scncen_vect)(f, x, y); }
-static void scncen_ivf(FILE* f, long* x, long* y) { error(ami_dispescncen_unimp); }
+void ami_scncen(FILE* f, ami_long* x, ami_long* y) { (*scncen_vect)(f, x, y); }
+static void scncen_ivf(FILE* f, ami_long* x, ami_long* y) { error(ami_dispescncen_unimp); }
 
 APIOVER(winclient)
-void ami_winclient(FILE* f, long cx, long cy, long* wx, long* wy, ami_winmodset ms)
+void ami_winclient(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, ami_winmodset ms)
     { (*winclient_vect)(f, cx, cy, wx, wy, ms); }
-static void winclient_ivf(FILE* f, long cx, long cy, long* wx, long* wy, 
+static void winclient_ivf(FILE* f, ami_long cx, ami_long cy, ami_long* wx, ami_long* wy, 
                           ami_winmodset ms)
     { error(ami_dispewinclient_unimp); }
 
@@ -5631,28 +5631,28 @@ void ami_back(FILE* f) { (*back_vect)(f); }
 static void back_ivf(FILE* f) { error(ami_dispeback_unimp); }
 
 APIOVER(frame)
-void ami_frame(FILE* f, long e) { (*frame_vect)(f, e); }
-static void frame_ivf(FILE* f, long e) { error(ami_dispeframe_unimp); }
+void ami_frame(FILE* f, ami_long e) { (*frame_vect)(f, e); }
+static void frame_ivf(FILE* f, ami_long e) { error(ami_dispeframe_unimp); }
 
 APIOVER(sizable)
-void ami_sizable(FILE* f, long e) { (*sizable_vect)(f, e); }
-static void sizable_ivf(FILE* f, long e) { error(ami_dispesizable_unimp); }
+void ami_sizable(FILE* f, ami_long e) { (*sizable_vect)(f, e); }
+static void sizable_ivf(FILE* f, ami_long e) { error(ami_dispesizable_unimp); }
 
 APIOVER(sysbar)
-void ami_sysbar(FILE* f, long e) { (*sysbar_vect)(f, e); }
-static void sysbar_ivf(FILE* f, long e) { error(ami_dispesysbar_unimp); }
+void ami_sysbar(FILE* f, ami_long e) { (*sysbar_vect)(f, e); }
+static void sysbar_ivf(FILE* f, ami_long e) { error(ami_dispesysbar_unimp); }
 
 APIOVER(menu)
 void ami_menu(FILE* f, ami_menuptr m) { (*menu_vect)(f, m); }
 static void menu_ivf(FILE* f, ami_menuptr m) { error(ami_dispemenu_unimp); }
 
 APIOVER(menuena)
-void ami_menuena(FILE* f, long id, long onoff) { (*menuena_vect)(f, id, onoff); }
-static void menuena_ivf(FILE* f, long id, long onoff) { error(ami_dispemenuena_unimp); }
+void ami_menuena(FILE* f, ami_long id, ami_long onoff) { (*menuena_vect)(f, id, onoff); }
+static void menuena_ivf(FILE* f, ami_long id, ami_long onoff) { error(ami_dispemenuena_unimp); }
 
 APIOVER(menusel)
-void ami_menusel(FILE* f, long id, long select) { (*menusel_vect)(f, id, select); }
-static void menusel_ivf(FILE* f, long id, long select) { error(ami_dispemenusel_unimp); }
+void ami_menusel(FILE* f, ami_long id, ami_long select) { (*menusel_vect)(f, id, select); }
+static void menusel_ivf(FILE* f, ami_long id, ami_long select) { error(ami_dispemenusel_unimp); }
 
 APIOVER(stdmenu)
 void ami_stdmenu(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
@@ -5661,8 +5661,8 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
     { error(ami_dispestdmenu_unimp); }
 
 APIOVER(getwinid)
-long ami_getwinid(void) { return ((*getwinid_vect)()); }
-static long getwinid_ivf(void) { error(ami_dispegetwinid_unimp); return 0; }
+ami_long ami_getwinid(void) { return ((*getwinid_vect)()); }
+static ami_long getwinid_ivf(void) { error(ami_dispegetwinid_unimp); return 0; }
 
 APIOVER(focus)
 void ami_focus(FILE* f) { (*focus_vect)(f); }
