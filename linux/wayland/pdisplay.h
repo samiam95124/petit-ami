@@ -161,6 +161,11 @@ void pd_close(pd_display* d);
 /* primary output metrics: pixels and millimeters. Values follow the
    output the compositor reports; a caller wanting density divides */
 void pd_screen(pd_display* d, int* wpx, int* hpx, int* wmm, int* hmm);
+/* the output's integer scale: buffer pixels per logical pixel, 1 on an
+   unscaled desktop. A toplevel is a whole number of logical pixels on a
+   side, so a size that is not a multiple of this comes back from the
+   compositor rounded up */
+int  pd_scale(pd_display* d);
 
 /*******************************************************************************
 

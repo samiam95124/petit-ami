@@ -3413,6 +3413,3225 @@ int grx_ft_text_width(FT_Face face, const char* s, int len)
 
 }
 
+static void ft_draw_char_rotated_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                                    int pixel_size_x, int pixel_size_y,
+                                    float angle_rad, int x, int y, char c);
+static void ft_cache_clear_un(void);
+static void ft_invalidate_face_un(FT_Face face);
+
+static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
+                         int pixel_size_x, int pixel_size_y,
+                         int x, int y, char c);
+void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
+                           int pixel_size_x, int pixel_size_y,
+                           int x, int y, char* s, int len);
+int  grx_ft_text_width(FT_Face face, const char* s, int len);
+static void ft_draw_char_rotated(pd_canvas* d, pd_draw* gc, FT_Face face,
+                                 int pixel_size_x, int pixel_size_y,
+                                 float angle_rad,
+                                 int x, int y, char c);
+static void ft_cache_clear(void);
+static void ft_invalidate_face(FT_Face face);
+
+/*
+ * Debug print system
+ *
+ * Example use:
+ *
+ * dbg_printf(dlinfo, "There was an error: string: %s\n", bark);
+ *
+ * mydir/test.c:myfunc():12: There was an error: somestring
+ *
+ */
+
+static enum { /* debug levels */
+
+    dlinfo, /* informational */
+    dlwarn, /* warnings */
+    dlfail, /* failure/critical */
+    dlnone  /* no messages */
+
+} dbglvl = dlinfo;
+
+#define dbg_printf(lvl, fmt, ...) \
+        do { if (lvl >= dbglvl) fprintf(stderr, "%s:%s():%d: " fmt, __FILE__, \
+                                __func__, __LINE__, ##__VA_ARGS__); \
+                                fflush(stderr); } while (0)
+
+//#define PRTFNT /* print internal fonts list */
+//#define PRTMEM /* print memory allocations at exit */
+//#define PRTPWM /* print window parameters on open */
+//#define PRTFRM /* print Xwindow frame parameters */
+//#define NOWDELAY /* don't delay window presentation until drawn */
+//#define NOFAKEFOCUS /* don't fake focus for child windows */
+#define WAITWMR     /* wait on window manager replies for window configures */
+
+#if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X */
+#define NOCANCEL /* include nocancel overrides */
+#endif
+
+/* the "standard character" sizes are used to form a pseudo-size for desktop
+   character measurements in a graphical system. */
+#define STDCHRX   8
+#define STDCHRY   12
+#define MAXBUF 10  /* maximum number of buffers available */
+#define IOWIN  1   /* logical window number of input/output pair */
+#define MINJST 1   /* minimum pixels for space in justification */
+#define MAXFNM 250 /* number of filename characters in buffer */
+#define MAXJOY 10  /* number of joysticks possible */
+
+/* Logical → physical viewport transform. Petit-Ami primitives shift their
+   1-based logical coordinates by -1 before calling into X11; the transform
+   is applied after that shift so operation is entirely in 0-based space.
+   At scale 1.0 with zero offset the transform is a no-op. */
+#define L2PX(w, v)  ((int)((v) * (w)->vsx) + (w)->goffx)
+#define L2PY(w, v)  ((int)((v) * (w)->vsy) + (w)->goffy)
+#define L2PW(w, n)  ((int)((n) * (w)->vsx))
+#define L2PH(w, n)  ((int)((n) * (w)->vsy))
+/* deltas (no offset) used by scroll helpers */
+#define L2PDX(w, v) ((int)((v) * (w)->vsx))
+#define L2PDY(w, v) ((int)((v) * (w)->vsy))
+/* inverse: physical → logical, for mouse coordinate helpers */
+#define P2LX(w, v)  ((int)(((v) - (w)->goffx) / (w)->vsx))
+#define P2LY(w, v)  ((int)(((v) - (w)->goffy) / (w)->vsy))
+
+#define MAXSID 100 /* number of possible logical system events */
+/* extra space to add in x/y for initial window */
+#ifdef __MACH__ /* Mac OS X */
+/* in XQuartz XWindows emulation, there is a move square in the lower right hand
+   corner that we have to avoid. We fill in scroll bars around it */
+#define EXTSPC 15
+#else
+#define EXTSPC 0
+#endif
+
+/* To properly compensate for high DPI displays, we use actual height onscreen
+   to determine the character height. Note the point size was choosen to most
+   closely match xterm. */
+#define POINT  (0.353) /* point size in mm */
+#define STRIKE (1.5)   /* strikeout percentage (from top of cell to baseline */
+
+/* Size and offset of missing font character in cell y fractions. We define this
+   here because the character set may or may not have such a character. It is
+   a Unicode white square */
+#define MISCHRX 0.5  /* size x */
+#define MISCHRY 0.75 /* size y */
+#define MISOFFX 0.2  /* offset x */
+#define MISOFFY 0.2  /* offset y */
+
+/*
+ * Configurable parameters
+ *
+ * These parameters can be configured here at compile time, or are overriden
+ * at runtime by values of the same name in the config files.
+ * The values are overriddable.
+ */
+#ifndef MAXXD
+#define MAXXD     80 /* standard terminal, 80x25 */
+#endif
+
+#ifndef MAXYD
+#define MAXYD     25
+#endif
+
+#ifndef DIALOGERR
+#define DIALOGERR 1     /* send runtime errors to dialog */
+#endif
+
+#ifndef MOUSEENB
+#define MOUSEENB  TRUE  /* enable mouse */
+#endif
+
+#ifndef JOYENB
+#define JOYENB    TRUE  /* enable joysticks */
+#endif
+
+#ifndef DMPMSG
+#define DMPMSG    FALSE /* enable dump messages (diagnostic) */
+#endif
+
+#ifndef DMPEVT
+#define DMPEVT    FALSE /* enable dump Petit-Ami messages */
+#endif
+
+#ifndef PRTFTM
+#define PRTFTM    FALSE /* print font metrics (diagnostic) */
+#endif
+
+#ifndef CONPNT
+#define CONPNT    11    /* height of console font in points */
+#endif
+
+/* file handle numbers at the system interface level */
+#define INPFIL 0 /* handle to standard input */
+#define OUTFIL 1 /* handle to standard output */
+#define ERRFIL 2 /* handle to standard error */
+
+/* XWindows call lock/unlock */
+
+/* motif window manager decoration bits, used to enable or disable windows
+   decorations. These are no longer defined in XLIB, but are operative. */
+#define MWM_HINTS_FUNCTIONS     (1L << 0)
+#define MWM_HINTS_DECORATIONS   (1L << 1)
+#define MWM_HINTS_INPUT_MODE    (1L << 2)
+#define MWM_HINTS_STATUS        (1L << 3)
+
+#define MWM_FUNC_ALL            (1L << 0)
+#define MWM_FUNC_RESIZE         (1L << 1)
+#define MWM_FUNC_MOVE           (1L << 2)
+#define MWM_FUNC_MINIMIZE       (1L << 3)
+#define MWM_FUNC_MAXIMIZE       (1L << 4)
+#define MWM_FUNC_CLOSE          (1L << 5)
+
+#define MWM_DECOR_ALL           (1L << 0)
+#define MWM_DECOR_BORDER        (1L << 1)
+#define MWM_DECOR_RESIZEH       (1L << 2)
+#define MWM_DECOR_TITLE         (1L << 3)
+#define MWM_DECOR_MENU          (1L << 4)
+#define MWM_DECOR_MINIMIZE      (1L << 5)
+#define MWM_DECOR_MAXIMIZE      (1L << 6)
+
+/* types of system vectors for override calls */
+
+typedef ssize_t (*pread_t)(int, void*, size_t);
+typedef ssize_t (*pwrite_t)(int, const void*, size_t);
+typedef int (*popen_t)(const char*, int, int);
+typedef int (*pclose_t)(int);
+typedef off_t (*plseek_t)(int, off_t, int);
+
+/* system override calls */
+
+extern void ovr_read(pread_t nfp, pread_t* ofp);
+extern void ovr_write(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_open(popen_t nfp, popen_t* ofp);
+extern void ovr_close(pclose_t nfp, pclose_t* ofp);
+extern void ovr_lseek(plseek_t nfp, plseek_t* ofp);
+
+#ifdef NOCANCEL
+extern void ovr_read_nocancel(pread_t nfp, pread_t* ofp);
+extern void ovr_write_nocancel(pwrite_t nfp, pwrite_t* ofp);
+extern void ovr_open_nocancel(popen_t nfp, popen_t* ofp);
+extern void ovr_close_nocancel(pclose_t nfp, pclose_t* ofp);
+#endif
+
+/* screen text attribute */
+typedef enum {
+
+    sablink,     /* blinking text (foreground) */
+    sarev,       /* reverse video */
+    saundl,      /* underline */
+    sasuper,     /* superscript */
+    sasubs,      /* subscripting */
+    saital,      /* italic text */
+    sabold,      /* bold text */
+    sastkout,    /* strikeout text */
+    sacondensed, /* condensed */
+    saextended,  /* extended */
+    saxlight,    /* extra light */
+    salight,     /* light */
+    saxbold,     /* bold */
+    sahollow,    /* hollow */
+    saraised     /* raised */
+
+} scnatt;
+
+/* XWindow font attributes. These are similar, but not identical to the screen
+   text attributes. Its XWindow specific because we have to use these attibutes
+   to automatically recreate the font specifications. They are mapped into PA
+   standard text attributes by each set routine. */
+typedef enum {
+
+    /* weights */
+    xcnormal,        /* normal */
+    xcmedium,        /* medium */
+    xcbold,          /* bold */
+    xcdemibold,      /* demibold */
+    xcdark,          /* dark */
+    xclight,         /* light */
+    xcblack,         /* black */
+
+    /* slants */
+    xcroman,         /* no slant */
+    xcital,          /* italic */
+    xcoblique,       /* oblique */
+    xcrital,         /* reverse italic */
+    xcroblique,      /* reverse oblique */
+
+    /* widths */
+    xcnormalw,       /* normal */
+    xcnarrow,        /* narrow */
+    xccondensed,     /* condensed */
+    xcsemicondensed, /* semicondensed */
+    xcexpanded,      /* expanded */
+
+    /* spacing */
+    xcproportional,  /* proportional */
+    xcmonospace,     /* monospaced */
+    xcchar           /* character spaced */
+
+} xwcaps;
+
+/* File tracking.
+  Files can be passthrough to the OS, or can be associated with a window. If
+  on a window, they can be output, or they can be input. In the case of
+  input, the file has its own input queue, and will receive input from all
+  windows that are attached to it. */
+typedef struct filrec* filptr;
+typedef struct filrec {
+
+      FILE*  sfp;  /* file pointer used to establish entry, or NULL */
+      winptr win;  /* associated window (if exists) */
+      int    inw;  /* entry is input linked to window */
+      int    inl;  /* this output file is linked to the input file, logical */
+      int    tim;  /* fid has a timer associated with it */
+      winptr twin; /* window associated with timer */
+
+} filrec;
+
+/* internal client messages */
+typedef enum {
+
+    cm_timer /* timer fires */
+
+} clientmessagecode;
+
+/* error codes */
+typedef enum {
+
+    eftbful,  /* File table full */
+    ejoyacc,  /* Joystick access */
+    etimacc,  /* Timer access */
+    efilopr,  /* Cannot perform operation on special file */
+    einvscn,  /* Invalid screen number */
+    einvhan,  /* Invalid handle */
+    einvtab,  /* Invalid tab position */
+    eatopos,  /* Cannot position text by pixel with auto on */
+    eatocur,  /* Cannot position outside screen with auto on */
+    eatoofg,  /* Cannot reenable auto off grid */
+    eatoecb,  /* Cannot reenable auto outside screen */
+    einvftn,  /* Invalid font number */
+    etrmfnt,  /* Valid terminal font not found */
+    eatofts,  /* Cannot resize font with auto enabled */
+    eatoftc,  /* Cannot change fonts with auto enabled */
+    einvfnm,  /* Invalid logical font number */
+    efntemp,  /* Empty logical font */
+    etrmfts,  /* Cannot size terminal font */
+    etabful,  /* Too many tabs set */
+    eatotab,  /* Cannot use graphical tabs with auto on */
+    estrinx,  /* String index out of range */
+    epicfnf,  /* Picture file not found */
+    epicftl,  /* Picture filename too large */
+    etimnum,  /* Invalid timer number */
+    ejstsys,  /* Cannot justify system font */
+    efnotwin, /* File is not attached to a window */
+    ewinuse,  /* pd_win* id in use */
+    efinuse,  /* File already in use */
+    einmode,  /* Input side of window in wrong mode */
+    edcrel,   /* Cannot release Windows device context */
+    einvsiz,  /* Invalid buffer size */
+    ebufoff,  /* buffered mode not enabled */
+    edupmen,  /* Menu id was duplicated */
+    emennf,   /* Meny id was not found */
+    ewignf,   /* Widget id was not found */
+    ewigdup,  /* Widget id was duplicated */
+    einvspos, /* Invalid scroll bar slider position */
+    einvssiz, /* Invalid scroll bar size */
+    ectlfal,  /* Attempt to create control fails */
+    eprgpos,  /* Invalid progress bar position */
+    estrspc,  /* Out of string space */
+    etabbar,  /* Unable to create tab in tab bar */
+    efildlg,  /* Unable to create file dialog */
+    efnddlg,  /* Unable to create find dialog */
+    efntdlg,  /* Unable to create font dialog */
+    efndstl,  /* Find/replace string too long */
+    einvwin,  /* Invalid window number */
+    einvjye,  /* Invalid joystick event */
+    ejoyqry,  /* Could not get information on joystick */
+    einvjoy,  /* Invalid joystick ID */
+    eclsinw,  /* Cannot directly close input side of window */
+    ewigsel,  /* Widget is not selectable */
+    ewigptxt, /* Cannot put text in this widget */
+    ewiggtxt, /* Cannot get text from this widget */
+    ewigdis,  /* Cannot disable this widget */
+    estrato,  /* Cannot direct write string with auto on */
+    etabsel,  /* Invalid tab select */
+    enomem,   /* Out of memory */
+    einvfil,  /* File is invalid */
+    enotinp,  /* not input side of any window */
+    estdfnt,  /* Cannot find standard font */
+    eftntl,   /* Font name too large */
+    epicopn,  /* Cannot open picture file */
+    ebadfmt,  /* Bad format of picture file */
+    ecfgval,  /* invalid configuration value */
+    enoopn,   /* Cannot open file */
+    enoinps,  /* no input side for this window */
+    enowid,   /* No more window ids available */
+    evecaxe,  /* cannot vector auxillary event */
+    eangato,  /* cannot set character drawing angle in auto mode */
+    eatoang,  /* Cannot reenable auto with non-90 degree text */
+
+    /* unimplemented override errors */
+    egetwigid_unimp,        /* getwigid unimplemented */
+    ekillwidget_unimp,      /* killwidget unimplemented */
+    eselectwidget_unimp,    /* selectwidget unimplemented */
+    eenablewidget_unimp,    /* enablewidget unimplemented */
+    egetwidgettext_unimp,   /* getwidgettext unimplemented */
+    eputwidgettext_unimp,   /* putwidgettext unimplemented */
+    esizwidget_unimp,       /* sizwidget unimplemented */
+    esizwidgetg_unimp,      /* sizwidgetg unimplemented */
+    eposwidget_unimp,       /* poswidget unimplemented */
+    eposwidgetg_unimp,      /* poswidgetg unimplemented */
+    ebackwidget_unimp,      /* backwidget unimplemented */
+    efrontwidget_unimp,     /* frontwidget unimplemented */
+    efocuswidget_unimp,     /* focuswidget unimplemented */
+    ebuttonsiz_unimp,       /* buttonsiz unimplemented */
+    ebuttonsizg_unimp,      /* buttonsizg unimplemented */
+    ebutton_unimp,          /* button unimplemented */
+    ebuttong_unimp,         /* buttong unimplemented */
+    echeckboxsiz_unimp,     /* checkboxsiz unimplemented */
+    echeckboxsizg_unimp,    /* checkboxsizg unimplemented */
+    echeckbox_unimp,        /* checkbox unimplemented */
+    echeckboxg_unimp,       /* checkboxg unimplemented */
+    eradiobuttonsiz_unimp,  /* radiobuttonsiz unimplemented */
+    eradiobuttonsizg_unimp, /* radiobuttonsizg unimplemented */
+    eradiobutton_unimp,     /* radiobutton unimplemented */
+    eradiobuttong_unimp,    /* radiobuttong unimplemented */
+    egroupsizg_unimp,       /* groupsizg unimplemented */
+    egroupsiz_unimp,        /* groupsiz unimplemented */
+    egroup_unimp,           /* group unimplemented */
+    egroupg_unimp,          /* groupg unimplemented */
+    ebackground_unimp,      /* background unimplemented */
+    ebackgroundg_unimp,     /* backgroundg unimplemented */
+    escrollvertsizg_unimp,  /* scrollvertsizg unimplemented */
+    escrollvertsiz_unimp,   /* scrollvertsiz unimplemented */
+    escrollvert_unimp,      /* scrollvert unimplemented */
+    escrollvertg_unimp,     /* scrollvertg unimplemented */
+    escrollhorizsizg_unimp, /* scrollhorizsizg unimplemented */
+    escrollhorizsiz_unimp,  /* scrollhorizsiz unimplemented */
+    escrollhoriz_unimp,     /* scrollhoriz unimplemented */
+    escrollhorizg_unimp,    /* scrollhorizg unimplemented */
+    escrollpos_unimp,       /* scrollpos unimplemented */
+    escrollsiz_unimp,       /* scrollsiz unimplemented */
+    enumselboxsizg_unimp,   /* numselboxsizg unimplemented */
+    enumselboxsiz_unimp,    /* numselboxsiz unimplemented */
+    enumselbox_unimp,       /* numselbox unimplemented */
+    enumselboxg_unimp,      /* numselboxg unimplemented */
+    eeditboxsizg_unimp,     /* editboxsizg unimplemented */
+    eeditboxsiz_unimp,      /* editboxsiz unimplemented */
+    eeditbox_unimp,         /* editbox unimplemented */
+    eeditboxg_unimp,        /* editboxg unimplemented */
+    eprogbarsizg_unimp,     /* progbarsizg unimplemented */
+    eprogbarsiz_unimp,      /* progbarsiz unimplemented */
+    eprogbar_unimp,         /* progbar unimplemented */
+    eprogbarg_unimp,        /* progbarg unimplemented */
+    eprogbarpos_unimp,      /* progbarpos unimplemented */
+    elistboxsizg_unimp,     /* listboxsizg unimplemented */
+    elistboxsiz_unimp,      /* listboxsiz unimplemented */
+    elistbox_unimp,         /* listbox unimplemented */
+    elistboxg_unimp,        /* listboxg unimplemented */
+    edropboxsizg_unimp,     /* dropboxsizg unimplemented */
+    edropboxsiz_unimp,      /* dropboxsiz unimplemented */
+    edropbox_unimp,         /* dropbox unimplemented */
+    edropboxg_unimp,        /* dropboxg unimplemented */
+    edropeditboxsizg_unimp, /* dropeditboxsizg unimplemented */
+    edropeditboxsiz_unimp,  /* dropeditboxsiz unimplemented */
+    edropeditbox_unimp,     /* dropeditbox unimplemented */
+    edropeditboxg_unimp,    /* dropeditboxg unimplemented */
+    eslidehorizsizg_unimp,  /* slidehorizsizg unimplemented */
+    eslidehorizsiz_unimp,   /* slidehorizsiz unimplemented */
+    eslidehoriz_unimp,      /* slidehoriz unimplemented */
+    eslidehorizg_unimp,     /* slidehorizg unimplemented */
+    eslidevertsizg_unimp,   /* slidevertsizg unimplemented */
+    eslidevertsiz_unimp,    /* slidevertsiz unimplemented */
+    eslidevert_unimp,       /* slidevert unimplemented */
+    eslidevertg_unimp,      /* slidevertg unimplemented */
+    etabbarsizg_unimp,      /* tabbarsizg unimplemented */
+    etabbarsiz_unimp,       /* tabbarsiz unimplemented */
+    etabbarclientg_unimp,   /* tabbarclientg unimplemented */
+    etabbarclient_unimp,    /* tabbarclient unimplemented */
+    etabbar_unimp,          /* tabbar unimplemented */
+    etabbarg_unimp,         /* tabbarg unimplemented */
+    etabsel_unimp,          /* tabsel unimplemented */
+    ealert_unimp,           /* alert unimplemented */
+    equerycolor_unimp,      /* querycolor unimplemented */
+    equeryopen_unimp,       /* queryopen unimplemented */
+    equerysave_unimp,       /* querysave unimplemented */
+    equeryfind_unimp,       /* queryfind unimplemented */
+    equeryfindrep_unimp,    /* queryfindrep unimplemented */
+    equeryfont_unimp,       /* queryfont unimplemented */
+
+    esystem   /* System consistency check */
+
+} errcod;
+
+/* mode to function table */
+static int mod2fnc[mdor+1] = {
+
+    pd_mixcopy, /* mdnorm */
+    pd_mixnone, /* mdinvis */
+    pd_mixxor,  /* mdxor */
+    pd_mixand,  /* mdand */
+    pd_mixor    /* mdor */
+
+};
+
+/* pd_evt queue structure. Its a bubble list. */
+typedef struct xevtque {
+
+    struct xevtque* next; /* next in list */
+    struct xevtque* last; /* last in list */
+    pd_evt          evt;  /* event data */
+
+} xevtque;
+
+/* PA queue structure. Its a bubble list. */
+typedef struct paevtque {
+
+    struct paevtque* next; /* next in list */
+    struct paevtque* last; /* last in list */
+    ami_evtrec       evt;  /* event data */
+
+} paevtque;
+
+/* Joystick tracking structure */
+typedef struct joyrec* joyptr; /* pointer to joystick record */
+typedef struct joyrec {
+
+    int fid;    /* joystick file id */
+    int sid;    /* system event id */
+    int axis;   /* number of joystick axes */
+    int button; /* number of joystick buttons */
+    long ax;    /* joystick x axis save */
+    long ay;    /* joystick y axis save */
+    long az;    /* joystick z axis save */
+    long a4;    /* joystick axis 4 save */
+    long a5;    /* joystick axis 5 save */
+    long a6;    /* joystick axis 6 save */
+    int no;     /* logical number of joystick, 1-n */
+
+} joyrec;
+
+/* logical system event record */
+typedef struct systrk* sevtptr; /* pointer to system event */
+typedef struct systrk {
+
+    winptr  win; /* window associated with this event */
+    int     tim; /* timer number assocated with this event */
+    int     frm; /* is a framing timer */
+    int     joy; /* joystick number associated with this event */
+
+} systrk;
+
+/* motif property decoration hints data structure. This is no longer defined
+   in XLIB, but is still operative.  */
+typedef struct
+{
+    unsigned long       flags;
+    unsigned long       functions;
+    unsigned long       decorations;
+    long                inputmode;
+    unsigned long       status;
+
+} mwmhints;
+
+/* top level frame parameters */
+typedef enum {
+
+    frmcfgall, /* all frame components on */
+    frmcfgfrm, /* frame all off */
+    frmcfgsiz, /* sizebars off */
+    frmcfgsys, /* system bar off */
+
+} frmcfg;
+
+/*
+ * Saved vectors to system calls. These vectors point to the old, existing
+ * vectors that were overriden by this module.
+ *
+ */
+static pread_t   ofpread;
+static pread_t   ofpread_nocancel;
+static pwrite_t  ofpwrite;
+static pwrite_t  ofpwrite_nocancel;
+static popen_t   ofpopen;
+static popen_t   ofpopen_nocancel;
+static pclose_t  ofpclose;
+static pclose_t  ofpclose_nocancel;
+static plseek_t  ofplseek;
+
+/*
+ * Override vectors for calls in this package
+ *
+ */
+static ami_cursor_t          cursor_vect;
+static ami_maxx_t            maxx_vect;
+static ami_maxy_t            maxy_vect;
+static ami_home_t            home_vect;
+static ami_del_t             del_vect;
+static ami_up_t              up_vect;
+static ami_down_t            down_vect;
+static ami_left_t            left_vect;
+static ami_right_t           right_vect;
+static ami_blink_t           blink_vect;
+static ami_reverse_t         reverse_vect;
+static ami_underline_t       underline_vect;
+static ami_superscript_t     superscript_vect;
+static ami_subscript_t       subscript_vect;
+static ami_italic_t          italic_vect;
+static ami_bold_t            bold_vect;
+static ami_strikeout_t       strikeout_vect;
+static ami_standout_t        standout_vect;
+static ami_fcolor_t          fcolor_vect;
+static ami_bcolor_t          bcolor_vect;
+static ami_auto_t            auto_vect;
+static ami_curvis_t          curvis_vect;
+static ami_scroll_t          scroll_vect;
+static ami_curx_t            curx_vect;
+static ami_cury_t            cury_vect;
+static ami_curbnd_t          curbnd_vect;
+static ami_select_t          select_vect;
+static ami_event_t           event_vect;
+static ami_timer_t           timer_vect;
+static ami_killtimer_t       killtimer_vect;
+static ami_mouse_t           mouse_vect;
+static ami_mousebutton_t     mousebutton_vect;
+static ami_joystick_t        joystick_vect;
+static ami_joybutton_t       joybutton_vect;
+static ami_joyaxis_t         joyaxis_vect;
+static ami_settab_t          settab_vect;
+static ami_restab_t          restab_vect;
+static ami_clrtab_t          clrtab_vect;
+static ami_funkey_t          funkey_vect;
+static ami_frametimer_t      frametimer_vect;
+static ami_autohold_t        autohold_vect;
+static ami_wrtstr_t          wrtstr_vect;
+static ami_wrtstrn_t         wrtstrn_vect;
+static ami_eventover_t       eventover_vect;
+static ami_eventsover_t      eventsover_vect;
+static ami_sendevent_t       sendevent_vect;
+static ami_maxxg_t           maxxg_vect;;
+static ami_maxyg_t           maxyg_vect;
+static ami_curxg_t           curxg_vect;
+static ami_curyg_t           curyg_vect;
+static ami_line_t            line_vect;
+static ami_linewidth_t       linewidth_vect;
+static ami_linestyle_t       linestyle_vect;
+static ami_rect_t            rect_vect;
+static ami_frect_t           frect_vect;
+static ami_rrect_t           rrect_vect;
+static ami_frrect_t          frrect_vect;
+static ami_ellipse_t         ellipse_vect;
+static ami_fellipse_t        fellipse_vect;
+static ami_arc_t             arc_vect;
+static ami_farc_t            farc_vect;
+static ami_fchord_t          fchord_vect;
+static ami_ftriangle_t       ftriangle_vect;
+static ami_cursorg_t         cursorg_vect;
+static ami_baseline_t        baseline_vect;
+static ami_setpixel_t        setpixel_vect;
+static ami_fover_t           fover_vect;
+static ami_bover_t           bover_vect;
+static ami_finvis_t          finvis_vect;
+static ami_binvis_t          binvis_vect;
+static ami_fxor_t            fxor_vect;
+static ami_bxor_t            bxor_vect;
+static ami_fand_t            fand_vect;
+static ami_band_t            band_vect;
+static ami_for_t             for_vect;
+static ami_bor_t             bor_vect;
+static ami_chrsizx_t         chrsizx_vect;
+static ami_chrsizy_t         chrsizy_vect;
+static ami_fonts_t           fonts_vect;
+static ami_font_t            font_vect;
+static ami_fontnam_t         fontnam_vect;
+static ami_fontsiz_t         fontsiz_vect;
+static ami_setpoints_t        setpoints_vect;
+static ami_points_t        points_vect;
+static ami_chrspcy_t         chrspcy_vect;
+static ami_chrspcx_t         chrspcx_vect;
+static ami_dpmx_t            dpmx_vect;
+static ami_dpmy_t            dpmy_vect;
+static ami_strsiz_t          strsiz_vect;
+static ami_chrpos_t          chrpos_vect;
+static ami_writejust_t       writejust_vect;
+static ami_justpos_t         justpos_vect;
+static ami_condensed_t       condensed_vect;
+static ami_extended_t        extended_vect;
+static ami_xlight_t          xlight_vect;
+static ami_light_t           light_vect;
+static ami_xbold_t           xbold_vect;
+static ami_hollow_t          hollow_vect;
+static ami_raised_t          raised_vect;
+static ami_settabg_t         settabg_vect;
+static ami_restabg_t         restabg_vect;
+static ami_fcolorg_t         fcolorg_vect;
+static ami_fcolorc_t         fcolorc_vect;
+static ami_bcolorg_t         bcolorg_vect;
+static ami_bcolorc_t         bcolorc_vect;
+static ami_loadpict_t        loadpict_vect;
+static ami_pictsizx_t        pictsizx_vect;
+static ami_pictsizy_t        pictsizy_vect;
+static ami_picture_t         picture_vect;
+static ami_delpict_t         delpict_vect;
+static ami_viewoffg_t        viewoffg_vect;
+static ami_viewscale_t       viewscale_vect;
+static ami_scalex_t          scalex_vect;
+static ami_scaley_t          scaley_vect;
+static ami_scrollg_t         scrollg_vect;
+static ami_path_t            path_vect;
+static ami_blockcopyg_t      blockcopyg_vect;
+static ami_title_t           title_vect;
+static ami_openwin_t         openwin_vect;
+static ami_buffer_t          buffer_vect;
+static ami_sizbuf_t          sizbuf_vect;
+static ami_sizbufg_t         sizbufg_vect;
+static ami_getsiz_t          getsiz_vect;
+static ami_getsizg_t         getsizg_vect;
+static ami_setsiz_t          setsiz_vect;
+static ami_setsizg_t         setsizg_vect;
+static ami_setpos_t          setpos_vect;
+static ami_setposg_t         setposg_vect;
+static ami_scnsiz_t          scnsiz_vect;
+static ami_scnsizg_t         scnsizg_vect;
+static ami_scncen_t          scncen_vect;
+static ami_scnceng_t         scnceng_vect;
+static ami_winclient_t       winclient_vect;
+static ami_winclientg_t      winclientg_vect;
+static ami_front_t           front_vect;
+static ami_back_t            back_vect;
+static ami_frame_t           frame_vect;
+static ami_sizable_t         sizable_vect;
+static ami_sysbar_t          sysbar_vect;
+static ami_menu_t            menu_vect;
+static ami_menuena_t         menuena_vect;
+static ami_menusel_t         menusel_vect;
+static ami_stdmenu_t         stdmenu_vect;
+static ami_getwinid_t        getwinid_vect;
+static ami_focus_t           focus_vect;
+static ami_getwigid_t        getwigid_vect;
+static ami_killwidget_t      killwidget_vect;
+static ami_selectwidget_t    selectwidget_vect;
+static ami_enablewidget_t    enablewidget_vect;
+static ami_getwidgettext_t   getwidgettext_vect;
+static ami_putwidgettext_t   putwidgettext_vect;
+static ami_sizwidget_t       sizwidget_vect;
+static ami_sizwidgetg_t      sizwidgetg_vect;
+static ami_poswidget_t       poswidget_vect;
+static ami_poswidgetg_t      poswidgetg_vect;
+static ami_backwidget_t      backwidget_vect;
+static ami_frontwidget_t     frontwidget_vect;
+static ami_focuswidget_t     focuswidget_vect;
+static ami_buttonsiz_t       buttonsiz_vect;
+static ami_buttonsizg_t      buttonsizg_vect;
+static ami_button_t          button_vect;
+static ami_buttong_t         buttong_vect;
+static ami_checkboxsiz_t     checkboxsiz_vect;
+static ami_checkboxsizg_t    checkboxsizg_vect;
+static ami_checkbox_t        checkbox_vect;
+static ami_checkboxg_t       checkboxg_vect;
+static ami_radiobuttonsiz_t  radiobuttonsiz_vect;
+static ami_radiobuttonsizg_t radiobuttonsizg_vect;
+static ami_radiobutton_t     radiobutton_vect;
+static ami_radiobuttong_t    radiobuttong_vect;
+static ami_groupsizg_t       groupsizg_vect;
+static ami_groupsiz_t        groupsiz_vect;
+static ami_group_t           group_vect;
+static ami_groupg_t          groupg_vect;
+static ami_background_t      background_vect;
+static ami_backgroundg_t     backgroundg_vect;
+static ami_scrollvertsizg_t  scrollvertsizg_vect;
+static ami_scrollvertsiz_t   scrollvertsiz_vect;
+static ami_scrollvert_t      scrollvert_vect;
+static ami_scrollvertg_t     scrollvertg_vect;
+static ami_scrollhorizsizg_t scrollhorizsizg_vect;
+static ami_scrollhorizsiz_t  scrollhorizsiz_vect;
+static ami_scrollhoriz_t     scrollhoriz_vect;
+static ami_scrollhorizg_t    scrollhorizg_vect;
+static ami_scrollpos_t       scrollpos_vect;
+static ami_scrollsiz_t       scrollsiz_vect;
+static ami_numselboxsizg_t   numselboxsizg_vect;
+static ami_numselboxsiz_t    numselboxsiz_vect;
+static ami_numselbox_t       numselbox_vect;
+static ami_numselboxg_t      numselboxg_vect;
+static ami_editboxsizg_t     editboxsizg_vect;
+static ami_editboxsiz_t      editboxsiz_vect;
+static ami_editbox_t         editbox_vect;
+static ami_editboxg_t        editboxg_vect;
+static ami_progbarsizg_t     progbarsizg_vect;
+static ami_progbarsiz_t      progbarsiz_vect;
+static ami_progbar_t         progbar_vect;
+static ami_progbarg_t        progbarg_vect;
+static ami_progbarpos_t      progbarpos_vect;
+static ami_listboxsizg_t     listboxsizg_vect;
+static ami_listboxsiz_t      listboxsiz_vect;
+static ami_listbox_t         listbox_vect;
+static ami_listboxg_t        listboxg_vect;
+static ami_dropboxsizg_t     dropboxsizg_vect;
+static ami_dropboxsiz_t      dropboxsiz_vect;
+static ami_dropbox_t         dropbox_vect;
+static ami_dropboxg_t        dropboxg_vect;
+static ami_dropeditboxsizg_t dropeditboxsizg_vect;
+static ami_dropeditboxsiz_t  dropeditboxsiz_vect;
+static ami_dropeditbox_t     dropeditbox_vect;
+static ami_dropeditboxg_t    dropeditboxg_vect;
+static ami_slidehorizsizg_t  slidehorizsizg_vect;
+static ami_slidehorizsiz_t   slidehorizsiz_vect;
+static ami_slidehoriz_t      slidehoriz_vect;
+static ami_slidehorizg_t     slidehorizg_vect;
+static ami_slidevertsizg_t   slidevertsizg_vect;
+static ami_slidevertsiz_t    slidevertsiz_vect;
+static ami_slidevert_t       slidevert_vect;
+static ami_slidevertg_t      slidevertg_vect;
+static ami_tabbarsizg_t      tabbarsizg_vect;
+static ami_tabbarsiz_t       tabbarsiz_vect;
+static ami_tabbarclientg_t   tabbarclientg_vect;
+static ami_tabbarclient_t    tabbarclient_vect;
+static ami_tabbar_t          tabbar_vect;
+static ami_tabbarg_t         tabbarg_vect;
+static ami_tabsel_t          tabsel_vect;
+static ami_alert_t           alert_vect;
+static ami_querycolor_t      querycolor_vect;
+static ami_queryopen_t       queryopen_vect;
+static ami_querysave_t       querysave_vect;
+static ami_querysave_t       querysave_vect;
+static ami_querysave_t       querysave_vect;
+static ami_querysave_t       querysave_vect;
+static ami_queryfind_t       queryfind_vect;
+static ami_queryfindrep_t    queryfindrep_vect;
+static ami_queryfont_t       queryfont_vect;
+
+/* X Windows globals */
+
+static int fend;      /* end of program ordered flag */
+static long fautohold; /* automatic hold on exit flag */
+static pthread_mutex_t xwlock; /* XWindow call lock */
+
+/* X windows display characteristics.
+ *
+ * Note that some of these are going to need to move to a per-window structure.
+ */
+pd_display*    grx_padisplay;  /* current display */
+static int        pascreen;       /* current screen */
+
+static int        ctrll, ctrlr;   /* control key active */
+static int        shiftl, shiftr; /* shift key active */
+static int        altl, altr;     /* alt key active */
+static int        capslock;       /* caps lock key active */
+static filptr     opnfil[MAXFIL]; /* open files table */
+static int        xltwin[MAXFIL*2+1]; /* window equivalence table, includes
+                                         negatives and 0 */
+static metptr     xltmnu[MAXFIL*2+1]; /* menu entry equivalence table */
+static long       filwin[MAXFIL]; /* file to window equivalence table */
+static int        esck;           /* previous key was escape */
+static fontptr    fntlst;         /* list of fonts */
+static int        fntcnt;         /* number of fonts */
+static FT_Library ftlibrary;     /* FreeType library instance */
+static picptr     frepic;         /* free picture entries */
+static int        numjoy;         /* number of joysticks found */
+static joyptr     joytab[MAXJOY]; /* joystick control table */
+static int        frmfid;         /* framing timer fid */
+static int        cfgcap;         /* "configuration" caps */
+static ami_pevthan evthan[ami_etdsize+1]; /* array of event handler routines */
+static ami_pevthan evtshan;        /* single master event handler routine */
+static xevtque*   freque;         /* free pd_evt queue entries list */
+static xevtque*   evtque;         /* pd_evt input save queue */
+static paevtque*  paqfre;         /* free PA event queue entries list */
+static paevtque*  paqevt;         /* PA event input save queue */
+/* The queues are shared data: event() may run on one thread while another
+   enqueues, sendevent() being the designed case. Each queue has its own
+   lock, held only across the link work, per the rule that a lock
+   encompasses just the data it locks. */
+static pthread_mutex_t xevtlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t paevtlock = PTHREAD_MUTEX_INITIALIZER;
+/* the sendevent wake: a cross thread enqueue writes a byte so a blocked
+   event() returns to find it */
+static int        sendwfds[2];    /* wake pipe */
+static int        sendwsev;       /* wake system event id */
+static ami_pevthan menu_event_oeh; /* event callback save for menus */
+static metptr     fremet;         /* free menu entrys list */
+static winptr     winfre;         /* free windows structure list */
+static int        stdchrx;        /* standard/reference character size x */
+static int        stdchry;        /* standard/reference character size y */
+static int        errflg;         /* an error has been flagged */
+static int        dspsev;         /* XWindows display system event */
+static int        thmsev;         /* desktop scheme monitor system event */
+static int        intsev;         /* console interrupt system event */
+static int        termsev;        /* terminate signal system event */
+static int        thmfd = -1;     /* scheme monitor pipe */
+static int        frmforce;       /* config pinned the frame theme */
+static sevtptr    sidtab[MAXSID]; /* system event table */
+static int        evtcnt;         /* count of PA event diagnostics output */
+
+
+/* XWindow frame characteristics */
+static int        frmextwdt[frmcfgsys+1];   /* frame extra width */
+static int        frmexthgt[frmcfgsys+1];   /* frame extra height */
+static int        frmoffx[frmcfgsys+1];     /* frame offset to client x */
+static int        frmoffy[frmcfgsys+1];     /* frame offset to client y */
+
+/* memory statistics/diagnostics */
+static unsigned long memusd;    /* total memory in use for malloc */
+static unsigned long memrty;    /* retries executed on malloc */
+static unsigned long maxrty;    /* maximum retry count */
+static unsigned long fontcnt;   /* font entry counter */
+static unsigned long fonttot;   /* font entry total */
+static unsigned long filcnt;    /* file entry counter */
+static unsigned long filtot;    /* file entry total */
+static unsigned long piccnt;    /* picture entry counter */
+static unsigned long pictot;    /* picture entry total */
+static unsigned long scncnt;    /* screen struct counter */
+static unsigned long scntot;    /* screen struct total */
+static unsigned long wincnt;    /* windows structure counter */
+static unsigned long wintot;    /* windows structure total */
+static unsigned long imgcnt;    /* image frame counter */
+static unsigned long imgtot;    /* image frame total */
+static unsigned long metcnt;    /* menu entries counter */
+static unsigned long mettot;    /* menu entries total */
+
+/* config settable runtime options */
+static int maxxd;     /* default window dimensions */
+static int maxyd;
+static int dialogerr; /* send runtime errors to dialog */
+static int mouseenb;  /* enable mouse */
+static int joyenb;    /* enable joysticks */
+static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
+static int dmpevt;    /* enable dump Petit-Ami messages */
+static int prtftm;    /* print font metrics (diagnostic) */
+static int conpnt;    /* size of console font in points */
+
+static void iopenwin(FILE** infile, FILE** outfile, FILE* parent, long wid,
+                     long subclient);
+
+/** ****************************************************************************
+
+Present error dialog
+
+Presents the given text in a dialog. Used for graphical errors. Tries to be
+standalone, using little or no other resources in the system.
+
+If an error dialog cannot be presented to font not found or other error, returns
+1, otherwise returns 0 on success.
+
+Notes:
+
+The dialog sizes itself from the display resolution, so it comes out the same
+physical size on any display density. The dimensions below are given for a
+nominal 96 dots per inch display and scaled from there; the scale is never
+taken below 1, so a low density display keeps the original appearance.
+
+The scale is found from the XWindow display metrics directly rather than from
+the Petit-Ami screen record, because this dialog is deliberately standalone:
+it draws with raw XWindow and FreeType so that an error can still be shown
+when the module itself is in a bad state.
+
+*******************************************************************************/
+
+/* Dialog dimensions at 96 dots per inch. All are scaled by dlgscale() at
+   use. */
+#define DLGFONT      14  /* dialog font pixel size */
+#define NEGCIRCLE    80  /* negative sign circle size */
+#define NEGCIRCLESPC 20  /* space around negative circle */
+#define DLGDASHX     35  /* negative sign dash position and size */
+#define DLGDASHY     60
+#define DLGDASHW     50
+#define DLGDASHH     10
+#define DLGTITPAD    200 /* padding to clear the title bar controls */
+#define DLGSIDEPAD   40  /* dialog width padding */
+#define DLGHIGH      200 /* dialog height */
+#define DLGBTNPAD    50  /* close button padding around its text */
+#define DLGBTNX      20  /* close button offset from the right edge */
+#define DLGBTNY      125 /* close button top */
+#define DLGBTNH      40  /* close button height */
+#define DLGBTNTXTX   15  /* close button text offset within the button */
+#define DLGBTNTXTY   155 /* close button text baseline */
+#define DLGNOMDPM    3780 /* dots per meter at the nominal 96 dots per inch */
+
+/** ****************************************************************************
+
+Find dialog scale
+
+Returns the factor to scale the error dialog by, from the resolution of the
+display. The dialog dimensions are given for a nominal 96 dots per inch
+display, so a display of twice that density gives 2. The scale is never less
+than 1: on a low density display the dialog keeps its original size rather
+than shrinking below legibility.
+
+Uses the XWindow display metrics rather than the Petit-Ami screen record,
+since the error dialog must work when the module is in a bad state.
+
+*******************************************************************************/
+
+static double dlgscale(void)
+
+{
+
+    int    res;  /* display resolution in pixels */
+    int    size; /* display size in millimeters */
+    double dpm;  /* dots per meter */
+
+    {
+
+        int wpx, wmm;
+
+        pd_screen(grx_padisplay, &wpx, &res, &wmm, &size);
+
+    }
+    if (size <= 0) return (1.0); /* no metrics, use the nominal size */
+    dpm = (double)res*1000/size; /* find dots per meter */
+    if (dpm < DLGNOMDPM) return (1.0); /* do not shrink */
+
+    return (dpm/DLGNOMDPM);
+
+}
+
+static int errdlg(
+    /** dialog title */    char* t,
+    /** dialog contents */ char* s
+)
+
+{
+
+    pd_win*           w;
+    pd_draw           cxtv;
+    pd_draw*          cxt;
+    pd_evt            e;
+    FT_Face           dlg_face;
+    int               dlg_size;
+    int               mw, wd;
+    char              cb[] = "Close";
+    int               ww, wh;
+    int               cw;
+    int               bx1, by1, bx2, by2;
+    int               scrw, scrh, scrwmm, scrhmm;
+    FcPattern*        pat;
+    FcPattern*        match;
+    FcResult          result;
+    FcChar8*          fcfile;
+    double            sf;    /* display scale factor */
+    int               ncirc; /* negative circle size and spacing */
+    int               nspc;
+    int               btnh;  /* close button height */
+    int               btny;  /* close button top */
+
+    /* size everything from the display resolution */
+    sf = dlgscale();
+    dlg_size = DLGFONT*sf; /* dialog font pixel size */
+    ncirc = NEGCIRCLE*sf;
+    nspc = NEGCIRCLESPC*sf;
+    btnh = DLGBTNH*sf;
+    btny = DLGBTNY*sf;
+
+    /* find a sans-serif font via fontconfig */
+    pat = FcNameParse((FcChar8*)"sans:style=Bold Oblique");
+    FcConfigSubstitute(NULL, pat, FcMatchPattern);
+    FcDefaultSubstitute(pat);
+    match = FcFontMatch(NULL, pat, &result);
+    FcPatternDestroy(pat);
+
+    if (!match) return (1); /* indicate display error */
+
+    if (FcPatternGetString(match, FC_FILE, 0, &fcfile) != FcResultMatch) {
+
+        FcPatternDestroy(match);
+        return (1);
+
+    }
+
+    if (FT_New_Face(ftlibrary, (char*)fcfile, 0, &dlg_face)) {
+
+        FcPatternDestroy(match);
+        return (1);
+
+    }
+    FcPatternDestroy(match);
+    FT_Set_Pixel_Sizes(dlg_face, 0, dlg_size);
+
+    /* minimum width for dialog system bar */
+    mw = grx_ft_text_width(dlg_face, t, strlen(t))+DLGTITPAD*sf;
+    /* minimum width for dialog contents */
+    wd = nspc+ncirc+nspc+grx_ft_text_width(dlg_face, s, strlen(s));
+    if (wd > mw) mw = wd; /* set minimum overall */
+
+    /* find screen placement */
+    pd_screen(grx_padisplay, &scrw, &scrh, &scrwmm, &scrhmm);
+
+    ww = mw+DLGSIDEPAD*sf; /* set dialog width and height */
+    wh = DLGHIGH*sf;
+    /* create dialog window centered on screen */
+    w = pd_winnew(grx_padisplay, NULL, 0, 0, ww, wh);
+    pd_winmap(w, 1);
+    /* centering works well unless you have dual screens */
+    pd_winmove(w, scrw/2-ww/2, 0);
+    memset(&cxtv, 0, sizeof(cxtv));
+    cxtv.mix = pd_mixcopy;
+    cxtv.lw = 1;
+    cxt = &cxtv;
+
+    pd_wintitle(w, t);
+
+    cw = grx_ft_text_width(dlg_face, cb, strlen(cb))+DLGBTNPAD*sf;
+    /* set button rectangle */
+    bx1 = ww-cw-DLGBTNX*sf;
+    by1 = btny;
+    bx2 = bx1+cw-1;
+    by2 = by1+btnh-1;
+
+    do {
+
+        nextxevt(grx_padisplay, &e);
+        if (e.etype == pd_etredraw && e.win == w) {
+
+            /* set background color to grey */
+            cxt->fg = 0xe0e0e0;
+            pd_frect(pd_wincanvas(w), cxt, e.rx, e.ry,
+                           e.rw, e.rh);
+            /* draw error circle */
+            cxt->fg = 0xce3c30;
+            pd_farcpie(pd_wincanvas(w), cxt, nspc, nspc,
+                     ncirc, ncirc, 0, 360*64);
+            /* draw dash */
+            cxt->fg = 0xffffff;
+            pd_frect(pd_wincanvas(w), cxt, DLGDASHX*sf,
+                           (DLGDASHY-DLGDASHH/2)*sf, DLGDASHW*sf,
+                           DLGDASHH*sf);
+            /* set text color */
+            cxt->fg = 0x000000;
+            /* center text on circle to the right */
+            grx_ft_draw_string(pd_wincanvas(w), cxt, dlg_face, dlg_size, dlg_size,
+                           nspc+ncirc+nspc, nspc+ncirc/2, s, strlen(s));
+            /* place close button */
+            cxt->fg = 0xffffff;
+            pd_frect(pd_wincanvas(w), cxt, bx1, btny, cw, btnh);
+            cxt->fg = 0x000000;
+            pd_rect(pd_wincanvas(w), cxt, bx1, btny, cw, btnh);
+            grx_ft_draw_string(pd_wincanvas(w), cxt, dlg_face, dlg_size, dlg_size,
+                           bx1+DLGBTNTXTX*sf, DLGBTNTXTY*sf, cb, strlen(cb));
+
+        } else if (e.etype == pd_etbtndown) {
+
+            /* close button press, exit */
+            if (e.x >= bx1 && e.x <= bx2 &&
+                e.y >= by1 && e.y <= by2) break;
+
+        }
+
+    } while (1);
+
+    pd_windel(w);
+    FT_Done_Face(dlg_face);
+
+    return (0); /* exit no error */
+
+}
+
+/** ****************************************************************************
+
+Get error string
+
+Returns the error string corresponding to the error code given.
+
+*******************************************************************************/
+
+static char* errstr(errcod e)
+
+{
+
+    char* s;
+
+    switch (e) { /* error */
+
+        case eftbful:  s = "Too many files"; break;
+        case ejoyacc:  s = "No joystick access available"; break;
+        case etimacc:  s = "No timer access available"; break;
+        case einvhan:  s = "Invalid file number"; break;
+        case efilopr:  s = "Cannot perform operation on special file"; break;
+        case einvscn:  s = "Invalid screen number"; break;
+        case einvtab:  s = "Tab position specified off screen"; break;
+        case eatopos:  s = "Cannot position text by pixel with auto on"; break;
+        case eatocur:  s = "Cannot position outside screen with auto on"; break;
+        case eatoofg:  s = "Cannot reenable auto off grid"; break;
+        case eatoecb:  s = "Cannot reenable auto outside screen"; break;
+        case einvftn:  s = "Invalid font number"; break;
+        case etrmfnt:  s = "No valid terminal font was found"; break;
+        case eatofts:  s = "Cannot resize font with auto enabled"; break;
+        case eatoftc:  s = "Cannot change fonts with auto enabled"; break;
+        case einvfnm:  s = "Invalid logical font number"; break;
+        case efntemp:  s = "Logical font number has no assigned font"; break;
+        case etrmfts:  s = "Cannot size terminal font"; break;
+        case etabful:  s = "Too many tabs set"; break;
+        case eatotab:  s = "Cannot set off grid tabs with auto on"; break;
+        case estrinx:  s = "String index out of range"; break;
+        case epicfnf:  s = "Picture file not found"; break;
+        case epicftl:  s = "Picture filename too large"; break;
+        case etimnum:  s = "Invalid timer number"; break;
+        case ejstsys:  s = "Cannot justify system font"; break;
+        case efnotwin: s = "File is not attached to a window"; break;
+        case ewinuse:  s = "Window id in use"; break;
+        case efinuse:  s = "File already in use"; break;
+        case einmode:  s = "Input side of window in wrong mode"; break;
+        case edcrel:   s = "Cannot release Windows device context"; break;
+        case einvsiz:  s = "Invalid buffer size"; break;
+        case ebufoff:  s = "Buffered mode not enabled"; break;
+        case edupmen:  s = "Menu id was duplicated"; break;
+        case emennf:   s = "Menu id was not found"; break;
+        case ewignf:   s = "Widget id was not found"; break;
+        case ewigdup:  s = "Widget id was duplicated"; break;
+        case einvspos: s = "Invalid scroll bar slider position"; break;
+        case einvssiz: s = "Invalid scroll bar slider size"; break;
+        case ectlfal:  s = "Attempt to create control fails"; break;
+        case eprgpos:  s = "Invalid progress bar position"; break;
+        case estrspc:  s = "Out of string space"; break;
+        case etabbar:  s = "Unable to create tab in tab bar"; break;
+        case efildlg:  s = "Unable to create file dialog"; break;
+        case efnddlg:  s = "Unable to create find dialog"; break;
+        case efntdlg:  s = "Unable to create font dialog"; break;
+        case efndstl:  s = "Find/replace string too long"; break;
+        case einvwin:  s = "Invalid window number"; break;
+        case einvjye:  s = "Invalid joystick event"; break;
+        case ejoyqry:  s = "Could not get information on joystick"; break;
+        case einvjoy:  s = "Invalid joystick ID"; break;
+        case eclsinw:  s = "Cannot directly close input side of window"; break;
+        case ewigsel:  s = "Widget is not selectable"; break;
+        case ewigptxt: s = "Cannot put text in this widget"; break;
+        case ewiggtxt: s = "Cannot get text from this widget"; break;
+        case ewigdis:  s = "Cannot disable this widget"; break;
+        case estrato:  s = "Cannot direct write string with auto on"; break;
+        case etabsel:  s = "Invalid tab select"; break;
+        case enomem:   s = "Out of memory"; break;
+        case einvfil:  s = "File is invalid"; break;
+        case enotinp:  s = "Not input side of any window"; break;
+        case estdfnt:  s = "Cannot find standard font"; break;
+        case eftntl:   s = "Font name too large"; break;
+        case epicopn:  s = "Cannot open picture file"; break;
+        case ebadfmt:  s = "Bad format of picture file"; break;
+        case ecfgval:  s = "Invalid configuration value"; break;
+        case enoopn:   s = "Cannot open file"; break;
+        case enoinps:  s = "No input side for this window"; break;
+        case enowid:   s = "No more window ids available"; break;
+        case evecaxe:  s = "Cannot vector auxillary event"; break;
+        case eangato:  s = "Cannot set character drawing angle in auto mode"; break;
+        case eatoang:  s = "Cannot reenable auto with non-90 degree text"; break;
+        case egetwigid_unimp:        s = "getwigid unimplemented"; break;
+        case ekillwidget_unimp:      s = "killwidget unimplemented"; break;
+        case eselectwidget_unimp:    s = "selectwidget unimplemented"; break;
+        case eenablewidget_unimp:    s = "enablewidget unimplemented"; break;
+        case egetwidgettext_unimp:   s = "getwidgettext unimplemented"; break;
+        case eputwidgettext_unimp:   s = "putwidgettext unimplemented"; break;
+        case esizwidget_unimp:       s = "sizwidget unimplemented"; break;
+        case esizwidgetg_unimp:      s = "sizwidgetg unimplemented"; break;
+        case eposwidget_unimp:       s = "poswidget unimplemented"; break;
+        case eposwidgetg_unimp:      s = "poswidgetg unimplemented"; break;
+        case ebackwidget_unimp:      s = "backwidget unimplemented"; break;
+        case efrontwidget_unimp:     s = "frontwidget unimplemented"; break;
+        case efocuswidget_unimp:     s = "focuswidget unimplemented"; break;
+        case ebuttonsiz_unimp:       s = "buttonsiz unimplemented"; break;
+        case ebuttonsizg_unimp:      s = "buttonsizg unimplemented"; break;
+        case ebutton_unimp:          s = "button unimplemented"; break;
+        case ebuttong_unimp:         s = "buttong unimplemented"; break;
+        case echeckboxsiz_unimp:     s = "checkboxsiz unimplemented"; break;
+        case echeckboxsizg_unimp:    s = "checkboxsizg unimplemented"; break;
+        case echeckbox_unimp:        s = "checkbox unimplemented"; break;
+        case echeckboxg_unimp:       s = "checkboxg unimplemented"; break;
+        case eradiobuttonsiz_unimp:  s = "radiobuttonsiz unimplemented"; break;
+        case eradiobuttonsizg_unimp: s = "radiobuttonsizg unimplemented"; break;
+        case eradiobutton_unimp:     s = "radiobutton unimplemented"; break;
+        case eradiobuttong_unimp:    s = "radiobuttong unimplemented"; break;
+        case egroupsizg_unimp:       s = "groupsizg unimplemented"; break;
+        case egroupsiz_unimp:        s = "groupsiz unimplemented"; break;
+        case egroup_unimp:           s = "group unimplemented"; break;
+        case egroupg_unimp:          s = "groupg unimplemented"; break;
+        case ebackground_unimp:      s = "background unimplemented"; break;
+        case ebackgroundg_unimp:     s = "backgroundg unimplemented"; break;
+        case escrollvertsizg_unimp:  s = "scrollvertsizg unimplemented"; break;
+        case escrollvertsiz_unimp:   s = "scrollvertsiz unimplemented"; break;
+        case escrollvert_unimp:      s = "scrollvert unimplemented"; break;
+        case escrollvertg_unimp:     s = "scrollvertg unimplemented"; break;
+        case escrollhorizsizg_unimp: s = "scrollhorizsizg unimplemented"; break;
+        case escrollhorizsiz_unimp:  s = "scrollhorizsiz unimplemented"; break;
+        case escrollhoriz_unimp:     s = "scrollhoriz unimplemented"; break;
+        case escrollhorizg_unimp:    s = "scrollhorizg unimplemented"; break;
+        case escrollpos_unimp:       s = "scrollpos unimplemented"; break;
+        case escrollsiz_unimp:       s = "scrollsiz unimplemented"; break;
+        case enumselboxsizg_unimp:   s = "numselboxsizg unimplemented"; break;
+        case enumselboxsiz_unimp:    s = "numselboxsiz unimplemented"; break;
+        case enumselbox_unimp:       s = "numselbox unimplemented"; break;
+        case enumselboxg_unimp:      s = "numselboxg unimplemented"; break;
+        case eeditboxsizg_unimp:     s = "editboxsizg unimplemented"; break;
+        case eeditboxsiz_unimp:      s = "editboxsiz unimplemented"; break;
+        case eeditbox_unimp:         s = "editbox unimplemented"; break;
+        case eeditboxg_unimp:        s = "editboxg unimplemented"; break;
+        case eprogbarsizg_unimp:     s = "progbarsizg unimplemented"; break;
+        case eprogbarsiz_unimp:      s = "progbarsiz unimplemented"; break;
+        case eprogbar_unimp:         s = "progbar unimplemented"; break;
+        case eprogbarg_unimp:        s = "progbarg unimplemented"; break;
+        case eprogbarpos_unimp:      s = "progbarpos unimplemented"; break;
+        case elistboxsizg_unimp:     s = "listboxsizg unimplemented"; break;
+        case elistboxsiz_unimp:      s = "listboxsiz unimplemented"; break;
+        case elistbox_unimp:         s = "listbox unimplemented"; break;
+        case elistboxg_unimp:        s = "listboxg unimplemented"; break;
+        case edropboxsizg_unimp:     s = "dropboxsizg unimplemented"; break;
+        case edropboxsiz_unimp:      s = "dropboxsiz unimplemented"; break;
+        case edropbox_unimp:         s = "dropbox unimplemented"; break;
+        case edropboxg_unimp:        s = "dropboxg unimplemented"; break;
+        case edropeditboxsizg_unimp: s = "dropeditboxsizg unimplemented"; break;
+        case edropeditboxsiz_unimp:  s = "dropeditboxsiz unimplemented"; break;
+        case edropeditbox_unimp:     s = "dropeditbox unimplemented"; break;
+        case edropeditboxg_unimp:    s = "dropeditboxg unimplemented"; break;
+        case eslidehorizsizg_unimp:  s = "slidehorizsizg unimplemented"; break;
+        case eslidehorizsiz_unimp:   s = "slidehorizsiz unimplemented"; break;
+        case eslidehoriz_unimp:      s = "slidehoriz unimplemented"; break;
+        case eslidehorizg_unimp:     s = "slidehorizg unimplemented"; break;
+        case eslidevertsizg_unimp:   s = "slidevertsizg unimplemented"; break;
+        case eslidevertsiz_unimp:    s = "slidevertsiz unimplemented"; break;
+        case eslidevert_unimp:       s = "slidevert unimplemented"; break;
+        case eslidevertg_unimp:      s = "slidevertg unimplemented"; break;
+        case etabbarsizg_unimp:      s = "tabbarsizg unimplemented"; break;
+        case etabbarsiz_unimp:       s = "tabbarsiz unimplemented"; break;
+        case etabbarclientg_unimp:   s = "tabbarclientg unimplemented"; break;
+        case etabbarclient_unimp:    s = "tabbarclient unimplemented"; break;
+        case etabbar_unimp:          s = "tabbar unimplemented"; break;
+        case etabbarg_unimp:         s = "tabbarg unimplemented"; break;
+        case etabsel_unimp:          s = "tabsel unimplemented"; break;
+        case ealert_unimp:           s = "alert unimplemented"; break;
+        case equerycolor_unimp:      s = "querycolor unimplemented"; break;
+        case equeryopen_unimp:       s = "queryopen unimplemented"; break;
+        case equerysave_unimp:       s = "querysave unimplemented"; break;
+        case equeryfind_unimp:       s = "queryfind unimplemented"; break;
+        case equeryfindrep_unimp:    s = "queryfindrep unimplemented"; break;
+        case equeryfont_unimp:       s = "queryfont unimplemented"; break;
+        case esystem:  s = "System consistency check"; break;
+        default:       s = "Unknown error"; break;
+
+    }
+
+    return (s); /* return error string */
+
+}
+
+/** ****************************************************************************
+
+Print error
+
+Prints the given error in ASCII text, then aborts the program.
+
+*******************************************************************************/
+
+static void error(errcod e)
+
+{
+
+    int r; /* error return */
+
+    r = 1; /* set error not displayed */
+    if (dialogerr) {
+
+        /* send error to dialog */
+        r = errdlg("Graphics Module", errstr(e));
+
+    }
+    if (r) { /* send error to console */
+
+        fprintf(stderr, "*** Error: graphics: %s\n", errstr(e));
+        fflush(stderr); /* make sure error message is output */
+
+    }
+    errflg = TRUE; /* flag error occurred */
+
+    exit(1);
+
+}
+
+/** ****************************************************************************
+
+Copy critical string
+
+Copies a string to a critical output buffer of the given length. If the
+string fills the buffer, the terminating zero is left off. Otherwise, the
+result is zero terminated.
+
+*******************************************************************************/
+
+static void cpycrit(char* d, long dl, const char* s)
+
+{
+
+    long l; /* length of source string */
+
+    l = strlen(s); /* find length of source */
+    if (l > dl) error(eftntl); /* string too large for buffer */
+    memcpy(d, s, l); /* copy string into place */
+    if (l < dl) d[l] = 0; /* zero terminate if buffer not entirely filled */
+
+}
+
+
+/******************************************************************************
+
+Internal version of malloc/free
+
+This wrapper around malloc/free both handles errors and also gives us a chance
+to track memory useage. Running out of memory is a terminal event, so we don't
+need to return.
+
+Only allocated memory is tallied, no accounting is done for free(). The vast
+majority of memory used in this package is never returned.
+
+******************************************************************************/
+
+static void *imalloc(size_t size)
+
+{
+
+    int rt;
+
+    void* ptr;
+
+    rt = 0;
+    do {
+
+        ptr = malloc(size);
+        rt++;
+        memrty++;
+        if (memrty > maxrty) maxrty = memrty;
+
+    } while (rt < 100);
+    if (!ptr) {
+
+#ifdef PRTMEM
+        fprintf(stderr, "Malloc fail, memory used: %lu retries: %lu\n", memusd,
+                        memrty);
+        fprintf(stderr, "Maximum retry: %lu\n", maxrty);
+        fprintf(stderr, "Font entry counter:    %lu\n", fontcnt);
+        fprintf(stderr, "Font entry total:      %lu\n", fonttot);
+        fprintf(stderr, "File entry counter:    %lu\n", filcnt);
+        fprintf(stderr, "File entry total:      %lu\n", filtot);
+        fprintf(stderr, "Picture entry counter: %lu\n", piccnt);
+        fprintf(stderr, "Picture entry total:   %lu\n", pictot);
+        fprintf(stderr, "Screen entry counter:  %lu\n", scncnt);
+        fprintf(stderr, "Screen entry total:    %lu\n", scntot);
+        fprintf(stderr, "Window entry counter:  %lu\n", wincnt);
+        fprintf(stderr, "Window entry total:    %lu\n", wintot);
+        fprintf(stderr, "Image frame counter:   %lu\n", imgcnt);
+        fprintf(stderr, "Image frame total:     %lu\n", imgtot);
+        fprintf(stderr, "Menu entries counter:  %lu\n", metcnt);
+        fprintf(stderr, "Menu entries total:    %lu\n", mettot);
+#endif
+        error(enomem);
+
+    }
+    memusd += size;
+
+    return ptr;
+
+}
+
+static void ifree(void* ptr)
+
+{
+
+    free(ptr);
+
+}
+
+/******************************************************************************
+
+Print event type
+
+A diagnostic, print the given event code as a symbol to the error file.
+
+******************************************************************************/
+
+void prtevtt(ami_evtcod e)
+
+{
+
+    switch (e) {
+
+        case ami_etchar:    fprintf(stderr, "etchar   "); break;
+        case ami_etup:      fprintf(stderr, "etup     "); break;
+        case ami_etdown:    fprintf(stderr, "etdown   "); break;
+        case ami_etleft:    fprintf(stderr, "etleft   "); break;
+        case ami_etright:   fprintf(stderr, "etright  "); break;
+        case ami_etleftw:   fprintf(stderr, "etleftw  "); break;
+        case ami_etrightw:  fprintf(stderr, "etrightw "); break;
+        case ami_ethome:    fprintf(stderr, "ethome   "); break;
+        case ami_ethomes:   fprintf(stderr, "ethomes  "); break;
+        case ami_ethomel:   fprintf(stderr, "ethomel  "); break;
+        case ami_etend:     fprintf(stderr, "etend    "); break;
+        case ami_etends:    fprintf(stderr, "etends   "); break;
+        case ami_etendl:    fprintf(stderr, "etendl   "); break;
+        case ami_etscrl:    fprintf(stderr, "etscrl   "); break;
+        case ami_etscrr:    fprintf(stderr, "etscrr   "); break;
+        case ami_etscru:    fprintf(stderr, "etscru   "); break;
+        case ami_etscrd:    fprintf(stderr, "etscrd   "); break;
+        case ami_etpagd:    fprintf(stderr, "etpagd   "); break;
+        case ami_etpagu:    fprintf(stderr, "etpagu   "); break;
+        case ami_ettab:     fprintf(stderr, "ettab    "); break;
+        case ami_etenter:   fprintf(stderr, "etenter  "); break;
+        case ami_etinsert:  fprintf(stderr, "etinsert "); break;
+        case ami_etinsertl: fprintf(stderr, "etinsertl"); break;
+        case ami_etinsertt: fprintf(stderr, "etinsertt"); break;
+        case ami_etdel:     fprintf(stderr, "etdel    "); break;
+        case ami_etdell:    fprintf(stderr, "etdell   "); break;
+        case ami_etdelcf:   fprintf(stderr, "etdelcf  "); break;
+        case ami_etdelcb:   fprintf(stderr, "etdelcb  "); break;
+        case ami_etcopy:    fprintf(stderr, "etcopy   "); break;
+        case ami_etcopyl:   fprintf(stderr, "etcopyl  "); break;
+        case ami_etcan:     fprintf(stderr, "etcan    "); break;
+        case ami_etstop:    fprintf(stderr, "etstop   "); break;
+        case ami_etcont:    fprintf(stderr, "etcont   "); break;
+        case ami_etprint:   fprintf(stderr, "etprint  "); break;
+        case ami_etprintb:  fprintf(stderr, "etprintb "); break;
+        case ami_etprints:  fprintf(stderr, "etprints "); break;
+        case ami_etfun:     fprintf(stderr, "etfun    "); break;
+        case ami_etmenu:    fprintf(stderr, "etmenu   "); break;
+        case ami_etmouba:   fprintf(stderr, "etmouba  "); break;
+        case ami_etmoubd:   fprintf(stderr, "etmoubd  "); break;
+        case ami_etmoumov:  fprintf(stderr, "etmoumov "); break;
+        case ami_ettim:     fprintf(stderr, "ettim    "); break;
+        case ami_etjoyba:   fprintf(stderr, "etjoyba  "); break;
+        case ami_etjoybd:   fprintf(stderr, "etjoybd  "); break;
+        case ami_etjoymov:  fprintf(stderr, "etjoymov "); break;
+        case ami_etresize:  fprintf(stderr, "etresize "); break;
+        case ami_etterm:    fprintf(stderr, "etterm   "); break;
+        case ami_etmoumovg: fprintf(stderr, "etmoumovg"); break;
+        case ami_etframe:   fprintf(stderr, "etframe  "); break;
+        case ami_etredraw:  fprintf(stderr, "etredraw "); break;
+        case ami_etmin:     fprintf(stderr, "etmin    "); break;
+        case ami_etmax:     fprintf(stderr, "etmax    "); break;
+        case ami_etnorm:    fprintf(stderr, "etnorm   "); break;
+        case ami_etfocus:   fprintf(stderr, "etfocus  "); break;
+        case ami_etnofocus: fprintf(stderr, "etnofocus"); break;
+        case ami_ethover:   fprintf(stderr, "ethover  "); break;
+        case ami_etnohover: fprintf(stderr, "etnohover"); break;
+        case ami_etmenus:   fprintf(stderr, "etmenus  "); break;
+        case ami_etbutton:  fprintf(stderr, "etbutton "); break;
+        case ami_etchkbox:  fprintf(stderr, "etchkbox "); break;
+        case ami_etradbut:  fprintf(stderr, "etradbut "); break;
+        case ami_etsclull:  fprintf(stderr, "etsclull "); break;
+        case ami_etscldrl:  fprintf(stderr, "etscldrl "); break;
+        case ami_etsclulp:  fprintf(stderr, "etsclulp "); break;
+        case ami_etscldrp:  fprintf(stderr, "etscldrp "); break;
+        case ami_etsclpos:  fprintf(stderr, "etsclpos "); break;
+        case ami_etedtbox:  fprintf(stderr, "etedtbox "); break;
+        case ami_etnumbox:  fprintf(stderr, "etnumbox "); break;
+        case ami_etlstbox:  fprintf(stderr, "etlstbox "); break;
+        case ami_etdrpbox:  fprintf(stderr, "etdrpbox "); break;
+        case ami_etdrebox:  fprintf(stderr, "etdrebox "); break;
+        case ami_etsldpos:  fprintf(stderr, "etsldpos "); break;
+        case ami_ettabbar:  fprintf(stderr, "ettabbar "); break;
+        case ami_etusize:   fprintf(stderr, "etusize "); break;
+        case ami_etdsize:   fprintf(stderr, "etdsize "); break;
+
+        default: fprintf(stderr, "???");
+
+    }
+
+}
+
+/******************************************************************************
+
+Print Petit-Ami event diagnostic
+
+Prints a decoded version of PA events on one line, including paraemters. Only
+prints if the dump PA event flag is true. Does not terminate the line.
+
+Note: does not output a debugging preamble. If that is required, print it
+before calling this routine.
+
+******************************************************************************/
+
+void prtevt(ami_evtptr er)
+
+{
+
+    if (dmpevt) {
+
+        fprintf(stderr, "PA Event: %5d Window: %ld ", evtcnt++, er->winid);
+        prtevtt(er->etype);
+        switch (er->etype) {
+
+            case ami_etchar: fprintf(stderr, ": char: %c", er->echar); break;
+            case ami_ettim: fprintf(stderr, ": timer: %ld", er->timnum); break;
+            case ami_etmoumov: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
+                                      er->mmoun, er->moupx, er->moupy); break;
+            case ami_etmouba: fprintf(stderr, ": mouse: %ld button: %ld",
+                                     er->amoun, er->amoubn); break;
+            case ami_etmoubd: fprintf(stderr, ": mouse: %ld button: %ld",
+                                     er->dmoun, er->dmoubn); break;
+            case ami_etjoyba: fprintf(stderr, ": joystick: %ld button: %ld",
+                                     er->ajoyn, er->ajoybn); break;
+            case ami_etjoybd: fprintf(stderr, ": joystick: %ld button: %ld",
+                                     er->djoyn, er->djoybn); break;
+            case ami_etjoymov: fprintf(stderr, ": joystick: %ld x: %4ld y: %4ld z: %4ld "
+                                      "a4: %4ld a5: %4ld a6: %4ld", er->mjoyn,
+                                      er->joypx, er->joypy, er->joypz,
+                                      er->joyp4, er->joyp5, er->joyp6); break;
+            case ami_etresize: fprintf(stderr, ": x: %ld y: %ld xg: %ld yg: %ld",
+                                      er->rszx, er->rszy,
+                                      er->rszxg, er->rszyg); break;
+            case ami_etfun: fprintf(stderr, ": key: %ld", er->fkey); break;
+            case ami_etmoumovg: fprintf(stderr, ": mouse: %ld x: %4ld y: %4ld",
+                                       er->mmoung, er->moupxg, er->moupyg); break;
+            case ami_etredraw: fprintf(stderr, ": sx: %4ld sy: %4ld ex: %4ld ey: %4ld",
+                                      er->rsx, er->rsy, er->rex, er->rey); break;
+            case ami_etmenus: fprintf(stderr, ": id: %ld", er->menuid); break;
+            case ami_etbutton: fprintf(stderr, ": id: %ld", er->butid); break;
+            case ami_etchkbox: fprintf(stderr, ": id: %ld", er->ckbxid); break;
+            case ami_etradbut: fprintf(stderr, ": id: %ld", er->radbid); break;
+            case ami_etsclull: fprintf(stderr, ": id: %ld", er->sclulid); break;
+            case ami_etscldrl: fprintf(stderr, ": id: %ld", er->scldrid); break;
+            case ami_etsclulp: fprintf(stderr, ": id: %ld", er->sclupid); break;
+            case ami_etscldrp: fprintf(stderr, ": id: %ld", er->scldpid); break;
+            case ami_etsclpos: fprintf(stderr, ": id: %ld position: %ld",
+                                      er->sclpid, er->sclpos); break;
+            case ami_etedtbox: fprintf(stderr, ": id: %ld", er->edtbid); break;
+            case ami_etnumbox: fprintf(stderr, ": id: %ld number: %ld",
+                                      er->numbid, er->numbsl); break;
+            case ami_etlstbox: fprintf(stderr, ": id: %ld select: %ld",
+                                      er->lstbid, er->lstbsl); break;
+            case ami_etdrpbox: fprintf(stderr, ": id: %ld select: %ld",
+                                      er->drpbid, er->drpbsl); break;
+            case ami_etdrebox: fprintf(stderr, ": id: %ld", er->drebid); break;
+            case ami_etsldpos: fprintf(stderr, ": id: %ld postion: %ld",
+                                      er->sldpid, er->sldpos); break;
+            case ami_ettabbar: fprintf(stderr, ": id: %ld select: %ld",
+                                      er->tabid, er->tabsel); break;
+            default: ;
+
+        }
+
+    }
+
+}
+
+/******************************************************************************
+
+Print XWindow event type
+
+A diagnostic. Prints the XWindow event type codes.
+
+******************************************************************************/
+
+void prtxevtt(int type)
+
+{
+
+    static const char* nm[] = {
+
+        "pd_etnone", "pd_etkeydown", "pd_etkeyup", "pd_etmouse",
+        "pd_etbtndown", "pd_etbtnup", "pd_etenter", "pd_etleave",
+        "pd_etfocus", "pd_etnofocus", "pd_etresize", "pd_etredraw",
+        "pd_etclose", "pd_etmap", "pd_etframe", "pd_etmin",
+        "pd_etmax", "pd_etrestore"
+
+    };
+
+    if (type >= 0 && type < (int)(sizeof(nm)/sizeof(nm[0])))
+        fprintf(stderr, "%s", nm[type]);
+    else fprintf(stderr, "???");
+
+}
+
+/** ****************************************************************************
+
+Print pd_evt message
+
+A diagnostic, prints fields in an pd_evt message.
+
+*******************************************************************************/
+
+void prtxevt(pd_evt* e)
+
+{
+
+    fprintf(stderr, "Event: %5lu Window: %p ", e->token,
+            (void*)e->win);
+    prtxevtt(e->etype);
+    switch (e->etype) {
+
+        case pd_etredraw: fprintf(stderr, ": x: %d y: %d w: %d h: %d",
+                             e->rx, e->ry,
+                             e->rw, e->rh); break;
+        case pd_etresize: fprintf(stderr, ": w: %d h: %d token: %lu",
+                             e->w, e->h, e->token); break;
+        case pd_etmouse: fprintf(stderr, ": x: %d y: %d",
+                                   e->x, e->y); break;
+
+    }
+
+}
+
+/******************************************************************************
+
+Print attributes set
+
+Prints the contents of a PA attributes set.
+
+******************************************************************************/
+
+void prtatset(int at)
+
+{
+
+    if (at & BIT(sablink)) fprintf(stderr, "blink ");
+    if (at & BIT(sarev)) fprintf(stderr, "rev ");
+    if (at & BIT(saundl)) fprintf(stderr, "underl ");
+    if (at & BIT(sasuper)) fprintf(stderr, "super ");
+    if (at & BIT(sasubs)) fprintf(stderr, "subs ");
+    if (at & BIT(saital)) fprintf(stderr, "italic ");
+    if (at & BIT(sabold)) fprintf(stderr, "bold ");
+    if (at & BIT(sastkout)) fprintf(stderr, "strkout ");
+    if (at & BIT(sacondensed)) fprintf(stderr, "cond ");
+    if (at & BIT(saextended)) fprintf(stderr, "ext ");
+    if (at & BIT(saxlight)) fprintf(stderr, "xlight ");
+    if (at & BIT(salight)) fprintf(stderr, "light ");
+    if (at & BIT(saxbold)) fprintf(stderr, "xbold ");
+    if (at & BIT(sahollow)) fprintf(stderr, "hollow ");
+    if (at & BIT(saraised)) fprintf(stderr, "raised ");
+
+}
+
+/******************************************************************************
+
+Print capabilities set
+
+Prints the contents of a XWindows capabilities set.
+
+******************************************************************************/
+
+void prtxcset(int caps)
+
+{
+
+    if (caps & BIT(xcnormal)) fprintf(stderr, "norm ");
+    if (caps & BIT(xcmedium)) fprintf(stderr, "med ");
+    if (caps & BIT(xcbold)) fprintf(stderr, "bold ");
+    if (caps & BIT(xcdemibold)) fprintf(stderr, "dbold ");
+    if (caps & BIT(xcdark)) fprintf(stderr, "dark ");
+    if (caps & BIT(xcblack)) fprintf(stderr, "black ");
+    if (caps & BIT(xclight)) fprintf(stderr, "light ");
+    if (caps & BIT(xcroman)) fprintf(stderr, "rom ");
+    if (caps & BIT(xcital)) fprintf(stderr, "ital ");
+    if (caps & BIT(xcoblique)) fprintf(stderr, "obliq ");
+    if (caps & BIT(xcrital)) fprintf(stderr, "rital ");
+    if (caps & BIT(xcroblique)) fprintf(stderr, "robliq ");
+    if (caps & BIT(xcnormalw)) fprintf(stderr, "normw ");
+    if (caps & BIT(xcnarrow)) fprintf(stderr, "narrw ");
+    if (caps & BIT(xccondensed)) fprintf(stderr, "cond ");
+    if (caps & BIT(xcsemicondensed)) fprintf(stderr, "scond ");
+    if (caps & BIT(xcexpanded)) fprintf(stderr, "exp ");
+    if (caps & BIT(xcproportional)) fprintf(stderr, "prop ");
+    if (caps & BIT(xcmonospace)) fprintf(stderr, "mono ");
+    if (caps & BIT(xcchar)) fprintf(stderr, "char ");
+
+}
+
+/******************************************************************************
+
+Print windows tree
+
+Prints the tree structure of child windows. Automatically finds the top of the
+tree.
+
+******************************************************************************/
+
+void prtwinety(winptr wp, int indent)
+
+{
+
+    winptr cp; /* child window pointer */
+
+    if (wp) {
+
+        fprintf(stderr, "%*cWindow: %p Master: %p Subclient: %p\n",
+                        indent, ' ', (void*)wp, (void*)wp->xmwhan,
+                        (void*)wp->xwhan);
+        indent += 4; /* index next level */
+        cp = wp->childwin; /* index child window list */
+        while (cp) {
+
+            prtwinety(cp, indent); /* print this entry */
+            cp = cp->childlst;  /* next child entry */
+
+        }
+
+    }
+
+}
+
+void prtwintre(winptr wp)
+
+{
+
+    fprintf(stderr, "Windows tree:\n");
+    while (wp->parwin) wp = wp->parwin; /* find top of tree */
+    prtwinety(wp, 0); /* print tree */
+
+}
+
+/** ****************************************************************************
+
+Request the window manager to (re)activate a window
+
+Changing _MOTIF_WM_HINTS makes Mutter (GNOME's compositor) drop the window's
+input focus -- it lands on whatever sits underneath, e.g. the terminal that
+launched us. (Note Mutter also ignores the decoration change itself once the
+window is mapped, but the focus loss still happens.) After such a change we ask
+the WM to focus/raise our window again via the EWMH
+_NET_ACTIVE_WINDOW client message. The WM applies it in order with the
+decoration change, so it is race-free (unlike a bare XSetInputFocus). No-op on
+window managers that don't advertise the atom.
+
+*******************************************************************************/
+
+/* pd_win* pending a focus retry after a decoration change. Turning decorations
+   back on makes Mutter re-decorate, which drops our input focus; the recovery
+   only sticks once that has settled, i.e. when the resulting pd_etnofocus arrives.
+   wmactivate() arms this; the pd_etnofocus handler fires the retry. */
+static pd_win* refocuswin = 0;
+
+static void wmactivate(pd_win* w, int arm)
+
+{
+
+    /* raise the window and let the compositor's own focus policy run;
+       the retry armed here fires from the pd_etnofocus handler */
+    pd_winraise(w);
+    pd_flush(grx_padisplay);
+    if (arm) refocuswin = w;
+
+}
+
+/** ****************************************************************************
+
+Enable or disable window frame
+
+Turns the window frame on and off. Expects the Xwindow handle, and an on/off
+flag. Note that decoration properties can only be set/reset one at a time.
+
+*******************************************************************************/
+
+void enbxfrm(pd_win* xwh, long e)
+
+{
+
+    /* the frame is Ami-drawn on this backend (childfrm); the paint
+       follows the window's own settings. Activation follows the
+       frame change */
+    wmactivate(xwh, e);
+
+}
+
+/** ****************************************************************************
+
+Enable or disable window size bars
+
+Turns the window size bars on and off. Expects the Xwindow handle, and an on/off
+flag. Note that decoration properties can only be set/reset one at a time.
+
+On GNOME/Ubuntu 20.04 with GDM3 window manager, we are not capable of turning
+off the size bars alone, so this is a no-op. It may work on other window
+managers.
+
+*******************************************************************************/
+
+void enbxsiz(pd_win* xwh, long e)
+
+{
+
+    /* Sizing on this backend is governed by the compositor's interactive
+       resize on the declared frame border (pd_winframe) and by size
+       limits. Size bars off pins the window at its current size */
+    if (!e) {
+
+        int x, y, w, h, m;
+
+        pd_wingeom(xwh, &x, &y, &w, &h, &m);
+        pd_winlimits(xwh, w, h, w, h);
+
+    } else pd_winlimits(xwh, 1, 1, 0, 0);
+
+    /* re-focus: activation follows the frame change */
+    wmactivate(xwh, e);
+
+}
+
+/** ****************************************************************************
+
+Enable or disable window system bar
+
+Turns the window system bar on and off. Expects the Xwindow handle, and an on/off
+flag. Note that decoration properties can only be set/reset one at a time.
+
+*******************************************************************************/
+
+void enbxsys(pd_win* xwh, long e)
+
+{
+
+    /* the system bar is part of the Ami-drawn frame on this backend;
+       the frame paint follows the window's own settings. Activation
+       follows the change */
+    wmactivate(xwh, e);
+
+}
+
+
+/** ****************************************************************************
+
+Find Xwindow frame specifications
+
+Finds the extra width, height, and offset to client of a XWindows frame. These
+characteristics are the same in all windows. We find them by creating a test
+window and measuring the difference between the outer (frame) window and the
+client window.
+
+*******************************************************************************/
+
+void fndfrm(void)
+
+{
+
+    /* There is no window manager frame to measure: the compositor draws no
+       frame around a plain xdg toplevel, and when Ami frames its own
+       toplevels it does so through the child frame machinery, which sizes
+       itself. Every frame parameter is zero. */
+    frmextwdt[frmcfgall] = 0;
+    frmexthgt[frmcfgall] = 0;
+    frmoffx[frmcfgall] = 0;
+    frmoffy[frmcfgall] = 0;
+
+    /* set frame off parameters to all zeros */
+    frmextwdt[frmcfgfrm] = 0;
+    frmexthgt[frmcfgfrm] = 0;
+    frmoffx[frmcfgfrm] = 0;
+    frmoffy[frmcfgfrm] = 0;
+
+    /* set sizebars off parameters to same as normal (no-op) */
+    frmextwdt[frmcfgsiz] = frmextwdt[frmcfgfrm] = 0;
+    frmexthgt[frmcfgsiz] = frmexthgt[frmcfgfrm] = 0;
+    frmoffx[frmcfgsiz] = frmoffx[frmcfgfrm] = 0;
+    frmoffy[frmcfgsiz] = frmoffy[frmcfgfrm] = 0;
+
+    /* set system bar off parameters to all zeros */
+    frmextwdt[frmcfgsys] = 0;
+    frmexthgt[frmcfgsys] = 0;
+    frmoffx[frmcfgsys] = 0;
+    frmoffy[frmcfgsys] = 0;
+
+}
+
+/** ****************************************************************************
+
+Default event handler
+
+If we reach this event handler, it means none of the overriders has handled the
+event, but rather passed it down. We flag the event was not handled and return,
+which will cause the event to return to the event() caller.
+
+*******************************************************************************/
+
+static void defaultevent(ami_evtrec* ev)
+
+{
+
+    /* set not handled and exit */
+    ev->handled = 0;
+
+}
+
+/*******************************************************************************
+
+Place string in storage
+
+Places the given string into dynamic storage, and returns that.
+
+*******************************************************************************/
+
+static char* str(char* s)
+
+{
+
+    char* p;
+
+    p = imalloc(strlen(s)+1);
+    strcpy(p, s);
+
+    return (p);
+
+}
+
+/******************************************************************************
+
+Translate colors code
+
+Translates an independent to a terminal specific primary RGB color code for
+XWindow.
+
+******************************************************************************/
+
+int colnum(ami_color c)
+
+{
+
+    int n;
+
+    /* translate color number */
+    switch (c) { /* color */
+
+        case ami_black:     n = 0x000000; break;
+        case ami_white:     n = 0xffffff; break;
+        case ami_red:       n = 0xff0000; break;
+        case ami_green:     n = 0x00ff00; break;
+        case ami_blue:      n = 0x0000ff; break;
+        case ami_cyan:      n = 0x00ffff; break;
+        case ami_yellow:    n = 0xffff00; break;
+        case ami_magenta:   n = 0xff00ff; break;
+        case ami_backcolor: n = 0xf7f7f7; break;
+
+    }
+
+    return (n); /* return number */
+
+}
+
+/*******************************************************************************
+
+Translate rgb to XWindow color
+
+Translates a ratioed LONG_MAX graph color to the XWindow form, which is a 32
+bit word with blue, green and red bytes.
+
+*******************************************************************************/
+
+static int rgb2xwin(long r, long g, long b)
+
+{
+
+   return ((int)((r/(LONG_MAX/256+1))*65536+(g/(LONG_MAX/256+1))*256+
+                 (b/(LONG_MAX/256+1))));
+
+}
+
+/*******************************************************************************
+
+Search for font by name
+
+Finds a font in the list of fonts. Also matches fixed/no fixed pitch status.
+
+*******************************************************************************/
+
+static fontptr fndfnt(char* fn, int fix)
+
+{
+
+    fontptr p;
+    fontptr fp;
+
+    fp = NULL;
+    p = fntlst; /* index top of font list */
+    while (!fp && p) { /* traverse font list */
+
+        if (!strcmp(p->fn, fn) && p->fix == fix) fp = p;
+        else p = p->next; /* next entry */
+
+    }
+
+    return (fp); /* return found font */
+
+}
+
+/*******************************************************************************
+
+Find font by family substring
+
+Searches the font list for a font whose name contains the given substring
+(case-insensitive). Used for flexible standard font selection with fontconfig
+names.
+
+*******************************************************************************/
+
+static fontptr fndfntsub(const char* sub, int fix)
+
+{
+
+    fontptr p;
+    const char *s, *n;
+    int sl, nl;
+
+    sl = strlen(sub);
+    p = fntlst;
+    while (p) {
+
+        if (p->fix == fix) {
+
+            /* case-insensitive substring search in font name */
+            nl = strlen(p->fn);
+            for (n = p->fn; nl >= sl; n++, nl--) {
+
+                for (s = sub; *s; s++)
+                    if (tolower((unsigned char)*s) !=
+                        tolower((unsigned char)n[s - sub])) break;
+                if (!*s) return p; /* found match */
+
+            }
+
+        }
+        p = p->next;
+
+    }
+
+    return NULL;
+
+}
+
+/*******************************************************************************
+
+Search for font by name
+
+Finds a font in the list of fonts by name.
+
+*******************************************************************************/
+
+static fontptr schfnt(char* fn)
+
+{
+
+    fontptr p;
+    fontptr fp;
+
+    fp = NULL;
+    p = fntlst; /* index top of font list */
+    while (!fp && p) { /* traverse font list */
+
+        if (!strcmp(p->fn, fn)) fp = p;
+        else p = p->next; /* next entry */
+
+    }
+
+    return (fp); /* return found font */
+
+}
+
+/*******************************************************************************
+
+Delete font
+
+Deletes the given font entry from the global font list. Does not recycle it.
+
+*******************************************************************************/
+
+void delfnt(fontptr fp)
+
+{
+
+    fontptr flp;
+    fontptr fl;
+
+    if (fp == fntlst) fntlst = fntlst->next; /* gap from top of list */
+    else { /* search whole list */
+
+        /* find last pointer */
+        flp = fntlst;
+        fl = NULL; /* set no last */
+        while (flp && flp != fp) { /* find last */
+
+            fl = flp; /* set last */
+            flp = flp->next; /* go next */
+
+        }
+        if (!fl) error(esystem); /* should have found it */
+        fl->next = fp->next; /* gap over entry */
+
+    }
+
+}
+
+/*******************************************************************************
+
+Print font list
+
+A diagnostic, prints the internal font list.
+
+*******************************************************************************/
+
+void prtfnt(void)
+
+{
+
+    fontptr  fp;
+    int      c;
+    xcaplst* cp;
+
+    fp = fntlst;
+    c = 1;
+    while (fp) {
+
+        dbg_printf(dlinfo, "Font %2d: %s Capabilities: ", c, fp->fn);
+        prtxcset(fp->caps);
+        fprintf(stderr, "\n");
+        cp = fp->caplst;
+        while (cp) {
+
+            fprintf(stderr, "    ");
+            prtxcset(cp->caps);
+            fprintf(stderr, "\n");
+            cp = cp->next;
+
+        }
+        fp = fp->next;
+        c++;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Preselect standard fonts
+
+Selects the list of 1-4 standard fonts, and reorders the list so they are at the
+top.
+
+The standard fonts are selected by name in this version. This relies on XWindow
+having a standard series of fonts that it carries with it. They could also be
+selected by capabilities, but the sticking point there would be to determine
+serif/sans serif, which does not have a formal capability.
+
+We prefer 10646-1 (Unicode) fonts here, but will take 8859-1 (ISO international
+8 bit).
+
+It is an error in this version if we can't find all the standard fonts. This
+means that programs don't need to account for missing fonts as in old style PA.
+The programs that try to account for missing fonts still work, because the fonts
+will never be missing.
+
+In the current versions, the technical font is just a copy of the sign or sans
+serif font. It used to be a vector stroke font, but that is no longer necessary.
+We actually make a copy of the font entry to keep accounting correct. Its up to
+the user to remove that in lists as required, and perhaps alphabetize the fonts.
+
+Todo
+
+1. Need to check fonts have the correct capabilities, ie., roman/no slant, etc.
+
+*******************************************************************************/
+
+void stdfont(void)
+
+{
+
+    fontptr nfl; /* new font list */
+    fontptr fp; /* font pointer */
+    fontptr sp; /* sign font pointer */
+
+    /* select first 4 fonts for standard fonts */
+    nfl = NULL; /* clear target list */
+
+    /* search 1: terminal (fixed pitch) font */
+    fp = fndfntsub("courier 10 pitch", TRUE);
+    if (!fp) fp = fndfntsub("courier new", TRUE);
+    if (!fp) fp = fndfntsub("dejavu sans mono", TRUE);
+    if (!fp) fp = fndfntsub("liberation mono", TRUE);
+    if (!fp) fp = fndfntsub("noto sans mono", TRUE);
+    if (!fp) fp = fndfntsub("menlo", TRUE);       /* macOS */
+    if (!fp) fp = fndfntsub("monaco", TRUE);      /* macOS */
+    if (!fp) fp = fndfntsub("andale mono", TRUE); /* macOS */
+    if (!fp) {
+
+        /* last resort: find any fixed pitch font */
+        fontptr p = fntlst;
+        while (p && !fp) { if (p->fix) fp = p; else p = p->next; }
+
+    }
+    if (!fp) error(estdfnt);
+    delfnt(fp);
+    fp->next = nfl;
+    nfl = fp;
+
+    /* search 2: book (serif) font */
+    fp = fndfntsub("bitstream charter", FALSE);
+    if (!fp) fp = fndfntsub("dejavu serif", FALSE);
+    if (!fp) fp = fndfntsub("liberation serif", FALSE);
+    if (!fp) fp = fndfntsub("noto serif", FALSE);
+    if (!fp) fp = fndfntsub("georgia", FALSE);  /* macOS */
+    if (!fp) fp = fndfntsub("palatino", FALSE); /* macOS */
+    if (!fp) fp = fndfntsub("serif", FALSE);
+    if (!fp) error(estdfnt);
+    delfnt(fp);
+    fp->next = nfl;
+    nfl = fp;
+
+    /* search 3: sign (sans serif) font */
+    fp = fndfntsub("dejavu sans:", FALSE);
+    if (!fp) fp = fndfntsub("liberation sans", FALSE);
+    if (!fp) fp = fndfntsub("noto sans:", FALSE);
+    if (!fp) fp = fndfntsub("ubuntu:", FALSE);
+    if (!fp) fp = fndfntsub("helvetica neue", FALSE); /* macOS */
+    if (!fp) fp = fndfntsub("helvetica:", FALSE);     /* macOS */
+    if (!fp) fp = fndfntsub("arial:", FALSE);         /* macOS */
+    if (!fp) fp = fndfntsub("verdana", FALSE);        /* macOS */
+    if (!fp) fp = fndfntsub("sans", FALSE);
+    if (!fp) error(estdfnt);
+    delfnt(fp);
+    fp->next = nfl;
+    nfl = fp;
+    sp = fp; /* save sign font */
+
+    /* search 4: technical font, make copy of sign */
+    fp = (fontptr)imalloc(sizeof(fontrec));
+    fontcnt++;
+    fonttot += sizeof(fontrec);
+
+    /* copy sign font parameters */
+    fp->fn = sp->fn;
+    fp->fix = sp->fix;
+    fp->caps = sp->caps;
+    fp->caplst = sp->caplst;
+    fp->next = nfl; /* insert to target list */
+    nfl = fp;
+    fntcnt++; /* add to font count */
+
+    /* transfer all remaining entries to the font list */
+    while (fntlst) {
+
+        fp = fntlst;
+        fntlst = fntlst->next; /* gap from list */
+        fp->next = nfl; /* insert to new list */
+        nfl = fp;
+
+    }
+    /* now insert back to master list, and reverse entries to order */
+    while (nfl) {
+
+        fp = nfl;
+        nfl = nfl->next; /* gap from list */
+        fp->next = fntlst; /* insert to new list */
+        fntlst = fp;
+
+    }
+
+}
+
+/*******************************************************************************
+
+Append trimmed lowercase string
+
+Copies a source string onto the build pointer, lowercased, with any leading and
+trailing whitespace removed. Used to assemble font names so that no stray spaces
+appear at the start or end of a component. Returns the advanced build pointer.
+
+*******************************************************************************/
+
+static char* apptrim(char* dp, const char* s)
+
+{
+
+    const char* e; /* end of trimmed source */
+
+    while (*s && isspace((unsigned char)*s)) s++; /* skip leading whitespace */
+    e = s+strlen(s); /* find end of source */
+    while (e > s && isspace((unsigned char)e[-1])) e--; /* trim trailing space */
+    while (s < e) *dp++ = tolower((unsigned char)*s++); /* copy lowercased */
+
+    return (dp); /* return advanced pointer */
+
+}
+
+/*******************************************************************************
+
+Load fonts list
+
+Loads the font list using fontconfig. We only load scalable fonts, since PA has
+no ability to adapt to fonts that don't scale. The font names are constructed as
+"foundry: family: iso10646-1" for compatibility with the internal naming system.
+
+*******************************************************************************/
+
+void getfonts(void)
+
+{
+
+    FcPattern*   pat;      /* fontconfig search pattern */
+    FcObjectSet* os;       /* requested properties */
+    FcFontSet*   fs;       /* result font set */
+    int          ifc;      /* internal font count */
+    char         buf[250]; /* buffer for string name */
+    int          i;
+    char*        dp;
+    fontptr      flp;
+    xcaplst*     xcl;
+    FcChar8*     fcfamily;
+    FcChar8*     fcfoundry;
+    FcChar8*     fcfile;
+    int          fcweight, fcslant, fcwidth, fcspacing, fcindex;
+    FcCharSet*   fccs;
+
+    /* query fontconfig for all scalable fonts */
+    pat = FcPatternCreate();
+    FcPatternAddBool(pat, FC_SCALABLE, FcTrue);
+    os = FcObjectSetBuild(FC_FAMILY, FC_FOUNDRY, FC_STYLE, FC_WEIGHT,
+                          FC_SLANT, FC_WIDTH, FC_SPACING, FC_FILE, FC_INDEX,
+                          FC_CHARSET, NULL);
+    fs = FcFontList(NULL, pat, os);
+    FcObjectSetDestroy(os);
+    FcPatternDestroy(pat);
+
+    fntlst = NULL; /* clear destination list */
+    ifc = 0; /* clear internal font counter */
+
+    for (i = 0; i < fs->nfont; i++) {
+
+        FcPattern* font = fs->fonts[i];
+
+        /* get font properties */
+        if (FcPatternGetString(font, FC_FAMILY, 0, &fcfamily) != FcResultMatch)
+            continue;
+        if (FcPatternGetString(font, FC_FILE, 0, &fcfile) != FcResultMatch)
+            continue;
+
+        /* skip fonts that don't cover basic Latin (A-Z, a-z) */
+        if (FcPatternGetCharSet(font, FC_CHARSET, 0, &fccs) == FcResultMatch) {
+
+            if (!FcCharSetHasChar(fccs, 'A') || !FcCharSetHasChar(fccs, 'z'))
+                continue;
+
+        }
+
+        /* get foundry, default to empty */
+        if (FcPatternGetString(font, FC_FOUNDRY, 0, &fcfoundry) != FcResultMatch)
+            fcfoundry = (FcChar8*)"unknown";
+
+        /* get face index for collection files */
+        if (FcPatternGetInteger(font, FC_INDEX, 0, &fcindex) != FcResultMatch)
+            fcindex = 0;
+
+        /* construct display name: "foundry: family: iso10646-1", trimming
+           leading and trailing whitespace from each component */
+        dp = buf;
+        dp = apptrim(dp, (const char*)fcfoundry);
+        *dp++ = ':'; *dp++ = ' ';
+        dp = apptrim(dp, (const char*)fcfamily);
+        *dp++ = ':'; *dp++ = ' ';
+        {
+            const char* cs = "iso10646-1";
+            while (*cs) *dp++ = *cs++;
+        }
+        *dp = 0;
+
+        /* search for duplicates */
+        flp = schfnt(buf);
+
+        if (!flp) { /* entry is unique */
+
+            flp = (fontptr)imalloc(sizeof(fontrec));
+            fontcnt++;
+            fonttot += sizeof(fontrec);
+            flp->fn = (string)imalloc(strlen(buf)+1);
+            strcpy(flp->fn, buf);
+            flp->caps = 0;
+            flp->caplst = NULL;
+            flp->next = fntlst;
+            fntlst = flp;
+            ifc++;
+
+        }
+
+        /* create capability entry for this variant */
+        xcl = (xcaplst*)imalloc(sizeof(xcaplst));
+        xcl->caps = 0;
+        xcl->next = flp->caplst;
+        flp->caplst = xcl;
+
+        /* store font file path and index */
+        xcl->path = (string)imalloc(strlen((char*)fcfile)+1);
+        strcpy(xcl->path, (char*)fcfile);
+        xcl->index = fcindex;
+
+        /* map fontconfig weight to capabilities */
+        if (FcPatternGetInteger(font, FC_WEIGHT, 0, &fcweight) == FcResultMatch) {
+
+            if (fcweight <= FC_WEIGHT_LIGHT) xcl->caps |= BIT(xclight);
+            else if (fcweight <= FC_WEIGHT_REGULAR) xcl->caps |= BIT(xcnormal);
+            else if (fcweight <= FC_WEIGHT_MEDIUM) xcl->caps |= BIT(xcmedium);
+            else if (fcweight <= FC_WEIGHT_DEMIBOLD) xcl->caps |= BIT(xcdemibold);
+            else if (fcweight <= FC_WEIGHT_BOLD) xcl->caps |= BIT(xcbold);
+            else if (fcweight <= FC_WEIGHT_BLACK) xcl->caps |= BIT(xcblack);
+            else xcl->caps |= BIT(xcbold);
+
+        } else xcl->caps |= BIT(xcnormal);
+
+        /* map fontconfig slant to capabilities */
+        if (FcPatternGetInteger(font, FC_SLANT, 0, &fcslant) == FcResultMatch) {
+
+            if (fcslant == FC_SLANT_ROMAN) xcl->caps |= BIT(xcroman);
+            else if (fcslant == FC_SLANT_ITALIC) xcl->caps |= BIT(xcital);
+            else if (fcslant == FC_SLANT_OBLIQUE) xcl->caps |= BIT(xcoblique);
+
+        } else xcl->caps |= BIT(xcroman);
+
+        /* map fontconfig width to capabilities */
+        if (FcPatternGetInteger(font, FC_WIDTH, 0, &fcwidth) == FcResultMatch) {
+
+            if (fcwidth <= FC_WIDTH_CONDENSED) xcl->caps |= BIT(xccondensed);
+            else if (fcwidth <= FC_WIDTH_SEMICONDENSED)
+                xcl->caps |= BIT(xcsemicondensed);
+            else if (fcwidth <= FC_WIDTH_NORMAL) xcl->caps |= BIT(xcnormalw);
+            else xcl->caps |= BIT(xcexpanded);
+
+        } else xcl->caps |= BIT(xcnormalw);
+
+        /* map fontconfig spacing to capabilities */
+        if (FcPatternGetInteger(font, FC_SPACING, 0, &fcspacing) == FcResultMatch) {
+
+            if (fcspacing == FC_PROPORTIONAL) xcl->caps |= BIT(xcproportional);
+            else if (fcspacing == FC_MONO || fcspacing == FC_DUAL)
+                xcl->caps |= BIT(xcmonospace);
+            else if (fcspacing == FC_CHARCELL) xcl->caps |= BIT(xcchar);
+
+        } else xcl->caps |= BIT(xcproportional);
+
+        /* form set of all capabilities */
+        flp->caps |= xcl->caps;
+
+        /* set font flags based on spacing */
+        flp->fix = (flp->caps & BIT(xcmonospace)) || (flp->caps & BIT(xcchar));
+
+    }
+
+    FcFontSetDestroy(fs);
+
+    fntcnt = ifc; /* set internal font count */
+
+    /* select the standard fonts */
+    stdfont();
+
+#ifdef PRTFNT
+    /* print resulting font list */
+    dbg_printf(dlinfo, "Internal font list:\n");
+    prtfnt();
+    fflush(stderr);
+#endif
+
+}
+
+/*******************************************************************************
+
+Find requested font capabilities
+
+Finds the set of XWindows capabilities that are requested in the set of PA
+attributes.
+
+*******************************************************************************/
+
+int fndxcap(int caps, int at)
+
+{
+
+    int ncaps;   /* XWindow font capabilities */
+
+    ncaps = 0; /* clear result */
+
+    /* weight */
+    if (at & BIT(sabold) && caps & BIT(xcbold)) ncaps |= BIT(xcbold);
+    else if (at & BIT(salight) && caps & BIT(xclight)) ncaps |= BIT(xclight);
+
+    /* slant */
+    if (at & BIT(saital) && caps & BIT(xcital)) ncaps |= BIT(xcital);
+
+    /* widths */
+    if (at & BIT(sacondensed) && caps & BIT(xccondensed))
+        ncaps |= BIT(xccondensed);
+    else if (at & BIT(saextended) && caps & BIT(xcexpanded))
+        ncaps |= BIT(xcexpanded);
+
+    return (ncaps); /* return new capabilities */
+
+}
+
+/*******************************************************************************
+
+Select attributes by priority
+
+Given a set of Petit-Ami attributes, finds a set of XWindows capabilities from
+the list of possible capabilities by selecting all of the possible attributes,
+then removing attributes by lowest priority until a match is found. This is
+required because the XWindow capability set may have conflicting attributes. For
+example, bold may have to have extended due to the new size of the font.
+
+Returns the resulting set of XWindow capabilities as a set.
+
+*******************************************************************************/
+
+/* find number of bits in set */
+int bitcnt(int i)
+
+{
+
+    int c, b;
+
+    c = 0;
+    b = 1;
+    while (b >= 0) { /* this will overflow negative */
+
+        if (i & b) c++;
+        b <<= 1;
+
+    }
+
+    return (c); /* return bit count */
+
+}
+
+/* find if capabilities set matches one from list */
+int matchcap(int caps, xcaplst* cl, int* mc)
+
+{
+
+    int fnd; /* found/not found flag */
+    int bn, bn2;  /* bit number */
+
+    fnd = FALSE; /* set not found */
+    bn = INT_MAX; /* set bit number maximum */
+    while (cl) {
+
+        /* all of the requested capability bits must also exist in the target
+           capabilities */
+        if ((cl->caps&caps) == caps) {
+
+            /* find number of configuring bits in new set */
+            bn2 = bitcnt(cl->caps & cfgcap);
+            if (bn2 < bn) {
+
+                /* fewer side effects */
+                fnd = TRUE; /* set found */
+                *mc = cl->caps; /* return what was matched */
+                bn = bn2; /* set new minimum */
+
+            }
+
+        }
+        cl = cl->next;
+
+    }
+
+    return (fnd); /* return match/no match */
+
+}
+
+int fndxcapp(fontptr fp, int at)
+
+{
+
+    /* capabilities list in lowest to highest priority */
+    const int cappri[] = {
+
+        sablink,     /* blinking text (foreground) */
+        saxlight,    /* extra light */
+        saxbold,     /* bold */
+        salight,     /* light */
+        sarev,       /* reverse video */
+        saundl,      /* underline */
+        sasuper,     /* superscript */
+        sasubs,      /* subscripting */
+        sastkout,    /* strikeout text */
+        sahollow,    /* hollow */
+        saraised,    /* raised */
+        sacondensed, /* condensed */
+        saextended,  /* extended */
+        saital,      /* italic text */
+        sabold,      /* bold text */
+        INT_MAX      /* end */
+
+    };
+
+    int caps;
+    int match;
+    int ia, lia;
+    int mc;
+
+    ia = 0;
+    match = FALSE;
+//dbg_printf(dlinfo, "full caps: "); prtxcset(fp->caps); fprintf(stderr, "\n"); fflush(stderr);
+    do { /* search capabilities */
+
+//dbg_printf(dlinfo, "at: "); prtatset(at); fprintf(stderr, "\n"); fflush(stderr);
+        /* find capabilities from this set of attributes */
+        caps = fndxcap(fp->caps, at);
+//dbg_printf(dlinfo, "caps: "); prtxcset(caps); fprintf(stderr, "\n"); fflush(stderr);
+        if (matchcap(caps, fp->caplst, &mc)) match = TRUE; /* found a match */
+        else { /* try again */
+
+//dbg_printf(dlinfo, "Will remove: "); prtatset(BIT(cappri[ia])); fprintf(stderr, "\n"); fflush(stderr);
+            at &= ~BIT(cappri[ia]); /* remove attribute by priority */
+            lia = ia; /* save select */
+            ia++; /* next attribute */
+
+        }
+
+    } while (!match &&
+             (cappri[lia] != INT_MAX)); /* until found or no more attributes */
+    /* if we still have not found anything, it has to be a system error, since
+       we all attributes */
+    if (!match) error(esystem);
+//dbg_printf(dlinfo, "matching caps: "); prtxcset(mc); fprintf(stderr, "\n"); fflush(stderr);
+
+    return (mc); /* return matching caps */
+
+}
+
+/*******************************************************************************
+
+Select font
+
+Sets the currently selected font active. Processes all current attributes as
+applicable, if the XWindow font set has that capability. Capability must be an
+exact match, that is, capability indicates an actual XWindows font with that
+capability exists. If any capability is not found, we default to blank or no
+characters in the field.
+
+The translation of attributes to capabilities is done on a priority basis. For
+example, bold and light are mutually exclusive, and bold is prioritized.
+
+*******************************************************************************/
+
+void setfnt(winptr win)
+
+{
+
+    int      caps; /* matched capabilities set */
+    xcaplst* cl;   /* capability list pointer */
+    xcaplst* best; /* best matching entry */
+
+    /* release any existing FreeType face */
+    if (win->ftface) {
+
+        fflush(stderr);
+        ft_invalidate_face(win->ftface);
+        FT_Done_Face(win->ftface);
+        win->ftface = NULL;
+
+    }
+
+    /* find matching capabilities set */
+    caps = fndxcapp(win->gcfont, win->gattr);
+
+    /* find the xcaplst entry that matches the capabilities */
+    best = NULL;
+    cl = win->gcfont->caplst;
+    while (cl) {
+
+        if ((cl->caps & caps) == caps) { best = cl; break; }
+        cl = cl->next;
+
+    }
+    /* if no exact match, take first entry with a valid path */
+    if (!best) {
+
+        cl = win->gcfont->caplst;
+        while (cl) {
+
+            if (cl->path) { best = cl; break; }
+            cl = cl->next;
+
+        }
+
+    }
+    if (!best || !best->path) error(esystem);
+
+    /* load the font face */
+    if (FT_New_Face(ftlibrary, best->path, best->index, &win->ftface))
+        error(esystem);
+
+    /* Set the em-square pixel size so the resulting character cell
+       (ascender + |descender| + 2) fits within win->gfcellh. This keeps
+       the cell height constant across font changes. On first call
+       (gfcellh == 0), bootstrap gfcellh from the initial gfhigh. */
+    {
+        FT_Face face = win->ftface;
+        int     target, pixsiz, asc, dsc;
+
+        if (win->gfcellh == 0) {
+
+            /* bootstrap: use gfhigh directly and record the resulting
+               cell height as the persistent target */
+            FT_Set_Pixel_Sizes(face, 0, win->gfhigh);
+            asc = (int)( face->size->metrics.ascender  >> 6);
+            dsc = (int)(-face->size->metrics.descender >> 6);
+            win->gfcellh = asc + dsc + 2;
+            pixsiz = win->gfhigh;
+
+        } else {
+
+            /* find the largest em-square pixel size such that the
+               cell fits within gfcellh */
+            target = win->gfcellh - 2; /* ascender + |descender| target */
+            if (target < 1) target = 1;
+            pixsiz = target;
+            if (pixsiz < 1) pixsiz = 1;
+            FT_Set_Pixel_Sizes(face, 0, pixsiz);
+            asc = (int)( face->size->metrics.ascender  >> 6);
+            dsc = (int)(-face->size->metrics.descender >> 6);
+            while (asc + dsc > target && pixsiz > 1) {
+
+                pixsiz--;
+                FT_Set_Pixel_Sizes(face, 0, pixsiz);
+                asc = (int)( face->size->metrics.ascender  >> 6);
+                dsc = (int)(-face->size->metrics.descender >> 6);
+
+            }
+            while (1) {
+
+                int np = pixsiz + 1;
+                int na, nd;
+
+                FT_Set_Pixel_Sizes(face, 0, np);
+                na = (int)( face->size->metrics.ascender  >> 6);
+                nd = (int)(-face->size->metrics.descender >> 6);
+                if (na + nd > target) {
+
+                    FT_Set_Pixel_Sizes(face, 0, pixsiz);
+                    break;
+
+                }
+                pixsiz = np;
+                asc = na;
+                dsc = nd;
+
+            }
+
+        }
+        /* gfhigh/gfhighx are the PHYSICAL em-square pixel sizes used by
+           FreeType for glyph rendering. They include the viewport scale so
+           glyphs grow/shrink with the zoom. gfhigh_log is the LOGICAL
+           (unscaled) em-square for metric queries (charspace, xwidth).
+           charspace and linespace stay LOGICAL for cursor advancement. */
+        win->gfhigh_log = pixsiz;
+        win->gfhigh    = (int)(pixsiz * win->vsy);
+        win->gfhighx   = (int)(pixsiz * win->vsx);
+        if (win->gfhigh  < 1) win->gfhigh  = 1;
+        if (win->gfhighx < 1) win->gfhighx = 1;
+        win->gfpoint   = pixsiz * 2835.0f / (float)win->sdpmy;
+        win->linespace = win->gfcellh;
+        win->baseoff   = asc + 1;
+    }
+    /* read charspace at LOGICAL pixel size for cursor advancement */
+    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
+    win->charspace = (int)(win->ftface->size->metrics.max_advance >> 6);
+    win->chrspcx = 0;
+    win->chrspcy = 0;
+
+    if (prtftm) {
+
+        dbg_printf(dlinfo, "FreeType font: %s\n", best->path);
+        dbg_printf(dlinfo, "Font ascender:  %d\n", win->baseoff);
+        dbg_printf(dlinfo, "Font descender: %d\n",
+                   (int)(win->ftface->size->metrics.descender >> 6));
+        dbg_printf(dlinfo, "Width of character cell:  %d\n", win->charspace);
+        dbg_printf(dlinfo, "Height of character cell: %d\n", win->linespace);
+        dbg_printf(dlinfo, "Base offset:              %d\n", win->baseoff);
+
+    }
+
+}
+
+/*******************************************************************************
+
+Find width of character in XWindow
+
+Finds and returns the width of a character in XWindow. Normally used for
+proportional fonts.
+
+*******************************************************************************/
+
+int xwidth(winptr win, char c)
+
+{
+
+    /* ensure face is at logical pixel size for correct metric queries —
+       ft_draw_char may have left it at the physical (scaled) size */
+    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
+    if (FT_Load_Char(win->ftface, (unsigned char)c, FT_LOAD_DEFAULT))
+        return 0;
+    return (int)(win->ftface->glyph->advance.x >> 6);
+
+}
+
+/*******************************************************************************
+
+Glyph cache for FreeType rendered glyphs
+
+Caches 1-bit depth Pixmaps of rendered glyphs to avoid recreating them on
+every draw call.
+
+*******************************************************************************/
+
+#define GLYPH_CACHE_SIZE 512
+
+typedef struct {
+
+    FT_Face  face;          /* font face this glyph belongs to */
+    int      pixel_size_y;  /* em-square pixel size y */
+    int      pixel_size_x;  /* em-square pixel size x (asymmetric scaling) */
+    int      glyph_index;   /* glyph index in font */
+    uint8_t*     mask;        /* glyph alpha mask, w*h bytes */
+    int      width;       /* bitmap width */
+    int      height;      /* bitmap height */
+    int      bitmap_left; /* left bearing */
+    int      bitmap_top;  /* top bearing */
+    int      advance;     /* horizontal advance */
+    int      valid;       /* entry is valid */
+
+} glyphcache;
+
+static glyphcache gcache[GLYPH_CACHE_SIZE];
+
+/* Invalidate all cache entries that reference a given face */
+static void ft_invalidate_face_un(FT_Face face)
+
+{
+
+    int i;
+
+    for (i = 0; i < GLYPH_CACHE_SIZE; i++) {
+
+        if (gcache[i].valid && gcache[i].face == face) {
+
+            free(gcache[i].mask);
+            gcache[i].valid = 0;
+            gcache[i].mask = 0;
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
+Find or create cached glyph
+
+Looks up the glyph in the cache. If not found, renders it with FreeType
+and keeps the alpha mask for pd_glyph rendering.
+
+*******************************************************************************/
+
+static glyphcache* ft_cache_glyph(FT_Face face, int pixel_size_x,
+                                   int pixel_size_y, char c)
+
+{
+
+    unsigned int gi;
+    unsigned int hash;
+    glyphcache* ge;
+    FT_GlyphSlot slot;
+    int w, h, pitch;
+    unsigned char* buf;
+    int j;
+
+    gi = FT_Get_Char_Index(face, (unsigned char)c);
+    hash = (gi * 31 + pixel_size_y * 17 + pixel_size_x * 13) % GLYPH_CACHE_SIZE;
+
+    ge = &gcache[hash];
+
+    /* check for cache hit */
+    if (ge->valid && ge->face == face &&
+        ge->pixel_size_y == pixel_size_y &&
+        ge->pixel_size_x == pixel_size_x &&
+        ge->glyph_index == (int)gi) return ge;
+
+    /* cache miss - render the glyph as 8-bit grayscale */
+    FT_Set_Pixel_Sizes(face, pixel_size_x, pixel_size_y);
+    if (FT_Load_Char(face, (unsigned char)c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL))
+        return NULL;
+
+    slot = face->glyph;
+    w = slot->bitmap.width;
+    h = slot->bitmap.rows;
+
+    /* evict old entry if present */
+    if (ge->valid) free(ge->mask);
+
+    ge->face = face;
+    ge->pixel_size_y = pixel_size_y;
+    ge->pixel_size_x = pixel_size_x;
+    ge->glyph_index = gi;
+    ge->bitmap_left = slot->bitmap_left;
+    ge->bitmap_top = slot->bitmap_top;
+    ge->advance = (int)(slot->advance.x >> 6);
+    ge->width = w;
+    ge->height = h;
+    ge->valid = 1;
+
+    if (w == 0 || h == 0) {
+
+        ge->mask = 0;
+        return ge;
+
+    }
+
+    /* keep the alpha mask rows for pd_glyph */
+    buf = slot->bitmap.buffer;
+    pitch = slot->bitmap.pitch;
+    ge->mask = malloc((size_t)w*h);
+    for (j = 0; j < h; j++)
+        memcpy(ge->mask+(size_t)j*w, buf+(size_t)j*pitch, w);
+
+    return ge;
+
+}
+
+/*******************************************************************************
+
+Draw single character using FreeType
+
+Renders a character glyph through the layer's glyph blit, from the cached
+alpha mask, honoring the draw record's mix mode.
+
+*******************************************************************************/
+
+static void ft_draw_char_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                            int pixel_size_x, int pixel_size_y,
+                            int x, int y, char c)
+
+{
+
+    glyphcache* ge;
+
+    ge = ft_cache_glyph(face, pixel_size_x, pixel_size_y, c);
+    if (!ge || !ge->mask) return;
+
+    pd_glyph(d, gc, x + ge->bitmap_left, y - ge->bitmap_top,
+             ge->mask, ge->width, ge->height, ge->width, 8);
+
+}
+
+/*******************************************************************************
+
+Draw string using FreeType
+
+Renders a string onto an X11 pd_canvas* using cached glyph stipples.
+
+*******************************************************************************/
+
+static void ft_draw_string_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                              int pixel_size_x, int pixel_size_y,
+                              int x, int y, char* s, int len)
+
+{
+
+    int i;
+
+    for (i = 0; i < len; i++) {
+
+        ft_draw_char(d, gc, face, pixel_size_x, pixel_size_y, x, y, s[i]);
+        if (FT_Load_Char(face, (unsigned char)s[i], FT_LOAD_DEFAULT) == 0)
+            x += (int)(face->glyph->advance.x >> 6);
+
+    }
+
+}
+
+/*******************************************************************************
+
+Calculate text width using FreeType
+
+Returns the total pixel width of a string rendered with the given face.
+
+*******************************************************************************/
+
+static int ft_text_width_un(FT_Face face, const char* s, int len)
+
+{
+
+    int w;
+    int i;
+
+    w = 0;
+    for (i = 0; i < len; i++) {
+
+        if (FT_Load_Char(face, (unsigned char)s[i], FT_LOAD_DEFAULT) == 0)
+            w += (int)(face->glyph->advance.x >> 6);
+
+    }
+
+    return w;
+
+}
+
+/*******************************************************************************
+
+Draw rotated character using FreeType
+
+Renders a character at an arbitrary angle. The glyph is rasterized
+pre-rotated by FreeType itself (via FT_Set_Transform), which gives proper
+subpixel-accurate rotation; the layer's glyph blit renders the mask with
+the same thresholding as the unrotated path, so mix modes apply
+identically.
+
+*******************************************************************************/
+
+static void ft_draw_char_rotated_un(pd_canvas* d, pd_draw* gc, FT_Face face,
+                                    int pixel_size_x, int pixel_size_y,
+                                    float angle_rad,
+                                    int x, int y, char c)
+
+{
+
+    FT_GlyphSlot slot;
+    FT_Matrix    mat;
+    int          w, h, pitch;
+    unsigned char* buf;
+    uint8_t*     mask;
+    int          j;
+
+    FT_Set_Pixel_Sizes(face, pixel_size_x, pixel_size_y);
+
+    /* 16.16 fixed-point rotation matrix for FreeType. The input angle_rad
+       is Petit-Ami's COMPASS convention (0 = north/up, π/2 = east, positive
+       turns clockwise in screen view). FreeType's matrix is math-CCW with
+       its own y-up coordinate system, so the FT rotation angle is
+       (π/2 − angle_rad). Using cos(π/2 − x) = sin(x) and
+       sin(π/2 − x) = cos(x) gives: */
+    mat.xx = (FT_Fixed)( sin(angle_rad) * 0x10000);
+    mat.xy = (FT_Fixed)(-cos(angle_rad) * 0x10000);
+    mat.yx = (FT_Fixed)( cos(angle_rad) * 0x10000);
+    mat.yy = (FT_Fixed)( sin(angle_rad) * 0x10000);
+    FT_Set_Transform(face, &mat, NULL);
+
+    if (FT_Load_Char(face, (unsigned char)c,
+                     FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL)) {
+        FT_Set_Transform(face, NULL, NULL); /* reset for subsequent loads */
+        return;
+    }
+    /* Reset immediately — the transform is sticky on the face, and the
+       unrotated ft_cache_glyph path shares this face. */
+    FT_Set_Transform(face, NULL, NULL);
+
+    slot = face->glyph;
+    w = slot->bitmap.width;
+    h = slot->bitmap.rows;
+    if (w == 0 || h == 0) return;
+
+    buf = slot->bitmap.buffer;
+    pitch = slot->bitmap.pitch;
+
+    /* pack the mask rows and hand them to the layer's glyph blit;
+       FreeType's bitmap_left/bitmap_top already reflect the rotated
+       glyph's bounding box */
+    mask = malloc((size_t)w*h);
+    for (j = 0; j < h; j++)
+        memcpy(mask+(size_t)j*w, buf+(size_t)j*pitch, w);
+    pd_glyph(d, gc, x + slot->bitmap_left, y - slot->bitmap_top,
+             mask, w, h, w, 8);
+    free(mask);
+
+}
+
+/*******************************************************************************
+
+Invalidate glyph cache
+
+Clears all cached glyph pixmaps. Called when font system is shutting down.
+
+*******************************************************************************/
+
+static void ft_cache_clear_un(void)
+
+{
+
+    int i;
+
+    for (i = 0; i < GLYPH_CACHE_SIZE; i++) {
+
+        free(gcache[i].mask);
+        gcache[i].valid = 0;
+        gcache[i].mask = 0;
+
+    }
+
+}
+
+/*******************************************************************************
+
+The font, taken under the lock
+
+Everything above works on a shared FT_Face and its glyph cache, which
+FreeType does not make thread safe: rendering a character frees and
+reallocates a slot inside the face, and two threads doing that at once
+free the same block twice. The library is drawn from one thread in the
+ordinary way, but not always -- a program may draw from one thread while
+another sits in event(), and the remote display server does exactly that,
+its dispatch thread drawing what the client asked for while its event
+pump redraws the window frames. These are the ways in, and they hold the
+lock; grx_ftlock is for a caller that must hold it across several of
+them, as the decorations do to measure a title and then draw it.
+
+*******************************************************************************/
+
+void grx_ftlock(void) { pthread_mutex_lock(&ftlock); }
+void grx_ftunlock(void) { pthread_mutex_unlock(&ftlock); }
+
+static void ft_draw_char(pd_canvas* d, pd_draw* gc, FT_Face face,
+                         int pixel_size_x, int pixel_size_y,
+                         int x, int y, char c)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_draw_char_un(d, gc, face, pixel_size_x, pixel_size_y, x, y, c);
+    pthread_mutex_unlock(&ftlock);
+
+}
+
+void grx_ft_draw_string(pd_canvas* d, pd_draw* gc, FT_Face face,
+                        int pixel_size_x, int pixel_size_y,
+                        int x, int y, char* s, int len)
+
+{
+
+    pthread_mutex_lock(&ftlock);
+    ft_draw_string_un(d, gc, face, pixel_size_x, pixel_size_y, x, y, s, len);
+    pthread_mutex_unlock(&ftlock);
+
+}
+
+int grx_ft_text_width(FT_Face face, const char* s, int len)
+
+{
+
+    int w;
+
+    pthread_mutex_lock(&ftlock);
+    w = ft_text_width_un(face, s, len);
+    pthread_mutex_unlock(&ftlock);
+
+    return (w);
+
+}
+
+/* The width of a string in the window's own font. The face is shared with
+   the chrome, which measures and draws the title at its own size, and a
+   frame redraw comes from events at moments the program does not choose;
+   so the size is set here, under the lock, every time, or a string
+   measured just after a title was drawn is measured at the title's size.
+   Metrics are read at the logical size, as xwidth reads them. */
+static int wintextwidth(winptr win, const char* s, int len)
+
+{
+
+    int w;
+
+    pthread_mutex_lock(&ftlock);
+    FT_Set_Pixel_Sizes(win->ftface, 0, win->gfhigh_log);
+    w = ft_text_width_un(win->ftface, s, len);
+    pthread_mutex_unlock(&ftlock);
+
+    return (w);
+
+}
+
 static void ft_draw_char_rotated(pd_canvas* d, pd_draw* gc, FT_Face face,
                                  int pixel_size_x, int pixel_size_y,
                                  float angle_rad,
@@ -4735,6 +7954,25 @@ arrow on borders, diagonal arrow on corners.
 
 *******************************************************************************/
 
+/* Round a toplevel dimension up to a whole number of logical pixels. On a
+   scaled desktop the compositor sizes a toplevel in logical pixels, so a
+   surface an odd number of buffer pixels tall comes back one taller, and
+   the client area grows by the difference at whatever moment the answer
+   lands. Keeping the client, the frame and the menu band each aligned
+   keeps the sum aligned, and the compositor then has nothing to round.
+   Child windows sit inside their parent's surface and need none of it. */
+static int alignpx(winptr win, int v)
+
+{
+
+    int scale = pd_scale(grx_padisplay);
+
+    if (win->parwin || scale <= 1) return (v);
+
+    return ((v+scale-1)/scale*scale);
+
+}
+
 /* subclient offsets within the master: the Ami frame, plus the menu bar
    strip below the title when a menu is active */
 static int subclix(winptr win)
@@ -5462,8 +8700,8 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     /* set buffer size required for character spacing at default character grid
        size */
-    win->gmaxxg = maxxd*win->charspace;
-    win->gmaxyg = maxyd*win->linespace;
+    win->gmaxxg = alignpx(win, maxxd*win->charspace);
+    win->gmaxyg = alignpx(win, maxyd*win->linespace);
 
     /* set XWindow display origins sizes and sizes */
     win->xmwr.x = 0;
@@ -5478,7 +8716,7 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
 
     /* set menu line spacing now, from our choosen font sized from the window.
        This then won't be reset by the client. */
-    win->menuspcy = dec->menuheight(win);
+    win->menuspcy = alignpx(win, dec->menuheight(win));
 
     /* set parent window, either the given or the root window */
     if (pwin) { /* there is a parent window */
@@ -5510,6 +8748,8 @@ static void opnwin(int fn, int pfn, long wid, int subclient)
         win->minimized = FALSE;
         dec->frmgeom(win, BIT(ami_wmframe)|BIT(ami_wmsize)|BIT(ami_wmsysbar),
                      &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        win->pfw = alignpx(win, win->pfw);
+        win->pfh = alignpx(win, win->pfh);
 
         /* size master to include frame around client area */
         pd_winsize(win->xmwhan,
@@ -12840,6 +16080,8 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
                             if (rsz_top) ny -= (win->pfh + 40 - nh);
                             nh = win->pfh + 40;
                         }
+                        nw = alignpx(win, nw);
+                        nh = alignpx(win, nh);
                         int shrunk = (nw < win->xmwr.w || nh < win->xmwr.h);
                         win->xmwr.x = nx;
                         win->xmwr.y = ny;
@@ -14804,6 +18046,16 @@ static void setsizg_ivf(FILE* f, long x, long y)
     xwc.height = y-win->pfh;
     if (win->menu) xwc.height -= win->menuspcy;
     if (xwc.height < 1) xwc.height = 1;
+    /* a toplevel client is a whole number of logical pixels, and the
+       master is then the sum of aligned parts */
+    xwc.width = alignpx(win, xwc.width);
+    xwc.height = alignpx(win, xwc.height);
+    if (win->childfrm) {
+
+        x = xwc.width+win->pfw;
+        y = xwc.height+win->pfh+(win->menu? win->menuspcy: 0);
+
+    }
     /* Check repeated sizing. This prevents hangups due to the window manager
        ignoring such sets. */
     if (xwc.width != win->xmwr.w || xwc.height != win->xmwr.h) {
@@ -15294,8 +18546,8 @@ static void winclientg_ivf(FILE* f, long cx, long cy, long* wx, long* wy, ami_wi
         int pfw, pfh, cwox, cwoy;
 
         dec->frmgeom(win, ms, &pfw, &pfh, &cwox, &cwoy);
-        *wx = cx+pfw;
-        *wy = cy+pfh;
+        *wx = alignpx(win, cx)+alignpx(win, pfw);
+        *wy = alignpx(win, cy)+alignpx(win, pfh);
         /* the menu bar adds its band above the client */
         if (BIT(ami_wmmenu) & ms) *wy += win->menuspcy;
         return;
@@ -15396,6 +18648,8 @@ static void frame_ivf(FILE* f, long e)
         dec->frmgeom(win, e? BIT(ami_wmframe)|BIT(ami_wmsize)|
                             BIT(ami_wmsysbar): 0,
                      &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        win->pfw = alignpx(win, win->pfw);
+        win->pfh = alignpx(win, win->pfh);
         chg = opfw != win->pfw || opfh != win->pfh;
 
         if (chg) {
@@ -15579,6 +18833,8 @@ static void sysbar_ivf(FILE* f, long e)
         dec->frmgeom(win, BIT(ami_wmframe)|BIT(ami_wmsize)|
                           BIT(ami_wmsysbar)*!!e,
                      &win->pfw, &win->pfh, &win->cwox, &win->cwoy);
+        win->pfw = alignpx(win, win->pfw);
+        win->pfh = alignpx(win, win->pfh);
         chg = opfw != win->pfw || opfh != win->pfh;
 
         if (chg) {
