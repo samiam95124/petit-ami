@@ -24,9 +24,10 @@
 #
 # Some text standards are of a platform's paths, environment, option character
 # and directory listing, and no mask covers that, so those tests keep a
-# standard per platform: tests/<test>.windows.cmp on Windows, tests/<test>.cmp
-# elsewhere. The tests that do are listed in plattests below; the rest share
-# one standard across the platforms.
+# standard per platform, in the platform's own directory:
+# tests/windows_compare/<test>.cmp, tests/linux_compare/<test>.cmp,
+# tests/macosx_compare/<test>.cmp. The tests that do are listed in plattests
+# below; the rest share one standard across the platforms, tests/<test>.cmp.
 #
 # The print tests, txttest and pdftest, print into a file, tests/<test>.lst,
 # and that is what is compared: the text page by dif, the .pdf document whole.
@@ -35,12 +36,14 @@
 # own, so one standard serves every platform.
 #
 # The picture standards are of a desktop's look -- the frame the screen tests
-# size themselves against, the menus, the theme -- and GNOME and Plasma draw
-# through different decoration modules, so each desktop keeps a set of its
-# own: tests/<test>.gnome.cmp and tests/<test>.plasma.cmp. The set is chosen
-# the way the decorations choose themselves, from XDG_CURRENT_DESKTOP, and a
-# desktop that has no set yet is told to make one with --update. Windows is
-# a desktop of its own here, tests/<test>.windows.cmp.
+# size themselves against, the menus, the theme -- so they live in the
+# platform's directory too, and on Linux, where GNOME and Plasma draw through
+# different decoration modules, each desktop keeps a set of its own:
+# tests/linux_compare/<test>.gnome.cmp and tests/linux_compare/<test>.plasma.cmp.
+# The set is chosen the way the decorations choose themselves, from
+# XDG_CURRENT_DESKTOP, and a desktop that has no set yet is told to make one
+# with --update. Windows and Mac OS X draw one look each:
+# tests/windows_compare/<test>.cmp, tests/macosx_compare/<test>.cmp.
 #
 # A picture run that fails is kept as tests/<test>.fail-<stamp>.lst, so the
 # screens that differed survive the re-run that overwrites the .lst.
@@ -71,12 +74,15 @@
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root" || exit 1
 
-# the platform, which names the text standards of the tests that keep one
-# per platform, and the programs
+# the platform: it names the directory of the standards that are the
+# platform's own, and the programs. plat is set where the platform is not a
+# Unix; the Unix ports name their programs alike.
 case "$(uname -s)" in
 
-MINGW*|MSYS*|CYGWIN*) plat=".windows" ;;
-*)                    plat="" ;;
+MINGW*|MSYS*|CYGWIN*) plat="windows"; cmpdir="tests/windows_compare" ;;
+Darwin)               plat="";        cmpdir="tests/macosx_compare" ;;
+FreeBSD)              plat="";        cmpdir="tests/freebsd_compare" ;;
+*)                    plat="";        cmpdir="tests/linux_compare" ;;
 
 esac
 plattests=" services_test "
@@ -237,15 +243,17 @@ runtest()
 # the PNG signature, for counting the screens in a capture stream
 pngsig=$(printf '\211PNG')
 
-# the desktop the screens are drawn in, which names the picture standards;
-# Windows draws its own look, and is its own desktop
-case "$XDG_CURRENT_DESKTOP" in
+# the desktop the screens are drawn in, which qualifies the picture
+# standards on Linux; the other platforms draw one look each
+case "$(uname -s)" in
 
-*KDE*) desk="plasma" ;;
-*)     desk="gnome" ;;
+MINGW*|MSYS*|CYGWIN*|Darwin) desk="" ;;
+*) case "$XDG_CURRENT_DESKTOP" in
+   *KDE*) desk=".plasma" ;;
+   *)     desk=".gnome" ;;
+   esac ;;
 
 esac
-if [ -n "$plat" ]; then desk="windows"; fi
 
 fails=0
 for t in $tests; do
@@ -315,7 +323,7 @@ for t in $tests; do
             continue
 
         fi
-        std="tests/$t.$desk.cmp"
+        std="$cmpdir/$t$desk.cmp"
         if [ "$update" = "1" ]; then
 
             cp "tests/$t.lst" "$std"
@@ -324,7 +332,7 @@ for t in $tests; do
         elif [ ! -f "$std" ]; then
 
             {
-                echo "no $std: the $desk desktop has no standard for $t yet"
+                echo "no $std: this platform${desk:+ and desktop} has no standard for $t yet"
                 echo "make one with: bin/regress --update $t, then review it"
             } > "tests/$t.dif"
             echo "$t: *** fail *** (see tests/$t.dif)"
@@ -361,7 +369,7 @@ for t in $tests; do
     # the standard: this platform's own where the test keeps one per platform
     std="tests/$t.cmp"
     case "$plattests" in
-    *" $t "*) std="tests/$t$plat.cmp" ;;
+    *" $t "*) std="$cmpdir/$t.cmp" ;;
     esac
     if [ ! -f "tests/$t.lst" ]; then
 
