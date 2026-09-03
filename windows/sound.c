@@ -462,25 +462,25 @@ static void maknam(
     int  fsi;  /* index for output filename */
     char s[2]; /* path character buffer */
 
-    if (strlen(p) > fnl) error("String too large for destination");
+    if (strlen(p)+1 > fnl) error("String too large for destination");
     strcpy(fn, p); /* place path */
     /* check path properly terminated */
     i = strlen(p);   /* find length */
     if (*p) /* not null */
         if (p[i-1] != pthchr()) {
 
-        if (strlen(fn)+1 > fnl) error("String too large for destination");
+        if (strlen(fn)+2 > fnl) error("String too large for destination");
         s[0] = pthchr(); /* set up path character as string */
         s[1] = 0;
         strcat(fn, s); /* add path separator */
 
     }
     /* terminate path */
-    if (strlen(fn)+strlen(n) > fnl) error("String too large for destination");
+    if (strlen(fn)+strlen(n)+1 > fnl) error("String too large for destination");
     strcat(fn, n); /* place name */
     if (*e) {  /* there is an extension */
 
-        if (strlen(fn)+1+strlen(e) > fnl)
+        if (strlen(fn)+1+strlen(e)+1 > fnl)
             error("String too large for destination");
         strcat(fn, "."); /* place '.' */
         strcat(fn, e); /* place extension */
@@ -2588,7 +2588,7 @@ void ami_playsynth(ami_long p, ami_long t, ami_long s)
     int       tact; /* timer active */
 
     if (p != 1) error("Must execute play on default output channel");
-    if (midouttab[p] < 0) error("Synth output channel not open");
+    if (midouttab[p] == (HMIDIOUT)-1) error("Synth output channel not open");
     if (s < 1 || s > MAXMIDT) error("Invalid logical synthesizer file number");
     if (!synthnam[s-1])
         error("No synthesizer file loaded for logical wave number");
@@ -2767,7 +2767,7 @@ void ami_loadwave(ami_long w, string fn)
 {
 
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave file number");
-    if (synthnam[w-1])
+    if (wavenam[w-1])
         error("Wave file already defined for logical number");
     /* simply store the filename for later */
     wavenam[w-1] = malloc(strlen(fn)+1); /* get a name entry */
@@ -2817,6 +2817,8 @@ static DWORD WINAPI waveplaythread(LPVOID lpParameter)
     PlaySound(wavenam[w-1], 0, SND_FILENAME | SND_NODEFAULT | SND_SYNC);
     wavcnt--; /* set wave complete */
     SetEvent(playwavecomplete); /* flag play has finished */
+
+    return (0); /* thread exit code */
 
 }
 

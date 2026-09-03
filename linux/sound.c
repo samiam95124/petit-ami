@@ -4544,6 +4544,7 @@ void ami_loadsynth(ami_long s, string fn)
     if (s < 1 || s > MAXMIDT) error("Invalid logical synthesize file number");
 
     /* copy filename and add extension if required */
+    if (strlen(fn) >= MAXFNM) error("File name too long");
     strcpy(fnh, fn); /* copy */
     setext(fnh, ".mid"); /* set or overwrite extension */
     fh = fopen(fnh, "r");
@@ -4964,7 +4965,7 @@ static void* alsaplaywave(void* data)
     byte              buff[WAVBUF]; /* buffer for frames */
     int               i;
     byte*             buffp;
-    char              fn[MAXFIL];
+    char              fn[MAXFNM];
 
     pip = (portidptr) data; /* get data pointer */
     w = pip->id; /* get id */
@@ -4977,7 +4978,7 @@ static void* alsaplaywave(void* data)
        actually got it outside the lock */
     pthread_mutex_lock(&wavlck); /* take wave table lock */
     fn[0] = 0; /* terminate wave table entry */
-    if (wavfil[w]) strncpy(fn, wavfil[w], MAXFIL);
+    if (wavfil[w]) { strncpy(fn, wavfil[w], MAXFNM-1); fn[MAXFNM-1] = 0; }
     pthread_mutex_unlock(&wavlck); /* release lock */
     if (!fn[0]) return (NULL); /* entry is empty, abort */
 
@@ -5133,6 +5134,7 @@ void ami_loadwave(ami_long w, string fn)
     if (w < 1 || w > MAXWAVT) error("Invalid logical wave number");
 
     /* copy filename and add extension if required */
+    if (strlen(fn) >= MAXFNM) error("File name too long");
     strcpy(fnh, fn); /* copy */
     setext(fnh, ".wav"); /* set or overwrite extension */
     p = malloc(strlen(fnh)+1); /* allocate filename for slot */
