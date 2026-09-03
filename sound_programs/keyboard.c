@@ -20,7 +20,7 @@ Yes, its the standard annoying utility to turn your keyoard into an organ.
 
 ami_evtrec  er;    /* event record */
 ami_channel chan;  /* channel */
-int        velo;  /* velocity */
+ami_long   velo;  /* velocity (ami_long scale; LONG_MAX = full) */
 int        keycnt[36];
 int        ki;
 ami_long port = AMI_SYNTH_OUT; /* set default synth out */

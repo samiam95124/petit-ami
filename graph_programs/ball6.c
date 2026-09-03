@@ -138,11 +138,11 @@ void drawsball(int x, int y, int size, int o, int steps, int r, int g, int b)
 
 }
 
-int redv(ami_color c)
+ami_long redv(ami_color c)
 
 {
 
-    int cv;
+    ami_long cv;
 
     if (c == ami_red || c == ami_magenta || c == ami_yellow) cv = LONG_MAX;
     else cv = 0;
@@ -151,11 +151,11 @@ int redv(ami_color c)
 
 }
 
-int greenv(ami_color c)
+ami_long greenv(ami_color c)
 
 {
 
-    int cv;
+    ami_long cv;
 
     if (c == ami_green || c == ami_yellow || c == ami_cyan) cv = LONG_MAX;
     else cv = 0;
@@ -164,11 +164,11 @@ int greenv(ami_color c)
 
 }
 
-int bluev(ami_color c)
+ami_long bluev(ami_color c)
 
 {
 
-    int cv;
+    ami_long cv;
 
     if (c == ami_blue || c == ami_cyan || c == ami_magenta) cv = LONG_MAX;
     else cv = 0;

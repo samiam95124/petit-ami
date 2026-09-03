@@ -556,7 +556,7 @@ window it came from, so there is nothing to arrange.
    purpose: LONG_MAX does not survive a trip through a double -- it
    rounds up to 2^63 and comes back negative -- and the bar answers an
    out of range position with an error. */
-static int fullscale(int num, int den)
+static ami_long fullscale(int num, int den)
 
 {
 
@@ -574,7 +574,7 @@ static int fullscale(int num, int den)
 static int fromdrag;
 
 /* and back, from a bar position to a line number */
-static int scaleback(int pos, int travel)
+static int scaleback(ami_long pos, int travel)
 
 {
 
@@ -1298,7 +1298,7 @@ void status(const char* s)
 /* How far along, from nothing to all of it. The widget takes the whole
    range of a long, so the fraction is worked out in that range rather
    than in percent, which would step the bar in hundredths. */
-void statprog(int pos, int max)
+void statprog(ami_long pos, ami_long max)
 
 {
 
@@ -3778,7 +3778,7 @@ Main
 
 /* The command line. The account is not here: a password on a command
    line is a password in everybody's process list. */
-static int dofetch;   /* fetch on startup */
+static ami_long dofetch;   /* fetch on startup */
 
 static ami_optrec opttbl[] = {
 

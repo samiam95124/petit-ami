@@ -100,6 +100,7 @@
 /* somewhat kludgy, but there should be only one include file for this */
 #include "../linux/system_event.h"
 
+#include <localdefs.h> /* ami_long and friends */
 #include <diag.h>
 
 //#define PRTSEVT /* print signals diagnostic */
