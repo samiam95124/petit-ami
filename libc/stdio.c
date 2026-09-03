@@ -24,6 +24,33 @@ and scan functions. The L (long double) modifier is accepted but treated as
 double, since extended precision is not implemented. Floating point conversions
 (f, e, E, g, G) are supported in both the print and scan functions.
 
+Two stdios in one program
+
+This module and the system's stdio can both be present in a program, and a
+FILE belongs to one or the other: their layouts differ, and a FILE of one
+handed to the other is misread. The build keeps the two apart in one of two
+ways, chosen in the Makefile (STDIO_SOURCE):
+
+Override mode: this module defines the standard names, and the static link
+resolves the program and the petit ami archives to it, with the symbols
+hidden from the dynamic table so that shared libraries bind the system's.
+The two worlds split at the dynamic boundary. This is the Linux static
+configuration.
+
+Coined mode (STDIO_BYPASS): this module's functions are named stdio_<name>,
+and stdio.h rewrites the calls of every petit ami source to them. The
+standard names then belong to the system throughout the image, and every
+archive linked in, prebuilt ones included, runs on the system's FILEs. This
+is the configuration wherever archives link statically beside this module:
+Windows, FreeBSD and the dynamic Linux configuration. On Windows the
+override mode had OpenSSL's fread bound here while its FILE came from the C
+runtime, and a valid certificate file failed to parse (issue #133).
+
+In either mode one rule holds for the program: a FILE of this module is
+never given to a library that will read or write it through the system's
+stdio, png_init_io being the classic case; such a library is given a
+callback or a descriptor instead, as windows/screen_capture.c does.
+
 Actual use has shown that there are programs that call the stdio functions
 before any constructor for this module can be run. This results in a serious
 error. Thus we have moved the initialization to compile time definitions, or at

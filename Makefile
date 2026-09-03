@@ -388,7 +388,9 @@ ifeq ($(STDIO_SOURCE),stdio)
         # mode a third party archive's fread or fgets bound petit ami's
         # stdio while its FILEs came from the C runtime (issue #133).
         # Under stdio_ names petit ami's stdio is the program's alone,
-        # and every archive runs wholly on the runtime's.
+        # and every archive runs wholly on the runtime's. The two modes
+        # and the rule that goes with either are described at the head
+        # of libc/stdio.c.
         CFLAGS += -DSTDIO_BYPASS
     else ifeq ($(OSTYPE),Darwin)
         # Mac OS X overrides at link time, as always
