@@ -41,7 +41,8 @@ typedef enum {
     PA_EVT_MIN,         /* window minimized */
     PA_EVT_MAX,         /* window maximized/zoomed/fullscreen */
     PA_EVT_NORM,        /* window restored to normal */
-    PA_EVT_WIDGET       /* widget activated (see pa_widgetact) */
+    PA_EVT_WIDGET       /* widget activated (see pa_widgetact) */,
+    PA_EVT_USER         /* program-sent event (ami_sendevent): user carries the record */
 } pa_evttype;
 
 /* widget activation kinds for PA_EVT_WIDGET */
@@ -87,6 +88,7 @@ typedef struct {
     pa_evttype  type;
     pa_winhan   win;      /* which window */
     union {
+        void*        user;    /* PA_EVT_USER: heap copy of the ami_evtrec, freed by the consumer */
         struct { uint32_t ch; }                        key;
         struct { pa_keycode code; }                    special;
         struct { int w, h; }                           resize;
@@ -164,6 +166,9 @@ void pa_cocoa_set_sizable(pa_winhan win, int on);
  *----------------------------------------------------------------------------*/
 
 CGContextRef pa_cocoa_get_context(pa_winhan win);
+CGContextRef pa_cocoa_get_screen_context(pa_winhan win, int idx); /* any screen, 0-based */
+void pa_cocoa_drag_window(pa_winhan win); /* native title-bar style drag from here */
+void pa_cocoa_send_user_event(pa_winhan win, void* rec); /* ami_sendevent, any thread */
 void         pa_cocoa_flush(pa_winhan win);       /* blit offscreen → screen */
 void         pa_cocoa_select_screens(pa_winhan win, int upd, int dsp); /* 0-based */
 void         pa_cocoa_set_cursor(pa_winhan win, int visible, int x, int y, int w, int h);
@@ -282,6 +287,7 @@ void pa_cocoa_query_font(char* family, int famlen, long* size,
 /* Start threaded event delivery: moves user's main() to worker thread,
    keeps Cocoa event loop on the main thread. Never returns. */
 void pa_cocoa_start_event_thread(void);
+int  pa_entry(int argc, char** argv, char** envp, char** apple); /* linker -e */
 
 /* Inject a close event into the event queue (used by signal handlers). */
 void pa_cocoa_inject_close(void);

@@ -1046,6 +1046,22 @@ static void* pa_worker_func(void* arg)
     return NULL;
 }
 
+/* Program entry, set by the linker for every Darwin graphics program (the
+   -e _pa_entry in the Makefile GLIBS). dyld calls it only after every
+   initializer in the image has run. The main-thread capture cannot live in
+   a constructor: the Cocoa event loop never returns, so dyld would stall
+   inside it and no constructor linked after this backend would ever run.
+   From here they all have, so overriders sit above the backend as intended.
+   Only the single-threaded fallback returns from the capture; main runs
+   here in that case. */
+int pa_entry(int argc, char** argv, char** envp, char** apple)
+{
+    (void)envp; (void)apple;
+    pa_cocoa_start_event_thread();
+    pa_main_func_t user_main = (pa_main_func_t)dlsym(RTLD_DEFAULT, "main");
+    return user_main ? user_main(argc, argv) : 1;
+}
+
 void pa_cocoa_start_event_thread(void)
 {
     pa_main_func_t user_main = (pa_main_func_t)dlsym(RTLD_DEFAULT, "main");
@@ -1455,6 +1471,41 @@ CGContextRef pa_cocoa_get_context(pa_winhan win)
 {
     PAWindow* pw = (__bridge PAWindow*)win;
     return pw->view->screens[pw->view->updscr];
+}
+
+/* The bitmap of any screen (0-based), created on demand, for operations
+   such as blockcopyg that move pixels between screens that need not be the
+   current update or display one. */
+CGContextRef pa_cocoa_get_screen_context(pa_winhan win, int idx)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    return [pw->view ensureScreen:idx];
+}
+
+/* Let the user drag the window from the current mouse-down, the way a title
+   bar drag does; Cocoa tracks it natively. A child window is a view inside
+   its parent and has no NSWindow of its own, so there is nothing to drag. */
+void pa_cocoa_drag_window(pa_winhan win)
+{
+    PAWindow* pw = (__bridge PAWindow*)win;
+    run_on_main(^{
+        NSEvent* e = [NSApp currentEvent];
+        if (pw->window && e) [pw->window performWindowDragWithEvent:e];
+    });
+}
+
+/* Queue a program-sent event (ami_sendevent). rec is a heap copy of the
+   caller's ami_evtrec, opaque here (this file does not see graphics.h);
+   translate_event hands it back verbatim and frees it. evt_push locks the
+   queue and signals the waiter, so this is safe from any thread: it is how
+   graph_server's pump thread wakes a blocked ami_event after a datagram. */
+void pa_cocoa_send_user_event(pa_winhan win, void* rec)
+{
+    pa_rawevent e = {0};
+    e.type = PA_EVT_USER;
+    e.win  = win;
+    e.user = rec;
+    evt_push(&e);
 }
 
 /* Snapshot the display screen into displayImage and ask the view to redraw

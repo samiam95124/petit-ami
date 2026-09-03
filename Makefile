@@ -306,7 +306,7 @@ else ifeq ($(OSTYPE),Darwin)
 	    SSL_LIBS=$(SSL_PREFIX)/lib/libssl.dylib $(SSL_PREFIX)/lib/libcrypto.dylib
 	endif
 	FT_PREFIX=$(shell /opt/homebrew/bin/brew --prefix freetype)
-	CFLAGS=-g3 -Iinclude $(SSL_CFLAGS) -I$(FT_PREFIX)/include/freetype2 -I/opt/X11/include
+	CFLAGS=-g3 -Iinclude -ffp-contract=off $(SSL_CFLAGS) -I$(FT_PREFIX)/include/freetype2 -I/opt/X11/include
 
 else ifeq ($(OSTYPE),FreeBSD)
 
@@ -569,7 +569,7 @@ CLIBSCPP = $(CLIBS)
 #
 ifeq ($(LINK_TYPE),static)
     ifeq ($(OSTYPE),Darwin)
-    	GLIBS += -Wl,-force_load,lib/libami_graph.a
+    	GLIBS += -Wl,-force_load,lib/libami_graph.a -Wl,-e,_pa_entry
     else ifeq ($(OSTYPE),Windows_NT)
     	GLIBS += -Wl,--whole-archive lib/libami_graph.a -Wl,--no-whole-archive
     else ifeq ($(OSTYPE),FreeBSD)
@@ -1126,10 +1126,10 @@ lib/libami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
 	
 lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/terminal.o utils/config.o utils/option.o \
-    macosx/stdio.o
+    macosx/stdio.o portable/txtterminal.o
 	ar rcs lib/libami_term.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/terminal.o \
-	    utils/config.o utils/option.o macosx/stdio.o
+	    utils/config.o utils/option.o macosx/stdio.o portable/txtterminal.o
 
 # The termc variant is the terminal library with the character mode window
 # manager (windowc) always included. windowc is constructor-registered and
@@ -1141,17 +1141,17 @@ macosx/termc.o: macosx/terminal.o portable/windowc.o
 
 lib/libami_termc.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/termc.o utils/config.o utils/option.o \
-    macosx/stdio.o
+    macosx/stdio.o portable/txtterminal.o
 	ar rcs lib/libami_termc.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/termc.o \
-	    utils/config.o utils/option.o macosx/stdio.o
+	    utils/config.o utils/option.o macosx/stdio.o portable/txtterminal.o
 
 lib/libami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/graphics.o macosx/graphics_cocoa.o \
-    utils/config.o utils/option.o macosx/stdio.o
+    utils/config.o utils/option.o macosx/stdio.o portable/pdfgraph.o portable/widget_base.o
 	ar rcs lib/libami_graph.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/graphics.o \
-	    macosx/graphics_cocoa.o utils/config.o utils/option.o macosx/stdio.o
+	    macosx/graphics_cocoa.o utils/config.o utils/option.o macosx/stdio.o portable/pdfgraph.o portable/widget_base.o
 
 else ifeq ($(OSTYPE),FreeBSD)
 
@@ -1671,9 +1671,18 @@ endif
 #
 # Test windows management model compliant output
 #
+# management_test weak-references two optional backend hooks (wg_hold from
+# windowg, grx_glassdiff from the framebuffer backend) and guards every call
+# with a NULL check. GNU ld resolves an undefined weak reference to NULL, so
+# the guards skip a hook the platform lacks. Apple ld64 refuses to leave a
+# static-link symbol undefined unless told which ones may be absent: -U marks
+# just these two, so they resolve to NULL at load and the guards skip them,
+# matching Linux. Do not add stubs for them: a stub would make the guards
+# believe the feature exists.
+WEAKOPT = -Wl,-U,_wg_hold -Wl,-U,_grx_glassdiff
 ifeq ($(OSTYPE),Darwin)
 management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) -o bin/management_test
+	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(WEAKOPT) -o bin/management_test
 else
 management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
@@ -1837,6 +1846,21 @@ graphics_testr: tests/graphics_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o windows/services.o windows/network.o \
 	    utils/config.o utils/option.o windows/stdio.o \
 	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/graphics_testr
+else ifeq ($(OSTYPE),Darwin)
+# the remote client draws on the server, so no Cocoa backend and no -e
+# entry: plain objects, as on Linux, from the macosx tree. Mach-O runs
+# constructors in LINK ORDER (priorities are ignored), so the base modules
+# come before graph_client.o: its constructor opens sockets, and the network
+# constructor clears the per-descriptor table. Base first, layers after.
+graphics_testr: tests/graphics_test.c macosx/stdio.o macosx/services.o \
+	macosx/network.o utils/config.o utils/option.o \
+	portable/graph_client.o stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/graphics_test.c macosx/stdio.o macosx/services.o \
+	    macosx/network.o utils/config.o utils/option.o \
+	    portable/graph_client.o stub/screen_capture_stub.o \
+	    $(SSL_LIBS) -framework CoreFoundation -framework CoreGraphics \
+	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
+	    -framework IOKit -lm -lpthread -o bin/graphics_testr
 else
 graphics_testr: tests/graphics_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
@@ -1859,6 +1883,21 @@ management_testr: tests/management_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o windows/services.o windows/network.o \
 	    utils/config.o utils/option.o windows/stdio.o \
 	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/management_testr
+else ifeq ($(OSTYPE),Darwin)
+# the remote client draws on the server, so no Cocoa backend and no -e
+# entry: plain objects, as on Linux, from the macosx tree. Mach-O runs
+# constructors in LINK ORDER (priorities are ignored), so the base modules
+# come before graph_client.o: its constructor opens sockets, and the network
+# constructor clears the per-descriptor table. Base first, layers after.
+management_testr: tests/management_test.c macosx/stdio.o macosx/services.o \
+	macosx/network.o utils/config.o utils/option.o \
+	portable/graph_client.o stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/management_test.c macosx/stdio.o macosx/services.o \
+	    macosx/network.o utils/config.o utils/option.o \
+	    portable/graph_client.o stub/screen_capture_stub.o \
+	    $(SSL_LIBS) -framework CoreFoundation -framework CoreGraphics \
+	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
+	    -framework IOKit -lm -lpthread $(WEAKOPT) -o bin/management_testr
 else
 management_testr: tests/management_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
@@ -1881,6 +1920,21 @@ widget_testr: tests/widget_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o windows/services.o windows/network.o \
 	    utils/config.o utils/option.o windows/stdio.o \
 	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/widget_testr
+else ifeq ($(OSTYPE),Darwin)
+# the remote client draws on the server, so no Cocoa backend and no -e
+# entry: plain objects, as on Linux, from the macosx tree. Mach-O runs
+# constructors in LINK ORDER (priorities are ignored), so the base modules
+# come before graph_client.o: its constructor opens sockets, and the network
+# constructor clears the per-descriptor table. Base first, layers after.
+widget_testr: tests/widget_test.c macosx/stdio.o macosx/services.o \
+	macosx/network.o utils/config.o utils/option.o \
+	portable/graph_client.o stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/widget_test.c macosx/stdio.o macosx/services.o \
+	    macosx/network.o utils/config.o utils/option.o \
+	    portable/graph_client.o stub/screen_capture_stub.o \
+	    $(SSL_LIBS) -framework CoreFoundation -framework CoreGraphics \
+	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
+	    -framework IOKit -lm -lpthread -o bin/widget_testr
 else
 widget_testr: tests/widget_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
