@@ -383,7 +383,13 @@ ifeq ($(STDIO_SOURCE),stdio)
         # glibc, and the override scheme below is built on glibc facts.
         CFLAGS += -DSTDIO_BYPASS
     else ifeq ($(OSTYPE),Windows_NT)
-        # Windows overrides at link time, as always
+        # Windows keeps the coined namespace too. Everything links
+        # statically there, prebuilt archives included, so in override
+        # mode a third party archive's fread or fgets bound petit ami's
+        # stdio while its FILEs came from the C runtime (issue #133).
+        # Under stdio_ names petit ami's stdio is the program's alone,
+        # and every archive runs wholly on the runtime's.
+        CFLAGS += -DSTDIO_BYPASS
     else ifeq ($(OSTYPE),Darwin)
         # Mac OS X overrides at link time, as always
     else ifeq ($(LINK_TYPE),dynamic)

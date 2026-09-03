@@ -656,7 +656,7 @@ int main(int argc, char *argv[])
    printf("\n");
    line[0] = 0;
    i = 0;
-   do {
+   if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
 
         c = getchar();
         if (c != EOF && c != '\n') line[i++] = c;
@@ -683,7 +683,7 @@ int main(int argc, char *argv[])
    printf("===========>");
    line[0] = 0;
    i = 0;
-   do {
+   if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
 
         c = getchar();
         if (c != EOF && c != '\n') line[i++] = c;
