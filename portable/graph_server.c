@@ -172,6 +172,7 @@ static void error(const char* es)
 
 
 static jmp_buf sesjmp;    /* recycle point */
+static int     sesjmpset; /* the recycle point is armed: the serving loop runs */
 static int     pumping;   /* the pump thread is up */
 static int     cleaning;  /* winding down; a second fault is fatal */
 
@@ -206,8 +207,17 @@ static void sesserr(const char* es)
     }
     write(2, "*** graph_server: ", 18);
     write(2, es, strlen(es));
+    if (cleaning || !sesjmpset) {
+
+        /* faulted while winding down, or before the serving loop armed its
+           recycle point (at startup, the channels not yet up): there is no
+           session to drop back to, and a jump through an unset recycle
+           point is a crash. The fault is fatal. */
+        write(2, " -- fatal\n", 10);
+        exit(1);
+
+    }
     write(2, " -- session dropped, awaiting new connection\n", 45);
-    if (cleaning) exit(1); /* faulted while winding down */
     longjmp(sesjmp, 1);
 
 }
@@ -2162,6 +2172,7 @@ int main(int argc, char* argv[])
         int  faulted;
 
         faulted = setjmp(sesjmp);
+        sesjmpset = 1; /* from here a fault recycles the session */
         rbuf = rbase; /* a fault mid-batch leaves the walk pointer inside */
         if (faulted) goto winddown; /* the pump lives on, idle */
 
