@@ -2,4 +2,5 @@
 tests/*.lst
 tests/*.dif
 tests/*.out
+tests/*.pdf
 linux/wlproto/*.o

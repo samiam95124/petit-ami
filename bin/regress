@@ -29,8 +29,9 @@
 # tests/macosx_compare/<test>.cmp. The tests that do are listed in plattests
 # below; the rest share one standard across the platforms, tests/<test>.cmp.
 #
-# The print tests, txttest and pdftest, print into a file, tests/<test>.lst,
-# and that is what is compared: the text page by dif, the .pdf document whole.
+# The print tests, txttest and pdftest, print into a file, and that is what
+# is compared: the text page, tests/txttest.lst, by dif; the document,
+# tests/pdftest.pdf, whole, and named so that a reader opens it.
 # Neither carries a date or anything else that varies from run to run, and the
 # .pdf sets its text in the standard PDF fonts, whose metrics are the module's
 # own, so one standard serves every platform.
@@ -94,6 +95,18 @@ binof()
 {
 
     if [ -n "$plat" ]; then echo "bin/$1.exe"; else echo "bin/$1"; fi
+
+}
+
+# The test's output file: the listing, except for the document, which takes
+# the name a reader opens.
+outof()
+{
+
+    case "$1" in
+    pdftest) echo "tests/$1.pdf" ;;
+    *)       echo "tests/$1.lst" ;;
+    esac
 
 }
 
@@ -217,8 +230,8 @@ runtest()
 
     txttest|pdftest)
         # the printer is a file: the document is the listing
-        rm -f "tests/$1.lst"
-        timeout 300 "$(binof "$1")" "tests/$1.lst" < /dev/null \
+        rm -f "$(outof "$1")"
+        timeout 300 "$(binof "$1")" "$(outof "$1")" < /dev/null \
             > "tests/$1.out" 2>&1
         ;;
     graphics_test|management_test|widget_test)
@@ -371,7 +384,8 @@ for t in $tests; do
     case "$plattests" in
     *" $t "*) std="$cmpdir/$t.cmp" ;;
     esac
-    if [ ! -f "tests/$t.lst" ]; then
+    out="$(outof "$t")"
+    if [ ! -f "$out" ]; then
 
         echo "$t: *** fail *** (no output produced)"
         fails=$((fails+1))
@@ -382,7 +396,7 @@ for t in $tests; do
 
         # a document compared whole: nothing in it wants masking
         if [ "$update" = "1" ]; then
-            cp "tests/$t.lst" "$std"
+            cp "$out" "$std"
             echo "$t: $std regenerated, please review"
         elif [ ! -f "$std" ]; then
             {
@@ -391,13 +405,13 @@ for t in $tests; do
             } > "tests/$t.dif"
             echo "$t: *** fail *** (see tests/$t.dif)"
             fails=$((fails+1))
-        elif cmp -s "tests/$t.lst" "$std"; then
+        elif cmp -s "$out" "$std"; then
             rm -f "tests/$t.dif"
             echo "$t: pass"
         else
             {
                 echo "document differs from $std"
-                cmp "$std" "tests/$t.lst" 2>&1
+                cmp "$std" "$out" 2>&1
             } > "tests/$t.dif"
             echo "$t: *** fail *** (see tests/$t.dif)"
             fails=$((fails+1))
