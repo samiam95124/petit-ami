@@ -241,10 +241,10 @@ runtest()
         # the user in USERNAME.
         user="${USER:-$USERNAME}"
         (cd tests/regress && \
-         env -i HOME="$HOME" USER="$user" LOGNAME="$user" \
+         timeout 300 env -i HOME="$HOME" USER="$user" LOGNAME="$user" \
              PATH="$root/bin:/usr/local/bin:/usr/bin:/bin" \
              LANG="en_US.UTF-8" \
-             timeout 300 "$root/$(binof "$1")" < /dev/null) \
+             "$root/$(binof "$1")" < /dev/null) \
              > "tests/$1.lst" 2>&1
         ;;
 
