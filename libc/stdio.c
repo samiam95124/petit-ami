@@ -3360,6 +3360,35 @@ int vfprintf(
 
 {
 
+    va_list ap2; /* copy of the argument list for the measuring pass */
+    int     len; /* full formatted length */
+    char    *tmp; /* temporary holding the full output */
+
+    /* An unbuffered stream would take a write for every character. The call's
+       output is formatted whole and written once instead, which is what a
+       buffered stream carries down and what the other C libraries do, so that
+       whoever sits under the descriptor, a print module or the remote client
+       say, sees the call's text together. */
+    if (stream && (stream->_flags & _IO_UNBUFFERED)) {
+
+        va_copy(ap2, ap);
+        len = vsprintfe((char *)NULL, fmt, ap2, (FILE *)NULL); /* measure */
+        va_end(ap2);
+        if (len <= 0) return (len); /* nothing to write, or a format error */
+        tmp = malloc(len+1); /* room for the full result plus null */
+        if (tmp) {
+
+            vsprintfe(tmp, fmt, ap, (FILE *)NULL); /* format the full output */
+            if (fwrite(tmp, 1, len, stream) != (size_t)len) len = -1;
+            free(tmp);
+
+            return (len);
+
+        }
+        /* out of memory: the character path below still serves */
+
+    }
+
     return vsprintfe((char *)NULL, fmt, ap, stream); /* process */
 
 }
