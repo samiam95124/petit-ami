@@ -36,6 +36,14 @@
 # .pdf sets its text in the standard PDF fonts, whose metrics are the module's
 # own, so one standard serves every platform.
 #
+# The terminal test runs in auto as a picture test too. Of its editions only
+# the graphical one, terminal_testg, is in the default list: the console
+# editions, terminal_test and terminal_testc, draw on the console, and a
+# picture of a console does not reproduce from run to run, the console
+# painting on its own schedule. They run by name, and want a comparison of
+# the console's text rather than its picture before they can stand in the
+# list.
+#
 # The picture standards are of a desktop's look -- the frame the screen tests
 # size themselves against, the menus, the theme -- so they live in the
 # platform's directory too, and on Linux, where GNOME and Plasma draw through
@@ -122,7 +130,7 @@ done
 if [ -z "$tests" ]; then
 
     tests="stdio_test services_test network_test txttest pdftest \
-           graphics_test management_test widget_test \
+           terminal_testg graphics_test management_test widget_test \
            graphics_testr management_testr widget_testr"
 
 fi
@@ -234,6 +242,18 @@ runtest()
         timeout 300 "$(binof "$1")" "$(outof "$1")" < /dev/null \
             > "tests/$1.out" 2>&1
         ;;
+    terminal_test|terminal_testc|terminal_testg)
+        # The terminal editions draw on the terminal this script runs in:
+        # the console port needs the real console on both its standard
+        # handles, so neither is redirected, and only the error channel is
+        # caught. "auto" walks every screen without waiting for a keypress,
+        # and the screens go to the capture file as for the other pictures.
+        # The walk is long: the show and the timed patterns take their real
+        # time, and the window manager edition scrolls slowly on Windows.
+        rm -f "tests/$1.lst"
+        timeout --foreground 1200 "$(binof "$1")" auto "tests/$1.lst" \
+            2> "tests/$1.out"
+        ;;
     graphics_test|management_test|widget_test)
         # "auto" walks every screen without waiting for a keypress. What
         # these tests produce is not text but the screens themselves: the
@@ -280,6 +300,7 @@ for t in $tests; do
     fi
     case "$t" in
 
+    terminal_test|terminal_testc|terminal_testg)  pict=1; remote=0; whole=0 ;;
     graphics_test|management_test|widget_test)    pict=1; remote=0; whole=0 ;;
     graphics_testr|management_testr|widget_testr) pict=1; remote=1; whole=0 ;;
     pdftest)                                      pict=0; remote=0; whole=1 ;;

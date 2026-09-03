@@ -75,7 +75,13 @@
 
 Usage:
 
-    terminal_test [first [last]]
+    terminal_test [auto [file]] [first [last]]
+
+    auto   Walks every pattern with no input and exits after them: the
+           waits pass at once, and the patterns that want typing, a
+           resize or a device capture their screen and move on. For
+           the regression. file names the capture file; the default is
+           test_images in the current directory.
 
     first  The first frame to stop on. The patterns before it pass
            without a stop or capture, and the timed patterns (the
@@ -168,6 +174,7 @@ static int eventflag1, eventflag2;
 static int framenum = 0; /* the frame number */
 static int tstlo = 1;    /* first frame in the selected range */
 static int tsthi = 0;    /* last frame, 0 for no limit */
+static int       autorun = FALSE; /* walk every pattern with no input */
 static ami_pevthan oeh1;
 static ami_pevthan oeh2;
 static char line[250];
@@ -221,6 +228,7 @@ static void waittime(int n, int t)
 
 
 extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
 
 /* Mark the pattern just drawn: the next frame number stamped centered
    on the top line, and the capture. The cursor goes back where it was,
@@ -253,7 +261,7 @@ static void waitnext(void)
     ami_evtrec er; /* event record */
 
     frmmark(); /* number, label and capture the pattern */
-    if (framenum < tstlo) return; /* before the range: pass at once */
+    if (autorun || framenum < tstlo) return; /* auto, or before the range: pass at once */
     do {
 
         ami_event(stdin, &er);
@@ -461,6 +469,9 @@ void event_vector_1(ami_evtptr er)
 {
 
     if (er->etype != ami_etframe) er->handled = FALSE;
+    /* auto: the vector has shown itself on the first frame event; the next
+       one passes through to end the wait, since nobody will hit return */
+    else if (autorun && eventflag1) er->handled = FALSE;
     eventflag1 = TRUE;
 
 }
@@ -470,6 +481,9 @@ void event_vector_2(ami_evtptr er)
 {
 
     if (er->etype != ami_etframe) er->handled = FALSE;
+    /* auto: the vector has shown itself on the first frame event; the next
+       one passes through to end the wait, since nobody will hit return */
+    else if (autorun && eventflag2) er->handled = FALSE;
     eventflag2 = TRUE;
 
 }
@@ -555,12 +569,33 @@ int main(int argc, char *argv[])
     /* override terminate handler */
     ami_eventover(ami_etterm, termevent, &oldtermevent); 
 
-    /* "terminal_test [first [last]]" runs the numbered frames alone: the
-       patterns before the first pass without a stop, and the run ends
-       after the last. With no last it runs from the first frame to the
-       end of the test. */
-    if (argc > 1) { tstlo = atoi(argv[1]); if (tstlo < 1) tstlo = 1; }
-    if (argc > 2) tsthi = atoi(argv[2]);
+    /* "terminal_test [auto [file]] [first [last]]": auto walks every pattern
+       with no input, capturing each into file (test_images by default);
+       first and last run the numbered frames alone: the patterns before the
+       first pass without a stop, and the run ends after the last. With no
+       last it runs from the first frame to the end of the test. */
+    {
+
+        int argi = 1;
+
+        if (argc > argi && !strcmp(argv[argi], "auto")) {
+
+            autorun = TRUE;
+            ami_autohold(FALSE); /* end when the patterns end */
+            argi++;
+            /* a name that is not a number is the capture file */
+            if (argc > argi && (argv[argi][0] < '0' || argv[argi][0] > '9')) {
+
+                screen_capture_name(argv[argi]);
+                argi++;
+
+            }
+
+        }
+        if (argc > argi) { tstlo = atoi(argv[argi]); if (tstlo < 1) tstlo = 1; argi++; }
+        if (argc > argi) tsthi = atoi(argv[argi]);
+
+    }
 
     ami_select(stdout, 2, 2);   /* move off the display buffer */
     /* the window and the buffer start out the same size; resize events seen
@@ -656,7 +691,7 @@ int main(int argc, char *argv[])
    printf("\n");
    line[0] = 0;
    i = 0;
-   if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
+   if (framenum+1 >= tstlo && !autorun) do { /* before the range, or auto: nothing is typed */
 
         c = getchar();
         if (c != EOF && c != '\n') line[i++] = c;
@@ -683,7 +718,7 @@ int main(int argc, char *argv[])
    printf("===========>");
    line[0] = 0;
    i = 0;
-   if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
+   if (framenum+1 >= tstlo && !autorun) do { /* before the range, or auto: nothing is typed */
 
         c = getchar();
         if (c != EOF && c != '\n') line[i++] = c;
@@ -1401,7 +1436,7 @@ int main(int argc, char *argv[])
     x = ami_maxx(stdout);
     y = ami_maxy(stdout);
     frmmark(); /* the interactive screens number and capture here */
-    if (framenum >= tstlo) do {
+    if (framenum >= tstlo && !autorun) do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etresize) {
@@ -1444,7 +1479,7 @@ int main(int argc, char *argv[])
     ami_cursor(stdout, 47, 12);
     printf("hover");
     frmmark(); /* the interactive screens number and capture here */
-    if (framenum >= tstlo) do { 
+    if (framenum >= tstlo && !autorun) do { 
 
         ami_event(stdin, &er);
         if (er.etype == ami_etfocus) box(10, 10, 30, 14, '#');
@@ -1520,7 +1555,7 @@ int main(int argc, char *argv[])
         prtcen(2, "Move the joystick(s) X, Y and Z, and hit buttons");
         prtcen(ami_maxy(stdout), "Joystick test");
         frmmark(); /* the interactive screens number and capture here */
-        if (framenum >= tstlo) do {   /* gather joystick events */
+        if (framenum >= tstlo && !autorun) do {   /* gather joystick events */
 
             /* we do up to 4 joysticks */
             ami_event(stdin, &er);
@@ -1613,7 +1648,7 @@ int main(int argc, char *argv[])
         prtcen(2, "Move the mouse, and hit buttons");
         prtcen(ami_maxy(stdout), "Mouse test");
         frmmark(); /* the interactive screens number and capture here */
-        if (framenum >= tstlo) do { /* gather mouse events */
+        if (framenum >= tstlo && !autorun) do { /* gather mouse events */
 
             /* we only one mouse, all mice equate to that (multiple controls) */
             ami_event(stdin, &er);
@@ -1672,7 +1707,8 @@ int main(int argc, char *argv[])
     printf("Waiting for frame event, hit return to continue\n");
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etframe && er.etype != ami_etenter);
-    if (er.etype == ami_etframe) printf("*** Event bled through! ***\n");
+    if (er.etype == ami_etframe && !(autorun && eventflag1))
+        printf("*** Event bled through! ***\n");
     if (eventflag1) printf("Fanout event passes\n");
     else printf("*** Fanout event fails! ***\n");
     eventflag2 = FALSE;
@@ -1680,7 +1716,8 @@ int main(int argc, char *argv[])
     printf("Waiting for frame event, hit return to continue\n");
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etframe && er.etype != ami_etenter);
-    if (er.etype == ami_etframe) printf("*** Event bled through! ***\n");
+    if (er.etype == ami_etframe && !(autorun && eventflag2))
+        printf("*** Event bled through! ***\n");
     if (eventflag2) printf("Master event passes\n");
     else printf("*** Master event fails! ***\n");
 
@@ -1713,8 +1750,9 @@ int main(int argc, char *argv[])
     benchtab[bncharw].iter = cnt;
     benchtab[bncharw].time = clk;
     printf("\f");
-    printf("Character write speed %f seconds, per character %f\n",
-           (float)clk*0.0001, (float)clk/cnt*0.0001);
+    if (autorun) printf("Character write speed: measured, not shown in auto\n");
+    else printf("Character write speed %f seconds, per character %f\n",
+                (float)clk*0.0001, (float)clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Scrolling speed test ************************* */
@@ -1761,8 +1799,9 @@ int main(int argc, char *argv[])
     benchtab[bnscroll].iter = cnt;
     benchtab[bnscroll].time = clk;
     printf("\f");
-    printf("Scrolling speed: %f seconds, per scroll %f\n",
-           (float)clk*0.0001, (float)clk/cnt*0.0001);
+    if (autorun) printf("Scrolling speed: measured, not shown in auto\n");
+    else printf("Scrolling speed: %f seconds, per scroll %f\n",
+                (float)clk*0.0001, (float)clk/cnt*0.0001);
     waitnext();
 
     /* ************************** Buffer flip speed test ************************* */
@@ -1791,8 +1830,9 @@ int main(int argc, char *argv[])
     benchtab[bnbuffer].time = clk;
     ami_select(stdout, 2, 2);   /* restore buffer select */
     printf("\f");
-    printf("Buffer switch speed: %f average seconds per switch %f\n",
-           (float)clk*0.0001, (float)clk/cnt*0.0001);
+    if (autorun) printf("Buffer switch speed: measured, not shown in auto\n");
+    else printf("Buffer switch speed: %f average seconds per switch %f\n",
+                (float)clk*0.0001, (float)clk/cnt*0.0001);
     waitnext();
 
 terminate: /* terminate */
@@ -1822,9 +1862,14 @@ terminate: /* terminate */
             case bnbuffer: printf("Buffer flip speed     "); break;
 
         };
-        printf("%6.2f", benchtab[bi].time*0.0001);
-        printf("    ");
-        printf("%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
+        if (autorun) printf("  (not shown in auto)");
+        else {
+
+            printf("%6.2f", benchtab[bi].time*0.0001);
+            printf("    ");
+            printf("%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
+
+        }
         printf("\n");
 
     }

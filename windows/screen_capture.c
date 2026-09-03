@@ -82,6 +82,11 @@ static HWND find_pa_window(void)
     ctx.best = NULL;
     ctx.best_area = 0;
     EnumWindows(find_window_cb, (LPARAM)&ctx);
+    /* A console program draws on its console, whose window is the process's
+       own only when the program created it. Started from a script, the
+       console is the shell's, and no window is found above: the console
+       window is the screen either way. */
+    if (!ctx.best) ctx.best = GetConsoleWindow();
     return ctx.best;
 }
 
