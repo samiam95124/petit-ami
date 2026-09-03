@@ -91,6 +91,34 @@ plattests=" services_test "
 # The test's program. Windows names it with .exe, and a same-named file of
 # another platform's, such as a Linux build left in bin, must not stand for
 # it.
+# GNU timeout bounds each test's run. macOS ships no timeout: use brew
+# coreutils' gtimeout when present, else a bash watchdog that mirrors it,
+# returning the command's own exit status, or 124 when the limit kills it.
+# It polls once a second rather than forking a sleep, so a finished test
+# leaves no stray sleeper behind.
+if ! command -v timeout >/dev/null 2>&1; then
+    if command -v gtimeout >/dev/null 2>&1; then
+        timeout() { gtimeout "$@"; }
+    else
+        timeout() {
+            local secs=$1 pid t=0
+            shift
+            "$@" &
+            pid=$!
+            while kill -0 "$pid" 2>/dev/null; do
+                if [ "$t" -ge "$secs" ]; then
+                    kill -TERM "$pid" 2>/dev/null
+                    wait "$pid" 2>/dev/null
+                    return 124
+                fi
+                sleep 1
+                t=$((t + 1))
+            done
+            wait "$pid"
+        }
+    fi
+fi
+
 binof()
 {
 
@@ -159,7 +187,7 @@ mask()
         -e 's|"[^"]*tmp\.[0-9]+\.([12])"|"*tmp.*.\1"|g' \
         -e 's|^(test 702: 1 s/b 1 \(length )[0-9]+|\1*|' \
         -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
-        -e 's|^(    maximum message for (v6 )?loopback: )[0-9]+|\1*|' \
+        -e 's|^(    maximum (secure )?message for (v6 )?loopback: )[0-9]+|\1*|' \
         -e 's|^(    sent )[0-9]+( bytes \(the maxmsg(v6)? limit\), server received )[0-9]+|\1*\2*|' \
         -e 's|^(    google.com A    -> ).*|\1*|' \
         -e 's|^(    google.com AAAA -> ).*|\1*|'
