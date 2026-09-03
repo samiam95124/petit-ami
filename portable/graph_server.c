@@ -146,6 +146,8 @@ static ami_long  h2lw[MAXHND]; /* handle to logical window id */
    sessions: a session's title and size are the session's */
 static char srvname[64];
 static ami_long origw, origh;
+static ami_long origfs;         /* the font size it started with */
+static ami_long origbw, origbh; /* and its buffer size */
 
 /*******************************************************************************
 
@@ -929,10 +931,27 @@ static void job_winddown(void* a)
     ami_auto(stdout, 0); /* off first: the resets below are illegal
                             with it on, and it cannot come back on
                             until the geometry is standard again */
+    /* the session's font, buffer, line width and decorations go too, the
+       geometry while auto is off, as above */
+    ami_frame(stdout, 1);
+    ami_sysbar(stdout, 1);
+    ami_sizable(stdout, 1);
+    ami_buffer(stdout, 1);
+    ami_sizbufg(stdout, origbw, origbh);
+    ami_font(stdout, AMI_FONT_TERM);
+    ami_fontsiz(stdout, origfs);
+    ami_linewidth(stdout, 1);
     ami_fover(stdout);
     ami_bover(stdout);
     ami_fcolor(stdout, ami_black);
     ami_bcolor(stdout, ami_white);
+    /* and every text attribute the session may have left on */
+    ami_bold(stdout, 0);        ami_italic(stdout, 0);    ami_underline(stdout, 0);
+    ami_strikeout(stdout, 0);   ami_standout(stdout, 0);  ami_reverse(stdout, 0);
+    ami_blink(stdout, 0);       ami_condensed(stdout, 0); ami_extended(stdout, 0);
+    ami_xbold(stdout, 0);       ami_light(stdout, 0);     ami_xlight(stdout, 0);
+    ami_superscript(stdout, 0); ami_subscript(stdout, 0);
+    ami_hollow(stdout, 0);      ami_raised(stdout, 0);
     ami_viewoffg(stdout, 0, 0);
     ami_viewscale(stdout, 1.0, 1.0);
     ami_path(stdout, LONG_MAX/4);
@@ -2150,6 +2169,9 @@ int main(int argc, char* argv[])
 
         snprintf(srvname, sizeof(srvname), "%s", bn? bn+1: argv[0]);
         ami_getsizg(stdout, &origw, &origh);
+        origfs = ami_chrsizy(stdout); /* the font size it started with */
+        origbw = ami_maxxg(stdout);   /* and its buffer */
+        origbh = ami_maxyg(stdout);
 
     }
 
