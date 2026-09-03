@@ -43,6 +43,8 @@ int main(int argc, char* argv[])
     ami_long  mx, my;
     ami_long  i;
 
+    /* the output is the print file, not this window: do not hold it on exit */
+    ami_autohold(FALSE);
     ami_openprint(&p, argc > 1? argv[1]: "txttest.txt");
     mx = ami_maxx(p);
     my = ami_maxy(p);
