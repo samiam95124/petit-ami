@@ -190,6 +190,7 @@ mask()
         -e 's|"[^"]*tmp\.[0-9]+\.([12])"|"*tmp.*.\1"|g' \
         -e 's|^(test 702: 1 s/b 1 \(length )[0-9]+|\1*|' \
         -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
+        -e 's#^(\.\. +)[0-9]+( +)[0-9]+#\1*\2*#' \
         -e 's|^(    maximum (secure )?message for (v6 )?loopback: )[0-9]+|\1*|' \
         -e 's|^(    sent )[0-9]+( bytes \(the maxmsg(v6)? limit\), server received )[0-9]+|\1*\2*|' \
         -e 's|^(    google.com A    -> ).*|\1*|' \
