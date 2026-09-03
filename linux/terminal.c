@@ -725,6 +725,7 @@ static volatile int  inpptr;         /* input line index */
 static joyptr joytab[MAXJOY]; /* joystick control table */
 static int    dmpevt;         /* enable dump Petit-Ami messages */
 static int    inpsev;         /* keyboard input system event number */
+static int    inpeof;         /* end of input seen on standard input */
 static int    winchsev;       /* windows change system event number */
 static int    exitsev;        /* shutdown wakeup system event number */
 static int    exitpipe[2];    /* shutdown wakeup pipe, read then write end */
@@ -1064,6 +1065,7 @@ static char getchr(void)
     /* receive character to the next hander in the override chain */
     rc = (*ofpread)(INPFIL, &c, 1);
     // rc = read(INPFIL, &c, 1);
+    if (rc == 0) { inpeof = TRUE; return (0); } /* end of input: ievent handles it */
     if (rc != 1) error(ami_dispeinpdev); /* input device error */
 
     return c; /* return character */
@@ -2367,6 +2369,21 @@ static void ievent(void)
 
             /* keyboard (standard input) */
             keybuf[keylen++] = getchr(); /* get next character to match buffer */
+            if (inpeof) {
+
+                /* End of input, not a device error: standard input is a file
+                   at its end, or the terminal went away. Stop watching it, and
+                   give the program a terminate event, as a closed terminal
+                   would. A program that never reads events, one printing to a
+                   file say, runs on to its own end. */
+                keylen = 0;
+                system_event_deaseinp(inpsev);
+                er.etype = ami_etterm;
+                evtfnd = 1;
+                enquepaevt(&er); /* send to queue */
+                continue;
+
+            }
             ttlogb((unsigned char)keybuf[keylen-1]);
             if (mousts == mnone) { /* do table matching */
 
@@ -6153,7 +6170,9 @@ static void ami_deinit_terminal()
     /* if the program tries to exit when the user has not ordered an exit,
        it is assumed to be a windows "unaware" program. We stop before we
        exit these, so that their content may be viewed */
-    if (!fend && fautohold && !errflg) {
+    /* the hold waits for a key, so there must be a terminal to read one
+       from: not a redirected or exhausted standard input */
+    if (!fend && fautohold && !errflg && !inpeof && isatty(0)) {
 
         /* process automatic exit sequence */
 #if !defined(__MACH__) && !defined(__FreeBSD__) /* Mac OS X or BSD */        
