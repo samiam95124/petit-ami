@@ -23,7 +23,10 @@
 # tests, so 0 means a pass.
 #
 # Some text standards are of a platform's paths, environment, option character
-# and directory listing, and no mask covers that, so those tests keep a
+# and directory listing, and no mask covers that; the document standard
+# (pdftest) is of the platform too: pdfgraph decides arc segment counts from
+# an angle scaled by LONG_MAX, and an exact quarter arc lands on the boundary
+# one way with a 32 bit long and the other with 64. Those tests keep a
 # standard per platform, in the platform's own directory:
 # tests/windows_compare/<test>.cmp, tests/linux_compare/<test>.cmp,
 # tests/macosx_compare/<test>.cmp. The tests that do are listed in plattests
@@ -86,11 +89,39 @@ FreeBSD)              plat="";        cmpdir="tests/freebsd_compare" ;;
 *)                    plat="";        cmpdir="tests/linux_compare" ;;
 
 esac
-plattests=" services_test "
+plattests=" services_test pdftest "
 
 # The test's program. Windows names it with .exe, and a same-named file of
 # another platform's, such as a Linux build left in bin, must not stand for
 # it.
+# GNU timeout bounds each test's run. macOS ships no timeout: use brew
+# coreutils' gtimeout when present, else a bash watchdog that mirrors it,
+# returning the command's own exit status, or 124 when the limit kills it.
+# It polls once a second rather than forking a sleep, so a finished test
+# leaves no stray sleeper behind.
+if ! command -v timeout >/dev/null 2>&1; then
+    if command -v gtimeout >/dev/null 2>&1; then
+        timeout() { gtimeout "$@"; }
+    else
+        timeout() {
+            local secs=$1 pid t=0
+            shift
+            "$@" &
+            pid=$!
+            while kill -0 "$pid" 2>/dev/null; do
+                if [ "$t" -ge "$secs" ]; then
+                    kill -TERM "$pid" 2>/dev/null
+                    wait "$pid" 2>/dev/null
+                    return 124
+                fi
+                sleep 1
+                t=$((t + 1))
+            done
+            wait "$pid"
+        }
+    fi
+fi
+
 binof()
 {
 
@@ -159,7 +190,8 @@ mask()
         -e 's|"[^"]*tmp\.[0-9]+\.([12])"|"*tmp.*.\1"|g' \
         -e 's|^(test 702: 1 s/b 1 \(length )[0-9]+|\1*|' \
         -e 's|^(test 59: Daysave: )[0-9]+|\1*|' \
-        -e 's|^(    maximum message for (v6 )?loopback: )[0-9]+|\1*|' \
+        -e 's#^(\.\. +)[0-9]+( +)[0-9]+#\1*\2*#' \
+        -e 's|^(    maximum (secure )?message for (v6 )?loopback: )[0-9]+|\1*|' \
         -e 's|^(    sent )[0-9]+( bytes \(the maxmsg(v6)? limit\), server received )[0-9]+|\1*\2*|' \
         -e 's|^(    google.com A    -> ).*|\1*|' \
         -e 's|^(    google.com AAAA -> ).*|\1*|'
@@ -213,10 +245,10 @@ runtest()
         # the user in USERNAME.
         user="${USER:-$USERNAME}"
         (cd tests/regress && \
-         env -i HOME="$HOME" USER="$user" LOGNAME="$user" \
+         timeout 300 env -i HOME="$HOME" USER="$user" LOGNAME="$user" \
              PATH="$root/bin:/usr/local/bin:/usr/bin:/bin" \
              LANG="en_US.UTF-8" \
-             timeout 300 "$root/$(binof "$1")" < /dev/null) \
+             "$root/$(binof "$1")" < /dev/null) \
              > "tests/$1.lst" 2>&1
         ;;
 

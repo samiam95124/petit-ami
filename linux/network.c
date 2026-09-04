@@ -120,6 +120,7 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <sys/sysctl.h>
 #endif
 
 /* socket structures */
@@ -1632,6 +1633,20 @@ static int sockmtu(int fn, int family)
 }
 #endif
 
+#ifdef __MACH__
+/* Mac OS X refuses to send a UDP datagram larger than the sysctl
+   net.inet.udp.maxdgram (9216 by default) whatever the interface MTU
+   allows, failing with EMSGSIZE. That, not the MTU, is the deliverable
+   limit, so the MTU-derived size is clamped to it. */
+static int udpmaxdgram(void)
+{
+    int    v;
+    size_t l = sizeof(v);
+    if (sysctlbyname("net.inet.udp.maxdgram", &v, &l, NULL, 0)) return (65507);
+    return (v);
+}
+#endif
+
 ami_long ami_maxmsg(
     /* ip address */      ami_ulong addr,
     /* link is secured */ ami_long secure
@@ -1678,6 +1693,9 @@ ami_long ami_maxmsg(
        payload */
     mtu -= 28; /* IPv4 header 20 plus UDP header 8 */
     if (mtu > 65507) mtu = 65507;
+#ifdef __MACH__
+    if (mtu > udpmaxdgram()) mtu = udpmaxdgram(); /* kernel datagram cap */
+#endif
 
     /* a secured channel is bounded by the DTLS record, not the route */
     if (secure) {
@@ -1757,6 +1775,9 @@ ami_long ami_maxmsgv6(
        payload */
     mtu -= 48; /* IPv6 header 40 plus UDP header 8 */
     if (mtu > 65527) mtu = 65527;
+#ifdef __MACH__
+    if (mtu > udpmaxdgram()) mtu = udpmaxdgram(); /* kernel datagram cap */
+#endif
 
     /* a secured channel is bounded by the DTLS record, not the route */
     if (secure) {

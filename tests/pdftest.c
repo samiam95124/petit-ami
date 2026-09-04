@@ -49,6 +49,8 @@ int main(int argc, char* argv[])
     ami_long  pw, ph;
     int   i;
 
+    /* the output is the print file, not this window: do not hold it on exit */
+    ami_autohold(FALSE);
     ami_openprint(&p, argc > 1? argv[1]: "lp0:");
     ami_title(p, "pdfgraph test document");
 

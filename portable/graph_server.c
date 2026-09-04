@@ -146,6 +146,8 @@ static ami_long  h2lw[MAXHND]; /* handle to logical window id */
    sessions: a session's title and size are the session's */
 static char srvname[64];
 static ami_long origw, origh;
+static ami_long origfs;         /* the font size it started with */
+static ami_long origbw, origbh; /* and its buffer size */
 
 /*******************************************************************************
 
@@ -172,6 +174,7 @@ static void error(const char* es)
 
 
 static jmp_buf sesjmp;    /* recycle point */
+static int     sesjmpset; /* the recycle point is armed: the serving loop runs */
 static int     pumping;   /* the pump thread is up */
 static int     cleaning;  /* winding down; a second fault is fatal */
 
@@ -206,8 +209,17 @@ static void sesserr(const char* es)
     }
     write(2, "*** graph_server: ", 18);
     write(2, es, strlen(es));
+    if (cleaning || !sesjmpset) {
+
+        /* faulted while winding down, or before the serving loop armed its
+           recycle point (at startup, the channels not yet up): there is no
+           session to drop back to, and a jump through an unset recycle
+           point is a crash. The fault is fatal. */
+        write(2, " -- fatal\n", 10);
+        exit(1);
+
+    }
     write(2, " -- session dropped, awaiting new connection\n", 45);
-    if (cleaning) exit(1); /* faulted while winding down */
     longjmp(sesjmp, 1);
 
 }
@@ -919,10 +931,27 @@ static void job_winddown(void* a)
     ami_auto(stdout, 0); /* off first: the resets below are illegal
                             with it on, and it cannot come back on
                             until the geometry is standard again */
+    /* the session's font, buffer, line width and decorations go too, the
+       geometry while auto is off, as above */
+    ami_frame(stdout, 1);
+    ami_sysbar(stdout, 1);
+    ami_sizable(stdout, 1);
+    ami_buffer(stdout, 1);
+    ami_sizbufg(stdout, origbw, origbh);
+    ami_font(stdout, AMI_FONT_TERM);
+    ami_fontsiz(stdout, origfs);
+    ami_linewidth(stdout, 1);
     ami_fover(stdout);
     ami_bover(stdout);
     ami_fcolor(stdout, ami_black);
     ami_bcolor(stdout, ami_white);
+    /* and every text attribute the session may have left on */
+    ami_bold(stdout, 0);        ami_italic(stdout, 0);    ami_underline(stdout, 0);
+    ami_strikeout(stdout, 0);   ami_standout(stdout, 0);  ami_reverse(stdout, 0);
+    ami_blink(stdout, 0);       ami_condensed(stdout, 0); ami_extended(stdout, 0);
+    ami_xbold(stdout, 0);       ami_light(stdout, 0);     ami_xlight(stdout, 0);
+    ami_superscript(stdout, 0); ami_subscript(stdout, 0);
+    ami_hollow(stdout, 0);      ami_raised(stdout, 0);
     ami_viewoffg(stdout, 0, 0);
     ami_viewscale(stdout, 1.0, 1.0);
     ami_path(stdout, LONG_MAX/4);
@@ -2140,6 +2169,9 @@ int main(int argc, char* argv[])
 
         snprintf(srvname, sizeof(srvname), "%s", bn? bn+1: argv[0]);
         ami_getsizg(stdout, &origw, &origh);
+        origfs = ami_chrsizy(stdout); /* the font size it started with */
+        origbw = ami_maxxg(stdout);   /* and its buffer */
+        origbh = ami_maxyg(stdout);
 
     }
 
@@ -2162,6 +2194,7 @@ int main(int argc, char* argv[])
         int  faulted;
 
         faulted = setjmp(sesjmp);
+        sesjmpset = 1; /* from here a fault recycles the session */
         rbuf = rbase; /* a fault mid-batch leaves the walk pointer inside */
         if (faulted) goto winddown; /* the pump lives on, idle */
 

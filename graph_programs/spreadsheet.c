@@ -1222,7 +1222,7 @@ sheet reflows on a resize or a column width change.
    the obvious double form rounds up to one past it, and the cast back
    overflows to a negative -- which the scroll bar rejects as an invalid
    position, exactly at the end of the sheet, where num reaches den. */
-static int fullscale(int num, int den)
+static ami_long fullscale(int num, int den)
 
 {
 
@@ -1248,7 +1248,7 @@ static void setbar(int id, int org, int vis, int total)
 }
 
 /* a cell offset from a bar position, over the given travel */
-static int barcell(int pos, int travel)
+static int barcell(ami_long pos, int travel)
 
 {
 
@@ -1300,7 +1300,7 @@ static void layout(void)
 }
 
 /* the pixel origin of a displayed cell */
-static void cellpos(ami_long x, ami_long y, int* px, int* py)
+static void cellpos(ami_long x, ami_long y, ami_long* px, ami_long* py)
 
 {
 
@@ -1319,7 +1319,8 @@ static ami_long spillwid(ami_long x, ami_long y)
 {
 
     int w = colw;
-    int i, px, py;
+    int i;
+    ami_long px, py;
 
     for (i = x+1; i < COLS; i++) {
 
@@ -1354,7 +1355,7 @@ static void drawface(ami_long x, ami_long y)
 
 {
 
-    int px, py;
+    ami_long px, py;
 
     if (x < orgx || y < orgy) return;
     cellpos(x, y, &px, &py);
@@ -1371,7 +1372,7 @@ static void drawcell(ami_long x, ami_long y)
 
 {
 
-    int px, py;
+    ami_long px, py;
     char s[CELLEN];
     int tw;
     int  val; /* the cell shows a value, not text */
