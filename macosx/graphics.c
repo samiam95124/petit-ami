@@ -132,6 +132,9 @@ typedef struct winrec {
 
     /* font */
     fontptr     cfont;         /* current font */
+    CTFontRef   ctfont;        /* this window's font at its size and style;
+                                  NULL until built, when the record's default
+                                  size face serves (see winfont) */
     CGFloat     fontsz;        /* font size in pixels (CTFont logical size) */
     float       gfpoint;       /* current font size in typographic points */
 
@@ -290,6 +293,20 @@ static CTFontRef make_ctfont(const char* name, CGFloat size, int bold, int itali
 
 /* Rebuild the current font's CTFont based on screen context effects.
  * Called when bold, italic, condensed, extended, etc. change. */
+/* The window's Core Text font. Each window builds its own from the current
+   font record at its own size and style; the record keeps only the face and
+   a default size fallback, so one window's size never reaches another (a
+   server's next session opens fresh windows, at the default). */
+static CTFontRef winfont(winptr win)
+{
+    scnptr  sc;
+    fontptr fp;
+    if (win->ctfont) return win->ctfont;
+    sc = curscn(win);
+    fp = sc->font ? sc->font : fntlst;
+    return fp ? fp->ctfont : NULL;
+}
+
 static void rebuild_font(winptr win)
 {
     scnptr sc = curscn(win);
@@ -299,18 +316,18 @@ static void rebuild_font(winptr win)
     int b = sc->bold || sc->xbold;
     int it = sc->italic;
 
-    if (fp->ctfont) CFRelease(fp->ctfont);
-    fp->ctfont = make_ctfont(fp->name, win->fontsz, b, it);
+    if (win->ctfont) CFRelease(win->ctfont);
+    win->ctfont = make_ctfont(fp->name, win->fontsz, b, it);
 
     /* apply condensed/extended via a matrix transform */
-    if (fp->ctfont && (sc->condensed || sc->extended)) {
+    if (win->ctfont && (sc->condensed || sc->extended)) {
         CGFloat xscale = sc->condensed ? 0.8 : 1.25;
         CGAffineTransform matrix = CGAffineTransformMakeScale(xscale, 1.0);
-        CTFontRef transformed = CTFontCreateCopyWithAttributes(fp->ctfont,
+        CTFontRef transformed = CTFontCreateCopyWithAttributes(win->ctfont,
                                     win->fontsz, &matrix, NULL);
         if (transformed) {
-            CFRelease(fp->ctfont);
-            fp->ctfont = transformed;
+            CFRelease(win->ctfont);
+            win->ctfont = transformed;
         }
     }
 
@@ -434,15 +451,16 @@ static void init_fonts(void)
 }
 
 /* Measure a string with current font; returns width in pixels */
-static CGFloat measure_string(fontptr fp, const char* s, int len)
+static CGFloat measure_string(winptr win, const char* s, int len)
 {
-    if (!fp || !fp->ctfont || !s || len <= 0) return 0;
+    CTFontRef cf = winfont(win);
+    if (!cf || !s || len <= 0) return 0;
     CFStringRef  cfs = CFStringCreateWithBytes(NULL, (const UInt8*)s, len,
                                                kCFStringEncodingUTF8, false);
     CGFloat w = 0;
     if (cfs) {
         CFStringRef keys[1]   = { kCTFontAttributeName };
-        CFTypeRef   values[1] = { fp->ctfont };
+        CFTypeRef   values[1] = { cf };
         CFDictionaryRef attrs = CFDictionaryCreate(NULL,
                                    (const void**)keys, (const void**)values,
                                    1, &kCFTypeDictionaryKeyCallBacks,
@@ -461,21 +479,22 @@ static CGFloat measure_string(fontptr fp, const char* s, int len)
 /* Draw a string at (x, y) — top-left based, PA 1-based coords.
  * Handles text effects: bold, italic (via font), underline, strikeout,
  * superscript, subscript, reverse, hollow, raised, light. */
-static void draw_string(CGContextRef ctx, fontptr fp, scnptr sc,
+static void draw_string(CGContextRef ctx, winptr win, scnptr sc,
                         ami_long x, ami_long y, const char* s, int len)
 {
-    if (!ctx || !fp || !fp->ctfont || !s || len <= 0) return;
+    CTFontRef cf = winfont(win);
+    if (!ctx || !cf || !s || len <= 0) return;
 
     /* for superscript/subscript, use a smaller font */
-    CTFontRef drawFont = fp->ctfont;
+    CTFontRef drawFont = cf;
     int releaseDraw = 0;
     CGFloat yoff = 0;
     if (sc->superscript || sc->subscript) {
-        CGFloat smallSize = fp->size * 0.6;
-        drawFont = CTFontCreateCopyWithAttributes(fp->ctfont, smallSize, NULL, NULL);
+        CGFloat smallSize = win->fontsz * 0.6;
+        drawFont = CTFontCreateCopyWithAttributes(cf, smallSize, NULL, NULL);
         releaseDraw = 1;
         if (sc->superscript) yoff = 0; /* top of cell */
-        else yoff = fp->size * 0.4; /* lower in cell */
+        else yoff = win->fontsz * 0.4; /* lower in cell */
     }
 
     CFStringRef cfs = CFStringCreateWithBytes(NULL, (const UInt8*)s, len,
@@ -582,6 +601,7 @@ static void win_init(winptr win, int wid, int parwid, int w, int h)
     win->curdsp  = 1;
     win->curupd  = 1;
     win->cfont   = fntlst;
+    if (win->ctfont) { CFRelease(win->ctfont); win->ctfont = NULL; } /* a reused slot */
     win->fontsz  = DEF_FONT_H;
 
     /* screen size in mm from shim */
@@ -1018,7 +1038,7 @@ static int draw_char_at(winptr win, char c)
     /* measure actual character width */
     int cw;
     if (fp && !fp->fixed) {
-        cw = (int)(measure_string(fp, &c, 1) + 0.5);
+        cw = (int)(measure_string(win, &c, 1) + 0.5);
         if (cw <= 0) cw = win->charspace;
     } else {
         cw = win->charspace;
@@ -1032,7 +1052,7 @@ static int draw_char_at(winptr win, char c)
         CGContextSetBlendMode(ctx, mode2blend(sc->bmod));
         CGContextSetRGBFillColor(ctx, sc->bc.r, sc->bc.g, sc->bc.b, 1.0);
         if (sc->textpath != LONG_MAX / 4) {
-            CGFloat ascent = fp ? CTFontGetAscent(fp->ctfont) : (CGFloat)win->linespace * 0.75;
+            CGFloat ascent = winfont(win) ? CTFontGetAscent(winfont(win)) : (CGFloat)win->linespace * 0.75;
             CGContextSaveGState(ctx);
             CGContextTranslateCTM(ctx, px, py + ascent);
             CGContextScaleCTM(ctx, 1.0, -1.0);
@@ -1050,7 +1070,7 @@ static int draw_char_at(winptr win, char c)
     CGContextSetBlendMode(ctx, mode2blend(sc->fmod));
     char s[2] = { c, 0 };
     CGContextSetRGBFillColor(ctx, sc->fc.r, sc->fc.g, sc->fc.b, 1.0);
-    draw_string(ctx, fp, sc, px + 1, py + 1, s, 1);
+    draw_string(ctx, win, sc, px + 1, py + 1, s, 1);
 
     return cw;
 }
@@ -1151,6 +1171,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 static int iclose(int fd)
 {
     if (fd >= 0 && fd < MAXFIL && opnfil[fd] && wintbl[fd].han) {
+        if (wintbl[fd].ctfont) { CFRelease(wintbl[fd].ctfont); wintbl[fd].ctfont = NULL; }
         pa_cocoa_destroy_window(wintbl[fd].han);
         wintbl[fd].han = NULL;
         opnfil[fd] = 0;
@@ -1653,8 +1674,8 @@ static void setpoints_ivf(FILE* f, float ps)
     win->gfpoint = ps;
     scnptr sc = curscn(win);
     if (sc->font && sc->font->name) {
-        if (sc->font->ctfont) CFRelease(sc->font->ctfont);
-        sc->font->ctfont = make_ctfont(sc->font->name, win->fontsz,
+        if (win->ctfont) CFRelease(win->ctfont);
+        win->ctfont = make_ctfont(sc->font->name, win->fontsz,
                                        sc->bold, sc->italic);
         sc->font->size   = win->fontsz;
         update_metrics(win);
@@ -2079,8 +2100,9 @@ static void update_metrics(winptr win)
 {
     scnptr sc = curscn(win);
     fontptr fp = sc->font ? sc->font : fntlst;
-    if (!fp || !fp->ctfont) return;
-    CTFontRef cf = fp->ctfont;
+    CTFontRef cf = winfont(win);
+    if (!cf) return;
+    /* cf: the window's font, above */
     /* linespace = requested font height (fontsz), matching Linux behavior
      * where linespace = gfhigh. This ensures chrsizy/fontsiz round-trip. */
     win->linespace = (int)(win->fontsz + 0.5);
@@ -2109,8 +2131,8 @@ static void font_ivf(FILE* f, ami_long fc)
         win->cfont        = fp;
         /* rebuild at current window font size */
         if (fp->name && fp->size != win->fontsz) {
-            if (fp->ctfont) CFRelease(fp->ctfont);
-            fp->ctfont = make_ctfont(fp->name, win->fontsz,
+            if (win->ctfont) CFRelease(win->ctfont);
+            win->ctfont = make_ctfont(fp->name, win->fontsz,
                                      curscn(win)->bold, curscn(win)->italic);
             fp->size = win->fontsz;
         }
@@ -2135,10 +2157,9 @@ static void fontsiz_ivf(FILE* f, ami_long s)
     /* rebuild current font at new size */
     scnptr sc = curscn(win);
     if (sc->font && sc->font->name) {
-        if (sc->font->ctfont) CFRelease(sc->font->ctfont);
-        sc->font->ctfont = make_ctfont(sc->font->name, win->fontsz,
+        if (win->ctfont) CFRelease(win->ctfont);
+        win->ctfont = make_ctfont(sc->font->name, win->fontsz,
                                        sc->bold, sc->italic);
-        sc->font->size   = win->fontsz;
         update_metrics(win);
     }
 }
@@ -2162,7 +2183,7 @@ static ami_long strsiz_ivf(FILE* f, const char* s)
 {
     winptr win = f2win(f); if (!win || !s) return 0;
     scnptr sc  = curscn(win);
-    return (ami_long)measure_string(sc->font ? sc->font : win->cfont,
+    return (ami_long)measure_string(win,
                                 s, (int)strlen(s));
 }
 
@@ -2172,7 +2193,7 @@ static ami_long chrpos_ivf(FILE* f, const char* s, ami_long p)
     scnptr sc  = curscn(win);
     int len = (int)strlen(s);
     if (p > len) p = len;
-    return (ami_long)measure_string(sc->font ? sc->font : win->cfont, s, (int)p);
+    return (ami_long)measure_string(win, s, (int)p);
 }
 
 #define MINJST 1 /* minimum pixels for space in justification */
@@ -2190,7 +2211,7 @@ static void just_params(winptr win, const char* s, ami_long n,
     for (int i = 0; i < l; i++) {
         if (s[i] == ' ') { sz += MINJST; ns++; }
         else {
-            int cw = (int)(measure_string(fp, &s[i], 1) + 0.5);
+            int cw = (int)(measure_string(win, &s[i], 1) + 0.5);
             sz += cw;
             cs += cw;
         }
@@ -2257,7 +2278,7 @@ static ami_long justpos_ivf(FILE* f, const char* s, ami_long p, ami_long n)
             if (spc > ss) cp += ss;
             else { cp += spc; ss -= spc; }
         } else {
-            cp += (int)(measure_string(fp, &s[i], 1) + 0.5);
+            cp += (int)(measure_string(win, &s[i], 1) + 0.5);
         }
     }
     return crp;
@@ -2318,8 +2339,9 @@ static ami_long baseline_ivf(FILE* f)
     winptr win = f2win(f); if (!win) return 0;
     scnptr sc  = curscn(win);
     fontptr fp = sc->font ? sc->font : win->cfont;
-    if (!fp || !fp->ctfont) return 0;
-    return (ami_long)CTFontGetAscent(fp->ctfont);
+    CTFontRef cf = winfont(win);
+    if (!cf) return 0;
+    return (ami_long)CTFontGetAscent(cf);
 }
 
 static void fcolorg_ivf(FILE* f, ami_long r, ami_long g, ami_long b)
