@@ -2129,12 +2129,12 @@ static void font_ivf(FILE* f, ami_long fc)
     if (fp) {
         curscn(win)->font = fp;
         win->cfont        = fp;
-        /* rebuild at current window font size */
-        if (fp->name && fp->size != win->fontsz) {
+        /* a face change always builds the window's font at its size: the
+           font is the window's, so there is no record cache to consult */
+        if (fp->name) {
             if (win->ctfont) CFRelease(win->ctfont);
             win->ctfont = make_ctfont(fp->name, win->fontsz,
                                      curscn(win)->bold, curscn(win)->italic);
-            fp->size = win->fontsz;
         }
         update_metrics(win);
     }
