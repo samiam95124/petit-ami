@@ -83,8 +83,8 @@ float     bfy;                        /* ball exact position y; the rectangle
                                          way a line draw does */
 int       baltim;                     /* ball start timer */
 ami_evtrec er;                         /* event record */
-ami_long  jchr;                       /* number of pixels to joystick
-                                         movement */
+ami_long  jchr;                       /* joystick units per pixel: the axis
+                                         spans +-LONG_MAX, so ~1e16 */
 int       score;                      /* score */
 int       scrsiz;                     /* score size */
 int       bac;                        /* ball accelerator */
