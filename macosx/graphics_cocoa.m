@@ -1735,6 +1735,7 @@ void pa_cocoa_wait(pa_rawevent* evt)
  * Timers
  *----------------------------------------------------------------------------*/
 
+/* us100: 100 microsecond units, PA's timer unit; see pa_cocoa.h */
 void pa_cocoa_set_timer(pa_winhan win, int id, long us100, int repeat)
 {
     if (id < 0 || id >= 10) return;

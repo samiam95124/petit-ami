@@ -196,7 +196,10 @@ void pa_cocoa_wait(pa_rawevent* evt);
  * Timers
  *----------------------------------------------------------------------------*/
 
-void pa_cocoa_set_timer(pa_winhan win, int id, long ms, int repeat);
+/* Start (or restart) timer id. The time is in 100 microsecond units, PA's
+   timer unit (10000 = one second), as the implementation converts it; the
+   callers pass PA timer values through unchanged. Not milliseconds. */
+void pa_cocoa_set_timer(pa_winhan win, int id, long us100, int repeat);
 void pa_cocoa_kill_timer(pa_winhan win, int id);
 
 /*----------------------------------------------------------------------------
