@@ -4217,6 +4217,13 @@ Output string to file.
 Outputs a string to a file. Note that a newline is NOT automatically output for
 the string.
 
+The string goes down whole, as one fwrite, and not a character at a time. On an
+unbuffered stream a character at a time is a write for every character, and
+whoever sits under the descriptor, a print module or the remote client say,
+would see the string in pieces; fwrite carries it together, as vfprintf does
+and as the other C libraries do. The compiler folds fprintf(f, "%s", s) into
+fputs, so that call arrives here.
+
 \returns
 
 Zero on success, or EOF on error.
@@ -4230,13 +4237,11 @@ int fputs(
 
 {
 
-    while (*s) { /* output string */
+    size_t l; /* string length */
 
-       /* output character */
-       if (fputc(*s, stream) == EOF) return EOF;
-       s++; /* next character */
-
-    }
+    l = strlen(s); /* find length of string */
+    if (!l) return (0); /* nothing to write */
+    if (fwrite(s, 1, l, stream) != l) return (EOF); /* write whole */
 
     return (0); /* return no error */
 
