@@ -39,6 +39,17 @@
 # .pdf sets its text in the standard PDF fonts, whose metrics are the module's
 # own, so one standard serves every platform.
 #
+# The terminal test, terminal_test, is judged on characters, not pixels. It
+# runs in an xterm of its own on a private X server (Xvfb), 80 by 24 whatever
+# the desktop, and at each frame asks the terminal to print its screen; the
+# xterm's printer is the listing, tests/terminal_test.lst, a page per frame
+# with a form feed after each. The terminal's font, size and scale never
+# reach the listing, so one standard serves, and it is compared by dif like
+# the text tests, with the timing figures masked. It runs from the sandbox
+# tests/terminal, whose configuration turns the joysticks off, so the
+# standard is of no machine in particular. It is skipped where there is no
+# xterm or Xvfb.
+#
 # The picture standards are of a desktop's look -- the frame the screen tests
 # size themselves against, the menus, the theme -- so they live in the
 # platform's directory too, and on Linux, where GNOME and Plasma draw through
@@ -153,7 +164,7 @@ done
 if [ -z "$tests" ]; then
 
     tests="stdio_test services_test network_test txttest pdftest \
-           graphics_test management_test widget_test \
+           terminal_test graphics_test management_test widget_test \
            graphics_testr management_testr widget_testr"
 
 fi
@@ -178,6 +189,11 @@ fi
 # - the daylight savings flag, which changes with the season. The timezone
 #   offset is not masked: it is a fixed property of the machine's zone now
 #   that ami_timezone handles the day wrap
+# - the timer measurements and the speed figures of terminal_test, which are
+#   of the run. The speed lines are masked whole after their label: the
+#   frame stamp lands in them, and it is the timing that matters. They are
+#   the first line of their page, so the form feed that ends the page
+#   before is theirs too
 #
 mask()
 {
@@ -194,7 +210,15 @@ mask()
         -e 's|^(    maximum (secure )?message for (v6 )?loopback: )[0-9]+|\1*|' \
         -e 's|^(    sent )[0-9]+( bytes \(the maxmsg(v6)? limit\), server received )[0-9]+|\1*\2*|' \
         -e 's|^(    google.com A    -> ).*|\1*|' \
-        -e 's|^(    google.com AAAA -> ).*|\1*|'
+        -e 's|^(    google.com AAAA -> ).*|\1*|' \
+        -e 's|^(Average time was: )[0-9]+(00 Microseconds)|\1*\2|' \
+        -e 's|^(Minimum time was: )[0-9]+(00 Microseconds)|\1*\2|' \
+        -e 's|^(Maximum time was: )[0-9]+(00 Microseconds)|\1*\2|' \
+        -e 's|^(This timer supports frame rates up to )[0-9]+|\1*|' \
+        -e 's|^(1 second time, was: )[0-9]+(00 Microseconds)|\1*\2|' \
+        -e 's|^(\f?Character write speed ).*|\1*|' \
+        -e 's|^(\f?Scrolling speed: ).*|\1*|' \
+        -e 's|^(\f?Buffer switch speed: ).*|\1*|'
 
 }
 
@@ -260,6 +284,41 @@ runtest()
         remoterc=$?
         ;;
 
+    terminal_test)
+        # An xterm of its own, on a private X server, 80 by 24: the screens
+        # are then of no desktop, font or scale. The listing is what the
+        # xterm prints: at each frame the test asks the terminal to print
+        # its screen (see linux/terminal_capture.c), and the printer
+        # command appends the page to the listing. The test is told the
+        # listing's name, and waits for each page to be in it before it
+        # goes on, so the pages are in order and all there at the end.
+        # The test runs in the sandbox, where the joysticks are configured
+        # off and where the file its writethrough test makes lands.
+        rm -f "tests/$1.lst" "tests/$1.dpy" tests/terminal/testfile
+        Xvfb -displayfd 3 -screen 0 800x600x24 3> "tests/$1.dpy" \
+            > /dev/null 2>&1 &
+        xvfbpid=$!
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+            [ -s "tests/$1.dpy" ] && break
+            sleep 0.5
+        done
+        dpy=$(cat "tests/$1.dpy")
+        if [ -n "$dpy" ]; then
+            (cd tests/terminal && \
+             DISPLAY=":$dpy" timeout 300 xterm -geometry 80x24 \
+                 -xrm "*printerCommand: cat >> $root/tests/$1.lst" \
+                 -xrm '*printAttributes: 0' \
+                 -xrm '*printerAutoClose: true' \
+                 -e "$root/$(binof "$1")" auto "$root/tests/$1.lst") \
+                 > "tests/$1.out" 2>&1
+        else
+            echo "Xvfb did not start" > "tests/$1.out"
+        fi
+        kill "$xvfbpid" 2> /dev/null
+        wait "$xvfbpid" 2> /dev/null
+        rm -f "tests/$1.dpy" tests/terminal/testfile
+        ;;
+
     txttest|pdftest)
         # the printer is a file: the document is the listing
         rm -f "$(outof "$1")"
@@ -323,6 +382,15 @@ for t in $tests; do
 
         # it draws on a screen, and there is none here; Windows always has one
         echo "$t: skipped, no display"
+        continue
+
+    fi
+    if [ "$t" = "terminal_test" ] && \
+       { ! command -v xterm > /dev/null 2>&1 || \
+         ! command -v Xvfb > /dev/null 2>&1; }; then
+
+        # it runs in an xterm on a private X server, and there is none here
+        echo "$t: skipped, no xterm or Xvfb"
         continue
 
     fi
@@ -468,6 +536,17 @@ for t in $tests; do
     else
 
         bin/dif -q "tests/$t.lst" "$std" > "tests/$t.dif"
+        if [ -s "tests/$t.dif" ] && [ "$t" = "terminal_test" ]; then
+
+            # the pages: a count that differs says a frame went missing
+            {
+                echo "standard: $(tr -cd '\f' < "$std" | wc -c) pages,\
+ this run: $(tr -cd '\f' < "tests/$t.lst" | wc -c) pages"
+                cat "tests/$t.dif"
+            } > "tests/$t.dif.tmp"
+            mv "tests/$t.dif.tmp" "tests/$t.dif"
+
+        fi
         if [ -s "tests/$t.dif" ]; then
 
             echo "$t: *** fail *** (see tests/$t.dif)"

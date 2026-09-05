@@ -4,3 +4,4 @@ tests/*.dif
 tests/*.out
 tests/*.pdf
 linux/wlproto/*.o
+tests/terminal/testfile

@@ -1,0 +1,1009 @@
+                                    frame 1
+
+
+
+
+
+
+
+
+
+                                                         
+                       Terminal mode screen test vs. 1.0 
+                                                         
+
+
+
+
+
+
+
+
+
+
+                           Press return to continue
+Terminal window title set test.     frame 2
+
+See of the title of the terminal window above has changed.
+
+Note that this will do nothing if the terminal is not windowed.
+Note also that changing the terminal title may not be
+implemented.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                           Press return to continue
+Screen size: x -> 80 y -> 24        frame 3
+
+Number of joysticks: 0
+
+Number of mice: 1
+
+Number of buttons on mouse: 1 is: 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                           Press return to continue
+Timer test, measuring minimum timer frame 4ion, 100 samples
+
+********************************************************************************
+********************
+
+Average time was: *00 Microseconds
+Minimum time was: *00 Microseconds
+Maximum time was: *00 Microseconds
+This timer supports frame rates up to * frames per second
+1 second time, was: *00 Microseconds
+
+30 seconds of 1 second ticks:
+
+..............................
+Framing timer test, measuring 10 occurances of the framing timer
+
+..........
+
+Average time was: *00 Microseconds
+Minimum time was: *00 Microseconds
+Maximum time was: *00 Microseconds
+
+
+                           Press return to continue
+Cursor should be [on ], press returnframe 5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Cursor should be [off], press returnframe 6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Cursor should be [on ], press returnframe 7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    frame 8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                           Press return to continue
+Standard input line enter test      frame 9
+
+Enter text below. The line editor may have common line edit features
+installed, such as back up cursor, delete backwards/forwards, start
+and end of line, etc. Read the local system manual and try them.
+
+the quick brown fox jumps over the lazy dog
+You typed:
+
+the quick brown fox jumps over the lazy dog
+
+
+
+
+
+
+
+
+
+
+
+
+
+                           Press return to continue
+Standard input line enter with offsframe 10
+
+Enter text below. The line editor may have common line edit features
+installed, such as back up cursor, delete backwards/forwards, start
+and end of line, etc. Read the local system manual and try them.
+
+===========>the quick brown fox jumps over the lazy dog
+You typed:
+
+the quick brown fox jumps over the lazy dog
+
+
+
+
+
+
+
+
+
+
+
+
+
+                           Press return to continue
+                           Last linframe 11out test
+
+If this terminal is not capable of showing the last character on
+the last line, the "*" character pointed to by the arrow below
+will not appear (probally blank). This should be noted for each
+of the following test patterns.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------>*
+\/                                 frame 12                                   \/
+/\                                                                            /\
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                  Cursor movements test, automatic scroll ON                    
+                                                                                
+                   Should be a double line X in each corner                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+\/                                                                            \/
+/\                                                                            /\
+\/                                 frame 13                                   \/
+/\                                                                            /\
+
+
+
+
+
+
+
+
+                  Cursor movements test, automatic scroll OFF
+
+                   Should be a double line X in each corner
+
+
+
+
+
+
+
+
+
+\/                                                                            \/
+/\                                                                            /\
+                                   frame 14
+
+
+
+
+
+
+
+
+
+                 Scroll cursor test, cursor should be here ->
+
+
+
+
+
+
+
+
+
+
+
+
+
+11111111111111111111111111111111111frame 151111111111111111111111111111111111111
+22222222222222222222222222222222222222222222222222222222222222222222222222222222
+33333333333333333333333333333333333333333333333333333333333333333333333333333333
+44444444444444444444444444444444444444444444444444444444444444444444444444444444
+55555555555555555555555555555555555555555555555555555555555555555555555555555555
+66666666666666666666666666666666666666666666666666666666666666666666666666666666
+77777777777777777777777777777777777777777777777777777777777777777777777777777777
+88888888888888888888888888888888888888888888888888888888888888888888888888888888
+99999999999999999999999999999999999999999999999999999999999999999999999999999999
+00000000000000000000000000000000000000000000000000000000000000000000000000000000
+111111111111111111                                          11111111111111111111
+222222222222222222 Row ID test, all rows should be numbered 22222222222222222222
+333333333333333333                                          33333333333333333333
+44444444444444444444444444444444444444444444444444444444444444444444444444444444
+55555555555555555555555555555555555555555555555555555555555555555555555555555555
+66666666666666666666666666666666666666666666666666666666666666666666666666666666
+77777777777777777777777777777777777777777777777777777777777777777777777777777777
+88888888888888888888888888888888888888888888888888888888888888888888888888888888
+99999999999999999999999999999999999999999999999999999999999999999999999999999999
+00000000000000000000000000000000000000000000000000000000000000000000000000000000
+11111111111111111111111111111111111111111111111111111111111111111111111111111111
+22222222222222222222222222222222222222222222222222222222222222222222222222222222
+33333333333333333333333333333333333333333333333333333333333333333333333333333333
+44444444444444444444444444444444444444444444444444444444444444444444444444444444
+12345678901234567890123456789012345frame 164567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+123456789012345                                                45678901234567890
+123456789012345 Column ID test, all columns should be numbered 45678901234567890
+123456789012345                                                45678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+12345678901234567890123456789012345678901234567890123456789012345678901234567890
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"frame 17+,-./0123456789:;<=>?@ABCDEFGHIJKLMNO
+PQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmno
+pqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?
+@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\
+\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./
+0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNO
+PQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+ !"#$%&'()*+,-                                                   abcdefghijklmno
+pqrstuvwxyz{|} Fill test, all printable characters should appear 123456789:;<=>?
+@ABCDEFGHIJKLM                                                   \\\\\\\\\\\\\\\
+\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./
+0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNO
+PQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmno
+pqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?
+@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\
+\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+`abcdefghijklmnopqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./
+0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~\
+***********************************frame 18*************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+********************************************************************************
+*******************************                 ********************************
+******************************* Sidewinder test ********************************
+                                   frame 19                                  
+                                                                              
+                                                                               
+                                                                                
+                                                                               
+                                                                              
+                                                                             
+                                                                              
+                                                                               
+                                                                                
+                                                                               
+                                                                                
+                                                                               
+                                                                              
+                                          *                                    
+                                                                                
+                                                                               
+                                                                                
+                                                                               
+                                                                              
+                                                                             
+                                                                              
+                                                                               
+                              Bouncing ball test                                
+Blinking text                      frame 20
+Reversed text
+Underlined text
+Superscript text
+Subscript text
+Italic text
+Bold text
+Strikeout text
+Standout text
+Red text
+Green text
+Blue text
+Cyan text
+Yellow text
+Magenta text
+Red background text
+Green background text
+Blue background text
+Cyan background text
+Yellow background text
+Magenta background text
+White on black text
+Black on white text
+                          Attributes and colors test
+The terminal may not implement 24 bframe 21olors for characters.
+
+In this case the colors will be the nearest primaries to the RGB
+Colors.
+
+Foreground      Background
+*************   *************
+*************   *************
+*************   *************
+*************   *************
+*************   *************
+*************   *************
+*************   *************
+*************   *************
+*************   *************
+
+
+
+
+
+
+
+
+                                RGB colors test
+                                   frame 22
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                   Scroll up
+                                   frame 23                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                  Scroll down                                   
+                                   frame 24                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                  Scroll left                                   
+                                   frame 25                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                 Scroll right                                   
+                                   frame 26                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                Scroll up/left                                  
+                                   frame 27                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                               Scroll down/left                                 
+                                   frame 28                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                Scroll up/right                                 
+                                   frame 29                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                               Scroll down/right                                
+12345678901234567890123456789012345frame 304567890123456789012345678901234567890
+        >Tab   1
+                >Tab   2
+                        >Tab   3
+                                >Tab   4
+                                        >Tab   5
+                                                >Tab   6
+                                                        >Tab   7
+                                                                >Tab   8
+                                                                        >Tab   9
+                                                                        >Tab  10
+                                                                        >Tab  11
+                                                                        >Tab  12
+                                                                        >Tab  13
+                                                                        >Tab  14
+                                                                        >Tab  15
+                                                                        >Tab  16
+                                                                        >Tab  17
+                                                                        >Tab  18
+                                                                        >Tab  19
+                                                                        >Tab  20
+                                                                        >Tab  21
+                                                                        >Tab  22
+                                 Tabbing test                           >Tab  23
+Offscreen write test               frame 31
+                                       *
+There should be a cross centered onscreen.
+The display should not scroll.         *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+********************************************************************************
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+                                       *
+Offscreen scroll test              frame 32
+
+The line numbers will count screen lines.
+The display should not scroll.
+
+Line 6
+Line 7
+Line 8
+Line 9
+Line 10
+Line 11
+Line 12
+Line 13
+Line 14
+Line 15
+Line 16
+Line 17
+Line 18
+Line 19
+Line 20
+Line 21
+Line 22
+Line 23
+Line 24
+This is a test file                frame 33
+
+s/b
+
+This is a test file
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            File writethrough test
+***********************************frame 34*************************************
+*                                                                              *
+* Resize the window, the frame should stay at the original size                *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+***************************** Buffer follow test *******************************
+***********************************frame 35*************************************
+*                                                                              *
+* Resize the window, the frame should follow the window                        *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+*                                                                              *
+***************************** Buffer follow test *******************************
+Click the window, then other windowframe 36tch the focus box.
+
+Roll over the window, then outside the window, and watch the hover box.
+
+If focus is not supported, it is always on
+Note with simulated hover, assert is immedate, but deassert is
+after about 5 seconds.
+
+
+         #####################         #####################
+         #                   #         #                   #
+         #      Focus        #         #      hover        #
+         #                   #         #                   #
+         #####################         #####################
+
+
+
+
+
+
+
+
+
+                             Focus and hover test
+The left and right figures are run frame 37rent threads
+
+Test complete!
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+
+
+
+                                Threading test
+                                   frame 38
+                        Move the mouse, and hit buttons
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  Mouse test
+Waiting for frame event, hit returnframe 39inue
+Fanout event passes
+Waiting for frame event, hit return to continue
+Master event passes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                               Event vector test
+Character write speed *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Scrolling speed: *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Buffer switch speed: *
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
