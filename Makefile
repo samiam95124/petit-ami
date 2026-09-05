@@ -887,6 +887,9 @@ linux/system_event.o: linux/system_event.c linux/system_event.h Makefile
 
 linux/screen_capture.o: linux/screen_capture.c Makefile
 	$(CC) $(CFLAGS) -c linux/screen_capture.c -o linux/screen_capture.o
+
+linux/terminal_capture.o: linux/terminal_capture.c Makefile
+	$(CC) $(CFLAGS) -c linux/terminal_capture.c -o linux/terminal_capture.o
 	
 #
 # Windows library components
@@ -1539,10 +1542,10 @@ genwaveg: $(GLIBSD) sound_programs/genwave.c
 # Screen capture object (platform-dependent)
 #
 # SCREEN_CAPTURE_OBJ serves the terminal model programs, GSCREEN_CAPTURE_OBJ
-# the graphical ones. They part company only on Wayland: a capture there is
-# a read of the window's own canvas, which a graphical program has and a
-# terminal one does not -- its screen belongs to the terminal emulator, and
-# no client may read another's window without going through a portal.
+# the graphical ones. On Linux they part company: a graphical program's
+# capture is a picture, read from its own window; a terminal program's
+# screen belongs to the terminal emulator, and its capture is characters,
+# the page the terminal prints when asked (see linux/terminal_capture.c).
 #
 ifeq ($(OSTYPE),Windows_NT)
 SCREEN_CAPTURE_OBJ = windows/screen_capture.o
@@ -1554,17 +1557,15 @@ else ifeq ($(OSTYPE),FreeBSD)
 SCREEN_CAPTURE_OBJ = bsd/screen_capture.o
 GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
 else ifeq ($(GRAPHICS_BACKEND),wayland)
-SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
+SCREEN_CAPTURE_OBJ = linux/terminal_capture.o
 GSCREEN_CAPTURE_OBJ = linux/wayland/screen_capture.o
 else ifeq ($(GRAPHICS_BACKEND),fb)
-# the graphical model captures the stack's own composed screen; a
-# terminal capture would read the console, which is nobody's window --
-# the stub serves, as on Wayland
-SCREEN_CAPTURE_OBJ = stub/screen_capture_stub.o
+# the graphical model captures the stack's own composed screen
+SCREEN_CAPTURE_OBJ = linux/terminal_capture.o
 GSCREEN_CAPTURE_OBJ = linux/wayland/screen_capture.o
 else
-SCREEN_CAPTURE_OBJ = linux/screen_capture.o
-GSCREEN_CAPTURE_OBJ = $(SCREEN_CAPTURE_OBJ)
+SCREEN_CAPTURE_OBJ = linux/terminal_capture.o
+GSCREEN_CAPTURE_OBJ = linux/screen_capture.o
 endif
 
 #
@@ -1586,7 +1587,7 @@ terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -lpng -lz -o bin/terminal_test
 else
 terminal_test: $(CLIBSD) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) $(XLIBS) -o bin/terminal_test
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/terminal_test
 endif
 
 ifeq ($(OSTYPE),Darwin)
@@ -1665,7 +1666,7 @@ terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c $(SCREEN_CAPTURE_O
 	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/terminal_testc
 else
 terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) $(XLIBS) -o bin/terminal_testc
+	$(CC) $(CFLAGS) tests/terminal_test.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/terminal_testc
 endif
 
 #

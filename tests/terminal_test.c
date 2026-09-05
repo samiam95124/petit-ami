@@ -75,8 +75,14 @@
 
 Usage:
 
-    terminal_test [first [last]]
+    terminal_test [auto [file]] [first [last]]
 
+    auto   Walk every screen with no input at all, and exit at the end:
+           this is how the regression runs it. Each screen is captured
+           at its wait; a following file names where the captures land.
+           The waits for input that are not a return -- the typed lines,
+           the focus, joystick and mouse watches, the resize -- pass
+           with their opening screen alone.
     first  The first frame to stop on. The patterns before it pass
            without a stop or capture, and the timed patterns (the
            timer measurements, the threading show, the animation
@@ -166,8 +172,9 @@ static FILE *tf;   /* test file */
 static char tf_NAME[10/*_FNSIZE*/] = "testfile";
 static int eventflag1, eventflag2;
 static int framenum = 0; /* the frame number */
-static int tstlo = 1;    /* first frame in the selected range */
+static int tstlo = 0;    /* first frame in the selected range */
 static int tsthi = 0;    /* last frame, 0 for no limit */
+static int autorun = FALSE; /* walk every screen with no input */
 static ami_pevthan oeh1;
 static ami_pevthan oeh2;
 static char line[250];
@@ -221,6 +228,24 @@ static void waittime(int n, int t)
 
 
 extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
+
+#define AUTOTIM  3          /* the timer an automatic pause runs on */
+#define AUTOPAUS (SECOND/2) /* an automatic pause, in place of a return */
+
+/* An automatic run's stand-in for a return: a moment on a timer of its
+   own, pumping events, so what the screen waits to see has time to
+   arrive before the run moves on. */
+static void autopause(void)
+{
+
+    ami_evtrec er; /* event record */
+
+    ami_timer(stdout, AUTOTIM, AUTOPAUS, FALSE);
+    do { ami_event(stdin, &er);
+    } while (er.etype != ami_ettim || er.timnum != AUTOTIM);
+
+}
 
 /* Mark the pattern just drawn: the next frame number stamped centered
    on the top line, and the capture. The cursor goes back where it was,
@@ -254,6 +279,7 @@ static void waitnext(void)
 
     frmmark(); /* number, label and capture the pattern */
     if (framenum < tstlo) return; /* before the range: pass at once */
+    if (autorun) return; /* the capture was the point: pass */
     do {
 
         ami_event(stdin, &er);
@@ -555,12 +581,28 @@ int main(int argc, char *argv[])
     /* override terminate handler */
     ami_eventover(ami_etterm, termevent, &oldtermevent); 
 
-    /* "terminal_test [first [last]]" runs the numbered frames alone: the
-       patterns before the first pass without a stop, and the run ends
-       after the last. With no last it runs from the first frame to the
-       end of the test. */
-    if (argc > 1) { tstlo = atoi(argv[1]); if (tstlo < 1) tstlo = 1; }
-    if (argc > 2) tsthi = atoi(argv[2]);
+    /* "terminal_test auto" walks every screen with no input, for the
+       regression; it ends when the screens do. A following name is the
+       file the screens are captured to. "terminal_test [first [last]]"
+       runs the numbered frames alone: the patterns before the first pass
+       without a stop, and the run ends after the last. With no last it
+       runs from the first frame to the end of the test. */
+    for (i = 1; i < argc; i++) {
+
+        if (!strcmp(argv[i], "auto")) {
+
+            autorun = TRUE;
+            ami_autohold(FALSE);
+
+        } else if (argv[i][0] >= '0' && argv[i][0] <= '9') {
+
+            if (!tstlo) tstlo = atoi(argv[i]);
+            else tsthi = atoi(argv[i]);
+
+        } else if (autorun) screen_capture_name(argv[i]);
+
+    }
+    if (tstlo < 1) tstlo = 1;
 
     ami_select(stdout, 2, 2);   /* move off the display buffer */
     /* the window and the buffer start out the same size; resize events seen
@@ -656,13 +698,19 @@ int main(int argc, char *argv[])
    printf("\n");
    line[0] = 0;
    i = 0;
-   if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
+   if (autorun) {
+
+        /* the automatic run types a line of its own */
+        strcpy(line, "the quick brown fox jumps over the lazy dog");
+        printf("%s", line);
+
+    } else if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
 
         c = getchar();
         if (c != EOF && c != '\n') line[i++] = c;
 
     } while (c != EOF && c != '\n');
-    line[i] = 0;
+    if (!autorun) line[i] = 0;
     printf("\n");
     printf("You typed:\n");
     printf("\n");
@@ -683,13 +731,19 @@ int main(int argc, char *argv[])
    printf("===========>");
    line[0] = 0;
    i = 0;
-   if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
+   if (autorun) {
+
+        /* the automatic run types a line of its own */
+        strcpy(line, "the quick brown fox jumps over the lazy dog");
+        printf("%s", line);
+
+    } else if (framenum+1 >= tstlo) do { /* before the range: nothing is typed */
 
         c = getchar();
         if (c != EOF && c != '\n') line[i++] = c;
 
     } while (c != EOF && c != '\n');
-    line[i] = 0;
+    if (!autorun) line[i] = 0;
     printf("\n");
     printf("You typed:\n");
     printf("\n");
@@ -1401,7 +1455,7 @@ int main(int argc, char *argv[])
     x = ami_maxx(stdout);
     y = ami_maxy(stdout);
     frmmark(); /* the interactive screens number and capture here */
-    if (framenum >= tstlo) do {
+    if (framenum >= tstlo && !autorun) do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etresize) {
@@ -1444,7 +1498,7 @@ int main(int argc, char *argv[])
     ami_cursor(stdout, 47, 12);
     printf("hover");
     frmmark(); /* the interactive screens number and capture here */
-    if (framenum >= tstlo) do { 
+    if (framenum >= tstlo && !autorun) do {
 
         ami_event(stdin, &er);
         if (er.etype == ami_etfocus) box(10, 10, 30, 14, '#');
@@ -1520,7 +1574,7 @@ int main(int argc, char *argv[])
         prtcen(2, "Move the joystick(s) X, Y and Z, and hit buttons");
         prtcen(ami_maxy(stdout), "Joystick test");
         frmmark(); /* the interactive screens number and capture here */
-        if (framenum >= tstlo) do {   /* gather joystick events */
+        if (framenum >= tstlo && !autorun) do {   /* gather joystick events */
 
             /* we do up to 4 joysticks */
             ami_event(stdin, &er);
@@ -1613,7 +1667,7 @@ int main(int argc, char *argv[])
         prtcen(2, "Move the mouse, and hit buttons");
         prtcen(ami_maxy(stdout), "Mouse test");
         frmmark(); /* the interactive screens number and capture here */
-        if (framenum >= tstlo) do { /* gather mouse events */
+        if (framenum >= tstlo && !autorun) do { /* gather mouse events */
 
             /* we only one mouse, all mice equate to that (multiple controls) */
             ami_event(stdin, &er);
@@ -1670,7 +1724,8 @@ int main(int argc, char *argv[])
     ami_eventover(ami_etframe, event_vector_1, &oeh1);
     ami_frametimer(stdout, TRUE);
     printf("Waiting for frame event, hit return to continue\n");
-    do { ami_event(stdin, &er); }
+    if (autorun) { autopause(); er.etype = ami_etenter; }
+    else do { ami_event(stdin, &er); }
     while (er.etype != ami_etframe && er.etype != ami_etenter);
     if (er.etype == ami_etframe) printf("*** Event bled through! ***\n");
     if (eventflag1) printf("Fanout event passes\n");
@@ -1678,7 +1733,8 @@ int main(int argc, char *argv[])
     eventflag2 = FALSE;
     ami_eventsover(event_vector_2, &oeh1);
     printf("Waiting for frame event, hit return to continue\n");
-    do { ami_event(stdin, &er); }
+    if (autorun) { autopause(); er.etype = ami_etenter; }
+    else do { ami_event(stdin, &er); }
     while (er.etype != ami_etframe && er.etype != ami_etenter);
     if (er.etype == ami_etframe) printf("*** Event bled through! ***\n");
     if (eventflag2) printf("Master event passes\n");

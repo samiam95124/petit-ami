@@ -932,14 +932,18 @@ static void job_winddown(void* a)
                             with it on, and it cannot come back on
                             until the geometry is standard again */
     /* the session's font, buffer, line width and decorations go too, the
-       geometry while auto is off, as above */
+       geometry while auto is off, as above. The font goes back before the
+       buffer is sized: the buffer's character grid is its pixel size
+       divided by the font's, and sized under the session's font it would
+       be the session's grid, a few columns wide under a large one, with
+       the message below wrapping in them */
     ami_frame(stdout, 1);
     ami_sysbar(stdout, 1);
     ami_sizable(stdout, 1);
-    ami_buffer(stdout, 1);
-    ami_sizbufg(stdout, origbw, origbh);
     ami_font(stdout, AMI_FONT_TERM);
     ami_fontsiz(stdout, origfs);
+    ami_buffer(stdout, 1);
+    ami_sizbufg(stdout, origbw, origbh);
     ami_linewidth(stdout, 1);
     ami_fover(stdout);
     ami_bover(stdout);
