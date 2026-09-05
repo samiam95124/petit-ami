@@ -39,7 +39,7 @@
 * an event when the signal occurs. The logical system event number is          *
 * returned.                                                                    *
 *                                                                              *
-* int system_event_addsetim(int sid, long t, long r);                          *
+* int system_event_addsetim(int sid, ami_long t, ami_long r);                  *
 *                                                                              *
 * Activates a timer with the given time and repeat state. An event occurs when *
 * the timer fires, and may repeat. Both accepts a logical system event number  *

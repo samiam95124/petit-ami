@@ -11,6 +11,8 @@
 #ifndef __SYSTEM_EVENT_H__
 #define __SYSTEM_EVENT_H__
 
+#include <localdefs.h> /* ami_long */
+
 /* system event types */
 typedef enum {
 
@@ -32,7 +34,7 @@ typedef struct sysevt {
 int system_event_addseinp(int fid);
 void system_event_deaseinp(int sid);
 int system_event_addsesig(int sig);
-int system_event_addsetim(int sid, long t, long r);
+int system_event_addsetim(int sid, ami_long t, ami_long r);
 void system_event_deasetim(int sid);
 void system_event_getsevt(sevptr ev);
 
