@@ -13,6 +13,25 @@
 *                                                                             *
 *******************************************************************************/
 
+/*******************************************************************************
+
+Usage:
+
+    window_testc [auto [file]] [first [last]]
+
+    auto   Walks every screen with no input and exits after them: the
+           regression mode. A following non-numeric argument names the
+           file the screens are captured to.
+    first  The first frame to stop on. The frames before it pass
+           without a stop or capture.
+    last   The last frame; the run ends after it. Left off, the run
+           goes from the first frame to the end of the test.
+
+Each frame stamps its number into the test window's title bar, so a
+frame can be called out by number and revisited alone.
+
+*******************************************************************************/
+
 /* base C defines */
 #include <stdlib.h>
 #include <stdio.h>
@@ -50,6 +69,10 @@ static ami_evtrec  er;
 static ami_menuptr mp;           /* menu pointer */
 static ami_menuptr ml;           /* menu list */
 static int        framenum = 0;
+static int        tstlo = 0;    /* first frame in the selected range */
+static int        tsthi = 0;    /* last frame, 0 for no limit */
+static int        autorun = FALSE; /* walk every screen with no input */
+static ami_long   autowin = 2;  /* the window an automatic return comes from */
 static ami_menuptr sm;           /* submenu list */
 static int        sred;         /* state variables */
 static int        sgreen;
@@ -89,6 +112,58 @@ static enum { /* debug levels */
                                 fflush(stderr); } while (0)
 
 extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
+
+/* "window_testc auto" walks every screen with no input at all,
+   capturing each, and exits at the end: this is how the regression runs
+   it. Child windows and menus are windows of their own and paint from
+   events, so an automatic run pumps events for a moment to let the screen
+   settle before capturing it, then answers the wait with a return. */
+#define AUTOSETL 3000 /* settle time before a capture, 100us units */
+#define AUTOTIM  9    /* timer the settle runs on */
+
+static void autosettle(void)
+
+{
+
+    ami_evtrec er;
+
+    ami_timer(stdout, AUTOTIM, AUTOSETL, FALSE);
+    do {
+
+        ami_event(stdin, &er);
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != ami_ettim || er.timnum != AUTOTIM);
+
+}
+
+/* Every wait for the user comes through here. An automatic run lets the
+   screen settle and answers with the return the screen was waiting for,
+   from the window the test is on. Before the selected range every wait
+   answers at once. */
+static void nextevt(ami_evtrec* er)
+
+{
+
+    if (framenum < tstlo) {
+
+        er->etype = ami_etenter;
+        er->winid = autowin;
+        return;
+
+    }
+    if (autorun) {
+
+        autosettle();
+        er->etype = ami_etenter;
+        er->winid = autowin;
+        return;
+
+    }
+    ami_event(stdin, er);
+
+}
 
 /* wait return to be pressed, or handle terminate */
 
@@ -100,18 +175,20 @@ static void waitnextt(int keeptitle)
     char titlebuf[80];
 
     framenum++;
+    if (tsthi && framenum > tsthi) longjmp(terminate_buf, 1);
+    if (framenum < tstlo) return; /* before the range: the count alone */
     /* Stamp the frame number into the title bar, unless the caller is testing
        ami_title itself: keeptitle=TRUE preserves the title under test instead
        of clobbering it. */
     if (!keeptitle) {
 
-        sprintf(titlebuf, "management_test: frame %d", framenum);
+        sprintf(titlebuf, "window_test: frame %d", framenum);
         ami_title(tw, titlebuf);
 
     }
-
+    if (autorun) autosettle(); /* let the screen settle before the capture */
     screen_capture();
-
+    if (autorun) return; /* the capture was the point: pass */
     do { ami_event(stdin, &er); }
     while (er.etype != ami_etenter && er.etype != ami_etterm);
     if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
@@ -132,7 +209,7 @@ static void waitnextprint(void)
 
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etchar)
             fprintf(tw, "Window: %lld char: %c\n", AMI_LONG_CAST(er.winid), er.echar);
 
@@ -269,7 +346,7 @@ static void frametest(const string s)
     frameinside(s, x, y);
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etredraw) frameinside(s, x, y);
         if (er.etype == ami_etresize) {
 
@@ -315,7 +392,7 @@ static void samplemenu(FILE* w)
     sblue = OFF;
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
@@ -381,7 +458,7 @@ static void stdmenutest(FILE* w)
     fprintf(w, "defined position\n");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
         if (er.etype == ami_etmenus) {
 
@@ -508,6 +585,7 @@ static void childtest(FILE* par)
     fclose(win3);
     fclose(win4);
     ami_home(par);
+    autowin = 2;
     fprintf(par, "Child windows should all be closed                           \n");
     waitnext();
 
@@ -543,9 +621,10 @@ static void childindtest(FILE* par, ami_long parid)
     fprintf(par, "Test focus can be moved between windows, including the main  \n");
     fprintf(par, "window. Test windows can be minimized and maximized          \n");
     fprintf(par, "(if framed), test entering characters to windows.            \n");
+    autowin = parid; /* an automatic return comes from the parent */
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etchar) {
 
             if (er.winid == 3) fputc(er.echar, win2);
@@ -567,6 +646,7 @@ static void childindtest(FILE* par, ami_long parid)
     fclose(win2);
     fclose(win3);
     ami_home(par);
+    autowin = 2;
     fprintf(par, "Child windows should all be closed                           \n");
     fprintf(par, "                                                             \n");
     fprintf(par, "                                                             \n");
@@ -682,7 +762,7 @@ static void childstackrsz(FILE* par, ami_long parid, int variant)
     fprintf(win4, "I am child window 3");
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         /* repaint the parent on its own redraw or resize */
         if ((er.etype == ami_etredraw || er.etype == ami_etresize) &&
             er.winid == parid) {
@@ -793,13 +873,40 @@ static ami_color nextcolor(ami_color c)
 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 
 {
 
     ami_long xr;
 
     if (setjmp(terminate_buf)) goto terminate;
+
+    /* "window_testc auto" runs every screen with no input, for the
+       regression; it ends when the screens do. A following name is the
+       file the screens are captured to. "window_testc [first [last]]"
+       runs the numbered frames alone. */
+    {
+
+        int i;
+
+        for (i = 1; i < argc; i++) {
+
+            if (!strcmp(argv[i], "auto")) {
+
+                autorun = TRUE;
+                ami_autohold(FALSE);
+
+            } else if (argv[i][0] >= '0' && argv[i][0] <= '9') {
+
+                if (!tstlo) tstlo = atoi(argv[i]);
+                else tsthi = atoi(argv[i]);
+
+            } else if (autorun) screen_capture_name(argv[i]);
+
+        }
+        if (tstlo < 1) tstlo = 1;
+
+    }
 
     /* The root window is the desktop for this test; everything below is
        applied to a child window on it */
@@ -984,7 +1091,7 @@ int main(void)
 
     do {
 
-        ami_event(stdin, &er);
+        nextevt(&er);
         if (er.etype == ami_etchar) if (er.echar == ' ') { /* flip front/back */
 
             fb = !fb;
@@ -1157,7 +1264,7 @@ int main(void)
     y = ami_maxy(tw);
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         if (er.etype == ami_etresize) {
 
             /* The new dimensions, taken before any drawing: drawing first
@@ -1194,7 +1301,7 @@ int main(void)
     nrmcnt = 0; /* clear normalize counter */
     do {
 
-        ami_event(stdin, &er); /* get next event */
+        nextevt(&er); /* get next event */
         /* count minimize, maximize, normalize */
         if (er.etype == ami_etmax) maxcnt = maxcnt+1;
         if (er.etype == ami_etmin) mincnt = mincnt+1;

@@ -48,7 +48,14 @@
 # the text tests, with the timing figures masked. It runs from the sandbox
 # tests/terminal, whose configuration turns the joysticks off, so the
 # standard is of no machine in particular. It is skipped where there is no
-# xterm or Xvfb.
+# xterm or Xvfb. terminal_testc is the same test run through windowc over
+# terminal, which presents the terminal API transparently when the program
+# opens no windows of its own, so it is judged against terminal_test's
+# standard: --update on either regenerates the one standard.
+# window_testc, the window management test in character mode, runs the
+# same way in a larger xterm, 132 by 50: it is rooted, the xterm being the
+# desktop and every test applying to an 80 by 25 child window on it, and
+# needs the room. Its standard is its own, tests/window_testc.cmp.
 #
 # The picture standards are of a desktop's look -- the frame the screen tests
 # size themselves against, the menus, the theme -- so they live in the
@@ -164,8 +171,9 @@ done
 if [ -z "$tests" ]; then
 
     tests="stdio_test services_test network_test txttest pdftest \
-           terminal_test graphics_test management_test widget_test \
-           graphics_testr management_testr widget_testr"
+           terminal_test terminal_testc window_testc \
+           graphics_test window_test widget_test \
+           graphics_testr window_testr widget_testr"
 
 fi
 
@@ -193,7 +201,12 @@ fi
 #   of the run. The speed lines are masked whole after their label: the
 #   frame stamp lands in them, and it is the timing that matters. They are
 #   the first line of their page, so the form feed that ends the page
-#   before is theirs too
+#   before is theirs too. The stars the timer test prints, one per event
+#   while it waits for each of its hundred samples, are masked on that
+#   page: an event beside the timer's, which the manager can add, is one
+#   more star
+# - the timing of window_testc's child window torture test, in seconds
+#   and per iteration
 #
 mask()
 {
@@ -218,7 +231,10 @@ mask()
         -e 's|^(1 second time, was: )[0-9]+(00 Microseconds)|\1*\2|' \
         -e 's|^(\f?Character write speed ).*|\1*|' \
         -e 's|^(\f?Scrolling speed: ).*|\1*|' \
-        -e 's|^(\f?Buffer switch speed: ).*|\1*|'
+        -e 's|^(\f?Buffer switch speed: ).*|\1*|' \
+        -e '/^\f?Timer test, measuring/,/^Average time was:/ s|^\*+$|*|' \
+        -e 's|(place and remove [0-9]+ iterations )[0-9]+\.[0-9]+( seconds)|\1*\2|' \
+        -e 's|[0-9]+\.[0-9]+( per iteration)|*\1|'
 
 }
 
@@ -276,7 +292,7 @@ runtest()
              > "tests/$1.lst" 2>&1
         ;;
 
-    graphics_testr|management_testr|widget_testr)
+    graphics_testr|window_testr|widget_testr)
         # the same walk, drawn through the remote server on this machine
         startrsrv
         GRAPH_PORT=$rport timeout 300 "$(binof "$1")" auto < /dev/null \
@@ -284,9 +300,10 @@ runtest()
         remoterc=$?
         ;;
 
-    terminal_test)
-        # An xterm of its own, on a private X server, 80 by 24: the screens
-        # are then of no desktop, font or scale. The listing is what the
+    terminal_test|terminal_testc|window_testc)
+        # An xterm of its own, on a private X server, 80 by 24 (132 by 50
+        # for the rooted management test, whose desktop the xterm is): the
+        # screens are then of no desktop, font or scale. The listing is what the
         # xterm prints: at each frame the test asks the terminal to print
         # its screen (see linux/terminal_capture.c), and the printer
         # command appends the page to the listing. The test is told the
@@ -303,9 +320,11 @@ runtest()
             sleep 0.5
         done
         dpy=$(cat "tests/$1.dpy")
+        geom=80x24
+        if [ "$1" = "window_testc" ]; then geom=132x50; fi
         if [ -n "$dpy" ]; then
             (cd tests/terminal && \
-             DISPLAY=":$dpy" timeout 300 xterm -geometry 80x24 \
+             DISPLAY=":$dpy" timeout 300 xterm -geometry "$geom" \
                  -xrm "*printerCommand: cat >> $root/tests/$1.lst" \
                  -xrm '*printAttributes: 0' \
                  -xrm '*printerAutoClose: true' \
@@ -317,6 +336,13 @@ runtest()
         kill "$xvfbpid" 2> /dev/null
         wait "$xvfbpid" 2> /dev/null
         rm -f "tests/$1.dpy" tests/terminal/testfile
+        # blanks at the end of a line are not on the screen: the terminal
+        # prints a line as far as it was written, and the manager paints
+        # every cell of a line, so the same screen prints with or without
+        # them. Both are judged without them.
+        if [ -f "tests/$1.lst" ]; then
+            sed -i 's/ *$//' "tests/$1.lst"
+        fi
         ;;
 
     txttest|pdftest)
@@ -325,7 +351,7 @@ runtest()
         timeout 300 "$(binof "$1")" "$(outof "$1")" < /dev/null \
             > "tests/$1.out" 2>&1
         ;;
-    graphics_test|management_test|widget_test)
+    graphics_test|window_test|widget_test)
         # "auto" walks every screen without waiting for a keypress. What
         # these tests produce is not text but the screens themselves: the
         # capture module appends each to the file named after it, and that
@@ -371,8 +397,8 @@ for t in $tests; do
     fi
     case "$t" in
 
-    graphics_test|management_test|widget_test)    pict=1; remote=0; whole=0 ;;
-    graphics_testr|management_testr|widget_testr) pict=1; remote=1; whole=0 ;;
+    graphics_test|window_test|widget_test)    pict=1; remote=0; whole=0 ;;
+    graphics_testr|window_testr|widget_testr) pict=1; remote=1; whole=0 ;;
     pdftest)                                      pict=0; remote=0; whole=1 ;;
     *)                                            pict=0; remote=0; whole=0 ;;
 
@@ -385,7 +411,8 @@ for t in $tests; do
         continue
 
     fi
-    if [ "$t" = "terminal_test" ] && \
+    if { [ "$t" = "terminal_test" ] || [ "$t" = "terminal_testc" ] || \
+         [ "$t" = "window_testc" ]; } && \
        { ! command -v xterm > /dev/null 2>&1 || \
          ! command -v Xvfb > /dev/null 2>&1; }; then
 
@@ -479,11 +506,13 @@ for t in $tests; do
         continue
 
     fi
-    # the standard: this platform's own where the test keeps one per platform
+    # the standard: this platform's own where the test keeps one per platform;
+    # terminal_testc is terminal_test through windowc, and shares its standard
     std="tests/$t.cmp"
     case "$plattests" in
     *" $t "*) std="$cmpdir/$t.cmp" ;;
     esac
+    if [ "$t" = "terminal_testc" ]; then std="tests/terminal_test.cmp"; fi
     out="$(outof "$t")"
     if [ ! -f "$out" ]; then
 
@@ -536,7 +565,9 @@ for t in $tests; do
     else
 
         bin/dif -q "tests/$t.lst" "$std" > "tests/$t.dif"
-        if [ -s "tests/$t.dif" ] && [ "$t" = "terminal_test" ]; then
+        if [ -s "tests/$t.dif" ] && \
+           { [ "$t" = "terminal_test" ] || [ "$t" = "terminal_testc" ] || \
+             [ "$t" = "window_testc" ]; }; then
 
             # the pages: a count that differs says a frame went missing
             {

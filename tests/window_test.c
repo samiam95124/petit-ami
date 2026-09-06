@@ -13,7 +13,7 @@
 * which cannot move, size or change Z order -- there is nothing behind it.    *
 * The root then only carries a banner, tw is a child window on it, and        *
 * tests that create child windows make them children of the test window, a   *
-* child of a child. (management_testc will need the same treatment when a     *
+* child of a child. (window_testc will need the same treatment when a     *
 * character based desktop arrives.)                                           *
 *                                                                             *
 *******************************************************************************/
@@ -21,7 +21,7 @@
 
 Usage:
 
-    management_test [auto [file]] [-r] [first [last]]
+    window_test [auto [file]] [-r] [first [last]]
 
     auto   Walks every screen with no input and exits after them: the
            regression mode. A following non-numeric argument names the
@@ -129,7 +129,7 @@ extern void wg_hold(ami_long on) __attribute__((weak));
    'd' compares the composed canvas against the glass */
 extern void grx_glassdiff(void) __attribute__((weak));
 
-/* "management_test auto" walks every screen with no input at all,
+/* "window_test auto" walks every screen with no input at all,
    capturing each, and exits at the end: this is how the regression runs
    it. Child windows and menus are windows of their own and paint from
    events, so an automatic run pumps events for a moment to let the screen
@@ -208,7 +208,7 @@ static void waitnextt(int keeptitle)
        of clobbering it. */
     if (!keeptitle) {
 
-        sprintf(titlebuf, "management_test: frame %d", framenum);
+        sprintf(titlebuf, "window_test: frame %d", framenum);
         ami_title(tw, titlebuf);
 
     }
@@ -436,7 +436,7 @@ int main(int argc, char* argv[])
 
     if (setjmp(terminate_buf)) goto terminate;
 
-    /* "management_test auto" runs every screen with no input, for the
+    /* "window_test auto" runs every screen with no input, for the
        regression; it ends when the screens do. A following name is the
        file the screens are captured to, so runs beside each other do
        not write over one another. "-r" runs the rooted form: the
@@ -452,7 +452,7 @@ int main(int argc, char* argv[])
 
         } else if (argv[i][0] >= '0' && argv[i][0] <= '9') {
 
-            /* "management_test [first [last]]" runs the numbered frames
+            /* "window_test [first [last]]" runs the numbered frames
                alone: the frames before the first pass without a stop,
                and the run ends after the last. With no last it runs
                from the first frame to the end of the test. */

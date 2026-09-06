@@ -8,9 +8,9 @@
 
 
 
-                                                         
-                       Terminal mode screen test vs. 1.0 
-                                                         
+
+                       Terminal mode screen test vs. 1.0
+
 
 
 
@@ -72,8 +72,8 @@ Number of buttons on mouse: 1 is: 3
                            Press return to continue
 Timer test, measuring minimum timer frame 4ion, 100 samples
 
-********************************************************************************
-********************
+*
+*
 
 Average time was: *00 Microseconds
 Minimum time was: *00 Microseconds
@@ -264,26 +264,26 @@ of the following test patterns.
 ------------------------------------------------------------------------------>*
 \/                                 frame 12                                   \/
 /\                                                                            /\
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                  Cursor movements test, automatic scroll ON                    
-                                                                                
-                   Should be a double line X in each corner                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
+
+
+
+
+
+
+
+
+                  Cursor movements test, automatic scroll ON
+
+                   Should be a double line X in each corner
+
+
+
+
+
+
+
+
+
 \/                                                                            \/
 /\                                                                            /\
 \/                                 frame 13                                   \/
@@ -430,30 +430,30 @@ pqrstuvwxyz{|}~\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ !"#$%&'()*+,-./0123456789:;<=>?
 ********************************************************************************
 *******************************                 ********************************
 ******************************* Sidewinder test ********************************
-                                   frame 19                                  
-                                                                              
-                                                                               
-                                                                                
-                                                                               
-                                                                              
-                                                                             
-                                                                              
-                                                                               
-                                                                                
-                                                                               
-                                                                                
-                                                                               
-                                                                              
-                                          *                                    
-                                                                                
-                                                                               
-                                                                                
-                                                                               
-                                                                              
-                                                                             
-                                                                              
-                                                                               
-                              Bouncing ball test                                
+                                   frame 19
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                          *
+
+
+
+
+
+
+
+
+                              Bouncing ball test
 Blinking text                      frame 20
 Reversed text
 Underlined text
@@ -526,174 +526,174 @@ Foreground      Background
 
 
                                    Scroll up
-                                   frame 23                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                  Scroll down                                   
-                                   frame 24                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                  Scroll left                                   
-                                   frame 25                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                 Scroll right                                   
-                                   frame 26                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                Scroll up/left                                  
-                                   frame 27                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                               Scroll down/left                                 
-                                   frame 28                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                Scroll up/right                                 
-                                   frame 29                                     
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-                               Scroll down/right                                
+                                   frame 23
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  Scroll down
+                                   frame 24
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  Scroll left
+                                   frame 25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 Scroll right
+                                   frame 26
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                Scroll up/left
+                                   frame 27
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                               Scroll down/left
+                                   frame 28
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                Scroll up/right
+                                   frame 29
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                               Scroll down/right
 12345678901234567890123456789012345frame 304567890123456789012345678901234567890
         >Tab   1
                 >Tab   2
@@ -865,23 +865,23 @@ after about 5 seconds.
 The left and right figures are run frame 37rent threads
 
 Test complete!
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
-                                                            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
