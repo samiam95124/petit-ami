@@ -1,0 +1,2001 @@
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 1                           - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Managed screen test vs. 0.1                                                     ║
+ ║                                                                                ║
+ ║Screen size character: x: 132 y: 50                                             ║
+ ║                                                                                ║
+ ║Window size character: x: 82 y: 29                                              ║
+ ║                                                                                ║
+ ║Client size character: x: 80 y: 25                                              ║
+ ║                                                                                ║
+ ║If this window does not fit the desktop, expand or maximize                     ║
+ ║the desktop window, and/or move this window, before continuing                  ║
+ ║                                                                                ║
+ ║Hit return in any window to continue for each test                              ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                      This is a mangement test window                     - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Managed screen test vs. 0.1                                                     ║
+ ║                                                                                ║
+ ║Screen size character: x: 132 y: 50                                             ║
+ ║                                                                                ║
+ ║Window size character: x: 82 y: 29                                              ║
+ ║                                                                                ║
+ ║Client size character: x: 80 y: 25                                              ║
+ ║                                                                                ║
+ ║If this window does not fit the desktop, expand or maximize                     ║
+ ║the desktop window, and/or move this window, before continuing                  ║
+ ║                                                                                ║
+ ║Hit return in any window to continue for each test                              ║
+ ║The title bar of this window should read: This is a mangement test window       ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                               Window title test                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 3                           - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║This is the main window                                                         ║
+ ║Sel╔════════════════════════════════════════════════════════════════════════════════╗
+ ║cur║                               window_testc                               - ▯ X ║
+ ║   ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Her║This is the second window                                                       ║
+ ║   ║                                                                                ║
+ ║   ║Here is the cursor->                                                            ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ║   ║                                                                                ║
+ ╚═══║                                                                                ║
+     ║                                                                                ║
+     ║                                                                                ║
+     ║                                                                                ║
+     ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 4                           - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Second window now closed                                                        ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 5                           - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Buffer should now be 50 by 50 characters, and*****                              ║
+ ║painted blue                                     *                              ║
+ ║maxx: 50 maxy: 50                                *                              ║
+ ║Open up window to verify this                    *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ║*                                                *                              ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔══════════════════════════════════════════════════════════════════════════════╗
+ ║                          window_test: frame 6                          - ▯ X ║
+ ╠══════════════════════════════════════════════════════════════════════════════╣
+ ║Resize screen buffered character                                              ║
+ ║*** DON'T MOVE THE WINDOW ***                                                 ║
+ ║                                                                              ║
+ ║Moving in x                                                                   ║
+ ║                                                                              ║
+ ║Complete                                                                      ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔══════════════════════════════════════════════════════════════════════════════╗
+ ║                          window_test: frame 7                          - ▯ X ║
+ ╠══════════════════════════════════════════════════════════════════════════════╣
+ ║Resize screen buffered character                                              ║
+ ║*** DON'T MOVE THE WINDOW ***                                                 ║
+ ║                                                                              ║
+ ║Moving in y                                                                   ║
+ ║                                                                              ║
+ ║Complete                                                                      ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+ ║                                                                              ║
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 8                           - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Ready for frame controls buffered----------------------------------------------|║
+ ║(Note system may not implement all -- or any frame controls)                   |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|------------------------------------------------------------------------------|║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ Ready for frame controls buffered----------------------------------------------|
+ (Note system may not implement all -- or any frame controls)                   |
+ Entire frame off                                                               |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |------------------------------------------------------------------------------|
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 10                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Ready for frame controls buffered----------------------------------------------|║
+ ║(Note system may not implement all -- or any frame controls)                   |║
+ ║Entire frame off                                                               |║
+ ║Entire frame on                                                                |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|------------------------------------------------------------------------------|║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║Ready for frame controls buffered----------------------------------------------|║
+ ║(Note system may not implement all -- or any frame controls)                   |║
+ ║Entire frame off                                                               |║
+ ║Entire frame on                                                                |║
+ ║System bar off                                                                 |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|------------------------------------------------------------------------------|║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 12                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Ready for frame controls buffered----------------------------------------------|║
+ ║(Note system may not implement all -- or any frame controls)                   |║
+ ║Entire frame off                                                               |║
+ ║Entire frame on                                                                |║
+ ║System bar off                                                                 |║
+ ║System bar on                                                                  |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|------------------------------------------------------------------------------|║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔                           window_test: frame 13                          - ▯ X ╗
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ Ready for frame controls buffered----------------------------------------------|
+ (Note system may not implement all -- or any frame controls)                   |
+ Entire frame off                                                               |
+ Entire frame on                                                                |
+ System bar off                                                                 |
+ System bar on                                                                  |
+ Size bars off                                                                  |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |                                                                              |
+ |------------------------------------------------------------------------------|
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 14                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Ready for frame controls buffered----------------------------------------------|║
+ ║(Note system may not implement all -- or any frame controls)                   |║
+ ║Entire frame off                                                               |║
+ ║Entire frame on                                                                |║
+ ║System bar off                                                                 |║
+ ║System bar on                                                                  |║
+ ║Size bars off                                                                  |║
+ ║Size bars on                                                                   |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|                                                                              |║
+ ║|------------------------------------------------------------------------------|║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+There should be 3 labeled child windows below, with frames
+(the system may not implement frames on child windows)
+
+
+
+
+
+
+
+╔══════════════════╗╔══════════════════╗╔══════════════════╗
+║ window_tes - ▯ X ║║ window_tes - ▯ X ║║ window_tes - ▯ X ║
+╠══════════════════╣╠══════════════════╣╠══════════════════╣
+║I am child window ║║I am child window ║║I am child window ║
+║                  ║║                  ║║                  ║
+║                  ║║                  ║║                  ║
+║                  ║║                  ║║                  ║
+║                  ║║                  ║║                  ║
+║                  ║║                  ║║                  ║
+╚══════════════════╝╚══════════════════╝╚══════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                   Child windows test character
+There should be 3 labeled child windows below, without frames
+
+
+
+
+
+
+
+
+I am child window 1 I am child window 2 I am child window 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                   Child windows test character
+Child windows should all be closed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                   Child windows test character
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 18                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║There should be 3 labeled child windows below, with frames                      ║
+ ║(the system may not implement frames on child windows)                          ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║╔══════════════════╗╔══════════════════╗╔══════════════════╗                    ║
+ ║║ window_tes - ▯ X ║║ window_tes - ▯ X ║║ window_tes - ▯ X ║                    ║
+ ║╠══════════════════╣╠══════════════════╣╠══════════════════╣                    ║
+ ║║I am child window ║║I am child window ║║I am child window ║                    ║
+ ║║                  ║║                  ║║                  ║                    ║
+ ║║                  ║║                  ║║                  ║                    ║
+ ║║                  ║║                  ║║                  ║                    ║
+ ║║                  ║║                  ║║                  ║                    ║
+ ║║                  ║║                  ║║                  ║                    ║
+ ║╚══════════════════╝╚══════════════════╝╚══════════════════╝                    ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                         Child windows test character                           ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 19                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║There should be 3 labeled child windows below, without frames                   ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║I am child window 1 I am child window 2 I am child window 3                     ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                         Child windows test character                           ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 20                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Child windows should all be closed                                              ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                         Child windows test character                           ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Child windows should all be closed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                             Child windows independent test character
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 22                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Child windows should all be closed                                              ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                   Child windows independent test character                     ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+There should be 3 labeled child windows below, overlapped,
+with child 1 on the bottom, child 2 middle, and child 3 top.
+
+
+
+    ╔══════════════════╗
+    ║ window_tes - ▯ X ║
+    ╠══════════════════╣
+    ║I am chil╔══════════════════╗
+    ║         ║ window_tes - ▯ X ║
+    ║         ╠══════════════════╣
+    ║         ║I am chil╔══════════════════╗
+    ║         ║         ║ window_tes - ▯ X ║
+    ║         ║         ╠══════════════════╣
+    ╚═════════║         ║I am child window ║
+              ║         ║                  ║
+              ║         ║                  ║
+              ╚═════════║                  ║
+                        ║                  ║
+                        ║                  ║
+                        ╚══════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                               Child windows stacking test character
+Now the windows are reordered, with child 1 on top, child 2
+below that, and child 3 on the bottom.
+
+
+
+    ╔══════════════════╗
+    ║ window_tes - ▯ X ║
+    ╠══════════════════╣
+    ║I am child window ║═════════╗
+    ║                  ║es - ▯ X ║
+    ║                  ║═════════╣
+    ║                  ║d window ║═════════╗
+    ║                  ║         ║es - ▯ X ║
+    ║                  ║         ║═════════╣
+    ╚══════════════════╝         ║d window ║
+              ║                  ║         ║
+              ║                  ║         ║
+              ╚══════════════════╝         ║
+                        ║                  ║
+                        ║                  ║
+                        ╚══════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                               Child windows stacking test character
+Now the windows are reordered, with child 3 on top, child 2
+below that, and child 1 on the bottom.
+
+
+
+    ╔══════════════════╗
+    ║ window_tes - ▯ X ║
+    ╠══════════════════╣
+    ║I am chil╔══════════════════╗
+    ║         ║ window_tes - ▯ X ║
+    ║         ╠══════════════════╣
+    ║         ║I am chil╔══════════════════╗
+    ║         ║         ║ window_tes - ▯ X ║
+    ║         ║         ╠══════════════════╣
+    ╚═════════║         ║I am child window ║
+              ║         ║                  ║
+              ║         ║                  ║
+              ╚═════════║                  ║
+                        ║                  ║
+                        ║                  ║
+                        ╚══════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                               Child windows stacking test character
+Child windows should all be closed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 27                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║There should be 3 labeled child windows below, overlapped,                      ║
+ ║with child 1 on the bottom, child 2 middle, and child 3 top.                    ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║    ╔══════════════════╗                                                        ║
+ ║    ║ window_tes - ▯ X ║                                                        ║
+ ║    ╠══════════════════╣                                                        ║
+ ║    ║I am chil╔══════════════════╗                                              ║
+ ║    ║         ║ window_tes - ▯ X ║                                              ║
+ ║    ║         ╠══════════════════╣                                              ║
+ ║    ║         ║I am chil╔══════════════════╗                                    ║
+ ║    ║         ║         ║ window_tes - ▯ X ║                                    ║
+ ║    ║         ║         ╠══════════════════╣                                    ║
+ ║    ╚═════════║         ║I am child window ║                                    ║
+ ║              ║         ║                  ║                                    ║
+ ║              ║         ║                  ║                                    ║
+ ║              ╚═════════║                  ║                                    ║
+ ║                        ║                  ║                                    ║
+ ║                        ║                  ║                                    ║
+ ║                        ╚══════════════════╝                                    ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                     Child windows stacking test character                      ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 28                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Now the windows are reordered, with child 1 on top, child 2                     ║
+ ║below that, and child 3 on the bottom.                                          ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║    ╔══════════════════╗                                                        ║
+ ║    ║ window_tes - ▯ X ║                                                        ║
+ ║    ╠══════════════════╣                                                        ║
+ ║    ║I am child window ║═════════╗                                              ║
+ ║    ║                  ║es - ▯ X ║                                              ║
+ ║    ║                  ║═════════╣                                              ║
+ ║    ║                  ║d window ║═════════╗                                    ║
+ ║    ║                  ║         ║es - ▯ X ║                                    ║
+ ║    ║                  ║         ║═════════╣                                    ║
+ ║    ╚══════════════════╝         ║d window ║                                    ║
+ ║              ║                  ║         ║                                    ║
+ ║              ║                  ║         ║                                    ║
+ ║              ╚══════════════════╝         ║                                    ║
+ ║                        ║                  ║                                    ║
+ ║                        ║                  ║                                    ║
+ ║                        ╚══════════════════╝                                    ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                     Child windows stacking test character                      ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 29                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Now the windows are reordered, with child 3 on top, child 2                     ║
+ ║below that, and child 1 on the bottom.                                          ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║    ╔══════════════════╗                                                        ║
+ ║    ║ window_tes - ▯ X ║                                                        ║
+ ║    ╠══════════════════╣                                                        ║
+ ║    ║I am chil╔══════════════════╗                                              ║
+ ║    ║         ║ window_tes - ▯ X ║                                              ║
+ ║    ║         ╠══════════════════╣                                              ║
+ ║    ║         ║I am chil╔══════════════════╗                                    ║
+ ║    ║         ║         ║ window_tes - ▯ X ║                                    ║
+ ║    ║         ║         ╠══════════════════╣                                    ║
+ ║    ╚═════════║         ║I am child window ║                                    ║
+ ║              ║         ║                  ║                                    ║
+ ║              ║         ║                  ║                                    ║
+ ║              ╚═════════║                  ║                                    ║
+ ║                        ║                  ║                                    ║
+ ║                        ║                  ║                                    ║
+ ║                        ╚══════════════════╝                                    ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                     Child windows stacking test character                      ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 30                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Child windows should all be closed                                              ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Child windows should all be closed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 32                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Child windows should all be closed                                              ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Child windows should all be closed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 34                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Child windows should all be closed                                              ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 35                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║For (20, 10) client, full frame, window size is: 22,14                          ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                             ╔════════════════════╗                             ║
+ ║                             ║ window_testc - ▯ X ║                             ║
+ ║                             ╠════════════════════╣                             ║
+ ║                             ║12345678901234567890║                             ║
+ ║                             ║2                   ║                             ║
+ ║                             ║3                   ║                             ║
+ ║                             ║4                   ║                             ║
+ ║                             ║5                   ║                             ║
+ ║                             ║6                   ║                             ║
+ ║                             ║7                   ║                             ║
+ ║                             ║8                   ║                             ║
+ ║                             ║9                   ║                             ║
+ ║                             ║0                   ║                             ║
+ ║                             ╚════════════════════╝                             ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                        Window size calculate character                         ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 36                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║For (20, 10) client, full frame, window size is: 22,14                          ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║System bar off                                                                  ║
+ ║For (20, 10) client, no system bar, window size is: 22,12                       ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                             ╔════════════════════╗                             ║
+ ║                             ║12345678901234567890║                             ║
+ ║                             ║2                   ║                             ║
+ ║                             ║3                   ║                             ║
+ ║                             ║4                   ║                             ║
+ ║                             ║5                   ║                             ║
+ ║                             ║6                   ║                             ║
+ ║                             ║7                   ║                             ║
+ ║                             ║8                   ║                             ║
+ ║                             ║9                   ║                             ║
+ ║                             ║0                   ║                             ║
+ ║                             ╚════════════════════╝                             ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                        Window size calculate character                         ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 37                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║For (20, 10) client, full frame, window size is: 22,14                          ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║System bar off                                                                  ║
+ ║For (20, 10) client, no system bar, window size is: 22,12                       ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║Sizing bars off                                                                 ║
+ ║For (20, 10) client, no size bars, window size is: 20,12                        ║
+ ║Check client window has (20, ╔ window_tes - ▯ X X                               ║
+ ║                             ╠══════════════════╣                               ║
+ ║                             12345678901234567890                               ║
+ ║                             2                                                  ║
+ ║                             3                                                  ║
+ ║                             4                                                  ║
+ ║                             5                                                  ║
+ ║                             6                                                  ║
+ ║                             7                                                  ║
+ ║                             8                                                  ║
+ ║                             9                                                  ║
+ ║                             0                                                  ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                        Window size calculate character                         ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 38                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║For (20, 10) client, full frame, window size is: 22,14                          ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║System bar off                                                                  ║
+ ║For (20, 10) client, no system bar, window size is: 22,12                       ║
+ ║Check client window has (20, 10) surface                                        ║
+ ║Sizing bars off                                                                 ║
+ ║For (20, 10) client, no size bars, window size is: 20,12                        ║
+ ║Check client window has (20, 12345678901234567890                               ║
+ ║frame off                    2                                                  ║
+ ║For (20, 10) client, no frame3                   ,10                            ║
+ ║Check client window has (20, 4                                                  ║
+ ║                             5                                                  ║
+ ║                             6                                                  ║
+ ║                             7                                                  ║
+ ║                             8                                                  ║
+ ║                             9                                                  ║
+ ║                             0                                                  ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                        Window size calculate character                         ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Child windows should all be closeder
+
+Child windows place and remove 100 iterations * seconds
+* per iteration
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Character mode window management test -- this window is the desktop
+ ╔════════════════════════════════════════════════════════════════════════════════╗
+ ║                           window_test: frame 40                          - ▯ X ║
+ ╠════════════════════════════════════════════════════════════════════════════════╣
+ ║Child windows should all be closeder                                            ║
+ ║                                                                                ║
+ ║Child windows place and remove 100 iterations * seconds                  ║
+ ║* per iteration                                                          ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ║                                                                                ║
+ ╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

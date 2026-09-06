@@ -1413,6 +1413,65 @@ static void remdupque(ami_evtrec* e)
 
 /** ****************************************************************************
 
+Remove a timer's events from the queue
+
+Removes the queued events of the given timer. A killed timer must deliver
+nothing more: an expiry of it that was already queued would arrive after the
+kill, and a program that killed the timer and gave its number to a new one
+would take the old expiry for the new timer's. The window manager does just
+that, reusing a root timer it released, so a stale expiry of a timer it had
+killed came out under the number of the timer that took its place.
+
+*******************************************************************************/
+
+static void remtimque(ami_long i)
+
+{
+
+    paevtque* p;
+    paevtque* fp;
+    int       r;
+
+    r = pthread_mutex_lock(&evtlck); /* lock event queue */
+    if (r) linuxerror(r);
+    if (paqevt) { /* the queue has content */
+
+        p = paqevt; /* index first queue entry */
+        do { /* run around the bubble */
+
+            if (p->evt.etype == ami_ettim && p->evt.timnum == i) {
+
+                /* the timer's entry, remove */
+                fp = p; /* set entry found */
+                if (p->next == p) {
+
+                    paqevt = NULL; /* only one entry, clear list */
+                    p = NULL; /* set no next entry */
+
+                } else { /* other entries */
+
+                    p->last->next = p->next; /* point last at current */
+                    p->next->last = p->last; /* point current at last */
+                    /* if removing the queue root, step to next */
+                    if (paqevt == p) paqevt = p->next;
+                    p = p->next; /* go next entry */
+
+                }
+                evtquecnt--; /* count entries in queue */
+                putpaevt(fp); /* release queue entry to free */
+
+            } else p = p->next; /* go next queue entry */
+
+        } while (p && p != paqevt); /* not back at beginning */
+
+    }
+    r = pthread_mutex_unlock(&evtlck); /* release event queue */
+    if (r) linuxerror(r);
+
+}
+
+/** ****************************************************************************
+
 Place PA event into input queue
 
 *******************************************************************************/
@@ -4977,6 +5036,7 @@ static void killtimer_ivf(/* file to kill timer on */ FILE *f,
     }
     system_event_deasetim(timtbl[i-1]); /* deactivate timer */
     pthread_mutex_unlock(&timlock); /* release the timer lock */
+    remtimque(i); /* and whatever it had already delivered to the queue */
 
 }
 

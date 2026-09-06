@@ -2762,9 +2762,10 @@ static void itab(FILE* f)
     /* first, find if next tab even exists */
     i = win->curx+1; /* get just after the current x position */
     if (i < 1) i = 1; /* don't bother to search to left of screen */
-    /* find tab or end of screen */
-    while (i < MAXTAB && !win->tab[i] && i < win->maxx) i++;
-    if (win->tab[i]) /* not off right of tabs */
+    /* find tab or end of screen; the stop for column i is tab[i-1], as
+       settab and the default stops place it */
+    while (i < MAXTAB && !win->tab[i-1] && i < win->maxx) i++;
+    if (win->tab[i-1]) /* not off right of tabs */
        win->curx = i; /* set position to that tab */
     setcur(win); /* update screen */
 

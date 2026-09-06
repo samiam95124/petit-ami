@@ -716,9 +716,9 @@ ifeq ($(OSTYPE),Windows_NT)
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
-     management_testc \
+     window_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widgets_demo \
+     graphics_test random_test testviewer window_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -727,7 +727,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 line2 \
      line4 line5 clock calc txttest pdftest \
      graph_server breakoutgr breakoutwgr window_race_testr \
-     graphics_testr management_testr widget_testr
+     graphics_testr window_testr widget_testr
 
 else ifeq ($(OSTYPE),Darwin)
 
@@ -738,9 +738,9 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      playwaveg playtextmidi playtextmidig printdev printdevg connectmidi \
      connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
-     management_testc \
+     window_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widgets_demo \
+     graphics_test random_test testviewer window_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -757,9 +757,9 @@ else ifeq ($(OSTYPE),FreeBSD)
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
-     management_testc \
+     window_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widgets_demo \
+     graphics_test random_test testviewer window_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -776,9 +776,9 @@ else
 all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig playwave \
      playwaveg printdev printdevg connectmidi connectmidig connectwave \
      connectwaveg random randomg genwave genwaveg terminal_test terminal_testc terminal_testg \
-     management_testc \
+     window_testc \
      widget_testc \
-     graphics_test testviewer management_test widget_test widgets_demo \
+     graphics_test random_test testviewer window_test widget_test widgets_demo \
      window_race_test \
      sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
@@ -786,7 +786,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
      line2 line4 line5 clock calc txttest pdftest \
-     graph_server graphics_testr management_testr widget_testr
+     graph_server graphics_testr window_testr widget_testr
     
 endif 
 
@@ -1610,6 +1610,19 @@ graphics_test: $(GLIBSD) tests/graphics_test.c $(GSCREEN_CAPTURE_OBJ)
 endif
 
 #
+# Random torture test: random procedures of the API on several threads at
+# once, until cancelled (see doc/random_test.md). Graphical model, with the
+# network and sound modules the graphical libraries carry.
+#
+ifeq ($(OSTYPE),Darwin)
+random_test: $(GLIBSD) tests/random_test.c
+	$(CC) $(CFLAGS) tests/random_test.c $(GLIBS) -o bin/random_test
+else
+random_test: $(GLIBSD) tests/random_test.c
+	$(CC) $(CFLAGS) tests/random_test.c $(GLIBS) $(XLIBS) -o bin/random_test
+endif
+
+#
 # Graphics test on the Wayland backend: the same program, the backend
 # swapped by link option
 #
@@ -1672,7 +1685,7 @@ endif
 #
 # Test windows management model compliant output
 #
-# management_test weak-references two optional backend hooks (wg_hold from
+# window_test weak-references two optional backend hooks (wg_hold from
 # windowg, grx_glassdiff from the framebuffer backend) and guards every call
 # with a NULL check. GNU ld resolves an undefined weak reference to NULL, so
 # the guards skip a hook the platform lacks. Apple ld64 refuses to leave a
@@ -1682,29 +1695,29 @@ endif
 # believe the feature exists.
 WEAKOPT = -Wl,-U,_wg_hold -Wl,-U,_grx_glassdiff
 ifeq ($(OSTYPE),Darwin)
-management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(WEAKOPT) -o bin/management_test
+window_test: $(GLIBSD) tests/window_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(WEAKOPT) -o bin/window_test
 else
-management_test: $(GLIBSD) tests/management_test.c $(GSCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/management_test
+window_test: $(GLIBSD) tests/window_test.c $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_test.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/window_test
 endif
 
 #
 # Test windows management model compliant output, stacked on the character
-# mode window manager. This is management_test with the graphical mode tests
+# mode window manager. This is window_test with the graphical mode tests
 # removed and the character mode ones kept, running through windowc over
 # terminal. Every test in the management test has a character form and a
 # graphical form; only the character forms can run on a character surface.
 #
 ifeq ($(OSTYPE),Darwin)
-management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/management_testc
+window_testc: $(LIBPFX)termc$(LIBEXT) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/window_testc
 else ifeq ($(OSTYPE),Windows_NT)
-management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/management_testc
+window_testc: $(LIBPFX)termc$(LIBEXT) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -lpng -lz -o bin/window_testc
 else
-management_testc: $(LIBPFX)termc$(LIBEXT) tests/management_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/management_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) $(XLIBS) -o bin/management_testc
+window_testc: $(LIBPFX)termc$(LIBEXT) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/window_testc
 endif
 
 #
@@ -1877,35 +1890,35 @@ endif
 #
 ifeq ($(OSTYPE),Windows_NT)
 # the client carries the sound API itself, so the sound module stays out
-management_testr: tests/management_test.c portable/graph_client.o \
+window_testr: tests/window_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o windows/services.o windows/network.o \
 	utils/config.o utils/option.o windows/stdio.o
-	$(CC) $(CFLAGS) tests/management_test.c portable/graph_client.o \
+	$(CC) $(CFLAGS) tests/window_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o windows/services.o windows/network.o \
 	    utils/config.o utils/option.o windows/stdio.o \
-	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/management_testr
+	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/window_testr
 else ifeq ($(OSTYPE),Darwin)
 # the remote client draws on the server, so no Cocoa backend and no -e
 # entry: plain objects, as on Linux, from the macosx tree. Mach-O runs
 # constructors in LINK ORDER (priorities are ignored), so the base modules
 # come before graph_client.o: its constructor opens sockets, and the network
 # constructor clears the per-descriptor table. Base first, layers after.
-management_testr: tests/management_test.c macosx/stdio.o macosx/services.o \
+window_testr: tests/window_test.c macosx/stdio.o macosx/services.o \
 	macosx/network.o utils/config.o utils/option.o \
 	portable/graph_client.o stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/management_test.c macosx/stdio.o macosx/services.o \
+	$(CC) $(CFLAGS) tests/window_test.c macosx/stdio.o macosx/services.o \
 	    macosx/network.o utils/config.o utils/option.o \
 	    portable/graph_client.o stub/screen_capture_stub.o \
 	    $(SSL_LIBS) -framework CoreFoundation -framework CoreGraphics \
 	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
-	    -framework IOKit -lm -lpthread $(WEAKOPT) -o bin/management_testr
+	    -framework IOKit -lm -lpthread $(WEAKOPT) -o bin/window_testr
 else
-management_testr: tests/management_test.c portable/graph_client.o \
+window_testr: tests/window_test.c portable/graph_client.o \
 	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/management_test.c portable/graph_client.o \
+	$(CC) $(CFLAGS) tests/window_test.c portable/graph_client.o \
 	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
 	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/management_testr
+	    -lssl -lcrypto -lm -lpthread -o bin/window_testr
 endif
 
 #
@@ -2403,12 +2416,13 @@ help:
 	@echo "  graphics_test       graphical model; 'graphics_test bench' runs"
 	@echo "                      the benchmark section alone"
 	@echo "  widget_test         widget set (widget_testc: terminal)"
-	@echo "  management_test     window management (management_testc)"
+	@echo "  window_test     window management (window_testc)"
 	@echo "  event/eventg        event diagnostics"
 	@echo ""
 	@echo "The Wayland backend pair (Linux; built regardless of session):"
 	@echo ""
 	@echo "  graphics_testw      graphics test on the Wayland backend"
+	@echo "  random_test         random procedures on several threads, until cancelled"
 	@echo "  widget_testw        widget test on the Wayland backend"
 	@echo "  graphics_test_gtk   the GTK4/Cairo benchmark edition (libgtk-4-dev)"
 	@echo ""
@@ -2452,7 +2466,7 @@ clean:
 	rm -f bin/printdevg bin/connectmidi bin/connectmidig bin/connectwave
 	rm -f bin/connectwaveg bin/random bin/randomg bin/genwave bin/genwaveg 
 	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
-	rm -f bin/management_test bin/widget_test bin/sound_test bin/sound_testg
+	rm -f bin/window_test bin/widget_test bin/sound_test bin/sound_testg
 	rm -f bin/services_test bin/stdio_test bin/event bin/eventg bin/term bin/termg bin/snake
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
@@ -2585,11 +2599,11 @@ widget_testfb: $(GLIBSFBM) tests/widget_test.c linux/framebuffer/framebuffer.o \
 	    linux/framebuffer/framebuffer.o \
 	    $(GLIBSFBM) $(FBMLIBS) -o bin/widget_testfb
 
-management_testfb: $(GLIBSFBM) tests/management_test.c \
+window_testfb: $(GLIBSFBM) tests/window_test.c \
 	linux/framebuffer/framebuffer.o linux/wayland/screen_capture.o
-	$(CC) $(CFLAGS) tests/management_test.c linux/wayland/screen_capture.o \
+	$(CC) $(CFLAGS) tests/window_test.c linux/wayland/screen_capture.o \
 	    linux/framebuffer/framebuffer.o \
-	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testfb
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/window_testfb
 
 # mock editions, for the rig
 hellofbm: $(GLIBSFBM) hello/hello.c linux/framebuffer/fbmock.o
@@ -2602,8 +2616,8 @@ widget_testfbmk: $(GLIBSFBM) tests/widget_test.c linux/framebuffer/fbmock.o \
 	    linux/framebuffer/fbmock.o \
 	    $(GLIBSFBM) $(FBMLIBS) -o bin/widget_testfbmk
 
-management_testfbm: $(GLIBSFBM) tests/management_test.c \
+window_testfbm: $(GLIBSFBM) tests/window_test.c \
 	linux/framebuffer/fbmock.o linux/wayland/screen_capture.o
-	$(CC) $(CFLAGS) tests/management_test.c linux/wayland/screen_capture.o \
+	$(CC) $(CFLAGS) tests/window_test.c linux/wayland/screen_capture.o \
 	    linux/framebuffer/fbmock.o \
-	    $(GLIBSFBM) $(FBMLIBS) -o bin/management_testfbm
+	    $(GLIBSFBM) $(FBMLIBS) -o bin/window_testfbm
