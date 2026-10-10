@@ -21,6 +21,7 @@ of the library, chosen on the make command line:
 MODEL is plain, term or graph, and LINK_TYPE is static or dynamic. Either left
 out takes its default, MODEL=plain and LINK_TYPE=static, so a bare "make" is the
 first line.
+
 Changing either and making again rebuilds the program; the file "options" holds
 the choice the last build used. The models look like this to the program:
 
