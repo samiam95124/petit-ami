@@ -11,12 +11,16 @@ in the dynamic form the Petit-Ami stdio header in libc.
 The same program builds on any of the three Petit-Ami models, in either form
 of the library, chosen on the make command line:
 
-    make                                 plain output, the static archive
-    make MODEL=term                      the terminal model: output to the console
-    make MODEL=graph                     the graphical model: output to a window
-    make MODEL=graph LINK_TYPE=dynamic   the same, against the shared library
+    make MODEL=plain LINK_TYPE=static    plain output, the static archive
+    make MODEL=plain LINK_TYPE=dynamic   plain output, the shared library
+    make MODEL=term  LINK_TYPE=static    the terminal model, the static archive
+    make MODEL=term  LINK_TYPE=dynamic   the terminal model, the shared library
+    make MODEL=graph LINK_TYPE=static    the graphical model, the static archive
+    make MODEL=graph LINK_TYPE=dynamic   the graphical model, the shared library
 
-MODEL is plain, term or graph, and LINK_TYPE is static (the default) or dynamic.
+MODEL is plain, term or graph, and LINK_TYPE is static or dynamic. Either left
+out takes its default, MODEL=plain and LINK_TYPE=static, so a bare "make" is the
+first line.
 Changing either and making again rebuilds the program; the file "options" holds
 the choice the last build used. The models look like this to the program:
 
