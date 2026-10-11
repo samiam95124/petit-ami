@@ -22,14 +22,7 @@
 MODEL ?= plain
 LINK_TYPE ?= static
 
-# the lower case spellings are taken too, and a value outside the sets stops
-# the make rather than building the wrong thing
-ifdef model
-    MODEL = $(model)
-endif
-ifdef link_type
-    LINK_TYPE = $(link_type)
-endif
+# a value outside the sets stops the make rather than building the wrong thing
 ifeq ($(filter $(MODEL),plain term graph),)
     $(error MODEL is $(MODEL): it must be plain, term or graph)
 endif
