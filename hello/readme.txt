@@ -46,11 +46,9 @@ compiles its objects for one link type or the other, so a tree built in one
 form must be cleaned at the root (make clean there) before it is built in the
 other.
 
-The makefile finds the root from its own path rather than from the directory
-make was started in, so it builds the same however it is reached, and the
-program it makes runs from any directory: in the dynamic form it carries the
-path of the lib directory, so the shared library is found wherever it runs
-from.
+Make from this directory: the makefile reaches the root as "..". The program
+it makes runs from any directory; in the dynamic form it carries the full path
+of the lib directory, so the shared library is found wherever it runs from.
 
 How the makefile is put together:
 

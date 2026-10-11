@@ -32,13 +32,9 @@ ifeq ($(filter $(LINK_TYPE),static dynamic),)
 endif
 
 #
-# Where Petit-Ami stands.
+# Where Petit-Ami stands: the directory above this one. Make from here.
 #
-# Taken from this makefile's own path, not from the directory make was started
-# in, so the example builds the same from here, from the root with
-# make -C hello, or from anywhere with make -f.
-#
-ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
+AMI = ..
 
 #
 # The system libraries every model wants.
@@ -61,7 +57,7 @@ BACKLIBS_wayland = -lwayland-client -lwayland-cursor -lxkbcommon \
 BACKLIBS_x11 = -lX11 -lXtst -lfreetype -lfontconfig
 BACKLIBS_fb = -lfreetype -lfontconfig -lpng -lz
 
-GRAPHLIBS = $(BACKLIBS_$(shell cat $(ROOT)/lib/graph_backend 2> /dev/null))
+GRAPHLIBS = $(BACKLIBS_$(shell cat $(AMI)/lib/graph_backend 2> /dev/null))
 
 ifeq ($(MODEL),graph)
     LIBS += $(GRAPHLIBS)
@@ -85,7 +81,7 @@ endif
 #
 # Sound cannot live in a shared library (an ALSA bug), so in the dynamic form
 # its object links directly beside the library, and the program carries the
-# path of the lib directory so that it runs from anywhere. The sound object
+# full path of the lib directory so that it runs from anywhere. The sound object
 # stands before the shared library: the linker keeps a shared library only
 # for references seen before it, and the sound object's are the first.
 #
@@ -97,17 +93,17 @@ endif
 # stdio header (../libc/stdio.h), which gives printf that name.
 #
 ifeq ($(LINK_TYPE),static)
-    AMILIB = $(ROOT)/lib/libami_$(MODEL).a
+    AMILIB = $(AMI)/lib/libami_$(MODEL).a
     AMILINK = $(AMILIB)
     AMICFLAGS =
 else
-    AMILIB = $(ROOT)/lib/sound.o $(ROOT)/lib/petit_ami_$(MODEL).so
-    AMILINK = $(AMILIB) -Wl,-rpath,$(ROOT)/lib
-    AMICFLAGS = -I$(ROOT)/libc -DSTDIO_BYPASS
+    AMILIB = $(AMI)/lib/sound.o $(AMI)/lib/petit_ami_$(MODEL).so
+    AMILINK = $(AMILIB) -Wl,-rpath,$(abspath $(AMI)/lib)
+    AMICFLAGS = -I$(AMI)/libc -DSTDIO_BYPASS
 endif
 
 hello: hello.c $(AMILIB)
-	gcc -g3 -I$(ROOT)/include $(AMICFLAGS) hello.c $(KEEP) $(AMILINK) $(LIBS) -o hello
+	gcc -g3 -I$(AMI)/include $(AMICFLAGS) hello.c $(KEEP) $(AMILINK) $(LIBS) -o hello
 
 clean:
 	rm -f hello
