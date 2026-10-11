@@ -742,8 +742,7 @@ static void childstacktest(FILE* par)
 
         ami_curvis(w, OFF);
         ami_setpos(w, 5+10*i, 6+3*i);
-        ami_sizbuf(w, 20, 10);
-        ami_setsiz(w, 20, 10);
+        setsize(w, 20, 10); /* the buffer is the client */
 
     }
     ami_bcolor(win2, ami_cyan);
@@ -811,9 +810,13 @@ static void childstackrsz(FILE* par, ami_long parid, int variant)
 
         ami_curvis(w, OFF);
         ami_setpos(w, xs*i, ys*i);
-        if (variant == 1) ami_sizbuf(w, mx-xs*4, my-ys*4);
-        else ami_sizbuf(w, 19, 1); /* the label line; the rest is fill */
-        ami_setsiz(w, mx-xs*4, my-ys*4);
+        if (variant == 1) setsize(w, mx-xs*4, my-ys*4); /* buffer is client */
+        else {
+
+            ami_sizbuf(w, 19, 1); /* the label line; the rest is fill */
+            ami_setsiz(w, mx-xs*4, my-ys*4);
+
+        }
 
     }
     ami_bcolor(win2, ami_cyan);
@@ -843,9 +846,20 @@ static void childstackrsz(FILE* par, ami_long parid, int variant)
                 /* re-fit the children to the new parent size */
                 mx = ami_maxx(par);
                 my = ami_maxy(par);
-                ami_setsiz(win2, mx-xs*4, my-ys*4);
-                ami_setsiz(win3, mx-xs*4, my-ys*4);
-                ami_setsiz(win4, mx-xs*4, my-ys*4);
+                if (variant == 1) {
+
+                    /* the buffers follow the clients */
+                    setsize(win2, mx-xs*4, my-ys*4);
+                    setsize(win3, mx-xs*4, my-ys*4);
+                    setsize(win4, mx-xs*4, my-ys*4);
+
+                } else {
+
+                    ami_setsiz(win2, mx-xs*4, my-ys*4);
+                    ami_setsiz(win3, mx-xs*4, my-ys*4);
+                    ami_setsiz(win4, mx-xs*4, my-ys*4);
+
+                }
 
             }
 
