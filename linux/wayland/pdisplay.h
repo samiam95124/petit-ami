@@ -263,6 +263,10 @@ void       pd_cansize(pd_canvas* c, int* w, int* h);
 uint32_t*  pd_canlock(pd_canvas* c, int* stride);
 void       pd_canunlock(pd_canvas* c);
 
+/* anti-aliasing: lines, curves, polygon edges and text blend by coverage
+   in the copy mix; off by default, every drawing as the raster grid has it */
+void pd_antialias(int on);
+
 void pd_point(pd_canvas* c, pd_draw* dr, int x, int y);
 void pd_line(pd_canvas* c, pd_draw* dr, int x1, int y1, int x2, int y2);
 void pd_rect(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h);

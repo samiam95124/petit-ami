@@ -637,6 +637,273 @@ static void hspan(pd_canvas* c, pd_draw* dr, int x, int y, int w)
     }
 }
 
+/*******************************************************************************
+
+Anti-aliased rasterizing
+
+The option antialias under graphics turns it on, through pd_antialias. Only
+a copy mix without a stipple can blend: a half covered xor pixel does not
+undo itself, so the other mixes draw as they always have, and so does every
+drawing while the option is off. The geometry is in pixel edge coordinates,
+pixel (x, y) covering [x, x+1) by [y, y+1); a point given to the entries
+names its pixel's center, so a thin line between two points runs through
+the centers of its end pixels, and one along an axis is as crisp as the
+aliased line. A wide line along an axis, and a wide rectangle, keep the
+aliased rectangle fill: they have no edge to smooth.
+
+Areas accumulate coverage a row at a time: a primitive gives the row its
+intervals on each of SUBROWS sub-rows, exact in x and sampled in y, and
+the row is then blended out in one pass, with full pixels stored outright.
+The partial arcs' cut boundaries come through the same intervals, so a
+pie's radial edges are smoothed with its rim.
+
+*******************************************************************************/
+
+static void dashpattern(pd_draw* dr, int* on, int* off);
+
+#define SUBROWS 8 /* sub-rows sampled per row: coverage steps on a near
+                     horizontal edge */
+
+static int aaon = 0; /* anti-aliasing on */
+
+void pd_antialias(int on)
+{
+    aaon = !!on;
+}
+
+/* can this drawing blend */
+static int aaok(pd_draw* dr)
+{ return (aaon && dr->mix == pd_mixcopy && !dr->stipple); }
+
+/* blend the color into a pixel by coverage, 0 to 255; a full cover is a
+   store, as the copy mix makes */
+static inline void blend(pd_canvas* c, int x, int y, uint32_t col, int cov)
+{
+    uint32_t* p;
+    uint32_t  d, r, g, b;
+
+    if (cov <= 0 || x < 0 || y < 0 || x >= c->w || y >= c->h) return;
+    p = &c->px[(size_t)y*c->w+x];
+    if (cov >= 255) { *p = col; return; }
+    d = *p;
+    r = (((col>>16)&0xff)*cov+((d>>16)&0xff)*(255-cov)+127)/255;
+    g = (((col>>8)&0xff)*cov+((d>>8)&0xff)*(255-cov)+127)/255;
+    b = ((col&0xff)*cov+(d&0xff)*(255-cov)+127)/255;
+    *p = (d&0xff000000)|(r<<16)|(g<<8)|b;
+}
+
+/* The row accumulator: coverage per pixel of the row in sub-row units,
+   and the pixels touched, so the flush walks only them */
+typedef struct {
+
+    pd_canvas* c;
+    pd_draw*   dr;
+    float*     cov;    /* one per pixel column */
+    int        lo, hi; /* the columns touched, lo > hi for none */
+    int        y;      /* the row being accumulated */
+
+} rowacc;
+
+static int accinit(rowacc* a, pd_canvas* c, pd_draw* dr)
+{
+    a->c = c;
+    a->dr = dr;
+    a->cov = calloc((size_t)c->w, sizeof(float));
+    a->lo = c->w;
+    a->hi = -1;
+    a->y = 0;
+    return (a->cov != NULL);
+}
+
+static void accfree(rowacc* a)
+{
+    free(a->cov);
+}
+
+/* add a sub-row's interval [xl, xr), in edge coordinates */
+static void accadd(rowacc* a, float xl, float xr)
+{
+    int il, ir, i;
+
+    if (xl < 0) xl = 0;
+    if (xr > a->c->w) xr = a->c->w;
+    if (xr <= xl) return;
+    il = (int)floorf(xl);
+    ir = (int)ceilf(xr)-1;
+    if (il == ir) a->cov[il] += xr-xl;
+    else {
+
+        a->cov[il] += (il+1)-xl;
+        for (i = il+1; i < ir; i++) a->cov[i] += 1.0f;
+        a->cov[ir] += xr-ir;
+
+    }
+    if (il < a->lo) a->lo = il;
+    if (ir > a->hi) a->hi = ir;
+}
+
+/* blend the row out, and clear it for the next */
+static void accflush(rowacc* a)
+{
+    uint32_t* p;
+    int       i, cov;
+
+    if (a->y >= 0 && a->y < a->c->h) {
+
+        p = &a->c->px[(size_t)a->y*a->c->w];
+        for (i = a->lo; i <= a->hi; i++) {
+
+            cov = (int)(a->cov[i]*(255.0f/SUBROWS)+0.5f);
+            if (cov >= 255) p[i] = a->dr->fg;
+            else if (cov > 0) blend(a->c, i, a->y, a->dr->fg, cov);
+
+        }
+
+    }
+    for (i = a->lo; i <= a->hi; i++) a->cov[i] = 0;
+    a->lo = a->c->w;
+    a->hi = -1;
+}
+
+/* the sub-row's y, within row j */
+static double subrow(int j, int k)
+{ return (j+(k+0.5)/SUBROWS); }
+
+/* Wu's thin line: at each step along the major axis the two pixels
+   straddling the ideal line, each covered by its nearness to it. The end
+   points are pixel centers, so a line along an axis is one crisp row or
+   column. Dashes gate the steps as the Bresenham line's do */
+static void wuline(pd_canvas* c, pd_draw* dr, int x1, int y1, int x2, int y2)
+{
+    int   steep, t, don, doff, dpos, pen, x, iy, c1, c2;
+    float grad, yf;
+
+    steep = abs(y2-y1) > abs(x2-x1);
+    if (steep) { t = x1; x1 = y1; y1 = t; t = x2; x2 = y2; y2 = t; }
+    if (x1 > x2) { t = x1; x1 = x2; x2 = t; t = y1; y1 = y2; y2 = t; }
+    grad = x2 != x1? (float)(y2-y1)/(x2-x1): 0;
+    don = doff = 0;
+    if (dr->lstyle != pd_linesolid) dashpattern(dr, &don, &doff);
+    dpos = 0;
+    pen = 1;
+    yf = y1;
+    for (x = x1; x <= x2; x++) {
+
+        if (don) { /* dashed */
+
+            pen = dpos < don;
+            if (++dpos >= don+doff) dpos = 0;
+
+        }
+        if (pen) {
+
+            iy = (int)floorf(yf);
+            c2 = (int)((yf-iy)*255+0.5f);
+            c1 = 255-c2;
+            if (steep) {
+
+                blend(c, iy, x, dr->fg, c1);
+                blend(c, iy+1, x, dr->fg, c2);
+
+            } else {
+
+                blend(c, x, iy, dr->fg, c1);
+                blend(c, x, iy+1, dr->fg, c2);
+
+            }
+
+        }
+        yf += grad;
+
+    }
+}
+
+/* even-odd polygon fill, the corners in edge coordinates */
+static void aa_fillpoly(pd_canvas* c, pd_draw* dr, const float* px,
+                        const float* py, int n)
+{
+    float  xs[64], v, miny, maxy;
+    double sy;
+    rowacc a;
+    int    j, j1, j2, k, i, m, nx;
+
+    if (n < 3) return;
+    miny = maxy = py[0];
+    for (i = 1; i < n; i++) {
+
+        if (py[i] < miny) miny = py[i];
+        if (py[i] > maxy) maxy = py[i];
+
+    }
+    j1 = (int)floorf(miny); if (j1 < 0) j1 = 0;
+    j2 = (int)ceilf(maxy); if (j2 > c->h-1) j2 = c->h-1;
+    if (j2 < j1 || !accinit(&a, c, dr)) return;
+    for (j = j1; j <= j2; j++) {
+
+        a.y = j;
+        for (k = 0; k < SUBROWS; k++) {
+
+            sy = subrow(j, k);
+            nx = 0;
+            m = n-1;
+            for (i = 0; i < n; i++) {
+
+                if ((py[i] <= sy && py[m] > sy) || (py[m] <= sy && py[i] > sy))
+                    if (nx < 64)
+                        xs[nx++] = px[i]+(float)((sy-py[i])/(py[m]-py[i]))*
+                                   (px[m]-px[i]);
+                m = i;
+
+            }
+            for (i = 1; i < nx; i++) { /* insertion sort */
+
+                v = xs[i];
+                for (m = i-1; m >= 0 && xs[m] > v; m--) xs[m+1] = xs[m];
+                xs[m+1] = v;
+
+            }
+            for (i = 0; i+1 < nx; i += 2) accadd(&a, xs[i], xs[i+1]);
+
+        }
+        accflush(&a);
+
+    }
+    accfree(&a);
+}
+
+/* wide line as a quad: the end points are pixel centers, the ends reach
+   half a pixel past them to cover the end pixels as the thin line does */
+static void aa_wideline(pd_canvas* c, pd_draw* dr, int x1, int y1, int x2, int y2)
+{
+    float dx, dy, len, ux, uy, nx, ny, hw, ex1, ey1, ex2, ey2;
+    float px[4], py[4];
+
+    dx = x2-x1; dy = y2-y1;
+    len = sqrtf(dx*dx+dy*dy);
+    ux = dx/len; uy = dy/len;
+    hw = dr->lw/2.0f;
+    ex1 = x1+0.5f-ux*0.5f; ey1 = y1+0.5f-uy*0.5f;
+    ex2 = x2+0.5f+ux*0.5f; ey2 = y2+0.5f+uy*0.5f;
+    nx = -uy*hw; ny = ux*hw;
+    px[0] = ex1+nx; py[0] = ey1+ny;
+    px[1] = ex2+nx; py[1] = ey2+ny;
+    px[2] = ex2-nx; py[2] = ey2-ny;
+    px[3] = ex1-nx; py[3] = ey1-ny;
+    aa_fillpoly(c, dr, px, py, 4);
+}
+
+/* the ellipse's half width on the line y: radii rx, ry about cy, zero
+   where the line misses */
+static double ellhw(double rx, double ry, double cy, double y)
+{
+    double dy, t;
+
+    if (rx <= 0 || ry <= 0) return (0);
+    dy = (y-cy)/ry;
+    t = 1.0-dy*dy;
+    return (t > 0? rx*sqrt(t): 0);
+}
+
 /* Full ellipse, filled: the scanline walk. Each row's extent comes from
    the ellipse equation directly -- one sqrt a row against the thousand-
    point polygon and per-row edge sort the general arc path costs */
@@ -808,7 +1075,7 @@ static int cutrow(arccut* ct, double py, double* xs, int n)
    py is the row's y-up center-relative coordinate, cx the center's
    surface x */
 static void cutspans(pd_canvas* c, pd_draw* dr, arccut* ct, int j,
-                     double cx, double py, double l, double r)
+                     double cx, double py, double l, double r, rowacc* a)
 {
     double xs[6];
     double v, mid;
@@ -830,6 +1097,12 @@ static void cutspans(pd_canvas* c, pd_draw* dr, arccut* ct, int j,
         v = xs[i] > l? xs[i]: l;
         mid = (v+(xs[i+1] < r? xs[i+1]: r))/2;
         if (!incut(ct, mid, py)) continue;
+        if (a) { /* anti-aliased: the interval as it is */
+
+            accadd(a, (float)(cx+v), (float)(cx+(xs[i+1] < r? xs[i+1]: r)));
+            continue;
+
+        }
         x1 = (int)ceil(cx+v-0.5);
         x2 = (int)floor(cx+(xs[i+1] < r? xs[i+1]: r)-0.5);
         if (x2 >= x1) hspan(c, dr, x1, j, x2-x1+1);
@@ -856,7 +1129,7 @@ static void fillarcpart(pd_canvas* c, pd_draw* dr, int x, int y, unsigned w,
         t = 1.0-dy*dy;
         if (t <= 0) continue;
         t = rx*sqrt(t);
-        cutspans(c, dr, &ct, j, cx, py, -t, t);
+        cutspans(c, dr, &ct, j, cx, py, -t, t, NULL);
 
     }
 }
@@ -892,12 +1165,68 @@ static void ringarcpart(pd_canvas* c, pd_draw* dr, int x, int y, unsigned w,
         if (ti > 0) {
 
             /* the row crosses the hole: rim intervals on either side */
-            cutspans(c, dr, &ct, j, cx, py, -to, -ti);
-            cutspans(c, dr, &ct, j, cx, py, ti, to);
+            cutspans(c, dr, &ct, j, cx, py, -to, -ti, NULL);
+            cutspans(c, dr, &ct, j, cx, py, ti, to, NULL);
 
-        } else cutspans(c, dr, &ct, j, cx, py, -to, to);
+        } else cutspans(c, dr, &ct, j, cx, py, -to, to, NULL);
 
     }
+}
+
+/* Anti-aliased ellipse or arc: ring, pie or chord, full or partial. A
+   full ring with the line width 1 is the thin ellipse. The rows of the
+   ring are the annulus between the ellipse dilated and eroded by half the
+   line width, as the aliased ring's are; a partial sweep's intervals go
+   through the cut */
+static void aa_arc(pd_canvas* c, pd_draw* dr, int x, int y, unsigned w,
+                   unsigned h, int a1, int a2, int ring, int pie)
+{
+    double lw = ring? (dr->lw > 1? dr->lw: 1): 0;
+    double rxo = w/2.0+lw/2, ryo = h/2.0+lw/2;
+    double rxi = ring? w/2.0-lw/2: 0, ryi = ring? h/2.0-lw/2: 0;
+    double cx = x+w/2.0, cy = y+h/2.0;
+    double sy, py, to, ti;
+    arccut ct;
+    rowacc a;
+    int    full, j, j1, j2, k;
+
+    if (!ring && (!w || !h)) return;
+    full = abs(a2) >= 360*64;
+    if (!full) mkcut(&ct, a1, a2, w/2.0, h/2.0, !ring && !pie);
+    j1 = (int)floor(cy-ryo); if (j1 < 0) j1 = 0;
+    j2 = (int)ceil(cy+ryo); if (j2 > c->h-1) j2 = c->h-1;
+    if (j2 < j1 || !accinit(&a, c, dr)) return;
+    for (j = j1; j <= j2; j++) {
+
+        a.y = j;
+        for (k = 0; k < SUBROWS; k++) {
+
+            sy = subrow(j, k);
+            py = -(sy-cy); /* y-up, center relative, as the cut works */
+            to = ellhw(rxo, ryo, cy, sy);
+            if (to <= 0) continue;
+            ti = ellhw(rxi, ryi, cy, sy);
+            if (full) {
+
+                if (ti > 0) {
+
+                    accadd(&a, (float)(cx-to), (float)(cx-ti));
+                    accadd(&a, (float)(cx+ti), (float)(cx+to));
+
+                } else accadd(&a, (float)(cx-to), (float)(cx+to));
+
+            } else if (ti > 0) {
+
+                cutspans(c, dr, &ct, j, cx, py, -to, -ti, &a);
+                cutspans(c, dr, &ct, j, cx, py, ti, to, &a);
+
+            } else cutspans(c, dr, &ct, j, cx, py, -to, to, &a);
+
+        }
+        accflush(&a);
+
+    }
+    accfree(&a);
 }
 
 /* filled rectangle, honoring the stipple */
@@ -934,6 +1263,7 @@ static void thinline(pd_canvas* c, pd_draw* dr, int x1, int y1, int x2, int y2)
     int dx, dy, sx, sy, err, e2;
     int don, doff, dpos, pen;
 
+    if (aaok(dr)) { wuline(c, dr, x1, y1, x2, y2); return; }
     dx = abs(x2-x1); dy = -abs(y2-y1);
     sx = x1 < x2? 1: -1; sy = y1 < y2? 1: -1;
     err = dx+dy;
@@ -1043,6 +1373,7 @@ static void wideline(pd_canvas* c, pd_draw* dr, int x1, int y1, int x2, int y2)
         return;
 
     }
+    if (aaok(dr)) { aa_wideline(c, dr, x1, y1, x2, y2); return; }
     nx = -dy/len*hw; ny = dx/len*hw;
     q[0].x = (short)lroundf(x1+nx); q[0].y = (short)lroundf(y1+ny);
     q[1].x = (short)lroundf(x2+nx); q[1].y = (short)lroundf(y2+ny);
@@ -1233,7 +1564,17 @@ void pd_fpoly(pd_canvas* c, pd_draw* dr, const int* xy, int n)
 
         }
         canlk(c);
-        fillpoly(c, dr, pt, n);
+        if (aaok(dr)) {
+
+            float  fstk[128];
+            float* fp;
+
+            fp = n <= 64? fstk: malloc((size_t)n*2*sizeof(float));
+            for (i = 0; i < n; i++) { fp[i] = xy[i*2]; fp[n+i] = xy[i*2+1]; }
+            aa_fillpoly(c, dr, fp, fp+n, n);
+            if (fp != fstk) free(fp);
+
+        } else fillpoly(c, dr, pt, n);
         canulk(c);
         lx = hx = pt[0].x; ly = hy = pt[0].y;
         for (i = 1; i < n; i++) {
@@ -1261,7 +1602,10 @@ void pd_arc(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h,
     if (c && !drnoop(dr)) {
 
         canlk(c);
-        if (abs(a2) >= 360*64 && dr->lstyle == pd_linesolid && !dr->stipple)
+        if (aaok(dr) && dr->lstyle == pd_linesolid)
+            /* anti-aliased: the ring at any width, cut to the sweep */
+            aa_arc(c, dr, x, y, w, h, a1, a2, 1, 0);
+        else if (abs(a2) >= 360*64 && dr->lstyle == pd_linesolid && !dr->stipple)
             /* the complete ellipse walks scanlines; the path polygon
                is for thin partial sweeps and patterned lines */
             ringellipse(c, dr, x, y, w, h);
@@ -1286,7 +1630,8 @@ static void farc(pd_canvas* c, pd_draw* dr, int x, int y, int w, int h,
                  int a1, int a2, int pie)
 {
     canlk(c);
-    if (abs(a2) >= 360*64)
+    if (aaok(dr)) aa_arc(c, dr, x, y, w, h, a1, a2, 0, pie);
+    else if (abs(a2) >= 360*64)
         /* the complete ellipse walks scanlines directly */
         fillellipse(c, dr, x, y, w, h);
     else fillarcpart(c, dr, x, y, w, h, a1, a2, pie);
@@ -1316,15 +1661,22 @@ void pd_glyph(pd_canvas* c, pd_draw* dr, int x, int y,
               const uint8_t* mask, int mw, int mh, int stride, int depth)
 {
     pd_display* d = &thedpy;
-    int i, j, on;
+    int i, j, on, aa;
 
     (void)d;
     if (c && !drnoop(dr) && mask) {
 
+        aa = aaok(dr) && depth != 1; /* the 8-bit mask blends */
         canlk(c);
         for (j = 0; j < mh; j++)
             for (i = 0; i < mw; i++) {
 
+                if (aa) {
+
+                    blend(c, x+i, y+j, dr->fg, mask[(size_t)j*stride+i]);
+                    continue;
+
+                }
                 /* the alpha threshold renders text 1-bit, the library's
                    character everywhere */
                 if (depth == 1)

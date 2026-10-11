@@ -1116,6 +1116,10 @@ static int scrollbuffer = TRUE; /* a buffered window shows scroll bars for a
                                    buffer larger than its client: the option
                                    scrollbuffer under graphics in the
                                    configuration, on by default */
+static int antialias = FALSE; /* lines, curves and text are drawn
+                                 anti-aliased: the option antialias under
+                                 graphics in the configuration, off by
+                                 default */
 static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
@@ -18519,6 +18523,14 @@ static void ami_init_graphics(int argc, char *argv[])
 
         }
 
+        vp = ami_schlst("antialias", graph_root->sublist);
+        if (vp) {
+
+            antialias = strtol(vp->value, &errstr, 10) != 0;
+            if (*errstr) error(ecfgval);
+
+        }
+
         /* find windows subsection */
         xwin_root = ami_schlst("xwindow", graph_root->sublist);
         if (xwin_root) {
@@ -18558,6 +18570,7 @@ static void ami_init_graphics(int argc, char *argv[])
         exit(1);
 
     }
+    pd_antialias(antialias); /* the drawing as the configuration asks */
     pascreen = 0; /* single screen through the layer */
 
     /* initialize FreeType and fontconfig */
