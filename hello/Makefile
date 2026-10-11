@@ -20,10 +20,7 @@ LINK_TYPE ?= static
 LIBS = -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
 
 #
-# The system libraries the graphical model draws with: those of the display
-# backend the graphical library was built with. The root build chooses
-# wayland when a wayland session is up and x11 otherwise, and so does this.
-# A library built for the frame buffer wants -lfreetype -lfontconfig -lpng -lz
+# On a graphical program, choose Wayland or X11
 #
 ifeq ($(MODEL),graph)
     ifneq ($(WAYLAND_DISPLAY),)
@@ -34,33 +31,18 @@ ifeq ($(MODEL),graph)
 endif
 
 #
-# Keeping the model in the link.
-#
-# The terminal and graphical models take over stdout as the program starts,
-# so a program that calls nothing in them, like this one, still wants them
-# linked. Named only by its calls, the library would be left out, so the
-# link asks for one of the model's functions by name. The plain model has
-# no such takeover, and needs nothing.
+# Force use of the chosen model
 #
 ifneq ($(MODEL),plain)
     KEEP = -Wl,-u,ami_maxx
 endif
 
 #
-# The Petit-Ami library, in the form chosen.
+# Set Ami specific libraries
 #
 # Sound cannot live in a shared library (an ALSA bug), so in the dynamic form
-# its object links directly beside the library, and the program carries the
-# full path of the lib directory so that it runs from anywhere. The sound object
-# stands before the shared library: the linker keeps a shared library only
-# for references seen before it, and the sound object's are the first.
-#
-# The two forms meet the program's own printf differently. The archive
-# carries Petit-Ami's stdio under the standard names, so the program is
-# compiled against the system header and its printf lands in the model at
-# link. The shared library keeps Petit-Ami's stdio under its own names
-# beside the system one, so the program is compiled against Petit-Ami's
-# stdio header (../libc/stdio.h), which gives printf that name.
+# its object links directly beside the library. Dynamic linking needs stdio
+# bypass.
 #
 ifeq ($(LINK_TYPE),static)
     AMILIB = $(AMIDIR)/lib/libami_$(MODEL).a

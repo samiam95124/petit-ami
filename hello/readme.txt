@@ -11,6 +11,7 @@ in the dynamic form the Petit-Ami stdio header in libc.
 The same program builds on any of the three Petit-Ami models, in either form
 of the library, chosen on the make command line:
 
+    make                                 plain output, the static archive
     make MODEL=plain LINK_TYPE=static    plain output, the static archive
     make MODEL=plain LINK_TYPE=dynamic   plain output, the shared library
     make MODEL=term  LINK_TYPE=static    the terminal model, the static archive
