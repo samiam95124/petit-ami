@@ -2111,6 +2111,12 @@ static void blittree(pd_win* w, uint32_t* dst, int dw, int dh, int ox, int oy,
         }
 
     }
+    /* a child shows within its parent: the children are clipped to this
+       window's bounds, within the bounds it was given */
+    if (ox > cx1) cx1 = ox;
+    if (oy > cy1) cy1 = oy;
+    if (ox+w->w < cx2) cx2 = ox+w->w;
+    if (oy+w->h < cy2) cy2 = oy+w->h;
     for (c = w->childs; c; c = c->sibnext)
         blittree(c, dst, dw, dh, ox+c->x, oy+c->y, cx1, cy1, cx2, cy2);
 }
@@ -2226,10 +2232,13 @@ uint32_t* pd_winsnap(pd_display* d, pd_win* win, int* width, int* height)
 typedef struct {
     pd_canvas* cv;
     int        ox, oy, w, h;
+    int        cx1, cy1, cx2, cy2; /* its ancestors' bounds: a child shows
+                                      within its parent */
 } blitent;
 #define MAXBLIT 512 /* windows a compose can carry; more are left out */
 
-static int flatten(pd_win* w, int ox, int oy, blitent* out, int n)
+static int flatten(pd_win* w, int ox, int oy, int cx1, int cy1, int cx2,
+                   int cy2, blitent* out, int n)
 {
     pd_win* c;
 
@@ -2238,11 +2247,18 @@ static int flatten(pd_win* w, int ox, int oy, blitent* out, int n)
 
         out[n].cv = w->can; out[n].ox = ox; out[n].oy = oy;
         out[n].w = w->w; out[n].h = w->h;
+        out[n].cx1 = cx1; out[n].cy1 = cy1;
+        out[n].cx2 = cx2; out[n].cy2 = cy2;
         n++;
 
     }
+    /* the children show within this window, within the bounds it was given */
+    if (ox > cx1) cx1 = ox;
+    if (oy > cy1) cy1 = oy;
+    if (ox+w->w < cx2) cx2 = ox+w->w;
+    if (oy+w->h < cy2) cy2 = oy+w->h;
     for (c = w->childs; c; c = c->sibnext)
-        n = flatten(c, ox+c->x, oy+c->y, out, n);
+        n = flatten(c, ox+c->x, oy+c->y, cx1, cy1, cx2, cy2, out, n);
     return (n);
 }
 
@@ -2268,6 +2284,10 @@ static void blitlist(blitent* l, int n, uint32_t* dst, int dw,
         if (y1 < cy1) y1 = cy1;
         if (x2 > cx2) x2 = cx2;
         if (y2 > cy2) y2 = cy2;
+        if (x1 < l[i].cx1) x1 = l[i].cx1; /* within its ancestors */
+        if (y1 < l[i].cy1) y1 = l[i].cy1;
+        if (x2 > l[i].cx2) x2 = l[i].cx2;
+        if (y2 > l[i].cy2) y2 = l[i].cy2;
         if (x2 > x1 && y2 > y1)
             for (y = y1; y < y2; y++)
                 memcpy(&dst[(size_t)y*dw+x1],
@@ -2341,7 +2361,8 @@ static void compose(pd_display* d, wltop* t)
     dmgulk(t);
     if (x2 <= x1 || y2 <= y1) { topulk(t); return; }
     TREERD(); /* the tree below, flattened, and its canvases taken */
-    n = flatten(win, 0, 0, list, 0);
+    n = flatten(win, 0, 0, 0, 0, ww, wh, list, 0);
+
     /* the locks in address order, the order every taker of several uses;
        the list itself stays in tree order, parents before children, which
        is the order the blit needs: sorted, a parent's canvas landed over
