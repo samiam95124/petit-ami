@@ -396,6 +396,25 @@ static void frametest(const string s)
    return is hit, then remove it. Used on the root window and then on the
    test window; the menu list ml must be built by the caller. */
 
+/* Fit the test window to its 80 by 25 buffer with the menu bar on or off.
+   The bar takes a row from the client, so a window sized for the buffer
+   alone shows scroll bars once the menu is up. The root is frameless and
+   follows the terminal, so it is left as it is. */
+
+static void menufit(FILE* w, int on)
+
+{
+
+    ami_long x, y;
+
+    if (w == stdout) return;
+    ami_winclient(w, 80, 25, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar) |
+                  (on? BIT(ami_wmmenu): 0));
+    ami_setsiz(w, x, y);
+
+}
+
 static void samplemenu(FILE* w)
 
 {
@@ -403,6 +422,7 @@ static void samplemenu(FILE* w)
     ami_evtrec er;
 
     ami_auto(w, ON);
+    menufit(w, TRUE); /* the client keeps the buffer under the menu */
     ami_menu(w, ml);
     ami_menuena(w, 3, OFF); /* disable "Walk" */
     ami_menusel(w, 5, ON); /* turn on "slow" */
@@ -448,6 +468,7 @@ static void samplemenu(FILE* w)
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     ami_menu(w, NULL);
+    menufit(w, FALSE); /* back to the window the buffer alone needs */
 
 }
 
@@ -481,6 +502,7 @@ static void stdmenutest(FILE* w)
                BIT(AMI_SMTILEHORIZ) | BIT(AMI_SMTILEVERT) | BIT(AMI_SMCASCADE) |
                BIT(AMI_SMCLOSEALL) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
                &lmp, lml);
+    menufit(w, TRUE); /* the client keeps the buffer under the menu */
     ami_menu(w, lmp);
     fprintf(w, "Standard menu appears above\n");
     fprintf(w, "Check our 'one', 'two', 'three' buttons are in the program\n");
@@ -528,6 +550,7 @@ static void stdmenutest(FILE* w)
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     ami_menu(w, NULL);
+    menufit(w, FALSE); /* back to the window the buffer alone needs */
 
 }
 
