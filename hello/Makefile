@@ -11,59 +11,21 @@
 #   LINK_TYPE=static     the archive ../lib/libami_<model>.a (the default)
 #   LINK_TYPE=dynamic    the shared library ../lib/petit_ami_<model>.so
 #
-# Either is given on the command line, as in
-#
-#   make MODEL=graph LINK_TYPE=dynamic
-#
-# or set here. The example uses only the include and lib directories of the
-# Petit-Ami tree, made by the build at the root, and in the dynamic form its
-# stdio header in libc. Build at the root first; after changing an option
-# here, make clean before making again.
-#
 MODEL ?= plain
 LINK_TYPE ?= static
 
-# a value outside the sets stops the make rather than building the wrong thing
-ifeq ($(filter $(MODEL),plain term graph),)
-    $(error MODEL is $(MODEL): it must be plain, term or graph)
-endif
-ifeq ($(filter $(LINK_TYPE),static dynamic),)
-    $(error LINK_TYPE is $(LINK_TYPE): it must be static or dynamic)
-endif
-
 #
-# Where Petit-Ami stands: AMIDIR, set by sourcing setpath at the root of the
-# Petit-Ami tree.
-#
-ifndef AMIDIR
-    $(error AMIDIR is not set: source setpath at the root of the Petit-Ami tree)
-endif
-
-#
-# The system libraries every model wants.
-#
-# libc is not named at all: the program takes the system one. The sound and
-# network parts of the library are drawn in only by a program that calls
-# them, so a program like this one that calls neither pays for neither. The
-# C++ binding is drawn in the same way, by a C++ program calling through
-# it, so no C++ runtime is named here: g++ supplies it for such a program.
+# Required libraries
 #
 LIBS = -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
 
 #
-# The system libraries the graphical model draws with. They depend on the
-# backend the graphical library was built with, which the root build
-# records in lib/graph_backend: wayland, x11 or fb.
+# The system libraries the graphical model draws with: those of the display
+# backend the graphical library was built with, wayland here. For x11 use
+# -lX11 -lXtst -lfreetype -lfontconfig, for fb -lfreetype -lfontconfig -lpng -lz
 #
-BACKLIBS_wayland = -lwayland-client -lwayland-cursor -lxkbcommon \
-                   -lfreetype -lfontconfig
-BACKLIBS_x11 = -lX11 -lXtst -lfreetype -lfontconfig
-BACKLIBS_fb = -lfreetype -lfontconfig -lpng -lz
-
-GRAPHLIBS = $(BACKLIBS_$(shell cat $(AMIDIR)/lib/graph_backend 2> /dev/null))
-
 ifeq ($(MODEL),graph)
-    LIBS += $(GRAPHLIBS)
+    LIBS += -lwayland-client -lwayland-cursor -lxkbcommon -lfreetype -lfontconfig
 endif
 
 #

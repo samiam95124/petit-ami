@@ -59,8 +59,8 @@ How the makefile is put together:
   program that calls them, and so is the C++ binding: a C program names no
   C++ runtime, and a C++ program gets it from g++.
 * The graphical model also wants the libraries of the display backend the
-  graphical library was built with. The root build records that in
-  lib/graph_backend (wayland, x11 or fb), and the makefile reads it to choose.
+  graphical library was built with. The makefile names wayland's, and gives
+  the x11 and fb sets to put in their place.
 * The terminal and graphical models take over standard output as the program
   starts, so even a program that calls nothing in them wants them linked. A
   library is drawn in only by the calls made to it, so the makefile asks the
