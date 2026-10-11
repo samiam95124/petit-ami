@@ -15,9 +15,10 @@
 #
 #   make MODEL=graph LINK_TYPE=dynamic
 #
-# or set here. Changing them rebuilds the program. The example uses only
-# the include and lib directories of the Petit-Ami tree, and in the dynamic
-# form its stdio header in libc.
+# or set here. The example uses only the include and lib directories of the
+# Petit-Ami tree, made by the build at the root, and in the dynamic form its
+# stdio header in libc. Build at the root first; after changing an option
+# here, make clean before making again.
 #
 MODEL ?= plain
 LINK_TYPE ?= static
@@ -60,7 +61,6 @@ BACKLIBS_wayland = -lwayland-client -lwayland-cursor -lxkbcommon \
 BACKLIBS_x11 = -lX11 -lXtst -lfreetype -lfontconfig
 BACKLIBS_fb = -lfreetype -lfontconfig -lpng -lz
 
-# read when the link runs, after the library is made
 GRAPHLIBS = $(BACKLIBS_$(shell cat $(ROOT)/lib/graph_backend 2> /dev/null))
 
 ifeq ($(MODEL),graph)
@@ -106,28 +106,8 @@ else
     AMICFLAGS = -I$(ROOT)/libc -DSTDIO_BYPASS
 endif
 
-hello: hello.c Makefile options $(AMILIB)
+hello: hello.c $(AMILIB)
 	gcc -g3 -I$(ROOT)/include $(AMICFLAGS) hello.c $(KEEP) $(AMILINK) $(LIBS) -o hello
 
-#
-# The options the last build used. The file changes only when they do, so
-# a build with other options remakes the program and one with the same
-# leaves it alone.
-#
-options: FORCE
-	@[ "`cat options 2> /dev/null`" = "$(MODEL) $(LINK_TYPE)" ] || \
-	    echo $(MODEL) $(LINK_TYPE) > options
-
-FORCE:
-
-#
-# What the example borrows from the main build, made there when the tree has
-# not been built yet. The link type goes along, since the root compiles
-# its objects for one or the other: a tree built in one form must be
-# cleaned at the root before it is built in the other.
-#
-$(ROOT)/lib/%:
-	$(MAKE) -C $(ROOT) lib/$* LINK_TYPE=$(LINK_TYPE)
-
 clean:
-	rm -f hello options
+	rm -f hello

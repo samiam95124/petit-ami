@@ -22,8 +22,9 @@ MODEL is plain, term or graph, and LINK_TYPE is static or dynamic. Either left
 out takes its default, MODEL=plain and LINK_TYPE=static, so a bare "make" is the
 first line.
 
-Changing either and making again rebuilds the program; the file "options" holds
-the choice the last build used. The models look like this to the program:
+The program does not remember the options it was built with, so after changing
+either, make clean before making again. The models look like this to the
+program:
 
 * plain: no terminal handler. The system, sound and network interfaces are
   available, and output goes to standard output as it would for any program.
@@ -40,13 +41,10 @@ The dependent libraries must be present in your system, OpenSSL, ALSA,
 fluidsynth, and for the graphical model the libraries of the display it was
 built for. The Petit-Ami library this example links is made by the build at
 the root: ../lib/libami_<model>.a for the static form, ../lib/petit_ami_<model>.so
-for the dynamic form. The makefile here makes it there if it is not already
-made, so a plain "make" in this directory works in a tree that has never been
-built.
-
-The root compiles its objects for one link type or the other, so a tree built
-in one form must be cleaned at the root (make clean there) before this example
-is built in the other.
+for the dynamic form. Build the root first, with the same LINK_TYPE: it
+compiles its objects for one link type or the other, so a tree built in one
+form must be cleaned at the root (make clean there) before it is built in the
+other.
 
 The makefile finds the root from its own path rather than from the directory
 make was started in, so it builds the same however it is reached, and the
