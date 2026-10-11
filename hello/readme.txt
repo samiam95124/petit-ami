@@ -46,9 +46,11 @@ compiles its objects for one link type or the other, so a tree built in one
 form must be cleaned at the root (make clean there) before it is built in the
 other.
 
-Make from this directory: the makefile reaches the root as "..". The program
-it makes runs from any directory; in the dynamic form it carries the full path
-of the lib directory, so the shared library is found wherever it runs from.
+The makefile finds the Petit-Ami tree through AMIDIR, which sourcing setpath at
+the root of the tree sets, so the example builds wherever it is placed. The
+program it makes runs from any directory; in the dynamic form it carries the
+path of the lib directory, so the shared library is found wherever it runs
+from.
 
 How the makefile is put together:
 

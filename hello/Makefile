@@ -32,9 +32,12 @@ ifeq ($(filter $(LINK_TYPE),static dynamic),)
 endif
 
 #
-# Where Petit-Ami stands: the directory above this one. Make from here.
+# Where Petit-Ami stands: AMIDIR, set by sourcing setpath at the root of the
+# Petit-Ami tree.
 #
-AMI = ..
+ifndef AMIDIR
+    $(error AMIDIR is not set: source setpath at the root of the Petit-Ami tree)
+endif
 
 #
 # The system libraries every model wants.
@@ -57,7 +60,7 @@ BACKLIBS_wayland = -lwayland-client -lwayland-cursor -lxkbcommon \
 BACKLIBS_x11 = -lX11 -lXtst -lfreetype -lfontconfig
 BACKLIBS_fb = -lfreetype -lfontconfig -lpng -lz
 
-GRAPHLIBS = $(BACKLIBS_$(shell cat $(AMI)/lib/graph_backend 2> /dev/null))
+GRAPHLIBS = $(BACKLIBS_$(shell cat $(AMIDIR)/lib/graph_backend 2> /dev/null))
 
 ifeq ($(MODEL),graph)
     LIBS += $(GRAPHLIBS)
@@ -93,17 +96,17 @@ endif
 # stdio header (../libc/stdio.h), which gives printf that name.
 #
 ifeq ($(LINK_TYPE),static)
-    AMILIB = $(AMI)/lib/libami_$(MODEL).a
+    AMILIB = $(AMIDIR)/lib/libami_$(MODEL).a
     AMILINK = $(AMILIB)
     AMICFLAGS =
 else
-    AMILIB = $(AMI)/lib/sound.o $(AMI)/lib/petit_ami_$(MODEL).so
-    AMILINK = $(AMILIB) -Wl,-rpath,$(abspath $(AMI)/lib)
-    AMICFLAGS = -I$(AMI)/libc -DSTDIO_BYPASS
+    AMILIB = $(AMIDIR)/lib/sound.o $(AMIDIR)/lib/petit_ami_$(MODEL).so
+    AMILINK = $(AMILIB) -Wl,-rpath,$(AMIDIR)/lib
+    AMICFLAGS = -I$(AMIDIR)/libc -DSTDIO_BYPASS
 endif
 
 hello: hello.c $(AMILIB)
-	gcc -g3 -I$(AMI)/include $(AMICFLAGS) hello.c $(KEEP) $(AMILINK) $(LIBS) -o hello
+	gcc -g3 -I$(AMIDIR)/include $(AMICFLAGS) hello.c $(KEEP) $(AMILINK) $(LIBS) -o hello
 
 clean:
 	rm -f hello
