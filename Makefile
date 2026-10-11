@@ -532,7 +532,7 @@ else
     CLIBS += stub/keeper.o lib/petit_ami_term.so
 endif
 
-# the C++ wrapper is already packaged inside the library (term_core.o)
+# the C++ binding is in the library, members a C++ program's calls pull
 CLIBSCPP = $(CLIBS)
 
 #
@@ -645,14 +645,15 @@ else
 
 	# The archives carry Petit-Ami's code; the system libraries stay
 	# shared. The sound and network tails cost nothing when unused:
-	# with the members not pulled, as-needed linking drops them.
-	# stdc++: the plain core carries the sound C++ wrapper
-	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
-	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
-	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ $(GBACKLIBS) \
+	# with the members not pulled, as-needed linking drops them. The
+	# C++ runtime is not named: the C++ binding members are pulled by
+	# C++ programs alone, and g++ links the runtime for those.
+	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	GLIBS += -lasound -lfluidsynth -lssl -lcrypto $(GBACKLIBS) \
 	         -lm -lpthread
 	# the remote client carries the sound API itself: no sound member
-	GLIBSR += -lssl -lcrypto -lstdc++ -lm -lpthread
+	GLIBSR += -lssl -lcrypto -lm -lpthread
 
     else
 
@@ -664,7 +665,7 @@ else
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 	GLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto $(GBACKLIBS)
-	GLIBSR += -lssl -lcrypto -lstdc++ -lm -lpthread
+	GLIBSR += -lssl -lcrypto -lm -lpthread
 	PLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	GLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
@@ -1257,8 +1258,9 @@ lib/petit_ami_graphr.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/n
 # by graph_client, the display on a graph_server). Other configurations
 # are the user's to assemble from the .o components here.
 #
-# Each archive holds three members (graphr two: the client carries the
-# sound API itself):
+# Each archive holds the model's core, the sound and network tails
+# (graphr has no sound tail: the client carries the sound API itself) and
+# the C++ binding, a member per class:
 #
 #   <model>_core.o  the model's presentation, services, stdio glue and
 #                   configuration, partial-linked (ld -r) into one member
@@ -1274,11 +1276,15 @@ lib/petit_ami_graphr.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/n
 #                   without sound carry neither.
 #   network.o       the network module, pulled only when used, and with
 #                   it the shared OpenSSL dependency.
+#   cpp_<class>.o   the C++ binding for that class, pulled by a C++
+#                   program calling through the class, and never by a C
+#                   program: a C program asks for no C++ runtime. A C++
+#                   program is linked by g++, which supplies it.
 #
 # So programs get what they use, as always. A program link line is:
 #
 #     gcc prog.c stub/keeper.o -Llib -lami_term \
-#         -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+#         -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
 #
 # with the trailing libraries dropped by as-needed linking when the
 # member that wants them is not pulled.
@@ -1292,15 +1298,13 @@ lib/sound.o: linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 # the model cores
 CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o $(CRASHDUMP_OBJ)
 
-lib/plain_core.o: $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
-	ld -r -o lib/plain_core.o $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
+lib/plain_core.o: $(CORE_COMMON)
+	ld -r -o lib/plain_core.o $(CORE_COMMON)
 
 lib/term_core.o: $(CORE_COMMON) linux/terminal.o portable/windowc.o \
-	portable/txtterminal.o \
-	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+	portable/txtterminal.o linux/system_event.o
 	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o portable/windowc.o \
-	    portable/txtterminal.o \
-	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+	    portable/txtterminal.o linux/system_event.o
 
 # the backend the graphical library holds: the record changes only when
 # the choice does, and the libraries follow it
@@ -1311,35 +1315,44 @@ lib/graph_backend: FORCE
 FORCE:
 
 lib/graph_core.o: lib/graph_backend $(CORE_COMMON) $(GRAPHOBJS) linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
-	cpp/graphics.o
+	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o
 	ld -r -o lib/graph_core.o $(CORE_COMMON) $(GRAPHOBJS) \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
-	    portable/pdfgraph.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	    portable/pdfgraph.o
 
-lib/graphr_core.o: $(CORE_COMMON) portable/graph_client.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
-	ld -r -o lib/graphr_core.o $(CORE_COMMON) portable/graph_client.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+lib/graphr_core.o: $(CORE_COMMON) portable/graph_client.o
+	ld -r -o lib/graphr_core.o $(CORE_COMMON) portable/graph_client.o
+
+# The C++ binding, one member per class, under names of their own: an
+# archive holds members by base name, and sound.o is the sound module.
+# The graphical classes include the terminal one, and every model has
+# the sound, services and network classes.
+lib/cpp_%.o: cpp/%.o
+	cp cpp/$*.o lib/cpp_$*.o
+
+CPPWRAP_PLAIN = lib/cpp_sound.o lib/cpp_services.o lib/cpp_network.o
+CPPWRAP_TERM = $(CPPWRAP_PLAIN) lib/cpp_terminal.o
+CPPWRAP_GRAPH = $(CPPWRAP_TERM) lib/cpp_graphics.o
 
 # the model archives
-lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
+lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o $(CPPWRAP_PLAIN)
 	rm -f lib/libami_plain.a
-	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o
+	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o \
+	    $(CPPWRAP_PLAIN)
 
-lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o
+lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o $(CPPWRAP_TERM)
 	rm -f lib/libami_term.a
-	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o
+	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o \
+	    $(CPPWRAP_TERM)
 
-lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
+lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o $(CPPWRAP_GRAPH)
 	rm -f lib/libami_graph.a
-	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o
+	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o \
+	    $(CPPWRAP_GRAPH)
 
-lib/libami_graphr.a: lib/graphr_core.o linux/network.o
+lib/libami_graphr.a: lib/graphr_core.o linux/network.o $(CPPWRAP_GRAPH)
 	rm -f lib/libami_graphr.a
-	ar rcs lib/libami_graphr.a lib/graphr_core.o linux/network.o
+	ar rcs lib/libami_graphr.a lib/graphr_core.o linux/network.o $(CPPWRAP_GRAPH)
 
 endif
 
@@ -2529,18 +2542,16 @@ FBMGRAPH = linux/framebuffer/graphics.o portable/windowg.o
 
 lib/graphfbm_core.o: $(CORE_COMMON) $(FBMGRAPH) linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
-	portable/pdfgraph.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	portable/pdfgraph.o
 	ld -r -o lib/graphfbm_core.o $(CORE_COMMON) $(FBMGRAPH) \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
-	    portable/plasma_widgets.o portable/pdfgraph.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	    portable/plasma_widgets.o portable/pdfgraph.o
 
 # The stack without the device layer is a component set the test
 # editions link directly, with the frame buffer device or its mock beside
 # it; GRAPHICS_BACKEND=fb makes the graphical library of the whole stack
 GLIBSFBM = stub/keeper.o lib/graphfbm_core.o lib/sound.o linux/network.o
-FBMLIBS = -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lfreetype \
+FBMLIBS = -lasound -lfluidsynth -lssl -lcrypto -lfreetype \
 	-lfontconfig -lm -lpthread -lpng -lz
 
 # real console editions

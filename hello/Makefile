@@ -49,13 +49,13 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))..)
 #
 # The system libraries every model wants.
 #
-# The C++ runtime is here because the Petit-Ami core carries the C++ binding
-# with it, and libc is not named at all: the program takes the system one.
-# The sound and network parts of the library are drawn in only by a program
-# that calls them, so a program like this one that calls neither pays for
-# neither.
+# libc is not named at all: the program takes the system one. The sound and
+# network parts of the library are drawn in only by a program that calls
+# them, so a program like this one that calls neither pays for neither. The
+# C++ binding is drawn in the same way, by a C++ program calling through
+# it, so no C++ runtime is named here: g++ supplies it for such a program.
 #
-LIBS = -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+LIBS = -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
 
 #
 # The system libraries the graphical model draws with. They depend on the

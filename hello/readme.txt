@@ -56,10 +56,10 @@ from.
 
 How the makefile is put together:
 
-* The system libraries every model wants come first: sound, SSL, the C++
-  runtime (the Petit-Ami core carries the C++ binding), math and threads. The
-  sound and network parts of the library are drawn in only by a program that
-  calls them.
+* The system libraries every model wants come first: sound, SSL, math and
+  threads. The sound and network parts of the library are drawn in only by a
+  program that calls them, and so is the C++ binding: a C program names no
+  C++ runtime, and a C++ program gets it from g++.
 * The graphical model also wants the libraries of the display backend the
   graphical library was built with. The root build records that in
   lib/graph_backend (wayland, x11 or fb), and the makefile reads it to choose.
