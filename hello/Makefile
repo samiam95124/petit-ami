@@ -21,11 +21,16 @@ LIBS = -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
 
 #
 # The system libraries the graphical model draws with: those of the display
-# backend the graphical library was built with, wayland here. For x11 use
-# -lX11 -lXtst -lfreetype -lfontconfig, for fb -lfreetype -lfontconfig -lpng -lz
+# backend the graphical library was built with. The root build chooses
+# wayland when a wayland session is up and x11 otherwise, and so does this.
+# A library built for the frame buffer wants -lfreetype -lfontconfig -lpng -lz
 #
 ifeq ($(MODEL),graph)
-    LIBS += -lwayland-client -lwayland-cursor -lxkbcommon -lfreetype -lfontconfig
+    ifneq ($(WAYLAND_DISPLAY),)
+        LIBS += -lwayland-client -lwayland-cursor -lxkbcommon -lfreetype -lfontconfig
+    else
+        LIBS += -lX11 -lXtst -lfreetype -lfontconfig
+    endif
 endif
 
 #
