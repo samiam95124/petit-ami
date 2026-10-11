@@ -897,7 +897,8 @@ int main(int argc, char* argv[])
     ami_auto(tw, OFF);
     fprintf(tw, rooted? "Position this window over the reference window\n":
                 "Position window for front/back test\n");
-    fprintf(tw, "Then hit space to flip font/back status, or return to stop\n");
+    fprintf(tw, "Then hit space to flip front/back status, or return to stop\n");
+    fprintf(tw, "(Note system may not implement front/back ordering)\n");
     fb = FALSE; /* clear front/back status */
     ami_font(tw, AMI_FONT_SIGN);
     ami_fontsiz(tw, ys);
