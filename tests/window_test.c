@@ -499,7 +499,13 @@ static void setsize(FILE* f, ami_long x, ami_long y)
                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ox -= x;
     oy -= y;
-    ami_sizbuf(f, x-ox, y-oy); /* the buffer is the client */
+    x -= ox; /* the client that remains */
+    y -= oy;
+    /* A window shrunk below its decorations has no client. The buffer still
+       needs a cell. */
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    ami_sizbuf(f, x, y); /* the buffer is the client */
 
 }
 
@@ -516,7 +522,11 @@ static void setsizeg(FILE* f, ami_long x, ami_long y)
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ox -= x;
     oy -= y;
-    ami_sizbufg(f, x-ox, y-oy); /* the buffer is the client */
+    x -= ox; /* the client that remains */
+    y -= oy;
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    ami_sizbufg(f, x, y); /* the buffer is the client */
 
 }
 
@@ -743,7 +753,7 @@ int main(int argc, char* argv[])
     oy = ami_maxyg(tw);
     for (x = 20; x <= 80; x++) {
 
-        ami_setsiz(tw, x, 25);
+        setsize(tw, x, 25); /* the buffer follows the client */
         ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, x, SIZTOLC) || SIZOFF(y2, 25, SIZTOLC)) {
 
@@ -768,7 +778,7 @@ int main(int argc, char* argv[])
     waitnext();
     for (y = 10; y <= 50; y++) {
 
-        ami_setsiz(tw, 80, y);
+        setsize(tw, 80, y);
         ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, 80, SIZTOLC) || SIZOFF(y2, y, SIZTOLC)) {
 
@@ -792,6 +802,7 @@ int main(int argc, char* argv[])
     fprintf(tw, "\n");
     fprintf(tw, "Complete\n");
     waitnext();
+    ami_sizbufg(tw, ox, oy); /* the buffer back to its original size */
     ami_winclientg(tw, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(tw, ox, oy);
 
@@ -809,7 +820,7 @@ int main(int argc, char* argv[])
     ami_getsizg(tw, &mxs, &mys);
     for (x = xs; x <= xs*4 && x <= mxs; x += xs/64) {
 
-        ami_setsizg(tw, x, ys);
+        setsizeg(tw, x, ys); /* the buffer follows the client */
         ami_getsizg(tw, &x2, &y2);
         if (SIZOFF(x2, x, SIZTOLG) || SIZOFF(y2, ys, SIZTOLG)) {
 
@@ -835,7 +846,7 @@ int main(int argc, char* argv[])
     waitnext();
     for (y = ys; y <= ys*4 && y <= mys; y += ys/64) {
 
-        ami_setsizg(tw, xs, y);
+        setsizeg(tw, xs, y);
         ami_getsizg(tw, &x2, &y2);
         if (SIZOFF(x2, xs, SIZTOLG) || SIZOFF(y2, y, SIZTOLG)) {
 
@@ -859,6 +870,7 @@ int main(int argc, char* argv[])
     fprintf(tw, "\n");
     fprintf(tw, "Complete\n");
     waitnext();
+    ami_sizbufg(tw, ox, oy); /* the buffer back to its original size */
     ami_winclientg(tw, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(tw, ox, oy);
 
