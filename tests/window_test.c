@@ -337,6 +337,25 @@ static void prtceng(ami_long y, const char* s)
 
 }
 
+/* Paint the front/back sign in a window: the last state in white, over
+   itself, then the new state in black, both centered. */
+
+static void fbsign(FILE* w, int front)
+
+{
+
+    ami_long y;
+
+    y = ami_maxyg(w)/2-ami_chrsizy(w)/2;
+    ami_fcolor(w, ami_white);
+    ami_cursorg(w, ami_maxxg(w)/2-ami_strsiz(w, front? "Back": "Front")/2, y);
+    fprintf(w, "%s", front? "Back": "Front");
+    ami_fcolor(w, ami_black);
+    ami_cursorg(w, ami_maxxg(w)/2-ami_strsiz(w, front? "Front": "Back")/2, y);
+    fprintf(w, "%s", front? "Front": "Back");
+
+}
+
 /* wait time in 100 microseconds */
 
 static void waittime(int t)
@@ -499,7 +518,13 @@ static void setsize(FILE* f, ami_long x, ami_long y)
                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ox -= x;
     oy -= y;
-    ami_sizbuf(f, x-ox, y-oy); /* the buffer is the client */
+    x -= ox; /* the client that remains */
+    y -= oy;
+    /* A window shrunk below its decorations has no client. The buffer still
+       needs a cell. */
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    ami_sizbuf(f, x, y); /* the buffer is the client */
 
 }
 
@@ -516,7 +541,11 @@ static void setsizeg(FILE* f, ami_long x, ami_long y)
                    BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ox -= x;
     oy -= y;
-    ami_sizbufg(f, x-ox, y-oy); /* the buffer is the client */
+    x -= ox; /* the client that remains */
+    y -= oy;
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    ami_sizbufg(f, x, y); /* the buffer is the client */
 
 }
 
@@ -743,7 +772,7 @@ int main(int argc, char* argv[])
     oy = ami_maxyg(tw);
     for (x = 20; x <= 80; x++) {
 
-        ami_setsiz(tw, x, 25);
+        setsize(tw, x, 25); /* the buffer follows the client */
         ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, x, SIZTOLC) || SIZOFF(y2, 25, SIZTOLC)) {
 
@@ -768,7 +797,7 @@ int main(int argc, char* argv[])
     waitnext();
     for (y = 10; y <= 50; y++) {
 
-        ami_setsiz(tw, 80, y);
+        setsize(tw, 80, y);
         ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, 80, SIZTOLC) || SIZOFF(y2, y, SIZTOLC)) {
 
@@ -792,6 +821,7 @@ int main(int argc, char* argv[])
     fprintf(tw, "\n");
     fprintf(tw, "Complete\n");
     waitnext();
+    ami_sizbufg(tw, ox, oy); /* the buffer back to its original size */
     ami_winclientg(tw, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(tw, ox, oy);
 
@@ -809,7 +839,7 @@ int main(int argc, char* argv[])
     ami_getsizg(tw, &mxs, &mys);
     for (x = xs; x <= xs*4 && x <= mxs; x += xs/64) {
 
-        ami_setsizg(tw, x, ys);
+        setsizeg(tw, x, ys); /* the buffer follows the client */
         ami_getsizg(tw, &x2, &y2);
         if (SIZOFF(x2, x, SIZTOLG) || SIZOFF(y2, ys, SIZTOLG)) {
 
@@ -835,7 +865,7 @@ int main(int argc, char* argv[])
     waitnext();
     for (y = ys; y <= ys*4 && y <= mys; y += ys/64) {
 
-        ami_setsizg(tw, xs, y);
+        setsizeg(tw, xs, y);
         ami_getsizg(tw, &x2, &y2);
         if (SIZOFF(x2, xs, SIZTOLG) || SIZOFF(y2, y, SIZTOLG)) {
 
@@ -859,6 +889,7 @@ int main(int argc, char* argv[])
     fprintf(tw, "\n");
     fprintf(tw, "Complete\n");
     waitnext();
+    ami_sizbufg(tw, ox, oy); /* the buffer back to its original size */
     ami_winclientg(tw, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsizg(tw, ox, oy);
 
@@ -885,7 +916,8 @@ int main(int argc, char* argv[])
     ami_auto(tw, OFF);
     fprintf(tw, rooted? "Position this window over the reference window\n":
                 "Position window for front/back test\n");
-    fprintf(tw, "Then hit space to flip font/back status, or return to stop\n");
+    fprintf(tw, "Then hit space to flip front/back status, or return to stop\n");
+    fprintf(tw, "(Note system may not implement front/back ordering)\n");
     fb = FALSE; /* clear front/back status */
     ami_font(tw, AMI_FONT_SIGN);
     ami_fontsiz(tw, ys);
@@ -923,6 +955,57 @@ int main(int argc, char* argv[])
     ami_fontsiz(tw, cs);
     ami_font(tw, AMI_FONT_TERM);
     ami_auto(tw, ON);
+
+    /* ********************** Front/back test child window ******************** */
+
+    /* The same test on a child window, with a smaller child over it to flip
+       against. A desktop may not let a program order its own windows, but
+       the children are Ami's to order. */
+    fputc('\f', tw);
+    fprintf(tw, "Front/back test on a child window\n");
+    fprintf(tw, "Hit space to flip the large window front/back, or return to stop\n");
+    ami_openwin(&stdin, &win2, tw, wid2);
+    ami_curvis(win2, OFF);
+    ami_setpos(win2, 3, 4);
+    setsize(win2, 50, 15);
+    ami_auto(win2, OFF);
+    ami_font(win2, AMI_FONT_SIGN);
+    ami_fontsiz(win2, ami_maxyg(win2)/3);
+    /* the reference window, over the large one's lower right corner */
+    ami_openwin(&stdin, &win3, tw, wid3);
+    ami_curvis(win3, OFF);
+    ami_setpos(win3, 38, 13);
+    setsize(win3, 24, 8);
+    ami_bcolor(win3, ami_yellow);
+    putc('\f', win3);
+    fprintf(win3, "reference window\n");
+    fb = FALSE; /* the large window starts at the back */
+    fbsign(win2, fb);
+    frmmark(FALSE); /* the reference window over the large one */
+    if (autorun) {
+
+        /* an automatic run flips once each way: the large window in front
+           of the reference window, then behind it again */
+        ami_front(win2); fbsign(win2, TRUE); frmstep();
+        ami_back(win2); fbsign(win2, FALSE); frmstep();
+
+    }
+    do {
+
+        nextevt(&er);
+        if (er.etype == ami_etchar) if (er.echar == ' ') { /* flip front/back */
+
+            fb = !fb;
+            if (fb) ami_front(win2); else ami_back(win2);
+            fbsign(win2, fb);
+
+        }
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != ami_etenter);
+    fclose(win2);
+    fclose(win3);
+    frmnext();
 
     /* ************************* Frame controls test buffered ****************** */
 
