@@ -1,30 +1,83 @@
-******************** Plain output hello world example compile *******************
+********************* Hello world example compile for Petit-Ami *******************
 
 Purpose:
 
 This directory shows a minimal compile of the standard "hello, world" program
-using plain output (not terminal or graphical enabled). The main purpose of this
-is to give you a typical environment for your program, without having to account
-for the full Petit-Ami environment.
+against Petit-Ami. The main purpose of this is to give you a typical
+environment for your program, without having to account for the full Petit-Ami
+build. The example uses only the include and lib directories of the tree, and
+in the dynamic form the Petit-Ami stdio header in libc.
 
-Prerequistes:
+The same program builds on any of the three Petit-Ami models, in either form
+of the library, chosen on the make command line:
 
-The dependent libraries must be present in your system, OpenSSL, etc. The
-Petit-Ami library this example links, ../lib/libami_plain.a, is made by the
-build at the root; the makefile here makes it there if it is not already made,
-so a plain "make" in this directory works in a tree that has never been built.
+    make                                 plain output, the static archive
+    make MODEL=plain LINK_TYPE=static    plain output, the static archive
+    make MODEL=plain LINK_TYPE=dynamic   plain output, the shared library
+    make MODEL=term  LINK_TYPE=static    the terminal model, the static archive
+    make MODEL=term  LINK_TYPE=dynamic   the terminal model, the shared library
+    make MODEL=graph LINK_TYPE=static    the graphical model, the static archive
+    make MODEL=graph LINK_TYPE=dynamic   the graphical model, the shared library
 
-The makefile finds the root from its own path rather than from the directory
-make was started in, so it builds the same however it is reached, and the
-program it makes runs from any directory.
+MODEL is plain, term or graph, and LINK_TYPE is static or dynamic. Either left
+out takes its default, MODEL=plain and LINK_TYPE=static, so a bare "make" is the
+first line.
 
-Why make a "plain" output version?
+The program does not remember the options it was built with, so after changing
+either, make clean before making again. The models look like this to the
+program:
 
-There are several components of the Petit-Ami system that don't rely on terminal
-or graphical output, including:
+* plain: no terminal handler. The system, sound and network interfaces are
+  available, and output goes to standard output as it would for any program.
+  There are several components of Petit-Ami that don't rely on terminal or
+  graphical output, so there is good reason to compile plain programs.
+* term: the terminal model takes over the console as the program starts, and
+  "hello, world" appears on a cleared screen.
+* graph: the graphical model opens a window as the program starts, and
+  "hello, world" appears in it. The window stays until it is closed.
 
-* The system interface.
-* The sound interface.
-* The networking interface.
+Prerequisites:
 
-Thus there is good reason you might want to compile plain interface programs.
+The dependent libraries must be present in your system, OpenSSL, ALSA,
+fluidsynth, and for the graphical model the libraries of the display it was
+built for. The Petit-Ami library this example links is made by the build at
+the root: ../lib/libami_<model>.a for the static form, ../lib/petit_ami_<model>.so
+for the dynamic form. Build the root first, with the same LINK_TYPE: it
+compiles its objects for one link type or the other, so a tree built in one
+form must be cleaned at the root (make clean there) before it is built in the
+other.
+
+The makefile finds the Petit-Ami tree through AMIDIR, which sourcing setpath at
+the root of the tree sets, so the example builds wherever it is placed. The
+program it makes runs from any directory; in the dynamic form it carries the
+path of the lib directory, so the shared library is found wherever it runs
+from.
+
+How the makefile is put together:
+
+* The system libraries every model wants come first: sound, SSL, math and
+  threads. The sound and network parts of the library are drawn in only by a
+  program that calls them, and so is the C++ binding: a C program names no
+  C++ runtime, and a C++ program gets it from g++.
+* The graphical model also wants the libraries of the display backend the
+  graphical library was built with. The makefile chooses as the root build
+  does, wayland when a wayland session is up and x11 otherwise. A library
+  built for the frame buffer wants -lfreetype -lfontconfig -lpng -lz instead.
+* The terminal and graphical models take over standard output as the program
+  starts, so even a program that calls nothing in them wants them linked. A
+  library is drawn in only by the calls made to it, so the makefile asks the
+  linker for one of the model's functions by name (-u ami_maxx). The plain
+  model needs nothing of the kind.
+* Sound cannot live in a shared library (an ALSA bug), so the dynamic form
+  links ../lib/sound.o directly beside the shared library. The sound object
+  stands before the shared library on the line: the linker keeps a shared
+  library only for references it has already seen, and the sound object's
+  are the first.
+* The two forms meet the program's printf differently. The archive carries
+  Petit-Ami's stdio under the standard names, so the program compiles against
+  the system stdio.h and its printf lands in the model when it is linked. The
+  shared library keeps Petit-Ami's stdio under its own names beside the
+  system one, so the dynamic form compiles the program against Petit-Ami's
+  stdio header, ../libc/stdio.h, with STDIO_BYPASS defined, which gives
+  printf that name. Without it the program's output goes to the system
+  stdout and never reaches the terminal or the window.

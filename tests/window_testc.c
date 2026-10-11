@@ -396,6 +396,25 @@ static void frametest(const string s)
    return is hit, then remove it. Used on the root window and then on the
    test window; the menu list ml must be built by the caller. */
 
+/* Fit the test window to its 80 by 25 buffer with the menu bar on or off.
+   The bar takes a row from the client, so a window sized for the buffer
+   alone shows scroll bars once the menu is up. The root is frameless and
+   follows the terminal, so it is left as it is. */
+
+static void menufit(FILE* w, int on)
+
+{
+
+    ami_long x, y;
+
+    if (w == stdout) return;
+    ami_winclient(w, 80, 25, &x, &y,
+                  BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar) |
+                  (on? BIT(ami_wmmenu): 0));
+    ami_setsiz(w, x, y);
+
+}
+
 static void samplemenu(FILE* w)
 
 {
@@ -403,6 +422,7 @@ static void samplemenu(FILE* w)
     ami_evtrec er;
 
     ami_auto(w, ON);
+    menufit(w, TRUE); /* the client keeps the buffer under the menu */
     ami_menu(w, ml);
     ami_menuena(w, 3, OFF); /* disable "Walk" */
     ami_menusel(w, 5, ON); /* turn on "slow" */
@@ -448,6 +468,7 @@ static void samplemenu(FILE* w)
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     ami_menu(w, NULL);
+    menufit(w, FALSE); /* back to the window the buffer alone needs */
 
 }
 
@@ -481,6 +502,7 @@ static void stdmenutest(FILE* w)
                BIT(AMI_SMTILEHORIZ) | BIT(AMI_SMTILEVERT) | BIT(AMI_SMCASCADE) |
                BIT(AMI_SMCLOSEALL) | BIT(AMI_SMHELPTOPIC) | BIT(AMI_SMABOUT),
                &lmp, lml);
+    menufit(w, TRUE); /* the client keeps the buffer under the menu */
     ami_menu(w, lmp);
     fprintf(w, "Standard menu appears above\n");
     fprintf(w, "Check our 'one', 'two', 'three' buttons are in the program\n");
@@ -528,6 +550,7 @@ static void stdmenutest(FILE* w)
 
     } while (er.etype != ami_etenter && er.etype != ami_etterm);
     ami_menu(w, NULL);
+    menufit(w, FALSE); /* back to the window the buffer alone needs */
 
 }
 
@@ -589,7 +612,15 @@ static void setsize(FILE* f, ami_long x, ami_long y)
                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ox -= x;
     oy -= y;
-    ami_sizbuf(f, x-ox, y-oy); /* the buffer is the client */
+    x -= ox; /* the client that remains */
+    y -= oy;
+    /* A window shrunk below its decorations, as when the terminal is
+       dragged down below the stacking tests' children, has no client at
+       all. The buffer still needs a cell: a buffer of no size is an
+       error, not a window with nothing to show. */
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    ami_sizbuf(f, x, y); /* the buffer is the client */
 
 }
 
@@ -742,8 +773,7 @@ static void childstacktest(FILE* par)
 
         ami_curvis(w, OFF);
         ami_setpos(w, 5+10*i, 6+3*i);
-        ami_sizbuf(w, 20, 10);
-        ami_setsiz(w, 20, 10);
+        setsize(w, 20, 10); /* the buffer is the client */
 
     }
     ami_bcolor(win2, ami_cyan);
@@ -811,9 +841,13 @@ static void childstackrsz(FILE* par, ami_long parid, int variant)
 
         ami_curvis(w, OFF);
         ami_setpos(w, xs*i, ys*i);
-        if (variant == 1) ami_sizbuf(w, mx-xs*4, my-ys*4);
-        else ami_sizbuf(w, 19, 1); /* the label line; the rest is fill */
-        ami_setsiz(w, mx-xs*4, my-ys*4);
+        if (variant == 1) setsize(w, mx-xs*4, my-ys*4); /* buffer is client */
+        else {
+
+            ami_sizbuf(w, 19, 1); /* the label line; the rest is fill */
+            ami_setsiz(w, mx-xs*4, my-ys*4);
+
+        }
 
     }
     ami_bcolor(win2, ami_cyan);
@@ -843,9 +877,20 @@ static void childstackrsz(FILE* par, ami_long parid, int variant)
                 /* re-fit the children to the new parent size */
                 mx = ami_maxx(par);
                 my = ami_maxy(par);
-                ami_setsiz(win2, mx-xs*4, my-ys*4);
-                ami_setsiz(win3, mx-xs*4, my-ys*4);
-                ami_setsiz(win4, mx-xs*4, my-ys*4);
+                if (variant == 1) {
+
+                    /* the buffers follow the clients */
+                    setsize(win2, mx-xs*4, my-ys*4);
+                    setsize(win3, mx-xs*4, my-ys*4);
+                    setsize(win4, mx-xs*4, my-ys*4);
+
+                } else {
+
+                    ami_setsiz(win2, mx-xs*4, my-ys*4);
+                    ami_setsiz(win3, mx-xs*4, my-ys*4);
+                    ami_setsiz(win4, mx-xs*4, my-ys*4);
+
+                }
 
             }
 
@@ -1077,7 +1122,7 @@ int main(int argc, char* argv[])
     oy = ami_maxy(tw);
     for (x = 20; x <= 80; x++) {
 
-        ami_setsiz(tw, x, 25);
+        setsize(tw, x, 25); /* the buffer follows the client */
         ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, x, SIZTOLC) || SIZOFF(y2, 25, SIZTOLC)) {
 
@@ -1102,7 +1147,7 @@ int main(int argc, char* argv[])
     waitnext();
     for (y = 10; y <= 50; y++) {
 
-        ami_setsiz(tw, 80, y);
+        setsize(tw, 80, y); /* the buffer follows the client */
         ami_getsiz(tw, &x2, &y2);
         if (SIZOFF(x2, 80, SIZTOLC) || SIZOFF(y2, y, SIZTOLC)) {
 
@@ -1126,6 +1171,7 @@ int main(int argc, char* argv[])
     fprintf(tw, "\n");
     fprintf(tw, "Complete\n");
     waitnext();
+    ami_sizbuf(tw, ox, oy); /* the buffer back to its original size */
     ami_winclient(tw, ox, oy, &ox, &oy, BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ami_setsiz(tw, ox, oy);
 

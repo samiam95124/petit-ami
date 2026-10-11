@@ -205,8 +205,10 @@ endif
 # else Xlib. Override on the command line with GRAPHICS_BACKEND=x11,
 # GRAPHICS_BACKEND=wayland or GRAPHICS_BACKEND=fb (the Linux frame
 # buffer: the stack framebuffer <- graphics <- windowg <- widgets, run
-# from a text console). The explicit graphics_testw/widget_testw
-# targets build the Wayland backend regardless. The terminal model is
+# from a text console). The graphical library is one name, libami_graph
+# (petit_ami_graph.so in the dynamic configuration), holding whichever
+# backend was chosen when it was built; lib/graph_backend records the
+# choice, and a build with another rebuilds it. The terminal model is
 # untouched by this knob: terminal output is ANSI escapes, which the
 # standalone console interprets natively.
 #
@@ -229,50 +231,19 @@ ifeq ($(GRAPHICS_BACKEND),framebuffer)
     GRAPHICS_BACKEND=fb
 
 endif
-# the dynamic link has no Wayland or frame buffer library; the X
-# backend serves it
-ifneq ($(LINK_TYPE),static)
-
-    GRAPHICS_BACKEND=x11
-
-endif
-# the graphical archive name the backend selects
+# the presentation objects the backend puts in the graphical library
 ifeq ($(GRAPHICS_BACKEND),wayland)
 
-    GRAPHLIB=graphw
+    GRAPHOBJS = $(WLGRAPH)
 
 else ifeq ($(GRAPHICS_BACKEND),fb)
 
-    GRAPHLIB=graphfb
+    GRAPHOBJS = linux/framebuffer/graphics.o portable/windowg.o \
+                linux/framebuffer/framebuffer.o
 
 else
 
-    GRAPHLIB=graph
-
-endif
-
-#
-# Does terminal model get window management?
-#
-ifndef USEWINDOWC
-
-	#
-	# Default is windowc disabled on terminal mode
-	#
-	USEWINDOWC=0
-
-endif
-
-#
-# Set windowc object
-#
-ifeq ($(USEWINDOWC),1)
-
-	WINDOWC=portable/windowc.o
-
-else
-
-	WINDOWC=
+    GRAPHOBJS = linux/x11/graphics.o
 
 endif
 
@@ -561,7 +532,7 @@ else
     CLIBS += stub/keeper.o lib/petit_ami_term.so
 endif
 
-# the C++ wrapper is already packaged inside the library (term_core.o)
+# the C++ binding is in the library, members a C++ program's calls pull
 CLIBSCPP = $(CLIBS)
 
 #
@@ -575,28 +546,31 @@ ifeq ($(LINK_TYPE),static)
     else ifeq ($(OSTYPE),FreeBSD)
     	GLIBS += -Wl,--whole-archive lib/libami_graph.a -Wl,--no-whole-archive
     else
-        # Linux: the model's bundle archive, as for the terminal model.
-        # GRAPHLIB carries the backend choice: graph (Xlib) or graphw
-        # (Wayland)
-    	GLIBS += stub/keeper.o lib/libami_$(GRAPHLIB).a
+        # Linux: the model's bundle archive, as for the terminal model,
+        # holding the backend GRAPHICS_BACKEND chose
+    	GLIBS += stub/keeper.o lib/libami_graph.a
     endif
 else
     GLIBS += stub/keeper.o lib/petit_ami_graph.so
 endif
 
 #
-# The Wayland graphical model: identical contract, the backend swapped in by
-# link option (Linux static only)
+# Remote graphical model API (Linux): the same contract served by
+# graph_client, the display on a graph_server
 #
-GLIBSW = stub/keeper.o lib/libami_graphw.a
-GLIBSWD = lib/libami_graphw.a stub/keeper.o
+ifeq ($(LINK_TYPE),static)
+    GLIBSR = stub/keeper.o lib/libami_graphr.a
+else
+    GLIBSR = stub/keeper.o lib/petit_ami_graphr.so
+endif
 
 #
 # Create dependency macros
 #
 PLIBSD += $(LIBPFX)plain$(LIBEXT)
 CLIBSD += $(LIBPFX)term$(LIBEXT) stub/keeper.o
-GLIBSD += $(LIBPFX)$(GRAPHLIB)$(LIBEXT) stub/keeper.o
+GLIBSD += $(LIBPFX)graph$(LIBEXT) stub/keeper.o
+GLIBSRD = $(LIBPFX)graphr$(LIBEXT) stub/keeper.o
 
 CLIBSCPPD = $(CLIBSD)
 #
@@ -658,25 +632,28 @@ else
     #
     # Linux
     #
+    # the system libraries the chosen backend draws with
+    ifeq ($(GRAPHICS_BACKEND),wayland)
+	GBACKLIBS = -lwayland-client -lwayland-cursor -lxkbcommon \
+	            -lfreetype -lfontconfig
+    else ifeq ($(GRAPHICS_BACKEND),fb)
+	GBACKLIBS = -lfreetype -lfontconfig -lpng -lz
+    else
+	GBACKLIBS = -lX11 -lXtst -lfreetype -lfontconfig
+    endif
     ifeq ($(LINK_TYPE),static)
 
 	# The archives carry Petit-Ami's code; the system libraries stay
 	# shared. The sound and network tails cost nothing when unused:
-	# with the members not pulled, as-needed linking drops them.
-	# stdc++: the plain core carries the sound C++ wrapper
-	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
-	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
-    ifeq ($(GRAPHICS_BACKEND),wayland)
-	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
-	         -lwayland-client -lwayland-cursor -lxkbcommon \
-	         -lfreetype -lfontconfig -lm -lpthread
-    else ifeq ($(GRAPHICS_BACKEND),fb)
-	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
-	         -lfreetype -lfontconfig -lpng -lz -lm -lpthread
-    else
-	GLIBS += -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lX11 -lXtst \
-	         -lfreetype -lfontconfig -lm -lpthread
-    endif
+	# with the members not pulled, as-needed linking drops them. The
+	# C++ runtime is not named: the C++ binding members are pulled by
+	# C++ programs alone, and g++ links the runtime for those.
+	PLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	CLIBS += -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
+	GLIBS += -lasound -lfluidsynth -lssl -lcrypto $(GBACKLIBS) \
+	         -lm -lpthread
+	# the remote client carries the sound API itself: no sound member
+	GLIBSR += -lssl -lcrypto -lm -lpthread
 
     else
 
@@ -687,8 +664,8 @@ else
 	CLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
 	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto
 	GLIBS += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o \
-	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto -lX11 -lXtst \
-	         -lfreetype -lfontconfig
+	         -lasound -lfluidsynth -lm -lpthread -lssl -lcrypto $(GBACKLIBS)
+	GLIBSR += -lssl -lcrypto -lm -lpthread
 	PLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	CLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 	GLIBSD += linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
@@ -1135,25 +1112,18 @@ lib/libami_plain.a: windows/services.o windows/sound.o windows/network.o \
         windows/network.o utils/config.o utils/option.o windows/stdio.o \
         $(CRASHDUMP_OBJ)
 	
-lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
-    windows/terminal.o portable/txtterminal.o utils/config.o utils/option.o windows/stdio.o \
-    $(CRASHDUMP_OBJ)
-	ar rcs lib/libami_term.a windows/services.o windows/sound.o \
-	    windows/network.o windows/terminal.o portable/txtterminal.o utils/config.o utils/option.o \
-	    windows/stdio.o $(CRASHDUMP_OBJ)
-	
-# The termc variant is the terminal library with the character mode window
-# manager (windowc) always included. windowc is constructor-registered and
-# transparent by default, so nothing references its symbols. Windows links the
-# terminal library with --whole-archive (see CLIBS), so every archive member is
-# pulled in regardless and windowc can simply be an additional member here.
-# Mac OS X has to partial-link it into terminal.o instead, having no
-# whole-archive equivalent.
+# The terminal library carries the character mode window manager (windowc).
+# windowc is constructor-registered and transparent by default, so nothing
+# references its symbols. Windows links the terminal library with
+# --whole-archive (see CLIBS), so every archive member is pulled in
+# regardless and windowc can simply be a member here. Mac OS X has to
+# partial-link it into terminal.o instead, having no whole-archive
+# equivalent.
 #
-lib/libami_termc.a: windows/services.o windows/sound.o windows/network.o \
+lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
     windows/terminal.o portable/txtterminal.o portable/windowc.o utils/config.o utils/option.o \
     windows/stdio.o $(CRASHDUMP_OBJ)
-	ar rcs lib/libami_termc.a windows/services.o windows/sound.o \
+	ar rcs lib/libami_term.a windows/services.o windows/sound.o \
 	    windows/network.o windows/terminal.o portable/txtterminal.o portable/windowc.o \
 	    utils/config.o utils/option.o windows/stdio.o $(CRASHDUMP_OBJ)
 	
@@ -1176,25 +1146,18 @@ lib/libami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
 	ar rcs lib/libami_plain.a macosx/services.o macosx/sound.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
-lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
-    macosx/system_event.o macosx/terminal.o utils/config.o utils/option.o \
-    macosx/stdio.o portable/txtterminal.o macosx/joystick_hid.o
-	ar rcs lib/libami_term.a macosx/services.o macosx/sound.o \
-	    macosx/network.o macosx/system_event.o macosx/terminal.o \
-	    utils/config.o utils/option.o macosx/stdio.o portable/txtterminal.o macosx/joystick_hid.o
-
-# The termc variant is the terminal library with the character mode window
-# manager (windowc) always included. windowc is constructor-registered and
-# transparent by default, so nothing references its symbols; partial-link it
-# with terminal.o into one member (ld -r) so archive selectivity cannot drop
-# it when a program references only the terminal API.
+# The terminal library carries the character mode window manager (windowc).
+# windowc is constructor-registered and transparent by default, so nothing
+# references its symbols; partial-link it with terminal.o into one member
+# (ld -r) so archive selectivity cannot drop it when a program references
+# only the terminal API.
 macosx/termc.o: macosx/terminal.o portable/windowc.o
 	ld -r -o macosx/termc.o macosx/terminal.o portable/windowc.o
 
-lib/libami_termc.a: macosx/services.o macosx/sound.o macosx/network.o \
+lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/termc.o utils/config.o utils/option.o \
     macosx/stdio.o portable/txtterminal.o macosx/joystick_hid.o
-	ar rcs lib/libami_termc.a macosx/services.o macosx/sound.o \
+	ar rcs lib/libami_term.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/termc.o \
 	    utils/config.o utils/option.o macosx/stdio.o portable/txtterminal.o macosx/joystick_hid.o
 
@@ -1220,11 +1183,11 @@ lib/libami_plain.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 
 lib/libami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
-    bsd/system_event.o bsd/terminal.o utils/config.o utils/option.o \
+    bsd/system_event.o bsd/terminal.o portable/windowc.o utils/config.o utils/option.o \
     bsd/stdio.o
 	ar rcs lib/libami_term.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
-	    bsd/network.o bsd/system_event.o bsd/terminal.o \
+	    bsd/network.o bsd/system_event.o bsd/terminal.o portable/windowc.o \
 	    utils/config.o utils/option.o bsd/stdio.o
 
 lib/libami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
@@ -1254,35 +1217,33 @@ lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/ne
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o utils/config.o \
 		utils/option.o -o lib/petit_ami_plain.so
 	
+# the terminal library carries the character mode window manager (windowc)
 lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
-	linux/terminal.o $(WINDOWC) linux/system_event.o utils/config.o utils/option.o \
+	linux/terminal.o portable/windowc.o linux/system_event.o utils/config.o utils/option.o \
     cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
-		linux/terminal.o $(WINDOWC) linux/system_event.o utils/config.o \
+		linux/terminal.o portable/windowc.o linux/system_event.o utils/config.o \
 		utils/option.o  cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o -lstdc++ -o lib/petit_ami_term.so
 	
-#
-# Terminal library with the character mode window manager always included.
-# This is a separate file from lib/petit_ami_term.so so that both the plain
-# and the managed configurations can exist at once: they were previously the
-# same file, and building one silently replaced the other.
-#
-lib/petit_ami_termc.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
-	linux/terminal.o portable/windowc.o linux/system_event.o utils/config.o \
-	utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
-	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
-		linux/terminal.o portable/windowc.o linux/system_event.o \
-		utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o -lstdc++ \
-		-o lib/petit_ami_termc.so
-
-lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
-	linux/x11/graphics.o linux/system_event.o \
+# the graphical library, holding the backend GRAPHICS_BACKEND chose
+lib/petit_ami_graph.so: lib/graph_backend $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
+	$(GRAPHOBJS) linux/system_event.o \
 	portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 	cpp/graphics.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
-		linux/x11/graphics.o linux/system_event.o \
+		$(GRAPHOBJS) linux/system_event.o \
 		portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
 		cpp/graphics.o -lstdc++ -o lib/petit_ami_graph.so
+
+# the remote graphical library: graph_client in place of a backend, the
+# display on a graph_server. The client carries the sound API itself.
+lib/petit_ami_graphr.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
+	portable/graph_client.o utils/config.o utils/option.o \
+	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
+		portable/graph_client.o utils/config.o utils/option.o \
+		cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o \
+		-lstdc++ -o lib/petit_ami_graphr.so
 
 #
 # The Linux static configuration: per model, one bundle archive holding
@@ -1291,7 +1252,15 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/ne
 # operation, so neither does Petit-Ami, and sound mixes with the desktop
 # through ALSA's shared PulseAudio bridge as usual.
 #
-# Each archive holds three members:
+# The models are plain, term (the terminal with the character mode window
+# manager windowc in it), graph (the graphical model on the backend
+# GRAPHICS_BACKEND chose) and graphr (the graphical model served remotely
+# by graph_client, the display on a graph_server). Other configurations
+# are the user's to assemble from the .o components here.
+#
+# Each archive holds the model's core, the sound and network tails
+# (graphr has no sound tail: the client carries the sound API itself) and
+# the C++ binding, a member per class:
 #
 #   <model>_core.o  the model's presentation, services, stdio glue and
 #                   configuration, partial-linked (ld -r) into one member
@@ -1307,11 +1276,15 @@ lib/petit_ami_graph.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/ne
 #                   without sound carry neither.
 #   network.o       the network module, pulled only when used, and with
 #                   it the shared OpenSSL dependency.
+#   cpp_<class>.o   the C++ binding for that class, pulled by a C++
+#                   program calling through the class, and never by a C
+#                   program: a C program asks for no C++ runtime. A C++
+#                   program is linked by g++, which supplies it.
 #
 # So programs get what they use, as always. A program link line is:
 #
 #     gcc prog.c stub/keeper.o -Llib -lami_term \
-#         -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lm -lpthread
+#         -lasound -lfluidsynth -lssl -lcrypto -lm -lpthread
 #
 # with the trailing libraries dropped by as-needed linking when the
 # member that wants them is not pulled.
@@ -1325,63 +1298,61 @@ lib/sound.o: linux/sound.o linux/fluidsynthplug.o linux/dumpsynthplug.o
 # the model cores
 CORE_COMMON = $(LINUXSTDIO) linux/services.o utils/config.o utils/option.o $(CRASHDUMP_OBJ)
 
-lib/plain_core.o: $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
-	ld -r -o lib/plain_core.o $(CORE_COMMON) cpp/sound.o cpp/services.o cpp/network.o
+lib/plain_core.o: $(CORE_COMMON)
+	ld -r -o lib/plain_core.o $(CORE_COMMON)
 
-lib/term_core.o: $(CORE_COMMON) linux/terminal.o $(WINDOWC) \
-	portable/txtterminal.o \
-	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
-	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o $(WINDOWC) \
-	    portable/txtterminal.o \
-	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+lib/term_core.o: $(CORE_COMMON) linux/terminal.o portable/windowc.o \
+	portable/txtterminal.o linux/system_event.o
+	ld -r -o lib/term_core.o $(CORE_COMMON) linux/terminal.o portable/windowc.o \
+	    portable/txtterminal.o linux/system_event.o
 
-lib/termc_core.o: $(CORE_COMMON) linux/terminal.o portable/windowc.o \
-	portable/txtterminal.o \
-	linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
-	ld -r -o lib/termc_core.o $(CORE_COMMON) linux/terminal.o \
-	    portable/windowc.o portable/txtterminal.o \
-	    linux/system_event.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+# the backend the graphical library holds: the record changes only when
+# the choice does, and the libraries follow it
+lib/graph_backend: FORCE
+	@[ "`cat lib/graph_backend 2>/dev/null`" = "$(GRAPHICS_BACKEND)" ] || \
+	    echo $(GRAPHICS_BACKEND) > lib/graph_backend
 
-lib/graph_core.o: $(CORE_COMMON) linux/x11/graphics.o linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
-	cpp/graphics.o
-	ld -r -o lib/graph_core.o $(CORE_COMMON) linux/x11/graphics.o \
+FORCE:
+
+lib/graph_core.o: lib/graph_backend $(CORE_COMMON) $(GRAPHOBJS) linux/system_event.o \
+	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o
+	ld -r -o lib/graph_core.o $(CORE_COMMON) $(GRAPHOBJS) \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
-	    portable/pdfgraph.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	    portable/pdfgraph.o
+
+lib/graphr_core.o: $(CORE_COMMON) portable/graph_client.o
+	ld -r -o lib/graphr_core.o $(CORE_COMMON) portable/graph_client.o
+
+# The C++ binding, one member per class, under names of their own: an
+# archive holds members by base name, and sound.o is the sound module.
+# The graphical classes include the terminal one, and every model has
+# the sound, services and network classes.
+lib/cpp_%.o: cpp/%.o
+	cp cpp/$*.o lib/cpp_$*.o
+
+CPPWRAP_PLAIN = lib/cpp_sound.o lib/cpp_services.o lib/cpp_network.o
+CPPWRAP_TERM = $(CPPWRAP_PLAIN) lib/cpp_terminal.o
+CPPWRAP_GRAPH = $(CPPWRAP_TERM) lib/cpp_graphics.o
 
 # the model archives
-lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o
+lib/libami_plain.a: lib/plain_core.o lib/sound.o linux/network.o $(CPPWRAP_PLAIN)
 	rm -f lib/libami_plain.a
-	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o
+	ar rcs lib/libami_plain.a lib/plain_core.o lib/sound.o linux/network.o \
+	    $(CPPWRAP_PLAIN)
 
-lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o
+lib/libami_term.a: lib/term_core.o lib/sound.o linux/network.o $(CPPWRAP_TERM)
 	rm -f lib/libami_term.a
-	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o
+	ar rcs lib/libami_term.a lib/term_core.o lib/sound.o linux/network.o \
+	    $(CPPWRAP_TERM)
 
-lib/libami_termc.a: lib/termc_core.o lib/sound.o linux/network.o
-	rm -f lib/libami_termc.a
-	ar rcs lib/libami_termc.a lib/termc_core.o lib/sound.o linux/network.o
-
-lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o
+lib/libami_graph.a: lib/graph_core.o lib/sound.o linux/network.o $(CPPWRAP_GRAPH)
 	rm -f lib/libami_graph.a
-	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o
+	ar rcs lib/libami_graph.a lib/graph_core.o lib/sound.o linux/network.o \
+	    $(CPPWRAP_GRAPH)
 
-# the Wayland graphics model: the wayland backend objects in place of
-# linux/x11/graphics.o, all else identical
-lib/graphw_core.o: $(CORE_COMMON) $(WLGRAPH) linux/system_event.o \
-	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o portable/pdfgraph.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
-	cpp/graphics.o
-	ld -r -o lib/graphw_core.o $(CORE_COMMON) $(WLGRAPH) \
-	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
-	    portable/pdfgraph.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
-
-lib/libami_graphw.a: lib/graphw_core.o lib/sound.o linux/network.o
-	rm -f lib/libami_graphw.a
-	ar rcs lib/libami_graphw.a lib/graphw_core.o lib/sound.o linux/network.o
+lib/libami_graphr.a: lib/graphr_core.o linux/network.o $(CPPWRAP_GRAPH)
+	rm -f lib/libami_graphr.a
+	ar rcs lib/libami_graphr.a lib/graphr_core.o linux/network.o $(CPPWRAP_GRAPH)
 
 endif
 
@@ -1431,18 +1402,13 @@ test_gtk: test_gtk.c Makefile
 	$(CC) test_gtk.c `pkg-config --cflags --libs gtk+-3.0` -o test_gtk
 
 #
-# Managerc subwindow test. The terminal library must be built with windowc
-# in it: make lib/petit_ami_term.so USEWINDOWC=1
+# Managerc subwindow tests: the terminal library carries windowc
 #
-#
-# Managerc tests. These link the manager carrying library, so they need no
-# build flag: the plain and managed libraries coexist.
-#
-test_manager: test_manager.c lib/petit_ami_termc.so Makefile
-	$(CC) $(CFLAGS) test_manager.c $(CLIBSC) -o test_manager
+test_manager: test_manager.c $(CLIBSD) Makefile
+	$(CC) $(CFLAGS) test_manager.c $(CLIBS) -o test_manager
 
-test_manager2: test_manager2.c lib/petit_ami_termc.so Makefile
-	$(CC) $(CFLAGS) test_manager2.c $(CLIBSC) -o test_manager2
+test_manager2: test_manager2.c $(CLIBSD) Makefile
+	$(CC) $(CFLAGS) test_manager2.c $(CLIBS) -o test_manager2
 
 #
 # General test program
@@ -1623,12 +1589,6 @@ GSCREEN_CAPTURE_OBJ = linux/screen_capture.o
 endif
 
 #
-# Link set for programs stacked on windowc over terminal. Same as CLIBS but
-# with the manager carrying library in place of the plain one.
-#
-CLIBSC = $(subst ami_term.,ami_termc.,$(CLIBS))
-
-#
 # Test console model compliant output
 #
 ifeq ($(OSTYPE),Darwin)
@@ -1682,27 +1642,12 @@ random_test: $(GLIBSD) tests/random_test.c
 	$(CC) $(CFLAGS) tests/random_test.c $(GLIBS) $(XLIBS) -o bin/random_test
 endif
 
-#
-# Graphics test on the Wayland backend: the same program, the backend
-# swapped by link option
-#
-graphics_testw: $(GLIBSWD) tests/graphics_test.c tests/auto_event.o \
-	linux/wayland/screen_capture.o
-	$(CC) $(CFLAGS) tests/graphics_test.c tests/auto_event.o linux/wayland/screen_capture.o \
-	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
-	    -lfreetype -lfontconfig -lm -lpthread -lpng -lz -o bin/graphics_testw
-
 # The GTK edition of the graphics_test benchmarks, for rasterizer and
 # complexity comparison against the Ami backends. Needs libgtk-4-dev.
 graphics_test_gtk: tests/graphics_test_gtk.c
 	$(CC) $(CFLAGS) tests/graphics_test_gtk.c \
 	    $(shell pkg-config --cflags --libs gtk4) -lm \
 	    -o bin/graphics_test_gtk
-
-widget_testw: $(GLIBSWD) tests/widget_test.c tests/auto_event.o
-	$(CC) $(CFLAGS) tests/widget_test.c tests/auto_event.o \
-	    $(GLIBSW) $(WLLIBS) -lasound -lfluidsynth -lssl -lcrypto -lstdc++ \
-	    -lfreetype -lfontconfig -lm -lpthread -o bin/widget_testw
 
 #
 # BMP-stream frame viewer: walks the test_images.img file produced by
@@ -1732,11 +1677,11 @@ endif
 # the program does not open windows of its own.
 #
 ifeq ($(OSTYPE),Darwin)
-terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/terminal_testc
+terminal_testc: $(CLIBSD) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/terminal_testc
 else
-terminal_testc: $(LIBPFX)termc$(LIBEXT) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/terminal_testc
+terminal_testc: $(CLIBSD) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/terminal_test.c tests/auto_eventt.o $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/terminal_testc
 endif
 
 #
@@ -1758,11 +1703,11 @@ endif
 # graphical form; only the character forms can run on a character surface.
 #
 ifeq ($(OSTYPE),Darwin)
-window_testc: $(LIBPFX)termc$(LIBEXT) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/window_testc
+window_testc: $(CLIBSD) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/window_testc
 else
-window_testc: $(LIBPFX)termc$(LIBEXT) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/window_testc
+window_testc: $(CLIBSD) tests/window_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/window_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/window_testc
 endif
 
 #
@@ -1841,8 +1786,8 @@ endif
 # terminal. Every widget test has a character form and a graphical form;
 # only the character forms can run on a character surface.
 #
-widget_testc: $(LIBPFX)termc$(LIBEXT) tests/widget_testc.c $(SCREEN_CAPTURE_OBJ)
-	$(CC) $(CFLAGS) tests/widget_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBSC) -o bin/widget_testc
+widget_testc: $(CLIBSD) tests/widget_testc.c $(SCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) tests/widget_testc.c $(SCREEN_CAPTURE_OBJ) $(CLIBS) -o bin/widget_testc
 	
 #
 # Test sound model compliant input/output (uses console timers)
@@ -1921,12 +1866,9 @@ graphics_testr: tests/graphics_test.c tests/auto_event.o macosx/stdio.o macosx/s
 	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
 	    -framework IOKit -lm -lpthread -o bin/graphics_testr
 else
-graphics_testr: tests/graphics_test.c tests/auto_event.o portable/graph_client.o \
-	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/graphics_test.c tests/auto_event.o portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/graphics_testr
+graphics_testr: $(GLIBSRD) tests/graphics_test.c tests/auto_event.o stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/graphics_test.c tests/auto_event.o stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/graphics_testr
 endif
 
 #
@@ -1958,12 +1900,9 @@ window_testr: tests/window_test.c tests/auto_event.o macosx/stdio.o macosx/servi
 	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
 	    -framework IOKit -lm -lpthread $(WEAKOPT) -o bin/window_testr
 else
-window_testr: tests/window_test.c tests/auto_event.o portable/graph_client.o \
-	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/window_test.c tests/auto_event.o portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/window_testr
+window_testr: $(GLIBSRD) tests/window_test.c tests/auto_event.o stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/window_test.c tests/auto_event.o stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/window_testr
 endif
 
 #
@@ -1995,12 +1934,9 @@ widget_testr: tests/widget_test.c tests/auto_event.o macosx/stdio.o macosx/servi
 	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
 	    -framework IOKit -lm -lpthread -o bin/widget_testr
 else
-widget_testr: tests/widget_test.c tests/auto_event.o portable/graph_client.o \
-	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/widget_test.c tests/auto_event.o portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/widget_testr
+widget_testr: $(GLIBSRD) tests/widget_test.c tests/auto_event.o stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/widget_test.c tests/auto_event.o stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/widget_testr
 endif
 
 #
@@ -2030,23 +1966,18 @@ window_race_testr: tests/window_race_test.c portable/graph_client.o \
 	    utils/config.o utils/option.o windows/stdio.o \
 	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/window_race_testr
 else
-window_race_testr: tests/window_race_test.c portable/graph_client.o \
-	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) tests/window_race_test.c portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/window_race_testr
+window_race_testr: $(GLIBSRD) tests/window_race_test.c stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/window_race_test.c stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/window_race_testr
 endif
 
 #
 # The sound test run remotely: linked with graph_client, the sound
 # devices served by graph_server.
 #
-sound_testr: tests/sound_test.c portable/graph_client.o
-	$(CC) $(CFLAGS) tests/sound_test.c portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/sound_testr
+sound_testr: $(GLIBSRD) tests/sound_test.c stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) tests/sound_test.c stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/sound_testr
 
 #
 # The remote display server: the display side of remote mode, standalone.
@@ -2144,8 +2075,8 @@ breakout: $(CLIBSD) terminal_games/breakout.c
 #
 # Breakout game, windowed character edition
 #
-breakoutw: $(LIBPFX)termc$(LIBEXT) terminal_games/breakoutw.c
-	$(CC) $(CFLAGS) terminal_games/breakoutw.c $(CLIBSC) -o bin/breakoutw
+breakoutw: $(CLIBSD) terminal_games/breakoutw.c
+	$(CC) $(CFLAGS) terminal_games/breakoutw.c $(CLIBS) -o bin/breakoutw
 
 #
 # Breakout game, graphical
@@ -2176,12 +2107,9 @@ breakoutgr: graph_games/breakoutg.c portable/graph_client.o \
 	    utils/config.o utils/option.o windows/stdio.o \
 	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/breakoutgr
 else
-breakoutgr: graph_games/breakoutg.c portable/graph_client.o \
-	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) graph_games/breakoutg.c portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/breakoutgr
+breakoutgr: $(GLIBSRD) graph_games/breakoutg.c stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) graph_games/breakoutg.c stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/breakoutgr
 endif
 
 ifeq ($(OSTYPE),Windows_NT)
@@ -2194,12 +2122,9 @@ breakoutwgr: graph_games/breakoutwg.c portable/graph_client.o \
 	    utils/config.o utils/option.o windows/stdio.o \
 	    -lwinmm -lssl -lcrypto -lws2_32 -lcrypt32 -o bin/breakoutwgr
 else
-breakoutwgr: graph_games/breakoutwg.c portable/graph_client.o \
-	stub/screen_capture_stub.o
-	$(CC) $(CFLAGS) graph_games/breakoutwg.c portable/graph_client.o \
-	    stub/screen_capture_stub.o $(LINUXSTDIO) linux/services.o \
-	    utils/config.o utils/option.o linux/network.o \
-	    -lssl -lcrypto -lm -lpthread -o bin/breakoutwgr
+breakoutwgr: $(GLIBSRD) graph_games/breakoutwg.c stub/screen_capture_stub.o
+	$(CC) $(CFLAGS) graph_games/breakoutwg.c stub/screen_capture_stub.o \
+	    $(GLIBSR) -o bin/breakoutwgr
 endif
 
 #
@@ -2231,8 +2156,8 @@ mail: $(GLIBSD) graph_programs/mail.c portable/mailcore.c
 #
 # The character library with the window manager in it, since mailc is
 # windows and widgets on a terminal.
-mailc: $(LIBPFX)termc$(LIBEXT) terminal_programs/mailc.c portable/mailcore.c
-	$(CC) $(CFLAGS) terminal_programs/mailc.c portable/mailcore.c $(CLIBSC) \
+mailc: $(CLIBSD) terminal_programs/mailc.c portable/mailcore.c
+	$(CC) $(CFLAGS) terminal_programs/mailc.c portable/mailcore.c $(CLIBS) \
 		-o bin/mailc
 
 #
@@ -2468,12 +2393,9 @@ help:
 	@echo "  window_test     window management (window_testc)"
 	@echo "  event/eventg        event diagnostics"
 	@echo ""
-	@echo "The Wayland backend pair (Linux; built regardless of session):"
-	@echo ""
-	@echo "  graphics_testw      graphics test on the Wayland backend"
 	@echo "  random_test         random procedures on several threads, until cancelled"
-	@echo "  widget_testw        widget test on the Wayland backend"
 	@echo "  graphics_test_gtk   the GTK4/Cairo benchmark edition (libgtk-4-dev)"
+	@echo "  (GRAPHICS_BACKEND=... builds the graphical programs on that backend)"
 	@echo ""
 	@echo "Demos and games: snake mine wator pong breakout chess checkers"
 	@echo "  backgammon defenders editor clock calc pixel ball1-6 line1-5"
@@ -2537,6 +2459,7 @@ clean:
 	find . -name "*.o" -type f -delete
 	rm -f lib/*.a
 	rm -f lib/*.so
+	rm -f lib/graph_backend
 	rm -f bin/*.exe
 	
 ################################################################################
@@ -2619,30 +2542,16 @@ FBMGRAPH = linux/framebuffer/graphics.o portable/windowg.o
 
 lib/graphfbm_core.o: $(CORE_COMMON) $(FBMGRAPH) linux/system_event.o \
 	portable/widget_base.o portable/gnome_widgets.o portable/plasma_widgets.o \
-	portable/pdfgraph.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	portable/pdfgraph.o
 	ld -r -o lib/graphfbm_core.o $(CORE_COMMON) $(FBMGRAPH) \
 	    linux/system_event.o portable/widget_base.o portable/gnome_widgets.o \
-	    portable/plasma_widgets.o portable/pdfgraph.o \
-	    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	    portable/plasma_widgets.o portable/pdfgraph.o
 
-lib/libami_graphfbm.a: lib/graphfbm_core.o lib/sound.o linux/network.o
-	rm -f lib/libami_graphfbm.a
-	ar rcs lib/libami_graphfbm.a lib/graphfbm_core.o lib/sound.o linux/network.o
-
-# the backend archive proper: the same stack with the frame buffer
-# device layer carried inside, so programs link it like any other
-# graphical backend (GRAPHICS_BACKEND=fb)
-lib/graphfb_core.o: lib/graphfbm_core.o linux/framebuffer/framebuffer.o
-	ld -r -o lib/graphfb_core.o lib/graphfbm_core.o \
-	    linux/framebuffer/framebuffer.o
-
-lib/libami_graphfb.a: lib/graphfb_core.o lib/sound.o linux/network.o
-	rm -f lib/libami_graphfb.a
-	ar rcs lib/libami_graphfb.a lib/graphfb_core.o lib/sound.o linux/network.o
-
-GLIBSFBM = stub/keeper.o lib/libami_graphfbm.a
-FBMLIBS = -lasound -lfluidsynth -lssl -lcrypto -lstdc++ -lfreetype \
+# The stack without the device layer is a component set the test
+# editions link directly, with the frame buffer device or its mock beside
+# it; GRAPHICS_BACKEND=fb makes the graphical library of the whole stack
+GLIBSFBM = stub/keeper.o lib/graphfbm_core.o lib/sound.o linux/network.o
+FBMLIBS = -lasound -lfluidsynth -lssl -lcrypto -lfreetype \
 	-lfontconfig -lm -lpthread -lpng -lz
 
 # real console editions

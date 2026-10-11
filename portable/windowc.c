@@ -12477,8 +12477,13 @@ static void deinit_windowc()
     if (fautohold && fend) (*autohold_vect)(FALSE);
 
     /* back to the terminal's first screen: the one the program started from,
-       as it was */
-    (*select_vect)(stdout, 1, 1);
+       as it was. Not when the terminal is about to hold the program's last
+       screen for viewing: its hold runs in its own shutdown, after this one,
+       on the screen then selected, so the desktop stays up for it, and the
+       terminal puts its own screen back as it ends. The hold's conditions
+       are the terminal's: autohold on, no end ordered, a terminal to take
+       the key from. */
+    if (!(fautohold && !fend && isatty(0))) (*select_vect)(stdout, 1, 1);
 
     /* swap old vectors for existing vectors API */
     _pa_cursor_ovr(cursor_vect, &cppcursor);
