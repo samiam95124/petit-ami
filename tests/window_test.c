@@ -337,6 +337,25 @@ static void prtceng(ami_long y, const char* s)
 
 }
 
+/* Paint the front/back sign in a window: the last state in white, over
+   itself, then the new state in black, both centered. */
+
+static void fbsign(FILE* w, int front)
+
+{
+
+    ami_long y;
+
+    y = ami_maxyg(w)/2-ami_chrsizy(w)/2;
+    ami_fcolor(w, ami_white);
+    ami_cursorg(w, ami_maxxg(w)/2-ami_strsiz(w, front? "Back": "Front")/2, y);
+    fprintf(w, "%s", front? "Back": "Front");
+    ami_fcolor(w, ami_black);
+    ami_cursorg(w, ami_maxxg(w)/2-ami_strsiz(w, front? "Front": "Back")/2, y);
+    fprintf(w, "%s", front? "Front": "Back");
+
+}
+
 /* wait time in 100 microseconds */
 
 static void waittime(int t)
@@ -936,6 +955,57 @@ int main(int argc, char* argv[])
     ami_fontsiz(tw, cs);
     ami_font(tw, AMI_FONT_TERM);
     ami_auto(tw, ON);
+
+    /* ********************** Front/back test child window ******************** */
+
+    /* The same test on a child window, with a smaller child over it to flip
+       against. A desktop may not let a program order its own windows, but
+       the children are Ami's to order. */
+    fputc('\f', tw);
+    fprintf(tw, "Front/back test on a child window\n");
+    fprintf(tw, "Hit space to flip the large window front/back, or return to stop\n");
+    ami_openwin(&stdin, &win2, tw, wid2);
+    ami_curvis(win2, OFF);
+    ami_setpos(win2, 3, 4);
+    setsize(win2, 50, 15);
+    ami_auto(win2, OFF);
+    ami_font(win2, AMI_FONT_SIGN);
+    ami_fontsiz(win2, ami_maxyg(win2)/3);
+    /* the reference window, over the large one's lower right corner */
+    ami_openwin(&stdin, &win3, tw, wid3);
+    ami_curvis(win3, OFF);
+    ami_setpos(win3, 38, 13);
+    setsize(win3, 24, 8);
+    ami_bcolor(win3, ami_yellow);
+    putc('\f', win3);
+    fprintf(win3, "reference window\n");
+    fb = FALSE; /* the large window starts at the back */
+    fbsign(win2, fb);
+    frmmark(FALSE); /* the reference window over the large one */
+    if (autorun) {
+
+        /* an automatic run flips once each way: the large window in front
+           of the reference window, then behind it again */
+        ami_front(win2); fbsign(win2, TRUE); frmstep();
+        ami_back(win2); fbsign(win2, FALSE); frmstep();
+
+    }
+    do {
+
+        nextevt(&er);
+        if (er.etype == ami_etchar) if (er.echar == ' ') { /* flip front/back */
+
+            fb = !fb;
+            if (fb) ami_front(win2); else ami_back(win2);
+            fbsign(win2, fb);
+
+        }
+        if (er.etype == ami_etterm) longjmp(terminate_buf, 1);
+
+    } while (er.etype != ami_etenter);
+    fclose(win2);
+    fclose(win3);
+    frmnext();
 
     /* ************************* Frame controls test buffered ****************** */
 
