@@ -60,15 +60,18 @@ How the makefile is put together:
   C++ runtime, and a C++ program gets it from g++.
 * The graphical model also wants the libraries of the display backend the
   graphical library was built with. The makefile chooses as the root build
-  does, wayland when a wayland session is up and x11 otherwise, and gives the
-  frame buffer set for a library built for that.
+  does, wayland when a wayland session is up and x11 otherwise. A library
+  built for the frame buffer wants -lfreetype -lfontconfig -lpng -lz instead.
 * The terminal and graphical models take over standard output as the program
   starts, so even a program that calls nothing in them wants them linked. A
   library is drawn in only by the calls made to it, so the makefile asks the
   linker for one of the model's functions by name (-u ami_maxx). The plain
   model needs nothing of the kind.
 * Sound cannot live in a shared library (an ALSA bug), so the dynamic form
-  links ../lib/sound.o directly beside the shared library.
+  links ../lib/sound.o directly beside the shared library. The sound object
+  stands before the shared library on the line: the linker keeps a shared
+  library only for references it has already seen, and the sound object's
+  are the first.
 * The two forms meet the program's printf differently. The archive carries
   Petit-Ami's stdio under the standard names, so the program compiles against
   the system stdio.h and its printf lands in the model when it is linked. The
