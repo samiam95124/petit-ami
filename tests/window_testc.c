@@ -589,7 +589,15 @@ static void setsize(FILE* f, ami_long x, ami_long y)
                   BIT(ami_wmframe) | BIT(ami_wmsize) | BIT(ami_wmsysbar));
     ox -= x;
     oy -= y;
-    ami_sizbuf(f, x-ox, y-oy); /* the buffer is the client */
+    x -= ox; /* the client that remains */
+    y -= oy;
+    /* A window shrunk below its decorations, as when the terminal is
+       dragged down below the stacking tests' children, has no client at
+       all. The buffer still needs a cell: a buffer of no size is an
+       error, not a window with nothing to show. */
+    if (x < 1) x = 1;
+    if (y < 1) y = 1;
+    ami_sizbuf(f, x, y); /* the buffer is the client */
 
 }
 
