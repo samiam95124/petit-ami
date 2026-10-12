@@ -8011,6 +8011,8 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c
 
         /* set foreground function */
         sc->xcxt->mix = mod2fnc[sc->fmod];
+        /* the text may blend only on a cell it has painted over */
+        sc->xcxt->glyphbg = sc->bmod == mdnorm;
         if (ce) /* character exists */
             /* draw character */
             ft_draw_char(d, sc->xcxt, win, win->gfhighx, win->gfhigh,
@@ -8042,6 +8044,7 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c
         }
         /* reset foreground function */
         sc->xcxt->mix = mod2fnc[mdnorm];
+        sc->xcxt->glyphbg = FALSE;
 
     }
 
@@ -8228,6 +8231,8 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
 
         /* set foreground function */
         sc->xcxt->mix = mod2fnc[sc->fmod];
+        /* the text may blend only on a cell it has painted over */
+        sc->xcxt->glyphbg = sc->bmod == mdnorm;
         if (ce) /* character exists */
             /* draw character */
             ft_draw_char_rotated(d, sc->xcxt, win, win->gfhighx, win->gfhigh,
@@ -8255,6 +8260,7 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
         }
         /* reset foreground function */
         sc->xcxt->mix = mod2fnc[mdnorm];
+        sc->xcxt->glyphbg = FALSE;
 
     }
 
@@ -10097,6 +10103,8 @@ static void drwstr90(winptr win, scnptr sc, int tw, pd_canvas* d, char* s, int l
 
         /* set foreground function */
         sc->xcxt->mix = mod2fnc[sc->fmod];
+        /* the text may blend only on a cell it has painted over */
+        sc->xcxt->glyphbg = sc->bmod == mdnorm;
         /* draw character */
         grx_ft_draw_string(d, sc->xcxt, win, win->gfhighx, win->gfhigh,
                            px, py+pbo, s, l);
@@ -10124,6 +10132,7 @@ static void drwstr90(winptr win, scnptr sc, int tw, pd_canvas* d, char* s, int l
         }
         /* reset foreground function */
         sc->xcxt->mix = mod2fnc[mdnorm];
+        sc->xcxt->glyphbg = FALSE;
 
     }
 

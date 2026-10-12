@@ -1666,7 +1666,10 @@ void pd_glyph(pd_canvas* c, pd_draw* dr, int x, int y,
     (void)d;
     if (c && !drnoop(dr) && mask) {
 
-        aa = aaok(dr) && depth != 1; /* the 8-bit mask blends */
+        /* the 8-bit mask blends, when the glyph lies on its painted cell:
+           a blend over whatever was there cannot be taken off again, by the
+           same text in the background color or by a second xor */
+        aa = aaok(dr) && depth != 1 && dr->glyphbg;
         canlk(c);
         for (j = 0; j < mh; j++)
             for (i = 0; i < mw; i++) {

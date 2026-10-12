@@ -85,6 +85,9 @@ typedef struct {
     pd_canvas*   stipple; /* fill stipple, nonzero pixels paint; NULL none */
     int          stipx;   /* stipple origin */
     int          stipy;
+    int          glyphbg; /* a glyph lies on its freshly painted cell: an
+                             8-bit mask may blend, since the same text in
+                             the cell's color paints the blend away again */
 
 } pd_draw;
 
