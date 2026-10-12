@@ -1116,6 +1116,10 @@ static int scrollbuffer = TRUE; /* a buffered window shows scroll bars for a
                                    buffer larger than its client: the option
                                    scrollbuffer under graphics in the
                                    configuration, on by default */
+static int antialias = TRUE;  /* lines, curves and text are drawn
+                                 anti-aliased: the option antialias under
+                                 graphics in the configuration, on by
+                                 default */
 static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
 static int dmpmsg;    /* enable dump messages (diagnostic, windows only) */
@@ -8007,6 +8011,8 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c
 
         /* set foreground function */
         sc->xcxt->mix = mod2fnc[sc->fmod];
+        /* the text may blend only on a cell it has painted over */
+        sc->xcxt->glyphbg = sc->bmod == mdnorm;
         if (ce) /* character exists */
             /* draw character */
             ft_draw_char(d, sc->xcxt, win, win->gfhighx, win->gfhigh,
@@ -8038,6 +8044,7 @@ static void drwchr90(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c
         }
         /* reset foreground function */
         sc->xcxt->mix = mod2fnc[mdnorm];
+        sc->xcxt->glyphbg = FALSE;
 
     }
 
@@ -8224,6 +8231,8 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
 
         /* set foreground function */
         sc->xcxt->mix = mod2fnc[sc->fmod];
+        /* the text may blend only on a cell it has painted over */
+        sc->xcxt->glyphbg = sc->bmod == mdnorm;
         if (ce) /* character exists */
             /* draw character */
             ft_draw_char_rotated(d, sc->xcxt, win, win->gfhighx, win->gfhigh,
@@ -8251,6 +8260,7 @@ static void drwchr(winptr win, scnptr sc, int cs, int ce, pd_canvas* d, char c)
         }
         /* reset foreground function */
         sc->xcxt->mix = mod2fnc[mdnorm];
+        sc->xcxt->glyphbg = FALSE;
 
     }
 
@@ -10093,6 +10103,8 @@ static void drwstr90(winptr win, scnptr sc, int tw, pd_canvas* d, char* s, int l
 
         /* set foreground function */
         sc->xcxt->mix = mod2fnc[sc->fmod];
+        /* the text may blend only on a cell it has painted over */
+        sc->xcxt->glyphbg = sc->bmod == mdnorm;
         /* draw character */
         grx_ft_draw_string(d, sc->xcxt, win, win->gfhighx, win->gfhigh,
                            px, py+pbo, s, l);
@@ -10120,6 +10132,7 @@ static void drwstr90(winptr win, scnptr sc, int tw, pd_canvas* d, char* s, int l
         }
         /* reset foreground function */
         sc->xcxt->mix = mod2fnc[mdnorm];
+        sc->xcxt->glyphbg = FALSE;
 
     }
 
@@ -18519,6 +18532,14 @@ static void ami_init_graphics(int argc, char *argv[])
 
         }
 
+        vp = ami_schlst("antialias", graph_root->sublist);
+        if (vp) {
+
+            antialias = strtol(vp->value, &errstr, 10) != 0;
+            if (*errstr) error(ecfgval);
+
+        }
+
         /* find windows subsection */
         xwin_root = ami_schlst("xwindow", graph_root->sublist);
         if (xwin_root) {
@@ -18558,6 +18579,7 @@ static void ami_init_graphics(int argc, char *argv[])
         exit(1);
 
     }
+    pd_antialias(antialias); /* the drawing as the configuration asks */
     pascreen = 0; /* single screen through the layer */
 
     /* initialize FreeType and fontconfig */

@@ -70,6 +70,11 @@ static ami_long      cox, coy;
 static ami_long      csx, csy;
 
 static ami_long      i;
+static ami_strptr     hp, vp;   /* the tab lists along and up a window */
+static ami_long      tw[4], th[4], tox[4], toy[4]; /* four overlaid tab bars */
+static ami_long      cw, ch;    /* the client they share */
+static ami_tabori     ori[4] = { ami_totop, ami_toright, ami_tobottom,
+                                ami_toleft }; /* their orientations, by id */
 static int           cnt;
 static char          fns[100];
 
@@ -104,6 +109,17 @@ static char* str(char* s)
 
     return (p);
 
+}
+
+/* make a list of three tab strings */
+static ami_strptr lst3(char* a, char* b, char* c)
+{
+    ami_strptr p1, p2, p3;
+
+    p3 = (ami_strptr)imalloc(sizeof(ami_strrec)); p3->str = str(c); p3->next = NULL;
+    p2 = (ami_strptr)imalloc(sizeof(ami_strrec)); p2->str = str(b); p2->next = p3;
+    p1 = (ami_strptr)imalloc(sizeof(ami_strrec)); p1->str = str(a); p1->next = p2;
+    return p1;
 }
 
 static int framenum = 0; /* current frame number */
@@ -1995,61 +2011,30 @@ int main(int argc, char* argv[])
     printf("Terminal overlaid tab bar test\n");
     printf("\n");
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Right");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Left");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsiz(stdout, lp, ami_totop, 30, 12, &x, &y, &ox, &oy);
-    ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_totop, 1);
+    /* The four bars share one client. A bar is never smaller than its own
+       tabs need, so the four of them want different clients from the same
+       request. The largest of those is asked for again, and then all four
+       agree: one square, with a strip of tabs on each side. */
+    hp = lst3("Left", "Center", "Right");
+    vp = lst3("Top", "Center", "Bottom");
+    cw = 30;
+    ch = 12;
+    for (i = 0; i < 4; i++) {
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Bottom");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Top");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsiz(stdout, lp, ami_toright, 30, 12, &x, &y, &ox, &oy);
-    ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_toright, 2);
+        ami_tabbarsiz(stdout, i&1? vp: hp, ori[i], cw, ch,
+                      &tw[i], &th[i], &tox[i], &toy[i]);
+        if (!(i&1) && tw[i] > cw) cw = tw[i];
+        if (i&1 && th[i] > ch) ch = th[i];
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Right");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Left");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsiz(stdout, lp, ami_tobottom, 30, 12, &x, &y, &ox, &oy);
-    ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_tobottom, 3);
+    }
+    for (i = 0; i < 4; i++) {
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Bottom");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Top");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsiz(stdout, lp, ami_toleft, 30, 12, &x, &y, &ox, &oy);
-    ami_tabbar(stdout, 20-ox, 7-oy, 20+x-ox-1, 7+y-oy-1, lp, ami_toleft, 4);
+        ami_tabbarsiz(stdout, i&1? vp: hp, ori[i], cw, ch,
+                      &tw[i], &th[i], &tox[i], &toy[i]);
+        ami_tabbar(stdout, 20-tox[i], 7-toy[i], 20+tw[i]-tox[i]-1,
+                   7+th[i]-toy[i]-1, i&1? vp: hp, ori[i], i+1);
+
+    }
 
     do {
 
@@ -2102,61 +2087,30 @@ int main(int argc, char* argv[])
     printf("\f");
     printf("Graphical overlaid tab bar test\n");
     printf("\n");
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Right");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Left");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsizg(stdout, lp, ami_totop, 200, 200, &x, &y, &ox, &oy);
-    ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_totop, 1);
+    /* The four bars share one client. A bar is never smaller than its own
+       tabs need, so the four of them want different clients from the same
+       request. The largest of those is asked for again, and then all four
+       agree: one square, with a strip of tabs on each side. */
+    hp = lst3("Left", "Center", "Right");
+    vp = lst3("Top", "Center", "Bottom");
+    cw = 200;
+    ch = 200;
+    for (i = 0; i < 4; i++) {
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Bottom");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Top");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsizg(stdout, lp, ami_toright, 200, 200, &x, &y, &ox, &oy);
-    ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_toright, 2);
+        ami_tabbarsizg(stdout, i&1? vp: hp, ori[i], cw, ch,
+                       &tw[i], &th[i], &tox[i], &toy[i]);
+        if (!(i&1) && tw[i] > cw) cw = tw[i];
+        if (i&1 && th[i] > ch) ch = th[i];
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Right");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Left");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsizg(stdout, lp, ami_tobottom, 200, 200, &x, &y, &ox, &oy);
-    ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_tobottom, 3);
+    }
+    for (i = 0; i < 4; i++) {
 
-    lp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    lp->str = str("Bottom");
-    lp->next = NULL;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Center");
-    sp->next = lp;
-    lp = sp;
-    sp = (ami_strptr)imalloc(sizeof(ami_strrec));
-    sp->str = str("Top");
-    sp->next = lp;
-    lp = sp;
-    ami_tabbarsizg(stdout, lp, ami_toleft, 200, 200, &x, &y, &ox, &oy);
-    ami_tabbarg(stdout, 200-ox, 100-oy, 200+x-ox, 100+y-oy, lp, ami_toleft, 4);
+        ami_tabbarsizg(stdout, i&1? vp: hp, ori[i], cw, ch,
+                       &tw[i], &th[i], &tox[i], &toy[i]);
+        ami_tabbarg(stdout, 200-tox[i], 100-toy[i], 200+tw[i]-tox[i],
+                    100+th[i]-toy[i], i&1? vp: hp, ori[i], i+1);
+
+    }
 
     do {
 
