@@ -1302,8 +1302,10 @@ static void dispatch(void)
         case GR_MSIZBUF: a = gi(); b = gi(); ami_sizbuf(f, a, b); break;
         case GR_MTITLE:
             gstr(s1, MAXSTR);
-            if (f == h2f[1]) /* the program's window: its title names the hold */
-                snprintf(sestitle, sizeof(sestitle), "%s", s1);
+            if (f == h2f[1]) /* the program's window: its title names the hold,
+                                cut to what the hold's buffer holds */
+                snprintf(sestitle, sizeof(sestitle), "%.*s",
+                         (int)sizeof(sestitle)-1, s1);
             ami_title(f, s1);
             break;
         case GR_MFCOLORC:
