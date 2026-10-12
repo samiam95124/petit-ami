@@ -369,6 +369,7 @@ void grx_ftunlock(void);
    out -- both are drawn by whether the desktop has given the window the
    keyboard, which is no part of what the program drew. */
 uint32_t* grx_capture(int* width, int* height);
+uint32_t* grx_capturef(FILE* f, int* width, int* height); /* of the file's window */
 
 /* ===========================================================================
 

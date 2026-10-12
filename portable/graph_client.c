@@ -19,6 +19,8 @@
 *                                                                              *
 * The server is named by environment: GRAPH_SERVER holds the address, a name  *
 * or dotted form, 127.0.0.1 if unset; GRAPH_PORT holds the command port,      *
+* GR_DEFPORT if unset; GRAPH_NAME names the program to the server, in place   *
+* of its executable's name, which titles its windows.                         *
 * GR_DEFPORT if unset. The channels are secure unless GRAPH_PLAIN is set,     *
 * and the server must agree: it is secure unless started with --plain.        * The connection is made at program start and the        *
 * program errors if there is no server.                                       *
@@ -2089,6 +2091,11 @@ static void pgmname(char* dst, ami_long dl)
     char* s;
     char* b;
 
+    /* GRAPH_NAME names the program to the server in place of its
+       executable's name: a program run under another name, as the
+       picture tests are run remotely, is titled as itself */
+    s = getenv("GRAPH_NAME");
+    if (s && *s) { snprintf(dst, dl, "%s", s); return; }
     path[0] = 0;
 #ifdef _WIN32
     if (!GetModuleFileNameA(NULL, path, sizeof(path)-1)) path[0] = 0;
@@ -2262,6 +2269,29 @@ static void ami_init_graph_client(void)
     }
 
 }
+
+/*******************************************************************************
+
+The test rig across the wire
+
+The picture tests capture their window and the event file drives their
+widgets through the display's seat rig, both display side features: the
+display is the server's, so they are asked of it. The capture hook
+(stub/screen_capture_stub.c, linked by the remote tests) and the seat of
+tests/auto_event.c come here. The capture waits for the server's answer,
+given when the picture is written, so the test's next drawing cannot get
+into the picture, and the file is whole when the test exits.
+
+*******************************************************************************/
+
+void grx_rcapname(const char* fn)
+    { if (connected) { begin(GR_MCAPTURENAME, 0); ps(fn); send0(); } }
+void grx_rcaplabel(const char* s)
+    { if (connected) { begin(GR_MCAPTURELABEL, 0); ps(s); send0(); } }
+void grx_rcapture(void)
+    { if (connected) { begin(GR_MCAPTURE, 0); qsend(); (void)gi(); } }
+void grx_seatline(const char* ln)
+    { if (connected) { begin(GR_MSEAT, 0); ps(ln); send0(); } }
 
 static void ami_deinit_graph_client(void) __attribute__((destructor (105)));
 static void ami_deinit_graph_client(void)

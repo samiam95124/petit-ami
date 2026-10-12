@@ -228,6 +228,28 @@ void screen_capture_name(const char* fn)
     snprintf(cap_name, sizeof(cap_name), "%s", fn);
 }
 
+/* the window the pictures are of: this module finds the program's window
+   by its process, so the choice is not taken up */
+void screen_capture_window(FILE* f)
+{
+    (void)f;
+}
+
+/* the pictures end: the file closes, and the next name opens another */
+void screen_capture_end(void)
+{
+    if (cap_file != INVALID_HANDLE_VALUE) {
+        FlushFileBuffers(cap_file);
+        CloseHandle(cap_file);
+        cap_file = INVALID_HANDLE_VALUE;
+        if (cap_frame_count == 0) DeleteFileA(cap_name);
+    }
+    cap_opened = 0;
+    cap_frame_count = 0;
+    cap_label[0] = 0;
+    cap_window = NULL;
+}
+
 /* the file is made at the first capture, so a name can be given first */
 static void capopen(void)
 {

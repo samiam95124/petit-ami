@@ -193,8 +193,12 @@ static int        skipped;      /* events skipped that way */
    link says there is one. The remote client and the framebuffer have none */
 extern void pd_evtpost(void) __attribute__((weak));
 extern int  x11_seat __attribute__((weak)); /* the X module's rig, through XTest */
+extern void grx_seatline(const char* ln) __attribute__((weak)); /* the remote
+                                   client's: the seat is the server's, and
+                                   the lines go to it over the wire */
 
 static int        seatfd = -1;  /* the rig fifo, written here */
+static int        seatremote;   /* the rig is the server's, over the wire */
 static int        seattry;      /* the seat was tried */
 static char       seatfn[80];   /* the fifo's name */
 static int        cwox, cwoy;   /* the client area's offset in the window */
@@ -467,8 +471,9 @@ static int dropped(ami_evtrec* er)
 {
 
 #ifdef AUTO_EVENT_SEAT
-    if (seatfd >= 0 && er->etype != ami_etjoyba && er->etype != ami_etjoybd &&
-        er->etype != ami_etjoymov) return (0); /* the seat's are the file's */
+    if ((seatfd >= 0 || seatremote) && er->etype != ami_etjoyba &&
+        er->etype != ami_etjoybd && er->etype != ami_etjoymov)
+        return (0); /* the seat's are the file's */
 #endif
     if (er->etype >= ami_etchar && er->etype <= ami_etmenu) return (dropkbd);
     if (er->etype == ami_etmouba || er->etype == ami_etmoubd ||
@@ -590,10 +595,22 @@ static int seatopen(void)
 
     ami_long wx, wy;
 
-    if (seattry) return (seatfd >= 0);
+    if (seattry) return (seatfd >= 0 || seatremote);
     seattry = 1;
-    if ((!pd_evtpost && !&x11_seat) || getenv("PD_INPUT") || getenv("AMI_WL_INPUT"))
+    if ((!pd_evtpost && !&x11_seat && !&grx_seatline) ||
+        getenv("PD_INPUT") || getenv("AMI_WL_INPUT"))
         return (0); /* no rig, or one in other hands */
+    if (&grx_seatline) {
+
+        /* the display is a server's: the lines go to it, their points in
+           the client area, and the server places them on its display */
+        seatremote = 1;
+        cwox = cwoy = 0;
+        if (trace) fprintf(stderr, "auto_event: seat is the server's\n");
+
+        return (1);
+
+    }
     sprintf(seatfn, "/tmp/ami_seat.%d", (int)getpid());
     unlink(seatfn);
     if (mkfifo(seatfn, 0600)) return (0);
@@ -623,7 +640,8 @@ static void seatline(const char* ln)
 {
 
     if (trace) fprintf(stderr, "auto_event: seat: %s", ln);
-    if (write(seatfd, ln, strlen(ln)) < 0) fault("seat write failed", ln);
+    if (seatremote) grx_seatline(ln);
+    else if (write(seatfd, ln, strlen(ln)) < 0) fault("seat write failed", ln);
 
 }
 
@@ -846,7 +864,7 @@ static void auto_event_fini(void)
        key that would have gone to a widget ends a pattern's loop early,
        and its leftovers are skipped as a matter of course */
 #ifdef AUTO_EVENT_SEAT
-    if (skipped && (seatfd >= 0 || trace))
+    if (skipped && (seatfd >= 0 || seatremote || trace))
 #else
     if (skipped && trace)
 #endif

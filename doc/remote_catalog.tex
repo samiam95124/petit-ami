@@ -240,6 +240,10 @@
 \texttt{GR\_MQUERYFIND} & 424 & str, i64 opt $\rightarrow$ str, i64 opt; wid 0 \\
 \texttt{GR\_MQUERYFINDREP} & 425 & str, str, i64 opt $\rightarrow$ str, str, i64 opt; wid 0 \\
 \texttt{GR\_MQUERYFONT} & 426 & i64 fc, s, fr, fg, fb, br, bg, bb, effect $\rightarrow$ the same nine, as chosen \\
+\texttt{GR\_MCAPTURENAME} & 480 & str: the file the pictures go to \\
+\texttt{GR\_MCAPTURELABEL} & 481 & str: the next picture's title \\
+\texttt{GR\_MCAPTURE} & 482 & $\rightarrow$ i64 0, when the picture is written \\
+\texttt{GR\_MSEAT} & 483 & str: a rig line; its pointer coordinates are in the session window's client area, and the server places them on its display \\
 \texttt{GR\_MEVENT} & 500 & an event, server $\rightarrow$ client on the event channel: evt \\
 \hline
 \multicolumn{3}{@{}l}{\textbf{The sound partition (base 8192)}} \\
