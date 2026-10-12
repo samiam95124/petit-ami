@@ -40,6 +40,11 @@
 #include <time.h>
 #include <setjmp.h>
 #include <stdarg.h>
+#if !defined(_WIN32) && !defined(__APPLE__)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
 #ifndef _WIN32
 #include <execinfo.h>
 #endif
@@ -166,6 +171,15 @@ static ami_long  h2lw[MAXHND]; /* handle to logical window id */
 static unsigned char lwused[MAXLW+1]; /* the ids the session's windows hold */
 static int  sesautohold;   /* the session's autohold, on by default */
 static char sestitle[256]; /* the title the session set, for the hold */
+
+/* The test rig, which rides the display side (graph_remote.h): the
+   session's pictures go through the platform's capture module, and the
+   seat's lines go to the display layer's rig. */
+extern void screen_capture(void);
+extern void screen_capture_name(const char* fn);
+extern void screen_capture_label(const char* s);
+extern void screen_capture_window(FILE* f);
+extern void screen_capture_end(void);
 static char sespgm[128];   /* the program's name, from its hello */
 static int  holding;       /* the program ended and its window is held */
 
@@ -959,6 +973,77 @@ static void job_hold(void* a)
 
 }
 
+#if !defined(_WIN32) && !defined(__APPLE__)
+
+/* The seat: the event file of a test drives its widgets through the
+   display layer's input rig, a fifo named in PD_INPUT (see
+   tests/auto_event.c, whose seat this is, moved here with the display).
+   The fifo is made at the first line and the layer opens it at its next
+   look for input. The pointer coordinates in a line are in the session
+   window's client area; the Wayland surface carries its frame around
+   that, the X window is the client area itself. The rig is aimed at the
+   session's window once a session: it is the second toplevel, after the
+   server's own. */
+
+extern int x11_seat __attribute__((weak)); /* the X module's rig */
+
+static int  rigfd = -1;   /* the rig fifo, written here */
+static char rigfn[80];    /* its name */
+static int  rigaimed;     /* aimed at the session window */
+
+static void seatline(const char* ln)
+
+{
+
+    char      buf[300];
+    int       b, x, y, ox, oy;
+    ami_long  wx, wy;
+
+    if (rigfd < 0) {
+
+        sprintf(rigfn, "/tmp/ami_seat.%d", (int)getpid());
+        unlink(rigfn);
+        if (mkfifo(rigfn, 0600)) return;
+        rigfd = open(rigfn, O_RDWR|O_NONBLOCK);
+        if (rigfd < 0) { unlink(rigfn); return; }
+        setenv("PD_INPUT", rigfn, 1);
+
+    }
+    if (!h2f[1]) return; /* no session window to aim at */
+    if (!rigaimed) {
+
+        if (write(rigfd, "target 1\n", 9) < 0) return;
+        rigaimed = 1;
+
+    }
+    if (&x11_seat) ox = oy = 0;
+    else {
+
+        ami_winclientg(h2f[1], 0, 0, &wx, &wy,
+                       BIT(ami_wmframe)|BIT(ami_wmsize)|BIT(ami_wmsysbar));
+        ox = (int)wx/2;
+        oy = (int)wy-(int)wx/2;
+
+    }
+    if (sscanf(ln, "move %d %d", &x, &y) == 2)
+        snprintf(buf, sizeof(buf), "move %d %d\n", x+ox, y+oy);
+    else if (sscanf(ln, "btndown %d %d %d", &b, &x, &y) == 3)
+        snprintf(buf, sizeof(buf), "btndown %d %d %d\n", b, x+ox, y+oy);
+    else if (sscanf(ln, "btnup %d %d %d", &b, &x, &y) == 3)
+        snprintf(buf, sizeof(buf), "btnup %d %d %d\n", b, x+ox, y+oy);
+    else if (sscanf(ln, "btn %d %d %d", &b, &x, &y) == 3)
+        snprintf(buf, sizeof(buf), "btn %d %d %d\n", b, x+ox, y+oy);
+    else snprintf(buf, sizeof(buf), "%s\n", ln);
+    if (write(rigfd, buf, strlen(buf)) < 0) return;
+
+}
+
+#else
+
+static void seatline(const char* ln) { (void)ln; } /* no rig here */
+
+#endif
+
 /* Reset for the next client, on the thread that owns the display: the
    session's windows close, its widgets and its sound go with them. A
    timer the session left running is not recovered, the library having no
@@ -971,6 +1056,10 @@ static void job_winddown(void* a)
     ami_long h;
 
     (void)a;
+    screen_capture_end(); /* the session's pictures, if any, are whole */
+#if !defined(_WIN32) && !defined(__APPLE__)
+    rigaimed = 0; /* the next session's window is aimed at afresh */
+#endif
 #ifndef _WIN32
     if (h2f[1]) wb_purge(h2f[1]); /* the session's widgets go with it */
 #endif
@@ -2077,6 +2166,17 @@ static void dispatch(void)
             gstr(s1, MAXSTR);
             ami_queryopen(s1, MAXSTR);
             rbegin(); rstr(s1, MAXSTR); rsend(); break;
+
+        /* ----------------------------------------------------- test rig */
+
+        case GR_MCAPTURENAME: gstr(s1, MAXSTR); screen_capture_name(s1); break;
+        case GR_MCAPTURELABEL: gstr(s1, MAXSTR); screen_capture_label(s1); break;
+        case GR_MCAPTURE:
+            /* the session window's picture, answered once it is written */
+            screen_capture_window(h2f[1]);
+            screen_capture();
+            rbegin(); ri(0); rsend(); break;
+        case GR_MSEAT: gstr(s1, MAXSTR); seatline(s1); break;
         case GR_MQUERYSAVE:
             gstr(s1, MAXSTR);
             ami_querysave(s1, MAXSTR);

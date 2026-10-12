@@ -269,6 +269,27 @@ void screen_capture_name(const char* fn) {
     snprintf(cap_name, sizeof(cap_name), "%s", fn);
 }
 
+/* The window the pictures are of. This module finds the window by the
+   process's own id, so the choice is not taken up: a server's session
+   window is captured as its own would be, when it is the largest. */
+void screen_capture_window(FILE* f) {
+    (void)f;
+}
+
+/* the pictures end: the file closes, and the next name opens another */
+void screen_capture_end(void) {
+    if (cap_file) {
+        fflush(cap_file);
+        fclose(cap_file);
+        cap_file = NULL;
+        if (cap_frame_count == 0) remove(cap_name);
+    }
+    cap_opened = 0;
+    cap_frame_count = 0;
+    cap_label[0] = 0;
+    cap_window = 0;
+}
+
 /* the file is made at the first capture, so a name can be given first */
 static void capopen(void) {
     cap_opened = 1;

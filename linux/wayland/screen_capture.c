@@ -56,6 +56,7 @@ static int       cap_opened     = 0;   /* the file has been made */
 static uint32_t  cap_frame_count = 0;
 static int       cap_disabled    = 0;
 static int       cap_nowin       = 0;   /* "no window" already reported */
+static FILE     *cap_win         = NULL; /* the window pictured; NULL the first */
 
 /* ---------- PNG writing ---------- */
 
@@ -122,6 +123,29 @@ void screen_capture_name(const char* fn) {
     snprintf(cap_name, sizeof(cap_name), "%s", fn);
 }
 
+/* The window the pictures are of: the program's first by default, which
+   is its own. A display server pictures a session's window instead. */
+void screen_capture_window(FILE* f) {
+    cap_win = f;
+}
+
+/* The pictures end: the file closes, and the next name opens another.
+   A program with one run of pictures never needs it; a server that
+   pictures one session after another does. */
+void screen_capture_end(void) {
+    if (cap_file) {
+        fflush(cap_file);
+        fclose(cap_file);
+        cap_file = NULL;
+        if (cap_frame_count == 0) remove(cap_name);
+    }
+    cap_opened = 0;
+    cap_frame_count = 0;
+    cap_label[0] = 0;
+    cap_nowin = 0;
+    cap_win = NULL;
+}
+
 /* the file is made at the first capture, so a name can be given first */
 static void capopen(void) {
     cap_opened = 1;
@@ -143,7 +167,7 @@ void screen_capture(void) {
     if (!cap_file) return;
 
     /* the composed picture: the client area with everything standing on it */
-    pix = grx_capture(&w, &h);
+    pix = grx_capturef(cap_win, &w, &h);
     if (!pix) {
         if (!cap_nowin) {
             fprintf(stderr, "screen_capture: no Petit-Ami window found\n");

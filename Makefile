@@ -1619,7 +1619,8 @@ endif
 # unless told which ones may be absent: -U marks just these, so they resolve
 # to NULL at load and the guards skip them, matching Linux. Do not add stubs
 # for them: a stub would make the guards believe the feature exists.
-WEAKOPT = -Wl,-U,_wg_hold -Wl,-U,_grx_glassdiff -Wl,-U,_pd_evtpost -Wl,-U,_x11_seat
+WEAKOPT = -Wl,-U,_wg_hold -Wl,-U,_grx_glassdiff -Wl,-U,_pd_evtpost -Wl,-U,_x11_seat \
+          -Wl,-U,_grx_seatline
 
 ifeq ($(OSTYPE),Darwin)
 graphics_test: $(GLIBSD) tests/graphics_test.c tests/auto_event.o $(GSCREEN_CAPTURE_OBJ)
@@ -1982,8 +1983,15 @@ sound_testr: $(GLIBSRD) tests/sound_test.c stub/screen_capture_stub.o
 #
 # The remote display server: the display side of remote mode, standalone.
 #
-graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h
-	$(CC) $(CFLAGS) portable/graph_server.c $(GLIBS) -o bin/graph_server
+# It links the platform's screen capture module: a picture test drawn
+# through it has its pictures taken here, where the drawing is.
+ifeq ($(OSTYPE),Darwin)
+graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) portable/graph_server.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(WEAKOPT) -o bin/graph_server
+else
+graph_server: $(GLIBSD) portable/graph_server.c include/graph_remote.h $(GSCREEN_CAPTURE_OBJ)
+	$(CC) $(CFLAGS) portable/graph_server.c $(GSCREEN_CAPTURE_OBJ) $(GLIBS) $(XLIBS) -o bin/graph_server
+endif
 
 #
 # Test terminal characteristics (console and graph mode)

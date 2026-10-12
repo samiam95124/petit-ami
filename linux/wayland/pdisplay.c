@@ -3929,13 +3929,17 @@ static void injline(pd_display* d, char* ln)
 
     } else if (sscanf(ln, "target %d", &a) == 1) {
 
-        /* aim the synthetic pointer at the a'th mapped toplevel */
+        /* aim the synthetic pointer at the a'th mapped toplevel, counted
+           in the order they were made: the root's children stand newest
+           first, so the count runs from the far end */
         int i = 0;
 
         d->ptrtop = NULL;
         TREERD();
         for (c = d->root.childs; c; c = c->sibnext)
-            if (c->mapped && c->top && i++ == a) { d->ptrtop = c; break; }
+            if (c->mapped && c->top) i++;
+        for (c = d->root.childs; c; c = c->sibnext)
+            if (c->mapped && c->top && --i == a) { d->ptrtop = c; break; }
         TREEUN();
         d->kbdtop = d->ptrtop;
         d->ptrwin = NULL;

@@ -464,6 +464,21 @@ typedef enum {
     GR_MQUERYFONT  = 426, /* i64 fc, s, fr, fg, fb, br, bg, bb, effect ->
                              the same nine, as chosen */
 
+    /* ----------------------------------------------------- test rig */
+
+    /** The picture tests' capture hook and the event file's seat, which
+       ride the display side (tests/auto_event.c, the screen_capture
+       modules): the server takes the pictures of the session's window
+       and puts the seat's lines to its display's rig. A capture is
+       answered when the picture is written, so the test stands until it
+       is, as it does with a display of its own. */
+    GR_MCAPTURENAME = 480, /* str: the file the pictures go to */
+    GR_MCAPTURELABEL = 481, /* str: the next picture's title */
+    GR_MCAPTURE    = 482, /* -> i64 0, when the picture is written */
+    GR_MSEAT       = 483, /* str: a rig line; its pointer coordinates are
+                             in the session window's client area, and the
+                             server places them on its display */
+
     /* ----------------------------------------------------- events */
 
     /** an event, server -> client on the event channel: evt */
@@ -842,6 +857,10 @@ static const char* gr_msgname(int mid)
         case GR_MQUERYFIND: return "QUERYFIND";
         case GR_MQUERYFINDREP: return "QUERYFINDREP";
         case GR_MQUERYFONT: return "QUERYFONT";
+        case GR_MCAPTURENAME: return "CAPTURENAME";
+        case GR_MCAPTURELABEL: return "CAPTURELABEL";
+        case GR_MCAPTURE: return "CAPTURE";
+        case GR_MSEAT: return "SEAT";
         case GR_MEVENT: return "EVENT";
         case GR_MSTARTTIMEOUT: return "STARTTIMEOUT";
         case GR_MSTOPTIMEOUT: return "STOPTIMEOUT";

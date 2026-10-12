@@ -85,9 +85,13 @@
 # The _testr tests are the same picture tests run remotely: the client links
 # graph_client and draws through a graph_server this script starts on this
 # machine (port 4909, so a server of yours on the default port is untouched).
-# The display is the server's, so there are no captures to compare; a remote
-# run passes when it walks every pattern and exits clean with nothing on the
-# error channel.
+# The display is the server's, so the server takes the pictures, of the
+# session's window, and the event file's seat drives its display. A remote
+# run must walk out clean with nothing on the error channel, and then its
+# pictures compare against the local test's standard: the server draws the
+# same library on the same backend, so the pictures are the same, and a
+# remote test keeps no standard of its own. --update of a remote test is
+# refused; the standard is retaken with the local test.
 #
 # Notes:
 #
@@ -313,10 +317,16 @@ runtest()
         ;;
 
     graphics_testr|window_testr|widget_testr)
-        # the same walk, drawn through the remote server on this machine
+        # the same walk, drawn through the remote server on this machine,
+        # which takes the pictures: it runs from the root, so the file is
+        # named from there
+        # The program goes by the local test's name: a window that sets
+        # no title is titled with it, and the pictures are the local
+        # test's.
         startrsrv
-        GRAPH_PORT=$rport timeout 300 "$(binof "$1")" auto < /dev/null \
-            > "tests/$1.out" 2>&1
+        rm -f "$(outof "$1")"
+        GRAPH_PORT=$rport GRAPH_NAME="${1%r}" timeout 900 "$(binof "$1")" \
+            auto "$(outof "$1")" < /dev/null > "tests/$1.out" 2>&1
         remoterc=$?
         ;;
 
@@ -465,6 +475,17 @@ MINGW*|MSYS*|CYGWIN*|Darwin) desk="" ;;
 
 esac
 
+# the binary a screen test's pictures are drawn by: the server's for a
+# remote test, which links no backend of its own
+drawnby() {
+
+    case "$1" in
+    graphics_testr|window_testr|widget_testr) binof graph_server ;;
+    *) binof "$1" ;;
+    esac
+
+}
+
 # the backend a screen test's binary was built with, which qualifies its
 # standard beside the desktop: read off the symbols it links, since the
 # Makefile's choice leaves no other mark
@@ -484,7 +505,7 @@ dirsof() {
 
     if [ -n "$desk" ]; then
 
-        b="$(backendof "$(binof "$1")")"
+        b="$(backendof "$(drawnby "$1")")"
         [ -n "$b" ] && echo "$cmpdir/$desk/$b"
         echo "$cmpdir/$desk"
 
@@ -508,7 +529,7 @@ findfile() {
 # where --update writes a screen test's standard: the backend's directory
 stddir() {
 
-    if [ -n "$desk" ]; then echo "$cmpdir/$desk/$(backendof "$(binof "$1")")"
+    if [ -n "$desk" ]; then echo "$cmpdir/$desk/$(backendof "$(drawnby "$1")")"
     else echo "$cmpdir"
     fi
 
@@ -576,14 +597,9 @@ for t in $tests; do
     runtest "$t"
     if [ "$remote" = "1" ]; then
 
-        # no pictures to compare: the display is the server's. The run
-        # passes when it walks out clean and says nothing on the way.
-        if [ "$remoterc" = "0" ] && [ ! -s "tests/$t.out" ]; then
-
-            rm -f "tests/$t.dif"
-            echo "$t: pass"
-
-        else
+        # the run must walk out clean and say nothing on the way; then its
+        # pictures, taken by the server, compare as a local run's do
+        if [ "$remoterc" != "0" ] || [ -s "tests/$t.out" ]; then
 
             {
                 echo "remote run failed: exit $remoterc"
@@ -592,9 +608,9 @@ for t in $tests; do
             } > "tests/$t.dif"
             echo "$t: *** fail *** (see tests/$t.dif)"
             fails=$((fails+1))
+            continue
 
         fi
-        continue
 
     fi
     if [ "$pict" = "1" ]; then
@@ -609,8 +625,16 @@ for t in $tests; do
             continue
 
         fi
-        std="$(findfile "$t" "$t.cmp")"
-        if [ "$update" = "1" ]; then
+        # a remote test's standard is the local test's
+        if [ "$remote" = "1" ]; then stdt="${t%r}"; else stdt="$t"; fi
+        std="$(findfile "$t" "$stdt.cmp")"
+        if [ "$update" = "1" ] && [ "$remote" = "1" ]; then
+
+            echo "$t: *** not regenerated *** its standard is $stdt's: bin/regress --update $stdt"
+            fails=$((fails+1))
+            continue
+
+        elif [ "$update" = "1" ]; then
 
             # a run the event file did not carry through is no standard:
             # a standard taken from a cut run passes a cut run
@@ -628,10 +652,10 @@ for t in $tests; do
 
         elif [ -z "$std" ]; then
 
-            std="$(stddir "$t")/$t.cmp"
+            std="$(stddir "$t")/$stdt.cmp"
             {
-                echo "no $std: this platform${desk:+, desktop and backend} has no standard for $t yet"
-                echo "make one with: bin/regress --update $t, then review it"
+                echo "no $std: this platform${desk:+, desktop and backend} has no standard for $stdt yet"
+                echo "make one with: bin/regress --update $stdt, then review it"
             } > "tests/$t.dif"
             echo "$t: *** fail *** (see tests/$t.dif)"
             fails=$((fails+1))

@@ -18845,7 +18845,7 @@ backend takes its own picture.
 
 *******************************************************************************/
 
-uint32_t* grx_capture(int* width, int* height)
+uint32_t* grx_capturef(FILE* f, int* width, int* height)
 
 {
 
@@ -18857,12 +18857,13 @@ uint32_t* grx_capture(int* width, int* height)
     int       x0, y0, w, h; /* the cut: the client area and the menu strip */
     int       y;
 
-    /* the window the picture is of */
+    /* the window the picture is of: the file's, or the first open */
     win = NULL;
+    if (f) win = txt2win(f);
     for (fi = 0; fi < MAXFIL && !win; fi++)
         if (opnfil[fi] && opnfil[fi]->win && opnfil[fi]->win->xwhan)
             win = opnfil[fi]->win;
-    if (!win) return (NULL);
+    if (!win || !win->xwhan) return (NULL);
 
     /* the cursor is not part of the picture: take every one down */
     for (fi = 0; fi < MAXFIL; fi++)
@@ -18895,3 +18896,7 @@ uint32_t* grx_capture(int* width, int* height)
     return (cp);
 
 }
+
+/* the picture of the first open window, the program's own */
+uint32_t* grx_capture(int* width, int* height)
+    { return (grx_capturef(NULL, width, height)); }
