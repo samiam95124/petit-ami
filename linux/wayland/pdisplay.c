@@ -664,7 +664,7 @@ static void dashpattern(pd_draw* dr, int* on, int* off);
 #define SUBROWS 8 /* sub-rows sampled per row: coverage steps on a near
                      horizontal edge */
 
-static int aaon = 0; /* anti-aliasing on */
+static int aaon = 1; /* anti-aliasing on, the default */
 
 void pd_antialias(int on)
 {

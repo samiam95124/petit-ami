@@ -1116,9 +1116,9 @@ static int scrollbuffer = TRUE; /* a buffered window shows scroll bars for a
                                    buffer larger than its client: the option
                                    scrollbuffer under graphics in the
                                    configuration, on by default */
-static int antialias = FALSE; /* lines, curves and text are drawn
+static int antialias = TRUE;  /* lines, curves and text are drawn
                                  anti-aliased: the option antialias under
-                                 graphics in the configuration, off by
+                                 graphics in the configuration, on by
                                  default */
 static int mouseenb;  /* enable mouse */
 static int joyenb;    /* enable joysticks */
