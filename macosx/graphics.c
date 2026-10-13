@@ -136,6 +136,8 @@ typedef struct winrec {
     int         visible;
     int         frame, sizable, sysbar;
     int         bufmod;        /* double-buffer on */
+    int         bufset;        /* the program set the buffer's size: until
+                                  then it follows the window through setsiz */
     int         gauto;         /* window-level auto scroll/wrap state; new or
                                   reselected screens inherit it (matches the
                                   reference: ami_auto is a window property, not
@@ -870,6 +872,15 @@ static void pa_graphics_init(void)
 
                 dialogerr = strtol(vp->value, &errstr, 10);
                 if (*errstr) dialogerr = 0;
+
+            }
+
+            /* scroll bars for a buffer larger than its client */
+            vp = ami_schlst("scrollbuffer", graph_root->sublist);
+            if (vp) {
+
+                long sb = strtol(vp->value, &errstr, 10);
+                if (!*errstr) pa_cocoa_set_scrollbuffer(sb != 0);
 
             }
 
@@ -1997,10 +2008,9 @@ static void wrtstrn_ivf(FILE* f, char* s, ami_long n)
     fwrite(s, 1, n, f);
 }
 
-static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
+/* the buffer to a size; the scroll bars follow in the shim */
+static void isizbufg(winptr win, ami_long x, ami_long y)
 {
-    winptr win = f2win(f); if (!win) return;
-    if (x < 1 || y < 1) return;
     pa_cocoa_resize_bitmap(win->han, x, y);
     win->maxxg = x;
     win->maxyg = y;
@@ -2011,6 +2021,14 @@ static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
     /* the buffer's drawing surface was recreated: drawing attributes reset
        to defaults, matching the Windows DC-recreation behavior */
     curscn(win)->lwidth = 1.0;
+}
+
+static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
+{
+    winptr win = f2win(f); if (!win) return;
+    if (x < 1 || y < 1) return;
+    win->bufset = TRUE; /* the program sets the buffer: it holds from here */
+    isizbufg(win, x, y);
 }
 
 static void sizbuf_ivf(FILE* f, ami_long x, ami_long y)
@@ -2979,6 +2997,17 @@ static void setsizg_ivf(FILE* f, ami_long x, ami_long y)
         sc->lwidth = 1.0;
         CGContextRef ctx = pa_cocoa_get_context(win->han);
         if (ctx) CGContextSetLineWidth(ctx, 1.0);
+    } else if (!win->bufset) {
+        /* A buffer the program has not set follows the window: it was the
+           client's size at the open, and is the client's size after. A
+           program that sizes a window and never its buffer expects the two
+           to match; the buffer as opened, left larger than a window sized
+           smaller, would show scroll bars for it. A buffer set with sizbuf
+           holds. The client is taken as the window has it, with no bars. */
+        int aw, ah;
+        pa_cocoa_get_size(win->han, &aw, &ah);
+        if (aw >= 1 && ah >= 1 && (aw != win->maxxg || ah != win->maxyg))
+            isizbufg(win, aw, ah);
     }
 }
 
