@@ -3230,6 +3230,13 @@ pa_winhan pa_stdout_winhan(void)
     return NULL;
 }
 
+/* Return the window handle for a window's file (used by screen_capture) */
+pa_winhan pa_file_winhan(FILE* f)
+{
+    winptr win = f2win(f);
+    return win ? win->han : NULL;
+}
+
 /*******************************************************************************
 *                                                                              *
 *                        PA API — event handling                               *
