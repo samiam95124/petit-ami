@@ -24,7 +24,15 @@
 *                                    labeled "frame N" with no step fraction,  *
 *                                    on a text page or in a picture's title    *
 *   home / end                     - first / last frame                        *
+*   1                              - the window back to the picture's own size *
 *   q / close button               - quit                                      *
+*                                                                              *
+* The window opens at the picture's size and follows the pictures at their    *
+* own size from frame to frame. Resized, it keeps the size given it, and the   *
+* pictures are scaled to fit it, centered, with their aspect ratio kept: a     *
+* reduction averages the source pixels of each, an enlargement repeats them,   *
+* so lines stay crisp. The 1 key puts the window back on the picture's size,   *
+* and it follows the frames again. The text pages are never scaled.            *
 *                                                                              *
 * Usage:                                                                       *
 *   bin/testviewer [filename]       # default: test_images.img                 *
@@ -415,6 +423,46 @@ static void draw_text_page(Display *dpy, Window win, GC gc, XFontStruct *font,
 /* ---------- X11 display ---------- */
 
 /*
+ * Scale an RGB picture to dw by dh. Each destination pixel takes the mean of
+ * the source pixels its footprint covers, at least one: a reduction averages,
+ * an enlargement repeats. Returns a malloc'd dw*dh*3 buffer.
+ */
+static uint8_t *scale_rgb(const uint8_t *rgb, int w, int h, int dw, int dh) {
+    uint8_t *out = (uint8_t *)malloc((size_t)dw * dh * 3);
+    if (!out) return NULL;
+    uint8_t *o = out;
+    for (int dy = 0; dy < dh; dy++) {
+        int sy0 = (int)((long)dy * h / dh);
+        int sy1 = (int)((long)(dy + 1) * h / dh);
+        if (sy1 <= sy0) sy1 = sy0 + 1;
+        if (sy1 > h) sy1 = h;
+        for (int dx = 0; dx < dw; dx++) {
+            int sx0 = (int)((long)dx * w / dw);
+            int sx1 = (int)((long)(dx + 1) * w / dw);
+            if (sx1 <= sx0) sx1 = sx0 + 1;
+            if (sx1 > w) sx1 = w;
+            unsigned r = 0, g = 0, b = 0, n = 0;
+            for (int y = sy0; y < sy1; y++) {
+                const uint8_t *p = rgb + ((size_t)y * w + sx0) * 3;
+                for (int x = sx0; x < sx1; x++) {
+                    r += p[0]; g += p[1]; b += p[2]; p += 3; n++;
+                }
+            }
+            *o++ = r / n; *o++ = g / n; *o++ = b / n;
+        }
+    }
+    return out;
+}
+
+/* the size a picture of w by h takes fitted in ww by wh, aspect kept */
+static void fit_size(int w, int h, int ww, int wh, int *dw, int *dh) {
+    if ((long)ww * h <= (long)wh * w) { *dw = ww; *dh = (int)((long)ww * h / w); }
+    else { *dh = wh; *dw = (int)((long)wh * w / h); }
+    if (*dw < 1) *dw = 1;
+    if (*dh < 1) *dh = 1;
+}
+
+/*
  * Convert RGB pixels to the format X11 wants (typically 32-bit with masks
  * from the visual). Returns a malloc'd buffer for XCreateImage.
  */
@@ -469,6 +517,44 @@ static int key_frame(KeySym key, int shift, int cur, int n) {
     return cur;
 }
 
+/*
+ * The picture on show, as decoded, and the XImage of it fitted to the window.
+ * The image is remade when the picture or the window's size changes, and
+ * put up centered at each expose.
+ */
+static uint8_t *pic = NULL;          /* the frame's pixels */
+static int      pw = 0, ph = 0;      /* its size */
+static XImage  *ximg = NULL;         /* the frame fitted to the window */
+static int      iw = 0, ih = 0;      /* the fitted size */
+static int      ww = 0, wh = 0;      /* the window's size */
+static int      fitted = 0;          /* the window is the user's size: fit
+                                        the pictures to it instead of the
+                                        window to the pictures */
+static int      askw = 0, askh = 0;  /* the size last asked of the window */
+
+static void make_image(Display *dpy, Visual *visual, int depth) {
+    int dw, dh;
+    uint8_t *src = pic;
+    char *xdata;
+
+    if (ximg) { XDestroyImage(ximg); ximg = NULL; }
+    if (!pic) return;
+    fit_size(pw, ph, ww, wh, &dw, &dh);
+    if (dw != pw || dh != ph) src = scale_rgb(pic, pw, ph, dw, dh);
+    if (!src) return;
+    xdata = rgb_to_ximage_data(src, dw, dh, visual);
+    if (src != pic) free(src);
+    if (!xdata) return;
+    ximg = XCreateImage(dpy, visual, depth, ZPixmap, 0, xdata, dw, dh, 32, 0);
+    iw = dw; ih = dh;
+}
+
+static void show_image(Display *dpy, Window win, GC gc) {
+    XClearWindow(dpy, win);
+    if (ximg) XPutImage(dpy, win, gc, ximg, 0, 0, (ww - iw) / 2, (wh - ih) / 2,
+                        iw, ih);
+}
+
 /* ---------- main ---------- */
 
 int main(int argc, char *argv[]) {
@@ -513,7 +599,6 @@ int main(int argc, char *argv[]) {
     int depth = DefaultDepth(dpy, screen);
 
     int fw = 0, fh = 0;
-    uint8_t *rgb = NULL;
     XFontStruct *font = NULL;
     if (textmode) {
         font = XLoadQueryFont(dpy, TEXT_FONT);
@@ -523,9 +608,11 @@ int main(int argc, char *argv[]) {
         fh = pagerows * (font->ascent + font->descent) + 2 * TEXT_MARGIN;
     } else {
         /* decode first frame to get dimensions */
-        rgb = load_frame(fn, 0, &fw, &fh);
-        if (!rgb) { fprintf(stderr, "Failed to decode frame 0\n"); return 1; }
+        pic = load_frame(fn, 0, &pw, &ph);
+        if (!pic) { fprintf(stderr, "Failed to decode frame 0\n"); return 1; }
+        fw = pw; fh = ph;
     }
+    ww = askw = fw; wh = askh = fh;
 
     /* create window */
     Window win = XCreateSimpleWindow(dpy, RootWindow(dpy, screen),
@@ -550,14 +637,7 @@ int main(int argc, char *argv[]) {
     if (font) XSetFont(dpy, gc, font->fid);
 
     /* build initial XImage, for the picture stream */
-    char *xdata = NULL;
-    XImage *ximg = NULL;
-    if (!textmode) {
-        xdata = rgb_to_ximage_data(rgb, fw, fh, visual);
-        free(rgb);
-        ximg = XCreateImage(dpy, visual, depth, ZPixmap, 0,
-                            xdata, fw, fh, 32, 0);
-    }
+    if (!textmode) make_image(dpy, visual, depth);
 
     int cur_frame = 0;
 
@@ -570,7 +650,20 @@ int main(int argc, char *argv[]) {
         case Expose:
             if (ev.xexpose.count == 0) {
                 if (textmode) draw_text_page(dpy, win, gc, font, cur_frame);
-                else XPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, fw, fh);
+                else show_image(dpy, win, gc);
+            }
+            break;
+
+        case ConfigureNotify:
+            /* the window's size: a size not asked for is the user's, and
+               the pictures fit it from here on */
+            if (ev.xconfigure.width != ww || ev.xconfigure.height != wh) {
+                ww = ev.xconfigure.width; wh = ev.xconfigure.height;
+                if (ww != askw || wh != askh) fitted = 1;
+                if (!textmode) {
+                    make_image(dpy, visual, depth);
+                    show_image(dpy, win, gc);
+                }
             }
             break;
 
@@ -579,6 +672,13 @@ int main(int argc, char *argv[]) {
             int new_frame = key_frame(key, (ev.xkey.state & ShiftMask) != 0,
                                       cur_frame, total);
             if (new_frame < 0) goto done;
+            if ((key == XK_1 || key == XK_KP_1) && !textmode) {
+                /* the window back on the picture's own size, and following
+                   the pictures again */
+                fitted = 0;
+                askw = pw; askh = ph;
+                XResizeWindow(dpy, win, pw, ph);
+            }
             if (new_frame != cur_frame) {
                 cur_frame = new_frame;
                 snprintf(title, sizeof(title), "testviewer [%d/%d]",
@@ -587,17 +687,20 @@ int main(int argc, char *argv[]) {
                 if (textmode) draw_text_page(dpy, win, gc, font, cur_frame);
                 else {
                     int nw, nh;
-                    rgb = load_frame(fn, cur_frame, &nw, &nh);
+                    uint8_t *rgb = load_frame(fn, cur_frame, &nw, &nh);
                     if (rgb) {
-                        XDestroyImage(ximg); /* frees xdata too */
-                        fw = nw; fh = nh;
-                        xdata = rgb_to_ximage_data(rgb, fw, fh, visual);
-                        free(rgb);
-                        ximg = XCreateImage(dpy, visual, depth, ZPixmap, 0,
-                                            xdata, fw, fh, 32, 0);
-                        XResizeWindow(dpy, win, fw, fh);
-                        XClearWindow(dpy, win);
-                        XPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, fw, fh);
+                        free(pic);
+                        pic = rgb; pw = nw; ph = nh;
+                        /* the window follows the picture's size until the
+                           user has sized it; then the picture fits the
+                           window. A resize's ConfigureNotify redraws. */
+                        if (!fitted && (pw != ww || ph != wh)) {
+                            askw = pw; askh = ph;
+                            XResizeWindow(dpy, win, pw, ph);
+                        } else {
+                            make_image(dpy, visual, depth);
+                            show_image(dpy, win, gc);
+                        }
                     }
                 }
             }
@@ -615,7 +718,8 @@ int main(int argc, char *argv[]) {
     }
 
 done:
-    if (ximg) XDestroyImage(ximg); /* frees xdata */
+    if (ximg) XDestroyImage(ximg); /* frees its data */
+    free(pic);
     if (font) XFreeFont(dpy, font);
     XFreeGC(dpy, gc);
     XDestroyWindow(dpy, win);

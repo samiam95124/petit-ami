@@ -9,7 +9,14 @@
 * Keys:                                                                        *
 *   right arrow  - next frame                                                  *
 *   left arrow   - previous frame                                              *
+*   1            - the window back to the picture's own size                   *
 *   q / close button - quit                                                    *
+*                                                                              *
+* The window opens at the picture's size and follows the pictures at their    *
+* own size from frame to frame. Resized, it keeps the size given it, and the   *
+* pictures are scaled to fit it, centered, with their aspect ratio kept. The  *
+* 1 key puts the window back on the picture's size, and it follows the frames *
+* again.                                                                       *
 *                                                                              *
 * Usage:                                                                       *
 *   bin\testviewer [filename]       # default: test_images.img                    *
@@ -201,8 +208,14 @@ static uint8_t *load_frame(const char *filename, int i, int *w, int *h)
 
 /* ---------- Win32 display ---------- */
 
+static int fitted = 0;         /* the window is the user's size: fit the
+                                  pictures to it instead of the window to
+                                  the pictures */
+static int askw = 0, askh = 0; /* the client size last asked of the window */
+
 /*
- * Paint the current RGB frame to the window using StretchDIBits.
+ * Paint the current RGB frame to the window using StretchDIBits, fitted to
+ * the client area, centered, with the aspect ratio kept.
  * RGB is converted to BGR on-the-fly via the DIB format.
  */
 static void paint_frame(HWND hwnd)
@@ -211,6 +224,20 @@ static void paint_frame(HWND hwnd)
 
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
+
+    /* the fitted size and place */
+    RECT cr;
+    GetClientRect(hwnd, &cr);
+    int ww = cr.right - cr.left, wh = cr.bottom - cr.top;
+    int dw, dh;
+    if ((long)ww * cur_h <= (long)wh * cur_w) {
+        dw = ww; dh = (int)((long)ww * cur_h / cur_w);
+    } else {
+        dh = wh; dw = (int)((long)wh * cur_w / cur_h);
+    }
+    if (dw < 1) dw = 1;
+    if (dh < 1) dh = 1;
+    int ox = (ww - dw) / 2, oy = (wh - dh) / 2;
 
     /* build a top-down BGR DIB from the RGB buffer */
     int row_stride = ((cur_w * 3) + 3) & ~3;
@@ -237,9 +264,19 @@ static void paint_frame(HWND hwnd)
         bmi.bmiHeader.biBitCount    = 24;
         bmi.bmiHeader.biCompression = BI_RGB;
 
-        SetDIBitsToDevice(hdc, 0, 0, cur_w, cur_h,
-                          0, 0, 0, cur_h,
-                          dib, &bmi, DIB_RGB_COLORS);
+        if (dw == cur_w && dh == cur_h)
+            SetDIBitsToDevice(hdc, ox, oy, cur_w, cur_h,
+                              0, 0, 0, cur_h,
+                              dib, &bmi, DIB_RGB_COLORS);
+        else {
+            /* a reduction averages the source pixels; an enlargement
+               repeats them */
+            SetStretchBltMode(hdc, dw < cur_w ? HALFTONE : COLORONCOLOR);
+            SetBrushOrgEx(hdc, 0, 0, NULL);
+            StretchDIBits(hdc, ox, oy, dw, dh,
+                          0, 0, cur_w, cur_h,
+                          dib, &bmi, DIB_RGB_COLORS, SRCCOPY);
+        }
         free(dib);
     }
 
@@ -252,6 +289,16 @@ static void update_title(HWND hwnd)
     snprintf(title, sizeof(title), "testviewer [%d/%d]",
              cur_frame + 1, nframes);
     SetWindowText(hwnd, title);
+}
+
+/* the window sized to the frame (adjusted for frame/title) */
+static void size_to_frame(HWND hwnd)
+{
+    RECT rc = { 0, 0, cur_w, cur_h };
+    askw = cur_w; askh = cur_h;
+    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+    SetWindowPos(hwnd, NULL, 0, 0, rc.right - rc.left, rc.bottom - rc.top,
+                 SWP_NOMOVE | SWP_NOZORDER);
 }
 
 static void switch_frame(HWND hwnd, int new_frame)
@@ -269,11 +316,9 @@ static void switch_frame(HWND hwnd, int new_frame)
     cur_h = nh;
     cur_frame = new_frame;
 
-    /* resize window to fit new frame (adjust for frame/title) */
-    RECT rc = { 0, 0, cur_w, cur_h };
-    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-    SetWindowPos(hwnd, NULL, 0, 0, rc.right - rc.left, rc.bottom - rc.top,
-                 SWP_NOMOVE | SWP_NOZORDER);
+    /* the window follows the picture's size until the user has sized it;
+       then the picture fits the window */
+    if (!fitted) size_to_frame(hwnd);
 
     update_title(hwnd);
     InvalidateRect(hwnd, NULL, TRUE);
@@ -292,8 +337,23 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             switch_frame(hwnd, cur_frame + 1);
         else if (wp == VK_LEFT)
             switch_frame(hwnd, cur_frame - 1);
+        else if (wp == '1' || wp == VK_NUMPAD1) {
+            /* the window back on the picture's own size, and following
+               the pictures again */
+            fitted = 0;
+            size_to_frame(hwnd);
+            InvalidateRect(hwnd, NULL, TRUE);
+        }
         else if (wp == 'Q')
             PostMessage(hwnd, WM_CLOSE, 0, 0);
+        return 0;
+
+    case WM_SIZE:
+        /* a client size not asked for is the user's, and the pictures fit
+           it from here on */
+        if (wp != SIZE_MINIMIZED &&
+            (LOWORD(lp) != askw || HIWORD(lp) != askh)) fitted = 1;
+        InvalidateRect(hwnd, NULL, TRUE);
         return 0;
 
     case WM_DESTROY:
@@ -335,6 +395,7 @@ int main(int argc, char *argv[])
 
     /* create window sized to first frame */
     RECT rc = { 0, 0, cur_w, cur_h };
+    askw = cur_w; askh = cur_h;
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
     HWND hwnd = CreateWindow("TestViewerClass", "testviewer [1/1]",
