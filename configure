@@ -1,11 +1,49 @@
 #!/usr/bin/env bash
 ################################################################################
 #
-# Configure scipt for Petit-ami
+# Configure script for Petit-Ami
 #
-# Sets up the complete Petit-ami project.
+# Checks that the tools and the development packages the build needs are on
+# the machine, and installs the packages that are missing. The required set is
+# what the default "make" target links against; the optional set is what the
+# regression tests and the manual build use, which is reported but not
+# installed.
+#
+# Options:
+#
+# --check   Report what is missing and install nothing.
+# --help    Print this.
 #
 ################################################################################
+
+check="0"
+for var in "$@"
+do
+
+    case "$var" in
+
+    --check) check="1" ;;
+    --help)
+
+        echo "Configure program for Petit-Ami"
+        echo
+        echo "configure [--check]"
+        echo
+        echo "Checks for the tools and development packages the build needs and"
+        echo "installs the missing packages. --check reports and installs nothing."
+        exit 0
+        ;;
+
+    *)
+
+        echo "*** Option not recognized: $var"
+        echo "Terminating"
+        exit 1
+        ;;
+
+    esac
+
+done
 
 ################################################################################
 #
@@ -15,17 +53,39 @@
 #
 # Check command exists
 #
-# Uses the bash "command" built in.
+# Uses the bash "command" built in. Adds the name to the missing tools list.
 #
 function checkexists {
 
-    command -v $1 >/dev/null
-    rc=$?
-    if [[ $rc != 0 ]] ; then
+    if ! command -v "$1" >/dev/null 2>&1 ; then
 
         echo "*** No $1 was found"
+        missingtools="$missingtools $1"
 
     fi
+
+}
+
+#
+# Check a package is installed, by the host's package manager. Adds the name
+# to the list given (required or optional) when it is not.
+#
+function checkpkg {
+
+    case "$host" in
+
+    linux)
+
+        if dpkg -s "$1" 2>/dev/null | grep -q '^Status: .* installed' ; then return 0; fi
+        ;;
+
+    bsd)
+
+        if pkg info -e "$1" 2>/dev/null ; then return 0; fi
+        ;;
+
+    esac
+    return 1
 
 }
 
@@ -63,44 +123,109 @@ fi
 
 ################################################################################
 #
-# Make sure used packages are installed.
+# The packages the build needs.
+#
+# Required: what the default make target compiles and links against. Each is
+# the development package, carrying the headers and the link library.
+#
+# Optional: what the regression tests and the manual use. The terminal tests
+# run in an xterm on a private Xvfb; doc/mkpdf renders the manual with
+# LibreOffice.
 #
 if [ "$host" = "linux" ]
 then
 
-    sudo apt-get -y install alsa alsa-tools
-    sudo apt-get -y install libasound2-dev
-    sudo apt-get -y install openssl
-    sudo apt-get -y install libssl-dev
-    sudo apt-get -y install fluidsynth
-    sudo apt-get -y install libfluidsynth-dev
-    sudo apt-get -y install gawk
-    sudo apt-get -y install bison
-    sudo apt-get -y install git
-    sudo apt-get -y install openssl
-    sudo apt-get -y install libx11-dev
+    required="build-essential pkgconf
+              libssl-dev
+              libasound2-dev libfluidsynth-dev
+              libpng-dev zlib1g-dev
+              libfreetype-dev libfontconfig-dev
+              libx11-dev libxext-dev libxtst-dev
+              libwayland-dev libxkbcommon-dev"
+    optional="xvfb xterm libreoffice-writer"
 
 elif [ "$host" = "bsd" ]
 then
 
-    sudo pkg install openssl
-    sudo pkg install fluidsynth
-    sudo pkg install gawk
-    sudo pkg install bison
-    sudo pkg install git
-    sudo pkg install openssl
-    sudo pkg install gmake
+    required="gmake pkgconf
+              openssl
+              alsa-lib fluidsynth
+              png
+              freetype2 fontconfig
+              libX11 libXext libXtst
+              wayland libxkbcommon"
+    optional="xorg-vfbserver xterm libreoffice"
 
 fi
 
 ################################################################################
 #
-# Determine if needed programs exist. The only fatal one is gcc, because we
-# need that to compile Petit-Ami. The rest will impact the running of various
-# test and build scripts.
+# Find what is missing
 #
+missingreq=""
+missingopt=""
+missingtools=""
 
+for p in $required
+do
 
+    if ! checkpkg "$p" ; then missingreq="$missingreq $p"; fi
+
+done
+
+for p in $optional
+do
+
+    if ! checkpkg "$p" ; then missingopt="$missingopt $p"; fi
+
+done
+
+################################################################################
+#
+# Install the required packages that are missing, or say what they are
+#
+if [ -n "$missingreq" ]
+then
+
+    echo "Required packages not installed:$missingreq"
+    if [ "$check" = "1" ]
+    then
+
+        echo "Install them with:"
+        if [ "$host" = "linux" ] ; then echo "    sudo apt-get install$missingreq"
+        else echo "    sudo pkg install$missingreq"
+        fi
+
+    elif [ "$host" = "linux" ]
+    then
+
+        sudo apt-get install -y $missingreq
+
+    else
+
+        sudo pkg install -y $missingreq
+
+    fi
+
+else
+
+    echo "All required packages are installed"
+
+fi
+
+if [ -n "$missingopt" ]
+then
+
+    echo "Optional packages not installed (tests and manual):$missingopt"
+
+fi
+
+################################################################################
+#
+# Determine if needed programs exist. The only fatal one is the C compiler,
+# because we need that to compile Petit-Ami. The rest will impact the running
+# of various test and build scripts.
+#
 checkexists grep
 checkexists diff
 checkexists sed
@@ -109,38 +234,26 @@ checkexists cp
 checkexists mv
 checkexists ls
 checkexists tar
+checkexists make
+checkexists ar
+checkexists pkg-config
 
 #
 # Fail on no C compiler found
 #
-checkexists $compiler > /dev/null
-if [[ $rc != 0 ]] ; then
+if ! command -v "$compiler" >/dev/null 2>&1 ; then
 
-    echo "*** Aborting: cannot complete without known C compiler"
+    echo "*** Aborting: cannot complete without known C compiler ($compiler)"
     exit 1
 
 fi
 
-#
-# Check user arguments
-#
-for var in "$@"
-do
+if [ -n "$missingreq" ] && [ "$check" = "1" ]
+then
 
-    if [ $var = "--help" ]
-    then
+    echo "Configure found missing packages"
+    exit 1
 
-        echo "Configure program for Petit-Ami"
-        exit 0
-
-    else
-
-        echo "*** Option not recognized"
-        echo "Terminating"
-        exit 0
-
-    fi
-
-done
+fi
 
 echo "Configure completed!"
