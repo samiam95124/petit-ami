@@ -7463,21 +7463,39 @@ static void recompcli(winptr win)
 
 }
 
+/* The decorations have changed around a client of the size given: the client
+   keeps its size and the window is fitted around it, as the graphical form
+   does, the window growing as a decoration goes on and shrinking as one goes
+   off. The window kept its size before and the client took up the change,
+   which left a buffer the size of the old client short of the new one, or
+   cut off by it. */
+
+static void fitdecor(winptr win, ami_long cx, ami_long cy)
+
+{
+
+    intsetsiz(win, cx+decorx(win), cy+decory(win)); /* the window around it */
+    recompcli(win); /* the client's place follows the decorations */
+    restore(win); /* redraw */
+    annredraw(win); /* a follow mode window needs its program */
+
+}
+
 static void iframe(FILE* f, ami_long e)
 
 {
 
     winptr win; /* windows record pointer */
+    ami_long cx, cy; /* the client, kept */
 
     win = txt2win(f); /* get window from file */
     e = !!e; /* clean boolean */
     if (win->frame != e) {
 
+        cx = win->cmaxx;
+        cy = win->cmaxy;
         win->frame = e; /* set frame state */
-        recompcli(win); /* the client geometry follows the decorations */
-        restore(win); /* redraw */
-        annresize(win); /* the client changed size within the window */
-        annredraw(win); /* a follow mode window needs its program */
+        fitdecor(win, cx, cy); /* the window follows the decorations */
 
     }
 
@@ -7521,16 +7539,16 @@ static void isysbar(FILE* f, ami_long e)
 {
 
     winptr win; /* windows record pointer */
+    ami_long cx, cy; /* the client, kept */
 
     win = txt2win(f); /* get window from file */
     e = !!e; /* clean boolean */
     if (win->sysbar != e) {
 
+        cx = win->cmaxx;
+        cy = win->cmaxy;
         win->sysbar = e; /* set frame state */
-        recompcli(win); /* the client geometry follows the decorations */
-        restore(win); /* redraw */
-        annresize(win); /* the client changed size within the window */
-        annredraw(win); /* a follow mode window needs its program */
+        fitdecor(win, cx, cy); /* the window follows the decorations */
 
     }
 
