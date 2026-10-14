@@ -267,7 +267,9 @@ int main(int argc, char* argv[])
        one it was started from, is as it was when it ends. */
     ami_select(stdout, 2, 2);
     ami_curvis(stdout, FALSE);
-    ami_auto(stdout, FALSE);
+    /* auto stays on, as in widget_test: the events a test prints scroll up
+       at the bottom rather than overwriting the last row, and a line longer
+       than the screen wraps rather than being cut */
     printf("Widget test vs. 0.1\n");
     printf("\n");
     printf("Hit return in any window to continue for each test\n");
@@ -1312,11 +1314,10 @@ int main(int argc, char* argv[])
 
     terminate:;
 
-    /* back to the first screen, as it was, with the cursor and the wrap
-       the test turned off */
+    /* back to the first screen, as it was, with the cursor the test turned
+       off */
     ami_select(stdout, 1, 1);
     ami_curvis(stdout, TRUE);
-    ami_auto(stdout, TRUE);
     printf("\n");
     printf("Test complete\n");
 
