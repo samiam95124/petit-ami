@@ -184,6 +184,9 @@ static int      maxyd;                 /* default window height in pixels */
 static int      cfgmaxxd;             /* configured terminal width in chars */
 static int      cfgmaxyd;             /* configured terminal height in chars */
 static int      dialogerr;            /* send runtime errors to dialog */
+static int      antialias = 1;        /* lines, figures and text drawn
+                                         anti-aliased: the option antialias
+                                         under graphics, on by default */
 static int      mouseenb = 1;         /* enable mouse */
 static int      joyenb;               /* enable joysticks */
 static int      dmpevt;               /* enable dump Petit-Ami events */
@@ -553,8 +556,7 @@ static void draw_string(CGContextRef ctx, winptr win, scnptr sc,
     CGFloat tx = PX(x);
     CGFloat ty = PY(y) + ascent + yoff;
 
-    /* draw text. The context has antialiasing off, for the lines and
-       figures, which are drawn to the pixel. Glyphs written over their
+    /* draw text. With the option antialias on, glyphs written over their
        own background (both modes overwrite) are drawn smoothed, as the
        system draws its own, else they come out ragged, each stem snapped
        to a pixel at the font's size. In any other mode they are 1 bit, as
@@ -562,7 +564,7 @@ static void draw_string(CGContextRef ctx, winptr win, scnptr sc,
        what lies under it, and neither a second xor nor the same string in
        the background's color takes a blend off again. The moving string
        left a trail of grey edges, and the xor'd frame stamp a smear. */
-    int smooth = sc->fmod == mdnorm && sc->bmod == mdnorm;
+    int smooth = antialias && sc->fmod == mdnorm && sc->bmod == mdnorm;
     CGContextSaveGState(ctx);
     CGContextSetAllowsAntialiasing(ctx, smooth);
     CGContextSetShouldAntialias(ctx, smooth);
@@ -884,6 +886,15 @@ static void pa_graphics_init(void)
 
             }
 
+            /* anti-aliased lines, figures and text */
+            vp = ami_schlst("antialias", graph_root->sublist);
+            if (vp) {
+
+                long aa = strtol(vp->value, &errstr, 10);
+                if (!*errstr) antialias = aa != 0;
+
+            }
+
             /* find macosx subsection */
             mac_root = ami_schlst("macosx", graph_root->sublist);
             if (mac_root) {
@@ -1070,7 +1081,13 @@ static CGContextRef get_ctx(winptr win)
     CGContextRef ctx = pa_cocoa_get_context(win->han);
     if (!ctx) return NULL;
     CGContextSetLineWidth(ctx, sc->lwidth);
-    CGContextSetShouldAntialias(ctx, false); /* crisp lines */
+    /* with the option antialias on, edges blend into what lies under them,
+       but only in the copy mode: a half covered pixel xor'd, and'd or or'd
+       does not come off again with a second draw. The allowing is set too,
+       as it is not part of the graphics state: the 1 bit text of the other
+       modes clears it, past the restore at the end of its drawing */
+    CGContextSetAllowsAntialiasing(ctx, true);
+    CGContextSetShouldAntialias(ctx, antialias && sc->fmod == mdnorm);
     CGContextSetBlendMode(ctx, mode2blend(sc->fmod));
     set_fg(ctx, sc->fc);
     return ctx;
