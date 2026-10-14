@@ -39,7 +39,11 @@ static int       cap_disabled    = 0;
 typedef pa_winhan (*fn_stdout_winhan)(void);
 typedef double    (*fn_bitmap_scale)(void);
 typedef CGContextRef (*fn_get_context)(pa_winhan);
+typedef pa_winhan (*fn_file_winhan)(FILE*);
 static fn_stdout_winhan  p_stdout_winhan;
+static fn_file_winhan    p_file_winhan;
+static FILE*             cap_window;   /* the window pictured, NULL the
+                                          program's main window */
 static fn_bitmap_scale   p_bitmap_scale;
 static fn_get_context    p_get_context;
 static int               syms_resolved;
@@ -63,10 +67,11 @@ void screen_capture_name(const char* fn) {
     snprintf(cap_name, sizeof(cap_name), "%s", fn);
 }
 
-/* the window the pictures are of: this module pictures the program's
-   main window, so the choice is not taken up */
+/* the window the pictures are of: the program's main window unless one is
+   named, as the display server names its session's, whose pictures were
+   otherwise of the server's own blank window */
 void screen_capture_window(FILE* f) {
-    (void)f;
+    cap_window = f;
 }
 
 /* the pictures end: the file closes, and the next name opens another */
@@ -80,6 +85,7 @@ void screen_capture_end(void) {
     cap_opened = 0;
     cap_frame_count = 0;
     cap_label[0] = 0;
+    cap_window = NULL; /* the window named may be gone with the pictures */
 }
 
 /* the file is made at the first capture, so a name can be given first */
@@ -99,6 +105,8 @@ void screen_capture(void) {
         syms_resolved = 1;
         p_stdout_winhan = (fn_stdout_winhan)dlsym(RTLD_DEFAULT,
                                                    "pa_stdout_winhan");
+        p_file_winhan   = (fn_file_winhan)dlsym(RTLD_DEFAULT,
+                                                 "pa_file_winhan");
         p_get_context   = (fn_get_context)dlsym(RTLD_DEFAULT,
                                                  "pa_cocoa_get_context");
         p_bitmap_scale  = (fn_bitmap_scale)dlsym(RTLD_DEFAULT,
@@ -106,7 +114,8 @@ void screen_capture(void) {
     }
     if (!p_stdout_winhan || !p_get_context) return;
 
-    pa_winhan wh = p_stdout_winhan();
+    pa_winhan wh = cap_window && p_file_winhan ? p_file_winhan(cap_window)
+                                               : p_stdout_winhan();
     if (!wh) return;
 
     CGContextRef ctx = p_get_context(wh);

@@ -94,8 +94,10 @@
 #include <localdefs.h>
 #endif
 
-/* the seat rig is a fifo to the Wayland or X display layer: Windows has none */
-#if !defined(AUTO_EVENT_TERMINAL) && !defined(_WIN32)
+/* the seat rig is a fifo to the Wayland or X display layer: Windows has
+   none, nor has the Mac, where a test run through the server handed its
+   keys to a seat the server did not have, and waited on them for good */
+#if !defined(AUTO_EVENT_TERMINAL) && !defined(_WIN32) && !defined(__APPLE__)
 #define AUTO_EVENT_SEAT
 #include <sys/types.h>
 #include <sys/stat.h>

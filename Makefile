@@ -725,7 +725,8 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg listcertnet listcertnetg \
      prtconfig prtconfigg pixel ball1 ball2 ball3 ball4 ball5 ball6 line1 \
-     line2 line4 line5 clock calc
+     line2 line4 line5 clock calc \
+     graph_server graphics_testr window_testr widget_testr
 
 else ifeq ($(OSTYPE),FreeBSD)
 
@@ -1865,7 +1866,7 @@ graphics_testr: tests/graphics_test.c tests/auto_event.o macosx/stdio.o macosx/s
 	    portable/graph_client.o stub/screen_capture_stub.o \
 	    $(SSL_LIBS) -framework CoreFoundation -framework CoreGraphics \
 	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
-	    -framework IOKit -lm -lpthread -o bin/graphics_testr
+	    -framework IOKit -lm -lpthread $(WEAKOPT) -o bin/graphics_testr
 else
 graphics_testr: $(GLIBSRD) tests/graphics_test.c tests/auto_event.o stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/graphics_test.c tests/auto_event.o stub/screen_capture_stub.o \
@@ -1933,7 +1934,7 @@ widget_testr: tests/widget_test.c tests/auto_event.o macosx/stdio.o macosx/servi
 	    portable/graph_client.o stub/screen_capture_stub.o \
 	    $(SSL_LIBS) -framework CoreFoundation -framework CoreGraphics \
 	    -framework ImageIO -framework CoreMIDI -framework AudioToolbox \
-	    -framework IOKit -lm -lpthread -o bin/widget_testr
+	    -framework IOKit -lm -lpthread $(WEAKOPT) -o bin/widget_testr
 else
 widget_testr: $(GLIBSRD) tests/widget_test.c tests/auto_event.o stub/screen_capture_stub.o
 	$(CC) $(CFLAGS) tests/widget_test.c tests/auto_event.o stub/screen_capture_stub.o \
