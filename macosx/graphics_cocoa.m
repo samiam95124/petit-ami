@@ -157,6 +157,10 @@ static int evt_empty(void) {
    of its own); defined after PAWindow */
 static int pa_win_is_child(pa_winhan h);
 
+/* the client of the window a view draws: what shows of it, less any scroll
+   bars for its buffer; defined after PAScroll */
+static NSSize pa_client_size(PAView* v);
+
 @implementation PAView
 
 /* NSView.clipsToBounds defaults to NO since macOS 14, letting drawing
@@ -346,7 +350,7 @@ static int pa_win_is_child(pa_winhan h);
 - (void)viewDidEndLiveResize
 {
     [super viewDidEndLiveResize];
-    NSSize s = self.bounds.size;
+    NSSize s = pa_client_size(self);
     int w = (int)s.width;
     int h = (int)s.height;
     if (!threaded_mode && !bufmod && (w != bmpW || h != bmpH)) {
@@ -459,13 +463,113 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 @end
 
 /*----------------------------------------------------------------------------
+ * PAScroll — the client of a window, and the scroll bars for its buffer.
+ *
+ * A buffered window whose buffer is larger than its client shows scroll
+ * bars for it, on the right for a taller buffer and along the bottom for a
+ * wider one, as the other ports do. Here they are the system's own: the
+ * client is a scroll view and the PAView its document, the size of the
+ * buffer, or of the client where that is larger. The drawing, the cursor,
+ * the mouse, the widgets and the child windows are all in the document, in
+ * buffer coordinates, and scroll with it; the program hears nothing of the
+ * bars. The bars are decided from the client as it would be with no bars,
+ * so a bar does not justify itself by the room it takes; a bar needed takes
+ * its strip from the other direction's client, which can call for the other
+ * bar. They are the kind that stand beside the view, not the kind that
+ * overlay it and fade: what the buffer holds under a bar could not be
+ * reached. The option scrollbuffer under graphics in the configuration
+ * turns the bars off.
+ *----------------------------------------------------------------------------*/
+
+static int scrollbuffer = 1; /* a buffered window shows scroll bars for a
+                                buffer larger than its client */
+
+@interface PAScroll : NSScrollView
+- (void)layoutDoc;
+@end
+
+@implementation PAScroll
+
+- (instancetype)initWithFrame:(NSRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.borderType = NSNoBorder;
+        self.scrollerStyle = NSScrollerStyleLegacy;
+        self.autohidesScrollers = NO;
+        self.hasVerticalScroller = NO;
+        self.hasHorizontalScroller = NO;
+    }
+    return self;
+}
+
+/* the system would put the fading kind back when the pointing device or
+   the setting changes */
+- (void)setScrollerStyle:(NSScrollerStyle)s
+{
+    [super setScrollerStyle:NSScrollerStyleLegacy];
+}
+
+/* the bars and the document as the buffer and the client call for */
+- (void)layoutDoc
+{
+    PAView* v = (PAView*)self.documentView;
+    if (!v) return;
+    NSSize  a  = self.frame.size; /* the client with no bars */
+    CGFloat t  = [NSScroller scrollerWidthForControlSize:NSControlSizeRegular
+                                           scrollerStyle:NSScrollerStyleLegacy];
+    BOOL    vb = NO, hb = NO;
+    BOOL    on = scrollbuffer && v->bufmod;
+
+    if (on && a.width > t && a.height > t) { /* room for a bar and a view */
+        vb = v->bmpH > a.height; /* the buffer is taller than the client */
+        hb = v->bmpW > a.width;  /* wider */
+        /* a bar takes its strip from the other direction's client */
+        if (vb && !hb) hb = v->bmpW > a.width - t;
+        if (hb && !vb) vb = v->bmpH > a.height - t;
+    }
+    if (self.hasVerticalScroller != vb)   self.hasVerticalScroller = vb;
+    if (self.hasHorizontalScroller != hb) self.hasHorizontalScroller = hb;
+    [self tile];
+
+    NSSize c = self.contentSize; /* the client the bars leave */
+    NSSize d = c;
+    if (on) {
+        if (v->bmpW > d.width)  d.width  = v->bmpW;
+        if (v->bmpH > d.height) d.height = v->bmpH;
+    }
+    if (!NSEqualSizes(v.frame.size, d)) {
+        [v setFrameSize:d];
+        [v setNeedsDisplay:YES];
+    }
+    [self reflectScrolledClipView:self.contentView];
+}
+
+- (void)setFrameSize:(NSSize)s
+{
+    [super setFrameSize:s];
+    [self layoutDoc];
+}
+
+@end
+
+static NSSize pa_client_size(PAView* v)
+{
+    NSScrollView* sv = v.enclosingScrollView;
+    if ([sv isKindOfClass:[PAScroll class]] && sv.documentView == v)
+        return sv.contentSize;
+    return v.bounds.size;
+}
+
+/*----------------------------------------------------------------------------
  * PAChildFrame — Ami-drawn chrome for child windows.
  *
  * Cocoa has no child windows in the Win32 sense, so a PA child window is a
  * view embedded in the parent's content view, and the frame chrome (title
  * bar, close/minimize/zoom buttons, resize borders) is drawn by us — the
  * same approach as the Linux implementation's Ami-drawn child frames.
- * The container holds the client PAView inset by the chrome metrics.
+ * The container holds the client, the scroll view of the PAView, inset by
+ * the chrome metrics.
  *----------------------------------------------------------------------------*/
 
 #define CFRM_TITBAR   24  /* title bar height */
@@ -488,6 +592,7 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 @public
     pa_winhan ownerHan;    /* owning PAWindow */
     PAView*   client;      /* the client-area view */
+    PAScroll* holder;      /* the scroll view it shows through */
     NSString* title;       /* title bar text */
     int  frameOn;          /* draw any chrome at all */
     int  sysbarOn;         /* draw the title bar */
@@ -531,7 +636,7 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 {
     NSEdgeInsets in = [self chromeInsets];
     NSRect b = self.bounds;
-    client.frame = NSMakeRect(in.left, in.top,
+    holder.frame = NSMakeRect(in.left, in.top,
                               b.size.width - in.left - in.right,
                               b.size.height - in.top - in.bottom);
 }
@@ -646,8 +751,9 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
     pa_rawevent e = {0};
     e.type     = PA_EVT_RESIZE;
     e.win      = ownerHan;
-    e.resize.w = (int)client.frame.size.width;
-    e.resize.h = (int)client.frame.size.height;
+    NSSize cs  = pa_client_size(client);
+    e.resize.w = (int)cs.width;
+    e.resize.h = (int)cs.height;
     evt_push(&e);
 }
 
@@ -655,7 +761,7 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 {
     if (minimized) {
         self.frame = restoreMin;
-        client.hidden = NO;
+        holder.hidden = NO;
         minimized = 0;
     } else {
         restoreMin = self.frame;
@@ -675,7 +781,7 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
         self.frame = NSMakeRect(slot * (CFRM_MINWIN_W + CFRM_BORDER),
                                 pb.size.height - CFRM_TITBAR,
                                 CFRM_MINWIN_W, CFRM_TITBAR);
-        client.hidden = YES;
+        holder.hidden = YES;
         minimized = 1;
     }
     [self layoutClient];
@@ -846,7 +952,8 @@ static NSCursor* diag_cursor(int nwse)
 @interface PAWindow : NSObject <NSWindowDelegate> {
 @public
     NSWindow*      window;  /* nil for child windows (embedded views) */
-    PAView*        view;    /* client area */
+    PAView*        view;    /* client area: the buffer, as it is drawn */
+    PAScroll*      scroll;  /* the client it shows through */
     PAChildFrame*  cframe;  /* chrome container; child windows only */
     int            winid;   /* PA window id */
     int            wasZoomed; /* last observed isZoomed state */
@@ -884,7 +991,11 @@ static NSCursor* diag_cursor(int nwse)
     view = [[PAView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
     view->owner = (__bridge pa_winhan)self;
     [view createBitmapWidth:w height:h];
-    window.contentView = view;
+    scroll = [[PAScroll alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
+    scroll.documentView = view;
+    window.contentView = scroll;
+    window.initialFirstResponder = view;
+    [window makeFirstResponder:view];
 
     memset(timers, 0, sizeof(timers));
     return self;
@@ -911,12 +1022,15 @@ static NSCursor* diag_cursor(int nwse)
                             w + 2 * CFRM_BORDER,
                             h + CFRM_TITBAR + CFRM_BORDER)];
     cframe->ownerHan  = (__bridge pa_winhan)self;
+    scroll = [[PAScroll alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
+    scroll.documentView = view;
     cframe->client    = view;
+    cframe->holder    = scroll;
     cframe->title     = @"";
     cframe->frameOn   = 1;
     cframe->sysbarOn  = 1;
     cframe->sizableOn = 1;
-    [cframe addSubview:view];
+    [cframe addSubview:scroll];
     [cframe layoutClient];
     [parent->view addSubview:cframe];
 
@@ -1307,7 +1421,6 @@ void pa_cocoa_resize_window(pa_winhan win, int w, int h)
         newFrame.origin.x = f.origin.x;
         newFrame.origin.y = oldTop - newFrame.size.height;
         [pw->window setFrame:newFrame display:YES];
-        [pw->view createBitmapWidth:w height:h];
     });
 }
 
@@ -1361,7 +1474,7 @@ void pa_cocoa_get_size(pa_winhan win, int* w, int* h)
     __block int rw, rh;
     run_on_main(^{
         PAWindow* pw = (__bridge PAWindow*)win;
-        NSSize s = pw->view.bounds.size;
+        NSSize s = pw->scroll.frame.size; /* the client with no bars */
         rw = (int)s.width;
         rh = (int)s.height;
     });
@@ -1741,7 +1854,16 @@ void pa_cocoa_resize_bitmap(pa_winhan win, int w, int h)
         CGImageRelease(oldImg);
     }
 
+    /* the scroll bars as the buffer's new size calls for; an unbuffered
+       window's surface is its client, which the scroll view keeps it at */
+    if (v->bufmod) run_on_main(^{ [pw->scroll layoutDoc]; });
     if (!threaded_mode) [v setNeedsDisplay:YES];
+}
+
+/* the option scrollbuffer: off, no window shows scroll bars for its buffer */
+void pa_cocoa_set_scrollbuffer(int on)
+{
+    scrollbuffer = on;
 }
 
 void pa_cocoa_set_bufmod(pa_winhan win, int on)
@@ -1749,6 +1871,7 @@ void pa_cocoa_set_bufmod(pa_winhan win, int on)
     PAWindow* pw = (__bridge PAWindow*)win;
     int was = pw->view->bufmod;
     pw->view->bufmod = on;
+    if (was != on) run_on_main(^{ [pw->scroll layoutDoc]; });
     /* leaving buffered mode makes the application responsible for painting
        on redraw events; push an initial redraw so it paints the first
        frame without waiting for a user resize */
