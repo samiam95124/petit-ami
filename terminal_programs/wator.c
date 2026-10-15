@@ -93,7 +93,10 @@ int randn(int limit)
 
 {
 
-    return (int)limit*rand()/RAND_MAX;
+    /* the product is formed wide: limit*rand() overflows an int wherever
+       RAND_MAX is 2^31-1, and the overflowed value, cast or not, indexes
+       outside the world, where the setup loop never finds an empty cell */
+    return (int)((long)limit*rand()/RAND_MAX);
 
 }
 
