@@ -758,6 +758,9 @@ static int    joyenb;         /* enable joysticks */
 static int    mouseenb;       /* enable mouse */
 static int    unresponse;     /* check non-responsive program */
 static int    unresponsekill; /* enable kill of non-responsive programs */
+static int    resptime;       /* time before a program is unresponsive, 100us */
+static int    hovertime;      /* mouse rest before a hover event, 100us */
+static int    esctime;        /* wait before a lone escape is the key, 100us */
 static int    xtermtitle;     /* use xterm title bar set mode */
 
 static paevtque*       paqfre;      /* free PA event queue entries list */
@@ -2524,7 +2527,7 @@ static void ievent(void)
                 if (pmatch && keylen == 1 && keybuf[0] == '\33') {
 
                     escarmed = TRUE;
-                    escsev = system_event_addsetim(escsev, ESCTIME, FALSE);
+                    escsev = system_event_addsetim(escsev, esctime, FALSE);
 
                 }
                 if (!pmatch) {
@@ -2832,7 +2835,7 @@ static void ievent(void)
 
                 }
                 /* set the hover timer, one shot, 5 seconds */
-                hovsev = system_event_addsetim(hovsev, HOVERTIME, FALSE);
+                hovsev = system_event_addsetim(hovsev, hovertime, FALSE);
 
             }
 
@@ -5038,7 +5041,7 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 
     } while (er->handled);
     /* reset the response timer */
-    if (unresponse) respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+    if (unresponse) respsev = system_event_addsetim(respsev, resptime, FALSE);
 
     /* event not handled, return it to the caller */
 
@@ -5868,6 +5871,41 @@ static void sigfatal(int sn)
 
 }
 
+/* Take an integer setting from a configuration block, leaving the value
+   alone when the setting is absent. A value that is not a number is a
+   configuration error. */
+static void cfgint(ami_valptr root, const char* name, int* val)
+
+{
+
+    ami_valptr vp;
+    char*      errstr;
+
+    vp = ami_schlst((char*)name, root);
+    if (vp) {
+
+        *val = strtol(vp->value, &errstr, 10);
+        if (*errstr) error(ami_dispecfgval);
+
+    }
+
+}
+
+/* Take a time setting, given in milliseconds, to the 100us units the timers
+   run in. Zero or less is a configuration error: these are waits. */
+static void cfgtime(ami_valptr root, const char* name, int* val)
+
+{
+
+    int ms;
+
+    ms = *val/10;
+    cfgint(root, name, &ms);
+    if (ms <= 0) error(ami_dispecfgval);
+    *val = ms*10;
+
+}
+
 static void ami_init_terminal (int argc, char* argv[]) __attribute__((constructor (106)));
 static void ami_init_terminal(int argc, char* argv[])
 
@@ -5884,8 +5922,6 @@ static void ami_init_terminal(int argc, char* argv[])
     /** Linux return value */          int            r;
     /** root for config block */       ami_valptr      config_root;
     /** root for terminal block */     ami_valptr      term_root; 
-                                       ami_valptr      vp;
-                                       char*          errstr;
 
     /* set override vectors to defaults */
     cursor_vect      = cursor_ivf;
@@ -6051,6 +6087,9 @@ static void ami_init_terminal(int argc, char* argv[])
     unresponse     = UNRESPONSE;     /* check unresponsive program */
     unresponsekill = UNRESPONSEKILL; /* kill unresponsive program */
     xtermtitle     = XTERMTITLE;     /* use xterm title bar mode */
+    resptime       = RESPTIME;       /* unresponsive time limit */
+    hovertime      = HOVERTIME;      /* hover delay */
+    esctime        = ESCTIME;        /* lone escape wait */
 
     /* set default screen geometry */
     dimx = DEFXD;
@@ -6076,45 +6115,21 @@ static void ami_init_terminal(int argc, char* argv[])
 
     if (term_root) {
 
-        /* find x an y max if they exist */
-        vp = ami_schlst("maxxd", term_root);
-        if (vp) {
-
-            bufx = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(ami_dispecfgval);
-
-        }
-        vp = ami_schlst("maxyd", term_root);
-        if (vp) {
-
-            bufy = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(ami_dispecfgval);
-
-        }
-        /* enable/disable joystick */
-        vp = ami_schlst("joystick", term_root);
-        if (vp) {
-
-            joyenb = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(ami_dispecfgval);
-
-        }
-        /* enable/disable mouse */
-        vp = ami_schlst("mouse", term_root);
-        if (vp) {
-
-            mouseenb = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(ami_dispecfgval);
-
-        }
-        /* dump PA events */
-        vp = ami_schlst("dump_event", term_root);
-        if (vp) {
-
-            dmpevt = strtol(vp->value, &errstr, 10);
-            if (*errstr) error(ami_dispecfgval);
-
-        }
+        cfgint(term_root, "maxxd", &bufx);         /* buffer width */
+        cfgint(term_root, "maxyd", &bufy);         /* buffer height */
+        cfgint(term_root, "joystick", &joyenb);    /* enable joysticks */
+        cfgint(term_root, "mouse", &mouseenb);     /* enable mouse */
+        cfgint(term_root, "dump_event", &dmpevt);  /* dump Petit-Ami events */
+        /* flag a program that takes no event for unresponsive_time, and let
+           ctrl-c end one that is flagged */
+        cfgint(term_root, "unresponsive", &unresponse);
+        cfgint(term_root, "unresponsive_kill", &unresponsekill);
+        cfgtime(term_root, "unresponsive_time", &resptime);
+        /* the terminal's title carries the unresponsive flag and the finished
+           message; off, the finished message goes on the top line */
+        cfgint(term_root, "title", &xtermtitle);
+        cfgtime(term_root, "hover_time", &hovertime); /* mouse rest to hover */
+        cfgtime(term_root, "escape_time", &esctime);  /* lone escape wait */
 
     }
 
@@ -6314,7 +6329,7 @@ static void ami_init_terminal(int argc, char* argv[])
      * Set response timer
      */
     if (unresponse)
-        respsev = system_event_addsetim(respsev, RESPTIME, FALSE);
+        respsev = system_event_addsetim(respsev, resptime, FALSE);
 
 }
 
