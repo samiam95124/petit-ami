@@ -150,6 +150,7 @@ static int evt_empty(void) {
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
+- (void)setBackgroundFill:(CGContextRef)ctx;
 - (CGContextRef)ensureScreen:(int)idx;
 @end
 
@@ -293,6 +294,31 @@ static void pa_raise_child(NSView* v);
     bitmap = NULL;
 }
 
+/* The display's own color space, NULL where there is none to be had. The
+   buffer and the background around it are both given in it, so they reach
+   the display as their device values, unmatched. Left to be matched, a
+   device RGB buffer was matched or not by the system's own lights: the same
+   cyan came out (0,255,255) in a large buffer and (47,255,254) in a small
+   one, and in a fill beside them. */
+- (CGColorSpaceRef)displaySpace
+{
+    CGColorSpaceRef cs = self.window.colorSpace.CGColorSpace;
+    if (cs && CGColorSpaceGetNumberOfComponents(cs) == 3) return cs;
+    return NULL;
+}
+
+/* the background color as the fill of a context drawing to the window */
+- (void)setBackgroundFill:(CGContextRef)ctx
+{
+    CGColorSpaceRef cs = [self displaySpace];
+    if (cs) {
+        CGFloat    cc[4] = { bgR, bgG, bgB, 1.0 };
+        CGColorRef bc = CGColorCreate(cs, cc);
+        CGContextSetFillColorWithColor(ctx, bc);
+        CGColorRelease(bc);
+    } else CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
+}
+
 - (void)drawRect:(NSRect)dirtyRect
 {
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
@@ -317,6 +343,11 @@ static void pa_raise_child(NSView* v);
         imgW = bmpW;
         imgH = bmpH;
     }
+    CGColorSpaceRef dcs = [self displaySpace];
+    if (dcs) {
+        CGImageRef di = CGImageCreateCopyWithColorSpace(img, dcs);
+        if (di) { CGImageRelease(img); img = di; }
+    }
 
     if ([self inLiveResize] && !bufmod && (imgW != viewW || imgH != viewH)) {
         /* scale last content to fill window during live resize */
@@ -333,7 +364,7 @@ static void pa_raise_child(NSView* v);
         CGContextRestoreGState(ctx);
 
         if (imgW < viewW || imgH < viewH) {
-            CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
+            [self setBackgroundFill:ctx];
             if (imgW < viewW)
                 CGContextFillRect(ctx, CGRectMake(imgW, 0,
                                                   viewW - imgW, viewH));
@@ -504,8 +535,23 @@ static int scrollbuffer = 1; /* a buffered window shows scroll bars for a
         self.autohidesScrollers = NO;
         self.hasVerticalScroller = NO;
         self.hasHorizontalScroller = NO;
+        /* not the system's white: what shows of the client past the view
+           is the window's background, drawn below */
+        self.drawsBackground = NO;
+        /* see PAView initWithFrame: — clip drawing to bounds */
+        if (@available(macOS 14.0, *)) self.clipsToBounds = YES;
     }
     return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    PAView* v = (PAView*)self.documentView;
+    if (![v isKindOfClass:[PAView class]]) return;
+    CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+    [v setBackgroundFill:ctx];
+    CGContextFillRect(ctx,
+                      NSRectToCGRect(NSIntersectionRect(dirtyRect, self.bounds)));
 }
 
 /* the system would put the fading kind back when the pointing device or
