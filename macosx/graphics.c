@@ -96,6 +96,7 @@ typedef struct scncon {
     pa_rgba     fc, bc;        /* foreground / background color */
     drawmode    fmod, bmod;    /* draw modes */
     CGFloat     lwidth;        /* line width */
+    ami_lstyle  lstyle;        /* line style: solid, dashed or dotted */
     fontptr     font;          /* current font */
     int         bold, italic, underline, strikeout;
     int         superscript, subscript;
@@ -565,6 +566,9 @@ static void draw_string(CGContextRef ctx, winptr win, scnptr sc,
        the background's color takes a blend off again. The moving string
        left a trail of grey edges, and the xor'd frame stamp a smear. */
     int smooth = antialias && sc->fmod == mdnorm && sc->bmod == mdnorm;
+    /* the hollow outline, underline and strikeout are solid, whatever line
+       style the figures last left in the context */
+    CGContextSetLineDash(ctx, 0, NULL, 0);
     CGContextSaveGState(ctx);
     CGContextSetAllowsAntialiasing(ctx, smooth);
     CGContextSetShouldAntialias(ctx, smooth);
@@ -761,6 +765,7 @@ static void win_init(winptr win, int wid, int parwid, int w, int h)
         sc->fmod    = mdnorm;
         sc->bmod    = mdnorm;
         sc->lwidth  = 1.0;
+        sc->lstyle  = ami_lssolid;
         sc->font    = fntlst;
         sc->autof   = win->gauto;
         sc->textpath = LONG_MAX / 4; /* default: east (normal reading) */
@@ -1081,6 +1086,21 @@ static CGContextRef get_ctx(winptr win)
     CGContextRef ctx = pa_cocoa_get_context(win->han);
     if (!ctx) return NULL;
     CGContextSetLineWidth(ctx, sc->lwidth);
+    /* the line style, in the lengths the other backends draw: dashes
+       stretch with the stroke, dots stay near round */
+    if (sc->lstyle == ami_lssolid) CGContextSetLineDash(ctx, 0, NULL, 0);
+    else {
+        CGFloat w = sc->lwidth > 0 ? sc->lwidth : 1;
+        CGFloat pat[2];
+        if (sc->lstyle == ami_lsdash) {
+            pat[0] = w*4 < 16 ? 16 : w*4; /* on */
+            pat[1] = w*2 <  8 ?  8 : w*2; /* off */
+        } else {
+            pat[0] = w   <  2 ?  2 : w;   /* on */
+            pat[1] = w*3 <  6 ?  6 : w*3; /* off */
+        }
+        CGContextSetLineDash(ctx, 0, pat, 2);
+    }
     /* with the option antialias on, edges blend into what lies under them,
        but only in the copy mode: a half covered pixel xor'd, and'd or or'd
        does not come off again with a second draw. The allowing is set too,
@@ -1970,7 +1990,11 @@ static void viewscale_ivf(FILE* f, float x, float y)
     sc->scaley = y;
     settrans(win);
 }
-static void linestyle_ivf(FILE* f, ami_lstyle style)     { /* stub */ }
+static void linestyle_ivf(FILE* f, ami_lstyle style)
+{
+    winptr win = f2win(f); if (!win) return;
+    curscn(win)->lstyle = style;
+}
 static void setpoints_ivf(FILE* f, float ps)
 {
     winptr win = f2win(f); if (!win) return;
