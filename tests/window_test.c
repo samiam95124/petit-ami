@@ -1568,13 +1568,13 @@ int main(int argc, char* argv[])
     ami_auto(win3, OFF);
     ami_curvis(win3, OFF);
     ami_setposg(win3, xs*2, ys*2);
-    ami_sizbufg(win2, ami_strsiz(win3, "I am child window 2"), ami_chrsizy(win3));
+    ami_sizbufg(win3, ami_strsiz(win3, "I am child window 2"), ami_chrsizy(win3));
     ami_setsizg(win3, ami_maxxg(tw)-xs*2*2, ami_maxyg(tw)-ys*2*2);
     ami_openwin(&stdin, &win4, tw, wid4);
     ami_auto(win4, OFF);
     ami_curvis(win4, OFF);
     ami_setposg(win4, xs*3, ys*3);
-    ami_sizbufg(win2, ami_strsiz(win4, "I am child window 3"), ami_chrsizy(win4));
+    ami_sizbufg(win4, ami_strsiz(win4, "I am child window 3"), ami_chrsizy(win4));
     ami_setsizg(win4, ami_maxxg(tw)-xs*3*2, ami_maxyg(tw)-ys*3*2);
     ami_bcolor(win2, ami_cyan);
     putc('\f', win2);
