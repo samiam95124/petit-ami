@@ -290,14 +290,24 @@ static NSSize pa_client_size(PAView* v);
     bitmap = NULL;
 }
 
-/* the background color as the fill of a context drawing to the window, in
-   the display's own color space: the buffer reaches the display unmatched,
-   its device values as they are, and a color given in any other space came
-   out a shade off the buffer beside it */
-- (void)setBackgroundFill:(CGContextRef)ctx
+/* The display's own color space, NULL where there is none to be had. The
+   buffer and the background around it are both given in it, so they reach
+   the display as their device values, unmatched. Left to be matched, a
+   device RGB buffer was matched or not by the system's own lights: the same
+   cyan came out (0,255,255) in a large buffer and (47,255,254) in a small
+   one, and in a fill beside them. */
+- (CGColorSpaceRef)displaySpace
 {
     CGColorSpaceRef cs = self.window.colorSpace.CGColorSpace;
-    if (cs && CGColorSpaceGetNumberOfComponents(cs) == 3) {
+    if (cs && CGColorSpaceGetNumberOfComponents(cs) == 3) return cs;
+    return NULL;
+}
+
+/* the background color as the fill of a context drawing to the window */
+- (void)setBackgroundFill:(CGContextRef)ctx
+{
+    CGColorSpaceRef cs = [self displaySpace];
+    if (cs) {
         CGFloat    cc[4] = { bgR, bgG, bgB, 1.0 };
         CGColorRef bc = CGColorCreate(cs, cc);
         CGContextSetFillColorWithColor(ctx, bc);
@@ -328,6 +338,11 @@ static NSSize pa_client_size(PAView* v);
         img = CGBitmapContextCreateImage(dsp);
         imgW = bmpW;
         imgH = bmpH;
+    }
+    CGColorSpaceRef dcs = [self displaySpace];
+    if (dcs) {
+        CGImageRef di = CGImageCreateCopyWithColorSpace(img, dcs);
+        if (di) { CGImageRelease(img); img = di; }
     }
 
     if ([self inLiveResize] && !bufmod && (imgW != viewW || imgH != viewH)) {
