@@ -35,7 +35,7 @@
 * held back.                                                                   *
 *                                                                              *
 * The account is given in the Petit-Ami configuration, under a branch of its   *
-* own, which puts it in petit_ami.cfg beside the program, in the user's path,  *
+* own, which puts it in ami.cfg beside the program, in the user's path,        *
 * or in the current directory, as config defines:                              *
 *                                                                              *
 *     begin mail                                                               *

@@ -1408,7 +1408,7 @@ showclip: utils/showclip.c Makefile
 	$(CC) utils/showclip.c -lX11 -o bin/showclip
 
 #
-# Convert a GTK CSS theme to a Petit-Ami widget theme in petit_ami.cfg
+# Convert a GTK CSS theme to a Petit-Ami widget theme in ami.cfg
 # (not Petit-Ami dependent)
 #
 css2theme: utils/css2theme.c Makefile
