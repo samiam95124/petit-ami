@@ -89,7 +89,7 @@ Usage:
 
 The run ends on the terminate event: close a window, or control-c in one.
 A library error goes where the configuration sends it, the error dialog by
-default; dialogerr 0 in a petit_ami.cfg of the current directory sends it
+default; dialogerr 0 in an ami.cfg of the current directory sends it
 to the error channel instead, which a scripted run wants.
 
 *******************************************************************************/
