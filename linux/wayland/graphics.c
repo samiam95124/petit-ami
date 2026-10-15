@@ -14446,6 +14446,16 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
         mouseevent(win, e); /* process mouse event */
         /* check any mouse details need processing */
         mouseupdate(win, er, keep);
+        /* A button 1 click in a framed child's client brings the child to the
+           front of its siblings, as the same click on its frame does (the
+           frame branch above). The frame and the client are two surfaces, so
+           the raise has to be made on both paths, or a click in the client of
+           a child behind another focuses it and leaves it behind, where the
+           only sign of its focus is the title text color. pd_winraise does
+           nothing for a toplevel: the compositor raises those on the click. */
+        if (*keep && er->etype == ami_etmouba && er->amoubn == 1 &&
+            win->parwin && win->childfrm)
+            pd_winraise(win->xmwhan);
 #ifndef NOFAKEFOCUS
         /* Check we fake focus here. This is a mouse button 1 click in a child
            window. */
