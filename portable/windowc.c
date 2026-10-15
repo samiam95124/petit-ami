@@ -6295,6 +6295,12 @@ static void readline(int fd)
            through stdin whatever is passed. It was passed f here, which
            on the first turn of this loop had never been set. */
         ievent(stdin, &er); /* get next event */
+        /* The end of input belongs to the program, not to a window: it
+           comes with no window id, and was filtered out below with the
+           events of other windows, so a read past the end of a redirected
+           standard input waited forever for an event that could not come.
+           The terminal module's own line reader halts on it the same way. */
+        if (er.etype == ami_etterm) exit(1); /* halt program */
         ofn = xltwin[er.winid+MAXFIL]; /* get logical output file */
         if (ofn >= 0 && opnfil[ofn]->inl == fd) {
 

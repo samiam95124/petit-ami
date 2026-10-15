@@ -2535,8 +2535,19 @@ static void ievent(void)
                     if (keylen > 1) keylen = 0;
                     else if (keylen == 1) { /* have valid character */
 
-                        er.etype = ami_etchar; /* set event */
-                        er.echar = keybuf[0]; /* place character */
+                        /* A line feed ends a line. A terminal sends a
+                           carriage return for Enter, which the key table
+                           has, but a file on standard input ends its lines
+                           with a line feed, which matched nothing and went
+                           through as a character: a line read from a file
+                           never ended, and the program hung in the read. */
+                        if (keybuf[0] == '\n') er.etype = ami_etenter;
+                        else {
+
+                            er.etype = ami_etchar; /* set event */
+                            er.echar = keybuf[0]; /* place character */
+
+                        }
                         evtfnd = 1; /* set event found */
                         enquepaevt(&er); /* send to queue */
                         keylen = 0; /* clear buffer */
