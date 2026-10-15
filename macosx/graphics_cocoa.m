@@ -166,6 +166,10 @@ static NSSize pa_client_size(PAView* v);
    after PAChildFrame */
 static void pa_raise_child(NSView* v);
 
+/* redraw the frame of the child window a view is the client of, whose
+   button colors show its focus; defined after PAChildFrame */
+static void pa_redraw_chrome(NSView* v);
+
 @implementation PAView
 
 /* NSView.clipsToBounds defaults to NO since macOS 14, letting drawing
@@ -194,7 +198,7 @@ static void pa_raise_child(NSView* v);
         e.type = PA_EVT_FOCUS;
         e.win  = owner;
         evt_push(&e);
-        [self.superview setNeedsDisplay:YES]; /* chrome button colors */
+        pa_redraw_chrome(self);
     }
     return YES;
 }
@@ -206,7 +210,7 @@ static void pa_raise_child(NSView* v);
         e.type = PA_EVT_UNFOCUS;
         e.win  = owner;
         evt_push(&e);
-        [self.superview setNeedsDisplay:YES]; /* chrome button colors */
+        pa_redraw_chrome(self);
     }
     return YES;
 }
@@ -1008,6 +1012,15 @@ static void pa_raise_child(NSView* v)
     [sup setNeedsDisplay:YES];
 }
 
+/* The client is in a scroll view in the frame, so the view's superview is
+   the scroll view's clip, and redrawing that left the button colors as
+   they were. */
+static void pa_redraw_chrome(NSView* v)
+{
+    while (v && ![v isKindOfClass:[PAChildFrame class]]) v = v.superview;
+    [v setNeedsDisplay:YES];
+}
+
 /*----------------------------------------------------------------------------
  * PAKeyWindow — NSWindow subclass that accepts key status even when borderless
  *----------------------------------------------------------------------------*/
@@ -1137,6 +1150,9 @@ static void pa_raise_child(NSView* v)
     e.type = PA_EVT_FOCUS;
     e.win  = (__bridge pa_winhan)self;
     evt_push(&e);
+    /* a child focused within shows it again */
+    id fr = window.firstResponder;
+    if ([fr isKindOfClass:[NSView class]]) pa_redraw_chrome(fr);
 }
 
 - (void)windowDidResignKey:(NSNotification*)n
@@ -1145,6 +1161,9 @@ static void pa_raise_child(NSView* v)
     e.type = PA_EVT_UNFOCUS;
     e.win  = (__bridge pa_winhan)self;
     evt_push(&e);
+    /* a child focused within no longer shows it */
+    id fr = window.firstResponder;
+    if ([fr isKindOfClass:[NSView class]]) pa_redraw_chrome(fr);
 }
 
 /*--- minimize / maximize / restore ---*/
