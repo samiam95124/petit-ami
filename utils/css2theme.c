@@ -3,7 +3,7 @@
 *                        GTK CSS THEME TO PETIT-AMI THEME                      *
 *                                                                              *
 * Reads the palette from a GTK CSS theme and writes the equivalent Petit-Ami   *
-* widget theme into a petit_ami.cfg file, so the widget set takes the colors   *
+* widget theme into an ami.cfg file, so the widget set takes the colors        *
 * of the desktop theme in use.                                                 *
 *                                                                              *
 * Usage:                                                                       *
@@ -20,7 +20,7 @@
 * <theme>       Name of an installed theme, as in /usr/share/themes, for       *
 *               example "Yaru-dark". Default is the desktop's current theme.   *
 * <file.css>    A CSS file to read instead, recognized by the .css ending.     *
-* -o <file>     Config file to update. Default is petit_ami.cfg in the user's  *
+* -o <file>     Config file to update. Default is ami.cfg in the user's        *
 *               home directory, which applies to all of the user's programs.   *
 * -p            Print the theme block instead of updating any file.           *
 * -n            Print the theme names found and what they map to, a           *
@@ -763,7 +763,7 @@ int main(int argc, char* argv[])
 
         home = getenv("HOME");
         if (!home) error("Cannot find the home directory, name a config file");
-        snprintf(cfgfil, MAXSTR, "%.400s/petit_ami.cfg", home);
+        snprintf(cfgfil, MAXSTR, "%.400s/ami.cfg", home);
 
     }
     updcfg(cfgfil, theme);

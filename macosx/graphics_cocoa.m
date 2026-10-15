@@ -150,6 +150,7 @@ static int evt_empty(void) {
 }
 - (void)createBitmapWidth:(int)w height:(int)h;
 - (void)destroyBitmap;
+- (void)setBackgroundFill:(CGContextRef)ctx;
 - (CGContextRef)ensureScreen:(int)idx;
 @end
 
@@ -160,6 +161,14 @@ static int pa_win_is_child(pa_winhan h);
 /* the client of the window a view draws: what shows of it, less any scroll
    bars for its buffer; defined after PAScroll */
 static NSSize pa_client_size(PAView* v);
+
+/* raise the child window a view is in to the top of its siblings; defined
+   after PAChildFrame */
+static void pa_raise_child(NSView* v);
+
+/* redraw the frame of the child window a view is the client of, whose
+   button colors show its focus; defined after PAChildFrame */
+static void pa_redraw_chrome(NSView* v);
 
 @implementation PAView
 
@@ -189,7 +198,7 @@ static NSSize pa_client_size(PAView* v);
         e.type = PA_EVT_FOCUS;
         e.win  = owner;
         evt_push(&e);
-        [self.superview setNeedsDisplay:YES]; /* chrome button colors */
+        pa_redraw_chrome(self);
     }
     return YES;
 }
@@ -201,7 +210,7 @@ static NSSize pa_client_size(PAView* v);
         e.type = PA_EVT_UNFOCUS;
         e.win  = owner;
         evt_push(&e);
-        [self.superview setNeedsDisplay:YES]; /* chrome button colors */
+        pa_redraw_chrome(self);
     }
     return YES;
 }
@@ -289,6 +298,31 @@ static NSSize pa_client_size(PAView* v);
     bitmap = NULL;
 }
 
+/* The display's own color space, NULL where there is none to be had. The
+   buffer and the background around it are both given in it, so they reach
+   the display as their device values, unmatched. Left to be matched, a
+   device RGB buffer was matched or not by the system's own lights: the same
+   cyan came out (0,255,255) in a large buffer and (47,255,254) in a small
+   one, and in a fill beside them. */
+- (CGColorSpaceRef)displaySpace
+{
+    CGColorSpaceRef cs = self.window.colorSpace.CGColorSpace;
+    if (cs && CGColorSpaceGetNumberOfComponents(cs) == 3) return cs;
+    return NULL;
+}
+
+/* the background color as the fill of a context drawing to the window */
+- (void)setBackgroundFill:(CGContextRef)ctx
+{
+    CGColorSpaceRef cs = [self displaySpace];
+    if (cs) {
+        CGFloat    cc[4] = { bgR, bgG, bgB, 1.0 };
+        CGColorRef bc = CGColorCreate(cs, cc);
+        CGContextSetFillColorWithColor(ctx, bc);
+        CGColorRelease(bc);
+    } else CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
+}
+
 - (void)drawRect:(NSRect)dirtyRect
 {
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
@@ -313,6 +347,11 @@ static NSSize pa_client_size(PAView* v);
         imgW = bmpW;
         imgH = bmpH;
     }
+    CGColorSpaceRef dcs = [self displaySpace];
+    if (dcs) {
+        CGImageRef di = CGImageCreateCopyWithColorSpace(img, dcs);
+        if (di) { CGImageRelease(img); img = di; }
+    }
 
     if ([self inLiveResize] && !bufmod && (imgW != viewW || imgH != viewH)) {
         /* scale last content to fill window during live resize */
@@ -329,7 +368,7 @@ static NSSize pa_client_size(PAView* v);
         CGContextRestoreGState(ctx);
 
         if (imgW < viewW || imgH < viewH) {
-            CGContextSetRGBFillColor(ctx, bgR, bgG, bgB, 1.0);
+            [self setBackgroundFill:ctx];
             if (imgW < viewW)
                 CGContextFillRect(ctx, CGRectMake(imgW, 0,
                                                   viewW - imgW, viewH));
@@ -453,6 +492,7 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 - (void)mouseDragged:(NSEvent*)e    { [self pushMouseEvent:PA_EVT_MOUSE_MOVE event:e]; }
 - (void)mouseDown:(NSEvent*)e
 {
+    pa_raise_child(self); /* selecting a child brings it to the front */
     [self.window makeFirstResponder:self]; /* clicking a child view focuses it */
     [self pushMouseEvent:PA_EVT_MOUSE_DOWN event:e];
 }
@@ -499,8 +539,23 @@ static int scrollbuffer = 1; /* a buffered window shows scroll bars for a
         self.autohidesScrollers = NO;
         self.hasVerticalScroller = NO;
         self.hasHorizontalScroller = NO;
+        /* not the system's white: what shows of the client past the view
+           is the window's background, drawn below */
+        self.drawsBackground = NO;
+        /* see PAView initWithFrame: — clip drawing to bounds */
+        if (@available(macOS 14.0, *)) self.clipsToBounds = YES;
     }
     return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+    PAView* v = (PAView*)self.documentView;
+    if (![v isKindOfClass:[PAView class]]) return;
+    CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+    [v setBackgroundFill:ctx];
+    CGContextFillRect(ctx,
+                      NSRectToCGRect(NSIntersectionRect(dirtyRect, self.bounds)));
 }
 
 /* the system would put the fading kind back when the pointing device or
@@ -809,6 +864,7 @@ static NSSize pa_client_size(PAView* v)
 {
     NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
 
+    pa_raise_child(self); /* selecting a child brings it to the front */
     int m = [self edgeMaskAt:p];
     if (m && !minimized) {
         resizing   = m;
@@ -925,6 +981,45 @@ static NSCursor* diag_cursor(int nwse)
 }
 
 @end
+
+/* order of siblings for pa_raise_child: the raised frame last, the rest in
+   the order they had */
+typedef struct { NSView* top; NSArray* order; } pa_raiseord;
+static NSComparisonResult pa_raise_cmp(id a, id b, void* ctx)
+{
+    pa_raiseord* r = ctx;
+    if (a == r->top) return NSOrderedDescending;
+    if (b == r->top) return NSOrderedAscending;
+    NSUInteger ia = [r->order indexOfObjectIdenticalTo:a];
+    NSUInteger ib = [r->order indexOfObjectIdenticalTo:b];
+    return ia < ib ? NSOrderedAscending
+         : ia > ib ? NSOrderedDescending : NSOrderedSame;
+}
+
+/* Selecting a child window raises it to the top of its siblings, as the
+   X11 and Wayland ports do. The siblings are reordered in place: taking
+   the frame out of its superview and back, as pa_cocoa_front does, in the
+   middle of a click would end the drag that follows and drop the keyboard
+   focus. */
+static void pa_raise_child(NSView* v)
+{
+    while (v && ![v isKindOfClass:[PAChildFrame class]]) v = v.superview;
+    if (!v) return; /* not in a child window */
+    NSView* sup = v.superview;
+    if (!sup || sup.subviews.lastObject == v) return; /* already on top */
+    pa_raiseord r = { v, [sup.subviews copy] };
+    [sup sortSubviewsUsingFunction:pa_raise_cmp context:&r];
+    [sup setNeedsDisplay:YES];
+}
+
+/* The client is in a scroll view in the frame, so the view's superview is
+   the scroll view's clip, and redrawing that left the button colors as
+   they were. */
+static void pa_redraw_chrome(NSView* v)
+{
+    while (v && ![v isKindOfClass:[PAChildFrame class]]) v = v.superview;
+    [v setNeedsDisplay:YES];
+}
 
 /*----------------------------------------------------------------------------
  * PAKeyWindow — NSWindow subclass that accepts key status even when borderless
@@ -1055,6 +1150,9 @@ static NSCursor* diag_cursor(int nwse)
     e.type = PA_EVT_FOCUS;
     e.win  = (__bridge pa_winhan)self;
     evt_push(&e);
+    /* a child focused within shows it again */
+    id fr = window.firstResponder;
+    if ([fr isKindOfClass:[NSView class]]) pa_redraw_chrome(fr);
 }
 
 - (void)windowDidResignKey:(NSNotification*)n
@@ -1063,6 +1161,9 @@ static NSCursor* diag_cursor(int nwse)
     e.type = PA_EVT_UNFOCUS;
     e.win  = (__bridge pa_winhan)self;
     evt_push(&e);
+    /* a child focused within no longer shows it */
+    id fr = window.firstResponder;
+    if ([fr isKindOfClass:[NSView class]]) pa_redraw_chrome(fr);
 }
 
 /*--- minimize / maximize / restore ---*/
