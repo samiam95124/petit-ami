@@ -299,7 +299,7 @@ void tbox(int sx, int sy, /* coordinates of box upper left */
     }
     for (y = sy+1; y <= ey-1; y++) { /* draw box left side */
 
-        ami_cursor(stderr, ex, y); /* place cursor */
+        ami_cursor(stdout, ex, y); /* place cursor */
         putchar(c); /* place character */
 
     }
