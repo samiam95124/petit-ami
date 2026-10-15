@@ -161,6 +161,10 @@ static int pa_win_is_child(pa_winhan h);
    bars for its buffer; defined after PAScroll */
 static NSSize pa_client_size(PAView* v);
 
+/* raise the child window a view is in to the top of its siblings; defined
+   after PAChildFrame */
+static void pa_raise_child(NSView* v);
+
 /* redraw the frame of the child window a view is the client of, whose
    button colors show its focus; defined after PAChildFrame */
 static void pa_redraw_chrome(NSView* v);
@@ -457,6 +461,7 @@ static uint32_t translate_key(NSEvent* event, pa_keycode* out_special)
 - (void)mouseDragged:(NSEvent*)e    { [self pushMouseEvent:PA_EVT_MOUSE_MOVE event:e]; }
 - (void)mouseDown:(NSEvent*)e
 {
+    pa_raise_child(self); /* selecting a child brings it to the front */
     [self.window makeFirstResponder:self]; /* clicking a child view focuses it */
     [self pushMouseEvent:PA_EVT_MOUSE_DOWN event:e];
 }
@@ -813,6 +818,7 @@ static NSSize pa_client_size(PAView* v)
 {
     NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
 
+    pa_raise_child(self); /* selecting a child brings it to the front */
     int m = [self edgeMaskAt:p];
     if (m && !minimized) {
         resizing   = m;
@@ -929,6 +935,36 @@ static NSCursor* diag_cursor(int nwse)
 }
 
 @end
+
+/* order of siblings for pa_raise_child: the raised frame last, the rest in
+   the order they had */
+typedef struct { NSView* top; NSArray* order; } pa_raiseord;
+static NSComparisonResult pa_raise_cmp(id a, id b, void* ctx)
+{
+    pa_raiseord* r = ctx;
+    if (a == r->top) return NSOrderedDescending;
+    if (b == r->top) return NSOrderedAscending;
+    NSUInteger ia = [r->order indexOfObjectIdenticalTo:a];
+    NSUInteger ib = [r->order indexOfObjectIdenticalTo:b];
+    return ia < ib ? NSOrderedAscending
+         : ia > ib ? NSOrderedDescending : NSOrderedSame;
+}
+
+/* Selecting a child window raises it to the top of its siblings, as the
+   X11 and Wayland ports do. The siblings are reordered in place: taking
+   the frame out of its superview and back, as pa_cocoa_front does, in the
+   middle of a click would end the drag that follows and drop the keyboard
+   focus. */
+static void pa_raise_child(NSView* v)
+{
+    while (v && ![v isKindOfClass:[PAChildFrame class]]) v = v.superview;
+    if (!v) return; /* not in a child window */
+    NSView* sup = v.superview;
+    if (!sup || sup.subviews.lastObject == v) return; /* already on top */
+    pa_raiseord r = { v, [sup.subviews copy] };
+    [sup sortSubviewsUsingFunction:pa_raise_cmp context:&r];
+    [sup setNeedsDisplay:YES];
+}
 
 /* The client is in a scroll view in the frame, so the view's superview is
    the scroll view's clip, and redrawing that left the button colors as

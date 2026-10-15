@@ -5,7 +5,7 @@ Parse config file
 Petit-ami pulls config files in plain text, in the order PUD or "Program, User,
 current directory".
 
-The file name is "petit_ami.cfg" or ".petit_ami.cfg". The first is visible, the
+The file name is "ami.cfg" or ".ami.cfg". The first is visible, the
 second is not. They are looked for in that order. Then, the order is to search:
 
 Program:           The location of the program that includes petit_ami, that is,
@@ -13,13 +13,13 @@ Program:           The location of the program that includes petit_ami, that is,
 User:              The location of the user main directory.
 Current directory: The current directory.
 
-Each of these are searched in the order given. Each petit_ami.cfg that is found
+Each of these are searched in the order given. Each ami.cfg that is found
 can have it's values overwritten by the new file, starting (typically) with an
 empty config value tree. In this manner, the program installation point has the
 master values, the user can override these values for their purposes, and
-finally, a petit_ami.cfg file in the local directory can override that.
+finally, an ami.cfg file in the local directory can override that.
 
-Petit_ami values are tree structured. The syntax of a petit_ami.cfg file is:
+Petit_ami values are tree structured. The syntax of an ami.cfg file is:
 
 # comment
 [<values>]...
@@ -619,8 +619,8 @@ Holds options to only be applied locally.
 
 The files in each directory are:
 
-petit_ami.cfg   The visible config file.
-.petit_ami.cfg  The invisible config file.
+ami.cfg         The visible config file.
+.ami.cfg        The invisible config file.
 
 Each new tree is merged with the last, with any duplicate values replacing the
 previous ones. Thus user definitions can override program definitions, local
@@ -645,25 +645,25 @@ void ami_config(ami_valptr* root)
     /* config from program path */
     ami_getpgm(pgmpth, MAXSTR); /* get program path */
     /* try both visible and invisible names */
-    ami_maknam(filnam, MAXSTR, pgmpth, "petit_ami", "cfg");
+    ami_maknam(filnam, MAXSTR, pgmpth, "ami", "cfg");
     ami_configfile(filnam, root);
-    ami_maknam(filnam, MAXSTR, pgmpth, ".petit_ami", "cfg");
+    ami_maknam(filnam, MAXSTR, pgmpth, ".ami", "cfg");
     ami_configfile(filnam, root);
 
     /* config from user path */
     ami_getusr(pgmpth, MAXSTR); /* get user path */
     /* try both visible and invisible names */
-    ami_maknam(filnam, MAXSTR, pgmpth, "petit_ami", "cfg");
+    ami_maknam(filnam, MAXSTR, pgmpth, "ami", "cfg");
     ami_configfile(filnam, root);
-    ami_maknam(filnam, MAXSTR, pgmpth, ".petit_ami", "cfg");
+    ami_maknam(filnam, MAXSTR, pgmpth, ".ami", "cfg");
     ami_configfile(filnam, root);
 
     /* config from current directory */
     ami_getcur(pgmpth, MAXSTR); /* get current path */
     /* try both visible and invisible names */
-    ami_maknam(filnam, MAXSTR, pgmpth, "petit_ami", "cfg");
+    ami_maknam(filnam, MAXSTR, pgmpth, "ami", "cfg");
     ami_configfile(filnam, root);
-    ami_maknam(filnam, MAXSTR, pgmpth, ".petit_ami", "cfg");
+    ami_maknam(filnam, MAXSTR, pgmpth, ".ami", "cfg");
     ami_configfile(filnam, root);
 
 }
