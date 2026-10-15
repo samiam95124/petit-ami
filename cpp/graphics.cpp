@@ -36,6 +36,12 @@ extern "C" {
 
 #include "graphics.hpp"
 
+/* A C++ program in this model wants its standard streams in the model as
+   well, so the stream binding (cpp/stdio.cpp) travels with this class: the
+   reference pulls its member from the library. */
+extern "C" int ami_iostream(void);
+static int (*const keep_iostream)(void) __attribute__((used)) = ami_iostream;
+
 namespace graphics {
 
 /* hook for sending events back to methods */

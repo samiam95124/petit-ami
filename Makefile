@@ -421,9 +421,16 @@ ifeq ($(LINK_TYPE),static)
 endif
 
 #
-# No reason at present for CPP to be different than C
+# C++ programs compile against the system's headers: <iostream> brings the
+# system's stdio.h, which does not coexist with libc/stdio.h in one unit, and
+# the link resolves the stdio names to Petit-Ami's as it does for C (see the
+# head of cpp/stdio.cpp). The hpp directory holds the C++ bindings. A C++
+# program's standard streams are put on Petit-Ami's stdio by the stream
+# binding, cpp/stdio.o, which the link is asked for by name, since a program
+# that only writes std::cout calls nothing in it.
 #
-CFLAGSCPP = $(CFLAGS) -Ihpp
+CFLAGSCPP = $(filter-out -Ilibc,$(CFLAGS)) -Ihpp
+CPPKEEP = -Wl,-u,ami_iostream
 
 #
 # Specify object file for libc
@@ -698,7 +705,7 @@ all: dumpmidi dif css2theme play playg keyboard keyboardg playmidi playmidig pla
      widget_testc \
      graphics_test random_test testviewer window_test widget_test widgets_demo \
      window_race_test \
-     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog wshot dshot snake snakeg mine mineg \
+     sound_test sound_testg network_test services_test stdio_test event eventg term termg hello hellog hellocpp hellocppg wshot dshot snake snakeg mine mineg \
      wator watorg pong pongg breakout breakoutw breakoutg breakoutwg backgammon checkers chess defenders editor editorg getpage getpageg getmail \
      getmailg fakemail gettys gettysg msgclient msgclientg msgserver msgserverg \
      prtcertnet prtcertnetg prtcertmsg prtcertmsgg \
@@ -1030,6 +1037,12 @@ cpp/network.o: cpp/network.cpp
 
 cpp/graphics.o: cpp/graphics.cpp
 	$(CPP) $(CFLAGS) -Ihpp -c cpp/graphics.cpp -o cpp/graphics.o
+
+# The stream binding includes <iostream>, which brings the system's stdio.h
+# with it, so it is compiled without -Ilibc: it reaches Petit-Ami's stdio as
+# a program does, by name (see the head of cpp/stdio.cpp).
+cpp/stdio.o: cpp/stdio.cpp hpp/stdio.hpp
+	$(CPP) $(filter-out -Ilibc,$(CFLAGS)) -Ihpp -c cpp/stdio.cpp -o cpp/stdio.o
 	
 portable/gnome_widgets.o: portable/gnome_widgets.c
 	$(CC) $(CFLAGS) -c portable/gnome_widgets.c \
@@ -1214,36 +1227,37 @@ else
 # to do things like midi to wave conversion.
 #
 lib/petit_ami_plain.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o utils/config.o \
-    utils/option.o
+    utils/option.o cpp/sound.o cpp/services.o cpp/network.o cpp/stdio.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o utils/config.o \
-		utils/option.o -o lib/petit_ami_plain.so
+		utils/option.o cpp/sound.o cpp/services.o cpp/network.o cpp/stdio.o -lstdc++ -o lib/petit_ami_plain.so
 	
 # the terminal library carries the character mode window manager (windowc)
 lib/petit_ami_term.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
 	linux/terminal.o portable/windowc.o linux/system_event.o utils/config.o utils/option.o \
-    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o
+    cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/stdio.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
 		linux/terminal.o portable/windowc.o linux/system_event.o utils/config.o \
-		utils/option.o  cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o -lstdc++ -o lib/petit_ami_term.so
+		utils/option.o  cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/stdio.o \
+		-lstdc++ -o lib/petit_ami_term.so
 	
 # the graphical library, holding the backend GRAPHICS_BACKEND chose
 lib/petit_ami_graph.so: lib/graph_backend $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
 	$(GRAPHOBJS) linux/system_event.o \
 	portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
-	cpp/graphics.o
+	cpp/graphics.o cpp/stdio.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
 		$(GRAPHOBJS) linux/system_event.o \
 		portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o \
-		cpp/graphics.o -lstdc++ -o lib/petit_ami_graph.so
+		cpp/graphics.o cpp/stdio.o -lstdc++ -o lib/petit_ami_graph.so
 
 # the remote graphical library: graph_client in place of a backend, the
 # display on a graph_server. The client carries the sound API itself.
 lib/petit_ami_graphr.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
 	portable/graph_client.o utils/config.o utils/option.o \
-	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o
+	cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o cpp/stdio.o
 	$(CC) -shared $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/network.o \
 		portable/graph_client.o utils/config.o utils/option.o \
-		cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o \
+		cpp/terminal.o cpp/sound.o cpp/services.o cpp/network.o cpp/graphics.o cpp/stdio.o \
 		-lstdc++ -o lib/petit_ami_graphr.so
 
 #
@@ -1281,6 +1295,12 @@ lib/petit_ami_graphr.so: $(LINUXSTDIO) linux/services.o $(CRASHDUMP_OBJ) linux/n
 #                   program calling through the class, and never by a C
 #                   program: a C program asks for no C++ runtime. A C++
 #                   program is linked by g++, which supplies it.
+#   cpp_stdio.o     the C++ stream binding: std::cout and the other
+#                   standard streams put on Petit-Ami's stdio, and file
+#                   streams over it. Pulled by the terminal and graphics
+#                   classes, or asked for by name (-u ami_iostream) by a
+#                   C++ program that uses no class, since a program that
+#                   only writes std::cout calls nothing in it.
 #
 # So programs get what they use, as always. A program link line is:
 #
@@ -1331,7 +1351,7 @@ lib/graphr_core.o: $(CORE_COMMON) portable/graph_client.o
 lib/cpp_%.o: cpp/%.o
 	cp cpp/$*.o lib/cpp_$*.o
 
-CPPWRAP_PLAIN = lib/cpp_sound.o lib/cpp_services.o lib/cpp_network.o
+CPPWRAP_PLAIN = lib/cpp_sound.o lib/cpp_services.o lib/cpp_network.o lib/cpp_stdio.o
 CPPWRAP_TERM = $(CPPWRAP_PLAIN) lib/cpp_terminal.o
 CPPWRAP_GRAPH = $(CPPWRAP_TERM) lib/cpp_graphics.o
 
@@ -1435,19 +1455,19 @@ test_demo: $(GLIBSD) test_demo.c portable/widget_demo.c
 	$(CC) $(CFLAGS) test_demo.c portable/widget_demo.c $(GLIBS) -o test_demo
 	
 test+: $(PLIBSD) test.cp
-	$(CPP) $(CFLAGS) test.cp $(PLIBS) -o test
+	$(CPP) $(CFLAGSCPP) test.cp $(CPPKEEP) $(PLIBS) -o test
 	
 test++: $(PLIBSD) test.cpp
-	$(CPP) $(CFLAGS) test.cpp $(PLIBS) -o test
+	$(CPP) $(CFLAGSCPP) test.cpp $(CPPKEEP) $(PLIBS) -o test
 	
 testc+: $(CLIBSCPPD) test.cp
-	$(CPP) $(CFLAGSCPP) test.cp $(CLIBSCPP) -o testc
+	$(CPP) $(CFLAGSCPP) test.cp $(CPPKEEP) $(CLIBSCPP) -o testc
 	
 testc++: $(CLIBSCPPD) test.cpp
-	$(CPP) $(CFLAGSCPP) test.cpp $(CLIBSCPP) -o testc
+	$(CPP) $(CFLAGSCPP) test.cpp $(CPPKEEP) $(CLIBSCPP) -o testc
 	
 testg++: $(GLIBSD) test.cpp
-	$(CPP) $(CFLAGS) test.cpp -Wl,-u,ami_cursorg $(GLIBS) -o testg
+	$(CPP) $(CFLAGSCPP) test.cpp $(CPPKEEP) -Wl,-u,ami_cursorg $(GLIBS) -o testg
 	
 #
 # Target programs that use Petit-Ami, such as games, utilities, etc.
@@ -2018,6 +2038,13 @@ termg: $(GLIBSD) tests/term.c
 hello: $(CLIBSD) hello/hello.c
 	$(CC) $(CFLAGS) hello/hello.c $(CLIBS) -o bin/hello
 
+# the same in C++, on the standard streams (see hellocpp/readme.txt)
+hellocpp: $(CLIBSCPPD) hellocpp/hello.cpp
+	$(CPP) $(CFLAGSCPP) hellocpp/hello.cpp $(CPPKEEP) $(CLIBSCPP) -o bin/hellocpp
+
+hellocppg: $(GLIBSD) hellocpp/hello.cpp
+	$(CPP) $(CFLAGSCPP) hellocpp/hello.cpp $(CPPKEEP) $(GLIBS) -o bin/hellocppg
+
 # dies on purpose, to show the crash dump: see tests/crash_test.c
 crash_test: $(PLIBSD) tests/crash_test.c
 	$(CC) $(CFLAGS) tests/crash_test.c $(PLIBS) -o bin/crash_test
@@ -2456,6 +2483,7 @@ clean:
 	rm -f bin/terminal_test bin/terminal_testg bin/graphics_test 
 	rm -f bin/window_test bin/widget_test bin/sound_test bin/sound_testg
 	rm -f bin/services_test bin/stdio_test bin/event bin/eventg bin/term bin/termg bin/snake
+	rm -f bin/hellocpp bin/hellocppg cpp/stdio.o
 	rm -f bin/snakeg bin/mine bin/mineg bin/wator bin/watorg bin/pong bin/pongg
 	rm -f bin/breakout bin/editor bin/editorg bin/getpage bin/getpageg 
 	rm -f bin/getmail bin/getmailg bin/gettys bin/gettysg bin/msgclient 
