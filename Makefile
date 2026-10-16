@@ -1122,6 +1122,7 @@ windows/crashdump.o: windows/crashdump.c Makefile
 
 lib/libami_plain.a: windows/services.o windows/sound.o windows/network.o \
 	utils/option.o utils/config.o windows/stdio.o $(CRASHDUMP_OBJ)
+	rm -f lib/libami_plain.a
 	ar rcs lib/libami_plain.a windows/services.o windows/sound.o \
         windows/network.o utils/config.o utils/option.o windows/stdio.o \
         $(CRASHDUMP_OBJ)
@@ -1137,6 +1138,7 @@ lib/libami_plain.a: windows/services.o windows/sound.o windows/network.o \
 lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
     windows/terminal.o portable/txtterminal.o portable/windowc.o utils/config.o utils/option.o \
     windows/stdio.o $(CRASHDUMP_OBJ)
+	rm -f lib/libami_term.a
 	ar rcs lib/libami_term.a windows/services.o windows/sound.o \
 	    windows/network.o windows/terminal.o portable/txtterminal.o portable/windowc.o \
 	    utils/config.o utils/option.o windows/stdio.o $(CRASHDUMP_OBJ)
@@ -1144,6 +1146,7 @@ lib/libami_term.a: windows/services.o windows/sound.o windows/network.o \
 lib/libami_graph.a: windows/services.o windows/sound.o windows/network.o \
     windows/graphics.o portable/pdfgraph.o utils/config.o utils/option.o \
     windows/stdio.o $(CRASHDUMP_OBJ)
+	rm -f lib/libami_graph.a
 	ar rcs lib/libami_graph.a windows/services.o windows/sound.o \
 	    windows/network.o windows/graphics.o portable/pdfgraph.o \
 	    utils/config.o utils/option.o windows/stdio.o $(CRASHDUMP_OBJ)
@@ -1157,6 +1160,7 @@ else ifeq ($(OSTYPE),Darwin)
 #
 lib/libami_plain.a: macosx/services.o macosx/sound.o macosx/network.o \
 	utils/config.o utils/option.o macosx/stdio.o
+	rm -f lib/libami_plain.a
 	ar rcs lib/libami_plain.a macosx/services.o macosx/sound.o \
         macosx/network.o utils/config.o utils/option.o macosx/stdio.o
 	
@@ -1171,6 +1175,7 @@ macosx/termc.o: macosx/terminal.o portable/windowc.o
 lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/termc.o utils/config.o utils/option.o \
     macosx/stdio.o portable/txtterminal.o macosx/joystick_hid.o
+	rm -f lib/libami_term.a
 	ar rcs lib/libami_term.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/termc.o \
 	    utils/config.o utils/option.o macosx/stdio.o portable/txtterminal.o macosx/joystick_hid.o
@@ -1178,6 +1183,7 @@ lib/libami_term.a: macosx/services.o macosx/sound.o macosx/network.o \
 lib/libami_graph.a: macosx/services.o macosx/sound.o macosx/network.o \
     macosx/system_event.o macosx/graphics.o macosx/graphics_cocoa.o \
     utils/config.o utils/option.o macosx/stdio.o portable/pdfgraph.o portable/widget_base.o
+	rm -f lib/libami_graph.a
 	ar rcs lib/libami_graph.a macosx/services.o macosx/sound.o \
 	    macosx/network.o macosx/system_event.o macosx/graphics.o \
 	    macosx/graphics_cocoa.o utils/config.o utils/option.o macosx/stdio.o portable/pdfgraph.o portable/widget_base.o
@@ -1191,6 +1197,7 @@ else ifeq ($(OSTYPE),FreeBSD)
 #
 lib/libami_plain.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o utils/config.o utils/option.o bsd/stdio.o
+	rm -f lib/libami_plain.a
 	ar rcs lib/libami_plain.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
         bsd/network.o utils/config.o utils/option.o bsd/stdio.o
@@ -1199,6 +1206,7 @@ lib/libami_term.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
     bsd/system_event.o bsd/terminal.o portable/windowc.o utils/config.o utils/option.o \
     bsd/stdio.o
+	rm -f lib/libami_term.a
 	ar rcs lib/libami_term.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/terminal.o portable/windowc.o \
@@ -1208,6 +1216,7 @@ lib/libami_graph.a: bsd/services.o bsd/sound.o bsd/fluidsynthplug.o \
 	bsd/dumpsynthplug.o bsd/network.o \
     bsd/graphics.o bsd/system_event.o \
 	portable/gnome_widgets.o portable/plasma_widgets.o portable/widget_base.o utils/config.o utils/option.o bsd/stdio.o
+	rm -f lib/libami_graph.a
 	ar rcs lib/libami_graph.a bsd/services.o bsd/sound.o \
 	    bsd/fluidsynthplug.o bsd/dumpsynthplug.o \
 	    bsd/network.o bsd/system_event.o bsd/graphics.o \
