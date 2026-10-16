@@ -158,6 +158,7 @@ static struct { /* benchmark stats records */
 
 } benchtab[bnbuffer+1];
 static bench bi;
+static int tabready; /* benchmark table is complete */
 
 static ami_long x, y, lx, ly, tx, ty, dx, dy, maxy, maxx;
 static ami_long winx, winy; /* last known window size, from resize events */
@@ -352,6 +353,51 @@ static void frmmark(void)
     printf("%s", buf);
     ami_cursor(stdout, cx, cy);
     screen_capture();
+
+}
+
+/* print the benchmark table */
+static void prttable(void)
+{
+
+    bench bi;
+
+    printf("\n");
+    printf("Benchmark table\n");
+    printf("\n");
+    printf("Type                   Seconds  Per fig\n");
+    printf("--------------------------------------------\n");
+    for (bi = bncharw; bi <= bnbuffer; bi++) {
+
+        switch (bi) { /* benchmark type */
+
+            case bncharw:  printf("character write speed "); break;
+            case bnscroll: printf("Scroll speed          "); break;
+            case bnbuffer: printf("Buffer flip speed     "); break;
+
+        };
+        printf("%6.2f", benchtab[bi].time*0.0001);
+        printf("    ");
+        printf("%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
+        printf("\n");
+
+    }
+    printf("\n");
+
+}
+
+/* The table printed at the end of the test is on the program's screen, and
+   the terminal library takes that screen away when it puts the terminal back
+   on exit: an xterm leaves its alternate screen, and the table goes with it.
+   So the table is printed again once the terminal is back. This runs after
+   the terminal library's own exit: on Linux by its priority, and on the Mac,
+   which runs exit code in the reverse of the link order, because the test is
+   linked ahead of the library. */
+static void tableafter(void) __attribute__((destructor (101)));
+static void tableafter(void)
+{
+
+    if (tabready) { prttable(); fflush(stdout); }
 
 }
 
@@ -2018,27 +2064,7 @@ terminate: /* terminate */
     printf("\n");
 
     /* output table */
-
-    printf("\n");
-    printf("Benchmark table\n");
-    printf("\n");
-    printf("Type                   Seconds  Per fig\n");
-    printf("--------------------------------------------\n");
-    for (bi = bncharw; bi <= bnbuffer; bi++) {
-
-        switch (bi) { /* benchmark type */
-
-            case bncharw:  printf("character write speed "); break;
-            case bnscroll: printf("Scroll speed          "); break;
-            case bnbuffer: printf("Buffer flip speed     "); break;
-
-        };
-        printf("%6.2f", benchtab[bi].time*0.0001);
-        printf("    ");
-        printf("%f", benchtab[bi].time*0.0001/benchtab[bi].iter);
-        printf("\n");
-
-    }
-    printf("\n");
+    prttable();
+    tabready = 1; /* print it again after the terminal is back */
 
 }
