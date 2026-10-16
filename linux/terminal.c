@@ -2169,6 +2169,92 @@ static void synccur(scnptr sc)
 
 }
 
+/* Place the cursor for a wait on the user. A visible cursor goes where the
+   program put it. A hidden one, or one outside the screen, is parked on the
+   top line instead: a terminal emulator keeps the cursor row on the screen
+   when the window loses rows, and scrolls the whole screen up to do it, so a
+   hidden cursor left low on the screen makes the display jump on a resize
+   for no reason the user can see. The wanted position stays outstanding and
+   is emitted before the next output. */
+static void waitcur(scnptr sc)
+
+{
+
+    if (!indisp(sc)) return;
+    if (curvis && icurbnd(sc)) { synccur(sc); return; } /* shown: place it */
+    cursts(sc); /* make sure it is off */
+    if (!(curval && curx == 1 && cury == 1)) { /* not parked already */
+
+        trm_home();
+        curx = 1; /* the physical cursor is at home now */
+        cury = 1;
+        curval = 1;
+
+    }
+    curdef = 1; /* the program's position is outstanding */
+
+}
+
+/** ****************************************************************************
+
+Put screen cell
+
+Outputs one buffer cell to the terminal. The colors and attribute in force are
+the caller's, passed by reference, and are changed, and the change sent, only
+where the cell differs from them. This cuts down on the amount of output.
+
+*******************************************************************************/
+
+#ifdef NATIVE24
+static void putcell(scnptr sc, scnrec* p, int* fs, int* bs, scnatt* as)
+#else
+static void putcell(scnptr sc, scnrec* p, ami_color* fs, ami_color* bs,
+                    scnatt* as)
+#endif
+
+{
+
+#ifdef NATIVE24
+    if (p->forergb != *fs) { /* new foreground color */
+
+        trm_fcolorrgb(p->forergb); /* set the new color */
+        *fs = p->forergb; /* set save */
+
+    }
+    if (p->backrgb != *bs) { /* new background color */
+
+        trm_bcolorrgb(p->backrgb); /* set the new color */
+        *bs = p->backrgb; /* set save */
+
+    }
+#else
+    if (p->forec != *fs) { /* new foreground color */
+
+        trm_fcolor(p->forec); /* set the new color */
+        *fs = p->forec; /* set save */
+
+    }
+    if (p->backc != *bs) { /* new background color */
+
+        trm_bcolor(p->backc); /* set the new color */
+        *bs = p->backc; /* set save */
+
+    }
+#endif
+    if (p->attr != *as) { /* new attribute */
+
+        setattr(sc, p->attr); /* set the new attribute */
+        *as = p->attr; /* set save */
+
+    }
+#ifdef ALLOWUTF8
+    putnstr(p->ch, 4); /* now output the actual character */
+#else
+    putchr(p->ch); /* now output the actual character */
+#endif
+
+}
+
 /** ****************************************************************************
 
 Restore screen
@@ -2234,47 +2320,7 @@ static void restore(scnptr sc)
                we set that, and update the saves. this technique cuts down on
                the amount of output characters */
             p = &SCNBUF(sc, xi, yi); /* index this screen element */
-#ifdef NATIVE24
-            if (p->forergb != fs) { /* new foreground color */
-#else
-            if (p->forec != fs) { /* new foreground color */
-#endif
-
-#ifdef NATIVE24
-                trm_fcolorrgb(p->forergb); /* set the new color */
-                fs = p->forergb; /* set save */
-#else
-                trm_fcolor(p->forec); /* set the new color */
-                fs = p->forec; /* set save */
-#endif
-
-            };
-#ifdef NATIVE24
-            if (p->backrgb != bs) { /* new foreground color */
-#else
-            if (p->backc != bs) { /* new foreground color */
-#endif
-
-#ifdef NATIVE24
-                trm_bcolorrgb(p->backrgb); /* set the new color */
-                bs = p->backrgb; /* set save */
-#else
-                trm_bcolor(p->backc); /* set the new color */
-                bs = p->backc; /* set save */
-#endif
-
-            };
-            if (p->attr != as) { /* new attribute */
-
-                setattr(sc, p->attr); /* set the new attribute */
-                as = p->attr; /* set save */
-
-            };
-#ifdef ALLOWUTF8
-            putnstr(p->ch, 4); /* now output the actual character */
-#else
-            putchr(p->ch); /* now output the actual character */
-#endif
+            putcell(sc, p, &fs, &bs, &as); /* output it */
 
         };
         if (yi < cbufy)
@@ -2312,6 +2358,96 @@ static void restore(scnptr sc)
 
             trm_cursorset(1, yi); /* locate to line start */
             for (xi = 1; xi <= dimx; xi++) putchr(' '); /* fill */
+
+        }
+
+    }
+    /* restore cursor position */
+    trm_cursor(ncurx, ncury);
+    curx = ncurx; /* set physical cursor */
+    cury = ncury;
+    curval = 1; /* set it is valid */
+#ifdef NATIVE24
+    trm_fcolorrgb(forergb); /* restore colors */
+    trm_bcolorrgb(backrgb);
+#else
+    trm_fcolor(forec); /* restore colors */
+    trm_bcolor(backc);
+#endif
+    setattr(sc, attr); /* restore attributes */
+    setcur(sc); /* set cursor status */
+
+}
+
+/** ****************************************************************************
+
+Restore screen region
+
+Paints the given rectangle of the screen from the buffer, clipped to the
+screen. Where the rectangle lies outside the buffer, the background color is
+painted, as restore does for the screen outside the buffer. The rest of the
+screen is not touched.
+
+This is the repaint for a window that has grown: what was on the screen is
+still right, and only the rows and columns the growth exposed are drawn, so
+the screen does not flash.
+
+*******************************************************************************/
+
+static void restorergn(scnptr sc, int x1, int y1, int x2, int y2)
+
+{
+
+    /** screen indexes */         int xi, yi;
+#ifdef NATIVE24
+    /** color saves */            int fs, bs;
+#else
+    /** color saves */            ami_color fs, bs;
+#endif
+    /** attribute saves */        scnatt as;
+
+    /* clip to the screen */
+    if (x1 < 1) x1 = 1;
+    if (y1 < 1) y1 = 1;
+    if (x2 > dimx) x2 = dimx;
+    if (y2 > dimy) y2 = dimy;
+    if (x1 > x2 || y1 > y2) return; /* nothing to paint */
+    trm_curoff(); /* turn cursor off for display */
+    curon = FALSE;
+    /* set colors and attributes */
+#ifdef NATIVE24
+    trm_fcolorrgb(forergb); /* restore colors */
+    trm_bcolorrgb(backrgb);
+#else
+    trm_fcolor(forec); /* restore colors */
+    trm_bcolor(backc);
+#endif
+    setattr(sc, attr); /* restore attributes */
+#ifdef NATIVE24
+    fs = forergb; /* save current colors and attributes */
+    bs = backrgb;
+#else
+    fs = forec; /* save current colors and attributes */
+    bs = backc;
+#endif
+    as = attr;
+    for (yi = y1; yi <= y2; yi++) { /* lines */
+
+        trm_cursorset(x1, yi); /* locate to line start */
+        for (xi = x1; xi <= x2; xi++) { /* characters */
+
+            if (xi <= bufx && yi <= bufy) /* in the buffer */
+                putcell(sc, &SCNBUF(sc, xi, yi), &fs, &bs, &as);
+            else { /* outside the buffer, paint background */
+
+#ifdef NATIVE24
+                if (bs != backrgb) { trm_bcolorrgb(backrgb); bs = backrgb; }
+#else
+                if (bs != backc) { trm_bcolor(backc); bs = backc; }
+#endif
+                putchr(' ');
+
+            }
 
         }
 
@@ -3977,7 +4113,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
         while (cnt) {
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
-            synccur(screens[curdsp-1]); /* about to wait on the user */
+            waitcur(screens[curdsp-1]); /* about to wait on the user */
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -5017,6 +5153,7 @@ static void event_ivf(FILE* f, ami_evtrec *er)
 {
 
     static int ecnt = 0; /* PA event counter */
+    int oldx, oldy;      /* screen size before a resize */
 
     dbg_printf(dlapi, "API\n");
     do { /* loop handling via event vectors */
@@ -5039,7 +5176,7 @@ static void event_ivf(FILE* f, ami_evtrec *er)
         /* The user is about to be given the chance to look, so the
            cursor must be where it belongs before we wait. */
         pthread_mutex_lock(&termlock);
-        synccur(screens[curdsp-1]);
+        waitcur(screens[curdsp-1]);
         pthread_mutex_unlock(&termlock);
         /* get next input event */
         dequepaevt(er); /* get next queued event */
@@ -5048,12 +5185,30 @@ static void event_ivf(FILE* f, ami_evtrec *er)
         if (er->etype == ami_etresize) {
 
             /* set new size */
+            oldx = dimx;
+            oldy = dimy;
             dimx = er->rszx;
             dimy = er->rszy;
-            /* linux/xterm has an oddity here, if the winch contracts in y, it
-               occasionally relocates the buffer contents up. This means we
-               always need to refresh, and means it can flash. */
-            restore(screens[curdsp-1]);
+            /* The emulator keeps the cursor row on the screen when the
+               window loses rows, and scrolls the whole screen up to do it.
+               If the physical cursor was below the new bottom, or is not
+               known, the screen may have moved, and all of it is repainted.
+               Otherwise what is on the screen is still right: a shrink needs
+               nothing, and a growth needs only the rows and columns it
+               exposed, painted from the buffer. */
+            if (!curval || cury > dimy) restore(screens[curdsp-1]);
+            else {
+
+                if (dimy > oldy) /* rows exposed below */
+                    restorergn(screens[curdsp-1], 1, oldy+1, dimx, dimy);
+                if (dimx > oldx) /* columns exposed at right */
+                    restorergn(screens[curdsp-1], oldx+1, 1, dimx,
+                               oldy < dimy ? oldy : dimy);
+                /* a cursor past the new right edge was moved by the emulator,
+                   so its place is no longer known */
+                if (curx > dimx) curval = 0;
+
+            }
 
         } else if (er->etype == ami_etterm) 
             /* set user ordered termination */
@@ -5483,6 +5638,7 @@ static void wrtstrn_ivf(FILE* f, char *s, ami_long n)
 
     ssize_t rc;      /* return code */
     ami_long    off = 0; /* offset into the string */
+    ami_long    vis;     /* length of the run on the screen */
 
     scnptr  sc;
     scnrec* p;
@@ -5517,15 +5673,23 @@ static void wrtstrn_ivf(FILE* f, char *s, ami_long n)
         p->attr = attr; /* place attribute */
 
     }
-    if (indisp(sc)) { /* the display shows this screen */
+    /* The run goes to the screen when the display shows this screen and
+       the cursor is on it, as a character does. A run that starts off the
+       screen, in the part of a larger buffer the window does not show, is
+       the buffer's only: sent, it landed wherever the physical cursor
+       happened to be, since a position off the screen is never emitted.
+       A run that reaches past the right edge is cut there. */
+    if (indisp(sc) && icurbnd(sc)) { /* on the screen */
 
+        vis = n; /* the part of the run on the screen */
+        if (ncurx+vis-1 > dimx) vis = dimx-ncurx+1;
         synccur(sc); /* the run lands at the cursor: place it */
         /* Send the run in one piece. This call exists to bypass the per
            character protocol, and emitting it a character at a time,
            which is a write() each, gave up the very saving it is for. */
-        while (off < n) {
+        while (off < vis) {
 
-            rc = (*ofpwrite)(OUTFIL, s+off, n-off);
+            rc = (*ofpwrite)(OUTFIL, s+off, vis-off);
             if (rc <= 0) error(ami_dispeoutdev); /* output device error */
             off += rc;
 
@@ -5534,7 +5698,7 @@ static void wrtstrn_ivf(FILE* f, char *s, ami_long n)
            so no logical wrap occurred; at or past the right side the
            physical terminal's own wrap action still cannot be counted
            on, as with the per character path. */
-        curx += n;
+        curx += vis;
         if (curx >= dimx) curval = 0;
 
     }
@@ -6105,7 +6269,17 @@ static void ami_init_terminal(int argc, char* argv[])
     setvbuf(stdout, NULL, _IONBF, 0);
 
     /* change to alternate screen/turn off wrap */
-    printf("\033[?1049h\033[H"); fflush(stdout);
+    /* The alternate screen, with the cursor at home, and the cursor saved
+       there on it. Konsole decides what to do with the screen when its
+       window loses rows by the alternate screen's saved cursor line, not
+       the cursor's: it scrolls the screen up until that line is on it. The
+       line is whatever the last program to save a cursor on that screen
+       left there, a status line at the bottom as often as not, and the
+       screen jumped for it. Saved at home, there is nothing to keep on the
+       screen, and a shrink clips the bottom. xterm, Konsole and VTE each
+       keep a saved cursor per screen, so the one the normal screen is
+       restored to at exit is not touched. */
+    printf("\033[?1049h\033[H\0337"); fflush(stdout);
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);

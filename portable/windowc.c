@@ -719,6 +719,7 @@ static ami_pevthan evtshan;        /* single master event handler routine */
 static paevtque*  paqfre;         /* free PA event queue entries list */
 static paevtque*  paqevt;         /* PA event input save queue */
 static ami_long   dimx, dimy;     /* terminal/root dimensions */
+static ami_long   ubufx, ubufy;   /* size of the terminal's buffer below */
 
 /* forwards */
 static void plcchr(FILE* f, char c);
@@ -5416,6 +5417,49 @@ static void defaultevent(ami_evtrec* ev)
 
 /*******************************************************************************
 
+Blank terminal buffer outside the surface
+
+Writes spaces, in the root background, to a rectangle of the terminal's
+buffer that lies outside its screen. The terminal keeps its buffer when its
+screen shrinks, and when the screen grows again it paints what came back
+into view from the buffer, before the manager composes over it. What it
+holds there is the composition from before the shrink, stale by then, and
+would show for a moment; blanked, it shows as background. Outside the
+screen the terminal's writes go to its buffer only, so nothing reaches the
+terminal from here.
+
+*******************************************************************************/
+
+static void blankbelow(ami_long x1, ami_long y1, ami_long x2, ami_long y2)
+
+{
+
+    char     blanks[MAXLIN]; /* a run of spaces */
+    ami_long x, y, n;
+
+    if (x1 > x2 || y1 > y2) return; /* nothing there */
+    memset(blanks, ' ', MAXLIN);
+    setfcolora(fcolor, bcolor, 0); /* root colors, plain */
+    setbcolor(bcolor);
+    setattrs(0);
+    for (y = y1; y <= y2; y++) {
+
+        for (x = x1; x <= x2; x += n) {
+
+            n = x2-x+1; /* the rest of the row, in runs the buffer holds */
+            if (n > MAXLIN) n = MAXLIN;
+            setcursor(x, y);
+            (*wrtstrn_vect)(stdout, blanks, n);
+            curx += n; /* the string moved the cursor */
+
+        }
+
+    }
+
+}
+
+/*******************************************************************************
+
 Process a click on the window frame
 
 Handles a button 1 press on a window's frame: the system bar buttons --
@@ -5592,6 +5636,8 @@ static void intevent(FILE* f)
     ami_evtrec ev, er;    /* local event record */
     winptr    win;   /* windows record pointer */
     ami_long  x, y;
+    ami_long  oldx, oldy; /* root dimensions before a resize */
+    int       full;       /* the whole surface is to be composed */
 
     win = NULL; /* set no window active */
     (*event_vect)(stdin, &ev); /* get root event */
@@ -5673,8 +5719,11 @@ static void intevent(FILE* f)
                terminal package had already repainted its raw screen over
                the composition, so nothing came back until some other
                action forced a redraw. */
+            oldx = dimx; /* the surface before */
+            oldy = dimy;
             dimx = ev.rszx; /* set new root dimensions */
             dimy = ev.rszy;
+            full = FALSE; /* only what the change exposed is composed */
             win = winlst; /* find the root window record */
             while (win && !win->root) win = win->winlst;
             if (win) { /* track the surface in the root window */
@@ -5699,14 +5748,26 @@ static void intevent(FILE* f)
                    more or less of it. Growing it here regardless threw
                    away the size a program had asked for. */
                 if (!win->bufmod) resizewinbuf(win, win->cmaxx, win->cmaxy);
-                /* The layer below keeps its own screen buffers, sized when
-                   it started, and clips writes to them. Grow those through
-                   the standard call rather than by reaching into that
-                   module: the manager runs over any terminal implementation
-                   and must not require changes in it. The contents are
-                   discarded by that call, which costs nothing here since
-                   the whole surface is repainted below. */
-                (*sizbuf_vect)(stdout, dimx, dimy);
+                /* The layer below keeps its own screen buffers and clips
+                   writes to them, so they must cover the surface. They are
+                   grown through the standard call rather than by reaching
+                   into that module: the manager runs over any terminal
+                   implementation and must not require changes in it. That
+                   call clears them, and paints the cleared screen, which
+                   showed as a blank flash on every resize before the
+                   composition came back. So they are grown only when the
+                   surface outgrows them, and never shrunk: within them the
+                   surface comes and goes without a call, the layer below
+                   showing more or less of its buffer, and on a growth it
+                   paints what came back into view itself. */
+                if (dimx > ubufx || dimy > ubufy) {
+
+                    if (dimx > ubufx) ubufx = dimx;
+                    if (dimy > ubufy) ubufy = dimy;
+                    (*sizbuf_vect)(stdout, ubufx, ubufy);
+                    full = TRUE; /* the surface was cleared */
+
+                }
 
             }
             recalcfmask(); /* occlusion clips to the new bounds */
@@ -5722,9 +5783,22 @@ static void intevent(FILE* f)
                 intsendevent(win, &er);
 
             }
-            /* repaint the whole composition over the terminal's own
-               recovery paint */
-            redraw(zmax2min, 1, 1, dimx, dimy);
+            if (full) /* repaint the whole composition over the cleared surface */
+                redraw(zmax2min, 1, 1, dimx, dimy);
+            else {
+
+                /* What was on the surface is still there, so only the rows
+                   and columns a growth exposed are composed, and a shrink
+                   composes nothing. */
+                if (dimy > oldy) redraw(zmax2min, 1, oldy+1, dimx, dimy);
+                if (dimx > oldx)
+                    redraw(zmax2min, oldx+1, 1, dimx, oldy < dimy ? oldy : dimy);
+                /* what a shrink took off the surface is blanked in the
+                   terminal's buffer, so that it does not come back stale */
+                if (dimx < oldx) blankbelow(dimx+1, 1, ubufx, ubufy);
+                if (dimy < oldy) blankbelow(1, dimy+1, dimx, ubufy);
+
+            }
             break;
         case ami_etmouba:  /* mouse button assertion */
             win = fndtop(mousex, mousey); /* find the enclosing window */
@@ -12351,6 +12425,9 @@ static void init_windowc()
     /* find dimensions of base screen */
     dimx = (*maxx_vect)(stdout);
     dimy = (*maxy_vect)(stdout);
+    /* the terminal below sized its buffer to its screen at its start */
+    ubufx = dimx;
+    ubufy = dimy;
 
     /* The desktop is drawn on the terminal's second screen, and the first
        is shown again at shutdown, so the screen a program was started from,
