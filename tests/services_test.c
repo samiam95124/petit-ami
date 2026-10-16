@@ -198,8 +198,10 @@ int main(void)
     printf("test 40: %s s/b <the user path>\n", s);
     fp = fopen("junk", "w");
     fclose(fp);
-    /* Linux cannot set or reset attributes */
-#ifndef __linux
+    /* only Windows can set or reset these attributes: the archive and system
+       attributes are Windows ones, and the Unix systems have no way to set
+       them */
+#ifdef _WIN32
     printf("test 42: ");
     ami_setatr("junk", BIT(ami_atarc));
     ami_list("junk", &fla);
