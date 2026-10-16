@@ -552,6 +552,26 @@ static int wflush(
 
 }
 
+/* Flush a stream to its device. A stream's buffer is not the only place output
+   is held: a write override, the terminal module say, can hold what it was
+   given until the program waits, and sending a screen in one piece is what
+   keeps it from flashing. An empty write passes a flush down to whatever
+   holds the output; to a plain file or device it is nothing. */
+static int devflush(
+    /** file to operate on */ FILE *s
+)
+
+{
+
+    int r; /* result */
+
+    r = wflush(s); /* the stream's own buffer first */
+    if (!(s->_flags & _IO_NO_WRITES)) vwrite(s->_fileno, "", 0);
+
+    return (r);
+
+}
+
 /** **************************************************************************
 
 Function rflush
@@ -1664,7 +1684,7 @@ int fflush(
     if (stream) { /* flush a single stream */
 
         if (stream->_fileno < 0) return (EOF); /* not open */
-        return (wflush(stream)); /* write out any pending output */
+        return (devflush(stream)); /* write out any pending output */
 
     }
 
@@ -1672,7 +1692,7 @@ int fflush(
     r = 0; /* set no error */
     for (i = 0; i < FOPEN_MAX; i++)
         if (opnfil[i] && opnfil[i]->_fileno >= 0)
-            if (wflush(opnfil[i])) r = EOF; /* note any write error */
+            if (devflush(opnfil[i])) r = EOF; /* note any write error */
 
     return (r);
 

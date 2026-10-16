@@ -7900,7 +7900,9 @@ static ssize_t ivwrite(pwrite_t writedc, int fd, const void* buff, size_t count)
     winptr  win; /* pointer to window data */
 
     if (fd < 0 || fd >= MAXFIL) error("Invalid handle");
-    if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
+    /* an empty write is a flush: it goes on down to whatever holds output */
+    if (!count) rc = (*writedc)(fd, buff, count);
+    else if (opnfil[fd] && opnfil[fd]->win) { /* process window output file */
 
         win = opnfil[fd]->win; /* index window */
         /* The cursor is off while drawing, then restored to the focus

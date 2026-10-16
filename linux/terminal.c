@@ -176,6 +176,8 @@ extern char *program_invocation_short_name;
 #define HOVERTIME (1*SECOND)  /* hover timeout, 1 second */ 
 #define ESCTIME   (SECOND/20) /* a lone Escape is the key after this, 50 ms */
 #define RESPTIME  (15*SECOND) /* default response time limit */
+#define FLUSHTIME (SECOND/100) /* longest output is held, 10 ms */
+#define OUTFLUSH  262144      /* output held past this is sent at once */
 
 /*
  * Standard mouse decoding has a limit of about 223 in x or y. SGR mode
@@ -769,6 +771,14 @@ static int    utf8cnt;        /* UTF-8 extended character count */
 #endif
 static char*  titsav;         /* save for title string */
 
+/* Output to the terminal is held, and sent when the program waits */
+static char*  outbuf;         /* output held */
+static size_t outlen;         /* length held */
+static size_t outmax;         /* space in the buffer */
+static int    flushsev;       /* held output timer event */
+static int    flusharmed;     /* the held output timer is running */
+static pthread_mutex_t outlock = PTHREAD_MUTEX_INITIALIZER; /* output lock */
+
 /*
  * Configurable parameters
  */
@@ -779,6 +789,7 @@ static int    unresponsekill; /* enable kill of non-responsive programs */
 static int    resptime;       /* time before a program is unresponsive, 100us */
 static int    hovertime;      /* mouse rest before a hover event, 100us */
 static int    esctime;        /* wait before a lone escape is the key, 100us */
+static int    flushtime;      /* longest output is held, 100us */
 static int    xtermtitle;     /* use xterm title bar set mode */
 
 static paevtque*       paqfre;      /* free PA event queue entries list */
@@ -801,10 +812,13 @@ Prints the given error in ASCII text, then aborts the program.
 void ami_errorover(ami_errhan nfp, ami_errhan* ofp)
     { *ofp = error_vect; error_vect = nfp; }
 static void error(ami_errcod e) { (*error_vect)(e); }
+static void outflush(void); /* forward */
 static void error_ivf(ami_errcod e)
 
 {
 
+    /* send what was drawn, in its place before the message */
+    outflush();
     /* leave the alternate screen first, or the message is written to it
        and discarded when the exit sequence switches back */
     fprintf(stderr, "\033[0m\033[?1049l\r\n");
@@ -1115,6 +1129,95 @@ static char getchr(void)
 
 /** ****************************************************************************
 
+Hold and send output
+
+What is written to the terminal is held, and sent in one piece when the program
+is about to wait for the user, for an event or a line. A terminal shows what it
+has been sent whenever it next draws, and a screen sent a byte at a time is
+seen part drawn: a redraw that clears and then paints shows the clear, and the
+screen flashes. Sent in one piece, the terminal is given the finished screen.
+
+Output is also sent when a lot of it is held, and when it has been held for a
+time (flushtime), for a program that draws and then goes about its business
+without waiting: the event thread sends it when the timer runs out.
+
+The buffer has its own lock, since the event thread sends from it, and the
+terminal's own lock is not held everywhere output is made.
+
+*******************************************************************************/
+
+/* send all the output held */
+static void outflush(void)
+
+{
+
+    ssize_t rc;      /* return code */
+    size_t  off = 0; /* offset into the output */
+    size_t  len;     /* length to send */
+
+    pthread_mutex_lock(&outlock);
+    len = outlen;
+    /* emptied first: an error below writes a message, and must not find
+       the output it is failing on still waiting to go */
+    outlen = 0;
+    while (off < len) {
+
+        rc = (*ofpwrite)(OUTFIL, outbuf+off, len-off);
+        if (rc <= 0) {
+
+            pthread_mutex_unlock(&outlock);
+            error(ami_dispeoutdev); /* output device error */
+
+        }
+        off += rc;
+
+    }
+    pthread_mutex_unlock(&outlock);
+
+}
+
+/* hold output to be sent */
+static void outblk(const char* s, size_t n)
+
+{
+
+    char*  nb;   /* new buffer */
+    size_t nmax; /* new buffer space */
+    int    full; /* a lot is held */
+
+    pthread_mutex_lock(&outlock);
+    if (outlen+n > outmax) { /* grow the buffer */
+
+        nmax = outmax ? outmax : 4096;
+        while (nmax < outlen+n) nmax *= 2;
+        nb = realloc(outbuf, nmax);
+        if (!nb) {
+
+            pthread_mutex_unlock(&outlock);
+            error(ami_dispenomem); /* no memory */
+
+        }
+        outbuf = nb;
+        outmax = nmax;
+
+    }
+    memcpy(outbuf+outlen, s, n);
+    outlen += n;
+    /* the first output held starts the timer that sends it */
+    if (!flusharmed) {
+
+        flusharmed = TRUE;
+        flushsev = system_event_addsetim(flushsev, flushtime, FALSE);
+
+    }
+    full = outlen >= OUTFLUSH;
+    pthread_mutex_unlock(&outlock);
+    if (full) outflush();
+
+}
+
+/** ****************************************************************************
+
 Write character to output file
 
 Writes a single character to the output file. Used to write to the output file
@@ -1128,12 +1231,7 @@ static void putchr(unsigned char c)
 
 {
 
-    ssize_t rc; /* return code */
-
-    /* send character to the next hander in the override chain */
-    rc = (*ofpwrite)(OUTFIL, &c, 1);
-
-    if (rc != 1) error(ami_dispeoutdev); /* output device error */
+    outblk((char*)&c, 1); /* hold it with the rest */
 
 }
 
@@ -1191,16 +1289,7 @@ static void seqout(void)
 
 {
 
-    ssize_t rc;      /* return code */
-    int     off = 0; /* offset into the sequence */
-
-    while (off < seqlen) {
-
-        rc = (*ofpwrite)(OUTFIL, seqbuf+off, seqlen-off);
-        if (rc <= 0) error(ami_dispeoutdev); /* output device error */
-        off += rc;
-
-    }
+    outblk(seqbuf, seqlen); /* hold it with the rest */
     seqlen = 0;
 
 }
@@ -2678,6 +2767,14 @@ static void ievent(void)
 
             }
 
+        } else if (sev.typ == se_tim && sev.lse == flushsev) {
+
+            /* output has been held its time: send it */
+            pthread_mutex_lock(&outlock);
+            flusharmed = FALSE; /* the next output held starts it again */
+            pthread_mutex_unlock(&outlock);
+            outflush();
+
         } else if (sev.typ == se_tim) {
 
             /* look in timer set */
@@ -2744,6 +2841,7 @@ static void ievent(void)
 
                 /* present unresponsive message and flag state */
                 trm_title("Program unresponsive");
+                outflush(); /* the program is not going to send it */
                 respto = TRUE;
 
             }
@@ -3978,6 +4076,7 @@ static ssize_t iread(int fd, void* buff, size_t count)
 
             pthread_mutex_lock(&termlock); /* lock terminal broadlock */
             synccur(screens[curdsp-1]); /* about to wait on the user */
+            outflush(); /* who is about to look at it */
             /* if there is no line in the input buffer, get one */
             if (inpptr == -1) readline();
             *p = inpbuf[inpptr]; /* get and place next character */
@@ -4022,6 +4121,8 @@ static ssize_t iwrite(int fd, const void* buff, size_t count)
             pthread_mutex_unlock(&termlock); /* release terminal broadlock */
 
         }
+        /* an empty write is a flush (fflush): send what is held */
+        if (!count) outflush();
         rc = count; /* set return same as count */
 
     } else rc = (*ofpwrite)(fd, buff, count);
@@ -5041,6 +5142,7 @@ static void event_ivf(FILE* f, ami_evtrec *er)
         pthread_mutex_lock(&termlock);
         synccur(screens[curdsp-1]);
         pthread_mutex_unlock(&termlock);
+        outflush(); /* send what was drawn before the wait */
         /* get next input event */
         dequepaevt(er); /* get next queued event */
         pthread_mutex_lock(&termlock); /* lock terminal broadlock */
@@ -5481,9 +5583,6 @@ static void wrtstrn_ivf(FILE* f, char *s, ami_long n)
 
 {
 
-    ssize_t rc;      /* return code */
-    ami_long    off = 0; /* offset into the string */
-
     scnptr  sc;
     scnrec* p;
     ami_long    i;
@@ -5520,16 +5619,10 @@ static void wrtstrn_ivf(FILE* f, char *s, ami_long n)
     if (indisp(sc)) { /* the display shows this screen */
 
         synccur(sc); /* the run lands at the cursor: place it */
-        /* Send the run in one piece. This call exists to bypass the per
-           character protocol, and emitting it a character at a time,
-           which is a write() each, gave up the very saving it is for. */
-        while (off < n) {
-
-            rc = (*ofpwrite)(OUTFIL, s+off, n-off);
-            if (rc <= 0) error(ami_dispeoutdev); /* output device error */
-            off += rc;
-
-        }
+        /* Hold the run in one piece. This call exists to bypass the per
+           character protocol, and emitting it a character at a time gave
+           up the very saving it is for. */
+        outblk(s, n);
         /* The physical cursor moved by the length written. Auto is off,
            so no logical wrap occurred; at or past the right side the
            physical terminal's own wrap action still cannot be counted
@@ -6125,6 +6218,7 @@ static void ami_init_terminal(int argc, char* argv[])
     resptime       = RESPTIME;       /* unresponsive time limit */
     hovertime      = HOVERTIME;      /* hover delay */
     esctime        = ESCTIME;        /* lone escape wait */
+    flushtime      = FLUSHTIME;      /* longest output is held */
 
     /* set default screen geometry */
     dimx = DEFXD;
@@ -6165,6 +6259,7 @@ static void ami_init_terminal(int argc, char* argv[])
         cfgint(term_root, "title", &xtermtitle);
         cfgtime(term_root, "hover_time", &hovertime); /* mouse rest to hover */
         cfgtime(term_root, "escape_time", &esctime);  /* lone escape wait */
+        cfgtime(term_root, "flush_time", &flushtime); /* output held */
 
     }
 
@@ -6490,6 +6585,9 @@ static void ami_deinit_terminal()
         error(ami_dispesystem);
 
     /* back to normal buffer on xterm */
-    putstrc("\033[?1049l"); fflush(stdout);
+    putstrc("\033[?1049l");
+    /* the vectors are back, but the held output goes to the one we kept */
+    outflush();
+    fflush(stdout);
 
 }
