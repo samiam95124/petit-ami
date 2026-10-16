@@ -780,6 +780,7 @@ static int    resptime;       /* time before a program is unresponsive, 100us */
 static int    hovertime;      /* mouse rest before a hover event, 100us */
 static int    esctime;        /* wait before a lone escape is the key, 100us */
 static int    xtermtitle;     /* use xterm title bar set mode */
+static int    rszall;         /* the emulator moves the screen on any resize */
 
 static paevtque*       paqfre;      /* free PA event queue entries list */
 static paevtque*       paqevt;      /* PA event input save queue */
@@ -5195,8 +5196,9 @@ static void event_ivf(FILE* f, ami_evtrec *er)
                known, the screen may have moved, and all of it is repainted.
                Otherwise what is on the screen is still right: a shrink needs
                nothing, and a growth needs only the rows and columns it
-               exposed, painted from the buffer. */
-            if (!curval || cury > dimy) restore(screens[curdsp-1]);
+               exposed, painted from the buffer. An emulator that moves the
+               screen on any resize is always repainted. */
+            if (rszall || !curval || cury > dimy) restore(screens[curdsp-1]);
             else {
 
                 if (dimy > oldy) /* rows exposed below */
@@ -6299,6 +6301,12 @@ static void ami_init_terminal(int argc, char* argv[])
     resptime       = RESPTIME;       /* unresponsive time limit */
     hovertime      = HOVERTIME;      /* hover delay */
     esctime        = ESCTIME;        /* lone escape wait */
+
+    /* Terminal.app drops lines off the top when its window loses rows, with
+       the cursor on the screen or not, so the screen is repainted whole on
+       every resize there */
+    rszall = getenv("TERM_PROGRAM") &&
+             !strcmp(getenv("TERM_PROGRAM"), "Apple_Terminal");
 
     /* set default screen geometry */
     dimx = DEFXD;
