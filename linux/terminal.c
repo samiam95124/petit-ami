@@ -423,6 +423,24 @@ static char *keytab[ami_etterm+1+MAXFKEY] = {
 
 };
 
+/*
+ * Second sequences for events the key table already has. The Mac moves by
+ * word on Option-left and Option-right, where Alt is on a PC keyboard, and
+ * Terminal sends them as the emacs word keys. Control-left and control-right
+ * never reach the terminal there: the system takes them to change spaces.
+ */
+static struct {
+
+    char*        seq; /* sequence */
+    ami_evtcod   ev;  /* event it gives */
+
+} keyalt[] = {
+
+    { "\33\142", ami_etleftw  }, /* left one word  (option-left, esc-b) */
+    { "\33\146", ami_etrightw }  /* right one word (option-right, esc-f) */
+
+};
+
 #ifdef ALLOWUTF8
 /*
  * bit count table for UTF-8
@@ -2438,6 +2456,7 @@ static void ievent(void)
     int       evtfnd;  /* found an event */
     int       ti;      /* index for timers */
     int       ji;      /* index for joysticks */
+    int       ai;      /* index for second sequences */
     enum { mnone, mbutton, mx, my } mousts; /* mouse state variable */
     int       dimxs;   /* save for screen size */
     int       dimys;
@@ -2513,6 +2532,22 @@ static void ievent(void)
                                 er.etype == ami_etterm) exit(1);
 
                         }
+
+                    }
+
+                }
+                /* then the second sequences */
+                for (ai = 0; ai < sizeof(keyalt)/sizeof(keyalt[0]) && !evtfnd; ai++)
+                    if (!strncmpus(keybuf, keyalt[ai].seq, keylen)) {
+
+                    pmatch = 1; /* set partial match */
+                    if (strlen(keyalt[ai].seq) == keylen) {
+
+                        er.etype = keyalt[ai].ev; /* set event */
+                        evtfnd = 1; /* set event found */
+                        enquepaevt(&er); /* send to queue */
+                        keylen = 0; /* clear buffer */
+                        pmatch = 0; /* clear partial match */
 
                     }
 
