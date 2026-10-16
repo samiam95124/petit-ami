@@ -6234,7 +6234,17 @@ static void ami_init_terminal(int argc, char* argv[])
     setvbuf(stdout, NULL, _IONBF, 0);
 
     /* change to alternate screen/turn off wrap */
-    printf("\033[?1049h\033[H"); fflush(stdout);
+    /* The alternate screen, with the cursor at home, and the cursor saved
+       there on it. Konsole decides what to do with the screen when its
+       window loses rows by the alternate screen's saved cursor line, not
+       the cursor's: it scrolls the screen up until that line is on it. The
+       line is whatever the last program to save a cursor on that screen
+       left there, a status line at the bottom as often as not, and the
+       screen jumped for it. Saved at home, there is nothing to keep on the
+       screen, and a shrink clips the bottom. xterm, Konsole and VTE each
+       keep a saved cursor per screen, so the one the normal screen is
+       restored to at exit is not touched. */
+    printf("\033[?1049h\033[H\0337"); fflush(stdout);
 
     /* override system calls for basic I/O */
     ovr_read(iread, &ofpread);
