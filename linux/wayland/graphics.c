@@ -14452,9 +14452,16 @@ static void xwinevt(winptr win, ami_evtrec* er, pd_evt* e, int* keep)
            the raise has to be made on both paths, or a click in the client of
            a child behind another focuses it and leaves it behind, where the
            only sign of its focus is the title text color. pd_winraise does
-           nothing for a toplevel: the compositor raises those on the click. */
+           nothing for a toplevel: the compositor raises those on the click.
+           A child whose frame is off keeps its place: the widgets are such
+           children, and a widget's face is drawn by its order among its
+           siblings. The drop box face in a drop edit box is the whole widget
+           with the edit box standing on it, and raised by a press on its
+           control it covered the edit box, which no press reached after; the
+           overlaid tab bars changed their look with every press the same
+           way. */
         if (*keep && er->etype == ami_etmouba && er->amoubn == 1 &&
-            win->parwin && win->childfrm)
+            win->parwin && win->childfrm && win->frame)
             pd_winraise(win->xmwhan);
 #ifndef NOFAKEFOCUS
         /* Check we fake focus here. This is a mouse button 1 click in a child
