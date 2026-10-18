@@ -7191,10 +7191,14 @@ static void isizbuf(FILE* f, ami_long x, ami_long y)
         free(win->fmask); /* release previous mask */
         alcfmask(win); /* allocate and clear forward mask */
         sclsync(win); /* the scroll bars follow the buffer */
+        /* The masks are redone before the repaint: the new mask is all
+           visible, and a window repainted through it was painted over the
+           windows above it, so a program that resized the buffers of a
+           stack of children drew the lower ones on top. */
+        recalcfmask(); /* recalculate the forward masks */
         if (indisp(win)) restore(win); /* repaint from the new buffer */
 
     }
-    recalcfmask(); /* recalculate the forward masks */
 
 }
 
