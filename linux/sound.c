@@ -6507,11 +6507,15 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
     char*  desc;
     int    r;
     int    i;
+    int    start; /* first ALSA entry */
+    int    j, k;
+    devptr dp;
     snd_pcm_stream_t stream;
 
     /* Append after any entries already in the table: the plug-ins
        register at construction time, before this enumeration runs. */
     i = *tblcnt; /* set 1st free table entry */
+    start = i;
     /* Enumerate sound devices */
     r = snd_device_name_hint(-1, devt, (void***)&hint);
     if (r != 0) error("Cannot get device names");
@@ -6635,6 +6639,20 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
         if (iot) free(iot);
         hi++; /* next hint */
         if (table[i]) i++; /* next device name (if entry defined) */
+
+    }
+    /* The host's default device is port 1 of its kind, as the API promises
+       (AMI_WAVE_OUT and AMI_WAVE_IN are 1). ALSA lists its plug-ins ahead
+       of it, the first of them the null device, which discards all it is
+       given: that came out as port 1, and the default wave port played into
+       nothing. The entry named "default" moves to the head of the ALSA
+       entries; the plug-ins registered before them keep their places. */
+    for (j = start; j < i; j++) if (!strcmp(table[j]->name, "default")) break;
+    if (j < i && j != start) {
+
+        dp = table[j];
+        for (k = j; k > start; k--) table[k] = table[k-1];
+        table[start] = dp;
 
     }
     /* release hint */
