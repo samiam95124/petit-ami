@@ -270,6 +270,7 @@ typedef struct snddev {
     string         name;       /* alsa name of device (sufficient to open) */
     string         desc;       /* alsa description of device */
     snd_rawmidi_t* midi;       /* MIDI device handle */
+    pthread_mutex_t wrlck;     /* MIDI write lock: a message goes out whole */
     snd_pcm_t*     pcm;        /* PCM device handle */
     int            chan;       /* number of channels */
     int            bits;       /* preferred format bit size */
@@ -327,6 +328,7 @@ static struct timeval strtim;          /* start time for sequencer, in raw linux
 static int seqtimact;                  /* sequencer timer active */
 static int seqhan;                     /* handle for sequencer timer */
 static pthread_mutex_t seqlock;        /* sequencer task lock */
+static pthread_mutex_t frelck;         /* sequencer entry free list lock */
 static pthread_t sequencer_thread_id;  /* sequencer thread id */
 
 static int sinrun;                     /* input timer running */
@@ -774,7 +776,7 @@ Sends a 2 byte MIDI message to the given ALSA midi port.
 
 *******************************************************************************/
 
-static void midimsg2(snd_rawmidi_t *midiout, byte sts, byte dat1)
+static void midimsg2(devptr dev, byte sts, byte dat1)
 
 {
 
@@ -787,8 +789,11 @@ static void midimsg2(snd_rawmidi_t *midiout, byte sts, byte dat1)
 #ifdef SHOWMIDIOUT
     printf("MIDI out: %2.2x %2.2x\n", oa[0], oa[1]);
 #endif
-    /* send it */
-    r = snd_rawmidi_write(midiout, oa, 2);
+    /* send it: the program's thread, the sequencer thread and the file
+       player's thread all write the port, one message at a time */
+    pthread_mutex_lock(&dev->wrlck);
+    r = snd_rawmidi_write(dev->midi, oa, 2);
+    pthread_mutex_unlock(&dev->wrlck);
     if (r < 0) error("Unable to send to MIDI channel");
 
 }
@@ -801,7 +806,7 @@ Sends a 3 byte MIDI message to the given ALSA midi port.
 
 *******************************************************************************/
 
-static void midimsg3(snd_rawmidi_t *midiout, byte sts, byte dat1, byte dat2)
+static void midimsg3(devptr dev, byte sts, byte dat1, byte dat2)
 
 {
 
@@ -815,8 +820,10 @@ static void midimsg3(snd_rawmidi_t *midiout, byte sts, byte dat1, byte dat2)
 #ifdef SHOWMIDIOUT
     printf("MIDI out: %2.2x %2.2x %2.2x\n", oa[0], oa[1], oa[2]);
 #endif
-    /* send it */
-    r = snd_rawmidi_write(midiout, oa, 3);
+    /* send it: one message at a time, as above */
+    pthread_mutex_lock(&dev->wrlck);
+    r = snd_rawmidi_write(dev->midi, oa, 3);
+    pthread_mutex_unlock(&dev->wrlck);
     if (r < 0) error("Unable to send to MIDI channel");
 
 }
@@ -865,6 +872,10 @@ static void acttim(void)
     ami_long    elap;          /* elapsed time */
     ami_long tl;
 
+    /* Under the sequencer lock: the sequencer thread sets the active flag
+       and takes entries off the list under it, and the list head and the
+       clock are read here. */
+    pthread_mutex_lock(&seqlock);
     if (!seqtimact && seqlst) { /* sequencer list has contents, activate timer */
 
         elap = timediff(&strtim); /* find elapsed time since seq start */
@@ -887,6 +898,68 @@ static void acttim(void)
         pthread_mutex_unlock(&snmlck); /* release lock */
 
     }
+    pthread_mutex_unlock(&seqlock);
+
+}
+
+/*******************************************************************************
+
+Read the sequencer clock
+
+The time since the sequencer started, read under the sequencer lock. The
+start time is two words, and a start or stop landing between the reads of
+them gave one wrong time.
+
+*******************************************************************************/
+
+static ami_long seqelap(void)
+
+{
+
+    ami_long elap;
+
+    pthread_mutex_lock(&seqlock);
+    elap = timediff(&strtim);
+    pthread_mutex_unlock(&seqlock);
+
+    return (elap);
+
+}
+
+/*******************************************************************************
+
+Purge a port's pending events
+
+Takes every event queued for the port off the sequencer list, for a port
+about to close: an event firing after the close wrote to a closed handle.
+The timer is left as it is. The sequencer thread finds the list it has when
+the timer fires, and re-arms or goes inactive by that.
+
+*******************************************************************************/
+
+static void putseq(ami_seqptr p); /* forward */
+
+static void purgeseq(ami_long p)
+
+{
+
+    ami_seqptr lp, l;
+
+    pthread_mutex_lock(&seqlock);
+    lp = seqlst;
+    l = NULL;
+    while (lp) {
+
+        if (lp->port == p) { /* the port's: take it out */
+
+            if (l) l->next = lp->next; else seqlst = lp->next;
+            putseq(lp);
+            lp = l? l->next: seqlst;
+
+        } else { l = lp; lp = lp->next; }
+
+    }
+    pthread_mutex_unlock(&seqlock);
 
 }
 
@@ -904,6 +977,12 @@ static void getseq(ami_seqptr* p)
 
 {
 
+    /* The free list is shared by the program's thread, which takes an entry
+       for every call, the sequencer thread, which returns them as they
+       fire, and the file player's thread, which does both. It has a lock of
+       its own: the sequencer thread returns entries while it holds the
+       sequencer lock. */
+    pthread_mutex_lock(&frelck);
     if (seqfre) { /* get a previous sequencer message */
 
         *p = seqfre; /* index top entry */
@@ -912,6 +991,7 @@ static void getseq(ami_seqptr* p)
     } else
         /* else get a new entry, with full allocation */
         *p = (ami_seqptr) malloc(sizeof(ami_seqmsg));
+    pthread_mutex_unlock(&frelck);
     (*p)->next = NULL; /* clear next */
 
 }
@@ -928,8 +1008,10 @@ static void putseq(ami_seqptr p)
 
 {
 
+   pthread_mutex_lock(&frelck);
    p->next = seqfre; /* link to top of list */
    seqfre = p; /* push onto list */
+   pthread_mutex_unlock(&frelck);
 
 }
 
@@ -1171,7 +1253,7 @@ static void ctlchg(ami_long p, ami_channel c, int cn, int v)
 {
 
     /* construct midi message */
-    midimsg3(alsamidiout[p-1]->midi, MESS_CTRL_CHG+(c-1), cn, v);
+    midimsg3(alsamidiout[p-1], MESS_CTRL_CHG+(c-1), cn, v);
 
 }
 
@@ -1204,15 +1286,15 @@ void _pa_excseq(ami_long p, ami_seqptr sp)
     switch (sp->st) { /* sequencer message type */
 
         case st_noteon:
-            midimsg3(alsamidiout[sp->port-1]->midi, MESS_NOTE_ON+(sp->ntc-1),
+            midimsg3(alsamidiout[sp->port-1], MESS_NOTE_ON+(sp->ntc-1),
                      sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_noteoff:
-            midimsg3(alsamidiout[sp->port-1]->midi, MESS_NOTE_OFF+(sp->ntc-1),
+            midimsg3(alsamidiout[sp->port-1], MESS_NOTE_OFF+(sp->ntc-1),
                      sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_instchange:
-            midimsg2(alsamidiout[sp->port-1]->midi, MESS_PGM_CHG+(sp->icc-1),
+            midimsg2(alsamidiout[sp->port-1], MESS_PGM_CHG+(sp->icc-1),
                      sp->ici-1);
             break;
         case st_attack: ctlchg(sp->port, sp->vsc, CTLR_SOUND_ATTACK_TIME,
@@ -1272,17 +1354,17 @@ void _pa_excseq(ami_long p, ami_seqptr sp)
             ctlchg(sp->port, sp->vsc, CTLR_PHASER_LEVEL, sp->vsv/(LONG_MAX/128+1));
             break;
         case st_aftertouch:
-            midimsg3(alsamidiout[sp->port-1]->midi, MESS_AFTTCH+(sp->ntc-1),
+            midimsg3(alsamidiout[sp->port-1], MESS_AFTTCH+(sp->ntc-1),
                      sp->ntn-1, sp->ntv/(LONG_MAX/128+1));
             break;
         case st_pressure:
-            midimsg2(alsamidiout[sp->port-1]->midi, MESS_CHN_PRES+(sp->ntc-1),
+            midimsg2(alsamidiout[sp->port-1], MESS_CHN_PRES+(sp->ntc-1),
                      sp->ntv/(LONG_MAX/128+1));
             break;
         case st_pitch:
             pt = sp->vsv/(LONG_MAX/8192+1)+0x2000; /* reduce to 14 bits, positive only */
             /* construct midi message */
-            midimsg3(alsamidiout[sp->port-1]->midi, MESS_PTCH_WHL+(sp->vsc-1),
+            midimsg3(alsamidiout[sp->port-1], MESS_PTCH_WHL+(sp->vsc-1),
                      pt & 0x7f, pt/0x80);
             break;
         case st_pitchrange:
@@ -2209,6 +2291,7 @@ void _pa_synthoutplug(
 
     }
     alsamidiout[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (alsamidiout[p]) pthread_mutex_init(&alsamidiout[p]->wrlck, NULL);
     if (!alsamidiout[p]) error("out of memory");
     alsamidiout[p]->name = malloc(strlen(name)+1); /* place name of device */
     alsamidiout[p]->desc = NULL; /* plug-ins carry no description */
@@ -2268,6 +2351,7 @@ void _pa_synthinplug(
 
     }
     alsamidiin[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (alsamidiin[p]) pthread_mutex_init(&alsamidiin[p]->wrlck, NULL);
     if (!alsamidiin[p]) error("out of memory");
     alsamidiin[p]->name = malloc(strlen(name)+1); /* place name of device */
     alsamidiin[p]->desc = NULL; /* plug-ins carry no description */
@@ -2333,6 +2417,7 @@ void _pa_waveoutplug(
 
     }
     alsapcmout[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (alsapcmout[p]) pthread_mutex_init(&alsapcmout[p]->wrlck, NULL);
     if (!alsapcmout[p]) error("out of memory");
     alsapcmout[p]->name = malloc(strlen(name)+1); /* place name of device */
     alsapcmout[p]->desc = NULL; /* plug-ins carry no description */
@@ -2405,6 +2490,7 @@ void _pa_waveinplug(
 
     }
     alsapcmin[p] = malloc(sizeof(snddev)); /* create new device entry */
+    if (alsapcmin[p]) pthread_mutex_init(&alsapcmin[p]->wrlck, NULL);
     if (!alsapcmin[p]) error("out of memory");
     alsapcmin[p]->name = malloc(strlen(name)+1); /* place name of device */
     alsapcmin[p]->desc = NULL; /* plug-ins carry no description */
@@ -2715,6 +2801,7 @@ void ami_closesynthout(ami_long p)
     if (!alsamidiout[p-1]) error("No synthsizer defined for logical port");
     if (!alsamidiout[p-1]->devopn) error("Synthsizer port not open");
 
+    purgeseq(p); /* nothing queued fires on the closed port */
     alsamidiout[p-1]->close(p); /* close port */
     alsamidiout[p-1]->devopn = FALSE; /* set closed */
 
@@ -2752,8 +2839,10 @@ void ami_starttimeout(void)
 {
 
     sndinit(); /* devices enumerate on first use */
+    pthread_mutex_lock(&seqlock); /* the clock is read under this lock */
     gettimeofday(&strtim, NULL); /* get current time */
     seqrun = TRUE; /* set sequencer running */
+    pthread_mutex_unlock(&seqlock);
 
 }
 
@@ -2776,6 +2865,9 @@ void ami_stoptimeout(void)
     ami_seqptr p; /* message pointer */
     struct itimerspec ts;
 
+    /* under the sequencer lock throughout: the clock, the timer flag and
+       the list are the sequencer thread's under it */
+    pthread_mutex_lock(&seqlock); /* take sequencer data lock */
     strtim.tv_sec = 0; /* clear start time */
     strtim.tv_usec = 0;
     seqrun = FALSE; /* set sequencer not running */
@@ -2796,7 +2888,6 @@ void ami_stoptimeout(void)
 
     }
     /* now clear all pending events */
-    pthread_mutex_lock(&seqlock); /* take sequencer data lock */
     while (seqlst) { /* clear */
 
         p = seqlst; /* index top of list */
@@ -2824,7 +2915,7 @@ ami_long ami_curtimeout(void)
     sndinit(); /* devices enumerate on first use */
    if (!seqrun) error("Sequencer not running");
 
-   return (timediff(&strtim)); /* return difference time */
+   return (seqelap()); /* return difference time */
 
 }
 
@@ -2925,7 +3016,7 @@ void ami_noteon(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
     sp->ntv = v; /* set velocity */
 
     /* find disposition of command */
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -2979,7 +3070,7 @@ void ami_noteoff(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long v)
     sp->ntn = n; /* set note */
     sp->ntv = v; /* set velocity */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3029,7 +3120,7 @@ void ami_instchange(ami_long p, ami_long t, ami_channel c, ami_instrument i)
     sp->icc = c; /* set channel */
     sp->ici = i; /* set instrument */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3077,7 +3168,7 @@ void ami_attack(ami_long p, ami_long t, ami_channel c, ami_long at)
     sp->vsc = c; /* set channel */
     sp->vsv = at; /* set attack */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3125,7 +3216,7 @@ void ami_release(ami_long p, ami_long t, ami_channel c, ami_long rt)
     sp->vsc = c; /* set channel */
     sp->vsv = rt; /* set release */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3172,7 +3263,7 @@ void ami_legato(ami_long p, ami_long t, ami_channel c, ami_long b)
     sp->bsc = c; /* set channel */
     sp->bsb = b; /* set on/off */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3219,7 +3310,7 @@ void ami_portamento(ami_long p, ami_long t, ami_channel c, ami_long b)
     sp->bsc = c; /* set channel */
     sp->bsb = b; /* set on/off */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3266,7 +3357,7 @@ void ami_volsynthchan(ami_long p, ami_long t, ami_channel c, ami_long v)
     sp->vsc = c; /* set channel */
     sp->vsv = v; /* set volume */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3314,7 +3405,7 @@ void ami_balance(ami_long p, ami_long t, ami_channel c, ami_long b)
     sp->vsc = c; /* set channel */
     sp->vsv = b; /* set balance */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3361,7 +3452,7 @@ void ami_porttime(ami_long p, ami_long t, ami_channel c, ami_long v)
     sp->vsc = c; /* set channel */
     sp->vsv = v; /* set time */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3408,7 +3499,7 @@ void ami_vibrato(ami_long p, ami_long t, ami_channel c, ami_long v)
     sp->vsc = c; /* set channel */
     sp->vsv = v; /* set vibrato */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3456,7 +3547,7 @@ void ami_pan(ami_long p, ami_long t, ami_channel c, ami_long b)
     sp->vsc = c; /* set channel */
     sp->vsv = b; /* set pan */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3503,7 +3594,7 @@ void ami_timbre(ami_long p, ami_long t, ami_channel c, ami_long tb)
     sp->vsc = c; /* set channel */
     sp->vsv = tb; /* set timbre */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3550,7 +3641,7 @@ void ami_brightness(ami_long p, ami_long t, ami_channel c, ami_long b)
     sp->vsc = c; /* set channel */
     sp->vsv = b; /* set brightness */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3597,7 +3688,7 @@ void ami_reverb(ami_long p, ami_long t, ami_channel c, ami_long r)
     sp->vsc = c; /* set channel */
     sp->vsv = r; /* set reverb */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3644,7 +3735,7 @@ void ami_tremulo(ami_long p, ami_long t, ami_channel c, ami_long tr)
     sp->vsc = c; /* set channel */
     sp->vsv = tr; /* set tremulo */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3691,7 +3782,7 @@ void ami_chorus(ami_long p, ami_long t, ami_channel c, ami_long cr)
     sp->vsc = c; /* set channel */
     sp->vsv = cr; /* set chorus */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3738,7 +3829,7 @@ void ami_celeste(ami_long p, ami_long t, ami_channel c, ami_long ce)
     sp->vsc = c; /* set channel */
     sp->vsv = ce; /* set celeste */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3785,7 +3876,7 @@ void ami_phaser(ami_long p, ami_long t, ami_channel c, ami_long ph)
     sp->vsc = c; /* set channel */
     sp->vsv = ph; /* set phaser */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3836,7 +3927,7 @@ void ami_pitchrange(ami_long p, ami_long t, ami_channel c, ami_long v)
     sp->vsc = c; /* set channel */
     sp->vsv = v; /* set pitchrange */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3886,7 +3977,7 @@ void ami_mono(ami_long p, ami_long t, ami_channel c, ami_long ch)
     sp->vsc = c; /* set channel */
     sp->vsv = ch; /* set mono mode */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3932,7 +4023,7 @@ void ami_poly(ami_long p, ami_long t, ami_channel c)
     sp->st = st_poly; /* set type */
     sp->pc = c; /* set channel */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -3981,7 +4072,7 @@ void ami_aftertouch(ami_long p, ami_long t, ami_channel c, ami_note n, ami_long 
     sp->ntn = n; /* set note */
     sp->ntv = at; /* set aftertouch */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -4028,7 +4119,7 @@ void ami_pressure(ami_long p, ami_long t, ami_channel c, ami_long pr)
     sp->ntc = c; /* set channel */
     sp->ntv = pr; /* set pressure */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -4078,7 +4169,7 @@ void ami_pitch(ami_long p, ami_long t, ami_channel c, ami_long pt)
     sp->vsc = c; /* set channel */
     sp->vsv = pt; /* set pitch */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -4139,7 +4230,10 @@ static void *alsaplaymidi(void* data)
     gettimeofday(&strtim, NULL); /* get current time */
     while (seqlst) {
 
-        curtim = timediff(&strtim); /* find elapsed time since seq start */
+        /* the player's own clock, the strtim declared above, not the
+           sequencer's: the file plays on its own time from the start
+           taken just before */
+        curtim = timediff(&strtim); /* find elapsed time since play start */
         tl = seqlst->time-curtim; /* set next time to run */
         /* check event still is in the future */
         if (tl > 0) {
@@ -4796,7 +4890,7 @@ void ami_playsynth(ami_long p, ami_long t, ami_long s)
     sp->st = st_playsynth; /* set type */
     sp->sid = s; /* place synth file id */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -5210,7 +5304,7 @@ void ami_playwave(ami_long p, ami_long t, ami_long w)
     sp->st = st_playwave; /* set type */
     sp->wt = w; /* set logical track */
 
-    elap = timediff(&strtim); /* find elapsed time */
+    elap = seqelap(); /* find elapsed time */
     /* execute immediate if 0 or sequencer running and time past */
     if (t == 0 || (t <= elap && seqrun)) {
 
@@ -6469,6 +6563,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
         if (!iot || !strcmp(iotyp, iot)) {
 
             table[i] = malloc(sizeof(snddev)); /* create new device entry */
+            if (table[i]) pthread_mutex_init(&table[i]->wrlck, NULL);
             table[i]->name = devn; /* place name of device */
             table[i]->desc = desc; /* place description of device */
             table[i]->last = 0; /* clear last byte */
@@ -6602,6 +6697,7 @@ static void ami_init_sound()
     ifdmax = seqhan+1;
 
     pthread_mutex_init(&seqlock, NULL); /* init sequencer lock */
+    pthread_mutex_init(&frelck, NULL); /* init entry free list lock */
 
     /* start sequencer thread */
     pthread_create(&sequencer_thread_id, NULL, sequencer_thread, NULL);
