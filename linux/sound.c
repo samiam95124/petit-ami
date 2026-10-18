@@ -4230,7 +4230,10 @@ static void *alsaplaymidi(void* data)
     gettimeofday(&strtim, NULL); /* get current time */
     while (seqlst) {
 
-        curtim = seqelap(); /* find elapsed time since seq start */
+        /* the player's own clock, the strtim declared above, not the
+           sequencer's: the file plays on its own time from the start
+           taken just before */
+        curtim = timediff(&strtim); /* find elapsed time since play start */
         tl = seqlst->time-curtim; /* set next time to run */
         /* check event still is in the future */
         if (tl > 0) {
