@@ -171,9 +171,15 @@ Send controller change
 
 Hands a controller change to the Fluidsynth instance: channel 1-16, controller
 number and a 0-127 value. Fluidsynth takes every controller through this one
-call and acts on the ones it implements (volume, pan, modulation, portamento
-and its time, legato, the sound controllers, the effect levels, mono/poly);
-the rest are stored, as a hardware synthesizer would.
+call. The ones it acts on are fixed by its default modulators and its
+controller handler: volume, balance, pan, modulation, portamento and its
+time, legato (which makes a polyphonic channel play monophonic legato),
+reverb and chorus send, mono/poly. The rest are stored on the channel, as a
+hardware synthesizer would, and act only through a soundfont that defines
+modulators for them: the sound controllers 71-74 (timbre, release, attack,
+brightness), tremulo, celeste and phaser (92, 94, 95) and polyphonic key
+pressure. Checked on 2.4.8 with the FluidR3 and TimGM6mb soundfonts, a note
+renders byte for byte the same with those at 0 and at 127.
 
 *******************************************************************************/
 
