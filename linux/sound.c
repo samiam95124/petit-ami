@@ -2196,7 +2196,11 @@ ami_long fltalsapcmin(ami_long p)
 
 Write sequencer entry
 
-Writes a sequencer entry to the device given by it's port.
+Writes a sequencer entry to the device given by it's port. A MIDI instruction
+goes to the MIDI output device, plug-in or ALSA. The wave entries, playwave
+and volwave, carry a wave output port, so they cannot be dispatched through
+the MIDI table (a wave port beyond the MIDI device count is a null entry);
+they are executed here directly.
 
 *******************************************************************************/
 
@@ -2204,7 +2208,8 @@ static void wrtseq(ami_seqptr sp)
 
 {
 
-    alsamidiout[sp->port-1]->wrseq(sp->port, sp);
+    if (sp->st == st_playwave || sp->st == st_volwave) _pa_excseq(sp->port, sp);
+    else alsamidiout[sp->port-1]->wrseq(sp->port, sp);
 
 }
 
