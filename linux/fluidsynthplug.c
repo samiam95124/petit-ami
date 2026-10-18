@@ -138,6 +138,53 @@ static void closefluid(ami_long p)
 
 }
 
+/* The MIDI controller numbers the record types encode to. They are the same
+   numbers the ALSA MIDI output path writes, so a record means the same thing
+   on the built-in synthesizer as on a hardware one. */
+#define CTLR_MODULATION_WHEEL_COARSE   1
+#define CTLR_PORTAMENTO_TIME_COARSE    5
+#define CTLR_VOLUME_COARSE             7
+#define CTLR_BALANCE_COARSE            8
+#define CTLR_PAN_POSITION_COARSE       10
+#define CTLR_MODULATION_WHEEL_FINE     33
+#define CTLR_PORTAMENTO_TIME_FINE      37
+#define CTLR_VOLUME_FINE               39
+#define CTLR_BALANCE_FINE              40
+#define CTLR_PAN_POSITION_FINE         42
+#define CTLR_PORTAMENTO                65
+#define CTLR_LEGATO_PEDAL              68
+#define CTLR_SOUND_TIMBRE              71
+#define CTLR_SOUND_RELEASE_TIME        72
+#define CTLR_SOUND_ATTACK_TIME         73
+#define CTLR_SOUND_BRIGHTNESS          74
+#define CTLR_EFFECTS_LEVEL             91
+#define CTLR_TREMULO_LEVEL             92
+#define CTLR_CHORUS_LEVEL              93
+#define CTLR_CELESTE_LEVEL             94
+#define CTLR_PHASER_LEVEL              95
+#define CTLR_MONO_OPERATION            126
+#define CTLR_POLY_OPERATION            127
+
+/*******************************************************************************
+
+Send controller change
+
+Hands a controller change to the Fluidsynth instance: channel 1-16, controller
+number and a 0-127 value. Fluidsynth takes every controller through this one
+call and acts on the ones it implements (volume, pan, modulation, portamento
+and its time, legato, the sound controllers, the effect levels, mono/poly);
+the rest are stored, as a hardware synthesizer would.
+
+*******************************************************************************/
+
+static void cc(fluidptr fp, ami_channel c, int cn, int v)
+
+{
+
+    fluid_synth_cc(fp->synth, c-1, cn, v);
+
+}
+
 /*******************************************************************************
 
 Write liquidsynth MIDI message
@@ -147,8 +194,11 @@ Accepts a MIDI message in PA sequencer format and outputs that.
 Many functions don't have equivalents in Fluidsynth. This is not serious, I
 found that many of these functions do nothing on most synthesizers.
 
-Some of the questionable codes should be compared against what happens when the
-midi codes are fed directly to Fluidsynth (source code analysis?).
+The controller types go through fluid_synth_cc with the standard MIDI
+controller numbers, encoded as the ALSA MIDI output path encodes them, so a
+record means the same on this synthesizer as on a hardware one. Fluidsynth acts
+on the controllers it implements and stores the rest, as a hardware synthesizer
+would.
 
 Note on scaling: API full scale values are 0..LONG_MAX (signed controls
 -LONG_MAX..LONG_MAX). Dividing by LONG_MAX/128+1 maps full scale to the MIDI
@@ -164,6 +214,7 @@ static void writefluid(ami_long p, ami_seqptr sp)
 {
 
     fluidptr fp; /* pointer to fluidsynth device */
+    ami_long b;  /* 14 bit controller value */
 
     if (p < 1 || p > MAXINST) error("Invalid synth handle");
     if (!devtbl[p-1]) error("No Fluidsynth output port at logical handle");
@@ -181,34 +232,69 @@ static void writefluid(ami_long p, ami_seqptr sp)
         case st_instchange:
             fluid_synth_program_change(fp->synth, sp->icc-1, sp->ici-1);
             break;
-        case st_attack: break; /* no equivalent function */
-        case st_release: break; /* no equivalent function */
+        /* The controller types encode exactly as the ALSA MIDI path does in
+           sound.c's _pa_excseq: full scale to 0..127, the wide controllers
+           coarse then fine, the signed ones (balance, pan) offset to a
+           positive 14 bit value first. */
+        case st_attack:
+            cc(fp, sp->vsc, CTLR_SOUND_ATTACK_TIME, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_release:
+            cc(fp, sp->vsc, CTLR_SOUND_RELEASE_TIME, sp->vsv/(LONG_MAX/128+1));
+            break;
         case st_legato:
-            /* this call does not appear to be in the current Fluidsynth API */
-            /*
-            fluid_synth_set_legato_mode(fp->synth, sp->bsc,
-                sp->bsb?FLUID_CHANNEL_LEGATO_MODE_MULTI_RETRIGGER:
-                        FLUID_CHANNEL_LEGATO_MODE_RETRIGGER);
-            */
+            cc(fp, sp->bsc, CTLR_LEGATO_PEDAL, !!sp->bsb*127);
             break;
         case st_portamento:
-            /* midi says on/off, but fluidsynth has three options, no apparent off */
+            cc(fp, sp->bsc, CTLR_PORTAMENTO, !!sp->bsb*127);
             break;
-        case st_vibrato:      break; /* no equivalent function */
-        case st_volsynthchan: break; /* no equivalent function */
-        case st_porttime:     break; /* no equivalent function */
-        case st_balance:      break; /* no equivalent function */
-        case st_pan:          break; /* no equivalent function */
-        case st_timbre:       break; /* no equivalent function */
-        case st_brightness:   break; /* no equivalent function */
-        case st_reverb:       break; /* fluidsynth gives many options for this,
-                                        needs research */
-        case st_tremulo:      break; /* no equivalent function */
-        case st_chorus:       break; /* fluidsynth gives many options for this,
-                                        needs research */
-        case st_celeste:      break; /* no equivalent function */
-        case st_phaser:       break; /* no equivalent function */
-        case st_aftertouch:   break; /* no equivalent function */
+        case st_vibrato:
+            cc(fp, sp->vsc, CTLR_MODULATION_WHEEL_COARSE, sp->vsv/(LONG_MAX/128+1));
+            cc(fp, sp->vsc, CTLR_MODULATION_WHEEL_FINE, sp->vsv/(LONG_MAX/16384+1) & 0x7f);
+            break;
+        case st_volsynthchan:
+            cc(fp, sp->vsc, CTLR_VOLUME_COARSE, sp->vsv/(LONG_MAX/128+1));
+            cc(fp, sp->vsc, CTLR_VOLUME_FINE, sp->vsv/(LONG_MAX/16384+1) & 0x7f);
+            break;
+        case st_porttime:
+            cc(fp, sp->vsc, CTLR_PORTAMENTO_TIME_COARSE, sp->vsv/(LONG_MAX/128+1));
+            cc(fp, sp->vsc, CTLR_PORTAMENTO_TIME_FINE, sp->vsv/(LONG_MAX/16384+1) & 0x7f);
+            break;
+        case st_balance:
+            b = sp->vsv/(LONG_MAX/8192+1)+0x2000; /* 14 bits, positive only */
+            cc(fp, sp->vsc, CTLR_BALANCE_COARSE, b/0x80);
+            cc(fp, sp->vsc, CTLR_BALANCE_FINE, b & 0x7f);
+            break;
+        case st_pan:
+            b = sp->vsv/(LONG_MAX/8192+1)+0x2000; /* 14 bits, positive only */
+            cc(fp, sp->vsc, CTLR_PAN_POSITION_COARSE, b/0x80);
+            cc(fp, sp->vsc, CTLR_PAN_POSITION_FINE, b & 0x7f);
+            break;
+        case st_timbre:
+            cc(fp, sp->vsc, CTLR_SOUND_TIMBRE, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_brightness:
+            cc(fp, sp->vsc, CTLR_SOUND_BRIGHTNESS, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_reverb:
+            cc(fp, sp->vsc, CTLR_EFFECTS_LEVEL, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_tremulo:
+            cc(fp, sp->vsc, CTLR_TREMULO_LEVEL, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_chorus:
+            cc(fp, sp->vsc, CTLR_CHORUS_LEVEL, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_celeste:
+            cc(fp, sp->vsc, CTLR_CELESTE_LEVEL, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_phaser:
+            cc(fp, sp->vsc, CTLR_PHASER_LEVEL, sp->vsv/(LONG_MAX/128+1));
+            break;
+        case st_aftertouch:
+            fluid_synth_key_pressure(fp->synth, sp->ntc-1, sp->ntn-1,
+                                     sp->ntv/(LONG_MAX/128+1));
+            break;
         case st_pressure:
             fluid_synth_channel_pressure(fp->synth, sp->ntc-1, sp->ntv/(LONG_MAX/128+1));
             break;
@@ -224,8 +310,12 @@ static void writefluid(ami_long p, ami_seqptr sp)
             fluid_synth_pitch_wheel_sens(fp->synth, sp->vsc-1,
                                          sp->vsv/(LONG_MAX/128+1));
             break;
-        case st_mono:         break; /* no equivalent function */
-        case st_poly:         break; /* no equivalent function */
+        case st_mono:
+            cc(fp, sp->vsc, CTLR_MONO_OPERATION, sp->vsv);
+            break;
+        case st_poly:
+            cc(fp, sp->pc, CTLR_POLY_OPERATION, 0); /* value does not matter */
+            break;
         case st_playsynth:
         case st_playwave:
             /* not a midi instruction, we send this back to sound.c */
