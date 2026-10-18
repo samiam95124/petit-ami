@@ -4,10 +4,12 @@ Connect WAVE input port to WAVE output port
 
 Transfers input wave data to output wave data. The format of the command is:
 
-connectwave [<source port> <destination port>]
+connectwave [<source port> <destination port> [<latency ms>]]
 
 If the source and destination are not on the command line, they will both
-default to 1.
+default to 1. The latency is the output buffer length in milliseconds; it sets
+most of the delay from input to output. Its default is the wave_latency entry
+under sound in ami.cfg, or 100 ms.
 
 The key parameter in the program is the buffer size. This should be big enough
 to avoid buffer overruns, but not so big that considerable sound lag exists in
@@ -63,9 +65,9 @@ int main(int argc, char **argv)
     int sbuf;         /* number of samples per buffer */
     byte buff[BUFLEN]; /* buffer for samples */
 
-    if (argc != 1 && argc != 3) {
+    if (argc != 1 && argc != 3 && argc != 4) {
 
-        fprintf(stderr, "Usage: connectwave [<input port> <output port>]\n");
+        fprintf(stderr, "Usage: connectwave [<input port> <output port> [<latency ms>]]\n");
         exit(1);
 
     }
@@ -75,7 +77,7 @@ int main(int argc, char **argv)
     dport = 1;
 
     /* set ports from command line if provided */
-    if (argc == 3) {
+    if (argc >= 3) {
 
         sport = atoi(argv[1]);
         dport = atoi(argv[2]);
@@ -85,6 +87,15 @@ int main(int argc, char **argv)
     /* open target ports */
     ami_openwavein(sport);
     ami_openwaveout(dport);
+
+    /* the output buffer length in milliseconds, if given; it is most of the
+       delay from microphone to speaker, see the "latency" device parameter */
+    if (argc == 4 && ami_setparamwaveout(dport, "latency", argv[3])) {
+
+        fprintf(stderr, "connectwave: latency must be 1 to 10000 ms: %s\n", argv[3]);
+        exit(1);
+
+    }
 
     /* transfer input parameters to output port */
     ami_chanwaveout(dport, ami_chanwavein(sport));

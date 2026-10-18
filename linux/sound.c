@@ -68,6 +68,7 @@
 
 #include <localdefs.h>
 #include <sound.h>
+#include <config.h>
 
 #include <diag.h>
 
@@ -275,6 +276,7 @@ typedef struct snddev {
     int            chan;       /* number of channels */
     int            bits;       /* preferred format bit size */
     int            rate;       /* sample rate */
+    unsigned int   latency;    /* wave output buffer length, microseconds */
     int            sgn;        /* preferred format sign */
     int            big;        /* preferred format big endian */
     int            flt;        /* preferred format floating point */
@@ -329,6 +331,13 @@ static int seqtimact;                  /* sequencer timer active */
 static int seqhan;                     /* handle for sequencer timer */
 static pthread_mutex_t seqlock;        /* sequencer task lock */
 static pthread_mutex_t frelck;         /* sequencer entry free list lock */
+
+/* The wave output buffer length ALSA is asked for, in microseconds. It is the
+   delay from write to speaker and also the margin against underruns. The
+   configuration sets the default, wave_latency under sound, in milliseconds;
+   a port overrides it with the "latency" device parameter. */
+#define WAVLATENCY 100000 /* 100 ms */
+static unsigned int wavlatency = WAVLATENCY;
 static pthread_t sequencer_thread_id;  /* sequencer thread id */
 
 static int sinrun;                     /* input timer running */
@@ -1876,7 +1885,8 @@ static void wralsapcmout(ami_long p, byte* buff, ami_long len)
         alsapcmout[p-1]->fmt = params2alsa(alsapcmout[p-1]);
         r = snd_pcm_set_params(alsapcmout[p-1]->pcm, alsapcmout[p-1]->fmt,
                                SND_PCM_ACCESS_RW_INTERLEAVED, alsapcmout[p-1]->chan,
-                               alsapcmout[p-1]->rate, 1, 500000);
+                               alsapcmout[p-1]->rate, 1,
+                               alsapcmout[p-1]->latency);
         if (r < 0) alsaerror(r);
         /* find size of sample */
         bytes = alsapcmout[p-1]->bits/8; /* find bytes per */
@@ -2186,7 +2196,11 @@ ami_long fltalsapcmin(ami_long p)
 
 Write sequencer entry
 
-Writes a sequencer entry to the device given by it's port.
+Writes a sequencer entry to the device given by it's port. A MIDI instruction
+goes to the MIDI output device, plug-in or ALSA. The wave entries, playwave
+and volwave, carry a wave output port, so they cannot be dispatched through
+the MIDI table (a wave port beyond the MIDI device count is a null entry);
+they are executed here directly.
 
 *******************************************************************************/
 
@@ -2194,7 +2208,8 @@ static void wrtseq(ami_seqptr sp)
 
 {
 
-    alsamidiout[sp->port-1]->wrseq(sp->port, sp);
+    if (sp->st == st_playwave || sp->st == st_volwave) _pa_excseq(sp->port, sp);
+    else alsamidiout[sp->port-1]->wrseq(sp->port, sp);
 
 }
 
@@ -2246,6 +2261,62 @@ static void getalsaparam(ami_long p, string name, string value, ami_long len)
 {
 
     cpycrit(value, len, ""); /* return empty string */
+
+}
+
+/*******************************************************************************
+
+ALSA set parameter, wave output
+
+The ALSA wave output ports take one parameter, "latency": the output buffer
+length in milliseconds, as a decimal string from 1 to 10000. ALSA sizes the
+output buffer to it, so it is the delay from write to speaker and also the
+margin against underruns. It takes effect when the port next negotiates its
+format, which is the first write after open or after any format change. The
+default comes from the configuration, wave_latency under sound, or WAVLATENCY.
+Returns 0 if set, 1 for any other name or a value out of range.
+
+*******************************************************************************/
+
+static ami_long setalsapcmoutparam(ami_long p, string name, string value)
+
+{
+
+    char* ep;
+    long  ms;
+
+    if (strcmp(name, "latency")) return 1; /* not ours */
+    ms = strtol(value, &ep, 10);
+    if (ep == value || *ep || ms < 1 || ms > 10000) return 1; /* not a valid value */
+    alsapcmout[p-1]->latency = ms*1000; /* microseconds */
+    alsapcmout[p-1]->fmt = -1; /* renegotiate at the next write */
+
+    return 0;
+
+}
+
+/*******************************************************************************
+
+ALSA get parameter, wave output
+
+Returns the "latency" parameter in milliseconds, see setalsapcmoutparam, or an
+empty string for any other name. The value buffer follows the critical buffer
+convention.
+
+*******************************************************************************/
+
+static void getalsapcmoutparam(ami_long p, string name, string value, ami_long len)
+
+{
+
+    char buf[20];
+
+    if (!strcmp(name, "latency")) {
+
+        snprintf(buf, sizeof(buf), "%u", alsapcmout[p-1]->latency/1000);
+        cpycrit(value, len, buf);
+
+    } else cpycrit(value, len, ""); /* return empty string */
 
 }
 
@@ -2424,6 +2495,7 @@ void _pa_waveoutplug(
     strcpy(alsapcmout[p]->name, name);
     alsapcmout[p]->last = 0; /* clear last byte */
     alsapcmout[p]->pback = -1; /* set no pushback */
+    alsapcmout[p]->latency = wavlatency; /* wave output buffer, from config */
     alsapcmout[p]->open = open; /* set open alsa midi device */
     alsapcmout[p]->close = close; /* set close alsa midi device */
     alsapcmout[p]->wrwav = wrwav; /* set wave out function */
@@ -5117,7 +5189,8 @@ static void* alsaplaywave(void* data)
 
     }
     r = snd_pcm_set_params(pdh, fmt, SND_PCM_ACCESS_RW_INTERLEAVED,
-                           fhd.channels, fhd.samplerate, 1, 500000);
+                           fhd.channels, fhd.samplerate, 1,
+                           alsapcmout[p-1]->latency);
     if (r < 0) error("Cannot set sound parameters");
 
     /* calculate frame size, or minimum transfer length in bytes */
@@ -6573,6 +6646,7 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             table[i]->last = 0; /* clear last byte */
             table[i]->pback = -1; /* set no pushback */
             table[i]->sync = FALSE; /* set channel not syncronized */
+            table[i]->latency = wavlatency; /* wave output buffer, from config */
             switch (dt) { /* table type */
 
                 case dt_seqout: /* is a midi out */
@@ -6612,6 +6686,10 @@ static void readalsadev(devptr table[], string devt, string iotyp, int tabmax,
             }
             table[i]->setparam = setalsaparam; /* place set routine for all types */
             table[i]->getparam = getalsaparam; /* place get routine for all types */
+            if (dt == dt_pcmout) { /* wave output has a parameter, latency */
+                table[i]->setparam = setalsapcmoutparam;
+                table[i]->getparam = getalsapcmoutparam;
+            }
             table[i]->wrseq = _pa_excseq; /* set sequencer execute function */
             table[i]->rdseq = inpseq; /* set sequencer read function */
             table[i]->midi = NULL; /* clear midi handle */
@@ -6780,8 +6858,31 @@ static void sndinit(void)
 
 {
 
+    ami_valptr root, vp; /* configuration tree */
+    char*      ep;
+    long       ms;
+
     if (sndinited) return;
     sndinited = TRUE;
+
+    /* the wave output latency: wave_latency under sound in the configuration,
+       in milliseconds; it is copied into each wave output device as it is
+       defined */
+    root = NULL;
+    ami_config(&root);
+    vp = ami_schlst("sound", root);
+    if (vp && vp->sublist) {
+
+        vp = ami_schlst("wave_latency", vp->sublist);
+        if (vp && vp->value) {
+
+            ms = strtol(vp->value, &ep, 10);
+            if (ep != vp->value && !*ep && ms >= 1 && ms <= 10000)
+                wavlatency = ms*1000;
+
+        }
+
+    }
 
     /* define the ALSA midi output devices */
     readalsadev(alsamidiout, "rawmidi", "Output", MAXMIDP, &alsamidioutnum, dt_seqout);
