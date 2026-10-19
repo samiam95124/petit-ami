@@ -412,13 +412,17 @@ static void ttcp(const char* name, int port, int secure)
 
 /* The line exchange again, with the connection opened by name. The secured
    run also checks the chain's links: the loopback leaf is signed by the test
-   CA, the test CA by itself, and there is no third certificate */
+   CA, the test CA by itself, and there is no third certificate. Then the same
+   links through certsigned on the certificate texts, which is how a chain is
+   finished against a root the server did not send */
 static void tname(const char* name, int port, int secure)
 
 {
 
     FILE* f;
     char  buff[BUFLEN];
+    char  leaf[10000], ca[10000];
+    ami_long ll, cl;
     int   pass;
 
     pass = FALSE;
@@ -433,6 +437,12 @@ static void tname(const char* name, int port, int secure)
         result("certvalidnet leaf signed by the test CA", ami_certvalidnet(f, 1) == 1);
         result("certvalidnet test CA signs itself", ami_certvalidnet(f, 2) == 1);
         result("certvalidnet past chain end is 0", ami_certvalidnet(f, 3) == 0);
+        ll = ami_certnet(f, 1, leaf, sizeof(leaf));
+        cl = ami_certnet(f, 2, ca, sizeof(ca));
+        result("certsigned leaf by test CA", ami_certsigned(leaf, ll, ca, cl) == 1);
+        result("certsigned test CA by leaf is 0", ami_certsigned(ca, cl, leaf, ll) == 0);
+        result("certsigned on non-certificate text is 0",
+               ami_certsigned(buff, (ami_long)strlen(buff), ca, cl) == 0);
 
     }
     fclose(f);

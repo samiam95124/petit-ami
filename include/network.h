@@ -125,6 +125,12 @@ ami_long ami_certmsg(ami_long fn, ami_long which, string cert, ami_long len);
    is trusted is the program's decision. */
 ami_long ami_certvalidnet(FILE* f, ami_long which);
 ami_long ami_certvalidmsg(ami_long fn, ami_long which);
+/* Does the certificate carry a signature that checks under the signer's key?
+   Both as PEM text with lengths, as certnet returns them. 1 if so, 0 if not
+   or either is not a certificate. For the top of a chain against a root the
+   program holds, or any two certificates from anywhere. */
+ami_long ami_certsigned(const string cert, ami_long clen,
+                        const string signer, ami_long slen);
 void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list);
 void ami_certlistmsg(ami_long fn, ami_long which, ami_certptr* list);
 void ami_certlistfree(ami_certptr* list);

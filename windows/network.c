@@ -2508,6 +2508,67 @@ ami_long ami_certvalidnet(FILE* f, ami_long which)
 
 /*******************************************************************************
 
+Check certificate signature against a given signer
+
+Tells whether the certificate carries a signature that checks under the public
+key of the signer, both given as PEM text as ami_certnet() returns it, with
+their lengths since those buffers are critical and may lack a terminator. The
+result is 1 when the signature checks, and 0 when it does not or either text
+is not a certificate.
+
+This is the check ami_certvalidnet() makes between neighbours in a chain, with
+the signer supplied by the program. Its use is the top of a chain from a
+public server, which is signed by a root the server does not send: the program
+takes the root it holds for that issuer and asks whether it signs the top
+certificate. It works on certificates from anywhere, a store or a file, so it
+is tied to no connection.
+
+*******************************************************************************/
+
+ami_long ami_certsigned(const string cert, ami_long clen,
+                        const string signer, ami_long slen)
+
+{
+
+    BIO*      cb;
+    X509*     c;
+    X509*     s;
+    EVP_PKEY* key;
+    long      r;
+
+    r = 0; /* set does not check */
+    c = NULL;
+    s = NULL;
+    /* read both certificates from their text */
+    cb = BIO_new_mem_buf(cert, (int)clen);
+    if (!cb) error(enobio);
+    c = PEM_read_bio_X509(cb, NULL, NULL, NULL);
+    BIO_free(cb);
+    cb = BIO_new_mem_buf(signer, (int)slen);
+    if (!cb) error(enobio);
+    s = PEM_read_bio_X509(cb, NULL, NULL, NULL);
+    BIO_free(cb);
+    if (c && s) {
+
+        key = X509_get_pubkey(s);
+        if (key) {
+
+            r = X509_verify(c, key) == 1;
+            EVP_PKEY_free(key);
+
+        }
+
+    }
+    ERR_clear_error(); /* a failed read or check leaves its reasons queued */
+    if (c) X509_free(c);
+    if (s) X509_free(s);
+
+    return (r);
+
+}
+
+/*******************************************************************************
+
 Get network certificate data list
 
 Retrieves a list of data fields from the given file by number. The file

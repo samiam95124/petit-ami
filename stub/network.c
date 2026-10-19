@@ -546,6 +546,17 @@ ami_long ami_certvalidmsg(ami_long fn, ami_long which)
 
 }
 
+ami_long ami_certsigned(const string cert, ami_long clen,
+                        const string signer, ami_long slen)
+
+{
+
+    error("ami_certsigned: Is not implemented");
+
+    return (0);
+
+}
+
 void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list)
 
 {

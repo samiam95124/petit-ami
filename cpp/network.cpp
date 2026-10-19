@@ -74,6 +74,9 @@ ami_long  certvalidnet(FILE* f, ami_long which)
     { return ami_certvalidnet(f, which); }
 ami_long  certvalidmsg(ami_long fn, ami_long which)
     { return ami_certvalidmsg(fn, which); }
+ami_long  certsigned(const char* cert, ami_long clen, const char* signer,
+                     ami_long slen)
+    { return ami_certsigned((char*)cert, clen, (char*)signer, slen); }
 void  certlistnet(FILE* f, ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
 void  certlistmsg(ami_long fn, ami_long which, certptr* list)

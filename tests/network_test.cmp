@@ -32,6 +32,9 @@ TCP exchange in the clear by name        pass
 certvalidnet leaf signed by the test CA  pass
 certvalidnet test CA signs itself        pass
 certvalidnet past chain end is 0         pass
+certsigned leaf by test CA               pass
+certsigned test CA by leaf is 0          pass
+certsigned on non-certificate text is 0  pass
 TCP exchange secured (TLS) by name       pass
     sent "Hello, server", received "Hello, client" over TLS, opened by name
 two connections at once                  pass
@@ -102,4 +105,4 @@ certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
 
-Network test complete: 50 passes, 0 fails
+Network test complete: 53 passes, 0 fails

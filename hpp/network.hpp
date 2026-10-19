@@ -55,6 +55,8 @@ ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len);
 ami_long  certvalidnet(FILE* f, ami_long which);
 ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len);
 ami_long  certvalidmsg(ami_long fn, ami_long which);
+ami_long  certsigned(const char* cert, ami_long clen, const char* signer,
+                     ami_long slen);
 void  certlistnet(FILE* f, ami_long which, certptr* list);
 void  certlistmsg(ami_long fn, ami_long which, certptr* list);
 void  certlistfree(certptr* list);
