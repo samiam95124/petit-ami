@@ -85,7 +85,7 @@ int main(
 
 {
 
-    /* server IPv4 address */ ami_ulong addr;
+    /* verification message */ char vmsg[200];
     /* server SSL file */     FILE*         fp;
     /* certificate tree */    ami_certptr    list;
     /* port number */         int           port;
@@ -102,8 +102,7 @@ int main(
     num = atoi(argv[3]); /* get which certificate to fetch */
 
     /* open server SSL */
-    ami_addrnet(argv[1], &addr);
-    fp = ami_opennet(addr, port, TRUE);
+    fp = ami_opennetname(argv[1], port, TRUE);
 
     /* Get the certificate indicated. Note that if you only want certain
        entries from the tree, fill the names in with NULL data pointers. */
@@ -112,6 +111,11 @@ int main(
 
     /* print certificate tree at 0 indent */
     prtcert(list, 0);
+    /* say whether the chain verifies against the system's trusted roots and
+       names the server asked for */
+    if (ami_certverifynet(fp, vmsg, sizeof(vmsg)))
+        printf("Not verified: %s\n", vmsg);
+    else printf("Verified\n");
 
     fclose(fp); /* close server port */
 

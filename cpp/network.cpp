@@ -46,6 +46,8 @@ FILE* opennet(ami_ulong addr, ami_long port, ami_long secure)
 FILE* opennetv6(unsigned long long addrh, unsigned long long addrl,
                 ami_long port, ami_long secure)
     { return ami_opennetv6(addrh, addrl, port, secure); }
+FILE* opennetname(const char* name, ami_long port, ami_long secure)
+    { return ami_opennetname((char*)name, port, secure); }
 ami_long  maxmsg(ami_ulong addr, ami_long secure)
     { return ami_maxmsg(addr, secure); }
 ami_long  maxmsgv6(unsigned long long addrh, unsigned long long addrl, ami_long secure)
@@ -68,6 +70,10 @@ ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len)
     { return ami_certnet(f, which, cert, len); }
 ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len)
     { return ami_certmsg(fn, which, cert, len); }
+ami_long  certverifynet(FILE* f, char* msg, ami_long len)
+    { return ami_certverifynet(f, msg, len); }
+ami_long  certverifymsg(ami_long fn, char* msg, ami_long len)
+    { return ami_certverifymsg(fn, msg, len); }
 void  certlistnet(FILE* f, ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
 void  certlistmsg(ami_long fn, ami_long which, certptr* list)
@@ -103,15 +109,14 @@ void net::opennet(ami_ulong addr, ami_long port, ami_long secure)
 
 }
 
-/* as a convenience, the name form makes the lookup on the way */
+/* the name form resolves on the way, and a secure connection learns the
+   name for the certificate check */
 void net::opennet(const char* name, ami_long port, ami_long secure)
 
 {
 
-    ami_ulong addr;
-
-    ami_addrnet((char*)name, &addr);
-    opennet(addr, port, secure);
+    if (f) fclose(f);
+    f = ami_opennetname((char*)name, port, secure);
 
 }
 
@@ -155,6 +160,8 @@ void net::close(void)
 
 ami_long net::certnet(ami_long which, char* cert, ami_long len)
     { return ami_certnet(f, which, cert, len); }
+ami_long net::certverifynet(char* msg, ami_long len)
+    { return ami_certverifynet(f, msg, len); }
 void net::certlistnet(ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
 
@@ -245,6 +252,8 @@ void msg::clsmsg(void)
 
 ami_long msg::certmsg(ami_long which, char* cert, ami_long len)
     { return ami_certmsg(fn, which, cert, len); }
+ami_long msg::certverifymsg(char* msg, ami_long len)
+    { return ami_certverifymsg(fn, msg, len); }
 void msg::certlistmsg(ami_long which, certptr* list)
     { ami_certlistmsg(fn, which, (ami_certptr*)list); }
 

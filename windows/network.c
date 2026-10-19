@@ -950,9 +950,16 @@ static void ensure_client_tls(void)
 {
 
     EnterCriticalSection(&netlck);
-    if (!client_tls_ctx)
+    if (!client_tls_ctx) {
+
         initctx(&client_tls_ctx, TLS_client_method(), "client_tls_cert.pem",
                                                       "client_tls_key.pem");
+        /* the system's trusted roots, so the verification result for
+           ami_certverifynet() means something; the handshake stays
+           SSL_VERIFY_NONE, the result is recorded, not enforced */
+        SSL_CTX_set_default_verify_paths(client_tls_ctx);
+
+    }
     LeaveCriticalSection(&netlck);
 
 }
@@ -962,9 +969,13 @@ static void ensure_client_dtls(void)
 {
 
     EnterCriticalSection(&netlck);
-    if (!client_dtls_ctx)
+    if (!client_dtls_ctx) {
+
         initctx(&client_dtls_ctx, DTLS_client_method(), "client_dtls_cert.pem",
                                                         "client_dtls_key.pem");
+        SSL_CTX_set_default_verify_paths(client_dtls_ctx); /* as for TLS */
+
+    }
     LeaveCriticalSection(&netlck);
 
 }
@@ -1106,6 +1117,37 @@ void ami_addrnet(const string name, ami_ulong* addr)
 
 /*******************************************************************************
 
+Set the host name on a TLS connection
+
+Tells TLS who the program meant to reach. The name goes out as the server name
+indication, which a host serving several names from one address needs to pick
+its certificate, and it is the name the certificate is checked against. An
+address literal is checked as an address and not sent: the indication is
+defined for names only.
+
+*******************************************************************************/
+
+static void sslhost(SSL* ssl, const char* name)
+
+{
+
+    unsigned char ab[16]; /* address bytes, discarded */
+    int r;
+
+    if (inet_pton(AF_INET, name, ab) == 1 || inet_pton(AF_INET6, name, ab) == 1)
+        r = X509_VERIFY_PARAM_set1_ip_asc(SSL_get0_param(ssl), name);
+    else {
+
+        r = SSL_set_tlsext_host_name(ssl, name);
+        if (r == 1) r = SSL_set1_host(ssl, name);
+
+    }
+    if (r != 1) sslerrorqueue();
+
+}
+
+/*******************************************************************************
+
 Get server address v6
 
 Retrieves a v6 server address by name. The name is given as a string. The
@@ -1167,7 +1209,7 @@ does not handle read/write on the same file well.
    parked open is serialized under netlck because server and client can run
    on simultaneous threads of this process. */
 
-static FILE* sockfil(SOCKET sock, int secure, int server)
+static FILE* sockfil(SOCKET sock, int secure, int server, const char* name)
 
 {
 
@@ -1215,6 +1257,7 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
             ensure_client_tls(); /* ensure context */
             ssl = SSL_new(client_tls_ctx); /* create new ssl */
             if (!ssl) error(esslnew);
+            if (name) sslhost(ssl, name); /* say who we meant to reach */
             r = SSL_set_fd(ssl, (int)sock); /* connect to socket */
             if (!r) error(esslfid);
 
@@ -1222,8 +1265,9 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
             r = SSL_connect(ssl);
             if (r != 1) sslerror(ssl, r);
 
-            /* Get the remote certificate into the X509 structure.
-               Right now we don't do anything with this (don't verify it) */
+            /* Get the remote certificate into the X509 structure. The
+               handshake does not stop on a certificate that fails
+               verification: the program asks with ami_certverifynet() */
             cert = SSL_get_peer_certificate(ssl);
             if (!cert) error(esslcer);
 
@@ -1275,7 +1319,7 @@ FILE* ami_opennet(/* IP address */      ami_ulong addr,
     }
 
     /* finish with general routine */
-    return (sockfil(sock, secure, FALSE));
+    return (sockfil(sock, secure, FALSE, NULL));
 
 }
 
@@ -1315,7 +1359,85 @@ FILE* ami_opennetv6(
     }
 
     /* finish with general routine */
-    return (sockfil(sock, secure, FALSE));
+    return (sockfil(sock, secure, FALSE, NULL));
+
+}
+
+/*******************************************************************************
+
+Open network file by name
+
+Opens a network file by the server's name instead of its address, on the port
+and with the security given. The name is resolved here, and every address it
+resolves to, IPv6 or IPv4, is tried in the order the resolver gives them until
+one connects. A refused connection is retried on the same backoff as the
+address forms.
+
+A secure connection also learns the name: it is sent as the server name
+indication, so hosts that serve several names from one address answer with
+the right certificate, and the certificate is checked against it. The check
+does not stop the connection; ami_certverifynet() gives its result.
+
+*******************************************************************************/
+
+FILE* ami_opennetname(
+    /* server name */     const string name,
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
+)
+
+{
+
+    struct addrinfo hints, *pl, *p;
+    char   ps[24];
+    SOCKET sock;
+    int    r;
+    int    e;
+
+    /* resolve the name to a list of stream addresses, any family */
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    snprintf(ps, sizeof(ps), "%lld", (long long)port);
+    r = getaddrinfo(name, ps, &hints, &pl);
+    if (r) netwrterr(gai_strerror(r));
+    if (!pl) error(enetadr);
+    sock = INVALID_SOCKET;
+    e = 0;
+    /* try each address in turn; refusals retry the whole list on the backoff
+       ami_opennet uses, since a server may be coming up */
+    for (r = 0; r < CONRETRY && sock == INVALID_SOCKET; r++) {
+
+        for (p = pl; p && sock == INVALID_SOCKET; p = p->ai_next) {
+
+            sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+            if (sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
+            if (connect(sock, p->ai_addr, (int)p->ai_addrlen) == SOCKET_ERROR) {
+
+                e = WSAGetLastError(); /* keep the reason */
+                closesocket(sock); /* a failed connect leaves the socket unusable */
+                sock = INVALID_SOCKET;
+
+            }
+
+        }
+        if (sock == INVALID_SOCKET) {
+
+            if (e != WSAECONNREFUSED || r == CONRETRY-1) {
+
+                WSASetLastError(e);
+                wskerr(); /* process Winsock error */
+
+            }
+            Sleep(CONDELAY); /* let the server come up */
+
+        }
+
+    }
+    freeaddrinfo(pl); /* release the address list */
+
+    /* finish with general routine */
+    return (sockfil(sock, secure, FALSE, name));
 
 }
 
@@ -2124,7 +2246,7 @@ FILE* ami_waitnet(/* port number to wait on */ ami_long port,
     closesocket(ls);
 
     /* finish with general routine */
-    return (sockfil(as, secure, TRUE));
+    return (sockfil(as, secure, TRUE, NULL));
 
 }
 
@@ -2313,6 +2435,78 @@ ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
 
     /* with the fid, the call is the same as for messaging */
     return (ami_certmsg(fn, which, buff, len));
+
+}
+
+/*******************************************************************************
+
+Get message certificate verification result
+
+Tells whether the peer's certificate on a DTLS connection verified: its chain
+leads to a root the system trusts, and, when the connection was opened by
+name, the certificate is for that name. The result is 0 when it verified and
+otherwise the reason, as an OpenSSL X509_V_ERR code. The message buffer, if
+given, receives the reason as text, or an empty string when verified. It is a
+critical buffer: a text that fills it entirely is not zero terminated.
+
+The connection was made whatever the result. It is for the program to decide
+what an unverified peer means.
+
+*******************************************************************************/
+
+ami_long ami_certverifymsg(ami_long fn, string msg, ami_long len)
+
+{
+
+    X509* peer;
+    long  r;
+    const char* es;
+    size_t l;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    makfil(fn); /* create file entry as required */
+    if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
+    /* a peer that sent no certificate verified nothing, whatever OpenSSL says */
+    peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (peer) {
+
+        X509_free(peer); /* release our reference */
+        r = SSL_get_verify_result(opnfil[fn]->ssl);
+        es = r == X509_V_OK? "": X509_verify_cert_error_string(r);
+
+    } else {
+
+        r = X509_V_ERR_UNSPECIFIED;
+        es = "no peer certificate";
+
+    }
+    if (msg && len > 0) {
+
+        l = strlen(es);
+        if ((ami_long)l >= len) memcpy(msg, es, len); /* fills: no terminator */
+        else strcpy(msg, es);
+
+    }
+
+    return (r);
+
+}
+
+/*******************************************************************************
+
+Get network certificate verification result
+
+Tells whether the peer's certificate on a TLS connection verified. See
+ami_certverifymsg() for the result and its meaning.
+
+*******************************************************************************/
+
+ami_long ami_certverifynet(FILE* f, string msg, ami_long len)
+
+{
+
+    /* with the fid, the call is the same as for messaging */
+    return (ami_certverifymsg(fileno(f), msg, len));
 
 }
 

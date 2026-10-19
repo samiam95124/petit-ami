@@ -17,8 +17,8 @@ int main(int argc, char **argv)
 {
 
     FILE* fp;
-    ami_ulong addr;
     char cbuff[4096];
+    char vmsg[200]; /* verification message */
     int len;
     int port;
     int i;
@@ -31,8 +31,7 @@ int main(int argc, char **argv)
 
     port = atoi(argv[2]);
 
-    ami_addrnet(argv[1], &addr);
-    fp = ami_opennet(addr, port, TRUE);
+    fp = ami_opennetname(argv[1], port, TRUE);
 
     i = 1; /* set 1st certificate */
     do {
@@ -47,6 +46,11 @@ int main(int argc, char **argv)
        }
 
     } while (len);
+    /* say whether the chain verifies against the system's trusted roots and
+       names the server asked for */
+    if (ami_certverifynet(fp, vmsg, sizeof(vmsg)))
+        printf("Not verified: %s\n", vmsg);
+    else printf("Verified\n");
 
     return (0);
 

@@ -76,6 +76,8 @@
 #define PORT_SIM1  24433
 #define PORT_SIM2  24434
 #define PORT_RETRY 24435
+#define PORT_NAME  24436
+#define PORT_NAMES 24437
 
 static int passes = 0;
 static int fails  = 0;
@@ -405,6 +407,44 @@ static void ttcp(const char* name, int port, int secure)
     result(name, pass);
     printf("    sent \"Hello, server\", received \"Hello, client\" over %s\n",
            secure ? "TLS" : "TCP in the clear");
+
+}
+
+/* The line exchange again, with the connection opened by name. The secured
+   run also asks whether the server's certificate verified: it cannot, since
+   the test chain ends in the test CA and not a root the system trusts, so a
+   nonzero result with a reason is the pass */
+static void tname(const char* name, int port, int secure)
+
+{
+
+    FILE* f;
+    char  buff[BUFLEN];
+    char  vmsg[200];
+    int   pass;
+    ami_long r;
+
+    pass = FALSE;
+    startsrv(tcpserver, port, secure);
+    f = ami_opennetname("localhost", port, secure);
+    fputs("Hello, server\n", f);
+    fflush(f);
+    if (fgets(buff, BUFLEN, f))
+        pass = !strcmp(buff, "Hello, client\n");
+    if (secure) {
+
+        strcpy(vmsg, "unset");
+        r = ami_certverifynet(f, vmsg, sizeof(vmsg));
+        result("certverifynet reports the test CA unverified",
+               r != 0 && strlen(vmsg) > 0 && strcmp(vmsg, "unset"));
+
+    }
+    fclose(f);
+    clientdone();
+    finish();
+    result(name, pass);
+    printf("    sent \"Hello, server\", received \"Hello, client\" over %s, "
+           "opened by name\n", secure ? "TLS" : "TCP in the clear");
 
 }
 
@@ -896,11 +936,13 @@ int main(int argc, char **argv)
     taddrnetv6();
     taddrdns();
     section("Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), "
-            "clear and TLS");
+            "opennetname, clear and TLS; certverifynet on the named TLS run");
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);
     ttcp("TCP exchange secured (TLS)", PORT_TLS, TRUE);
     ttcpv6("TCP exchange in the clear (IPv6)", PORT_TCP6, FALSE);
     ttcpv6("TCP exchange secured (TLS, IPv6)", PORT_TLS6, TRUE);
+    tname("TCP exchange in the clear by name", PORT_NAME, FALSE);
+    tname("TCP exchange secured (TLS) by name", PORT_NAMES, TRUE);
     tsimul();
     tretry();
     section("Messages: openmsg/waitmsg/wrmsg/rdmsg/clsmsg (IPv4), openmsgv6 "

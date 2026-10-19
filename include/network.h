@@ -82,6 +82,10 @@ void ami_addrnetv6(const string name, unsigned long long* addrh,
 FILE* ami_opennet(ami_ulong addr, ami_long port, ami_long secure);
 FILE* ami_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    ami_long port, ami_long secure);
+/* Open by server name: resolves the name, tries its addresses in turn, and
+   on a secure connection sends the name to the server and checks the
+   certificate against it. */
+FILE* ami_opennetname(const string name, ami_long port, ami_long secure);
 ami_long ami_maxmsg(ami_ulong addr, ami_long secure);
 ami_long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
                   ami_long secure);
@@ -115,6 +119,12 @@ void ami_neterror(ami_neterrhan_t handler);
 ami_long ami_waitmsg(ami_long port, ami_long secure);
 ami_long ami_certnet(FILE* f, ami_long which, string cert, ami_long len);
 ami_long ami_certmsg(ami_long fn, ami_long which, string cert, ami_long len);
+/* Did the peer's certificate verify? 0 if its chain reaches a trusted root
+   and it names the server opened by name; otherwise the X509_V_ERR code,
+   with the reason as text in msg (a critical buffer), empty when verified.
+   The connection stands either way. */
+ami_long ami_certverifynet(FILE* f, string msg, ami_long len);
+ami_long ami_certverifymsg(ami_long fn, string msg, ami_long len);
 void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list);
 void ami_certlistmsg(ami_long fn, ami_long which, ami_certptr* list);
 void ami_certlistfree(ami_certptr* list);

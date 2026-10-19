@@ -146,6 +146,16 @@ FILE* ami_opennetv6(
 
 }
 
+FILE* ami_opennetname(const string name, ami_long port, ami_long secure)
+
+{
+
+    error("ami_opennetname: Is not implemented");
+
+    return (NULL);
+
+}
+
 /*******************************************************************************
 
 Open message file
@@ -513,6 +523,26 @@ ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
     error("ami_certnet: Is not implemented");
 
     return (1); /* this just shuts up compiler */
+
+}
+
+ami_long ami_certverifynet(FILE* f, string msg, ami_long len)
+
+{
+
+    error("ami_certverifynet: Is not implemented");
+
+    return (0);
+
+}
+
+ami_long ami_certverifymsg(ami_long fn, string msg, ami_long len)
+
+{
+
+    error("ami_certverifymsg: Is not implemented");
+
+    return (0);
 
 }
 
