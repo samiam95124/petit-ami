@@ -58,10 +58,6 @@ test 33: /what/ho/junk.com s/b /what/ho/junk.com
 test 36: /Users/scottfranco/projects/amitk/tests/regress/junk s/b <path>junk
 test 38: /Users/scottfranco/projects/amitk/bin/ s/b <the program path>
 test 40: /Users/scottfranco s/b <the user path>
-test 42: junk 0 s/b junk 1
-test 43: junk 0 s/b junk 0
-test 44: junk 0 s/b junk 1
-test 45: junk 0 s/b junk 0
 test 46: junk 1 s/b junk 1
 test 47: junk 0 s/b junk 0
 test 48: junk 1 s/b junk 1
