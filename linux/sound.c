@@ -839,6 +839,36 @@ static void midimsg3(devptr dev, byte sts, byte dat1, byte dat2)
 
 /*******************************************************************************
 
+Issue MIDI system exclusive message
+
+Sends a complete system exclusive message, F0 through F7, to the given ALSA midi
+port.
+
+*******************************************************************************/
+
+static void midimsgsx(devptr dev, const byte* oa, int len)
+
+{
+
+    int r; /* function result */
+
+#ifdef SHOWMIDIOUT
+    int i;
+
+    printf("MIDI out:");
+    for (i = 0; i < len; i++) printf(" %2.2x", oa[i]);
+    printf("\n");
+#endif
+    /* send it: one message at a time, as above */
+    pthread_mutex_lock(&dev->wrlck);
+    r = snd_rawmidi_write(dev->midi, oa, len);
+    pthread_mutex_unlock(&dev->wrlck);
+    if (r < 0) error("Unable to send to MIDI channel");
+
+}
+
+/*******************************************************************************
+
 Find elapsed microsecond time corrected
 
 Finds the elapsed time on the linux microsecond time, then corrects that for
@@ -1659,9 +1689,70 @@ static void inpseq(ami_long p, ami_seqptr sp)
 
 /*******************************************************************************
 
+Reset ALSA MIDI output channels
+
+Puts all 16 channels of an open ALSA MIDI output port into the General MIDI
+default state. GM System On does the whole job on a GM device in one message;
+the per channel messages after it do the same for devices that do not take it.
+Reset all controllers (121) is defined to leave volume, pan, program, bank and
+the effects levels alone, so those are set explicitly.
+
+*******************************************************************************/
+
+static void rstalsamidiout(ami_long p)
+
+{
+
+    /* GM System On: F0 7E <all devices> <general MIDI> <on> F7 */
+    static const byte gmon[] = { 0xf0, 0x7e, 0x7f, 0x09, 0x01, 0xf7 };
+    devptr      dev = alsamidiout[p-1];
+    ami_channel c;
+
+    /* GM devices reset every channel on this alone; others ignore it */
+    midimsgsx(dev, gmon, sizeof(gmon));
+    for (c = 1; c <= 16; c++) {
+
+        /* silence */
+        ctlchg(p, c, CTLR_ALL_NOTES_OFF, 0);
+        ctlchg(p, c, CTLR_ALL_SOUND_OFF, 0);
+        /* pedals, modulation, expression, pressure and the parameter
+           number back to their defaults */
+        ctlchg(p, c, CTLR_ALL_CONTROLLERS_OFF, 0);
+        /* the controllers that reset all controllers leaves alone */
+        midimsg3(dev, MESS_PTCH_WHL+(c-1), 0, 0x40); /* pitch bend centre */
+        ctlchg(p, c, CTLR_VOLUME_COARSE, 100);
+        ctlchg(p, c, CTLR_VOLUME_FINE, 0);
+        ctlchg(p, c, CTLR_PAN_POSITION_COARSE, 64);
+        ctlchg(p, c, CTLR_PAN_POSITION_FINE, 0);
+        ctlchg(p, c, CTLR_EXPRESSION_COARSE, 127);
+        ctlchg(p, c, CTLR_EFFECTS_LEVEL, 40);
+        ctlchg(p, c, CTLR_CHORUS_LEVEL, 0);
+        /* pitch bend range two semitones, as pitchrange() sets it */
+        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_COARSE, 0);
+        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_FINE, 0);
+        ctlchg(p, c, CTLR_DATA_ENTRY_COARSE, 2);
+        ctlchg(p, c, CTLR_DATA_ENTRY_FINE, 0);
+        /* no parameter selected, so a stray data entry changes nothing */
+        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_COARSE, 127);
+        ctlchg(p, c, CTLR_REGISTERED_PARAMETER_FINE, 127);
+        /* polyphonic, instrument 1 of bank 0 */
+        ctlchg(p, c, CTLR_POLY_OPERATION, 0);
+        ctlchg(p, c, CTLR_BANK_SELECT_COARSE, 0);
+        ctlchg(p, c, CTLR_BANK_SELECT_FINE, 0);
+        midimsg2(dev, MESS_PGM_CHG+(c-1), 0);
+
+    }
+
+}
+
+/*******************************************************************************
+
 Open ALSA MIDI output device
 
-Opens an ALSA MIDI output port for use.
+Opens an ALSA MIDI output port for use, then puts every channel into a known
+state, so the program does not inherit what the previous user of the device
+left behind: held notes and pedals, a bent pitch, a turned down volume, a
+mono mode, another instrument.
 
 *******************************************************************************/
 
@@ -1674,6 +1765,7 @@ static void openalsamidiout(ami_long p)
     r = snd_rawmidi_open(NULL, &alsamidiout[p-1]->midi, alsamidiout[p-1]->name,
                          SND_RAWMIDI_SYNC);
     if (r < 0) alsaerror(r);
+    rstalsamidiout(p); /* reset the channels */
 
 }
 
