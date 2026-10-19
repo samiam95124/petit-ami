@@ -84,8 +84,10 @@ static void unquiet(void);
 
 Open Liquidsynth MIDI device
 
-Opens a Liquidsynth MIDI port for use. Does nothing at present, since we open
-one MIDI out device at init time.
+Opens a Liquidsynth MIDI port for use. The synthesizer instance lives for the
+whole process, so the port is given a system reset on each open: all notes off,
+every channel back to the General MIDI defaults. The program does not inherit
+what the previous open left behind.
 
 *******************************************************************************/
 
@@ -109,6 +111,7 @@ static void openfluid(ami_long p)
             error("Cannot open Fluidsynth audio driver");
 
     }
+    fluid_synth_system_reset(devtbl[p-1]->synth); /* channels to defaults */
 
 }
 
@@ -116,7 +119,9 @@ static void openfluid(ami_long p)
 
 Close Liquidsynth MIDI device
 
-Closes a Liquidsynth MIDI output device for use.
+Closes a Liquidsynth MIDI output device for use. Sounding notes are stopped
+first, as on the ALSA MIDI path, so a program that closes mid-note leaves
+nothing ringing when the port is next opened.
 
 *******************************************************************************/
 
@@ -129,6 +134,8 @@ static void closefluid(ami_long p)
 
     /* Fix B: release the audio driver (and its output stream) on close, so an
        idle synth holds no stream. */
+    fluid_synth_all_notes_off(devtbl[p-1]->synth, -1); /* every channel */
+    fluid_synth_all_sounds_off(devtbl[p-1]->synth, -1);
     if (devtbl[p-1]->adriver) {
 
         delete_fluid_audio_driver(devtbl[p-1]->adriver);
