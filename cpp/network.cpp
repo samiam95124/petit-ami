@@ -70,10 +70,10 @@ ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len)
     { return ami_certnet(f, which, cert, len); }
 ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len)
     { return ami_certmsg(fn, which, cert, len); }
-ami_long  certverifynet(FILE* f, char* msg, ami_long len)
-    { return ami_certverifynet(f, msg, len); }
-ami_long  certverifymsg(ami_long fn, char* msg, ami_long len)
-    { return ami_certverifymsg(fn, msg, len); }
+ami_long  certvalidnet(FILE* f, ami_long which)
+    { return ami_certvalidnet(f, which); }
+ami_long  certvalidmsg(ami_long fn, ami_long which)
+    { return ami_certvalidmsg(fn, which); }
 void  certlistnet(FILE* f, ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
 void  certlistmsg(ami_long fn, ami_long which, certptr* list)
@@ -110,7 +110,7 @@ void net::opennet(ami_ulong addr, ami_long port, ami_long secure)
 }
 
 /* the name form resolves on the way, and a secure connection learns the
-   name for the certificate check */
+   name to send the server */
 void net::opennet(const char* name, ami_long port, ami_long secure)
 
 {
@@ -160,8 +160,8 @@ void net::close(void)
 
 ami_long net::certnet(ami_long which, char* cert, ami_long len)
     { return ami_certnet(f, which, cert, len); }
-ami_long net::certverifynet(char* msg, ami_long len)
-    { return ami_certverifynet(f, msg, len); }
+ami_long net::certvalidnet(ami_long which)
+    { return ami_certvalidnet(f, which); }
 void net::certlistnet(ami_long which, certptr* list)
     { ami_certlistnet(f, which, (ami_certptr*)list); }
 
@@ -252,8 +252,8 @@ void msg::clsmsg(void)
 
 ami_long msg::certmsg(ami_long which, char* cert, ami_long len)
     { return ami_certmsg(fn, which, cert, len); }
-ami_long msg::certverifymsg(char* msg, ami_long len)
-    { return ami_certverifymsg(fn, msg, len); }
+ami_long msg::certvalidmsg(ami_long which)
+    { return ami_certvalidmsg(fn, which); }
 void msg::certlistmsg(ami_long which, certptr* list)
     { ami_certlistmsg(fn, which, (ami_certptr*)list); }
 

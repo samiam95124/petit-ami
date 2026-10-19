@@ -85,7 +85,6 @@ int main(
 
 {
 
-    /* verification message */ char vmsg[200];
     /* server SSL file */     FILE*         fp;
     /* certificate tree */    ami_certptr    list;
     /* port number */         int           port;
@@ -107,15 +106,12 @@ int main(
     /* Get the certificate indicated. Note that if you only want certain
        entries from the tree, fill the names in with NULL data pointers. */
     list = NULL;
-    ami_certlistnet(fp, 1, &list);
+    ami_certlistnet(fp, num, &list);
 
     /* print certificate tree at 0 indent */
     prtcert(list, 0);
-    /* say whether the chain verifies against the system's trusted roots and
-       names the server asked for */
-    if (ami_certverifynet(fp, vmsg, sizeof(vmsg)))
-        printf("Not verified: %s\n", vmsg);
-    else printf("Verified\n");
+    /* the link above it: does its signature check under that key? */
+    printf("Signature %s\n", ami_certvalidnet(fp, num) ? "checks" : "does not check");
 
     fclose(fp); /* close server port */
 

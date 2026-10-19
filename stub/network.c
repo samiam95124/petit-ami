@@ -526,21 +526,21 @@ ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
 
 }
 
-ami_long ami_certverifynet(FILE* f, string msg, ami_long len)
+ami_long ami_certvalidnet(FILE* f, ami_long which)
 
 {
 
-    error("ami_certverifynet: Is not implemented");
+    error("ami_certvalidnet: Is not implemented");
 
     return (0);
 
 }
 
-ami_long ami_certverifymsg(ami_long fn, string msg, ami_long len)
+ami_long ami_certvalidmsg(ami_long fn, ami_long which)
 
 {
 
-    error("ami_certverifymsg: Is not implemented");
+    error("ami_certvalidmsg: Is not implemented");
 
     return (0);
 

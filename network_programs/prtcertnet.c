@@ -18,7 +18,6 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char cbuff[4096];
-    char vmsg[200]; /* verification message */
     int len;
     int port;
     int i;
@@ -39,18 +38,15 @@ int main(int argc, char **argv)
        len = ami_certnet(fp, i, cbuff, sizeof(cbuff));
        if (len) {
 
-           printf("Certificate %d:\n", i);
+           /* each link checks under the key above it, the top under its own */
+           printf("Certificate %d (signature %s):\n", i,
+                  ami_certvalidnet(fp, i) ? "checks" : "does not check");
            printf("%.*s\n", (int)len, cbuff);
            i++; /* next certificate */
 
        }
 
     } while (len);
-    /* say whether the chain verifies against the system's trusted roots and
-       names the server asked for */
-    if (ami_certverifynet(fp, vmsg, sizeof(vmsg)))
-        printf("Not verified: %s\n", vmsg);
-    else printf("Verified\n");
 
     return (0);
 

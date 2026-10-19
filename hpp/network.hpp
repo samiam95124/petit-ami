@@ -52,9 +52,9 @@ void  clsmsg(ami_long fn);
 FILE* waitnet(ami_long port, ami_long secure = 0);
 ami_long  waitmsg(ami_long port, ami_long secure = 0);
 ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len);
-ami_long  certverifynet(FILE* f, char* msg, ami_long len);
+ami_long  certvalidnet(FILE* f, ami_long which);
 ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len);
-ami_long  certverifymsg(ami_long fn, char* msg, ami_long len);
+ami_long  certvalidmsg(ami_long fn, ami_long which);
 void  certlistnet(FILE* f, ami_long which, certptr* list);
 void  certlistmsg(ami_long fn, ami_long which, certptr* list);
 void  certlistfree(certptr* list);
@@ -105,7 +105,7 @@ void opennetv6(const char* name, ami_long port, ami_long secure = 0);
 void waitnet(ami_long port, ami_long secure = 0);
 void close(void);
 ami_long certnet(ami_long which, char* cert, ami_long len);
-ami_long certverifynet(char* msg, ami_long len);
+ami_long certvalidnet(ami_long which);
 void certlistnet(ami_long which, certptr* list);
 
 /* the connection, for the stdio calls */
@@ -141,7 +141,7 @@ void wrmsg(void* buff, ami_ulong len);
 ami_long rdmsg(void* buff, ami_ulong len);
 void clsmsg(void);
 ami_long certmsg(ami_long which, char* cert, ami_long len);
-ami_long certverifymsg(char* msg, ami_long len);
+ami_long certvalidmsg(ami_long which);
 void certlistmsg(ami_long which, certptr* list);
 
 }; /* class msg */

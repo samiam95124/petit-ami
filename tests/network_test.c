@@ -411,18 +411,15 @@ static void ttcp(const char* name, int port, int secure)
 }
 
 /* The line exchange again, with the connection opened by name. The secured
-   run also asks whether the server's certificate verified: it cannot, since
-   the test chain ends in the test CA and not a root the system trusts, so a
-   nonzero result with a reason is the pass */
+   run also checks the chain's links: the loopback leaf is signed by the test
+   CA, the test CA by itself, and there is no third certificate */
 static void tname(const char* name, int port, int secure)
 
 {
 
     FILE* f;
     char  buff[BUFLEN];
-    char  vmsg[200];
     int   pass;
-    ami_long r;
 
     pass = FALSE;
     startsrv(tcpserver, port, secure);
@@ -433,10 +430,9 @@ static void tname(const char* name, int port, int secure)
         pass = !strcmp(buff, "Hello, client\n");
     if (secure) {
 
-        strcpy(vmsg, "unset");
-        r = ami_certverifynet(f, vmsg, sizeof(vmsg));
-        result("certverifynet reports the test CA unverified",
-               r != 0 && strlen(vmsg) > 0 && strcmp(vmsg, "unset"));
+        result("certvalidnet leaf signed by the test CA", ami_certvalidnet(f, 1) == 1);
+        result("certvalidnet test CA signs itself", ami_certvalidnet(f, 2) == 1);
+        result("certvalidnet past chain end is 0", ami_certvalidnet(f, 3) == 0);
 
     }
     fclose(f);
@@ -936,7 +932,7 @@ int main(int argc, char **argv)
     taddrnetv6();
     taddrdns();
     section("Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), "
-            "opennetname, clear and TLS; certverifynet on the named TLS run");
+            "opennetname, clear and TLS; certvalidnet on the named TLS run");
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);
     ttcp("TCP exchange secured (TLS)", PORT_TLS, TRUE);
     ttcpv6("TCP exchange in the clear (IPv6)", PORT_TCP6, FALSE);

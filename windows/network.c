@@ -950,16 +950,9 @@ static void ensure_client_tls(void)
 {
 
     EnterCriticalSection(&netlck);
-    if (!client_tls_ctx) {
-
+    if (!client_tls_ctx)
         initctx(&client_tls_ctx, TLS_client_method(), "client_tls_cert.pem",
                                                       "client_tls_key.pem");
-        /* the system's trusted roots, so the verification result for
-           ami_certverifynet() means something; the handshake stays
-           SSL_VERIFY_NONE, the result is recorded, not enforced */
-        SSL_CTX_set_default_verify_paths(client_tls_ctx);
-
-    }
     LeaveCriticalSection(&netlck);
 
 }
@@ -969,13 +962,9 @@ static void ensure_client_dtls(void)
 {
 
     EnterCriticalSection(&netlck);
-    if (!client_dtls_ctx) {
-
+    if (!client_dtls_ctx)
         initctx(&client_dtls_ctx, DTLS_client_method(), "client_dtls_cert.pem",
                                                         "client_dtls_key.pem");
-        SSL_CTX_set_default_verify_paths(client_dtls_ctx); /* as for TLS */
-
-    }
     LeaveCriticalSection(&netlck);
 
 }
@@ -1117,13 +1106,12 @@ void ami_addrnet(const string name, ami_ulong* addr)
 
 /*******************************************************************************
 
-Set the host name on a TLS connection
+Set the server name on a TLS connection
 
-Tells TLS who the program meant to reach. The name goes out as the server name
-indication, which a host serving several names from one address needs to pick
-its certificate, and it is the name the certificate is checked against. An
-address literal is checked as an address and not sent: the indication is
-defined for names only.
+Sends the name the program asked for as the server name indication, which a
+host serving several names from one address needs to pick its certificate.
+An address literal is not sent: the indication is defined for names only, and
+a server reached by address has one certificate anyway.
 
 *******************************************************************************/
 
@@ -1135,13 +1123,8 @@ static void sslhost(SSL* ssl, const char* name)
     int r;
 
     if (inet_pton(AF_INET, name, ab) == 1 || inet_pton(AF_INET6, name, ab) == 1)
-        r = X509_VERIFY_PARAM_set1_ip_asc(SSL_get0_param(ssl), name);
-    else {
-
-        r = SSL_set_tlsext_host_name(ssl, name);
-        if (r == 1) r = SSL_set1_host(ssl, name);
-
-    }
+        return; /* an address, not a name */
+    r = SSL_set_tlsext_host_name(ssl, name);
     if (r != 1) sslerrorqueue();
 
 }
@@ -1265,9 +1248,9 @@ static FILE* sockfil(SOCKET sock, int secure, int server, const char* name)
             r = SSL_connect(ssl);
             if (r != 1) sslerror(ssl, r);
 
-            /* Get the remote certificate into the X509 structure. The
-               handshake does not stop on a certificate that fails
-               verification: the program asks with ami_certverifynet() */
+            /* Get the remote certificate into the X509 structure. The chain
+               is not judged here: the program reads it with ami_certnet()
+               and checks its links with ami_certvalidnet() */
             cert = SSL_get_peer_certificate(ssl);
             if (!cert) error(esslcer);
 
@@ -1375,8 +1358,7 @@ address forms.
 
 A secure connection also learns the name: it is sent as the server name
 indication, so hosts that serve several names from one address answer with
-the right certificate, and the certificate is checked against it. The check
-does not stop the connection; ami_certverifynet() gives its result.
+the right certificate.
 
 *******************************************************************************/
 
@@ -2440,53 +2422,67 @@ ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
 
 /*******************************************************************************
 
-Get message certificate verification result
+Check message certificate signature
 
-Tells whether the peer's certificate on a DTLS connection verified: its chain
-leads to a root the system trusts, and, when the connection was opened by
-name, the certificate is for that name. The result is 0 when it verified and
-otherwise the reason, as an OpenSSL X509_V_ERR code. The message buffer, if
-given, receives the reason as text, or an empty string when verified. It is a
-critical buffer: a text that fills it entirely is not zero terminated.
-
-The connection was made whatever the result. It is for the program to decide
-what an unverified peer means.
+Tells whether certificate number which in the chain the peer sent, numbered as
+ami_certmsg() numbers them, carries a signature that checks under the key of
+the certificate above it. The top certificate is checked under its own key,
+which only says it is self consistent: whether it is trusted is for the
+program to decide, by comparing it with the roots it accepts. The result is 1
+when the signature checks, and 0 when it does not, when the key above does not
+match, or when there is no such certificate.
 
 *******************************************************************************/
 
-ami_long ami_certverifymsg(ami_long fn, string msg, ami_long len)
+ami_long ami_certvalidmsg(ami_long fn, ami_long which)
 
 {
 
     X509* peer;
-    long  r;
-    const char* es;
-    size_t l;
+    X509* cert;
+    X509* signer;
+    STACK_OF(X509)* certstk;
+    EVP_PKEY* key;
+    int ownstk;
+    int n;
+    long r;
 
     if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (which < 1) error(einvctn); /* invalid certificate number */
     makfil(fn); /* create file entry as required */
     if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
-    /* a peer that sent no certificate verified nothing, whatever OpenSSL says */
     peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
-    if (peer) {
+    if (!peer) error(enocert);
+    /* the chain as sent, the peer's own certificate first; a null chain
+       gets a shell holding that certificate, as in ami_certmsg() */
+    certstk = SSL_get_peer_cert_chain(opnfil[fn]->ssl);
+    ownstk = FALSE;
+    if (!certstk) {
 
-        X509_free(peer); /* release our reference */
-        r = SSL_get_verify_result(opnfil[fn]->ssl);
-        es = r == X509_V_OK? "": X509_verify_cert_error_string(r);
-
-    } else {
-
-        r = X509_V_ERR_UNSPECIFIED;
-        es = "no peer certificate";
-
-    }
-    if (msg && len > 0) {
-
-        l = strlen(es);
-        if ((ami_long)l >= len) memcpy(msg, es, len); /* fills: no terminator */
-        else strcpy(msg, es);
+        certstk = sk_X509_new_null();
+        sk_X509_push(certstk, peer);
+        ownstk = TRUE; /* we own this stack shell */
 
     }
+    n = sk_X509_num(certstk);
+    r = 0; /* set does not check */
+    if (which <= n) {
+
+        cert = sk_X509_value(certstk, (int)(which-1));
+        /* the one above signs it; the top one signs itself */
+        signer = which < n? sk_X509_value(certstk, (int)which): cert;
+        key = X509_get_pubkey(signer);
+        if (key) {
+
+            r = X509_verify(cert, key) == 1;
+            EVP_PKEY_free(key);
+
+        }
+        ERR_clear_error(); /* a failed check leaves its reasons queued */
+
+    }
+    if (ownstk) sk_X509_free(certstk);
+    X509_free(peer); /* release our reference */
 
     return (r);
 
@@ -2494,19 +2490,19 @@ ami_long ami_certverifymsg(ami_long fn, string msg, ami_long len)
 
 /*******************************************************************************
 
-Get network certificate verification result
+Check network certificate signature
 
-Tells whether the peer's certificate on a TLS connection verified. See
-ami_certverifymsg() for the result and its meaning.
+Tells whether certificate number which in the chain the peer sent checks under
+the key of the one above it. See ami_certvalidmsg().
 
 *******************************************************************************/
 
-ami_long ami_certverifynet(FILE* f, string msg, ami_long len)
+ami_long ami_certvalidnet(FILE* f, ami_long which)
 
 {
 
     /* with the fid, the call is the same as for messaging */
-    return (ami_certverifymsg(fileno(f), msg, len));
+    return (ami_certvalidmsg(fileno(f), which));
 
 }
 
