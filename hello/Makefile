@@ -76,13 +76,16 @@ endif
 ifeq ($(LINK_TYPE),static)
     AMILIB = $(AMIDIR)/lib/libami_$(MODEL).a
     AMILINK = $(AMILIB)
+    AMICFLAGS =
     ifeq ($(OSTYPE),Darwin)
+        # the library carries its own stdio, so the program is compiled
+        # against its header: a FILE from the system's is not one it knows
+        AMICFLAGS = -I$(AMIDIR)/libc
         ifeq ($(MODEL),graph)
             # the whole graphical model, entered at its own entry point
             AMILINK = -Wl,-force_load,$(AMILIB) -Wl,-e,_pa_entry
         endif
     endif
-    AMICFLAGS =
 else
     AMILIB = $(AMIDIR)/lib/sound.o $(AMIDIR)/lib/petit_ami_$(MODEL).so
     AMILINK = $(AMILIB) -Wl,-rpath,$(AMIDIR)/lib
