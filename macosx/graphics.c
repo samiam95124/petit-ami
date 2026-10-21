@@ -146,6 +146,7 @@ typedef struct winrec {
     int         focus;
     int         fautohold;     /* auto hold on exit */
     int         frmrun;        /* frame timer running */
+    int         timers;        /* the program's timers set, a bit each */
 
     /* font */
     fontptr     cfont;         /* current font */
@@ -197,6 +198,50 @@ static float    conpnt;               /* size of console font in points,
                                          fractions allowed */
 static int      deffnth;              /* the console font's height in pixels,
                                          from its points and the screen */
+static int      errflg;               /* an error has been flagged */
+
+/* Errors, the codes and messages of the Linux backends, those that can
+   happen here */
+typedef enum {
+
+    eftbful,  /* too many files */
+    einvhan,  /* invalid file handle */
+    einvscn,  /* invalid screen number */
+    eatopos,  /* cannot position text by pixel with auto on */
+    eatoofg,  /* cannot reenable auto off grid */
+    eatoecb,  /* cannot reenable auto outside screen */
+    einvftn,  /* invalid font number */
+    eatoftc,  /* cannot change fonts with auto enabled */
+    einvfnm,  /* invalid logical font number */
+    efntemp,  /* logical font number has no assigned font */
+    estrinx,  /* string index out of range */
+    epicftl,  /* picture filename too large */
+    efnotwin, /* file is not attached to a window */
+    ewinuse,  /* window id in use */
+    einmode,  /* input side of window in wrong mode */
+    einvsiz,  /* invalid buffer size */
+    ebufoff,  /* buffered mode not enabled */
+    edupmen,  /* menu id was duplicated */
+    emennf,   /* menu id was not found */
+    einvwin,  /* invalid window number */
+    einvjoy,  /* invalid joystick ID */
+    estrato,  /* cannot direct write string with auto on */
+    enomem,   /* out of memory */
+    einvfil,  /* file is invalid */
+    eftntl,   /* font name too large */
+    epicopn,  /* cannot open picture file */
+    ebadfmt,  /* bad format of picture file */
+    ecfgval,  /* invalid configuration value */
+    enoopn,   /* cannot open file */
+    etimacc,  /* no timer access available */
+    evecaxe,  /* cannot vector auxiliary event */
+    eangato,  /* cannot set character drawing angle in auto mode */
+    eatoang,  /* cannot reenable auto with non-90 degree text */
+    esystem   /* system consistency check */
+
+} errcod;
+
+static void error(errcod e);
 
 /* forward declarations */
 static void    clear_window(winptr win);
@@ -230,11 +275,21 @@ static const pa_rgba colortbl[] = {
 *                                                                              *
 *******************************************************************************/
 
-/* Get window record from FILE* */
-static winptr f2win(FILE* f)
+/* Get window record from FILE*, or NULL if the file is not a window */
+static winptr fndwin(FILE* f)
 {
     int fd = fileno(f);
     if (fd < 0 || fd >= MAXFIL || !opnfil[fd]) return NULL;
+    return &wintbl[fd];
+}
+
+/* Get window record from FILE*. A file that is not a window is an error. */
+static winptr f2win(FILE* f)
+{
+    int fd = fileno(f);
+    if (fd < 0) error(einvfil); /* file invalid */
+    if (fd >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (!opnfil[fd]) error(efnotwin); /* not a window file */
     return &wintbl[fd];
 }
 
@@ -261,6 +316,73 @@ static void set_fill_only(CGContextRef ctx, pa_rgba c)
     CGContextSetRGBFillColor(ctx, c.r, c.g, c.b, c.a);
 }
 
+/* The message of an error code */
+static char* errstr(errcod e)
+{
+    char* s;
+
+    switch (e) {
+
+        case eftbful:  s = "Too many files"; break;
+        case einvhan:  s = "Invalid file number"; break;
+        case einvscn:  s = "Invalid screen number"; break;
+        case eatopos:  s = "Cannot position text by pixel with auto on"; break;
+        case eatoofg:  s = "Cannot reenable auto off grid"; break;
+        case eatoecb:  s = "Cannot reenable auto outside screen"; break;
+        case einvftn:  s = "Invalid font number"; break;
+        case eatoftc:  s = "Cannot change fonts with auto enabled"; break;
+        case einvfnm:  s = "Invalid logical font number"; break;
+        case efntemp:  s = "Logical font number has no assigned font"; break;
+        case estrinx:  s = "String index out of range"; break;
+        case epicftl:  s = "Picture filename too large"; break;
+        case efnotwin: s = "File is not attached to a window"; break;
+        case ewinuse:  s = "Window id in use"; break;
+        case einmode:  s = "Input side of window in wrong mode"; break;
+        case einvsiz:  s = "Invalid buffer size"; break;
+        case ebufoff:  s = "Buffered mode not enabled"; break;
+        case edupmen:  s = "Menu id was duplicated"; break;
+        case emennf:   s = "Menu id was not found"; break;
+        case einvwin:  s = "Invalid window number"; break;
+        case einvjoy:  s = "Invalid joystick ID"; break;
+        case estrato:  s = "Cannot direct write string with auto on"; break;
+        case enomem:   s = "Out of memory"; break;
+        case einvfil:  s = "File is invalid"; break;
+        case eftntl:   s = "Font name too large"; break;
+        case epicopn:  s = "Cannot open picture file"; break;
+        case ebadfmt:  s = "Bad format of picture file"; break;
+        case ecfgval:  s = "Invalid configuration value"; break;
+        case enoopn:   s = "Cannot open file"; break;
+        case etimacc:  s = "No timer access available"; break;
+        case evecaxe:  s = "Cannot vector auxillary event"; break;
+        case eangato:  s = "Cannot set character drawing angle in auto mode"; break;
+        case eatoang:  s = "Cannot reenable auto with non-90 degree text"; break;
+        case esystem:  s = "System consistency check"; break;
+        default:       s = "Unknown error"; break;
+
+    }
+
+    return (s);
+}
+
+/* Print the error, to a dialog when the configuration asks for it, else to
+   the console, then end the program. The window is not held open at exit
+   after an error. */
+static void error(errcod e)
+{
+    if (dialogerr) pa_cocoa_alert("Graphics Module", errstr(e));
+    else {
+
+        fprintf(stderr, "*** Error: graphics: %s\n", errstr(e));
+        fflush(stderr); /* make sure error message is output */
+
+    }
+    errflg = TRUE; /* flag error occurred */
+
+    /* under diagnosis, die where it happened */
+    if (getenv("AMI_ERRABORT")) abort();
+    exit(1);
+}
+
 /* Copy string to critical buffer. Critical string buffers follow the package
    convention: a result that fills the entire buffer is left without a
    terminating zero, a shorter result is zero terminated, and it is an error
@@ -268,10 +390,7 @@ static void set_fill_only(CGContextRef ctx, pa_rgba c)
 static void cpycrit(char* d, ami_long dl, const char* s)
 {
     ami_long l = strlen(s);
-    if (l > dl) {
-        fprintf(stderr, "\nError: Graphics: String too large for buffer\n");
-        exit(1);
-    }
+    if (l > dl) error(eftntl); /* string too large for buffer */
     memcpy(d, s, l);
     if (l < dl) d[l] = 0;
 }
@@ -828,35 +947,35 @@ static void pa_graphics_init(void)
             if (vp) {
 
                 cfgmaxxd = strtol(vp->value, &errstr, 10);
-                if (*errstr) cfgmaxxd = 0;
+                if (*errstr) error(ecfgval);
 
             }
             vp = ami_schlst("maxyd", term_root);
             if (vp) {
 
                 cfgmaxyd = strtol(vp->value, &errstr, 10);
-                if (*errstr) cfgmaxyd = 0;
+                if (*errstr) error(ecfgval);
 
             }
             vp = ami_schlst("joystick", term_root);
             if (vp) {
 
                 joyenb = strtol(vp->value, &errstr, 10);
-                if (*errstr) joyenb = 0;
+                if (*errstr) error(ecfgval);
 
             }
             vp = ami_schlst("mouse", term_root);
             if (vp) {
 
                 mouseenb = strtol(vp->value, &errstr, 10);
-                if (*errstr) mouseenb = 1;
+                if (*errstr) error(ecfgval);
 
             }
             vp = ami_schlst("dump_event", term_root);
             if (vp) {
 
                 dmpevt = strtol(vp->value, &errstr, 10);
-                if (*errstr) dmpevt = 0;
+                if (*errstr) error(ecfgval);
 
             }
 
@@ -870,7 +989,7 @@ static void pa_graphics_init(void)
             if (vp) {
 
                 conpnt = strtof(vp->value, &errstr);
-                if (*errstr) conpnt = 0;
+                if (*errstr) error(ecfgval);
 
             }
 
@@ -878,7 +997,7 @@ static void pa_graphics_init(void)
             if (vp) {
 
                 dialogerr = strtol(vp->value, &errstr, 10);
-                if (*errstr) dialogerr = 0;
+                if (*errstr) error(ecfgval);
 
             }
 
@@ -887,7 +1006,8 @@ static void pa_graphics_init(void)
             if (vp) {
 
                 long sb = strtol(vp->value, &errstr, 10);
-                if (!*errstr) pa_cocoa_set_scrollbuffer(sb != 0);
+                if (*errstr) error(ecfgval);
+                pa_cocoa_set_scrollbuffer(sb != 0);
 
             }
 
@@ -896,7 +1016,8 @@ static void pa_graphics_init(void)
             if (vp) {
 
                 long aa = strtol(vp->value, &errstr, 10);
-                if (!*errstr) antialias = aa != 0;
+                if (*errstr) error(ecfgval);
+                antialias = aa != 0;
 
             }
 
@@ -912,7 +1033,7 @@ static void pa_graphics_init(void)
                     if (vp) {
 
                         dmpmsg = strtol(vp->value, &errstr, 10);
-                        if (*errstr) dmpmsg = 0;
+                        if (*errstr) error(ecfgval);
 
                     }
 
@@ -920,7 +1041,7 @@ static void pa_graphics_init(void)
                     if (vp) {
 
                         prtftm = strtol(vp->value, &errstr, 10);
-                        if (*errstr) prtftm = 0;
+                        if (*errstr) error(ecfgval);
 
                     }
 
@@ -1020,7 +1141,7 @@ static void pa_graphics_deinit(void)
     /* check if stdout is attached to a window */
     win = NULL;
     if (opnfil[1]) win = &wintbl[1];
-    if (win && win->han) {
+    if (win && win->han && !errflg) { /* no hold after an error */
 
         /* if the program exits without the user ordering an exit,
            and autohold is set, hold the window open */
@@ -1917,7 +2038,15 @@ static void bcolor_ivf(FILE* f, ami_color c)
 static void auto_ivf(FILE* f, ami_long e)
 {
     winptr win = f2win(f); if (!win) return;
-    curscn(win)->autof = e;
+    scnptr sc = curscn(win);
+    if (e) { /* turning auto on: the cursor must be on the grid, in bounds */
+        if ((sc->curxg-1) % win->charspace) error(eatoofg);
+        if ((sc->curyg-1) % win->linespace) error(eatoofg);
+        if (sc->textpath != LONG_MAX/4) error(eatoang);
+        if (!(sc->curx >= 1 && sc->curx <= win->maxx &&
+              sc->cury >= 1 && sc->cury <= win->maxy)) error(eatoecb);
+    }
+    sc->autof = e;
     win->gauto = e; /* window-level: a later screen select inherits this */
 }
 
@@ -1958,7 +2087,9 @@ static ami_long curbnd_ivf(FILE* f)
 static void select_ivf(FILE* f, ami_long u, ami_long d)
 {
     winptr win = f2win(f); if (!win) return;
-    if (u < 1 || u > MAXCON || d < 1 || d > MAXCON) return;
+    if (!win->bufmod) error(ebufoff); /* screens exist in buffered mode */
+    if (u < 1 || u > MAXCON || d < 1 || d > MAXCON)
+        error(einvscn); /* invalid screen number */
     win->curupd = u;
     win->curdsp = d;
     /* the selected update screen inherits the window's auto mode, so a
@@ -1985,6 +2116,7 @@ static void viewoffg_ivf(FILE* f, ami_long x, ami_long y)
 static void viewscale_ivf(FILE* f, float x, float y)
 {
     winptr win = f2win(f); if (!win) return;
+    if (x <= 0.0f || y <= 0.0f) error(esystem);
     scnptr sc = curscn(win);
     sc->scalex = x;
     sc->scaley = y;
@@ -1998,6 +2130,7 @@ static void linestyle_ivf(FILE* f, ami_lstyle style)
 static void setpoints_ivf(FILE* f, float ps)
 {
     winptr win = f2win(f); if (!win) return;
+    if (curscn(win)->autof) error(eatoftc); /* cannot perform with auto on */
     int pixsiz = (int)(ps * (float)win->dpmy / 2835.0f + 0.5f);
     if (pixsiz < 1) pixsiz = 1;
     win->fontsz  = (CGFloat)pixsiz;
@@ -2045,6 +2178,8 @@ static void wrtstr_ivf(FILE* f, char* s)
 
 static void wrtstrn_ivf(FILE* f, char* s, ami_long n)
 {
+    winptr win = f2win(f);
+    if (curscn(win)->autof) error(estrato); /* cannot perform with auto on */
     if (!s || n <= 0) return;
     fwrite(s, 1, n, f);
 }
@@ -2067,7 +2202,8 @@ static void isizbufg(winptr win, ami_long x, ami_long y)
 static void sizbufg_ivf(FILE* f, ami_long x, ami_long y)
 {
     winptr win = f2win(f); if (!win) return;
-    if (x < 1 || y < 1) return;
+    if (x < 1 || y < 1) error(einvsiz); /* invalid buffer size */
+    if (!win->bufmod) error(ebufoff); /* buffers exist in buffered mode */
     win->bufset = TRUE; /* the program sets the buffer: it holds from here */
     isizbufg(win, x, y);
 }
@@ -2101,7 +2237,7 @@ static void defaultevent(ami_evtrec* ev)
 
 static void eventover_ivf(ami_evtcod e, ami_pevthan eh, ami_pevthan* oeh)
 {
-    if (e < 0 || e > ami_etdsize) { if (oeh) *oeh = NULL; return; }
+    if (e < 0 || e > ami_etdsize) error(evecaxe); /* cannot vector auxiliary event */
     if (!evtshan) evtshan = defaultevent;
     if (!evthan[e]) evthan[e] = defaultevent;
     if (oeh) *oeh = evthan[e];
@@ -2123,7 +2259,7 @@ static void sendevent_ivf(FILE* f, ami_evtrec* er)
 {
     winptr win = f2win(f); if (!win) return;
     ami_evtrec* copy = malloc(sizeof(*copy));
-    if (!copy) return;
+    if (!copy) error(enomem);
     *copy = *er;
     pa_cocoa_send_user_event(win->han, copy);
 }
@@ -2476,10 +2612,14 @@ static void update_metrics(winptr win)
 static void font_ivf(FILE* f, ami_long fc)
 {
     winptr win = f2win(f); if (!win) return;
+    if (curscn(win)->autof) error(eatoftc); /* cannot perform with auto on */
+    if (fc < 1) error(einvfnm); /* invalid font number */
     fontptr fp = fntlst;
     int i = 1;
     while (fp && i < fc) { fp = fp->next; i++; }
-    if (fp) {
+    if (!fp) error(einvfnm); /* invalid font number */
+    if (!fp->name || !*fp->name) error(efntemp); /* font is not assigned */
+    {
         curscn(win)->font = fp;
         win->cfont        = fp;
         /* a face change always builds the window's font at its size: the
@@ -2492,16 +2632,19 @@ static void font_ivf(FILE* f, ami_long fc)
 
 static void fontnam_ivf(FILE* f, ami_long fc, char* fns, ami_long fnsl)
 {
+    if (fc <= 0) error(einvftn); /* invalid number */
     fontptr fp = fntlst;
     int i = 1;
     while (fp && i < fc) { fp = fp->next; i++; }
+    if (!fp) error(einvftn); /* no such font */
     /* critical buffer: a full-length result is left unterminated */
-    cpycrit(fns, fnsl, fp && fp->name ? fp->name : "");
+    cpycrit(fns, fnsl, fp->name ? fp->name : "");
 }
 
 static void fontsiz_ivf(FILE* f, ami_long s)
 {
     winptr win = f2win(f); if (!win) return;
+    if (curscn(win)->autof) error(eatoftc); /* cannot perform with auto on */
     /* the size asked for is the cell's height: the font is fitted to it */
     win->cellh = (int)(s > 0 ? s : deffnth);
     win->fontsz = (CGFloat)win->cellh;
@@ -2538,10 +2681,10 @@ static ami_long strsiz_ivf(FILE* f, const char* s)
 
 static ami_long chrpos_ivf(FILE* f, const char* s, ami_long p)
 {
-    winptr win = f2win(f); if (!win || !s || p <= 0) return 0;
+    winptr win = f2win(f); if (!win || !s) return 0;
     scnptr sc  = curscn(win);
     int len = (int)strlen(s);
-    if (p > len) p = len;
+    if (p < 0 || p > len) error(estrinx); /* out of range */
     return (ami_long)measure_string(win, s, (int)p);
 }
 
@@ -2576,6 +2719,7 @@ static void writejust_ivf(FILE* f, const char* s, ami_long n)
 {
     winptr win = f2win(f); if (!win || !s) return;
     scnptr sc  = curscn(win);
+    if (sc->autof) error(eatopos); /* cannot perform with auto on */
     fontptr fp = sc->font ? sc->font : win->cfont;
     int l = (int)strlen(s);
 
@@ -2612,9 +2756,10 @@ static void writejust_ivf(FILE* f, const char* s, ami_long n)
 static ami_long justpos_ivf(FILE* f, const char* s, ami_long p, ami_long n)
 {
     winptr win = f2win(f); if (!win || !s) return 0;
+    if (curscn(win)->autof) error(eatopos); /* cannot perform with auto on */
     fontptr fp = curscn(win)->font ? curscn(win)->font : win->cfont;
     int l = (int)strlen(s);
-    if (p < 0 || p >= l) return 0;
+    if (p < 0 || p >= l) error(estrinx); /* out of range */
 
     ami_long spc, ss;
     just_params(win, s, n, &spc, &ss);
@@ -2727,57 +2872,61 @@ static void setext(char* fn, const char* ext)
 static void loadpict_ivf(FILE* f, ami_long p, char* fn)
 {
     winptr win = f2win(f); if (!win) return;
-    if (p < 1 || p > MAXPIC) return;
+    if (p < 1 || p > MAXPIC) error(einvhan); /* bad picture handle */
 
     /* delete any existing picture in this slot */
     if (pictbl[p-1]) { CGImageRelease(pictbl[p-1]); pictbl[p-1] = NULL; }
 
     /* copy filename and add .bmp extension if needed */
     char fnh[512];
-    strncpy(fnh, fn, sizeof(fnh)-5);
-    fnh[sizeof(fnh)-5] = 0;
+    if (strlen(fn)+strlen(".bmp") >= sizeof(fnh))
+        error(epicftl); /* filename too large */
+    strcpy(fnh, fn);
     setext(fnh, ".bmp");
 
     /* read file into memory */
     FILE* pf = fopen(fnh, "rb");
-    if (!pf) return;
+    if (!pf) error(epicopn); /* cannot open picture file */
     fseek(pf, 0, SEEK_END);
     ami_long sz = ftell(pf);
     fseek(pf, 0, SEEK_SET);
     uint8_t* buf = malloc(sz);
-    if (!buf) { fclose(pf); return; }
+    if (!buf) error(enomem);
     fread(buf, 1, sz, pf);
     fclose(pf);
 
     /* create CGImage via ImageIO (handles BMP natively) */
     CFDataRef data = CFDataCreate(NULL, buf, sz);
     free(buf);
-    if (!data) return;
+    if (!data) error(enomem);
 
     CGImageSourceRef src = CGImageSourceCreateWithData(data, NULL);
     CFRelease(data);
-    if (!src) return;
+    if (!src) error(ebadfmt);
 
     pictbl[p-1] = CGImageSourceCreateImageAtIndex(src, 0, NULL);
     CFRelease(src);
+    if (!pictbl[p-1]) error(ebadfmt); /* not a picture it can read */
 }
 
 static ami_long pictsizx_ivf(FILE* f, ami_long p)
 {
-    if (p < 1 || p > MAXPIC || !pictbl[p-1]) return 0;
+    f2win(f); /* the file must be a window */
+    if (p < 1 || p > MAXPIC || !pictbl[p-1]) error(einvhan); /* bad picture handle */
     return (ami_long)CGImageGetWidth(pictbl[p-1]);
 }
 
 static ami_long pictsizy_ivf(FILE* f, ami_long p)
 {
-    if (p < 1 || p > MAXPIC || !pictbl[p-1]) return 0;
+    f2win(f); /* the file must be a window */
+    if (p < 1 || p > MAXPIC || !pictbl[p-1]) error(einvhan); /* bad picture handle */
     return (ami_long)CGImageGetHeight(pictbl[p-1]);
 }
 
 static void picture_ivf(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long x2, ami_long y2)
 {
     winptr win = f2win(f); if (!win) return;
-    if (p < 1 || p > MAXPIC || !pictbl[p-1]) return;
+    if (p < 1 || p > MAXPIC || !pictbl[p-1]) error(einvhan); /* bad picture handle */
     CGContextRef ctx = pa_cocoa_get_context(win->han);
     if (!ctx) return;
 
@@ -2798,8 +2947,10 @@ static void picture_ivf(FILE* f, ami_long p, ami_long x1, ami_long y1, ami_long 
 
 static void delpict_ivf(FILE* f, ami_long p)
 {
-    if (p < 1 || p > MAXPIC) return;
-    if (pictbl[p-1]) { CGImageRelease(pictbl[p-1]); pictbl[p-1] = NULL; }
+    f2win(f); /* the file must be a window */
+    if (p < 1 || p > MAXPIC || !pictbl[p-1]) error(einvhan); /* bad picture handle */
+    CGImageRelease(pictbl[p-1]);
+    pictbl[p-1] = NULL;
 }
 static void scrollg_ivf(FILE* f, ami_long x, ami_long y)
 {
@@ -2892,6 +3043,7 @@ static void scrollg_ivf(FILE* f, ami_long x, ami_long y)
 static void path_ivf(FILE* f, ami_long a)
 {
     winptr win = f2win(f); if (!win) return;
+    if (curscn(win)->autof) error(eangato); /* cannot perform with auto on */
     curscn(win)->textpath = a;
 }
 
@@ -2918,20 +3070,17 @@ static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, ami_long wi
      * indexes opnfil[]/wintbl[], so iwrite() can route writes to plcchr(). */
     FILE* inf = *infile;
     int   ifn = inf? fileno(inf): -1;
-    if (ifn < 0 || (ifn < MAXFIL && opnfil[ifn] && wintbl[ifn].han)) {
-        fprintf(stderr, "\nError: Graphics: Input side of window in wrong mode\n");
-        exit(1);
-    }
+    if (ifn < 0 || (ifn < MAXFIL && opnfil[ifn] && wintbl[ifn].han))
+        error(einmode); /* wrong mode */
+    if (!wid) error(einvwin); /* invalid window id */
+    if (wid2win(wid)) error(ewinuse); /* the window id is in use */
     FILE* outf = fopen("/dev/null", "w");
-    if (!outf) return;
+    if (!outf) error(enoopn); /* can't open */
     setvbuf(outf, NULL, _IONBF, 0);
 
     int ofn = fileno(outf);
-    if (ofn < 0 || ofn >= MAXFIL) {
-        fprintf(stderr, "*** graphics: cannot open window: out of file slots\n");
-        fclose(outf);
-        return;
-    }
+    if (ofn < 0) error(esystem);
+    if (ofn >= MAXFIL) error(eftbful); /* out of window slots */
 
     /* create the Cocoa window: with a parent it becomes an embedded child
        view clipped to the parent; otherwise a top-level window cascaded
@@ -2945,7 +3094,7 @@ static void openwin_ivf(FILE** infile, FILE** outfile, FILE* parent, ami_long wi
                                            maxxd, maxyd);
     else
         han = pa_cocoa_create_window(wx, wy, maxxd, maxyd, "");
-    if (!han) { fclose(outf); return; }
+    if (!han) error(esystem); /* the window was not made */
 
     winptr win = &wintbl[ofn];
     win_init(win, wid, parent ? fileno(parent) : 0, maxxd, maxyd);
@@ -3176,16 +3325,24 @@ static void menu_ivf(FILE* f, ami_menuptr m)
     pa_cocoa_menu(win->han, (void*)m);
 }
 
+/* the count of menu entries an enable or select found by its id: one is
+   right, none is an unknown id, more is a duplicated one */
+static void menuchk(int n)
+{
+    if (!n) error(emennf); /* no menu entry found with id */
+    if (n > 1) error(edupmen); /* menu entry is duplicated */
+}
+
 static void menuena_ivf(FILE* f, ami_long id, ami_long onoff)
 {
     winptr win = f2win(f); if (!win) return;
-    pa_cocoa_menu_enable(win->han, id, onoff);
+    menuchk(pa_cocoa_menu_enable(win->han, id, onoff));
 }
 
 static void menusel_ivf(FILE* f, ami_long id, ami_long select)
 {
     winptr win = f2win(f); if (!win) return;
-    pa_cocoa_menu_check(win->han, id, select);
+    menuchk(pa_cocoa_menu_check(win->han, id, select));
 }
 
 static void stdmenu_append(ami_menuptr* list, ami_menuptr m)
@@ -3200,6 +3357,7 @@ static void stdmenu_append(ami_menuptr* list, ami_menuptr m)
 static void stdmenu_new(ami_menuptr* m, int id, const char* face)
 {
     *m = malloc(sizeof(ami_menurec));
+    if (!*m) error(enomem);
     (*m)->next   = NULL;
     (*m)->branch = NULL;
     (*m)->onoff  = FALSE;
@@ -3303,7 +3461,7 @@ pa_winhan pa_stdout_winhan(void)
 /* Return the window handle for a window's file (used by screen_capture) */
 pa_winhan pa_file_winhan(FILE* f)
 {
-    winptr win = f2win(f);
+    winptr win = fndwin(f);
     return win ? win->han : NULL;
 }
 
@@ -3337,20 +3495,34 @@ static void event_ivf(FILE* f, ami_evtrec* er)
 static void timer_ivf(FILE* f, ami_long i, ami_long t, ami_long r)
 {
     winptr win = f2win(f); if (!win) return;
+    /* the last slot is the frame timer's */
+    if (i < 1 || i > FRMTIM) error(einvhan); /* invalid timer handle */
     pa_cocoa_set_timer(win->han, i-1, t, r); /* PA timers 1-based */
+    win->timers |= 1 << (i-1); /* the timer is set */
 }
 
 static void killtimer_ivf(FILE* f, ami_long i)
 {
     winptr win = f2win(f); if (!win) return;
+    if (i < 1 || i > FRMTIM) error(einvhan); /* invalid timer handle */
+    if (!(win->timers & 1 << (i-1))) error(etimacc); /* no such timer */
     pa_cocoa_kill_timer(win->han, i-1);
+    win->timers &= ~(1 << (i-1));
 }
 
 static ami_long mouse_ivf(FILE* f)        { return 1; }  /* one mouse */
 static ami_long mousebutton_ivf(FILE* f, ami_long m) { return 3; }  /* three buttons */
 static ami_long joystick_ivf(FILE* f)         { return pa_cocoa_joy_count(); }
-static ami_long joybutton_ivf(FILE* f, ami_long j) { return pa_cocoa_joy_buttons(j); }
-static ami_long joyaxis_ivf(FILE* f, ami_long j)   { return pa_cocoa_joy_axes(j); }
+static ami_long joybutton_ivf(FILE* f, ami_long j)
+{
+    if (j < 1 || j > pa_cocoa_joy_count()) error(einvjoy); /* bad joystick id */
+    return pa_cocoa_joy_buttons(j);
+}
+static ami_long joyaxis_ivf(FILE* f, ami_long j)
+{
+    if (j < 1 || j > pa_cocoa_joy_count()) error(einvjoy); /* bad joystick id */
+    return pa_cocoa_joy_axes(j);
+}
 
 /*******************************************************************************
 *                                                                              *
@@ -4083,8 +4255,10 @@ static void blockcopyg_ivf(FILE* f, ami_long s, ami_long d, ami_long sx1, ami_lo
     scnptr   cs  = curscn(win);
     ami_long t;
 
+    if (!win->bufmod) error(ebufoff); /* screens exist in buffered mode */
+    if (s < 1 || s > MAXCON || d < 1 || d > MAXCON)
+        error(einvscn); /* invalid screen number */
     if (cs->fmod == mdinvis) return;
-    if (s < 1 || s > MAXCON || d < 1 || d > MAXCON) return;
     if (sx1 > sx2) { t = sx1; sx1 = sx2; sx2 = t; }
     if (sy1 > sy2) { t = sy1; sy1 = sy2; sy2 = t; }
     if (dx1 > dx2) { t = dx1; dx1 = dx2; dx2 = t; }
