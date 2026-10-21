@@ -3080,6 +3080,8 @@ void pa_cocoa_menu(pa_winhan win, void* menu_list)
                                                        keyEquivalent:@""];
                 item.target = menuTarget;
                 item.tag = m->id;
+                /* the title's own entry again, not another of the id */
+                item.representedObject = @"pa_title_item";
                 [sub addItem:item];
             }
             top.submenu = sub;
@@ -3090,11 +3092,29 @@ void pa_cocoa_menu(pa_winhan win, void* menu_list)
     });
 }
 
-void pa_cocoa_menu_enable(pa_winhan win, int id, int on)
+/* The number of the program's menu entries with the id, at any level. The
+   first title across the bar is the application menu, which is not the
+   program's, and separators are not entries. */
+static int countMenuTag(NSMenu* menu, int tag, int top)
 {
+    int n = 0;
+    for (NSInteger i = top ? 1 : 0; i < menu.numberOfItems; i++) {
+        NSMenuItem* item = [menu itemAtIndex:i];
+        if (item.isSeparatorItem) continue;
+        if (item.tag == tag &&
+            ![item.representedObject isEqual:@"pa_title_item"]) n++;
+        if (item.hasSubmenu) n += countMenuTag(item.submenu, tag, 0);
+    }
+    return n;
+}
+
+int pa_cocoa_menu_enable(pa_winhan win, int id, int on)
+{
+    __block int n = 0;
     run_on_main(^{
         NSMenu* mainMenu = [NSApp mainMenu];
         if (!mainMenu) return;
+        n = countMenuTag(mainMenu, id, 1);
         NSMenuItem* item = findMenuItemByTag(mainMenu, id);
         if (item) item.enabled = on ? YES : NO;
         /* a top level item is a title across the bar: the title goes grey
@@ -3104,16 +3124,20 @@ void pa_cocoa_menu_enable(pa_winhan win, int id, int on)
             if (top.tag == id && top.hasSubmenu) top.enabled = on ? YES : NO;
         }
     });
+    return n;
 }
 
-void pa_cocoa_menu_check(pa_winhan win, int id, int on)
+int pa_cocoa_menu_check(pa_winhan win, int id, int on)
 {
+    __block int n = 0;
     run_on_main(^{
         NSMenu* mainMenu = [NSApp mainMenu];
         if (!mainMenu) return;
+        n = countMenuTag(mainMenu, id, 1);
         NSMenuItem* item = findMenuItemByTag(mainMenu, id);
         if (item) item.state = on ? NSControlStateValueOn : NSControlStateValueOff;
     });
+    return n;
 }
 
 /*----------------------------------------------------------------------------

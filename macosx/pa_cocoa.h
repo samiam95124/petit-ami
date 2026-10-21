@@ -257,8 +257,8 @@ void pa_cocoa_progressbar_pos(pa_winhan win, int id, long pos);
  *----------------------------------------------------------------------------*/
 
 void pa_cocoa_menu(pa_winhan win, void* menu_list);
-void pa_cocoa_menu_enable(pa_winhan win, int id, int on);
-void pa_cocoa_menu_check(pa_winhan win, int id, int on);
+int  pa_cocoa_menu_enable(pa_winhan win, int id, int on);
+int  pa_cocoa_menu_check(pa_winhan win, int id, int on);
 
 /*----------------------------------------------------------------------------
  * Dialogs
