@@ -84,6 +84,11 @@ function checkpkg {
         if pkg info -e "$1" 2>/dev/null ; then return 0; fi
         ;;
 
+    mac)
+
+        if [ -n "$brew" ] && "$brew" list --versions "$1" >/dev/null 2>&1 ; then return 0; fi
+        ;;
+
     esac
     return 1
 
@@ -112,7 +117,14 @@ then
 
     compiler="clang"
     bits="64"
-    host="bsd"
+    host="mac"
+
+    #
+    # Packages come from Homebrew. The Makefile finds them through
+    # /opt/homebrew/bin/brew, so look there when brew is not on the path.
+    #
+    brew="$(command -v brew)"
+    if [ -z "$brew" ] && [ -x /opt/homebrew/bin/brew ] ; then brew="/opt/homebrew/bin/brew"; fi
 
 else
 
@@ -156,6 +168,13 @@ then
               wayland libxkbcommon"
     optional="xorg-vfbserver xterm libreoffice"
 
+elif [ "$host" = "mac" ]
+then
+
+    # The rest of the build is the system frameworks, from Xcode
+    required="openssl@3 freetype"
+    optional=""
+
 fi
 
 ################################################################################
@@ -193,17 +212,42 @@ then
 
         echo "Install them with:"
         if [ "$host" = "linux" ] ; then echo "    sudo apt-get install$missingreq"
+        elif [ "$host" = "mac" ] ; then echo "    brew install$missingreq"
         else echo "    sudo pkg install$missingreq"
         fi
 
     elif [ "$host" = "linux" ]
     then
 
-        sudo apt-get install -y $missingreq
+        sudo apt-get install -y $missingreq || installfailed="1"
+
+    elif [ "$host" = "mac" ]
+    then
+
+        #
+        # Homebrew installs as the user, never with sudo
+        #
+        if [ -z "$brew" ]
+        then
+
+            echo "*** Homebrew was not found. Install it from https://brew.sh, then"
+            echo "    run configure again."
+            exit 1
+
+        fi
+        "$brew" install $missingreq || installfailed="1"
 
     else
 
-        sudo pkg install -y $missingreq
+        sudo pkg install -y $missingreq || installfailed="1"
+
+    fi
+
+    if [ "$installfailed" = "1" ]
+    then
+
+        echo "*** Aborting: the package install failed"
+        exit 1
 
     fi
 
@@ -236,7 +280,7 @@ checkexists ls
 checkexists tar
 checkexists make
 checkexists ar
-checkexists pkg-config
+if [ "$host" != "mac" ] ; then checkexists pkg-config; fi
 
 #
 # Fail on no C compiler found
