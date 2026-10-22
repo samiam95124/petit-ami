@@ -510,7 +510,7 @@ static void plotjoy(ami_long line, ami_long joy)
     if (joy < 0) {  /* plot left */
 
         r = -(double)joy;
-        x = ami_maxx(stdout)/2-floor(r*(ami_maxx(stdout)/2)/AMI_LONG_MAX+0.5);
+        x = ami_maxx(stdout)/2-floor(r*(ami_maxx(stdout)/2)/(double)AMI_LONG_MAX+0.5);
         ami_cursor(stdout, x, line);
         while (x <= ami_maxx(stdout) / 2) {
 
@@ -522,7 +522,7 @@ static void plotjoy(ami_long line, ami_long joy)
     } else { /* plot right */
 
         r = joy;
-        x = (ami_long)floor(r * (ami_maxx(stdout) / 2) / AMI_LONG_MAX + ami_maxx(stdout) / 2 + 0.5);
+        x = (ami_long)floor(r * (ami_maxx(stdout) / 2) / (double)AMI_LONG_MAX + ami_maxx(stdout) / 2 + 0.5);
         i = ami_maxx(stdout) / 2;
         ami_cursor(stdout, i, line);
         while (i <= x) {

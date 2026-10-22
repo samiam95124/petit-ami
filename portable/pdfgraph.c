@@ -253,7 +253,7 @@ typedef struct prtrec {
     ami_long   fsiz;           /* font size, the em, in pixels */
     ami_long   chrx, chry;     /* extra character and line spacing */
     ami_long   curx, cury;     /* cursor, pixels, 1 based, top left of cell */
-    ami_long   angle;          /* character drawing angle, LONG_MAX ratio */
+    ami_long   angle;          /* character drawing angle, AMI_LONG_MAX ratio */
     int    aital, abold;   /* italic, bold */
     int    aunder, astrike;/* underline, strikeout */
     int    arev;           /* reverse */
@@ -782,7 +782,7 @@ static void emrun(prtptr p, const char* s, ami_long n, ami_long spc, ami_long re
     if (p->asuper) rise = (ami_long)(p->fsiz*0.33);
     if (p->asub) rise = -(ami_long)(p->fsiz*0.15);
     /* the baseline, rotated by the drawing angle */
-    th = ((double)p->angle/LONG_MAX-0.25)*2.0*M_PI;
+    th = ((double)p->angle/(double)AMI_LONG_MAX-0.25)*2.0*M_PI;
     cs = cos(th); sn = sin(th);
     sbf(&p->page, "BT /F%d %.2f Tf\n", fntvar(p), L2PH(p, (ami_long)siz)*1.0);
     if (p->acond || p->aext)
@@ -1168,7 +1168,7 @@ void ami_openprint(FILE** f, char* n)
     p->fam = fmcour;
     p->fontc = AMI_FONT_TERM;
     p->fsiz = DEFSIZ;
-    p->angle = LONG_MAX/4;
+    p->angle = AMI_LONG_MAX/4;
     p->autom = 1;
     p->vsx = 1.0; p->vsy = 1.0;
     prthome(p);
@@ -1457,11 +1457,11 @@ static void bcolor_pvf(FILE* f, ami_color c)
     colrgb(c, &p->br, &p->bg, &p->bb);
 }
 
-/* LONG_MAX ratio to color byte */
+/* AMI_LONG_MAX ratio to color byte */
 static int ratb(ami_long v)
 {
     if (v < 0) v = 0;
-    return ((int)(v/(LONG_MAX/255)));
+    return ((int)(v/(AMI_LONG_MAX/255)));
 }
 
 static void fcolorg_pvf(FILE* f, ami_long r, ami_long g, ami_long b)
@@ -1911,10 +1911,10 @@ static void fellipse_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_lon
     sbf(&p->page, "h f\n");
 }
 
-/* arc angle in LONG_MAX ratio to radians */
+/* arc angle in AMI_LONG_MAX ratio to radians */
 static double arcrad(ami_long a)
 {
-    return ((double)a/LONG_MAX*2.0*M_PI);
+    return ((double)a/(double)AMI_LONG_MAX*2.0*M_PI);
 }
 
 static void arc_pvf(FILE* f, ami_long x1, ami_long y1, ami_long x2, ami_long y2,
