@@ -1727,12 +1727,18 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
                 er->rszx = raw->resize.w / win->charspace;
                 er->rszy = raw->resize.h / win->linespace;
                 if (!win->bufmod) {
-                    win->maxxg = raw->resize.w;
-                    win->maxyg = raw->resize.h;
-                    win->maxx  = er->rszx;
-                    win->maxy  = er->rszy;
-                    pa_cocoa_resize_bitmap(win->han,
-                                           raw->resize.w, raw->resize.h);
+                    /* the event's size is advice and can be stale: an
+                       unbuffered window follows its actual client */
+                    int cw, ch;
+                    pa_cocoa_get_size(win->han, &cw, &ch);
+                    if (cw > 0 && ch > 0 &&
+                        (cw != win->maxxg || ch != win->maxyg)) {
+                        win->maxxg = cw;
+                        win->maxyg = ch;
+                        win->maxx  = cw / win->charspace;
+                        win->maxy  = ch / win->linespace;
+                        pa_cocoa_resize_bitmap(win->han, cw, ch);
+                    }
                 }
             }
         }
