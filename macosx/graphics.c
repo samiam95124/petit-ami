@@ -224,6 +224,7 @@ typedef enum {
     edupmen,  /* menu id was duplicated */
     emennf,   /* menu id was not found */
     einvwin,  /* invalid window number */
+    enowid,   /* ran out of buried window ids */
     einvjoy,  /* invalid joystick ID */
     estrato,  /* cannot direct write string with auto on */
     enomem,   /* out of memory */
@@ -343,6 +344,7 @@ static char* errstr(errcod e)
         case edupmen:  s = "Menu id was duplicated"; break;
         case emennf:   s = "Menu id was not found"; break;
         case einvwin:  s = "Invalid window number"; break;
+        case enowid:   s = "Ran out of buried window ids"; break;
         case einvjoy:  s = "Invalid joystick ID"; break;
         case estrato:  s = "Cannot direct write string with auto on"; break;
         case enomem:   s = "Out of memory"; break;
@@ -1727,12 +1729,18 @@ static void translate_event(const pa_rawevent* raw, ami_evtrec* er)
                 er->rszx = raw->resize.w / win->charspace;
                 er->rszy = raw->resize.h / win->linespace;
                 if (!win->bufmod) {
-                    win->maxxg = raw->resize.w;
-                    win->maxyg = raw->resize.h;
-                    win->maxx  = er->rszx;
-                    win->maxy  = er->rszy;
-                    pa_cocoa_resize_bitmap(win->han,
-                                           raw->resize.w, raw->resize.h);
+                    /* the event's size is advice and can be stale: an
+                       unbuffered window follows its actual client */
+                    int cw, ch;
+                    pa_cocoa_get_size(win->han, &cw, &ch);
+                    if (cw > 0 && ch > 0 &&
+                        (cw != win->maxxg || ch != win->maxyg)) {
+                        win->maxxg = cw;
+                        win->maxyg = ch;
+                        win->maxx  = cw / win->charspace;
+                        win->maxy  = ch / win->linespace;
+                        pa_cocoa_resize_bitmap(win->han, cw, ch);
+                    }
                 }
             }
         }
@@ -3441,8 +3449,11 @@ static void stdmenu_ivf(ami_stdmenusel sms, ami_menuptr* sm, ami_menuptr pm)
 
 static ami_long getwinid_ivf(void)
 {
-    static ami_long next = 1;
-    return next++;
+    ami_long wid = -1; /* buried ids are negative; positive ids are the user's */
+
+    while (wid > -MAXFIL && wid2win(wid)) wid--;
+    if (wid == -MAXFIL) error(enowid);
+    return wid;
 }
 
 static void focus_ivf(FILE* f)
