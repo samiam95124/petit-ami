@@ -46,6 +46,16 @@ setpath
 configure
 make
 
+Mac OS X:
+
+. setpath
+./configure
+make
+
+On Mac OS X, configure installs openssl@3 and freetype with Homebrew
+(https://brew.sh), which must be installed first. The rest comes from
+the Xcode command line tools (xcode-select --install).
+
 BSD and similar systems use gmake in place of make.
 
 setpath puts the tree's bin directory on the path, so what is built there
