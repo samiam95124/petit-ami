@@ -75,7 +75,6 @@ int main(int argc, char **argv)
 
     FILE* fp;
     char buff[BUFLEN];
-    ami_ulong addr;
     unsigned long long addrh, addrl;
     int port;
     ami_long argi = 1;
@@ -106,12 +105,11 @@ int main(int argc, char **argv)
         ami_addrnetv6(argv[argi], &addrh, &addrl);
         fp = ami_opennetv6(addrh, addrl, port, secure);
 
-    } else {
+    } else
 
-        ami_addrnet(argv[argi], &addr);
-        fp = ami_opennet(addr, port, secure);
-
-    }
+        /* by name: a secure server learns which name we asked for, which
+           the hosts that serve several names from one address need */
+        fp = ami_opennetname(argv[argi], port, secure);
 
     /* send request to get root page */
     fprintf(fp, "GET %s HTTP/1.1\r\n", argv[argi+1]);

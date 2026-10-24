@@ -1106,6 +1106,31 @@ void ami_addrnet(const string name, ami_ulong* addr)
 
 /*******************************************************************************
 
+Set the server name on a TLS connection
+
+Sends the name the program asked for as the server name indication, which a
+host serving several names from one address needs to pick its certificate.
+An address literal is not sent: the indication is defined for names only, and
+a server reached by address has one certificate anyway.
+
+*******************************************************************************/
+
+static void sslhost(SSL* ssl, const char* name)
+
+{
+
+    unsigned char ab[16]; /* address bytes, discarded */
+    int r;
+
+    if (inet_pton(AF_INET, name, ab) == 1 || inet_pton(AF_INET6, name, ab) == 1)
+        return; /* an address, not a name */
+    r = SSL_set_tlsext_host_name(ssl, name);
+    if (r != 1) sslerrorqueue();
+
+}
+
+/*******************************************************************************
+
 Get server address v6
 
 Retrieves a v6 server address by name. The name is given as a string. The
@@ -1167,7 +1192,7 @@ does not handle read/write on the same file well.
    parked open is serialized under netlck because server and client can run
    on simultaneous threads of this process. */
 
-static FILE* sockfil(SOCKET sock, int secure, int server)
+static FILE* sockfil(SOCKET sock, int secure, int server, const char* name)
 
 {
 
@@ -1215,6 +1240,7 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
             ensure_client_tls(); /* ensure context */
             ssl = SSL_new(client_tls_ctx); /* create new ssl */
             if (!ssl) error(esslnew);
+            if (name) sslhost(ssl, name); /* say who we meant to reach */
             r = SSL_set_fd(ssl, (int)sock); /* connect to socket */
             if (!r) error(esslfid);
 
@@ -1222,8 +1248,9 @@ static FILE* sockfil(SOCKET sock, int secure, int server)
             r = SSL_connect(ssl);
             if (r != 1) sslerror(ssl, r);
 
-            /* Get the remote certificate into the X509 structure.
-               Right now we don't do anything with this (don't verify it) */
+            /* Get the remote certificate into the X509 structure. The chain
+               is not judged here: the program reads it with ami_certnet()
+               and checks its links with ami_certvalidnet() */
             cert = SSL_get_peer_certificate(ssl);
             if (!cert) error(esslcer);
 
@@ -1275,7 +1302,7 @@ FILE* ami_opennet(/* IP address */      ami_ulong addr,
     }
 
     /* finish with general routine */
-    return (sockfil(sock, secure, FALSE));
+    return (sockfil(sock, secure, FALSE, NULL));
 
 }
 
@@ -1315,7 +1342,84 @@ FILE* ami_opennetv6(
     }
 
     /* finish with general routine */
-    return (sockfil(sock, secure, FALSE));
+    return (sockfil(sock, secure, FALSE, NULL));
+
+}
+
+/*******************************************************************************
+
+Open network file by name
+
+Opens a network file by the server's name instead of its address, on the port
+and with the security given. The name is resolved here, and every address it
+resolves to, IPv6 or IPv4, is tried in the order the resolver gives them until
+one connects. A refused connection is retried on the same backoff as the
+address forms.
+
+A secure connection also learns the name: it is sent as the server name
+indication, so hosts that serve several names from one address answer with
+the right certificate.
+
+*******************************************************************************/
+
+FILE* ami_opennetname(
+    /* server name */     const string name,
+    /* port */            ami_long port,
+    /* link is secured */ ami_long secure
+)
+
+{
+
+    struct addrinfo hints, *pl, *p;
+    char   ps[24];
+    SOCKET sock;
+    int    r;
+    int    e;
+
+    /* resolve the name to a list of stream addresses, any family */
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    snprintf(ps, sizeof(ps), "%lld", (long long)port);
+    r = getaddrinfo(name, ps, &hints, &pl);
+    if (r) netwrterr(gai_strerror(r));
+    if (!pl) error(enetadr);
+    sock = INVALID_SOCKET;
+    e = 0;
+    /* try each address in turn; refusals retry the whole list on the backoff
+       ami_opennet uses, since a server may be coming up */
+    for (r = 0; r < CONRETRY && sock == INVALID_SOCKET; r++) {
+
+        for (p = pl; p && sock == INVALID_SOCKET; p = p->ai_next) {
+
+            sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+            if (sock == INVALID_SOCKET) wskerr(); /* process Winsock error */
+            if (connect(sock, p->ai_addr, (int)p->ai_addrlen) == SOCKET_ERROR) {
+
+                e = WSAGetLastError(); /* keep the reason */
+                closesocket(sock); /* a failed connect leaves the socket unusable */
+                sock = INVALID_SOCKET;
+
+            }
+
+        }
+        if (sock == INVALID_SOCKET) {
+
+            if (e != WSAECONNREFUSED || r == CONRETRY-1) {
+
+                WSASetLastError(e);
+                wskerr(); /* process Winsock error */
+
+            }
+            Sleep(CONDELAY); /* let the server come up */
+
+        }
+
+    }
+    freeaddrinfo(pl); /* release the address list */
+
+    /* finish with general routine */
+    return (sockfil(sock, secure, FALSE, name));
 
 }
 
@@ -2124,7 +2228,7 @@ FILE* ami_waitnet(/* port number to wait on */ ami_long port,
     closesocket(ls);
 
     /* finish with general routine */
-    return (sockfil(as, secure, TRUE));
+    return (sockfil(as, secure, TRUE, NULL));
 
 }
 
@@ -2313,6 +2417,153 @@ ami_long ami_certnet(FILE* f, ami_long which, string buff, ami_long len)
 
     /* with the fid, the call is the same as for messaging */
     return (ami_certmsg(fn, which, buff, len));
+
+}
+
+/*******************************************************************************
+
+Check message certificate signature
+
+Tells whether certificate number which in the chain the peer sent, numbered as
+ami_certmsg() numbers them, carries a signature that checks under the key of
+the certificate above it. The top certificate is checked under its own key,
+which only says it is self consistent: whether it is trusted is for the
+program to decide, by comparing it with the roots it accepts. The result is 1
+when the signature checks, and 0 when it does not, when the key above does not
+match, or when there is no such certificate.
+
+*******************************************************************************/
+
+ami_long ami_certvalidmsg(ami_long fn, ami_long which)
+
+{
+
+    X509* peer;
+    X509* cert;
+    X509* signer;
+    STACK_OF(X509)* certstk;
+    EVP_PKEY* key;
+    int ownstk;
+    int n;
+    long r;
+
+    if (fn < 0 || fn >= MAXFIL) error(einvhan); /* invalid file handle */
+    if (which < 1) error(einvctn); /* invalid certificate number */
+    makfil(fn); /* create file entry as required */
+    if (!opnfil[fn]->sudp && !opnfil[fn]->sec) error(enotsec);
+    peer = SSL_get_peer_certificate(opnfil[fn]->ssl);
+    if (!peer) error(enocert);
+    /* the chain as sent, the peer's own certificate first; a null chain
+       gets a shell holding that certificate, as in ami_certmsg() */
+    certstk = SSL_get_peer_cert_chain(opnfil[fn]->ssl);
+    ownstk = FALSE;
+    if (!certstk) {
+
+        certstk = sk_X509_new_null();
+        sk_X509_push(certstk, peer);
+        ownstk = TRUE; /* we own this stack shell */
+
+    }
+    n = sk_X509_num(certstk);
+    r = 0; /* set does not check */
+    if (which <= n) {
+
+        cert = sk_X509_value(certstk, (int)(which-1));
+        /* the one above signs it; the top one signs itself */
+        signer = which < n? sk_X509_value(certstk, (int)which): cert;
+        key = X509_get_pubkey(signer);
+        if (key) {
+
+            r = X509_verify(cert, key) == 1;
+            EVP_PKEY_free(key);
+
+        }
+        ERR_clear_error(); /* a failed check leaves its reasons queued */
+
+    }
+    if (ownstk) sk_X509_free(certstk);
+    X509_free(peer); /* release our reference */
+
+    return (r);
+
+}
+
+/*******************************************************************************
+
+Check network certificate signature
+
+Tells whether certificate number which in the chain the peer sent checks under
+the key of the one above it. See ami_certvalidmsg().
+
+*******************************************************************************/
+
+ami_long ami_certvalidnet(FILE* f, ami_long which)
+
+{
+
+    /* with the fid, the call is the same as for messaging */
+    return (ami_certvalidmsg(fileno(f), which));
+
+}
+
+/*******************************************************************************
+
+Check certificate signature against a given signer
+
+Tells whether the certificate carries a signature that checks under the public
+key of the signer, both given as PEM text as ami_certnet() returns it, with
+their lengths since those buffers are critical and may lack a terminator. The
+result is 1 when the signature checks, and 0 when it does not or either text
+is not a certificate.
+
+This is the check ami_certvalidnet() makes between neighbours in a chain, with
+the signer supplied by the program. Its use is the top of a chain from a
+public server, which is signed by a root the server does not send: the program
+takes the root it holds for that issuer and asks whether it signs the top
+certificate. It works on certificates from anywhere, a store or a file, so it
+is tied to no connection.
+
+*******************************************************************************/
+
+ami_long ami_certsigned(const string cert, ami_long clen,
+                        const string signer, ami_long slen)
+
+{
+
+    BIO*      cb;
+    X509*     c;
+    X509*     s;
+    EVP_PKEY* key;
+    long      r;
+
+    r = 0; /* set does not check */
+    c = NULL;
+    s = NULL;
+    /* read both certificates from their text */
+    cb = BIO_new_mem_buf(cert, (int)clen);
+    if (!cb) error(enobio);
+    c = PEM_read_bio_X509(cb, NULL, NULL, NULL);
+    BIO_free(cb);
+    cb = BIO_new_mem_buf(signer, (int)slen);
+    if (!cb) error(enobio);
+    s = PEM_read_bio_X509(cb, NULL, NULL, NULL);
+    BIO_free(cb);
+    if (c && s) {
+
+        key = X509_get_pubkey(s);
+        if (key) {
+
+            r = X509_verify(c, key) == 1;
+            EVP_PKEY_free(key);
+
+        }
+
+    }
+    ERR_clear_error(); /* a failed read or check leaves its reasons queued */
+    if (c) X509_free(c);
+    if (s) X509_free(s);
+
+    return (r);
 
 }
 

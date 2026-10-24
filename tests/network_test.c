@@ -76,6 +76,8 @@
 #define PORT_SIM1  24433
 #define PORT_SIM2  24434
 #define PORT_RETRY 24435
+#define PORT_NAME  24436
+#define PORT_NAMES 24437
 
 static int passes = 0;
 static int fails  = 0;
@@ -405,6 +407,50 @@ static void ttcp(const char* name, int port, int secure)
     result(name, pass);
     printf("    sent \"Hello, server\", received \"Hello, client\" over %s\n",
            secure ? "TLS" : "TCP in the clear");
+
+}
+
+/* The line exchange again, with the connection opened by name. The secured
+   run also checks the chain's links: the loopback leaf is signed by the test
+   CA, the test CA by itself, and there is no third certificate. Then the same
+   links through certsigned on the certificate texts, which is how a chain is
+   finished against a root the server did not send */
+static void tname(const char* name, int port, int secure)
+
+{
+
+    FILE* f;
+    char  buff[BUFLEN];
+    char  leaf[10000], ca[10000];
+    ami_long ll, cl;
+    int   pass;
+
+    pass = FALSE;
+    startsrv(tcpserver, port, secure);
+    f = ami_opennetname("localhost", port, secure);
+    fputs("Hello, server\n", f);
+    fflush(f);
+    if (fgets(buff, BUFLEN, f))
+        pass = !strcmp(buff, "Hello, client\n");
+    if (secure) {
+
+        result("certvalidnet leaf signed by the test CA", ami_certvalidnet(f, 1) == 1);
+        result("certvalidnet test CA signs itself", ami_certvalidnet(f, 2) == 1);
+        result("certvalidnet past chain end is 0", ami_certvalidnet(f, 3) == 0);
+        ll = ami_certnet(f, 1, leaf, sizeof(leaf));
+        cl = ami_certnet(f, 2, ca, sizeof(ca));
+        result("certsigned leaf by test CA", ami_certsigned(leaf, ll, ca, cl) == 1);
+        result("certsigned test CA by leaf is 0", ami_certsigned(ca, cl, leaf, ll) == 0);
+        result("certsigned on non-certificate text is 0",
+               ami_certsigned(buff, (ami_long)strlen(buff), ca, cl) == 0);
+
+    }
+    fclose(f);
+    clientdone();
+    finish();
+    result(name, pass);
+    printf("    sent \"Hello, server\", received \"Hello, client\" over %s, "
+           "opened by name\n", secure ? "TLS" : "TCP in the clear");
 
 }
 
@@ -896,11 +942,13 @@ int main(int argc, char **argv)
     taddrnetv6();
     taddrdns();
     section("Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), "
-            "clear and TLS");
+            "opennetname, clear and TLS; certvalidnet on the named TLS run");
     ttcp("TCP exchange in the clear", PORT_TCP, FALSE);
     ttcp("TCP exchange secured (TLS)", PORT_TLS, TRUE);
     ttcpv6("TCP exchange in the clear (IPv6)", PORT_TCP6, FALSE);
     ttcpv6("TCP exchange secured (TLS, IPv6)", PORT_TLS6, TRUE);
+    tname("TCP exchange in the clear by name", PORT_NAME, FALSE);
+    tname("TCP exchange secured (TLS) by name", PORT_NAMES, TRUE);
     tsimul();
     tretry();
     section("Messages: openmsg/waitmsg/wrmsg/rdmsg/clsmsg (IPv4), openmsgv6 "

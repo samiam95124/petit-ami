@@ -82,6 +82,10 @@ void ami_addrnetv6(const string name, unsigned long long* addrh,
 FILE* ami_opennet(ami_ulong addr, ami_long port, ami_long secure);
 FILE* ami_opennetv6(unsigned long long addrh, unsigned long long addrl,
                    ami_long port, ami_long secure);
+/* Open by server name: resolves the name, tries its addresses in turn, and
+   on a secure connection sends the name to the server, which a host serving
+   several names from one address needs to pick its certificate. */
+FILE* ami_opennetname(const string name, ami_long port, ami_long secure);
 ami_long ami_maxmsg(ami_ulong addr, ami_long secure);
 ami_long ami_maxmsgv6(unsigned long long addrh, unsigned long long addrl,
                   ami_long secure);
@@ -115,6 +119,18 @@ void ami_neterror(ami_neterrhan_t handler);
 ami_long ami_waitmsg(ami_long port, ami_long secure);
 ami_long ami_certnet(FILE* f, ami_long which, string cert, ami_long len);
 ami_long ami_certmsg(ami_long fn, ami_long which, string cert, ami_long len);
+/* Does certificate which of the peer's chain carry a signature that checks
+   under the key of the certificate above it (the top one under its own)?
+   1 if so, 0 if not or there is no such certificate. Whether the top one
+   is trusted is the program's decision. */
+ami_long ami_certvalidnet(FILE* f, ami_long which);
+ami_long ami_certvalidmsg(ami_long fn, ami_long which);
+/* Does the certificate carry a signature that checks under the signer's key?
+   Both as PEM text with lengths, as certnet returns them. 1 if so, 0 if not
+   or either is not a certificate. For the top of a chain against a root the
+   program holds, or any two certificates from anywhere. */
+ami_long ami_certsigned(const string cert, ami_long clen,
+                        const string signer, ami_long slen);
 void ami_certlistnet(FILE *f, ami_long which, ami_certptr* list);
 void ami_certlistmsg(ami_long fn, ami_long which, ami_certptr* list);
 void ami_certlistfree(ami_certptr* list);

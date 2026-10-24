@@ -14,7 +14,7 @@ addrnet live DNS (google.com)            pass
 addrnetv6 live DNS (google.com)          pass
     google.com AAAA -> *
 
------ Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), clear and TLS -----
+----- Stream connections: opennet/waitnet (IPv4), opennetv6 (IPv6), opennetname, clear and TLS; certvalidnet on the named TLS run -----
 
 TCP exchange in the clear                pass
     sent "Hello, server", received "Hello, client" over TCP in the clear
@@ -27,6 +27,16 @@ certnet raw certificate (IPv6)           pass
 certlist leaf issuer is test CA (IPv6)   pass
 TCP exchange secured (TLS, IPv6)         pass
     sent "Hello, server", received "Hello, client" over TLS on IPv6
+TCP exchange in the clear by name        pass
+    sent "Hello, server", received "Hello, client" over TCP in the clear, opened by name
+certvalidnet leaf signed by the test CA  pass
+certvalidnet test CA signs itself        pass
+certvalidnet past chain end is 0         pass
+certsigned leaf by test CA               pass
+certsigned test CA by leaf is 0          pass
+certsigned on non-certificate text is 0  pass
+TCP exchange secured (TLS) by name       pass
+    sent "Hello, server", received "Hello, client" over TLS, opened by name
 two connections at once                  pass
     two servers, two clients, replies kept to their own connections
 opennet retries a refused connection     pass
@@ -95,4 +105,4 @@ certlist CA basic constraints critical   pass
 certnet past chain end is empty          pass
 certlistnet past chain end is NULL       pass
 
-Network test complete: 45 passes, 0 fails
+Network test complete: 53 passes, 0 fails

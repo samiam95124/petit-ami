@@ -35,6 +35,7 @@ void  addrnet(const char* name, ami_ulong* addr);
 void  addrnetv6(const char* name, unsigned long long* addrh,
                 unsigned long long* addrl);
 FILE* opennet(ami_ulong addr, ami_long port, ami_long secure = 0);
+FILE* opennetname(const char* name, ami_long port, ami_long secure = 0);
 FILE* opennetv6(unsigned long long addrh, unsigned long long addrl,
                 ami_long port, ami_long secure = 0);
 ami_long  maxmsg(ami_ulong addr, ami_long secure = 0);
@@ -51,7 +52,11 @@ void  clsmsg(ami_long fn);
 FILE* waitnet(ami_long port, ami_long secure = 0);
 ami_long  waitmsg(ami_long port, ami_long secure = 0);
 ami_long  certnet(FILE* f, ami_long which, char* cert, ami_long len);
+ami_long  certvalidnet(FILE* f, ami_long which);
 ami_long  certmsg(ami_long fn, ami_long which, char* cert, ami_long len);
+ami_long  certvalidmsg(ami_long fn, ami_long which);
+ami_long  certsigned(const char* cert, ami_long clen, const char* signer,
+                     ami_long slen);
 void  certlistnet(FILE* f, ami_long which, certptr* list);
 void  certlistmsg(ami_long fn, ami_long which, certptr* list);
 void  certlistfree(certptr* list);
@@ -102,6 +107,7 @@ void opennetv6(const char* name, ami_long port, ami_long secure = 0);
 void waitnet(ami_long port, ami_long secure = 0);
 void close(void);
 ami_long certnet(ami_long which, char* cert, ami_long len);
+ami_long certvalidnet(ami_long which);
 void certlistnet(ami_long which, certptr* list);
 
 /* the connection, for the stdio calls */
@@ -137,6 +143,7 @@ void wrmsg(void* buff, ami_ulong len);
 ami_long rdmsg(void* buff, ami_ulong len);
 void clsmsg(void);
 ami_long certmsg(ami_long which, char* cert, ami_long len);
+ami_long certvalidmsg(ami_long which);
 void certlistmsg(ami_long which, certptr* list);
 
 }; /* class msg */

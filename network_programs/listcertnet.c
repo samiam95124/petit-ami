@@ -85,7 +85,6 @@ int main(
 
 {
 
-    /* server IPv4 address */ ami_ulong addr;
     /* server SSL file */     FILE*         fp;
     /* certificate tree */    ami_certptr    list;
     /* port number */         int           port;
@@ -102,16 +101,17 @@ int main(
     num = atoi(argv[3]); /* get which certificate to fetch */
 
     /* open server SSL */
-    ami_addrnet(argv[1], &addr);
-    fp = ami_opennet(addr, port, TRUE);
+    fp = ami_opennetname(argv[1], port, TRUE);
 
     /* Get the certificate indicated. Note that if you only want certain
        entries from the tree, fill the names in with NULL data pointers. */
     list = NULL;
-    ami_certlistnet(fp, 1, &list);
+    ami_certlistnet(fp, num, &list);
 
     /* print certificate tree at 0 indent */
     prtcert(list, 0);
+    /* the link above it: does its signature check under that key? */
+    printf("Signature %s\n", ami_certvalidnet(fp, num) ? "checks" : "does not check");
 
     fclose(fp); /* close server port */
 
